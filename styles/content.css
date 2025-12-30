@@ -1,0 +1,43 @@
+/**
+ * VoxPage Content Styles
+ * Styles injected into web pages for highlighting
+ */
+
+.voxpage-highlight {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.15) 0%,
+    rgba(168, 85, 247, 0.15) 100%
+  ) !important;
+  border-left: 3px solid #7c3aed !important;
+  padding-left: 12px !important;
+  margin-left: -15px !important;
+  border-radius: 0 8px 8px 0 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.1) !important;
+}
+
+/* Animation for highlight */
+@keyframes voxpage-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.1);
+  }
+  50% {
+    box-shadow: 0 2px 16px rgba(124, 58, 237, 0.25);
+  }
+}
+
+.voxpage-highlight {
+  animation: voxpage-pulse 2s ease-in-out infinite;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .voxpage-highlight {
+    background: linear-gradient(
+      135deg,
+      rgba(124, 58, 237, 0.25) 0%,
+      rgba(168, 85, 247, 0.25) 100%
+    ) !important;
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "VoxPage",
+  "version": "1.0.0",
+  "description": "AI-powered page reader with natural, expressive voices. Transform any webpage into an immersive audio experience.",
+  "author": "VoxPage Team",
+  "homepage_url": "https://github.com/yourusername/voxpage",
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus"
+  ],
+
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://api.elevenlabs.io/*"
+  ],
+
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_title": "VoxPage - AI Page Reader",
+    "default_popup": "popup/popup.html"
+  },
+
+  "background": {
+    "scripts": ["background/background.js"],
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["styles/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "styles/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "voxpage@extension.dev",
+      "strict_min_version": "109.0"
+    }
+  }
+}

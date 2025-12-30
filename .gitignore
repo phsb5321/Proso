@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+*.xpi
+*.zip
+web-ext-artifacts/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# API keys (never commit these!)
+.env
+.env.local
+secrets.json
+
+# Placeholder files
+*.placeholder
