@@ -22,7 +22,9 @@
 
   "host_permissions": [
     "https://api.openai.com/*",
-    "https://api.elevenlabs.io/*"
+    "https://api.elevenlabs.io/*",
+    "https://api.cartesia.ai/*",
+    "https://api.groq.com/*"
   ],
 
   "action": {
@@ -35,14 +37,20 @@
   },
 
   "background": {
-    "scripts": ["background/background.js"],
+    "scripts": ["background/index.js"],
     "type": "module"
   },
 
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content.js"],
+      "js": [
+        "content/floating-controller.js",
+        "content/content-scorer.js",
+        "content/content-extractor.js",
+        "content/highlight-manager.js",
+        "content/index.js"
+      ],
       "css": ["styles/content.css"],
       "run_at": "document_idle"
     }
@@ -55,7 +63,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "styles/*"],
+      "resources": ["icons/*", "styles/*", "shared/*", "content/*"],
       "matches": ["<all_urls>"]
     }
   ],
@@ -63,7 +71,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "voxpage@extension.dev",
-      "strict_min_version": "109.0"
+      "strict_min_version": "112.0"
     }
   }
 }

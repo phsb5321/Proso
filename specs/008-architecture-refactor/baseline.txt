@@ -1,0 +1,13 @@
+# Baseline Metrics - Architecture Refactor
+# Date: 2025-12-31
+
+## Code Duplication Baseline
+- Total files: 23
+- Total lines: 6,670
+- Duplicated lines: 64 (0.96%)
+- Duplicated tokens: 488 (1.17%)
+- Clones found: 4
+
+## Target (SC-005)
+- 20% reduction from baseline
+- Target: ≤0.77% duplicated lines OR ≤51 duplicated lines

@@ -1,0 +1,9 @@
+{
+  "threshold": 10,
+  "reporters": ["console", "json"],
+  "ignore": ["**/node_modules/**", "**/tests/**"],
+  "minTokens": 50,
+  "minLines": 5,
+  "absolute": true,
+  "gitignore": true
+}

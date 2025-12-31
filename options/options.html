@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VoxPage Settings</title>
+  <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -71,6 +72,46 @@
             Get your API key from <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">ElevenLabs Settings</a>
           </p>
         </div>
+
+        <!-- Cartesia -->
+        <div class="form-group">
+          <label for="cartesiaKey" class="form-label">
+            <span class="provider-badge cartesia">Cartesia</span>
+            API Key
+          </label>
+          <div class="input-wrapper">
+            <input type="password" id="cartesiaKey" class="form-input" placeholder="Enter your Cartesia API key">
+            <button type="button" class="toggle-visibility" data-target="cartesiaKey">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <p class="form-hint">
+            Get your API key from <a href="https://play.cartesia.ai/settings" target="_blank" rel="noopener">Cartesia Dashboard</a>
+          </p>
+        </div>
+
+        <!-- Groq -->
+        <div class="form-group">
+          <label for="groqKey" class="form-label">
+            <span class="provider-badge groq">Groq</span>
+            API Key
+          </label>
+          <div class="input-wrapper">
+            <input type="password" id="groqKey" class="form-input" placeholder="gsk_...">
+            <button type="button" class="toggle-visibility" data-target="groqKey">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <p class="form-hint">
+            Get your API key from <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console</a> - Fast & affordable!
+          </p>
+        </div>
       </section>
 
       <!-- Default Settings Section -->
@@ -86,8 +127,10 @@
         <div class="form-group">
           <label for="defaultProvider" class="form-label">Default Provider</label>
           <select id="defaultProvider" class="form-select">
+            <option value="groq">Groq (Fast & Cheap)</option>
             <option value="openai">OpenAI TTS</option>
             <option value="elevenlabs">ElevenLabs</option>
+            <option value="cartesia">Cartesia</option>
             <option value="browser">Browser TTS (Free)</option>
           </select>
         </div>

@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# Build/output directories
+coverage/
+dist/
+build/
+
+# Test files (handled by separate config if needed)
+tests/
+
+# Configuration files
+*.config.js
+jest.config.js
+playwright.config.js
+
+# Generated files
+*.min.js
+deps.svg
+
+# IDE/Editor files
+.vscode/
+.idea/

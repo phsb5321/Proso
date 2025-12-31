@@ -28,3 +28,12 @@ secrets.json
 
 # Placeholder files
 *.placeholder
+
+# Test artifacts
+test-results/
+playwright-report/
+report/
+coverage/
+
+# ESLint cache
+.eslintcache

@@ -6,6 +6,8 @@
 const elements = {
   openaiKey: document.getElementById('openaiKey'),
   elevenlabsKey: document.getElementById('elevenlabsKey'),
+  cartesiaKey: document.getElementById('cartesiaKey'),
+  groqKey: document.getElementById('groqKey'),
   defaultProvider: document.getElementById('defaultProvider'),
   defaultSpeed: document.getElementById('defaultSpeed'),
   speedValue: document.getElementById('speedValue'),
@@ -32,6 +34,8 @@ async function loadSettings() {
     const settings = await browser.storage.local.get([
       'openaiApiKey',
       'elevenlabsApiKey',
+      'cartesiaApiKey',
+      'groqApiKey',
       'provider',
       'speed',
       'mode',
@@ -45,6 +49,14 @@ async function loadSettings() {
 
     if (settings.elevenlabsApiKey) {
       elements.elevenlabsKey.value = settings.elevenlabsApiKey;
+    }
+
+    if (settings.cartesiaApiKey) {
+      elements.cartesiaKey.value = settings.cartesiaApiKey;
+    }
+
+    if (settings.groqApiKey) {
+      elements.groqKey.value = settings.groqApiKey;
     }
 
     if (settings.provider) {
@@ -100,6 +112,8 @@ function setupEventListeners() {
   const autoSaveInputs = [
     elements.openaiKey,
     elements.elevenlabsKey,
+    elements.cartesiaKey,
+    elements.groqKey,
     elements.defaultProvider,
     elements.defaultSpeed,
     elements.defaultMode,
@@ -123,6 +137,8 @@ async function saveSettings() {
     await browser.storage.local.set({
       openaiApiKey: elements.openaiKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
+      cartesiaApiKey: elements.cartesiaKey.value.trim(),
+      groqApiKey: elements.groqKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: parseFloat(elements.defaultSpeed.value),
       mode: elements.defaultMode.value,

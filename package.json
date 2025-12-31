@@ -1,0 +1,41 @@
+{
+  "name": "voxpage",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
+  "scripts": {
+    "test": "npm run lint && node --experimental-vm-modules node_modules/.bin/jest",
+    "test:unit": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "test:visual": "npx playwright test",
+    "test:visual:update": "npx playwright test --update-snapshots",
+    "test:all": "npm run test && npm run test:visual",
+    "lint": "eslint --cache .",
+    "lint:fix": "eslint --cache . --fix",
+    "lint:manifest": "web-ext lint",
+    "deps:check": "madge --circular background/ content/",
+    "deps:graph": "madge --image deps.svg background/ content/",
+    "duplication": "jscpd --threshold 10 --min-tokens 50 background/ content/ popup/",
+    "quality": "npm run deps:check && npm run duplication && npm run lint:manifest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import-x": "^4.16.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-webextension-mock": "^3.9.0",
+    "jscpd": "^4.0.5",
+    "madge": "^8.0.0",
+    "web-ext": "^7.11.0",
+    "zod": "^4.3.4"
+  },
+  "keywords": [
+    "firefox",
+    "extension",
+    "tts",
+    "text-to-speech",
+    "accessibility"
+  ],
+  "license": "MIT"
+}

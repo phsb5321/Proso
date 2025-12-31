@@ -1,0 +1,49 @@
+/**
+ * VoxPage Floating Controller Styles
+ * These styles are injected into the Shadow DOM and are isolated from the host page.
+ * This file serves as documentation and for potential external stylesheet loading.
+ */
+
+/* Note: The actual styles are defined in floating-controller.js getStyles() method
+   to ensure they are bundled with the Shadow DOM. This CSS file provides:
+   1. Documentation of the styling approach
+   2. A reference for design token values
+   3. Potential future use for external stylesheet loading */
+
+/* Design Tokens */
+:root {
+  /* Colors - VoxPage teal theme */
+  --voxpage-bg: #1a1a2e;
+  --voxpage-bg-hover: #252540;
+  --voxpage-accent: #0D9488;
+  --voxpage-accent-hover: #14B8A6;
+  --voxpage-text: #ffffff;
+  --voxpage-text-muted: #a0a0a0;
+
+  /* Dimensions */
+  --voxpage-controller-width: 280px;
+  --voxpage-controller-height: 64px;
+  --voxpage-border-radius: 12px;
+  --voxpage-button-size: 36px;
+
+  /* Shadows */
+  --voxpage-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
+  /* Z-index - maximum to stay above page content */
+  --voxpage-z-index: 2147483647;
+}
+
+/* Progress bar accent fill style reference */
+.progress-fill {
+  background: var(--voxpage-accent);
+  border-radius: 3px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

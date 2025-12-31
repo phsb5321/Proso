@@ -1,0 +1,268 @@
+/**
+ * VoxPage Design Tokens
+ * Shared CSS custom properties for theming, spacing, typography, and animation
+ */
+
+/* ========================================
+   COLOR TOKENS - Dark Theme (Default)
+   ======================================== */
+:root {
+  /* Background colors */
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f0f1a;
+
+  /* Text colors */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b8c5d6;
+  --color-text-muted: #8899a8;
+
+  /* Accent colors - Teal/Cyan palette */
+  --color-accent-primary: #0D9488;
+  --color-accent-secondary: #14B8A6;
+  --color-accent-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+
+  /* Semantic colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* Border color */
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  /* Focus ring */
+  --color-focus-ring: rgba(13, 148, 136, 0.5);
+
+  /* Button colors */
+  --color-button-bg: rgba(255, 255, 255, 0.05);
+  --color-button-bg-hover: rgba(255, 255, 255, 0.1);
+  --color-button-text: var(--color-text-secondary);
+
+  /* Input colors */
+  --color-input-bg: var(--color-bg-secondary);
+  --color-input-border: var(--color-border);
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  --shadow-accent: 0 4px 15px rgba(13, 148, 136, 0.4);
+
+  /* Accent background (subtle) */
+  --color-accent-bg: rgba(13, 148, 136, 0.15);
+  --color-accent-glow: rgba(13, 148, 136, 0.2);
+
+  /* Provider-specific colors */
+  --color-provider-cartesia: #3b82f6;
+  --color-provider-groq: #f97316;
+
+  /* Overlay */
+  --color-overlay-bg: rgba(0, 0, 0, 0.6);
+}
+
+/* ========================================
+   COLOR TOKENS - Light Theme
+   ======================================== */
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Background colors */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f8fafc;
+    --color-bg-tertiary: #f1f5f9;
+
+    /* Text colors */
+    --color-text-primary: #1e293b;
+    --color-text-secondary: #475569;
+    --color-text-muted: #64748b;
+
+    /* Accent colors - Teal/Cyan (adjusted for light mode contrast) */
+    --color-accent-primary: #0F766E;
+    --color-accent-secondary: #0D9488;
+    --color-accent-gradient: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+
+    /* Semantic colors (adjusted for light background) */
+    --color-success: #059669;
+    --color-warning: #d97706;
+    --color-error: #dc2626;
+    --color-info: #2563eb;
+
+    /* Border color */
+    --color-border: rgba(0, 0, 0, 0.1);
+
+    /* Focus ring */
+    --color-focus-ring: rgba(15, 118, 110, 0.3);
+
+    /* Button colors */
+    --color-button-bg: rgba(0, 0, 0, 0.03);
+    --color-button-bg-hover: rgba(0, 0, 0, 0.06);
+    --color-button-text: var(--color-text-secondary);
+
+    /* Input colors */
+    --color-input-bg: var(--color-bg-primary);
+    --color-input-border: var(--color-border);
+
+    /* Shadow */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow-accent: 0 4px 15px rgba(15, 118, 110, 0.25);
+
+    /* Accent background (subtle) - light mode */
+    --color-accent-bg: rgba(15, 118, 110, 0.1);
+    --color-accent-glow: rgba(15, 118, 110, 0.15);
+
+    /* Overlay - lighter in light mode */
+    --color-overlay-bg: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ========================================
+   SPACING TOKENS
+   ======================================== */
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+}
+
+/* ========================================
+   TYPOGRAPHY TOKENS
+   ======================================== */
+:root {
+  /* Font family */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+
+  /* Font sizes */
+  --font-size-xs: 0.625rem;   /* 10px */
+  --font-size-sm: 0.75rem;    /* 12px */
+  --font-size-md: 0.875rem;   /* 14px */
+  --font-size-lg: 1rem;       /* 16px */
+  --font-size-xl: 1.25rem;    /* 20px */
+
+  /* Font weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+}
+
+/* ========================================
+   SIZE TOKENS
+   ======================================== */
+:root {
+  /* Border radius - Firefox Photon aligned */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Minimum touch/click target (WCAG 2.1 AA) */
+  --min-touch-target: 44px;
+
+  /* Popup dimensions */
+  --popup-width: 360px;
+  --popup-min-height: 480px;
+}
+
+/* ========================================
+   ANIMATION TOKENS
+   ======================================== */
+:root {
+  /* Transition durations */
+  --transition-fast: 100ms;
+  --transition-normal: 200ms;
+  --transition-slow: 300ms;
+
+  /* Easing */
+  --ease-default: ease;
+  --ease-in-out: ease-in-out;
+  --ease-out: ease-out;
+
+  /* Combined transitions */
+  --transition: all var(--transition-normal) var(--ease-default);
+  --transition-colors: color var(--transition-fast) var(--ease-default),
+                       background-color var(--transition-fast) var(--ease-default),
+                       border-color var(--transition-fast) var(--ease-default);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+    --transition: none;
+    --transition-colors: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   Z-INDEX / STACKING LAYER TOKENS
+   ======================================== */
+:root {
+  /* Stacking layer system - use these instead of arbitrary z-index values */
+  --z-base: auto;          /* Normal document flow */
+  --z-elevated: 1;         /* Hover states, focus rings */
+  --z-dropdown: 50;        /* Dropdowns, tooltips */
+  --z-sticky: 60;          /* Sticky headers */
+  --z-overlay: 100;        /* Modals, overlays */
+  --z-overlay-content: 101; /* Content within overlays */
+  --z-toast: 200;          /* Toast notifications */
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Isolation utility - creates new stacking context */
+.isolate {
+  isolation: isolate;
+}
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hidden utility */
+.hidden {
+  display: none !important;
+}
+
+/* Focus visible outline for keyboard navigation */
+.focus-visible:focus,
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Remove focus outline for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
