@@ -192,7 +192,8 @@ export class PlaybackController {
 
           // Try to inject content scripts programmatically
           try {
-            await browser.scripting.executeScript({
+            console.log('Injecting content scripts into tab', tab.id);
+            const results = await browser.scripting.executeScript({
               target: { tabId: tab.id },
               files: [
                 'content/content-scorer.js',
@@ -202,21 +203,27 @@ export class PlaybackController {
                 'content/index.js'
               ]
             });
+            console.log('Script injection results:', results);
+
             await browser.scripting.insertCSS({
               target: { tabId: tab.id },
               files: ['styles/content.css']
             });
+            console.log('CSS injection complete');
 
-            // Wait a moment for scripts to initialize
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait for scripts to initialize
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // Retry sending the message
+            console.log('Retrying message to content script');
             await browser.tabs.sendMessage(tab.id, {
               action: 'extractText',
               mode: this.state.mode
             });
+            console.log('Message sent successfully after injection');
           } catch (injectError) {
-            console.error('Failed to inject content scripts:', injectError);
+            console.error('Failed to inject/communicate with content scripts:', injectError);
+            console.error('Tab URL:', tab.url);
             this.uiCoordinator?.notifyError('Could not access page content. Try refreshing the page.');
           }
         }
