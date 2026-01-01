@@ -171,10 +171,55 @@ export class PlaybackController {
       // Otherwise, request text from content script
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       if (tabs[0]) {
-        browser.tabs.sendMessage(tabs[0].id, {
-          action: 'extractText',
-          mode: this.state.mode
-        });
+        const tab = tabs[0];
+
+        // Check if this is a restricted page
+        if (tab.url?.startsWith('about:') ||
+            tab.url?.startsWith('moz-extension:') ||
+            tab.url?.startsWith('chrome:') ||
+            tab.url?.includes('addons.mozilla.org')) {
+          this.uiCoordinator?.notifyError('Cannot read content on this page');
+          return;
+        }
+
+        try {
+          await browser.tabs.sendMessage(tab.id, {
+            action: 'extractText',
+            mode: this.state.mode
+          });
+        } catch (sendError) {
+          console.warn('Content script not ready, attempting to inject:', sendError.message);
+
+          // Try to inject content scripts programmatically
+          try {
+            await browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: [
+                'content/content-scorer.js',
+                'content/content-extractor.js',
+                'content/highlight-manager.js',
+                'content/floating-controller.js',
+                'content/index.js'
+              ]
+            });
+            await browser.scripting.insertCSS({
+              target: { tabId: tab.id },
+              files: ['styles/content.css']
+            });
+
+            // Wait a moment for scripts to initialize
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Retry sending the message
+            await browser.tabs.sendMessage(tab.id, {
+              action: 'extractText',
+              mode: this.state.mode
+            });
+          } catch (injectError) {
+            console.error('Failed to inject content scripts:', injectError);
+            this.uiCoordinator?.notifyError('Could not access page content. Try refreshing the page.');
+          }
+        }
       }
     } catch (error) {
       console.error('Play error:', error);
