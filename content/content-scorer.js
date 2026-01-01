@@ -172,6 +172,7 @@ function isInsideUnwantedElement(element) {
 }
 
 // Export to VoxPage namespace
+console.log('VoxPage: content-scorer.js exporting to namespace');
 window.VoxPage.contentScorer = {
   calculateContentScore,
   calculateLinkDensity,

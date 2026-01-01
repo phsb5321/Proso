@@ -665,5 +665,11 @@ class FloatingController {
 
 // Create singleton instance (available globally for content scripts)
 // Using window.VoxPage namespace to avoid polluting global scope
+console.log('VoxPage: floating-controller.js creating singleton');
 window.VoxPage = window.VoxPage || {};
-window.VoxPage.floatingController = new FloatingController();
+try {
+  window.VoxPage.floatingController = new FloatingController();
+  console.log('VoxPage: FloatingController instance created');
+} catch (e) {
+  console.error('VoxPage: Failed to create FloatingController:', e);
+}

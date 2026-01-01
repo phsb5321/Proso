@@ -188,28 +188,38 @@ export class PlaybackController {
             mode: this.state.mode
           });
         } catch (sendError) {
-          console.warn('Content script not ready, attempting to inject:', sendError.message);
+          console.warn('Content script not responding:', sendError.message);
 
-          // Try to inject content scripts programmatically
+          // Check if scripts are already loaded but just not ready yet
           try {
-            console.log('Injecting content scripts into tab', tab.id);
-            const results = await browser.scripting.executeScript({
+            const checkResults = await browser.scripting.executeScript({
               target: { tabId: tab.id },
-              files: [
-                'content/content-scorer.js',
-                'content/content-extractor.js',
-                'content/highlight-manager.js',
-                'content/floating-controller.js',
-                'content/index.js'
-              ]
+              func: () => typeof window.VoxPage !== 'undefined' && !!window.VoxPage.contentExtractor
             });
-            console.log('Script injection results:', results);
 
-            await browser.scripting.insertCSS({
-              target: { tabId: tab.id },
-              files: ['styles/content.css']
-            });
-            console.log('CSS injection complete');
+            const scriptsLoaded = checkResults?.[0]?.result;
+            console.log('Scripts already loaded:', scriptsLoaded);
+
+            if (!scriptsLoaded) {
+              // Scripts not loaded, inject them
+              console.log('Injecting content scripts into tab', tab.id);
+              await browser.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: [
+                  'content/content-scorer.js',
+                  'content/content-extractor.js',
+                  'content/highlight-manager.js',
+                  'content/floating-controller.js',
+                  'content/index.js'
+                ]
+              });
+
+              await browser.scripting.insertCSS({
+                target: { tabId: tab.id },
+                files: ['styles/content.css']
+              });
+              console.log('Scripts and CSS injected');
+            }
 
             // Wait for scripts to initialize
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -220,9 +230,9 @@ export class PlaybackController {
               action: 'extractText',
               mode: this.state.mode
             });
-            console.log('Message sent successfully after injection');
+            console.log('Message sent successfully');
           } catch (injectError) {
-            console.error('Failed to inject/communicate with content scripts:', injectError);
+            console.error('Failed to communicate with content scripts:', injectError);
             console.error('Tab URL:', tab.url);
             this.uiCoordinator?.notifyError('Could not access page content. Try refreshing the page.');
           }

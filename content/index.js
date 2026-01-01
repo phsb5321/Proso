@@ -6,12 +6,27 @@
  * @module content/index
  */
 
+console.log('VoxPage: index.js starting to load');
+
 // Initialize VoxPage namespace (should already exist from other modules)
 window.VoxPage = window.VoxPage || {};
 
-// Get module references
-const getExtractor = () => window.VoxPage.contentExtractor || {};
-const getHighlighter = () => window.VoxPage.highlightManager || {};
+// Prevent re-initialization
+if (window.VoxPage._indexInitialized) {
+  console.log('VoxPage: index.js already initialized, skipping');
+} else {
+  window.VoxPage._indexInitialized = true;
+
+console.log('VoxPage: Namespace state:', {
+  hasContentScorer: !!window.VoxPage.contentScorer,
+  hasContentExtractor: !!window.VoxPage.contentExtractor,
+  hasHighlightManager: !!window.VoxPage.highlightManager,
+  hasFloatingController: !!window.VoxPage.floatingController
+});
+
+// Get module references (using var for re-declaration safety)
+var getExtractor = () => window.VoxPage.contentExtractor || {};
+var getHighlighter = () => window.VoxPage.highlightManager || {};
 
 /**
  * Format time remaining in seconds to MM:SS format
@@ -72,7 +87,9 @@ function setupParagraphClickHandlers() {
 /**
  * Listen for messages from background script
  */
+console.log('VoxPage: Setting up message listener');
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('VoxPage: Received message:', message.action);
   const extractor = getExtractor();
   const highlighter = getHighlighter();
 
@@ -218,4 +235,6 @@ mutationObserver.observe(document.body, {
   attributes: false
 });
 
-console.log('VoxPage content script loaded');
+console.log('VoxPage content script fully loaded and message listener registered');
+
+} // End of initialization guard
