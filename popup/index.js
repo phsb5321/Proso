@@ -26,7 +26,8 @@ import {
   handleStop,
   sendMessage,
   handleBackgroundMessage,
-  syncWithBackground
+  syncWithBackground,
+  showFooterPlayer
 } from './popup-controller.js';
 
 /**
@@ -62,9 +63,9 @@ function initVisualizerComponent() {
  * Setup accessibility features
  */
 function setupAccessibilityFeatures() {
-  const providerContainer = document.querySelector('.provider-tabs');
+  const providerContainer = document.querySelector('.provider-section .voxpage-tabs');
   if (providerContainer) {
-    setupRovingTabindex(providerContainer, '.provider-tab');
+    setupRovingTabindex(providerContainer, '[data-provider]');
   }
   setupSliderAccessibility(elements.speedSlider, 'Playback speed');
 }
@@ -117,6 +118,11 @@ function setupEventListeners() {
 
   // Status banner dismiss
   elements.dismissStatus.addEventListener('click', hideStatus);
+
+  // Show Player button (018-ui-redesign T078)
+  if (elements.showPlayerBtn) {
+    elements.showPlayerBtn.addEventListener('click', showFooterPlayer);
+  }
 
   // Listen for messages from background
   browser.runtime.onMessage.addListener(handleBackgroundMessage);

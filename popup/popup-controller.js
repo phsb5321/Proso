@@ -27,16 +27,18 @@ import {
   announceStop
 } from './components/accessibility.js';
 import { updateData as updateVisualizerData } from './components/visualizer.js';
+import { defaults } from '../shared/config/defaults.js';
+import { settingsStore } from '../shared/config/store.js';
 
 /**
- * Application state
+ * Application state - uses SSOT defaults from shared/config
  */
 export const state = {
   isPlaying: false,
-  currentProvider: 'openai',
-  currentMode: 'full',
-  speed: 1.0,
-  currentVoice: null,
+  currentProvider: defaults.provider,
+  currentMode: defaults.mode,  // From shared/config/defaults.js (SSOT)
+  speed: defaults.speed,
+  currentVoice: defaults.voice,
   progress: 0,
   duration: 0
 };
@@ -94,35 +96,37 @@ export async function loadBrowserVoices() {
 }
 
 /**
- * Load settings from storage
+ * Load settings from storage using settingsStore (runs migrations)
+ * Migration logic is handled by shared/config/migrations.js (SSOT)
  */
 export async function loadSettings() {
   try {
-    const settings = await browser.storage.local.get([
-      'provider', 'voice', 'speed', 'mode'
-    ]);
+    // Use settingsStore.load() which runs migrations and validates
+    const settings = await settingsStore.load();
 
-    if (settings.provider) state.currentProvider = settings.provider;
-    if (settings.voice) state.currentVoice = settings.voice;
-    if (settings.speed) {
-      state.speed = settings.speed;
-      updateSpeedUI(settings.speed);
-    }
-    if (settings.mode) state.currentMode = settings.mode;
+    // Apply settings from store (already validated and migrated)
+    state.currentProvider = settings.provider;
+    state.currentVoice = settings.voice;
+    state.speed = settings.speed;
+    state.currentMode = settings.mode;
 
+    // Update UI
+    updateSpeedUI(state.speed);
     updateProviderUI(state.currentProvider);
     updateModeUI(state.currentMode);
+
+    console.log('VoxPage popup: Settings loaded, mode:', state.currentMode);
   } catch (error) {
     console.error('Error loading settings:', error);
   }
 }
 
 /**
- * Save settings to storage
+ * Save settings to storage using settingsStore
  */
 export async function saveSettings() {
   try {
-    await browser.storage.local.set({
+    await settingsStore.save({
       provider: state.currentProvider,
       voice: state.currentVoice,
       speed: state.speed,
@@ -238,7 +242,8 @@ export function setProvider(provider) {
 export function setMode(mode) {
   state.currentMode = mode;
   updateModeUI(mode);
-  saveSettings();
+  // Mark mode as explicitly changed by user (prevents future migrations from overriding)
+  settingsStore.save({ mode: mode }, { explicit: true });
 }
 
 /**
@@ -364,5 +369,19 @@ function stopVisualizerPolling() {
   if (visualizerAnimationId) {
     cancelAnimationFrame(visualizerAnimationId);
     visualizerAnimationId = null;
+  }
+}
+
+/**
+ * Show the sticky footer player on the active tab (018-ui-redesign T078)
+ * Sends SHOW_FOOTER message to background, which injects and displays
+ * the sticky footer on the current page
+ */
+export async function showFooterPlayer() {
+  try {
+    await browser.runtime.sendMessage({ action: 'SHOW_FOOTER' });
+  } catch (error) {
+    console.error('Error showing footer player:', error);
+    showStatus('Could not show player on page', 'error');
   }
 }

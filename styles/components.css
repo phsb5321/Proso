@@ -1,0 +1,666 @@
+/**
+ * VoxPage Component Library
+ *
+ * Reusable CSS components for popup, options, and floating controller.
+ * All components use BEM naming with `voxpage-` prefix and consume design tokens.
+ *
+ * Dependencies: tokens.css must be imported before this file.
+ *
+ * @see specs/012-frontend-redesign/contracts/components.md for specifications
+ */
+
+/* ========================================
+   BUTTON COMPONENT
+   Base button styles and variants
+   ======================================== */
+
+.voxpage-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  min-height: var(--min-touch-target);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-colors);
+  user-select: none;
+}
+
+/* Primary button - main CTA */
+.voxpage-button--primary {
+  background: var(--color-accent-gradient);
+  color: white;
+  border-color: transparent;
+  box-shadow: var(--shadow-accent);
+}
+
+.voxpage-button--primary:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.voxpage-button--primary:active {
+  transform: scale(0.98);
+}
+
+/* Secondary button - subtle background */
+.voxpage-button--secondary {
+  background: var(--color-button-bg);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+.voxpage-button--secondary:hover {
+  background: var(--color-button-bg-hover);
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+}
+
+.voxpage-button--secondary:active {
+  transform: scale(0.98);
+}
+
+/* Ghost button - minimal/transparent */
+.voxpage-button--ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+
+.voxpage-button--ghost:hover {
+  background: var(--color-button-bg);
+  color: var(--color-text-primary);
+}
+
+.voxpage-button--ghost:active {
+  background: var(--color-button-bg-hover);
+}
+
+/* Icon button - square, icon-only */
+.voxpage-button--icon {
+  padding: var(--spacing-sm);
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+  border-radius: var(--radius-md);
+}
+
+/* Disabled state for all button variants */
+.voxpage-button[disabled],
+.voxpage-button:disabled {
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  border-color: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  filter: none;
+}
+
+/* Focus state for all button variants */
+.voxpage-button:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.voxpage-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ========================================
+   INPUT COMPONENT
+   Text input and wrapper styles
+   ======================================== */
+
+.voxpage-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  min-height: var(--min-touch-target);
+  transition: var(--transition-colors);
+  box-sizing: border-box;
+}
+
+.voxpage-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.voxpage-input:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.voxpage-input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.voxpage-input[disabled],
+.voxpage-input:disabled {
+  background: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+/* Input wrapper for input + icon/button combos */
+.voxpage-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.voxpage-input-wrapper .voxpage-input {
+  padding-right: calc(var(--min-touch-target) + var(--spacing-sm));
+}
+
+.voxpage-input-wrapper .voxpage-button--icon {
+  position: absolute;
+  right: var(--spacing-xs);
+}
+
+/* ========================================
+   SELECT COMPONENT
+   Dropdown select with custom arrow
+   ======================================== */
+
+.voxpage-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  padding-right: 40px; /* Space for arrow */
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  min-height: var(--min-touch-target);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: var(--transition-colors);
+  box-sizing: border-box;
+  /* Custom dropdown arrow (chevron) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b8c5d6' d='M2.5 4.5L6 8L9.5 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-lg) center;
+  background-size: 12px;
+}
+
+.voxpage-select:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.voxpage-select:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.voxpage-select[disabled],
+.voxpage-select:disabled {
+  background-color: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+/* ========================================
+   SLIDER COMPONENT
+   Range input with styled track and thumb
+   ======================================== */
+
+.voxpage-slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-button-bg);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+/* WebKit (Chrome, Safari, Edge) thumb */
+.voxpage-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-gradient);
+  box-shadow: var(--shadow-accent);
+  cursor: pointer;
+  transition: transform var(--transition-fast) var(--ease-default);
+}
+
+.voxpage-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.voxpage-slider::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+/* Firefox thumb */
+.voxpage-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-primary);
+  border: none;
+  box-shadow: var(--shadow-accent);
+  cursor: pointer;
+  transition: transform var(--transition-fast) var(--ease-default);
+}
+
+.voxpage-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+.voxpage-slider::-moz-range-thumb:active {
+  transform: scale(0.95);
+}
+
+/* Firefox track */
+.voxpage-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-button-bg);
+}
+
+/* Focus state */
+.voxpage-slider:focus {
+  outline: none;
+}
+
+.voxpage-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--shadow-accent), 0 0 0 3px var(--color-focus-ring);
+}
+
+.voxpage-slider:focus-visible::-moz-range-thumb {
+  box-shadow: var(--shadow-accent), 0 0 0 3px var(--color-focus-ring);
+}
+
+/* ========================================
+   TOGGLE COMPONENT
+   Switch toggle with on/off states
+   ======================================== */
+
+.voxpage-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  cursor: pointer;
+  min-height: var(--min-touch-target);
+  user-select: none;
+}
+
+.voxpage-toggle__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.voxpage-toggle__switch {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  background: var(--color-button-bg);
+  border-radius: 13px;
+  transition: var(--transition-colors);
+  flex-shrink: 0;
+}
+
+.voxpage-toggle__switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: var(--color-text-secondary);
+  border-radius: var(--radius-full);
+  transition: var(--transition-normal);
+}
+
+/* Checked state */
+.voxpage-toggle__input:checked + .voxpage-toggle__switch {
+  background: var(--color-accent-primary);
+}
+
+.voxpage-toggle__input:checked + .voxpage-toggle__switch::after {
+  left: 25px;
+  background: white;
+}
+
+/* Hover state */
+.voxpage-toggle:hover .voxpage-toggle__switch {
+  border: 1px solid var(--color-accent-primary);
+}
+
+/* Focus state */
+.voxpage-toggle__input:focus-visible + .voxpage-toggle__switch {
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+/* Disabled state */
+.voxpage-toggle__input:disabled + .voxpage-toggle__switch {
+  background: var(--color-disabled-bg);
+  cursor: not-allowed;
+}
+
+.voxpage-toggle__input:disabled + .voxpage-toggle__switch::after {
+  background: var(--color-disabled-text);
+}
+
+.voxpage-toggle__input:disabled ~ .voxpage-toggle__text {
+  color: var(--color-disabled-text);
+}
+
+/* Toggle label text */
+.voxpage-toggle__text {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ========================================
+   CARD COMPONENT
+   Container with optional header/footer
+   ======================================== */
+
+.voxpage-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+.voxpage-card__header {
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-lg);
+}
+
+.voxpage-card__header h2,
+.voxpage-card__header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.voxpage-card__body {
+  /* Default body styles */
+}
+
+.voxpage-card__footer {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-lg);
+}
+
+/* ========================================
+   TABS COMPONENT
+   Tab bar with active state
+   ======================================== */
+
+.voxpage-tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.voxpage-tab {
+  flex: 1;
+  min-width: 60px;
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  min-height: var(--min-touch-target);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  text-align: center;
+}
+
+.voxpage-tab:hover {
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+}
+
+.voxpage-tab:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.voxpage-tab:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Active tab state */
+.voxpage-tab--active,
+.voxpage-tab[aria-selected="true"] {
+  background: var(--color-accent-gradient);
+  border-color: transparent;
+  color: white;
+}
+
+.voxpage-tab--active:hover,
+.voxpage-tab[aria-selected="true"]:hover {
+  color: white;
+  border-color: transparent;
+}
+
+/* ========================================
+   BANNER COMPONENT
+   Status banners with semantic variants
+   ======================================== */
+
+.voxpage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-accent-primary);
+  color: white;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+
+.voxpage-banner__text {
+  flex: 1;
+}
+
+.voxpage-banner__dismiss {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.125rem;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: var(--spacing-xs);
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-colors);
+}
+
+.voxpage-banner__dismiss:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.voxpage-banner__dismiss:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+/* Semantic variants */
+.voxpage-banner--success {
+  background: var(--color-success);
+}
+
+.voxpage-banner--warning {
+  background: var(--color-warning);
+  color: #1a1a2e; /* Dark text for yellow background */
+}
+
+.voxpage-banner--warning .voxpage-banner__dismiss {
+  color: #1a1a2e;
+}
+
+.voxpage-banner--error {
+  background: var(--color-error);
+}
+
+.voxpage-banner--info {
+  background: var(--color-info);
+}
+
+/* ========================================
+   PROGRESS COMPONENT
+   Progress bar with fill indicator
+   ======================================== */
+
+.voxpage-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--color-button-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.voxpage-progress__fill {
+  height: 100%;
+  background: var(--color-accent-gradient);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.voxpage-progress__info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ========================================
+   BADGE COMPONENT
+   Provider badges with brand colors
+   ======================================== */
+
+.voxpage-badge {
+  display: inline-block;
+  padding: 2px var(--spacing-sm);
+  border-radius: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Provider-specific variants */
+.voxpage-badge--openai {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+}
+
+.voxpage-badge--groq {
+  background: rgba(249, 115, 22, 0.2);
+  color: var(--color-provider-groq);
+}
+
+.voxpage-badge--elevenlabs {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--color-warning);
+}
+
+.voxpage-badge--cartesia {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-provider-cartesia);
+}
+
+.voxpage-badge--browser {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+}
+
+/* ========================================
+   TYPOGRAPHY UTILITIES
+   Heading, label, and hint styles
+   ======================================== */
+
+.voxpage-heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.voxpage-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.voxpage-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+/* ========================================
+   UTILITY CLASSES
+   Common utility patterns
+   ======================================== */
+
+/* Text truncation with ellipsis */
+.voxpage-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Visually hidden but accessible to screen readers */
+.voxpage-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hidden utility */
+.voxpage-hidden {
+  display: none !important;
+}

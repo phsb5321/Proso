@@ -7,58 +7,92 @@
    COLOR TOKENS - Dark Theme (Default)
    ======================================== */
 :root {
-  /* Background colors */
+  /* Enable browser-native color scheme support */
+  color-scheme: dark light;
+
+  /* ----------------------------------------
+     Background Colors
+     Layer hierarchy: tertiary (deepest) → primary (surface)
+     ---------------------------------------- */
   --color-bg-primary: #1a1a2e;
   --color-bg-secondary: #16213e;
   --color-bg-tertiary: #0f0f1a;
 
-  /* Text colors */
+  /* ----------------------------------------
+     Text Colors
+     Hierarchy: primary (headings) → secondary (body) → muted (hints)
+     WCAG 2.1 AA compliant on dark backgrounds
+     ---------------------------------------- */
   --color-text-primary: #ffffff;
   --color-text-secondary: #b8c5d6;
   --color-text-muted: #8899a8;
 
-  /* Accent colors - Teal/Cyan palette */
+  /* ----------------------------------------
+     Accent Colors - Teal/Cyan Palette
+     Primary: main CTA and interactive elements
+     Secondary: hover/highlight states
+     Gradient: buttons and active indicators
+     ---------------------------------------- */
   --color-accent-primary: #0D9488;
   --color-accent-secondary: #14B8A6;
   --color-accent-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
 
-  /* Semantic colors */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* ----------------------------------------
+     Semantic Colors
+     Used for status indicators, banners, and feedback
+     Each color conveys specific meaning (see FR-004)
+     ---------------------------------------- */
+  --color-success: #10b981;  /* Positive actions, confirmations */
+  --color-warning: #f59e0b;  /* Cautions, attention needed */
+  --color-error: #ef4444;    /* Errors, failures, destructive */
+  --color-info: #3b82f6;     /* Informational, neutral status */
 
-  /* Border color */
+  /* ----------------------------------------
+     UI Element Colors
+     Borders, focus rings, button backgrounds
+     ---------------------------------------- */
   --color-border: rgba(255, 255, 255, 0.1);
+  --color-focus-ring: rgba(13, 148, 136, 0.5);  /* Accessibility: visible focus indicator */
 
-  /* Focus ring */
-  --color-focus-ring: rgba(13, 148, 136, 0.5);
-
-  /* Button colors */
+  /* Button colors - used by .voxpage-button */
   --color-button-bg: rgba(255, 255, 255, 0.05);
   --color-button-bg-hover: rgba(255, 255, 255, 0.1);
   --color-button-text: var(--color-text-secondary);
 
-  /* Input colors */
+  /* Input colors - used by .voxpage-input, .voxpage-select */
   --color-input-bg: var(--color-bg-secondary);
   --color-input-border: var(--color-border);
 
-  /* Shadow */
+  /* ----------------------------------------
+     Shadows
+     Elevation hierarchy: sm → md → lg
+     accent: special glow for primary buttons
+     ---------------------------------------- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
   --shadow-accent: 0 4px 15px rgba(13, 148, 136, 0.4);
 
-  /* Accent background (subtle) */
+  /* Accent backgrounds - subtle tints for highlighting */
   --color-accent-bg: rgba(13, 148, 136, 0.15);
   --color-accent-glow: rgba(13, 148, 136, 0.2);
 
-  /* Provider-specific colors */
+  /* ----------------------------------------
+     Provider Colors
+     Brand-specific colors for TTS provider badges
+     ---------------------------------------- */
   --color-provider-cartesia: #3b82f6;
   --color-provider-groq: #f97316;
 
-  /* Overlay */
+  /* Overlay - modal/dialog backgrounds */
   --color-overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* ----------------------------------------
+     Disabled States
+     Used for inactive/disabled UI elements
+     ---------------------------------------- */
+  --color-disabled-bg: rgba(255, 255, 255, 0.03);
+  --color-disabled-text: rgba(255, 255, 255, 0.4);
 }
 
 /* ========================================
@@ -114,6 +148,10 @@
 
     /* Overlay - lighter in light mode */
     --color-overlay-bg: rgba(0, 0, 0, 0.5);
+
+    /* Disabled states */
+    --color-disabled-bg: rgba(0, 0, 0, 0.04);
+    --color-disabled-text: rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -171,7 +209,14 @@
 
   /* Popup dimensions */
   --popup-width: 360px;
-  --popup-min-height: 480px;
+  --popup-min-height: 580px;
+
+  /* Footer dimensions (018-ui-redesign) */
+  --footer-height: 64px;
+  --footer-height-minimized: 48px;
+  --footer-pill-width: 160px;
+  --footer-max-width: 600px;
+  --footer-z-index: 2147483647;
 }
 
 /* ========================================

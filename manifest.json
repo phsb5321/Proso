@@ -47,10 +47,14 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "content/readability-check.js",
+        "content/readability.js",
         "content/floating-controller.js",
+        "content/sticky-footer.js",
         "content/content-scorer.js",
         "content/content-extractor.js",
         "content/highlight-manager.js",
+        "content/paragraph-selector.js",
         "content/index.js"
       ],
       "css": ["styles/content.css"],

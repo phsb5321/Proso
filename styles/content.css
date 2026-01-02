@@ -15,6 +15,9 @@
   border-radius: 0 8px 8px 0 !important;
   transition: all 0.3s ease !important;
   box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1) !important;
+  /* Auto-scroll support with fixed header handling (011-highlight-playback-fix) */
+  scroll-margin-top: 80px !important;
+  scroll-margin-bottom: 20px !important;
 }
 
 /* Animation for highlight */
@@ -60,5 +63,151 @@
 @media (prefers-color-scheme: dark) {
   ::highlight(voxpage-word) {
     background-color: rgba(20, 184, 166, 0.5);
+  }
+}
+
+/* ============================================
+ * Paragraph Selection UI
+ * Hover indicators and play icons
+ * ============================================ */
+
+/* Selectable paragraph indicator */
+.voxpage-selectable {
+  position: relative !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  /* Add padding and margin to prevent interference with page elements */
+  padding: 8px 12px !important;
+  margin: 4px -12px !important;
+  border-radius: 4px !important;
+}
+
+/* Ensure links and interactive elements inside paragraphs remain clickable */
+.voxpage-selectable a,
+.voxpage-selectable button,
+.voxpage-selectable input,
+.voxpage-selectable [onclick],
+.voxpage-selectable [role="button"],
+.voxpage-selectable [role="link"] {
+  position: relative !important;
+  z-index: 10 !important;
+  cursor: pointer !important;
+}
+
+/* Hover state for selectable paragraphs */
+.voxpage-selectable:hover {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+}
+
+/* Selected (pre-play) state */
+.voxpage-selected {
+  background-color: rgba(13, 148, 136, 0.12) !important;
+  border-left: 2px solid rgba(13, 148, 136, 0.5) !important;
+  padding-left: 8px !important;
+  margin-left: -10px !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+/* Play icon container */
+.voxpage-play-icon {
+  position: absolute !important;
+  left: -40px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 28px !important;
+  height: 28px !important;
+  background: #0D9488 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  opacity: 0 !important;
+  transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+}
+
+/* Show play icon on paragraph hover */
+.voxpage-selectable:hover .voxpage-play-icon,
+.voxpage-selected .voxpage-play-icon {
+  opacity: 1 !important;
+}
+
+/* Play icon hover effect */
+.voxpage-play-icon:hover {
+  background: #14B8A6 !important;
+  transform: translateY(-50%) scale(1.1) !important;
+}
+
+/* Play icon active state */
+.voxpage-play-icon:active {
+  transform: translateY(-50%) scale(0.95) !important;
+}
+
+/* Play icon SVG/content */
+.voxpage-play-icon::after {
+  content: '' !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-style: solid !important;
+  border-width: 6px 0 6px 10px !important;
+  border-color: transparent transparent transparent #ffffff !important;
+  margin-left: 2px !important;
+}
+
+/* Inline play icon for narrow margins */
+.voxpage-play-icon--inline {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  display: inline-flex !important;
+  vertical-align: middle !important;
+  margin-right: 8px !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.voxpage-play-icon--inline:hover {
+  transform: scale(1.1) !important;
+}
+
+.voxpage-play-icon--inline:active {
+  transform: scale(0.95) !important;
+}
+
+.voxpage-play-icon--inline::after {
+  border-width: 5px 0 5px 8px !important;
+  margin-left: 2px !important;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .voxpage-selectable:hover {
+    background-color: rgba(20, 184, 166, 0.12) !important;
+  }
+
+  .voxpage-selected {
+    background-color: rgba(20, 184, 166, 0.18) !important;
+    border-left-color: rgba(20, 184, 166, 0.6) !important;
+  }
+
+  .voxpage-play-icon {
+    background: #14B8A6 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .voxpage-play-icon:hover {
+    background: #2DD4BF !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .voxpage-selectable,
+  .voxpage-play-icon {
+    transition: none !important;
   }
 }

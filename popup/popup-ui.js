@@ -39,7 +39,11 @@ export const elements = {
   statusText: null,
   dismissStatus: null,
   visualizerCanvas: null,
-  visualizerSection: null
+  visualizerSection: null,
+  // 018-ui-redesign: Playback status and Show Player button
+  playbackStatus: null,
+  playbackStatusText: null,
+  showPlayerBtn: null
 };
 
 /**
@@ -57,7 +61,7 @@ export function cacheElements() {
   elements.totalTime = document.getElementById('totalTime');
   elements.paragraphInfo = document.getElementById('paragraphInfo');
   elements.voiceSelect = document.getElementById('voiceSelect');
-  elements.providerTabs = document.querySelectorAll('.provider-tab');
+  elements.providerTabs = document.querySelectorAll('[data-provider]');
   elements.speedSlider = document.getElementById('speedSlider');
   elements.speedValue = document.getElementById('speedValue');
   elements.modeBtns = document.querySelectorAll('.mode-btn');
@@ -67,6 +71,10 @@ export function cacheElements() {
   elements.dismissStatus = document.getElementById('dismissStatus');
   elements.visualizerCanvas = document.getElementById('visualizerCanvas');
   elements.visualizerSection = document.querySelector('.visualizer-section');
+  // 018-ui-redesign: Playback status and Show Player button
+  elements.playbackStatus = document.getElementById('playbackStatus');
+  elements.playbackStatusText = document.getElementById('playbackStatusText');
+  elements.showPlayerBtn = document.getElementById('showPlayerBtn');
 }
 
 /**
@@ -78,6 +86,26 @@ export function updatePlayButtonUI(isPlaying, isPaused = false) {
   elements.playIcon.classList.toggle('hidden', isPlaying);
   elements.pauseIcon.classList.toggle('hidden', !isPlaying);
   updatePlayButtonState(elements.playBtn, isPlaying);
+  // Update playback status indicator (018-ui-redesign)
+  updatePlaybackStatusUI(isPlaying, isPaused);
+}
+
+/**
+ * Update playback status indicator (018-ui-redesign T077)
+ * Shows status when playing/paused, hides when stopped
+ * @param {boolean} isPlaying - Whether currently playing
+ * @param {boolean} [isPaused=false] - Whether currently paused
+ */
+export function updatePlaybackStatusUI(isPlaying, isPaused = false) {
+  if (!elements.playbackStatus) return;
+
+  if (isPlaying || isPaused) {
+    elements.playbackStatus.classList.remove('hidden');
+    elements.playbackStatus.classList.toggle('paused', isPaused);
+    elements.playbackStatusText.textContent = isPaused ? 'Paused' : 'Playing';
+  } else {
+    elements.playbackStatus.classList.add('hidden');
+  }
 }
 
 /**

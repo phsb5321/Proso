@@ -9,6 +9,8 @@
 import { PlaybackStatus, ProviderId } from './constants.js';
 import { audioCache } from './audio-cache.js';
 import { PlaybackSyncState } from './playback-sync.js';
+import { defaults } from '../shared/config/defaults.js';
+import { getLogger } from './remote-logger.js';
 
 /**
  * PlaybackController class - orchestrates TTS playback
@@ -30,15 +32,15 @@ export class PlaybackController {
     // Playback sync state for audio-text synchronization
     this.syncState = new PlaybackSyncState();
 
-    // Playback state
+    // Playback state - uses SSOT defaults from shared/config
     this.state = {
       status: PlaybackStatus.IDLE,
       isPlaying: false,
       isPaused: false,
-      currentProvider: ProviderId.OPENAI,
-      currentVoice: 'alloy',
-      speed: 1.0,
-      mode: 'full',
+      currentProvider: defaults.provider,
+      currentVoice: defaults.voice,
+      speed: defaults.speed,
+      mode: defaults.mode,  // From shared/config/defaults.js (SSOT)
       paragraphs: [],
       currentIndex: 0,
       audioQueue: [],
@@ -77,6 +79,10 @@ export class PlaybackController {
       console.log('VoxPage playback controller initialized');
     } catch (error) {
       console.error('Failed to initialize playback controller:', error);
+      getLogger().error('Failed to initialize playback controller', 'background', {
+        error: error.message,
+        stack: error.stack,
+      });
     }
   }
 
@@ -206,10 +212,14 @@ export class PlaybackController {
               await browser.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: [
+                  'content/readability-check.js',
+                  'content/readability.js',
+                  'content/floating-controller.js',
+                  'content/sticky-footer.js',
                   'content/content-scorer.js',
                   'content/content-extractor.js',
                   'content/highlight-manager.js',
-                  'content/floating-controller.js',
+                  'content/paragraph-selector.js',
                   'content/index.js'
                 ]
               });
@@ -234,12 +244,21 @@ export class PlaybackController {
           } catch (injectError) {
             console.error('Failed to communicate with content scripts:', injectError);
             console.error('Tab URL:', tab.url);
+            getLogger().error('Failed to communicate with content scripts', 'background', {
+              error: injectError.message,
+              tabUrl: tab.url,
+            });
             this.uiCoordinator?.notifyError('Could not access page content. Try refreshing the page.');
           }
         }
       }
     } catch (error) {
       console.error('Play error:', error);
+      getLogger().error('Play error', 'background', {
+        error: error.message,
+        mode: this.state.mode,
+        provider: this.state.currentProvider,
+      });
       this.uiCoordinator?.notifyError(error.message);
     }
   }
@@ -249,14 +268,24 @@ export class PlaybackController {
    * @param {string} text - Text to read
    * @param {string} mode - Extraction mode
    */
-  async processTextContent(text, mode) {
+  async processTextContent(text, mode, paragraphs = null) {
     if (!text || text.trim().length === 0) {
       this.uiCoordinator?.notifyError('No text found to read');
       return;
     }
 
-    // Split text into paragraphs
-    this.state.paragraphs = this._splitIntoParagraphs(text);
+    // Use provided paragraphs array if available (for accurate DOM index sync)
+    // Otherwise fall back to splitting text (legacy behavior)
+    if (paragraphs && Array.isArray(paragraphs) && paragraphs.length > 0) {
+      // Use exact paragraph boundaries from DOM for highlight sync
+      this.state.paragraphs = paragraphs.filter(p => p && p.trim().length > 0);
+      console.log(`VoxPage: Using ${this.state.paragraphs.length} DOM-synced paragraphs`);
+    } else {
+      // Fallback: split text (may cause highlight index mismatch)
+      this.state.paragraphs = this._splitIntoParagraphs(text);
+      console.log(`VoxPage: Using ${this.state.paragraphs.length} text-split paragraphs (fallback)`);
+    }
+
     this.state.currentIndex = 0;
     this.state.audioQueue = [];
     this.state.status = PlaybackStatus.LOADING;
@@ -275,6 +304,9 @@ export class PlaybackController {
     );
 
     this.uiCoordinator?.notifyPlaybackState(this.state, true);
+    // T027: Show sticky footer on playback start (018-ui-redesign)
+    this.uiCoordinator?.showStickyFooter();
+    // Keep legacy floating controller for backwards compatibility
     this.uiCoordinator?.showFloatingController();
 
     await this._playCurrentParagraph();
@@ -337,6 +369,9 @@ export class PlaybackController {
     this.syncState.reset();
     this.uiCoordinator?.clearHighlight();
     this.uiCoordinator?.notifyPlaybackState(this.state, false);
+    // T028: Hide sticky footer on stop (018-ui-redesign)
+    this.uiCoordinator?.hideStickyFooter();
+    // Keep legacy floating controller for backwards compatibility
     this.uiCoordinator?.hideFloatingController();
   }
 
@@ -410,6 +445,47 @@ export class PlaybackController {
         this.syncState.seekTo(wordData.startTimeMs);
       }
     }
+  }
+
+  /**
+   * Play from a specific paragraph (from paragraph selector)
+   * Starts playback from the selected paragraph
+   * @param {number} index - Paragraph index to start from
+   * @param {Object} tab - Source tab
+   */
+  async playFromParagraph(index, tab) {
+    console.log(`VoxPage: Playing from paragraph ${index}`);
+
+    if (this.state.paragraphs.length === 0) {
+      // No paragraphs loaded - need to extract first
+      console.log('VoxPage: No paragraphs loaded, cannot play from paragraph');
+      this.uiCoordinator?.notifyError('Please extract text first before playing');
+      return;
+    }
+
+    if (index < 0 || index >= this.state.paragraphs.length) {
+      console.log(`VoxPage: Invalid paragraph index ${index}`);
+      return;
+    }
+
+    // Stop any current playback
+    this._stopCurrentPlayback();
+
+    // Feature 015: Keep selection mode ACTIVE during playback
+    // This allows users to click other paragraphs to jump while playing
+    // Selection mode will only be disabled when the floating controller is hidden
+
+    // Set up state for playback
+    this.state.currentIndex = index;
+    this.state.isPlaying = true;
+    this.state.isPaused = false;
+    this.state.status = PlaybackStatus.PLAYING;
+
+    // Update UI
+    this.uiCoordinator?.notifyPlaybackState(this.state, true);
+
+    // Start playback from this paragraph
+    this._playCurrentParagraph();
   }
 
   /**
@@ -524,6 +600,12 @@ export class PlaybackController {
       }
     } catch (error) {
       console.error('Playback error:', error);
+      getLogger().error('Playback error', 'background', {
+        error: error.message,
+        provider: this.state.currentProvider,
+        paragraphIndex: this.state.currentIndex,
+        totalParagraphs: this.state.paragraphs.length,
+      });
       this.state.status = PlaybackStatus.ERROR;
       this.uiCoordinator?.notifyError(`Playback error: ${error.message}`);
       this.handleStop();
@@ -642,9 +724,21 @@ export class PlaybackController {
    * @private
    */
   _onTimeUpdate(audio) {
-    if (audio && this.syncState.hasWordTiming) {
+    if (audio) {
       const currentTimeMs = audio.currentTime * 1000;
-      this.uiCoordinator?.syncWordFromTime(currentTimeMs, this.syncState.wordTimeline, this.state.currentIndex);
+
+      // Update word highlighting if available
+      if (this.syncState.hasWordTiming) {
+        this.uiCoordinator?.syncWordFromTime(currentTimeMs, this.syncState.wordTimeline, this.state.currentIndex);
+      }
+
+      // Send progress updates to popup for real-time timer display
+      // Throttle to ~4Hz (250ms) to avoid excessive updates
+      const now = Date.now();
+      if (!this._lastProgressUpdate || now - this._lastProgressUpdate > 250) {
+        this._lastProgressUpdate = now;
+        this._updateProgress();
+      }
     }
   }
 

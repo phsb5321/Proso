@@ -9,43 +9,26 @@ import { createPricingModel, PricingType } from './pricing-model.js';
 
 /**
  * Groq voice definitions
- * PlayAI Dialog voices (ultra-fast TTS)
+ * Orpheus TTS voices (expressive TTS with vocal direction controls)
+ * Supports bracketed directions like [cheerful], [whisper], [sad]
+ * Also supports emotive tags: <laugh>, <sigh>, <gasp>, etc.
+ * Valid voices per API: autumn, diana, hannah, austin, daniel, troy
  */
 const GROQ_VOICES = [
-  { id: 'Fritz-PlayAI', name: 'Fritz', language: 'en-US', gender: 'male', description: 'Clear and articulate' },
-  { id: 'Atlas-PlayAI', name: 'Atlas', language: 'en-US', gender: 'male', description: 'Deep and authoritative' },
-  { id: 'Aaliyah-PlayAI', name: 'Aaliyah', language: 'en-US', gender: 'female', description: 'Warm and expressive' },
-  { id: 'Adelaide-PlayAI', name: 'Adelaide', language: 'en-US', gender: 'female', description: 'Professional narrator' },
-  { id: 'Angelo-PlayAI', name: 'Angelo', language: 'en-US', gender: 'male', description: 'Friendly conversational' },
-  { id: 'Arista-PlayAI', name: 'Arista', language: 'en-US', gender: 'female', description: 'Elegant and refined' },
-  { id: 'Basil-PlayAI', name: 'Basil', language: 'en-US', gender: 'male', description: 'Calm and measured' },
-  { id: 'Briggs-PlayAI', name: 'Briggs', language: 'en-US', gender: 'male', description: 'Strong and confident' },
-  { id: 'Calum-PlayAI', name: 'Calum', language: 'en-US', gender: 'male', description: 'Warm storyteller' },
-  { id: 'Celeste-PlayAI', name: 'Celeste', language: 'en-US', gender: 'female', description: 'Soft and soothing' },
-  { id: 'Cheyenne-PlayAI', name: 'Cheyenne', language: 'en-US', gender: 'female', description: 'Energetic and upbeat' },
-  { id: 'Chip-PlayAI', name: 'Chip', language: 'en-US', gender: 'male', description: 'Casual and friendly' },
-  { id: 'Cillian-PlayAI', name: 'Cillian', language: 'en-US', gender: 'male', description: 'Thoughtful narrator' },
-  { id: 'Deedee-PlayAI', name: 'Deedee', language: 'en-US', gender: 'female', description: 'Bright and cheerful' },
-  { id: 'Eleanor-PlayAI', name: 'Eleanor', language: 'en-US', gender: 'female', description: 'Classic storyteller' },
-  { id: 'Gail-PlayAI', name: 'Gail', language: 'en-US', gender: 'female', description: 'Mature and wise' },
-  { id: 'Indigo-PlayAI', name: 'Indigo', language: 'en-US', gender: 'neutral', description: 'Unique and expressive' },
-  { id: 'Jennifer-PlayAI', name: 'Jennifer', language: 'en-US', gender: 'female', description: 'Natural and clear' },
-  { id: 'Judy-PlayAI', name: 'Judy', language: 'en-US', gender: 'female', description: 'Friendly and warm' },
-  { id: 'Mamaw-PlayAI', name: 'Mamaw', language: 'en-US', gender: 'female', description: 'Comforting and gentle' },
-  { id: 'Mason-PlayAI', name: 'Mason', language: 'en-US', gender: 'male', description: 'Professional and clear' },
-  { id: 'Mikail-PlayAI', name: 'Mikail', language: 'en-US', gender: 'male', description: 'Dynamic presenter' },
-  { id: 'Mitch-PlayAI', name: 'Mitch', language: 'en-US', gender: 'male', description: 'Relaxed and easygoing' },
-  { id: 'Nia-PlayAI', name: 'Nia', language: 'en-US', gender: 'female', description: 'Bright and engaging' },
-  { id: 'Quinn-PlayAI', name: 'Quinn', language: 'en-US', gender: 'neutral', description: 'Versatile and adaptive' },
-  { id: 'Ruby-PlayAI', name: 'Ruby', language: 'en-US', gender: 'female', description: 'Dynamic and vivid' },
-  { id: 'Thunder-PlayAI', name: 'Thunder', language: 'en-US', gender: 'male', description: 'Bold and powerful' }
+  { id: 'hannah', name: 'Hannah', language: 'en-US', gender: 'female', description: 'Warm and expressive' },
+  { id: 'diana', name: 'Diana', language: 'en-US', gender: 'female', description: 'Professional narrator' },
+  { id: 'autumn', name: 'Autumn', language: 'en-US', gender: 'female', description: 'Soft and soothing' },
+  { id: 'troy', name: 'Troy', language: 'en-US', gender: 'male', description: 'Clear and articulate' },
+  { id: 'austin', name: 'Austin', language: 'en-US', gender: 'male', description: 'Friendly and engaging' },
+  { id: 'daniel', name: 'Daniel', language: 'en-US', gender: 'male', description: 'Calm and measured' }
 ];
 
 /**
  * Model ID for Groq TTS
- * PlayAI Dialog: playai-tts (ultra-fast, 140 chars/sec)
+ * Orpheus: canopylabs/orpheus-v1-english (expressive TTS with vocal directions)
+ * Note: playai-tts was deprecated Dec 2025, replaced by Orpheus
  */
-const GROQ_MODEL = 'playai-tts';
+const GROQ_MODEL = 'canopylabs/orpheus-v1-english';
 
 export class GroqProvider extends TTSProvider {
   static get id() {
@@ -74,6 +57,55 @@ export class GroqProvider extends TTSProvider {
   }
 
   /**
+   * Fetch available voices from Groq API
+   * Groq doesn't have a dedicated voice listing API, so we verify the model
+   * is available and return the known voices for that model
+   * @returns {Promise<Voice[]>}
+   */
+  async fetchVoices() {
+    if (!this.hasApiKey()) {
+      return GROQ_VOICES;
+    }
+
+    try {
+      // Check available models to verify TTS is accessible
+      const response = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${this._apiKey}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const models = data.data || [];
+
+        // Check if Orpheus model is available
+        const hasOrpheus = models.some(m =>
+          m.id === GROQ_MODEL || m.id?.includes('orpheus')
+        );
+
+        if (hasOrpheus) {
+          console.log('Groq: Orpheus TTS model available');
+          return GROQ_VOICES;
+        }
+
+        // Check for any TTS model
+        const ttsModels = models.filter(m =>
+          m.id?.includes('tts') || m.id?.includes('speech')
+        );
+
+        if (ttsModels.length > 0) {
+          console.log('Groq: TTS models found:', ttsModels.map(m => m.id));
+        }
+      }
+    } catch (error) {
+      console.warn('Groq: Failed to fetch models, using default voices:', error.message);
+    }
+
+    return GROQ_VOICES;
+  }
+
+  /**
    * Validate API key
    * @returns {Promise<boolean>}
    */
@@ -83,19 +115,11 @@ export class GroqProvider extends TTSProvider {
     }
 
     try {
-      // Make a minimal request to check the key
-      const response = await fetch('https://api.groq.com/openai/v1/audio/speech', {
-        method: 'POST',
+      // Check if we can access the models endpoint
+      const response = await fetch('https://api.groq.com/openai/v1/models', {
         headers: {
-          'Authorization': `Bearer ${this._apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          input: 'test',
-          voice: 'Fritz-PlayAI',
-          response_format: 'mp3'
-        })
+          'Authorization': `Bearer ${this._apiKey}`
+        }
       });
 
       return response.ok;
@@ -103,6 +127,36 @@ export class GroqProvider extends TTSProvider {
       console.error('Groq key validation error:', error);
       return false;
     }
+  }
+
+  /**
+   * Get the default voice for this provider
+   * @returns {Voice}
+   */
+  getDefaultVoice() {
+    return GROQ_VOICES[0]; // hannah
+  }
+
+  /**
+   * Validate and normalize voice ID
+   * Falls back to default voice if the requested voice is invalid
+   * @param {string} voiceId - Requested voice ID
+   * @returns {string} - Valid voice ID
+   */
+  normalizeVoiceId(voiceId) {
+    const validVoice = GROQ_VOICES.find(v => v.id === voiceId);
+    if (validVoice) {
+      return voiceId;
+    }
+
+    // Check if it's an old PlayAI voice format
+    if (voiceId && voiceId.includes('-PlayAI')) {
+      console.warn(`Groq: PlayAI voice "${voiceId}" is deprecated, using default voice`);
+    } else if (voiceId) {
+      console.warn(`Groq: Invalid voice "${voiceId}", using default voice`);
+    }
+
+    return this.getDefaultVoice().id;
   }
 
   /**
@@ -117,14 +171,8 @@ export class GroqProvider extends TTSProvider {
       throw new Error('Groq API key not configured');
     }
 
-    // Validate voice ID
-    const voiceConfig = GROQ_VOICES.find(v => v.id === voiceId);
-    if (!voiceConfig) {
-      // Default to Fritz if invalid voice provided
-      console.warn(`Invalid Groq voice "${voiceId}", falling back to Fritz-PlayAI`);
-      voiceId = 'Fritz-PlayAI';
-    }
-
+    // Validate and normalize voice ID
+    const normalizedVoiceId = this.normalizeVoiceId(voiceId);
     const speed = this.clampSpeed(options.speed || 1.0);
 
     const response = await fetch('https://api.groq.com/openai/v1/audio/speech', {
@@ -136,8 +184,8 @@ export class GroqProvider extends TTSProvider {
       body: JSON.stringify({
         model: GROQ_MODEL,
         input: text,
-        voice: voiceId,
-        response_format: 'mp3',
+        voice: normalizedVoiceId,
+        response_format: 'wav',
         speed: speed
       })
     });
@@ -172,6 +220,17 @@ export class GroqProvider extends TTSProvider {
    */
   buildErrorMessage(response, errorBody = null) {
     const status = response.status;
+    const message = errorBody?.message || '';
+
+    // Check for terms acceptance requirement
+    if (message.includes('terms acceptance') || message.includes('terms at')) {
+      return 'Groq Orpheus model requires terms acceptance. Visit console.groq.com to accept terms.';
+    }
+
+    // Check for invalid voice
+    if (message.includes('voice must be one of')) {
+      return `Invalid voice. ${message}`;
+    }
 
     switch (status) {
       case 401:
@@ -179,9 +238,9 @@ export class GroqProvider extends TTSProvider {
       case 429:
         return 'Rate limited. Groq has generous limits - please wait a moment.';
       case 400:
-        return errorBody?.message || 'Invalid request. Please try a different voice.';
+        return message || 'Invalid request. Please try a different voice.';
       default:
-        return errorBody?.message || `Groq API error (${status}). Please try again later.`;
+        return message || `Groq API error (${status}). Please try again later.`;
     }
   }
 }

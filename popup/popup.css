@@ -1,6 +1,10 @@
 /**
  * VoxPage Popup Styles
  * Uses design tokens from styles/tokens.css for theming
+ * Uses component classes from styles/components.css
+ *
+ * This file contains ONLY popup-specific layout overrides.
+ * Component styling is handled by components.css.
  */
 
 /* ========================================
@@ -62,86 +66,32 @@ body {
   background-clip: text;
 }
 
-.icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-colors);
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-btn:hover {
-  background: var(--color-button-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.icon-btn:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-.icon-btn svg {
+/* Settings button icon sizing */
+.header .voxpage-button--icon svg {
   width: 20px;
   height: 20px;
 }
 
 /* ========================================
-   STATUS BANNER
+   STATUS BANNER - Popup-specific overrides
    ======================================== */
-.status-banner {
+.voxpage-banner {
   position: relative;
   z-index: var(--z-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-accent-primary);
-  color: white;
-  font-size: var(--font-size-sm);
   animation: slideIn var(--transition-normal) var(--ease-out);
 }
 
-.status-banner.error {
+/* Semantic variant classes applied by JS */
+.voxpage-banner.error {
   background: var(--color-error);
 }
 
-.status-banner.success {
+.voxpage-banner.success {
   background: var(--color-success);
 }
 
-.status-banner.warning {
+.voxpage-banner.warning {
   background: var(--color-warning);
-}
-
-.dismiss-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 1.125rem;
-  cursor: pointer;
-  opacity: 0.8;
-  padding: var(--spacing-xs);
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dismiss-btn:hover {
-  opacity: 1;
-}
-
-.dismiss-btn:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
 }
 
 /* ========================================
@@ -153,13 +103,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xl);
+  overflow-y: auto;
+  max-height: calc(var(--popup-min-height) - 120px);
 }
 
-.section-label {
-  display: block;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+/* Section label - override voxpage-label for popup styling */
+.main-content .voxpage-label {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: var(--spacing-md);
@@ -175,6 +124,67 @@ body {
   border: 1px solid var(--color-border);
 }
 
+/* ========================================
+   PLAYBACK STATUS INDICATOR (018-ui-redesign)
+   ======================================== */
+.playback-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background: var(--color-accent-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-accent-primary);
+}
+
+.playback-status.hidden {
+  display: none;
+}
+
+.playback-status__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  animation: pulse-indicator 1.5s ease-in-out infinite;
+}
+
+.playback-status.paused .playback-status__indicator {
+  background: var(--color-warning);
+  animation: none;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+.playback-status__text {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-secondary);
+}
+
+/* Show Player button within status */
+.playback-status .voxpage-button--sm {
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  gap: var(--spacing-xs);
+}
+
+.playback-status .voxpage-button--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
 .player-controls {
   position: relative;
   z-index: var(--z-elevated);
@@ -185,40 +195,17 @@ body {
   margin-bottom: var(--spacing-lg);
 }
 
-.control-btn {
-  background: var(--color-button-bg);
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-colors);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
+/* Control buttons - reduce padding for inline layout */
+.player-controls .voxpage-button--icon {
+  padding: var(--spacing-sm);
 }
 
-.control-btn:hover {
-  background: var(--color-button-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.control-btn:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-.control-btn:active {
-  transform: scale(0.95);
-}
-
-.control-btn svg {
+.player-controls .voxpage-button--icon svg {
   width: 20px;
   height: 20px;
 }
 
+/* Main play button - custom styling (not a standard component) */
 .play-btn {
   background: var(--color-accent-gradient);
   border: none;
@@ -255,36 +242,15 @@ body {
 }
 
 /* ========================================
-   PROGRESS BAR
+   PROGRESS BAR - Popup-specific overrides
    ======================================== */
 .progress-section {
   margin-top: var(--spacing-sm);
 }
 
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: var(--color-button-bg);
-  border-radius: 2px;
-  overflow: hidden;
+/* Make progress bar clickable */
+.progress-section .voxpage-progress {
   cursor: pointer;
-}
-
-.progress-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--color-accent-gradient);
-  border-radius: 2px;
-  transition: width 0.1s linear;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--spacing-sm);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
 }
 
 .paragraph-info {
@@ -345,175 +311,64 @@ body {
   position: relative;
 }
 
-.select-input {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-input-bg);
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-md);
-  font-family: var(--font-family);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238899a8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right var(--spacing-lg) center;
-  transition: var(--transition-colors);
-  min-height: var(--min-touch-target);
-}
-
-.select-input:hover {
-  border-color: var(--color-accent-primary);
-}
-
-.select-input:focus,
-.select-input:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
-
-.select-input option {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-}
-
-/* ========================================
-   PROVIDER SECTION
-   ======================================== */
-.provider-tabs {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.provider-tab {
-  flex: 1;
-  min-width: 60px;
-  padding: var(--spacing-md) var(--spacing-md);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  font-family: var(--font-family);
-  cursor: pointer;
-  transition: var(--transition-colors);
-  min-height: var(--min-touch-target);
-}
-
-.provider-tab:hover {
-  border-color: var(--color-accent-primary);
-  color: var(--color-text-primary);
-}
-
-.provider-tab:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-.provider-tab.active {
-  background: var(--color-accent-gradient);
-  border-color: transparent;
-  color: white;
-}
-
-.provider-name {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ========================================
    SPEED SECTION
    ======================================== */
-.slider {
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--color-button-bg);
-  appearance: none;
-  cursor: pointer;
-}
-
-.slider:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 4px;
-}
-
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-gradient);
-  cursor: pointer;
-  box-shadow: var(--shadow-accent);
-  transition: transform var(--transition-fast) var(--ease-default);
-}
-
-.slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-}
-
-.slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-primary);
-  cursor: pointer;
-  border: none;
-  box-shadow: var(--shadow-accent);
-}
-
-/* ========================================
-   MODE SECTION
-   ======================================== */
-.mode-options {
+.speed-section {
   display: flex;
+  flex-direction: column;
   gap: var(--spacing-sm);
 }
 
-.mode-btn {
-  flex: 1;
+.speed-section .voxpage-label {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+}
+
+.speed-section #speedValue {
+  color: var(--color-accent-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Ensure slider is visible and properly sized */
+.speed-section .voxpage-slider {
+  width: 100%;
+  height: 6px;
+  margin-top: var(--spacing-xs);
+}
+
+/* ========================================
+   MODE SECTION - Mode button specific styles
+   ======================================== */
+.mode-options {
+  /* Override voxpage-tabs gap for tighter layout */
+}
+
+.mode-options .voxpage-tab {
+  flex-direction: column;
   gap: var(--spacing-xs);
   padding: var(--spacing-md) var(--spacing-sm);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  font-family: var(--font-family);
-  cursor: pointer;
-  transition: var(--transition-colors);
-  min-height: var(--min-touch-target);
 }
 
-.mode-btn:hover {
-  border-color: var(--color-accent-primary);
-  color: var(--color-text-primary);
+.mode-options .voxpage-tab svg {
+  width: 20px;
+  height: 20px;
 }
 
-.mode-btn:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-.mode-btn.active {
+/* Active mode styling - uses accent bg instead of gradient for modes */
+.mode-options .voxpage-tab--active,
+.mode-options .mode-btn.active {
   background: var(--color-accent-bg);
   border-color: var(--color-accent-primary);
   color: var(--color-accent-secondary);
 }
 
-.mode-btn svg {
-  width: 20px;
-  height: 20px;
+.mode-options .voxpage-tab--active:hover,
+.mode-options .mode-btn.active:hover {
+  color: var(--color-accent-secondary);
+  border-color: var(--color-accent-primary);
 }
 
 /* ========================================
@@ -527,7 +382,7 @@ body {
   bottom: 0;
   background: var(--color-overlay-bg);
   z-index: var(--z-overlay);
-  isolation: isolate; /* Creates new stacking context for predictable layering */
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -542,7 +397,7 @@ body {
   padding: var(--spacing-lg);
   max-width: 280px;
   box-shadow: var(--shadow-lg);
-  z-index: var(--z-overlay-content); /* Local stacking within isolated overlay */
+  z-index: var(--z-overlay-content);
   animation: slideIn var(--transition-normal) var(--ease-out);
 }
 
@@ -700,7 +555,7 @@ body {
   background: var(--color-text-secondary);
 }
 
-/* Firefox scrollbar - uses system defaults */
+/* Firefox scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-text-muted) transparent;

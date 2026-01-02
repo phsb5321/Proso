@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VoxPage Settings</title>
   <link rel="stylesheet" href="../styles/tokens.css">
+  <link rel="stylesheet" href="../styles/components.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -21,14 +22,20 @@
     </header>
 
     <main class="main-content">
-      <!-- API Keys Section -->
-      <section class="settings-section">
-        <h2 class="section-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      <!-- API Keys Section (018-ui-redesign: Collapsible) -->
+      <section class="voxpage-card voxpage-accordion" data-section="api-keys">
+        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            API Keys
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
-          API Keys
-        </h2>
+        </button>
+        <div id="api-keys-content" class="voxpage-accordion__content">
         <p class="section-description">
           Configure your API keys to enable AI-powered text-to-speech. Your keys are stored locally and never sent anywhere except to the respective API providers.
         </p>
@@ -36,12 +43,12 @@
         <!-- OpenAI -->
         <div class="form-group">
           <label for="openaiKey" class="form-label">
-            <span class="provider-badge openai">OpenAI</span>
+            <span class="voxpage-badge voxpage-badge--openai">OpenAI</span>
             API Key
           </label>
-          <div class="input-wrapper">
-            <input type="password" id="openaiKey" class="form-input" placeholder="sk-...">
-            <button type="button" class="toggle-visibility" data-target="openaiKey">
+          <div class="voxpage-input-wrapper">
+            <input type="password" id="openaiKey" class="voxpage-input" placeholder="sk-...">
+            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="openaiKey">
               <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
@@ -56,12 +63,12 @@
         <!-- ElevenLabs -->
         <div class="form-group">
           <label for="elevenlabsKey" class="form-label">
-            <span class="provider-badge elevenlabs">ElevenLabs</span>
+            <span class="voxpage-badge voxpage-badge--elevenlabs">ElevenLabs</span>
             API Key
           </label>
-          <div class="input-wrapper">
-            <input type="password" id="elevenlabsKey" class="form-input" placeholder="Enter your ElevenLabs API key">
-            <button type="button" class="toggle-visibility" data-target="elevenlabsKey">
+          <div class="voxpage-input-wrapper">
+            <input type="password" id="elevenlabsKey" class="voxpage-input" placeholder="Enter your ElevenLabs API key">
+            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="elevenlabsKey">
               <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
@@ -76,12 +83,12 @@
         <!-- Cartesia -->
         <div class="form-group">
           <label for="cartesiaKey" class="form-label">
-            <span class="provider-badge cartesia">Cartesia</span>
+            <span class="voxpage-badge voxpage-badge--cartesia">Cartesia</span>
             API Key
           </label>
-          <div class="input-wrapper">
-            <input type="password" id="cartesiaKey" class="form-input" placeholder="Enter your Cartesia API key">
-            <button type="button" class="toggle-visibility" data-target="cartesiaKey">
+          <div class="voxpage-input-wrapper">
+            <input type="password" id="cartesiaKey" class="voxpage-input" placeholder="Enter your Cartesia API key">
+            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="cartesiaKey">
               <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
@@ -96,12 +103,12 @@
         <!-- Groq -->
         <div class="form-group">
           <label for="groqKey" class="form-label">
-            <span class="provider-badge groq">Groq</span>
+            <span class="voxpage-badge voxpage-badge--groq">Groq</span>
             API Key
           </label>
-          <div class="input-wrapper">
-            <input type="password" id="groqKey" class="form-input" placeholder="gsk_...">
-            <button type="button" class="toggle-visibility" data-target="groqKey">
+          <div class="voxpage-input-wrapper">
+            <input type="password" id="groqKey" class="voxpage-input" placeholder="gsk_...">
+            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="groqKey">
               <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
@@ -112,21 +119,27 @@
             Get your API key from <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console</a> - Fast & affordable!
           </p>
         </div>
+        </div>
       </section>
 
-      <!-- Default Settings Section -->
-      <section class="settings-section">
-        <h2 class="section-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      <!-- Default Settings Section (018-ui-redesign: Collapsible) -->
+      <section class="voxpage-card voxpage-accordion" data-section="defaults">
+        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="defaults-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            Default Settings
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
-          Default Settings
-        </h2>
-
+        </button>
+        <div id="defaults-content" class="voxpage-accordion__content">
         <div class="form-group">
           <label for="defaultProvider" class="form-label">Default Provider</label>
-          <select id="defaultProvider" class="form-select">
+          <select id="defaultProvider" class="voxpage-select">
             <option value="groq">Groq (Fast & Cheap)</option>
             <option value="openai">OpenAI TTS</option>
             <option value="elevenlabs">ElevenLabs</option>
@@ -138,64 +151,77 @@
         <div class="form-group">
           <label for="defaultSpeed" class="form-label">Default Speed</label>
           <div class="range-wrapper">
-            <input type="range" id="defaultSpeed" class="form-range" min="0.5" max="2" step="0.1" value="1">
+            <input type="range" id="defaultSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1">
             <span id="speedValue" class="range-value">1.0x</span>
           </div>
         </div>
 
         <div class="form-group">
           <label for="defaultMode" class="form-label">Default Reading Mode</label>
-          <select id="defaultMode" class="form-select">
+          <select id="defaultMode" class="voxpage-select">
             <option value="full">Full Page</option>
             <option value="article">Article Only</option>
             <option value="selection">Selection</option>
           </select>
         </div>
+        </div>
       </section>
 
-      <!-- Appearance Section -->
-      <section class="settings-section">
-        <h2 class="section-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      <!-- Appearance Section (018-ui-redesign: Collapsible) -->
+      <section class="voxpage-card voxpage-accordion" data-section="appearance">
+        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="appearance-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            Appearance
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
-          Appearance
-        </h2>
-
+        </button>
+        <div id="appearance-content" class="voxpage-accordion__content">
         <div class="form-group">
-          <label class="toggle-label">
-            <input type="checkbox" id="highlightEnabled" class="toggle-input" checked>
-            <span class="toggle-switch"></span>
-            <span class="toggle-text">Highlight text while reading</span>
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="highlightEnabled" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Highlight text while reading</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label class="toggle-label">
-            <input type="checkbox" id="autoScroll" class="toggle-input" checked>
-            <span class="toggle-switch"></span>
-            <span class="toggle-text">Auto-scroll to current paragraph</span>
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="autoScroll" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Auto-scroll to current paragraph</span>
           </label>
+        </div>
         </div>
       </section>
 
-      <!-- Keyboard Shortcuts Section -->
-      <section class="settings-section">
-        <h2 class="section-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
-            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+      <!-- Keyboard Shortcuts Section (018-ui-redesign: Collapsible) -->
+      <section class="voxpage-card voxpage-accordion" data-section="shortcuts">
+        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="shortcuts-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+              <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+            </svg>
+            Keyboard Shortcuts
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
           </svg>
-          Keyboard Shortcuts
-        </h2>
+        </button>
+        <div id="shortcuts-content" class="voxpage-accordion__content" hidden>
         <p class="section-description">Use these shortcuts to control playback:</p>
 
         <div class="shortcuts-list">
@@ -216,11 +242,185 @@
             <span>Previous paragraph</span>
           </div>
         </div>
+        </div>
+      </section>
+
+      <!-- Developer Settings Section (014-loki-remote-logging, 018-ui-redesign: Collapsible) -->
+      <section class="voxpage-card voxpage-card--developer voxpage-accordion" data-section="developer">
+        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="developer-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            Developer Settings
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="developer-content" class="voxpage-accordion__content" hidden>
+        <p class="section-description">
+          Configure remote logging to send extension logs to a Loki server for debugging and monitoring.
+          This is an opt-in feature for developers.
+        </p>
+
+        <div class="form-group">
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="loggingEnabled" class="voxpage-toggle__input">
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Enable Remote Logging</span>
+          </label>
+        </div>
+
+        <div id="loggingConfigSection" class="logging-config-section" style="display: none;">
+          <div class="form-group">
+            <label for="loggingEndpoint" class="form-label">Loki Endpoint URL</label>
+            <input type="url" id="loggingEndpoint" class="voxpage-input"
+                   placeholder="https://loki.example.com/loki/api/v1/push">
+            <p class="form-hint">Must be HTTPS and end with /loki/api/v1/push</p>
+          </div>
+
+          <div class="form-group">
+            <label for="loggingAuthType" class="form-label">Authentication Type</label>
+            <select id="loggingAuthType" class="voxpage-select">
+              <option value="none">No Authentication</option>
+              <option value="basic">Basic Auth (Username/Password)</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="cloudflare">Cloudflare Access</option>
+            </select>
+          </div>
+
+          <!-- Basic Auth fields -->
+          <div id="basicAuthFields" class="auth-fields" style="display: none;">
+            <div class="form-group">
+              <label for="loggingUsername" class="form-label">Username</label>
+              <input type="text" id="loggingUsername" class="voxpage-input" placeholder="Username">
+            </div>
+            <div class="form-group">
+              <label for="loggingPassword" class="form-label">Password</label>
+              <div class="voxpage-input-wrapper">
+                <input type="password" id="loggingPassword" class="voxpage-input" placeholder="Password">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingPassword">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bearer Token field -->
+          <div id="bearerAuthFields" class="auth-fields" style="display: none;">
+            <div class="form-group">
+              <label for="loggingBearerToken" class="form-label">Bearer Token</label>
+              <div class="voxpage-input-wrapper">
+                <input type="password" id="loggingBearerToken" class="voxpage-input" placeholder="Bearer token">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingBearerToken">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cloudflare Access fields -->
+          <div id="cloudflareAuthFields" class="auth-fields" style="display: none;">
+            <div class="form-group">
+              <label for="loggingCfClientId" class="form-label">CF-Access-Client-Id</label>
+              <input type="text" id="loggingCfClientId" class="voxpage-input" placeholder="Client ID">
+            </div>
+            <div class="form-group">
+              <label for="loggingCfClientSecret" class="form-label">CF-Access-Client-Secret</label>
+              <div class="voxpage-input-wrapper">
+                <input type="password" id="loggingCfClientSecret" class="voxpage-input" placeholder="Client Secret">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingCfClientSecret">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <p class="form-hint">
+              Get your service token from <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare Zero Trust Dashboard</a> &rarr; Access &rarr; Service Auth
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="loggingLogLevel" class="form-label">Minimum Log Level</label>
+            <select id="loggingLogLevel" class="voxpage-select">
+              <option value="debug">Debug (All logs)</option>
+              <option value="info">Info</option>
+              <option value="warn" selected>Warning (Recommended)</option>
+              <option value="error">Error only</option>
+            </select>
+            <p class="form-hint">Higher levels = less data sent. Use "Debug" for detailed troubleshooting.</p>
+          </div>
+
+          <div class="form-group logging-actions">
+            <button id="testLoggingConnection" class="voxpage-button voxpage-button--secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              Test Connection
+            </button>
+            <span id="loggingTestStatus" class="logging-test-status"></span>
+          </div>
+
+          <!-- Log Viewer Section -->
+          <div class="log-viewer-section">
+            <h3 class="log-viewer-title">Log Buffer</h3>
+            <div class="log-viewer-actions">
+              <button id="viewLogsBtn" class="voxpage-button voxpage-button--secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                View Logs
+              </button>
+              <button id="flushLogsBtn" class="voxpage-button voxpage-button--secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Flush Now
+              </button>
+              <button id="clearLogsBtn" class="voxpage-button voxpage-button--ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Clear
+              </button>
+              <button id="exportLogsBtn" class="voxpage-button voxpage-button--ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Export JSON
+              </button>
+            </div>
+            <div id="logViewerStatus" class="log-viewer-status"></div>
+            <div id="logViewerContainer" class="log-viewer-container" style="display: none;">
+              <pre id="logViewerContent" class="log-viewer-content"></pre>
+            </div>
+          </div>
+        </div>
+        </div>
       </section>
 
       <!-- Save Button -->
       <div class="actions">
-        <button id="saveBtn" class="btn btn-primary">
+        <button id="saveBtn" class="voxpage-button voxpage-button--primary">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
@@ -243,6 +443,6 @@
     </footer>
   </div>
 
-  <script src="options.js"></script>
+  <script type="module" src="options.js"></script>
 </body>
 </html>

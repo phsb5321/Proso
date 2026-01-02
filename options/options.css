@@ -1,6 +1,10 @@
 /**
  * VoxPage Options Page Styles
  * Uses design tokens from styles/tokens.css for theming
+ * Uses component classes from styles/components.css
+ *
+ * This file contains ONLY options-page-specific layout overrides.
+ * Component styling is handled by components.css.
  */
 
 /* ========================================
@@ -67,15 +71,67 @@ body {
 }
 
 /* ========================================
-   SETTINGS SECTION
+   COLLAPSIBLE ACCORDION (018-ui-redesign T084-T086)
    ======================================== */
-.settings-section {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  border: 1px solid var(--color-border);
+.voxpage-accordion {
+  overflow: hidden;
 }
 
+.voxpage-accordion__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--transition-fast);
+}
+
+.voxpage-accordion__header:hover {
+  opacity: 0.85;
+}
+
+.voxpage-accordion__header:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+  border-radius: var(--border-radius);
+}
+
+.voxpage-accordion__chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.voxpage-accordion__header[aria-expanded="true"] .voxpage-accordion__chevron {
+  transform: rotate(180deg);
+}
+
+.voxpage-accordion__content {
+  overflow: hidden;
+  transition: max-height var(--transition-normal) ease-out, opacity var(--transition-normal) ease-out;
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: var(--spacing-lg);
+}
+
+.voxpage-accordion__content[hidden] {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding: 0;
+  /* Override hidden behavior for animation */
+  display: block !important;
+}
+
+/* ========================================
+   SETTINGS SECTION - Uses voxpage-card
+   ======================================== */
 .section-title {
   display: flex;
   align-items: center;
@@ -119,103 +175,6 @@ body {
   margin-bottom: var(--spacing-sm);
 }
 
-.provider-badge {
-  display: inline-block;
-  padding: 2px var(--spacing-sm);
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-}
-
-.provider-badge.openai {
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--color-success);
-}
-
-.provider-badge.elevenlabs {
-  background: rgba(245, 158, 11, 0.2);
-  color: var(--color-warning);
-}
-
-.provider-badge.cartesia {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-provider-cartesia);
-}
-
-.provider-badge.groq {
-  background: rgba(249, 115, 22, 0.2);
-  color: var(--color-provider-groq);
-}
-
-/* ========================================
-   INPUT WRAPPER
-   ======================================== */
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.form-input {
-  flex: 1;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  padding-right: 48px;
-  background: var(--color-input-bg);
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-family);
-  transition: var(--transition-colors);
-  min-height: var(--min-touch-target);
-}
-
-.form-input:hover {
-  border-color: var(--color-accent-primary);
-}
-
-.form-input:focus,
-.form-input:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
-
-.form-input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.toggle-visibility {
-  position: absolute;
-  right: var(--spacing-md);
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  transition: var(--transition-colors);
-  min-width: var(--min-touch-target);
-  min-height: var(--min-touch-target);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toggle-visibility:hover {
-  color: var(--color-text-primary);
-}
-
-.toggle-visibility:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
-}
-
-.eye-icon {
-  width: 20px;
-  height: 20px;
-}
-
 .form-hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
@@ -237,40 +196,20 @@ body {
 }
 
 /* ========================================
-   SELECT
+   INPUT WRAPPER - Icon button positioning
    ======================================== */
-.form-select {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-input-bg);
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-family);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238899a8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right var(--spacing-lg) center;
-  transition: var(--transition-colors);
-  min-height: var(--min-touch-target);
+.voxpage-input-wrapper .voxpage-button--icon {
+  position: absolute;
+  right: var(--spacing-xs);
 }
 
-.form-select:hover {
-  border-color: var(--color-accent-primary);
+.voxpage-input-wrapper .voxpage-input {
+  padding-right: calc(var(--min-touch-target) + var(--spacing-sm));
 }
 
-.form-select:focus,
-.form-select:focus-visible {
-  outline: none;
-  border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
-
-.form-select option {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
+.eye-icon {
+  width: 20px;
+  height: 20px;
 }
 
 /* ========================================
@@ -282,110 +221,11 @@ body {
   gap: var(--spacing-lg);
 }
 
-.form-range {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--color-button-bg);
-  appearance: none;
-  cursor: pointer;
-}
-
-.form-range:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 4px;
-}
-
-.form-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-gradient);
-  cursor: pointer;
-  box-shadow: var(--shadow-accent);
-  transition: transform var(--transition-fast);
-}
-
-.form-range::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-}
-
-.form-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-primary);
-  cursor: pointer;
-  border: none;
-  box-shadow: var(--shadow-accent);
-}
-
 .range-value {
   min-width: 45px;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-accent-secondary);
-}
-
-/* ========================================
-   TOGGLE SWITCH
-   ======================================== */
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  cursor: pointer;
-  min-height: var(--min-touch-target);
-}
-
-.toggle-label:focus-within {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 4px;
-  border-radius: var(--radius-sm);
-}
-
-.toggle-input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 48px;
-  height: 26px;
-  background: var(--color-button-bg);
-  border-radius: 13px;
-  transition: var(--transition-colors);
-  flex-shrink: 0;
-}
-
-.toggle-switch::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  background: var(--color-text-secondary);
-  border-radius: var(--radius-full);
-  transition: var(--transition-normal);
-}
-
-.toggle-input:checked + .toggle-switch {
-  background: var(--color-accent-primary);
-}
-
-.toggle-input:checked + .toggle-switch::after {
-  left: 25px;
-  background: white;
-}
-
-.toggle-text {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
 }
 
 /* ========================================
@@ -415,7 +255,7 @@ kbd {
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-family);
   font-size: var(--font-size-xs);
   color: var(--color-text-primary);
 }
@@ -430,44 +270,10 @@ kbd {
   margin-top: var(--spacing-xl);
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  font-family: var(--font-family);
-  cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-  min-height: var(--min-touch-target);
-}
-
-.btn svg {
+/* Save button icon sizing */
+.actions .voxpage-button svg {
   width: 18px;
   height: 18px;
-}
-
-.btn-primary {
-  background: var(--color-accent-gradient);
-  color: white;
-  box-shadow: var(--shadow-accent);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-.btn-primary:focus-visible {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 2px;
 }
 
 .save-status {
@@ -479,6 +285,42 @@ kbd {
 
 .save-status.show {
   opacity: 1;
+  animation: saveFlash var(--transition-slow) ease-out;
+}
+
+/* T088: Save feedback animation */
+@keyframes saveFlash {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Success pulse on save button */
+.voxpage-button--primary.save-success {
+  animation: savePulse 0.5s ease-out;
+}
+
+@keyframes savePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: none;
+  }
 }
 
 /* ========================================
@@ -512,6 +354,142 @@ kbd {
 }
 
 /* ========================================
+   DEVELOPER SETTINGS (014-loki-remote-logging)
+   ======================================== */
+.voxpage-card--developer {
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.voxpage-card--developer .section-title svg {
+  color: var(--color-text-muted);
+}
+
+.logging-config-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border);
+}
+
+.auth-fields {
+  margin-left: var(--spacing-lg);
+  padding-left: var(--spacing-lg);
+  border-left: 2px solid var(--color-border);
+}
+
+.logging-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+.logging-actions .voxpage-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.logging-test-status {
+  font-size: var(--font-size-sm);
+  opacity: 0;
+  transition: var(--transition-colors);
+}
+
+.logging-test-status.show {
+  opacity: 1;
+}
+
+.logging-test-status.success {
+  color: var(--color-success);
+}
+
+.logging-test-status.error {
+  color: var(--color-error);
+}
+
+.logging-test-status.loading {
+  color: var(--color-text-muted);
+}
+
+/* ========================================
+   LOG VIEWER (014-loki-remote-logging)
+   ======================================== */
+.log-viewer-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border);
+}
+
+.log-viewer-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.log-viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.log-viewer-actions .voxpage-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.log-viewer-status {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.log-viewer-container {
+  max-height: 400px;
+  overflow: auto;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+}
+
+.log-viewer-content {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  padding: var(--spacing-md);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text-primary);
+}
+
+.log-entry {
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-entry--error {
+  color: var(--color-error);
+}
+
+.log-entry--warn {
+  color: #f59e0b;
+}
+
+.log-entry--info {
+  color: var(--color-accent-secondary);
+}
+
+.log-entry--debug {
+  color: var(--color-text-muted);
+}
+
+/* ========================================
    RESPONSIVE
    ======================================== */
 @media (max-width: 600px) {
@@ -519,8 +497,8 @@ kbd {
     padding: var(--spacing-xl) var(--spacing-lg);
   }
 
-  .settings-section {
-    padding: var(--spacing-xl);
+  .voxpage-card {
+    padding: var(--spacing-lg);
   }
 
   .logo-text {
@@ -529,5 +507,10 @@ kbd {
 
   .shortcuts-list {
     font-size: var(--font-size-xs);
+  }
+
+  .auth-fields {
+    margin-left: var(--spacing-sm);
+    padding-left: var(--spacing-md);
   }
 }

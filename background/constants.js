@@ -94,11 +94,17 @@ export const StorageKey = Object.freeze({
   API_KEY_ELEVENLABS: 'elevenlabsApiKey',
   API_KEY_CARTESIA: 'cartesiaApiKey',
   API_KEY_GROQ: 'groqApiKey',
-  FLOATING_CONTROLLER_POSITION: 'floatingControllerPosition',
+  FLOATING_CONTROLLER_POSITION: 'floatingControllerPosition', // DEPRECATED: Use FOOTER_STATE
   WORD_SYNC_ENABLED: 'wordSyncEnabled',
   // Word timing cache (007-audio-sync-extraction-overhaul)
   WORD_TIMING_CACHE: 'wordTimingCache',
-  WORD_TIMING_CACHE_SIZE: 'wordTimingCacheSize'
+  WORD_TIMING_CACHE_SIZE: 'wordTimingCacheSize',
+  // Remote logging (014-loki-remote-logging)
+  LOGGING_CONFIG: 'loggingConfig',
+  LOG_BUFFER: 'logBuffer',
+  LOG_RETRY_QUEUE: 'logRetryQueue',
+  // Footer state (018-ui-redesign)
+  FOOTER_STATE: 'footerState'
 });
 
 /**
@@ -114,6 +120,9 @@ export const GroqWhisper = Object.freeze({
 
 /**
  * Default settings
+ * @deprecated Use shared/config/defaults.js instead (SSOT pattern)
+ * This export is kept temporarily for backwards compatibility.
+ * All new code should import from '../shared/config/defaults.js'
  */
 export const DefaultSettings = Object.freeze({
   defaultProvider: ProviderId.BROWSER,
@@ -122,6 +131,35 @@ export const DefaultSettings = Object.freeze({
   showCostEstimate: true,
   cacheEnabled: true,
   maxCacheSize: 50
+});
+
+/**
+ * Lifecycle message types (011-highlight-playback-fix)
+ * Used for page navigation and playback cleanup
+ */
+export const LifecycleMessageType = Object.freeze({
+  STOP_PLAYBACK: 'stopPlayback',
+  FORCE_STOP_PLAYBACK: 'forceStopPlayback',
+  REQUEST_RESYNC: 'requestResync'
+});
+
+/**
+ * Scroll message types (011-highlight-playback-fix)
+ * Used for auto-scroll coordination
+ */
+export const ScrollMessageType = Object.freeze({
+  HIGHLIGHT_WITH_SCROLL: 'highlightWithScroll',
+  REPORT_SCROLL_STATE: 'reportScrollState'
+});
+
+/**
+ * Selection message types (011-highlight-playback-fix)
+ * Used for paragraph selection mode
+ */
+export const SelectionMessageType = Object.freeze({
+  ENABLE_SELECTION_MODE: 'enableSelectionMode',
+  DISABLE_SELECTION_MODE: 'disableSelectionMode',
+  PLAY_FROM_PARAGRAPH: 'playFromParagraph'
 });
 
 /**
@@ -145,4 +183,102 @@ export const SyncConfig = Object.freeze({
   MIN_CONTENT_LENGTH: 30,
   // FR-016: Link density threshold for navigation filtering
   LINK_DENSITY_THRESHOLD: 0.7
+});
+
+/**
+ * Log levels for remote logging (014-loki-remote-logging)
+ * Numeric values for comparison (debug < info < warn < error)
+ */
+export const LogLevel = Object.freeze({
+  DEBUG: 'debug',
+  INFO: 'info',
+  WARN: 'warn',
+  ERROR: 'error'
+});
+
+/**
+ * Numeric log level values for filtering comparison
+ */
+export const LogLevelValue = Object.freeze({
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3
+});
+
+/**
+ * Log component identifiers (014-loki-remote-logging)
+ * Used for stream labels in Loki
+ */
+export const LogComponent = Object.freeze({
+  BACKGROUND: 'background',
+  CONTENT: 'content',
+  POPUP: 'popup',
+  OPTIONS: 'options'
+});
+
+/**
+ * Authentication types for Loki endpoint (014-loki-remote-logging)
+ */
+export const LogAuthType = Object.freeze({
+  NONE: 'none',
+  BASIC: 'basic',
+  BEARER: 'bearer',
+  CLOUDFLARE: 'cloudflare'
+});
+
+/**
+ * Logging configuration defaults (014-loki-remote-logging)
+ * These are also defined in shared/config/logging-defaults.js for SSOT
+ */
+export const LoggingConfig = Object.freeze({
+  // FR-003: Batch send interval (10 seconds)
+  BATCH_INTERVAL_MS: 10000,
+  // FR-004: Buffer limit (1MB)
+  MAX_BUFFER_BYTES: 1048576,
+  // Max entries per batch
+  MAX_BATCH_SIZE: 100,
+  // Circuit breaker threshold
+  MAX_CONSECUTIVE_FAILURES: 10,
+  // Retry delays with exponential backoff (ms)
+  RETRY_DELAYS: [1000, 2000, 4000, 8000, 16000],
+  // Max retry attempts
+  MAX_RETRY_ATTEMPTS: 5
+});
+
+/**
+ * Footer message types (018-ui-redesign)
+ * Used for communication between background, content script footer, and popup
+ */
+export const FooterMessageTypes = Object.freeze({
+  // Background → Content
+  FOOTER_STATE_UPDATE: 'FOOTER_STATE_UPDATE',
+  FOOTER_SHOW: 'FOOTER_SHOW',
+  FOOTER_HIDE: 'FOOTER_HIDE',
+
+  // Content → Background
+  FOOTER_ACTION: 'FOOTER_ACTION',
+  FOOTER_POSITION_CHANGED: 'FOOTER_POSITION_CHANGED',
+  FOOTER_VISIBILITY_CHANGED: 'FOOTER_VISIBILITY_CHANGED',
+
+  // Popup → Background
+  SHOW_FOOTER: 'SHOW_FOOTER',
+  GET_PLAYBACK_STATUS: 'GET_PLAYBACK_STATUS'
+});
+
+/**
+ * Footer action types (018-ui-redesign)
+ * Used in FOOTER_ACTION message payloads
+ */
+export const FooterActions = Object.freeze({
+  PLAY: 'play',
+  PAUSE: 'pause',
+  STOP: 'stop',
+  NEXT: 'next',
+  PREV: 'prev',
+  SEEK: 'seek',
+  SPEED: 'speed',
+  CLOSE: 'close',
+  MINIMIZE: 'minimize',
+  EXPAND: 'expand'
 });

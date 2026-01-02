@@ -1,0 +1,149 @@
+/**
+ * VoxPage Configuration Schema
+ * Plain JavaScript validation (no npm dependencies for browser extension)
+ *
+ * @module shared/config/schema
+ * @description Validates configuration values against defined constraints.
+ * Invalid values are reset to defaults with console warning (FR-005a).
+ */
+
+import { defaults, constraints, MODES, PROVIDERS } from './defaults.js';
+
+/**
+ * Validate a mode value
+ * @param {*} value
+ * @returns {string} Valid mode or default
+ */
+function validateMode(value) {
+  if (MODES.includes(value)) {
+    return value;
+  }
+  console.warn(`Invalid mode "${value}", using default: ${defaults.mode}`);
+  return defaults.mode;
+}
+
+/**
+ * Validate a provider value
+ * @param {*} value
+ * @returns {string} Valid provider or default
+ */
+function validateProvider(value) {
+  if (PROVIDERS.includes(value)) {
+    return value;
+  }
+  console.warn(`Invalid provider "${value}", using default: ${defaults.provider}`);
+  return defaults.provider;
+}
+
+/**
+ * Validate speed value
+ * @param {*} value
+ * @returns {number} Valid speed or default
+ */
+function validateSpeed(value) {
+  const num = parseFloat(value);
+  if (!isNaN(num) && num >= constraints.speed.min && num <= constraints.speed.max) {
+    return num;
+  }
+  console.warn(`Invalid speed "${value}", using default: ${defaults.speed}`);
+  return defaults.speed;
+}
+
+/**
+ * Validate boolean value
+ * @param {*} value
+ * @param {boolean} defaultValue
+ * @returns {boolean}
+ */
+function validateBoolean(value, defaultValue) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return defaultValue;
+}
+
+/**
+ * Validate voice value (string or null)
+ * @param {*} value
+ * @returns {string|null}
+ */
+function validateVoice(value) {
+  if (value === null || typeof value === 'string') {
+    return value;
+  }
+  return defaults.voice;
+}
+
+/**
+ * Validate max cache size
+ * @param {*} value
+ * @returns {number}
+ */
+function validateMaxCacheSize(value) {
+  const num = parseInt(value, 10);
+  if (!isNaN(num) && num >= constraints.maxCacheSize.min && num <= constraints.maxCacheSize.max) {
+    return num;
+  }
+  return defaults.maxCacheSize;
+}
+
+/**
+ * Validate and parse settings with defaults
+ * @param {Object} data - Raw settings object
+ * @returns {{ success: boolean, data: Object }}
+ */
+export function validateSettings(data) {
+  const input = data || {};
+
+  const validated = {
+    mode: validateMode(input.mode),
+    provider: validateProvider(input.provider),
+    voice: validateVoice(input.voice),
+    speed: validateSpeed(input.speed),
+    showCostEstimate: validateBoolean(input.showCostEstimate, defaults.showCostEstimate),
+    cacheEnabled: validateBoolean(input.cacheEnabled, defaults.cacheEnabled),
+    maxCacheSize: validateMaxCacheSize(input.maxCacheSize),
+    wordSyncEnabled: validateBoolean(input.wordSyncEnabled, defaults.wordSyncEnabled),
+  };
+
+  return { success: true, data: validated };
+}
+
+/**
+ * Validate a single setting value
+ * @param {string} key - Setting key
+ * @param {*} value - Value to validate
+ * @returns {{ success: boolean, data?: *, error?: Error }}
+ */
+export function validateSetting(key, value) {
+  const validators = {
+    mode: validateMode,
+    provider: validateProvider,
+    voice: validateVoice,
+    speed: validateSpeed,
+    showCostEstimate: (v) => validateBoolean(v, defaults.showCostEstimate),
+    cacheEnabled: (v) => validateBoolean(v, defaults.cacheEnabled),
+    maxCacheSize: validateMaxCacheSize,
+    wordSyncEnabled: (v) => validateBoolean(v, defaults.wordSyncEnabled),
+  };
+
+  if (!(key in validators)) {
+    return { success: false, error: new Error(`Unknown setting: ${key}`) };
+  }
+
+  return { success: true, data: validators[key](value) };
+}
+
+/**
+ * Get the default value for a setting key
+ * @param {string} key - Setting key
+ * @returns {*} Default value
+ */
+export function getDefaultForKey(key) {
+  if (key in defaults) {
+    return defaults[key];
+  }
+  return undefined;
+}
+
+export default { validateSettings, validateSetting, getDefaultForKey };

@@ -8,7 +8,11 @@ export default {
     'jest-webextension-mock',
     '<rootDir>/tests/setup.js'
   ],
-  testMatch: ['**/tests/unit/**/*.test.js'],
+  testMatch: [
+    '**/tests/unit/**/*.test.js',
+    '**/tests/contract/**/*.test.js',
+    '**/tests/regression/**/*.test.js'
+  ],
   collectCoverageFrom: [
     'popup/components/**/*.js',
     '!**/node_modules/**'

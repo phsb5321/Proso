@@ -7,7 +7,7 @@
  * @module background/ui-coordinator
  */
 
-import { MessageType, StorageKey } from './constants.js';
+import { MessageType, StorageKey, FooterMessageTypes } from './constants.js';
 
 /**
  * UICoordinator class - manages all UI notifications and state sync
@@ -109,7 +109,18 @@ export class UICoordinator {
    * @param {Object} state - Playback state
    */
   notifyProgress(state) {
-    const current = this._getCurrentProgress(state);
+    // Calculate progress including current audio position
+    let current = this._getCurrentProgress(state);
+
+    // If we have an active audio element, use its actual position for more accurate time
+    if (state.currentAudio && !isNaN(state.currentAudio.currentTime)) {
+      const baseProgress = (state.currentIndex / state.paragraphs.length) * state.totalDuration;
+      const audioDuration = state.currentAudio.duration || 0;
+      const audioProgress = state.currentAudio.currentTime;
+      // Estimate how much of total duration this paragraph represents
+      const paragraphDurationFraction = audioDuration / state.totalDuration || 0;
+      current = baseProgress + (audioProgress * paragraphDurationFraction);
+    }
 
     browser.runtime.sendMessage({
       type: MessageType.PROGRESS,
@@ -141,6 +152,13 @@ export class UICoordinator {
         }).catch(() => {
           // Content script might not be ready
         });
+
+        // Enable paragraph selection mode for hover/click interactions
+        browser.tabs.sendMessage(targetTab.id, {
+          action: 'enableSelectionMode'
+        }).catch(() => {
+          // Content script might not be ready
+        });
       }
     } catch (error) {
       console.warn('VoxPage: Failed to show floating controller:', error);
@@ -157,6 +175,13 @@ export class UICoordinator {
       if (targetTab) {
         browser.tabs.sendMessage(targetTab.id, {
           action: MessageType.HIDE_FLOATING_CONTROLLER
+        }).catch(() => {
+          // Content script might not be ready
+        });
+
+        // Disable paragraph selection mode
+        browser.tabs.sendMessage(targetTab.id, {
+          action: 'disableSelectionMode'
         }).catch(() => {
           // Content script might not be ready
         });
@@ -357,6 +382,120 @@ export class UICoordinator {
     const avgTimePerParagraph = state.totalDuration / state.paragraphs.length;
 
     return remainingParagraphs * avgTimePerParagraph;
+  }
+
+  // =========================================
+  // Footer state sync (018-ui-redesign)
+  // =========================================
+
+  /**
+   * T026: Send footer state update to content script
+   * @param {Object} state - Playback state
+   */
+  async sendFooterStateUpdate(state) {
+    try {
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        const progress = state.paragraphs.length > 0
+          ? (state.currentIndex / state.paragraphs.length) * 100
+          : 0;
+
+        const currentTime = this._formatTime(this._getCurrentProgress(state));
+        const totalTime = this._formatTime(state.totalDuration);
+
+        browser.tabs.sendMessage(tabs[0].id, {
+          action: FooterMessageTypes.FOOTER_STATE_UPDATE,
+          status: state.isPlaying ? (state.isPaused ? 'paused' : 'playing') : 'stopped',
+          progress: progress,
+          currentTime: currentTime,
+          totalTime: totalTime,
+          currentParagraph: state.currentIndex + 1,
+          totalParagraphs: state.paragraphs.length,
+          speed: state.speed
+        }).catch(() => {
+          // Content script might not be ready
+        });
+      }
+    } catch (error) {
+      // Silently fail - footer might not be visible
+    }
+  }
+
+  /**
+   * Show the sticky footer on the active tab
+   * @param {Object} [tab] - Optional specific tab
+   * @param {Object} [initialState] - Optional initial state
+   */
+  async showStickyFooter(tab, initialState = null) {
+    try {
+      const targetTab = tab || (await browser.tabs.query({ active: true, currentWindow: true }))[0];
+      if (targetTab) {
+        // Get saved state from storage if not provided
+        let state = initialState;
+        if (!state) {
+          const result = await browser.storage.local.get(StorageKey.FOOTER_STATE);
+          state = result[StorageKey.FOOTER_STATE] || null;
+        }
+
+        browser.tabs.sendMessage(targetTab.id, {
+          action: FooterMessageTypes.FOOTER_SHOW,
+          initialState: state ? {
+            isMinimized: state.isMinimized,
+            position: state.position
+          } : undefined
+        }).catch(() => {
+          // Content script might not be ready
+        });
+
+        // Enable paragraph selection mode
+        browser.tabs.sendMessage(targetTab.id, {
+          action: 'enableSelectionMode'
+        }).catch(() => {
+          // Content script might not be ready
+        });
+      }
+    } catch (error) {
+      console.warn('VoxPage: Failed to show sticky footer:', error);
+    }
+  }
+
+  /**
+   * Hide the sticky footer on the active tab
+   * @param {Object} [tab] - Optional specific tab
+   */
+  async hideStickyFooter(tab) {
+    try {
+      const targetTab = tab || (await browser.tabs.query({ active: true, currentWindow: true }))[0];
+      if (targetTab) {
+        browser.tabs.sendMessage(targetTab.id, {
+          action: FooterMessageTypes.FOOTER_HIDE
+        }).catch(() => {
+          // Content script might not be ready
+        });
+
+        // Disable paragraph selection mode
+        browser.tabs.sendMessage(targetTab.id, {
+          action: 'disableSelectionMode'
+        }).catch(() => {
+          // Content script might not be ready
+        });
+      }
+    } catch (error) {
+      console.warn('VoxPage: Failed to hide sticky footer:', error);
+    }
+  }
+
+  /**
+   * Format seconds to time string (m:ss)
+   * @param {number} seconds
+   * @returns {string}
+   * @private
+   */
+  _formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 }
 

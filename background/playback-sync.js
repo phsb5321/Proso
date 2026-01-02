@@ -397,10 +397,10 @@ export class PlaybackSyncState {
 
     if (newIndex !== this._currentParagraphIndex) {
       this._currentParagraphIndex = newIndex;
-      this._lastSyncTimestamp = Date.now();
+      this._lastSyncTimestamp = performance.now();
 
       if (this._onParagraphChange) {
-        this._onParagraphChange(newIndex, this._lastSyncTimestamp);
+        this._onParagraphChange(newIndex, Date.now());
       }
     }
   }
@@ -419,10 +419,10 @@ export class PlaybackSyncState {
 
     if (newWordIndex !== this._currentWordIndex) {
       this._currentWordIndex = newWordIndex;
-      this._lastSyncTimestamp = Date.now();
+      this._lastSyncTimestamp = performance.now();
 
       if (this._onWordChange && newWordIndex !== null) {
-        this._onWordChange(this._currentParagraphIndex, newWordIndex, this._lastSyncTimestamp);
+        this._onWordChange(this._currentParagraphIndex, newWordIndex, Date.now());
       }
     }
   }
