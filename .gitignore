@@ -1,3 +1,9 @@
+# AI Development Tools
+CLAUDE.md
+.claude/
+.specify/
+specs/
+
 # Dependencies
 node_modules/
 
@@ -21,10 +27,13 @@ Thumbs.db
 *.temp
 *.log
 
-# API keys (never commit these!)
+# Environment/Secrets (never commit these!)
 .env
 .env.local
+.env.*
 secrets.json
+*.key
+*.pem
 
 # Placeholder files
 *.placeholder
