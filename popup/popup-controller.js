@@ -18,7 +18,12 @@ import {
   updateSpeedUI,
   showStatus,
   hideStatus,
-  highlightSettingsButton
+  highlightSettingsButton,
+  // T032: Language UI imports (019-multilingual-tts)
+  populateLanguageDropdown,
+  updateLanguageIndicator,
+  // T039: Provider switch modal (019-multilingual-tts)
+  showProviderSwitchModal
 } from './popup-ui.js';
 import {
   announce,
@@ -29,6 +34,11 @@ import {
 import { updateData as updateVisualizerData } from './components/visualizer.js';
 import { defaults } from '../shared/config/defaults.js';
 import { settingsStore } from '../shared/config/store.js';
+// T037: Import voice filtering (019-multilingual-tts)
+// T039: Also import providerSupportsLanguage for modal check
+import { getVoicesForLanguage, providerSupportsLanguage } from '../background/language-mappings.js';
+// Import language message types for consistency
+import { LanguageMessageTypes } from '../background/constants.js';
 
 /**
  * Application state - uses SSOT defaults from shared/config
@@ -40,7 +50,11 @@ export const state = {
   speed: defaults.speed,
   currentVoice: defaults.voice,
   progress: 0,
-  duration: 0
+  duration: 0,
+  // T031: Language state for multilingual TTS (019-multilingual-tts)
+  detectedLanguage: null,    // Detected language code
+  languageOverride: null,    // User override (null = auto-detect)
+  effectiveLanguage: 'en'    // Actual language used for TTS
 };
 
 // Voice configurations - fetched dynamically
@@ -115,6 +129,9 @@ export async function loadSettings() {
     updateProviderUI(state.currentProvider);
     updateModeUI(state.currentMode);
 
+    // T031: Fetch language state when popup opens (019-multilingual-tts)
+    await fetchLanguageState();
+
     console.log('VoxPage popup: Settings loaded, mode:', state.currentMode);
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -139,16 +156,38 @@ export async function saveSettings() {
 
 /**
  * Populate voices for current provider
+ * T037: Filters voices by detected language (019-multilingual-tts)
+ * T039: Shows provider switch modal when language unsupported
  */
 export function populateVoices() {
-  const voices = providerVoices[state.currentProvider] || [];
-  const selectedVoice = populateVoiceDropdown(voices, state.currentVoice);
+  let voices = providerVoices[state.currentProvider] || [];
+
+  // T037: Filter voices by effective language (019-multilingual-tts)
+  if (state.effectiveLanguage) {
+    voices = getVoicesForLanguage(voices, state.effectiveLanguage, state.currentProvider);
+  }
+
+  // T039: Check if provider doesn't support language, show modal (019-multilingual-tts)
+  if (state.effectiveLanguage &&
+      state.effectiveLanguage !== 'en' &&
+      !providerSupportsLanguage(state.currentProvider, state.effectiveLanguage)) {
+    showProviderSwitchModal(
+      state.effectiveLanguage,
+      state.currentProvider,
+      (newProvider) => {
+        setProvider(newProvider);
+      }
+    );
+  }
+
+  const selectedVoice = populateVoiceDropdown(voices, state.currentVoice, state.effectiveLanguage);
 
   if (selectedVoice && selectedVoice !== state.currentVoice) {
     state.currentVoice = selectedVoice;
     sendMessage('setVoice', { voice: state.currentVoice });
   }
 }
+
 
 /**
  * Update play state (both UI and internal state)
@@ -310,6 +349,19 @@ export function handleBackgroundMessage(message) {
     case 'status':
       showStatus(message.text, message.level || 'info');
       break;
+    // T033: Handle language state updates (019-multilingual-tts)
+    // T040: Re-filter voices when language changes
+    case LanguageMessageTypes.LANGUAGE_STATE_UPDATE:
+      state.detectedLanguage = message.detected?.primaryCode || null;
+      state.languageOverride = message.override || null;
+      state.effectiveLanguage = message.effective || 'en';
+      // Update UI
+      populateLanguageDropdown(state.languageOverride, state.detectedLanguage);
+      updateLanguageIndicator(state.effectiveLanguage);
+      // T040: Re-filter voices for new language (019-multilingual-tts)
+      populateVoices();
+      console.log('VoxPage popup: Language state updated:', state.effectiveLanguage);
+      break;
   }
 }
 
@@ -383,5 +435,63 @@ export async function showFooterPlayer() {
   } catch (error) {
     console.error('Error showing footer player:', error);
     showStatus('Could not show player on page', 'error');
+  }
+}
+
+/**
+ * T031: Fetch language state from background (019-multilingual-tts)
+ * Gets detected language, override, and effective language
+ */
+export async function fetchLanguageState() {
+  try {
+    const response = await browser.runtime.sendMessage({ action: LanguageMessageTypes.GET_LANGUAGE_STATE });
+    if (response) {
+      state.detectedLanguage = response.detected?.primaryCode || null;
+      state.languageOverride = response.override || null;
+      state.effectiveLanguage = response.effective || 'en';
+
+      // T032: Update language UI
+      populateLanguageDropdown(state.languageOverride, state.detectedLanguage);
+      updateLanguageIndicator(state.effectiveLanguage);
+
+      console.log('VoxPage popup: Language state loaded:', {
+        detected: state.detectedLanguage,
+        override: state.languageOverride,
+        effective: state.effectiveLanguage
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching language state:', error);
+  }
+}
+
+/**
+ * T033: Set language override (019-multilingual-tts)
+ * T040: Re-filter voices when override changes
+ * @param {string|null} languageCode - ISO 639-1 code or null to clear
+ */
+export async function setLanguageOverride(languageCode) {
+  try {
+    if (languageCode) {
+      await browser.runtime.sendMessage({
+        action: LanguageMessageTypes.SET_LANGUAGE_OVERRIDE,
+        languageCode
+      });
+      state.languageOverride = languageCode;
+      state.effectiveLanguage = languageCode;
+    } else {
+      await browser.runtime.sendMessage({ action: LanguageMessageTypes.CLEAR_LANGUAGE_OVERRIDE });
+      state.languageOverride = null;
+      state.effectiveLanguage = state.detectedLanguage || 'en';
+    }
+
+    // T040: Update UI and re-filter voices (019-multilingual-tts)
+    updateLanguageIndicator(state.effectiveLanguage);
+    populateVoices();
+
+    console.log('VoxPage popup: Language override changed to:', languageCode);
+  } catch (error) {
+    console.error('Error setting language override:', error);
+    showStatus('Failed to change language', 'error');
   }
 }

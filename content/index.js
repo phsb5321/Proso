@@ -28,13 +28,18 @@
     hasHighlightManager: !!window.VoxPage.highlightManager,
     hasFloatingController: !!window.VoxPage.floatingController,
     hasStickyFooter: !!window.VoxPage.stickyFooter,
-    hasParagraphSelector: !!window.VoxPage.paragraphSelector
+    hasParagraphSelector: !!window.VoxPage.paragraphSelector,
+    hasLanguageExtractor: !!window.VoxPage.extractPageLanguage
   });
 
   // Get module references
   const getExtractor = () => window.VoxPage.contentExtractor || {};
   const getHighlighter = () => window.VoxPage.highlightManager || {};
   const getParagraphSelector = () => window.VoxPage.paragraphSelector || {};
+  const getLanguageExtractor = () => ({
+    extractPageLanguage: window.VoxPage.extractPageLanguage,
+    sendLanguageDetectionRequest: window.VoxPage.sendLanguageDetectionRequest
+  });
 
   /**
    * Format time remaining in seconds to MM:SS format
@@ -248,6 +253,16 @@
           });
         }
         break;
+
+      // T021: Language extraction request (019-multilingual-tts)
+      case 'extractLanguage':
+        {
+          const langExtractor = getLanguageExtractor();
+          if (langExtractor.sendLanguageDetectionRequest) {
+            langExtractor.sendLanguageDetectionRequest();
+          }
+        }
+        break;
     }
   });
 
@@ -409,6 +424,28 @@
     characterData: false,
     attributes: false
   });
+
+  /**
+   * T021: Send language detection on page load (019-multilingual-tts)
+   * Automatically detect page language after content loads
+   */
+  function sendInitialLanguageDetection() {
+    const langExtractor = getLanguageExtractor();
+    if (langExtractor.sendLanguageDetectionRequest) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        langExtractor.sendLanguageDetectionRequest();
+        console.log('VoxPage: Sent initial language detection request');
+      }, 100);
+    }
+  }
+
+  // Send language detection on load
+  if (document.readyState === 'complete') {
+    sendInitialLanguageDetection();
+  } else {
+    window.addEventListener('load', sendInitialLanguageDetection, { once: true });
+  }
 
   console.log('VoxPage content script fully loaded and message listener registered');
 })();

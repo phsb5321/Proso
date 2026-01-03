@@ -27,7 +27,9 @@ import {
   sendMessage,
   handleBackgroundMessage,
   syncWithBackground,
-  showFooterPlayer
+  showFooterPlayer,
+  // T032: Language override (019-multilingual-tts)
+  setLanguageOverride
 } from './popup-controller.js';
 
 /**
@@ -122,6 +124,15 @@ function setupEventListeners() {
   // Show Player button (018-ui-redesign T078)
   if (elements.showPlayerBtn) {
     elements.showPlayerBtn.addEventListener('click', showFooterPlayer);
+  }
+
+  // T032: Language override dropdown (019-multilingual-tts)
+  if (elements.languageSelect) {
+    elements.languageSelect.addEventListener('change', (e) => {
+      const value = e.target.value;
+      // Empty string means auto-detect (null)
+      setLanguageOverride(value || null);
+    });
   }
 
   // Listen for messages from background

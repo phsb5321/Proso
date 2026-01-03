@@ -55,6 +55,7 @@
         "content/content-extractor.js",
         "content/highlight-manager.js",
         "content/paragraph-selector.js",
+        "content/language-extractor.js",
         "content/index.js"
       ],
       "css": ["styles/content.css"],

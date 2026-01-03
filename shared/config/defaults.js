@@ -52,6 +52,9 @@ export const defaults = Object.freeze({
 
   // Enable word-level highlighting (requires Groq Whisper or ElevenLabs)
   wordSyncEnabled: true,
+
+  // Enable automatic language detection (019-multilingual-tts)
+  autoDetectLanguage: true,
 });
 
 /**

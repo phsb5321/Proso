@@ -30,6 +30,20 @@ export class BrowserProvider extends TTSProvider {
     return false;
   }
 
+  /**
+   * Browser TTS supported languages (dynamic based on system voices)
+   * (019-multilingual-tts)
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    // Dynamic - check getVoicesForLanguage() for actual support
+    // Return common languages that most systems support
+    return [
+      'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko',
+      'ar', 'hi', 'nl', 'pl', 'sv', 'da', 'fi', 'no', 'cs', 'el'
+    ];
+  }
+
   get pricingModel() {
     return ProviderPricing.browser;
   }
@@ -119,6 +133,13 @@ export class BrowserProvider extends TTSProvider {
       const selectedVoice = voices.find(v => v.voiceURI === voiceId);
       if (selectedVoice) {
         utterance.voice = selectedVoice;
+      }
+
+      // Set language if specified (019-multilingual-tts)
+      if (options.languageCode) {
+        utterance.lang = options.languageCode;
+      } else if (selectedVoice) {
+        utterance.lang = selectedVoice.lang;
       }
 
       // Set speed

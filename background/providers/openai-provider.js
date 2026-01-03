@@ -35,6 +35,15 @@ export class OpenAIProvider extends TTSProvider {
     return true;
   }
 
+  /**
+   * OpenAI TTS auto-detects language from input text (019-multilingual-tts)
+   * Supports 50+ languages via auto-detection
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    return ['*']; // Auto-detect all languages
+  }
+
   get pricingModel() {
     return ProviderPricing.openai;
   }

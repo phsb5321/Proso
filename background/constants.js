@@ -104,7 +104,11 @@ export const StorageKey = Object.freeze({
   LOG_BUFFER: 'logBuffer',
   LOG_RETRY_QUEUE: 'logRetryQueue',
   // Footer state (018-ui-redesign)
-  FOOTER_STATE: 'footerState'
+  FOOTER_STATE: 'footerState',
+  // Language detection (019-multilingual-tts)
+  DETECTED_LANGUAGE: 'detectedLanguage',
+  LANGUAGE_PREFERENCE: 'languagePreference',
+  LANGUAGE_CACHE: 'languageCache'
 });
 
 /**
@@ -281,4 +285,25 @@ export const FooterActions = Object.freeze({
   CLOSE: 'close',
   MINIMIZE: 'minimize',
   EXPAND: 'expand'
+});
+
+/**
+ * Language detection message types (019-multilingual-tts)
+ * Used for communication between content script and background
+ */
+export const LanguageMessageTypes = Object.freeze({
+  // Content → Background
+  LANGUAGE_DETECTED: 'languageDetected',
+  REQUEST_LANGUAGE_DETECTION: 'requestLanguageDetection',
+
+  // Background → Content/Popup
+  LANGUAGE_STATE_UPDATE: 'languageStateUpdate',
+
+  // Popup → Background
+  SET_LANGUAGE_OVERRIDE: 'setLanguageOverride',
+  CLEAR_LANGUAGE_OVERRIDE: 'clearLanguageOverride',
+  GET_LANGUAGE_STATE: 'getLanguageState',
+
+  // Error handling
+  LANGUAGE_NOT_SUPPORTED: 'languageNotSupported'
 });

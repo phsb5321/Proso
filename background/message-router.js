@@ -53,9 +53,17 @@
  * @see background/ui-coordinator.js - Handles UI notifications
  */
 
-import { MessageType, FooterMessageTypes, FooterActions, StorageKey } from './constants.js';
+import { FooterMessageTypes, FooterActions, StorageKey, LanguageMessageTypes } from './constants.js';
 import { getLogger } from './remote-logger.js';
 import { footerStateDefaults } from '../shared/config/defaults.js';
+import {
+  detectLanguage,
+  getLanguageState,
+  setLanguageOverride,
+  clearLanguageOverride,
+  storeDetectedLanguage
+} from './language-detector.js';
+import { getProvidersForLanguage, getLanguageDisplayName, getAllLanguages } from './language-mappings.js';
 
 /**
  * Message handler function type
@@ -523,6 +531,198 @@ export function createRouter(deps = {}) {
       totalParagraphs: state.totalParagraphs,
       provider: state.currentProvider
     });
+    return true;
+  });
+
+  // =========================================
+  // Language detection handlers (019-multilingual-tts)
+  // =========================================
+
+  // LANGUAGE_DETECTED - Content script detected page language
+  router.register(LanguageMessageTypes.LANGUAGE_DETECTED, async (msg, sender, sendResponse) => {
+    try {
+      const { metadata, textSample, url } = msg.payload || msg;
+
+      // Run detection
+      const detected = await detectLanguage({ metadata, textSample, url });
+
+      // Store the result
+      await storeDetectedLanguage(detected);
+
+      // Get compatible providers
+      const compatibleProviders = getProvidersForLanguage(detected.primaryCode);
+
+      // Log the detection
+      getLogger().info('Language detected', 'background', {
+        code: detected.code,
+        confidence: detected.confidence,
+        source: detected.source,
+        url
+      });
+
+      // Check if current provider supports this language
+      const state = playbackController?.getState() || {};
+      const currentProvider = state.currentProvider || 'browser';
+      const providerSupported = compatibleProviders.includes(currentProvider);
+
+      // Broadcast language state update to all listeners
+      const languageState = {
+        detected,
+        override: null,
+        effective: detected.primaryCode,
+        providerSupported,
+        compatibleProviders
+      };
+
+      // Send to popup if open
+      try {
+        browser.runtime.sendMessage({
+          type: LanguageMessageTypes.LANGUAGE_STATE_UPDATE,
+          payload: languageState
+        });
+      } catch {
+        // Popup may not be open
+      }
+
+      sendResponse?.({ success: true, detected });
+    } catch (error) {
+      getLogger().error('Language detection failed', 'background', { error: error.message });
+      sendResponse?.({ success: false, error: error.message });
+    }
+    return true;
+  });
+
+  // REQUEST_LANGUAGE_DETECTION - Request re-detection
+  router.register(LanguageMessageTypes.REQUEST_LANGUAGE_DETECTION, async (msg, sender, sendResponse) => {
+    try {
+      // Ask content script to extract and send language info
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]) {
+        await browser.tabs.sendMessage(tabs[0].id, {
+          action: 'extractLanguage',
+          forceRefresh: msg.payload?.forceRefresh || false
+        });
+      }
+      sendResponse?.({ success: true });
+    } catch (error) {
+      sendResponse?.({ success: false, error: error.message });
+    }
+    return true;
+  });
+
+  // GET_LANGUAGE_STATE - Get current language state for popup
+  router.register(LanguageMessageTypes.GET_LANGUAGE_STATE, async (msg, sender, sendResponse) => {
+    try {
+      const tabId = sender.tab?.id;
+      const state = await getLanguageState(tabId);
+
+      // Get compatible providers for effective language
+      const compatibleProviders = getProvidersForLanguage(state.effective);
+
+      // Check if current provider supports this language
+      const playbackState = playbackController?.getState() || {};
+      const currentProvider = playbackState.currentProvider || 'browser';
+      const providerSupported = compatibleProviders.includes(currentProvider);
+
+      sendResponse({
+        ...state,
+        providerSupported,
+        compatibleProviders,
+        availableLanguages: getAllLanguages()
+      });
+    } catch (error) {
+      getLogger().error('Failed to get language state', 'background', { error: error.message });
+      sendResponse({ error: error.message });
+    }
+    return true;
+  });
+
+  // SET_LANGUAGE_OVERRIDE - User sets manual language override
+  router.register(LanguageMessageTypes.SET_LANGUAGE_OVERRIDE, async (msg, sender, sendResponse) => {
+    try {
+      const { languageCode } = msg.payload || msg;
+      await setLanguageOverride(languageCode);
+
+      getLogger().info('Language override set', 'background', { languageCode });
+
+      // Broadcast update
+      const state = await getLanguageState(sender.tab?.id);
+      const compatibleProviders = getProvidersForLanguage(state.effective);
+
+      browser.runtime.sendMessage({
+        type: LanguageMessageTypes.LANGUAGE_STATE_UPDATE,
+        payload: {
+          ...state,
+          compatibleProviders,
+          providerSupported: compatibleProviders.includes(
+            playbackController?.getState()?.currentProvider || 'browser'
+          )
+        }
+      }).catch(() => {});
+
+      sendResponse?.({ success: true });
+    } catch (error) {
+      sendResponse?.({ success: false, error: error.message });
+    }
+    return true;
+  });
+
+  // CLEAR_LANGUAGE_OVERRIDE - User clears override (back to auto-detect)
+  router.register(LanguageMessageTypes.CLEAR_LANGUAGE_OVERRIDE, async (msg, sender, sendResponse) => {
+    try {
+      await clearLanguageOverride();
+
+      getLogger().info('Language override cleared', 'background');
+
+      // Broadcast update
+      const state = await getLanguageState(sender.tab?.id);
+      const compatibleProviders = getProvidersForLanguage(state.effective);
+
+      browser.runtime.sendMessage({
+        type: LanguageMessageTypes.LANGUAGE_STATE_UPDATE,
+        payload: {
+          ...state,
+          compatibleProviders,
+          providerSupported: compatibleProviders.includes(
+            playbackController?.getState()?.currentProvider || 'browser'
+          )
+        }
+      }).catch(() => {});
+
+      sendResponse?.({ success: true });
+    } catch (error) {
+      sendResponse?.({ success: false, error: error.message });
+    }
+    return true;
+  });
+
+  // LANGUAGE_NOT_SUPPORTED - Notify when language is not supported by provider
+  router.register(LanguageMessageTypes.LANGUAGE_NOT_SUPPORTED, async (msg, sender, sendResponse) => {
+    const { requestedLanguage, currentProvider } = msg.payload || msg;
+    const compatibleProviders = getProvidersForLanguage(requestedLanguage);
+
+    getLogger().warn('Language not supported', 'background', {
+      language: requestedLanguage,
+      provider: currentProvider,
+      alternatives: compatibleProviders
+    });
+
+    // Forward to popup for user notification
+    try {
+      browser.runtime.sendMessage({
+        type: LanguageMessageTypes.LANGUAGE_NOT_SUPPORTED,
+        payload: {
+          requestedLanguage,
+          currentProvider,
+          compatibleProviders,
+          languageDisplayName: getLanguageDisplayName(requestedLanguage)
+        }
+      });
+    } catch {
+      // Popup may not be open
+    }
+
+    sendResponse?.({ success: true });
     return true;
   });
 

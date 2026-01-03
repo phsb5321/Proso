@@ -104,6 +104,7 @@ export function validateSettings(data) {
     cacheEnabled: validateBoolean(input.cacheEnabled, defaults.cacheEnabled),
     maxCacheSize: validateMaxCacheSize(input.maxCacheSize),
     wordSyncEnabled: validateBoolean(input.wordSyncEnabled, defaults.wordSyncEnabled),
+    autoDetectLanguage: validateBoolean(input.autoDetectLanguage, defaults.autoDetectLanguage),
   };
 
   return { success: true, data: validated };
@@ -125,6 +126,7 @@ export function validateSetting(key, value) {
     cacheEnabled: (v) => validateBoolean(v, defaults.cacheEnabled),
     maxCacheSize: validateMaxCacheSize,
     wordSyncEnabled: (v) => validateBoolean(v, defaults.wordSyncEnabled),
+    autoDetectLanguage: (v) => validateBoolean(v, defaults.autoDetectLanguage),
   };
 
   if (!(key in validators)) {
@@ -146,4 +148,76 @@ export function getDefaultForKey(key) {
   return undefined;
 }
 
-export default { validateSettings, validateSetting, getDefaultForKey };
+/**
+ * Valid detection source values for language detection
+ */
+const DETECTION_SOURCES = ['metadata', 'text', 'user'];
+
+/**
+ * Validate DetectedLanguage object (019-multilingual-tts)
+ * @param {Object} data - Raw detected language object
+ * @returns {{ success: boolean, data?: Object, error?: Error }}
+ */
+export function validateDetectedLanguage(data) {
+  if (!data || typeof data !== 'object') {
+    return { success: false, error: new Error('DetectedLanguage must be an object') };
+  }
+
+  // Validate required fields
+  if (typeof data.code !== 'string' || data.code.length < 2 || data.code.length > 10) {
+    return { success: false, error: new Error('Invalid language code') };
+  }
+
+  if (typeof data.confidence !== 'number' || data.confidence < 0 || data.confidence > 1) {
+    return { success: false, error: new Error('Confidence must be between 0 and 1') };
+  }
+
+  if (!DETECTION_SOURCES.includes(data.source)) {
+    return { success: false, error: new Error('Invalid detection source') };
+  }
+
+  if (typeof data.isReliable !== 'boolean') {
+    return { success: false, error: new Error('isReliable must be boolean') };
+  }
+
+  if (typeof data.primaryCode !== 'string' || data.primaryCode.length < 2 || data.primaryCode.length > 3) {
+    return { success: false, error: new Error('Invalid primary language code') };
+  }
+
+  if (typeof data.detectedAt !== 'number') {
+    return { success: false, error: new Error('detectedAt must be a timestamp') };
+  }
+
+  return {
+    success: true,
+    data: {
+      code: data.code,
+      confidence: data.confidence,
+      source: data.source,
+      isReliable: data.isReliable,
+      primaryCode: data.primaryCode,
+      detectedAt: data.detectedAt
+    }
+  };
+}
+
+/**
+ * Validate LanguagePreference object (019-multilingual-tts)
+ * @param {Object} data - Raw language preference object
+ * @returns {{ success: boolean, data: Object }}
+ */
+export function validateLanguagePreference(data) {
+  const input = data || {};
+
+  const validated = {
+    autoDetect: typeof input.autoDetect === 'boolean' ? input.autoDetect : true,
+    currentOverride: typeof input.currentOverride === 'string' ? input.currentOverride : null,
+    voicePreferences: typeof input.voicePreferences === 'object' && input.voicePreferences !== null
+      ? input.voicePreferences
+      : {}
+  };
+
+  return { success: true, data: validated };
+}
+
+export default { validateSettings, validateSetting, getDefaultForKey, validateDetectedLanguage, validateLanguagePreference };

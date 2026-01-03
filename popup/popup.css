@@ -312,6 +312,40 @@ body {
 }
 
 /* ========================================
+   LANGUAGE SECTION (019-multilingual-tts T032)
+   ======================================== */
+.language-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.language-section .voxpage-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.language-indicator {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-primary);
+  background: var(--color-accent-bg);
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.language-indicator.hidden {
+  display: none;
+}
+
+.language-selector {
+  position: relative;
+}
+
+/* ========================================
    SPEED SECTION
    ======================================== */
 .speed-section {
@@ -578,4 +612,71 @@ body {
   100% {
     box-shadow: none;
   }
+}
+
+/* ========================================
+   T039: PROVIDER SWITCH MODAL (019-multilingual-tts)
+   ======================================== */
+.provider-switch-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-overlay-bg);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn var(--transition-normal) var(--ease-out);
+}
+
+.provider-switch-modal {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 300px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  animation: slideIn var(--transition-normal) var(--ease-out);
+}
+
+.provider-switch-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+  text-align: center;
+}
+
+.provider-switch-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  margin: 0 0 var(--spacing-lg) 0;
+  text-align: center;
+}
+
+.provider-switch-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.provider-switch-option {
+  width: 100%;
+  justify-content: center;
+}
+
+.provider-switch-cancel {
+  width: 100%;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.provider-switch-cancel:hover {
+  color: var(--color-text-primary);
 }

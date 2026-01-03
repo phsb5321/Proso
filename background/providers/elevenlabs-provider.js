@@ -46,6 +46,19 @@ export class ElevenLabsProvider extends TTSProvider {
     return true;
   }
 
+  /**
+   * ElevenLabs supported languages (019-multilingual-tts)
+   * Full list: https://elevenlabs.io/docs/api-reference/text-to-speech
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    return [
+      'en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl',
+      'cs', 'ar', 'zh', 'hu', 'ko', 'ja', 'hi', 'sv', 'id', 'fil',
+      'uk', 'el', 'fi', 'ro', 'da', 'bg', 'ms', 'sk', 'hr', 'ta'
+    ];
+  }
+
   get pricingModel() {
     return ProviderPricing.elevenlabs;
   }
@@ -99,6 +112,29 @@ export class ElevenLabsProvider extends TTSProvider {
 
     const modelId = options.turbo ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2';
 
+    // Build request body (019-multilingual-tts)
+    const requestBody = {
+      text: text,
+      model_id: modelId,
+      voice_settings: {
+        stability: options.stability || 0.5,
+        similarity_boost: options.similarityBoost || 0.75,
+        style: options.style || 0.5,
+        use_speaker_boost: true
+      }
+    };
+
+    // Add language_code if specified (019-multilingual-tts)
+    if (options.languageCode) {
+      const primary = options.languageCode.split('-')[0].toLowerCase();
+      // Map special cases
+      if (primary === 'zh') {
+        requestBody.language_code = 'zh-cn';
+      } else {
+        requestBody.language_code = primary;
+      }
+    }
+
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
@@ -106,16 +142,7 @@ export class ElevenLabsProvider extends TTSProvider {
         'Content-Type': 'application/json',
         'Accept': 'audio/mpeg'
       },
-      body: JSON.stringify({
-        text: text,
-        model_id: modelId,
-        voice_settings: {
-          stability: options.stability || 0.5,
-          similarity_boost: options.similarityBoost || 0.75,
-          style: options.style || 0.5,
-          use_speaker_boost: true
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {

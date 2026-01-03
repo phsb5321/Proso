@@ -24,6 +24,7 @@
  * @typedef {Object} GenerateOptions
  * @property {number} [speed] - Playback speed (0.5-2.0)
  * @property {boolean} [hd] - Use high-definition model
+ * @property {string} [languageCode] - ISO 639-1 or BCP 47 language code (019-multilingual-tts)
  */
 
 export class TTSProvider {
@@ -70,6 +71,16 @@ export class TTSProvider {
   }
 
   /**
+   * Returns array of supported ISO 639-1 language codes (019-multilingual-tts)
+   * Return ['*'] to indicate all languages supported (auto-detect).
+   * Return ['en'] for English-only providers.
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    return ['en']; // Default to English only
+  }
+
+  /**
    * Get the provider's pricing model
    * @returns {PricingModel}
    */
@@ -108,6 +119,22 @@ export class TTSProvider {
    */
   hasApiKey() {
     return !!this._apiKey && this._apiKey.trim().length > 0;
+  }
+
+  /**
+   * Check if provider supports a specific language (019-multilingual-tts)
+   * @param {string} languageCode - ISO 639-1 or BCP 47 code
+   * @returns {boolean}
+   */
+  supportsLanguage(languageCode) {
+    const supported = this.constructor.supportedLanguages;
+
+    // '*' means all languages supported (auto-detect)
+    if (supported.includes('*')) return true;
+
+    // Normalize to primary language code
+    const primary = languageCode.split('-')[0].toLowerCase();
+    return supported.includes(primary);
   }
 
   /**

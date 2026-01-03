@@ -5,6 +5,7 @@
 
 import { TTSProvider } from './base-provider.js';
 import { ProviderPricing } from './pricing-model.js';
+import { LanguageNotSupportedError } from '../../shared/errors/language-errors.js';
 
 /**
  * Cartesia voice definitions with their API UUIDs
@@ -37,6 +38,14 @@ export class CartesiaProvider extends TTSProvider {
 
   static get supportsStreaming() {
     return true;
+  }
+
+  /**
+   * Cartesia TTS supports English only (019-multilingual-tts)
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    return ['en'];
   }
 
   get pricingModel() {
@@ -83,6 +92,15 @@ export class CartesiaProvider extends TTSProvider {
   async generateAudio(text, voiceId, options = {}) {
     if (!this.hasApiKey()) {
       throw new Error('Cartesia API key not configured');
+    }
+
+    // Check language support (019-multilingual-tts)
+    if (options.languageCode && !this.supportsLanguage(options.languageCode)) {
+      throw new LanguageNotSupportedError(
+        options.languageCode,
+        'cartesia',
+        ['elevenlabs', 'openai', 'browser']
+      );
     }
 
     const speed = this.clampSpeed(options.speed || 1.0);

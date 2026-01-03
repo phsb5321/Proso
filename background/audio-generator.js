@@ -36,10 +36,11 @@ export class AudioGenerator {
    * @param {Object} options - Generation options
    * @param {number} [options.speed=1.0] - Playback speed
    * @param {boolean} [options.requestWordTiming=true] - Request word timing if provider supports it
+   * @param {string} [options.languageCode] - ISO 639-1 language code (019-multilingual-tts)
    * @returns {Promise<ArrayBuffer|{audioData: ArrayBuffer, wordTiming: Array}>}
    */
   async generateAudio(text, providerId, voice, options = {}) {
-    const { speed = 1.0, requestWordTiming = true } = options;
+    const { speed = 1.0, requestWordTiming = true, languageCode } = options;
     const provider = this.providerRegistry.getProvider(providerId);
 
     if (!provider) {
@@ -55,6 +56,11 @@ export class AudioGenerator {
     // Request word timing if provider supports it
     if (requestWordTiming && provider.constructor.supportsWordTiming) {
       genOptions.withTimestamps = true;
+    }
+
+    // Pass language code to provider (019-multilingual-tts)
+    if (languageCode) {
+      genOptions.languageCode = languageCode;
     }
 
     return await provider.generateAudio(text, voice, genOptions);
@@ -160,9 +166,10 @@ export class AudioGenerator {
    * @param {string} text - Text to speak
    * @param {string} voiceURI - Voice URI
    * @param {number} speed - Playback speed
+   * @param {string} [languageCode] - Language code for pronunciation (019-multilingual-tts)
    * @returns {Promise<void>}
    */
-  playWithBrowserTTS(text, voiceURI, speed = 1.0) {
+  playWithBrowserTTS(text, voiceURI, speed = 1.0, languageCode = null) {
     return new Promise((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
 
@@ -171,6 +178,13 @@ export class AudioGenerator {
       const selectedVoice = voices.find(v => v.voiceURI === voiceURI);
       if (selectedVoice) {
         utterance.voice = selectedVoice;
+      }
+
+      // Set language for pronunciation (019-multilingual-tts)
+      if (languageCode) {
+        utterance.lang = languageCode;
+      } else if (selectedVoice) {
+        utterance.lang = selectedVoice.lang;
       }
 
       utterance.rate = speed;

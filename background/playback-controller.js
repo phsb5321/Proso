@@ -11,6 +11,8 @@ import { audioCache } from './audio-cache.js';
 import { PlaybackSyncState } from './playback-sync.js';
 import { defaults } from '../shared/config/defaults.js';
 import { getLogger } from './remote-logger.js';
+import { getLanguageState } from './language-detector.js';
+import { LanguageNotSupportedError } from '../shared/errors/language-errors.js';
 
 /**
  * PlaybackController class - orchestrates TTS playback
@@ -48,7 +50,10 @@ export class PlaybackController {
       startTime: 0,
       totalDuration: 0,
       preGenerating: new Set(),
-      lastCacheHit: false
+      lastCacheHit: false,
+      // T023: Language state for multilingual TTS (019-multilingual-tts)
+      languageCode: null,       // Current effective language code (ISO 639-1)
+      languageSource: null      // Detection source: 'metadata', 'text', 'user', or null
     };
 
     this._setupSyncCallbacks();
@@ -147,6 +152,34 @@ export class PlaybackController {
     this.state.speed = speed;
     if (this.state.currentAudio) {
       this.state.currentAudio.playbackRate = speed;
+    }
+  }
+
+  /**
+   * T023: Get the current effective language for TTS (019-multilingual-tts)
+   * Fetches from language detector and updates internal state
+   * @private
+   * @returns {Promise<string|null>} Language code or null
+   */
+  async _getCurrentLanguage() {
+    try {
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      const tabId = tabs[0]?.id;
+
+      if (!tabId) {
+        console.log('VoxPage: No active tab, using fallback language');
+        return null;
+      }
+
+      const langState = await getLanguageState(tabId);
+      this.state.languageCode = langState.effective;
+      this.state.languageSource = langState.detected?.source || null;
+
+      console.log(`VoxPage: Language for TTS: ${this.state.languageCode} (source: ${this.state.languageSource})`);
+      return this.state.languageCode;
+    } catch (error) {
+      console.warn('VoxPage: Failed to get language state:', error);
+      return null;
     }
   }
 
@@ -285,6 +318,9 @@ export class PlaybackController {
       this.state.paragraphs = this._splitIntoParagraphs(text);
       console.log(`VoxPage: Using ${this.state.paragraphs.length} text-split paragraphs (fallback)`);
     }
+
+    // T023: Get language before starting playback (019-multilingual-tts)
+    await this._getCurrentLanguage();
 
     this.state.currentIndex = 0;
     this.state.audioQueue = [];
@@ -593,13 +629,36 @@ export class PlaybackController {
       this.uiCoordinator?.notifyParagraphChanged(this.state.currentIndex, this.state.paragraphs.length);
 
       if (this.audioGenerator?.isBrowserTTS(this.state.currentProvider)) {
-        await this.audioGenerator.playWithBrowserTTS(text, this.state.currentVoice, this.state.speed);
+        // T023: Pass languageCode to browser TTS (019-multilingual-tts)
+        await this.audioGenerator.playWithBrowserTTS(
+          text,
+          this.state.currentVoice,
+          this.state.speed,
+          this.state.languageCode
+        );
         this._onParagraphEnded();
       } else {
         await this._playWithTTSProvider(text);
       }
     } catch (error) {
       console.error('Playback error:', error);
+
+      // T023: Handle LanguageNotSupportedError specially (019-multilingual-tts)
+      if (error instanceof LanguageNotSupportedError) {
+        const compatibleList = error.compatibleProviders.length > 0
+          ? ` Try: ${error.compatibleProviders.join(', ')}`
+          : '';
+        const errorMsg = `${this.state.currentProvider} doesn't support ${error.languageCode}.${compatibleList}`;
+        getLogger().warn('Language not supported', 'background', {
+          languageCode: error.languageCode,
+          provider: error.providerId,
+          compatibleProviders: error.compatibleProviders
+        });
+        this.uiCoordinator?.notifyError(errorMsg);
+        this.handleStop();
+        return;
+      }
+
       getLogger().error('Playback error', 'background', {
         error: error.message,
         provider: this.state.currentProvider,
@@ -634,11 +693,15 @@ export class PlaybackController {
       this.state.lastCacheHit = true;
       this.uiCoordinator?.notifyCacheHit(true);
     } else {
+      // T023: Pass languageCode to TTS provider (019-multilingual-tts)
       const result = await this.audioGenerator.generateAudioWithTiming(
         text,
         this.state.currentProvider,
         this.state.currentVoice,
-        { speed: this.state.speed }
+        {
+          speed: this.state.speed,
+          languageCode: this.state.languageCode
+        }
       );
 
       audioData = result.audioData;

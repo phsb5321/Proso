@@ -23,6 +23,7 @@ describe('Configuration Schema', () => {
         cacheEnabled: true,
         maxCacheSize: 50,
         wordSyncEnabled: true,
+        autoDetectLanguage: true, // 019-multilingual-tts
       };
 
       const result = validateSettings(settings);

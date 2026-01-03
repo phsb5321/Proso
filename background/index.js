@@ -16,6 +16,8 @@ import { createPlaybackController } from './playback-controller.js';
 import { settingsStore } from '../shared/config/store.js';
 import { initializeLogger, getLogger } from './remote-logger.js';
 import { footerStateDefaults } from '../shared/config/defaults.js';
+// T034: Language navigation listener (019-multilingual-tts)
+import { setupNavigationListener } from './language-detector.js';
 
 // Create module instances with dependency injection
 const uiCoordinator = createUICoordinator();
@@ -82,6 +84,9 @@ async function initialize() {
     }).catch(err => {
       console.warn('VoxPage: Remote logger initialization failed (non-fatal)', err.message);
     });
+
+    // T034: Setup language navigation listener to clear override on URL change
+    setupNavigationListener();
 
     console.log('VoxPage background service worker initialized');
   } catch (error) {

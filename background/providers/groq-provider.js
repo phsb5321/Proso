@@ -6,6 +6,7 @@
 
 import { TTSProvider } from './base-provider.js';
 import { createPricingModel, PricingType } from './pricing-model.js';
+import { LanguageNotSupportedError } from '../../shared/errors/language-errors.js';
 
 /**
  * Groq voice definitions
@@ -45,6 +46,14 @@ export class GroqProvider extends TTSProvider {
 
   static get supportsStreaming() {
     return true;
+  }
+
+  /**
+   * Groq TTS supports English only (019-multilingual-tts)
+   * @returns {string[]}
+   */
+  static get supportedLanguages() {
+    return ['en'];
   }
 
   get pricingModel() {
@@ -169,6 +178,15 @@ export class GroqProvider extends TTSProvider {
   async generateAudio(text, voiceId, options = {}) {
     if (!this.hasApiKey()) {
       throw new Error('Groq API key not configured');
+    }
+
+    // Check language support (019-multilingual-tts)
+    if (options.languageCode && !this.supportsLanguage(options.languageCode)) {
+      throw new LanguageNotSupportedError(
+        options.languageCode,
+        'groq',
+        ['elevenlabs', 'openai', 'browser']
+      );
     }
 
     // Validate and normalize voice ID
