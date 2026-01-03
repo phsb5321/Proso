@@ -94,7 +94,8 @@ export const StorageKey = Object.freeze({
   API_KEY_ELEVENLABS: 'elevenlabsApiKey',
   API_KEY_CARTESIA: 'cartesiaApiKey',
   API_KEY_GROQ: 'groqApiKey',
-  FLOATING_CONTROLLER_POSITION: 'floatingControllerPosition', // DEPRECATED: Use FOOTER_STATE
+  /** @deprecated Use FOOTER_STATE instead (020-code-quality-fix) */
+  FLOATING_CONTROLLER_POSITION: 'floatingControllerPosition',
   WORD_SYNC_ENABLED: 'wordSyncEnabled',
   // Word timing cache (007-audio-sync-extraction-overhaul)
   WORD_TIMING_CACHE: 'wordTimingCache',

@@ -5,9 +5,23 @@
 
 import { TTSProvider } from './base-provider.js';
 import { ProviderPricing } from './pricing-model.js';
+import { getProviderLanguageCode } from '../language-mappings.js';
 
 /**
  * ElevenLabs voice definitions with their API IDs
+ *
+ * NOTE (020-code-quality-fix): This is a static list of English voices for display purposes.
+ * ElevenLabs multilingual_v2 model can speak any language with ANY voice listed here.
+ * The language parameter in generateAudio controls the output language, not the voice.
+ *
+ * TODO: Future enhancement - Fetch voices dynamically from ElevenLabs API:
+ * GET https://api.elevenlabs.io/v1/voices
+ * This would provide:
+ * - Complete voice library including user's custom voices
+ * - Voice language support metadata
+ * - Voice preview audio URLs
+ *
+ * For now, all voices here work with all 29+ supported languages via the multilingual model.
  */
 const ELEVENLABS_VOICES = [
   { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', language: 'en-US', gender: 'female', description: 'Calm, soothing' },
@@ -124,15 +138,14 @@ export class ElevenLabsProvider extends TTSProvider {
       }
     };
 
-    // Add language_code if specified (019-multilingual-tts)
+    // Add language_code if specified (019-multilingual-tts, 020-code-quality-fix)
+    // Use centralized language mappings instead of manual truncation
     if (options.languageCode) {
-      const primary = options.languageCode.split('-')[0].toLowerCase();
-      // Map special cases
-      if (primary === 'zh') {
-        requestBody.language_code = 'zh-cn';
-      } else {
-        requestBody.language_code = primary;
+      const providerCode = getProviderLanguageCode(options.languageCode, 'elevenlabs');
+      if (providerCode) {
+        requestBody.language_code = providerCode;
       }
+      // null means use default (English) - don't set language_code
     }
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -169,22 +182,34 @@ export class ElevenLabsProvider extends TTSProvider {
   async generateAudioWithTimestamps(text, voiceId, options = {}) {
     const modelId = options.turbo ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2';
 
+    // Build request body (020-code-quality-fix)
+    const requestBody = {
+      text: text,
+      model_id: modelId,
+      voice_settings: {
+        stability: options.stability || 0.5,
+        similarity_boost: options.similarityBoost || 0.75,
+        style: options.style || 0.5,
+        use_speaker_boost: true
+      }
+    };
+
+    // Add language_code if specified (019-multilingual-tts, 020-code-quality-fix)
+    if (options.languageCode) {
+      const providerCode = getProviderLanguageCode(options.languageCode, 'elevenlabs');
+      if (providerCode) {
+        requestBody.language_code = providerCode;
+      }
+      // null means use default (English) - don't set language_code
+    }
+
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, {
       method: 'POST',
       headers: {
         'xi-api-key': this._apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        text: text,
-        model_id: modelId,
-        voice_settings: {
-          stability: options.stability || 0.5,
-          similarity_boost: options.similarityBoost || 0.75,
-          style: options.style || 0.5,
-          use_speaker_boost: true
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {

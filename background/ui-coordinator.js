@@ -35,8 +35,8 @@ export class UICoordinator {
       totalParagraphs: state.paragraphs.length
     }).catch(() => {});
 
-    // Also update the floating controller state
-    this.updateFloatingControllerState(state);
+    // Floating controller deprecated - use sticky footer (020-code-quality-fix)
+    // this.updateFloatingControllerState(state);
   }
 
   /**
@@ -130,12 +130,13 @@ export class UICoordinator {
       totalParagraphs: state.paragraphs.length
     }).catch(() => {});
 
-    // Also update the floating controller state
-    this.updateFloatingControllerState(state);
+    // Floating controller deprecated - use sticky footer (020-code-quality-fix)
+    // this.updateFloatingControllerState(state);
   }
 
   /**
    * Show the floating controller on the current tab
+   * @deprecated Use showStickyFooter() instead (020-code-quality-fix)
    * @param {Object} [tab] - Optional specific tab, otherwise uses active tab
    */
   async showFloatingController(tab) {
@@ -167,6 +168,7 @@ export class UICoordinator {
 
   /**
    * Hide the floating controller on the current tab
+   * @deprecated Use hideStickyFooter() instead (020-code-quality-fix)
    * @param {Object} [tab] - Optional specific tab, otherwise uses active tab
    */
   async hideFloatingController(tab) {
@@ -193,6 +195,7 @@ export class UICoordinator {
 
   /**
    * Update the floating controller state
+   * @deprecated Use updateStickyFooterState() instead (020-code-quality-fix)
    * @param {Object} state - Playback state
    */
   async updateFloatingControllerState(state) {

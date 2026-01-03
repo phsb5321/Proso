@@ -62,6 +62,7 @@
     console.log(`VoxPage: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs.length}`);
 
     clearParagraphHighlights();
+    clearWordHighlight(); // 020-code-quality-fix: Clear word highlight on paragraph change
 
     // FR-001: Validate timestamp and measure latency
     if (timestamp) {

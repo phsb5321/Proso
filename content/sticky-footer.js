@@ -12,7 +12,8 @@
 (function() {
   'use strict';
 
-  // Storage key for footer state (matches background/constants.js)
+  // Storage key for footer state
+  // NOTE: Must match StorageKey.FOOTER_STATE in background/constants.js
   const FOOTER_STATE_KEY = 'footerState';
 
   // Footer dimensions (matches styles/tokens.css)

@@ -1,5 +1,20 @@
 /**
- * VoxPage Floating Controller
+ * @deprecated 020-code-quality-fix
+ *
+ * Floating Controller is deprecated as of version 1.1.0.
+ * Use sticky-footer.js instead.
+ *
+ * This file is kept for backwards compatibility but is no longer
+ * actively called. It will be removed in a future version.
+ *
+ * DO NOT add new features to this file.
+ *
+ * @module content/floating-controller
+ * @see content/sticky-footer.js
+ */
+
+/**
+ * VoxPage Floating Controller (DEPRECATED)
  * A persistent floating playback controller injected into web pages
  */
 

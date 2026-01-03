@@ -674,6 +674,16 @@ export class PlaybackSyncState {
 export function normalizeWordTiming(rawTiming) {
   if (!rawTiming) return null;
 
+  // 020-code-quality-fix: Log format conversion for debugging
+  const usedLegacyFormat = rawTiming.startMs !== undefined || rawTiming.start !== undefined;
+  if (usedLegacyFormat && typeof console !== 'undefined') {
+    console.debug('VoxPage: normalizeWordTiming converting legacy format', {
+      hasStartMs: rawTiming.startMs !== undefined,
+      hasStart: rawTiming.start !== undefined,
+      word: rawTiming.word
+    });
+  }
+
   return {
     word: rawTiming.word || '',
     startTimeMs: rawTiming.startTimeMs ?? rawTiming.startMs ?? (rawTiming.start * 1000) ?? 0,

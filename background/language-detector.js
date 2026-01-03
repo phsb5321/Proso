@@ -307,26 +307,58 @@ export async function storeDetectedLanguage(detected) {
 }
 
 /**
- * T034: Setup tab navigation listener to clear override on URL change
- * (019-multilingual-tts)
+ * T034: Setup tab navigation listener to clear override on cross-domain URL change
+ * (019-multilingual-tts, 020-code-quality-fix)
+ *
+ * Only clears language override when navigating to a different domain.
+ * Same-domain navigation (e.g., Wikipedia article to Wikipedia article) preserves override.
  */
 export function setupNavigationListener() {
+  // Track previous URLs per tab for hostname comparison
+  const tabUrls = new Map();
+
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    // Only clear on URL changes (actual navigation)
+    // Only process URL changes (actual navigation)
     if (changeInfo.url) {
       try {
+        // 020-code-quality-fix: Only clear on cross-domain navigation
+        const newUrl = new URL(changeInfo.url);
+        const previousUrl = tabUrls.get(tabId);
+
+        // Update tracked URL for this tab
+        tabUrls.set(tabId, changeInfo.url);
+
+        // Same-domain navigation preserves override
+        if (previousUrl) {
+          try {
+            const oldUrl = new URL(previousUrl);
+            if (newUrl.hostname === oldUrl.hostname) {
+              // Same domain - don't clear override
+              return;
+            }
+          } catch {
+            // Previous URL parse failed - treat as cross-domain
+          }
+        }
+
+        // Cross-domain navigation - clear override if exists
         const result = await browser.storage.local.get(StorageKey.LANGUAGE_PREFERENCE);
         const preference = result[StorageKey.LANGUAGE_PREFERENCE];
 
-        // Only clear if there's an active override
         if (preference?.currentOverride) {
-          console.log('VoxPage: Navigation detected, clearing language override');
+          console.log('VoxPage: Cross-domain navigation, clearing language override');
           await clearLanguageOverride();
         }
       } catch (error) {
-        console.warn('VoxPage: Failed to clear language override on navigation:', error);
+        // URL parsing failed - log but don't clear
+        console.warn('VoxPage: URL parsing failed in navigation listener:', error);
       }
     }
+  });
+
+  // Clean up tracked URLs when tabs are closed
+  browser.tabs.onRemoved.addListener((tabId) => {
+    tabUrls.delete(tabId);
   });
 
   console.log('VoxPage: Language navigation listener registered');
