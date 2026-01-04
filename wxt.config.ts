@@ -8,7 +8,6 @@ export default defineConfig({
     permissions: [
       'storage',
       'activeTab',
-      'offscreen', // Chrome Offscreen Documents API for audio
       'tabs', // Tab management and URL tracking
       'contextMenus', // Right-click menu integration
     ],
@@ -43,6 +42,14 @@ export default defineConfig({
         strict_min_version: '100.0',
       },
     },
+  },
+
+  // Chrome-specific: Add offscreen permission for Offscreen Documents API
+  transformManifest: (manifest) => {
+    if (process.env.BROWSER === 'chrome' || process.env.BROWSER === 'edge') {
+      manifest.permissions = [...(manifest.permissions || []), 'offscreen'];
+    }
+    return manifest;
   },
 
   browser: process.env.BROWSER || 'firefox',
