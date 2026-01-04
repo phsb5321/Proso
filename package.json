@@ -56,7 +56,6 @@
   "license": "MIT",
   "dependencies": {
     "@webext-core/messaging": "^2.3.0",
-    "cld3-asm": "^4.0.0",
     "franc-min": "^6.2.0",
     "zod": "^4.3.4"
   }

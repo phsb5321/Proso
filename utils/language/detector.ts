@@ -1,0 +1,385 @@
+/**
+ * VoxPage Language Detector
+ * Detects page language from metadata and text content using franc-min
+ *
+ * @module utils/language/detector
+ */
+
+import { franc } from 'franc-min';
+import { normalizeLanguageCode, isLanguageSupported } from './codes';
+import { type LanguageDetectionResult, type PageLanguage } from './types';
+
+/**
+ * Storage keys for language detection
+ */
+const STORAGE_KEYS = {
+  LANGUAGE_CACHE: 'languageCache',
+  DETECTED_LANGUAGE: 'detectedLanguage',
+  LANGUAGE_PREFERENCE: 'languagePreference',
+} as const;
+
+/**
+ * Detected language with metadata
+ */
+export interface DetectedLanguage extends LanguageDetectionResult {
+  isReliable: boolean;
+  primaryCode: string;
+  detectedAt: number;
+}
+
+/**
+ * Language preference state
+ */
+export interface LanguagePreference {
+  autoDetect: boolean;
+  currentOverride: string | null;
+  voicePreferences: Record<string, string>;
+}
+
+/**
+ * Language state for a tab
+ */
+export interface LanguageState {
+  detected: DetectedLanguage | null;
+  override: string | null;
+  effective: string;
+  autoDetect: boolean;
+}
+
+/**
+ * Detect language from text content using franc-min
+ * franc-min supports 82 languages with pure JavaScript (no WASM)
+ *
+ * @param text - Text to analyze (ideally 100-500 chars)
+ * @returns Detection result or null if failed
+ */
+export function detectLanguageFromText(text: string): { code: string; confidence: number } | null {
+  if (!text || text.trim().length < 20) {
+    return null;
+  }
+
+  try {
+    // Use first 500 characters for detection
+    const sample = text.slice(0, 500);
+
+    // franc returns ISO 639-3 (3-letter) codes
+    // Returns 'und' for undetermined
+    const iso6393 = franc(sample, { minLength: 20 });
+
+    if (!iso6393 || iso6393 === 'und') {
+      return null;
+    }
+
+    // Map ISO 639-3 to ISO 639-1 (2-letter) codes
+    // franc-min returns 3-letter codes, we need to map them to 2-letter
+    const iso6391 = mapISO6393toISO6391(iso6393);
+
+    // franc doesn't provide confidence scores, estimate based on text length
+    // Longer text = higher confidence, max 0.95
+    const confidence = Math.min(0.7 + (sample.length / 1000) * 0.25, 0.95);
+
+    return {
+      code: iso6391,
+      confidence,
+    };
+  } catch (error) {
+    console.error('VoxPage: Text language detection failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Map ISO 639-3 (3-letter) to ISO 639-1 (2-letter) codes
+ * franc-min returns ISO 639-3, we need ISO 639-1
+ */
+function mapISO6393toISO6391(iso6393: string): string {
+  const mapping: Record<string, string> = {
+    eng: 'en',
+    spa: 'es',
+    fra: 'fr',
+    deu: 'de',
+    ita: 'it',
+    por: 'pt',
+    pol: 'pl',
+    tur: 'tr',
+    rus: 'ru',
+    nld: 'nl',
+    ces: 'cs',
+    arb: 'ar',
+    cmn: 'zh',
+    hun: 'hu',
+    kor: 'ko',
+    jpn: 'ja',
+    hin: 'hi',
+    swe: 'sv',
+    ind: 'id',
+    ukr: 'uk',
+    ell: 'el',
+    fin: 'fi',
+    ron: 'ro',
+    dan: 'da',
+    bul: 'bg',
+    zsm: 'ms',
+    slk: 'sk',
+    hrv: 'hr',
+    tam: 'ta',
+    fil: 'fil',
+  };
+
+  return mapping[iso6393] || iso6393.slice(0, 2);
+}
+
+/**
+ * Create a DetectedLanguage object
+ */
+function createDetectedLanguage(
+  code: string,
+  confidence: number,
+  source: 'metadata' | 'text' | 'fallback'
+): DetectedLanguage {
+  const primaryCode = normalizeLanguageCode(code);
+  const isReliable = confidence >= 0.9 || source === 'metadata';
+
+  return {
+    code,
+    confidence,
+    source,
+    isReliable,
+    primaryCode,
+    detectedAt: Date.now(),
+  };
+}
+
+/**
+ * Detect language combining metadata and text analysis
+ * Priority: text detection (if confident) > metadata > text (low confidence) > fallback
+ *
+ * @param params - Detection parameters
+ * @returns Detected language object
+ */
+export async function detectLanguage(params: PageLanguage): Promise<DetectedLanguage> {
+  const { metadata, textSample, url } = params;
+
+  // Check cache first
+  const cached = await getCachedLanguage(url);
+  if (cached) {
+    console.log(`VoxPage: Using cached language for ${url}: ${cached.code}`);
+    return cached;
+  }
+
+  let detected: DetectedLanguage | null = null;
+
+  // Try text detection first (prefer text if confidence > 90%)
+  if (textSample && textSample.length >= 50) {
+    const textResult = detectLanguageFromText(textSample);
+    if (textResult && textResult.confidence >= 0.9) {
+      detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
+      console.log(`VoxPage: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`);
+    }
+  }
+
+  // Use metadata if text detection failed or was not confident
+  if (!detected && metadata) {
+    const primary = normalizeLanguageCode(metadata);
+    if (isLanguageSupported(primary)) {
+      detected = createDetectedLanguage(metadata, 1.0, 'metadata');
+      console.log(`VoxPage: Using metadata language: ${detected.code}`);
+    }
+  }
+
+  // Try text detection even if not highly confident
+  if (!detected && textSample && textSample.length >= 50) {
+    const textResult = detectLanguageFromText(textSample);
+    if (textResult && textResult.confidence >= 0.5) {
+      detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
+      console.log(`VoxPage: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`);
+    }
+  }
+
+  // Fallback to English
+  if (!detected) {
+    detected = createDetectedLanguage('en', 0.5, 'fallback');
+    console.log('VoxPage: Fallback to English');
+  }
+
+  // Cache the result
+  await cacheLanguage(url, detected);
+
+  return detected;
+}
+
+/**
+ * Get cached language detection result for a URL
+ */
+async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
+    const cache: Record<string, DetectedLanguage> = result[STORAGE_KEYS.LANGUAGE_CACHE] || {};
+    const cached = cache[url];
+
+    if (!cached) return null;
+
+    // Check if cache is fresh (1 hour TTL)
+    const ONE_HOUR = 60 * 60 * 1000;
+    if (Date.now() - cached.detectedAt > ONE_HOUR) {
+      return null;
+    }
+
+    return cached;
+  } catch (error) {
+    console.warn('VoxPage: Failed to read language cache:', error);
+    return null;
+  }
+}
+
+/**
+ * Cache a language detection result
+ */
+async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<void> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
+    const cache: Record<string, DetectedLanguage> = result[STORAGE_KEYS.LANGUAGE_CACHE] || {};
+
+    // Limit cache size (max 100 entries)
+    const urls = Object.keys(cache);
+    if (urls.length >= 100) {
+      // Remove oldest 20 entries
+      const sorted = urls.sort((a, b) => (cache[a].detectedAt || 0) - (cache[b].detectedAt || 0));
+      sorted.slice(0, 20).forEach(oldUrl => delete cache[oldUrl]);
+    }
+
+    cache[url] = detected;
+    await browser.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CACHE]: cache });
+  } catch (error) {
+    console.warn('VoxPage: Failed to cache language:', error);
+  }
+}
+
+/**
+ * Get current language state for a tab
+ */
+export async function getLanguageState(tabId: number): Promise<LanguageState> {
+  const result = await browser.storage.local.get([
+    STORAGE_KEYS.DETECTED_LANGUAGE,
+    STORAGE_KEYS.LANGUAGE_PREFERENCE,
+  ]);
+
+  const detected: DetectedLanguage | null = result[STORAGE_KEYS.DETECTED_LANGUAGE] || null;
+  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+    autoDetect: true,
+    currentOverride: null,
+    voicePreferences: {},
+  };
+
+  const effective = preference.currentOverride || detected?.primaryCode || 'en';
+
+  return {
+    detected,
+    override: preference.currentOverride,
+    effective,
+    autoDetect: preference.autoDetect,
+  };
+}
+
+/**
+ * Set language override for current session
+ */
+export async function setLanguageOverride(languageCode: string): Promise<void> {
+  const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
+  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+    autoDetect: true,
+    currentOverride: null,
+    voicePreferences: {},
+  };
+
+  preference.currentOverride = languageCode;
+
+  await browser.storage.local.set({
+    [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
+  });
+
+  console.log(`VoxPage: Language override set to: ${languageCode}`);
+}
+
+/**
+ * Clear language override (return to auto-detect)
+ */
+export async function clearLanguageOverride(): Promise<void> {
+  const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
+  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+    autoDetect: true,
+    currentOverride: null,
+    voicePreferences: {},
+  };
+
+  preference.currentOverride = null;
+
+  await browser.storage.local.set({
+    [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
+  });
+
+  console.log('VoxPage: Language override cleared');
+}
+
+/**
+ * Store detected language for the current page
+ */
+export async function storeDetectedLanguage(detected: DetectedLanguage): Promise<void> {
+  await browser.storage.local.set({
+    [STORAGE_KEYS.DETECTED_LANGUAGE]: detected,
+  });
+}
+
+/**
+ * Setup tab navigation listener to clear override on cross-domain URL change
+ * Only clears language override when navigating to a different domain
+ */
+export function setupNavigationListener(): void {
+  // Track previous URLs per tab for hostname comparison
+  const tabUrls = new Map<number, string>();
+
+  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    // Only process URL changes (actual navigation)
+    if (changeInfo.url) {
+      try {
+        const newUrl = new URL(changeInfo.url);
+        const previousUrl = tabUrls.get(tabId);
+
+        // Update tracked URL for this tab
+        tabUrls.set(tabId, changeInfo.url);
+
+        // Same-domain navigation preserves override
+        if (previousUrl) {
+          try {
+            const oldUrl = new URL(previousUrl);
+            if (newUrl.hostname === oldUrl.hostname) {
+              // Same domain - don't clear override
+              return;
+            }
+          } catch {
+            // Previous URL parse failed - treat as cross-domain
+          }
+        }
+
+        // Cross-domain navigation - clear override if exists
+        const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
+        const preference: LanguagePreference | undefined = result[STORAGE_KEYS.LANGUAGE_PREFERENCE];
+
+        if (preference?.currentOverride) {
+          console.log('VoxPage: Cross-domain navigation, clearing language override');
+          await clearLanguageOverride();
+        }
+      } catch (error) {
+        // URL parsing failed - log but don't clear
+        console.warn('VoxPage: URL parsing failed in navigation listener:', error);
+      }
+    }
+  });
+
+  // Clean up tracked URLs when tabs are closed
+  browser.tabs.onRemoved.addListener((tabId) => {
+    tabUrls.delete(tabId);
+  });
+
+  console.log('VoxPage: Language navigation listener registered');
+}

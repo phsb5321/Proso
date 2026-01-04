@@ -117,11 +117,11 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Language Detection Conversion (Foundational)
 
-- [ ] T036 Replace CLD3: Remove cld3-asm dependency from package.json
-- [ ] T037 [P] Convert background/language-detector.js → utils/language/detector.ts using franc-min instead of CLD3
-- [ ] T038 [P] Convert background/language-mappings.js → utils/language/mappings.ts (ISO 639-3 to BCP-47 conversion)
-- [ ] T039 [P] Convert content/language-extractor.js → utils/language/extractor.ts (HTML lang attribute and meta tag extraction)
-- [ ] T040 Create utils/language/types.ts with languageDetectionResultSchema and z.infer types
+- [X] T036 Replace CLD3: Remove cld3-asm dependency from package.json
+- [X] T037 [P] Convert background/language-detector.js → utils/language/detector.ts using franc-min instead of CLD3
+- [X] T038 [P] Convert background/language-mappings.js → utils/language/mappings.ts (ISO 639-3 to BCP-47 conversion)
+- [X] T039 [P] Convert content/language-extractor.js → utils/language/extractor.ts (HTML lang attribute and meta tag extraction)
+- [X] T040 Create utils/language/types.ts with languageDetectionResultSchema and z.infer types
 
 ### Test Infrastructure Updates (Foundational)
 
