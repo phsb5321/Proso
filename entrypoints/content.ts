@@ -15,6 +15,82 @@ import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import { StickyFooter, type StorageState, type PlaybackState, type PlaybackStatus } from '../utils/content/sticky-footer';
 
 // ============================================================================
+// CSS Injection
+// ============================================================================
+
+/**
+ * Inject content CSS styles for highlighting
+ * Required because WXT css[] property doesn't work reliably for all setups
+ */
+function injectContentStyles(): void {
+  if (document.getElementById('voxpage-content-styles')) {
+    return; // Already injected
+  }
+
+  const style = document.createElement('style');
+  style.id = 'voxpage-content-styles';
+  style.textContent = `
+    /* VoxPage Highlight Styles */
+    .voxpage-highlight {
+      background: linear-gradient(
+        135deg,
+        rgba(13, 148, 136, 0.15) 0%,
+        rgba(20, 184, 166, 0.15) 100%
+      ) !important;
+      border-left: 3px solid #0D9488 !important;
+      padding-left: 12px !important;
+      margin-left: -15px !important;
+      border-radius: 0 8px 8px 0 !important;
+      transition: all 0.3s ease !important;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1) !important;
+      scroll-margin-top: 80px !important;
+      scroll-margin-bottom: 20px !important;
+    }
+
+    @keyframes voxpage-pulse {
+      0%, 100% { box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1); }
+      50% { box-shadow: 0 2px 16px rgba(13, 148, 136, 0.25); }
+    }
+
+    .voxpage-highlight {
+      animation: voxpage-pulse 2s ease-in-out infinite;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .voxpage-highlight {
+        background: linear-gradient(
+          135deg,
+          rgba(13, 148, 136, 0.25) 0%,
+          rgba(20, 184, 166, 0.25) 100%
+        ) !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .voxpage-highlight {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
+    /* Word-level highlighting using CSS Custom Highlight API */
+    ::highlight(voxpage-word) {
+      background-color: rgba(13, 148, 136, 0.4);
+      color: inherit;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      ::highlight(voxpage-word) {
+        background-color: rgba(20, 184, 166, 0.5);
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+  console.log('VoxPage: Content styles injected');
+}
+
+// ============================================================================
 // Type Definitions
 // ============================================================================
 
@@ -123,6 +199,9 @@ export default defineContentScript({
 
   main() {
     console.log('VoxPage: Content script starting (WXT TypeScript)');
+
+    // Inject highlight CSS into page
+    injectContentStyles();
 
     // ========================================================================
     // Module Initialization
@@ -366,7 +445,15 @@ export default defineContentScript({
         // ====================================================================
         case 'highlight': {
           const msg = message as HighlightMessage;
-          highlightManager.highlightParagraph(msg.index, msg.text, msg.timestamp);
+          // Pass DOM elements and text lookup function for reliable highlighting
+          const extractedParagraphs = extractor.getExtractedParagraphs();
+          highlightManager.highlightParagraph(
+            msg.index,
+            msg.text,
+            msg.timestamp,
+            extractedParagraphs,
+            extractor.findElementByText
+          );
           break;
         }
 
