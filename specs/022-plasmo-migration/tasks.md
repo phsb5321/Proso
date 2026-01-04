@@ -125,12 +125,12 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Test Infrastructure Updates (Foundational)
 
-- [ ] T041 Update all test files: Replace import paths to use @/ aliases (background/* → @/utils/*, shared/* → @/config/*)
-- [ ] T042 Add TypeScript Jest configuration (ts-jest preset, moduleNameMapper for @/* paths)
-- [ ] T043 Create mock for @webext-core/messaging in tests/mocks/messaging.ts
-- [ ] T044 Run `tsc --noEmit` and fix any remaining type errors
-- [ ] T045 Run `npm test` and verify all 153 tests pass with updated imports
-- [ ] T046 Commit Phase 2 completion: "feat(typescript): convert entire codebase to TypeScript with Zod-first types"
+- [X] T041 Update all test files: Replace import paths to use @/ aliases (background/* → @/utils/*, shared/* → @/config/*)
+- [X] T042 Add TypeScript Jest configuration (ts-jest preset, moduleNameMapper for @/* paths)
+- [X] T043 Create mock for @webext-core/messaging in tests/mocks/messaging.ts
+- [X] T044 Run `tsc --noEmit` and fix any remaining type errors
+- [X] T045 Run `npm test` and verify all 153 tests pass with updated imports
+- [X] T046 Commit Phase 2 completion: "feat(typescript): convert entire codebase to TypeScript with Zod-first types"
 
 **Parallel Opportunities**: T013-T017 (config), T018-T030 (background), T031-T035 (content), T036-T040 (language) can all run in parallel as they modify different files.
 
@@ -148,9 +148,9 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### ProtocolMap Definition (US1)
 
-- [ ] T047 [US1] Create utils/messaging/protocol.ts with VoxPageProtocol interface extending ProtocolMap (define 20+ message type signatures)
-- [ ] T048 [US1] Create Zod schemas for all message parameters in utils/messaging/schemas.ts (startPlaybackParamsSchema, extractContentParamsSchema, etc.)
-- [ ] T049 [US1] Export all message parameter types using z.infer in utils/messaging/types.ts
+- [X] T047 [US1] Create utils/messaging/protocol.ts with VoxPageProtocol interface extending ProtocolMap (define 20+ message type signatures)
+- [X] T048 [US1] Create Zod schemas for all message parameters in utils/messaging/schemas.ts (startPlaybackParamsSchema, extractContentParamsSchema, etc.)
+- [X] T049 [US1] Export all message parameter types using z.infer in utils/messaging/types.ts
 
 ### Domain-Based Message Handlers (US1)
 
