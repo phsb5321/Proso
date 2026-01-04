@@ -3,17 +3,17 @@
 **Feature**: 022-plasmo-migration
 **Branch**: `022-plasmo-migration`
 **Last Updated**: 2026-01-03
-**Overall Progress**: 22 of 161 tasks complete (13.7%)
+**Overall Progress**: 27 of 161 tasks complete (16.8%)
 
 ## Executive Summary
 
 The VoxPage browser extension is being migrated from vanilla JavaScript + JSDoc to TypeScript + WXT framework. This is a **5-6 week project** with 161 tasks across 8 phases. The foundation is established with WXT configured, TypeScript working, and core modules converted.
 
-**Status**: Phase 1 complete ✅ | Phase 2 in progress 🔄 (48% done)
+**Status**: Phase 1 complete ✅ | Phase 2 in progress 🔄 (59% done)
 
 ---
 
-## Commits Pushed (10 total)
+## Commits Pushed (12 total)
 
 ### Commit 1: `5914c86` - Phase 1 Foundation
 **Date**: 2026-01-03
@@ -174,15 +174,37 @@ deferred to next session due to size/complexity.
 
 **Key Achievement**: Core content processing modules with type safety (3/5 complete)
 
+### Commit 11: `3d8c8fc` - Language Detection Modules
+**Date**: 2026-01-03
+**Tasks**: T036-T040 (5 tasks)
+
+```
+feat(language): complete language detection TypeScript conversion with franc-min
+
+Created:
+- utils/language/types.ts - Zod schemas and type definitions
+- utils/language/codes.ts - BCP-47 parsing and language code utilities
+- utils/language/extractor.ts - Page language extraction from DOM
+- utils/language/mappings.ts - Provider-specific language code mappings
+- utils/language/detector.ts - Language detection with franc-min (replaces CLD3)
+
+Key Changes:
+- Replaced CLD3 WASM with franc-min (pure JavaScript, 82 languages)
+- ISO 639-3 to ISO 639-1 mapping
+- Full type safety with Zod validation
+```
+
+**Key Achievement**: Complete language detection infrastructure with franc-min
+
 ---
 
 ## Phase 2: TypeScript Conversion Status
 
 **Goal**: Convert entire JavaScript + JSDoc codebase to TypeScript with Zod-first types
 **Gate**: `tsc --noEmit` passes + all 153 tests pass
-**Progress**: 22 of 46 tasks (48%)
+**Progress**: 27 of 46 tasks (59%)
 
-### ✅ Completed (22 tasks)
+### ✅ Completed (27 tasks)
 
 **Config Modules**:
 - [X] T013 - Config schema.ts
@@ -215,22 +237,22 @@ deferred to next session due to size/complexity.
 - [X] T033 - Content highlight.ts
 - [X] T035 - Content text-segment.ts
 
-### 📋 Next Batch: Complete Content Modules (2 tasks remaining)
+**Language Detection Modules**:
+- [X] T036 - Remove CLD3 dependency
+- [X] T037 - Language detector.ts (with franc-min)
+- [X] T038 - Language mappings.ts
+- [X] T039 - Language extractor.ts
+- [X] T040 - Language types.ts
 
-**Resume Point**: T031 (Content Extractor)
+### 📋 Next Batch: Complete Content Modules (2 tasks remaining) OR Test Infrastructure (6 tasks)
 
-**Remaining**:
-
+**Option 1 - Complete Content Modules**:
 - [ ] T031 - content-extractor.js → utils/content/extractor.ts (1167 lines - complex Readability integration)
 - [ ] T034 - sticky-footer.js → utils/content/sticky-footer.ts (994 lines - Shadow DOM component)
 
 **Estimated Time**: 2 hours (large/complex files)
-**Commit After**: Content modules fully complete
 
-**Note**: These 2 files are significantly larger and more complex than typical modules. Consider breaking down into sub-tasks if needed.
-
-### 📋 Batch 5: Test Infrastructure (6 tasks)
-
+**Option 2 - Test Infrastructure** (recommended - unblocks Phase 2 completion):
 - [ ] T041 - Update all test imports (@/ path aliases)
 - [ ] T042 - Add TypeScript Jest configuration
 - [ ] T043 - Create mock for @webext-core/messaging
@@ -239,8 +261,7 @@ deferred to next session due to size/complexity.
 - [ ] T046 - Commit Phase 2 completion
 
 **Estimated Time**: 2 hours
-**Phase 2 Gate**: `tsc --noEmit` + 153 tests passing
-**Final Commit**: Phase 2 complete
+**Commit After**: Phase 2 Gate passed
 
 ---
 
