@@ -664,3 +664,38 @@
 .voxpage-hidden {
   display: none !important;
 }
+
+/* ========================================
+   API KEY STATUS
+   Status indicator for API key validation
+   ======================================== */
+
+.api-key-status {
+  display: none;
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.api-key-status--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
+}
+
+.api-key-status--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-error);
+}
+
+.api-key-status--loading {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning);
+}
+
+/* Small button variant */
+.voxpage-button--sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  min-height: 32px;
+}

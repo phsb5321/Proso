@@ -4,6 +4,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { ElevenLabsProvider, loadElevenLabsApiKey } from '../src/background/providers/elevenlabs';
 
 // ============================================
 // State Management
@@ -37,6 +38,7 @@ let playbackState: PlaybackState = {
 let activeTabId: number | null = null;
 let paragraphs: string[] = [];
 let apiKeys: ApiKeys = {};
+let elevenlabsProvider: ElevenLabsProvider | null = null;
 
 // ============================================
 // Tab Communication
@@ -60,43 +62,72 @@ async function sendToContentScript(tabId: number, message: Record<string, unknow
 // ElevenLabs TTS
 // ============================================
 
-async function generateElevenLabsAudio(text: string): Promise<string | null> {
-  const apiKey = apiKeys.elevenlabsApiKey;
-  if (!apiKey) {
-    console.error('[Background] ElevenLabs API key not configured');
-    return null;
-  }
-
-  const voiceId = '21m00Tcm4TlvDq8ikWAM'; // Rachel voice
-
+/**
+ * Initialize or refresh the ElevenLabs provider with the latest API key
+ */
+async function initElevenLabsProvider(): Promise<ElevenLabsProvider | null> {
   try {
-    console.log('[Background] Calling ElevenLabs API...');
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg',
-      },
-      body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.5,
-          use_speaker_boost: true,
-        },
-      }),
+    const apiKey = await loadElevenLabsApiKey();
+    console.log('[Background] ElevenLabs API key loaded:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length || 0,
+      keyPrefix: apiKey?.substring(0, 8) || 'none',
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      console.error('[Background] ElevenLabs API error:', response.status, errorText);
+    if (!apiKey) {
+      console.warn('[Background] No ElevenLabs API key configured');
       return null;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    // Create or update provider
+    if (!elevenlabsProvider) {
+      elevenlabsProvider = new ElevenLabsProvider(apiKey);
+    } else {
+      elevenlabsProvider.setApiKey(apiKey);
+    }
+
+    // Validate the key
+    const isValid = await elevenlabsProvider.validateKey();
+    console.log('[Background] ElevenLabs API key validation:', isValid ? 'VALID' : 'INVALID');
+
+    if (!isValid) {
+      console.error('[Background] ElevenLabs API key is invalid');
+      return null;
+    }
+
+    return elevenlabsProvider;
+  } catch (error) {
+    console.error('[Background] Error initializing ElevenLabs provider:', error);
+    return null;
+  }
+}
+
+async function generateElevenLabsAudio(text: string): Promise<string | null> {
+  // Initialize/refresh provider with latest key
+  const provider = await initElevenLabsProvider();
+  if (!provider) {
+    console.error('[Background] ElevenLabs provider not available');
+    return null;
+  }
+
+  try {
+    console.log('[Background] Generating ElevenLabs audio, text length:', text.length);
+
+    // Get default voice
+    const defaultVoice = provider.getDefaultVoice();
+    console.log('[Background] Using voice:', defaultVoice.name, defaultVoice.id);
+
+    // Generate audio
+    const audioData = await provider.generateAudio(text, defaultVoice.id, {
+      turbo: false,
+      stability: 0.5,
+      similarityBoost: 0.75,
+      style: 0.5,
+    });
+
+    // Result is ArrayBuffer (no timestamps requested)
+    const arrayBuffer = audioData as ArrayBuffer;
+
     // Convert to base64 data URL for passing to content script
     const base64 = btoa(
       new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
@@ -105,7 +136,7 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
     console.log('[Background] ElevenLabs audio generated, size:', arrayBuffer.byteLength);
     return audioUrl;
   } catch (error) {
-    console.error('[Background] ElevenLabs error:', error);
+    console.error('[Background] ElevenLabs generation error:', error);
     return null;
   }
 }
@@ -467,6 +498,34 @@ const messageHandlers: Record<string, MessageHandler> = {
         break;
     }
     return { success: true };
+  },
+
+  // Test API key validation
+  testElevenLabsKey: async () => {
+    console.log('[Background] Testing ElevenLabs API key...');
+    const provider = await initElevenLabsProvider();
+    if (!provider) {
+      return { success: false, error: 'No API key configured or key is invalid' };
+    }
+    return { success: true, message: 'API key is valid!' };
+  },
+
+  testApiKey: async (data) => {
+    const provider = data.provider as string;
+    console.log('[Background] Testing API key for provider:', provider);
+
+    if (provider === 'elevenlabs') {
+      const result = await messageHandlers.testElevenLabsKey({});
+      return result;
+    }
+
+    // For other providers, just check if key exists
+    const stored = await browser.storage.local.get([`${provider}ApiKey`]);
+    const key = stored[`${provider}ApiKey`] as string | undefined;
+    if (key && key.trim().length > 0) {
+      return { success: true, message: 'API key is configured (validation not implemented for this provider)' };
+    }
+    return { success: false, error: 'No API key configured' };
   },
 };
 

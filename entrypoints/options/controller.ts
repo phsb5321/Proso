@@ -23,6 +23,8 @@ interface OptionsElements {
   // API Key inputs
   openaiKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
+  testElevenlabsKey: HTMLButtonElement;
+  elevenlabsKeyStatus: HTMLElement;
   cartesiaKey: HTMLInputElement;
   groqKey: HTMLInputElement;
 
@@ -84,6 +86,8 @@ function getElements(): OptionsElements {
   return {
     openaiKey: getElement<HTMLInputElement>('openaiKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
+    testElevenlabsKey: getElement<HTMLButtonElement>('testElevenlabsKey'),
+    elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
     cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
     groqKey: getElement<HTMLInputElement>('groqKey'),
     defaultProvider: getElement<HTMLSelectElement>('defaultProvider'),
@@ -244,6 +248,9 @@ function setupEventListeners(): void {
     elements.speedValue.textContent = `${value.toFixed(1)}x`;
   });
 
+  // Test ElevenLabs API key button
+  elements.testElevenlabsKey.addEventListener('click', testElevenLabsApiKey);
+
   // Save button
   elements.saveBtn.addEventListener('click', saveSettings);
 
@@ -268,6 +275,60 @@ function setupEventListeners(): void {
       saveTimeout = setTimeout(saveSettings, 500);
     });
   });
+}
+
+/**
+ * Test ElevenLabs API key
+ */
+async function testElevenLabsApiKey(): Promise<void> {
+  if (!elements) return;
+
+  // Save the key first to ensure it's in storage
+  const key = elements.elevenlabsKey.value.trim();
+  if (!key) {
+    showApiKeyStatus('elevenlabs', 'No API key entered', 'error');
+    return;
+  }
+
+  // Save to storage first
+  await browser.storage.local.set({ elevenlabsApiKey: key });
+
+  showApiKeyStatus('elevenlabs', 'Testing...', 'loading');
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'testApiKey',
+      provider: 'elevenlabs',
+    });
+
+    if (response && response.success) {
+      showApiKeyStatus('elevenlabs', response.message || 'Valid!', 'success');
+    } else {
+      showApiKeyStatus('elevenlabs', response?.error || 'Invalid key', 'error');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Test failed';
+    showApiKeyStatus('elevenlabs', errorMessage, 'error');
+  }
+}
+
+/**
+ * Show API key test status
+ */
+function showApiKeyStatus(provider: string, message: string, type: 'success' | 'error' | 'loading'): void {
+  if (!elements) return;
+
+  const statusElement = elements.elevenlabsKeyStatus;
+  statusElement.textContent = message;
+  statusElement.className = `api-key-status api-key-status--${type}`;
+  statusElement.style.display = 'block';
+
+  // Auto-hide success/error messages after 5 seconds
+  if (type !== 'loading') {
+    setTimeout(() => {
+      statusElement.style.display = 'none';
+    }, 5000);
+  }
 }
 
 /**
