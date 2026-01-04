@@ -45,11 +45,25 @@ export default defineConfig({
     },
   },
 
-  // Vite configuration
+  // Vite configuration (T119-T121: Build performance optimization)
   vite: () => ({
     build: {
       target: 'es2020',
-      sourcemap: true,
+      // T121: Inline sourcemaps for development debugging
+      sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : true,
+      // T120: Enable tree-shaking via esbuild minification (default in Vite)
+      minify: 'esbuild',
+      // T119: Code splitting - WXT handles chunking automatically for extensions
+      // Manual chunks conflict with inlineDynamicImports required for extension contexts
+      // Dependencies are automatically bundled per-entrypoint for optimal loading
+    },
+    // Optimize dependencies for faster dev startup
+    optimizeDeps: {
+      include: ['zod', 'franc-min'],
+    },
+    // T120: Ensure dead code elimination
+    esbuild: {
+      treeShaking: true,
     },
   }),
 });
