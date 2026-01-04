@@ -145,6 +145,62 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
 // TTS Playback
 // ============================================
 
+// Current audio element for background playback
+let currentAudio: HTMLAudioElement | null = null;
+
+/**
+ * Play audio in the background script (avoids content script autoplay restrictions)
+ */
+function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Stop any existing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.src = '';
+      currentAudio = null;
+    }
+
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+    audio.onended = () => {
+      console.log('[Background] Audio playback ended');
+      currentAudio = null;
+      resolve(true);
+    };
+
+    audio.onerror = (event) => {
+      console.error('[Background] Audio playback error:', event);
+      currentAudio = null;
+      resolve(false);
+    };
+
+    console.log('[Background] Playing audio in background, speed:', speed);
+    audio.play()
+      .then(() => {
+        console.log('[Background] Audio play() started successfully');
+      })
+      .catch((err) => {
+        console.error('[Background] Audio play() failed:', err);
+        currentAudio = null;
+        resolve(false);
+      });
+  });
+}
+
+/**
+ * Stop current audio playback
+ */
+function stopCurrentAudio(): void {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+    console.log('[Background] Audio stopped');
+  }
+}
+
 async function speakCurrentParagraph(): Promise<void> {
   if (!activeTabId || playbackState.status !== 'playing') {
     return;
@@ -175,27 +231,25 @@ async function speakCurrentParagraph(): Promise<void> {
   let success = false;
 
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
-    // Use ElevenLabs
+    // Use ElevenLabs - play audio in background script to avoid autoplay restrictions
     const audioUrl = await generateElevenLabsAudio(text);
     if (audioUrl) {
-      const result = await sendToContentScript(activeTabId, {
-        action: 'playAudio',
-        audioUrl: audioUrl,
-        speed: playbackState.speed,
-      });
-      success = result !== null;
+      console.log('[Background] Playing ElevenLabs audio in background script');
+      success = await playAudioInBackground(audioUrl, playbackState.speed);
     } else {
       console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
     }
   }
 
   if (!success) {
-    // Fallback to browser TTS
+    // Fallback to browser TTS (in content script - has different autoplay behavior)
     await sendToContentScript(activeTabId, {
       action: 'speakText',
       text: text,
       speed: playbackState.speed,
     });
+    // Browser TTS doesn't return when finished, so we just continue
+    // TODO: Add proper callback mechanism for browser TTS
   }
 
   // Check if we're still playing (might have been paused/stopped)
@@ -317,8 +371,11 @@ const messageHandlers: Record<string, MessageHandler> = {
     playbackState.status = 'paused';
     notifyPopup();
 
+    // Stop background audio
+    stopCurrentAudio();
+
     if (activeTabId) {
-      // Stop audio/speech
+      // Stop content script audio/speech (for browser TTS fallback)
       await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
       await sendToContentScript(activeTabId, {
@@ -353,8 +410,11 @@ const messageHandlers: Record<string, MessageHandler> = {
     paragraphs = [];
     notifyPopup();
 
+    // Stop background audio
+    stopCurrentAudio();
+
     if (activeTabId) {
-      // Stop audio/speech
+      // Stop content script audio/speech
       await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
       await sendToContentScript(activeTabId, { action: 'clearHighlight' });
@@ -365,8 +425,10 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   nextParagraph: async () => {
-    if (playbackState.status === 'playing' && activeTabId) {
-      // Stop current audio
+    // Stop current audio first
+    stopCurrentAudio();
+
+    if (activeTabId) {
       await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
     }
@@ -398,8 +460,10 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   previousParagraph: async () => {
-    if (playbackState.status === 'playing' && activeTabId) {
-      // Stop current audio
+    // Stop current audio first
+    stopCurrentAudio();
+
+    if (activeTabId) {
       await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
     }
