@@ -65,8 +65,8 @@ export class AudioVisualizer {
   private analyserNode: AnalyserNode | null = null;
   private sourceNode: MediaElementAudioSourceNode | null = null;
   private gainNode: GainNode | null = null;
-  private frequencyData: Uint8Array | null = null;
-  private timeDomainData: Uint8Array | null = null;
+  private frequencyData: Uint8Array<ArrayBuffer> | null = null;
+  private timeDomainData: Uint8Array<ArrayBuffer> | null = null;
 
   /**
    * Initialize the Web Audio API context and analyser node

@@ -93,7 +93,7 @@ export const detectedLanguageSchema = z.object({
 export const languagePreferenceSchema = z.object({
   autoDetect: z.boolean().default(true),
   currentOverride: z.string().nullable().default(null),
-  voicePreferences: z.record(z.string()).default({}),
+  voicePreferences: z.record(z.string(), z.string()).default({}),
 });
 
 /**

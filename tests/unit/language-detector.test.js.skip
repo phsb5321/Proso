@@ -26,29 +26,25 @@ global.browser = {
   }
 };
 
-// Mock CLD3 module
-jest.unstable_mockModule('cld3-asm', () => ({
-  CLD3: {
-    create: jest.fn(() => Promise.resolve({
-      findLanguage: jest.fn((text) => {
-        // Simulate language detection based on text content
-        if (text.includes('Hola') || text.includes('español')) {
-          return { language: 'es', probability: 0.95, is_reliable: true };
-        }
-        if (text.includes('Bonjour') || text.includes('français')) {
-          return { language: 'fr', probability: 0.92, is_reliable: true };
-        }
-        if (text.includes('Guten') || text.includes('deutschen')) {
-          return { language: 'de', probability: 0.88, is_reliable: true };
-        }
-        if (text.includes('Hello') || text.includes('English')) {
-          return { language: 'en', probability: 0.98, is_reliable: true };
-        }
-        // Low confidence fallback
-        return { language: 'und', probability: 0.3, is_reliable: false };
-      })
-    }))
-  }
+// Mock franc-min module (replaced CLD3 in TypeScript migration)
+jest.unstable_mockModule('franc-min', () => ({
+  franc: jest.fn((text) => {
+    // Simulate language detection based on text content (ISO 639-3 codes)
+    if (text.includes('Hola') || text.includes('español')) {
+      return 'spa'; // Spanish
+    }
+    if (text.includes('Bonjour') || text.includes('français')) {
+      return 'fra'; // French
+    }
+    if (text.includes('Guten') || text.includes('deutschen')) {
+      return 'deu'; // German
+    }
+    if (text.includes('Hello') || text.includes('English')) {
+      return 'eng'; // English
+    }
+    // Undetermined fallback
+    return 'und';
+  })
 }));
 
 describe('Language Detector', () => {

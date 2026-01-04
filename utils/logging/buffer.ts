@@ -23,6 +23,16 @@ export const logBufferStateSchema = z.object({
 export type LogBufferState = z.infer<typeof logBufferStateSchema>;
 
 /**
+ * Saved buffer state (in storage)
+ */
+interface SavedBufferState {
+  entries: LogEntry[];
+  totalBytes: number;
+  lastFlushAttempt: number;
+  consecutiveFailures: number;
+}
+
+/**
  * Buffer options schema
  */
 export const bufferOptionsSchema = z.object({
@@ -229,10 +239,10 @@ export class LogBuffer {
   async load(): Promise<void> {
     try {
       const result = await browser.storage.local.get(STORAGE_KEY);
-      const saved = result[STORAGE_KEY];
+      const saved = result[STORAGE_KEY] as SavedBufferState | undefined;
 
       if (saved && Array.isArray(saved.entries)) {
-        this.entries = saved.entries.filter(e => validateLogEntry(e));
+        this.entries = saved.entries.filter((e: any) => validateLogEntry(e));
         this.totalBytes = saved.totalBytes || this.recalculateSize();
         this.lastFlushAttempt = saved.lastFlushAttempt || 0;
         this.consecutiveFailures = saved.consecutiveFailures || 0;

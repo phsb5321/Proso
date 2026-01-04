@@ -214,7 +214,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
 async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> = result[STORAGE_KEYS.LANGUAGE_CACHE] || {};
+    const cache: Record<string, DetectedLanguage> = (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
     const cached = cache[url];
 
     if (!cached) return null;
@@ -238,7 +238,7 @@ async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> 
 async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<void> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> = result[STORAGE_KEYS.LANGUAGE_CACHE] || {};
+    const cache: Record<string, DetectedLanguage> = (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
 
     // Limit cache size (max 100 entries)
     const urls = Object.keys(cache);
@@ -264,8 +264,8 @@ export async function getLanguageState(tabId: number): Promise<LanguageState> {
     STORAGE_KEYS.LANGUAGE_PREFERENCE,
   ]);
 
-  const detected: DetectedLanguage | null = result[STORAGE_KEYS.DETECTED_LANGUAGE] || null;
-  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+  const detected: DetectedLanguage | null = (result[STORAGE_KEYS.DETECTED_LANGUAGE] as DetectedLanguage | undefined) || null;
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -286,7 +286,7 @@ export async function getLanguageState(tabId: number): Promise<LanguageState> {
  */
 export async function setLanguageOverride(languageCode: string): Promise<void> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -306,7 +306,7 @@ export async function setLanguageOverride(languageCode: string): Promise<void> {
  */
 export async function clearLanguageOverride(): Promise<void> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] || {
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -363,7 +363,7 @@ export function setupNavigationListener(): void {
 
         // Cross-domain navigation - clear override if exists
         const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-        const preference: LanguagePreference | undefined = result[STORAGE_KEYS.LANGUAGE_PREFERENCE];
+        const preference: LanguagePreference | undefined = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined;
 
         if (preference?.currentOverride) {
           console.log('VoxPage: Cross-domain navigation, clearing language override');

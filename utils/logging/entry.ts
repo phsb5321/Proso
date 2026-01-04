@@ -36,7 +36,7 @@ export const logEntrySchema = z.object({
   level: z.enum(LOG_LEVELS),
   message: z.string().min(1).max(loggingConstants.maxMessageBytes),
   component: z.enum(COMPONENTS),
-  metadata: z.record(z.any()).nullable().optional(),
+  metadata: z.record(z.string(), z.any()).nullable().optional(),
 });
 
 export type LogEntry = z.infer<typeof logEntrySchema>;
