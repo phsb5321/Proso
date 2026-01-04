@@ -355,10 +355,10 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Final Documentation (Polish)
 
-- [ ] T142 Update README.md with WXT development workflow (npm run dev:firefox, npm run build:all, etc.)
-- [ ] T143 Update README.md with new project structure (entrypoints/, utils/, assets/)
-- [ ] T144 Document franc-min language detection in README (82 languages, 80-85% accuracy)
-- [ ] T145 Add migration notes to README explaining TypeScript + WXT benefits
+- [X] T142 Update README.md with WXT development workflow (npm run dev:firefox, npm run build:all, etc.)
+- [X] T143 Update README.md with new project structure (entrypoints/, utils/, assets/)
+- [X] T144 Document franc-min language detection in README (82 languages, 80-85% accuracy)
+- [X] T145 Add migration notes to README explaining TypeScript + WXT benefits
 
 ### Final Testing & Validation (Polish)
 
