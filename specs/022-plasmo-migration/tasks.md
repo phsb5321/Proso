@@ -197,9 +197,9 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Content Script Migration (US2)
 
-- [ ] T070 [US2] Create entrypoints/content.ts with defineContentScript (runAt: document_idle, matches: <all_urls>)
-- [ ] T071 [US2] Import and initialize content utilities in entrypoints/content.ts (extractor, highlighter, sticky-footer)
-- [ ] T072 [US2] Set up message listeners in content.ts using defineExtensionMessaging<VoxPageProtocol>
+- [X] T070 [US2] Create entrypoints/content.ts with defineContentScript (runAt: document_idle, matches: <all_urls>)
+- [X] T071 [US2] Import and initialize content utilities in entrypoints/content.ts (extractor, highlighter, sticky-footer)
+- [X] T072 [US2] Set up message listeners in content.ts using defineExtensionMessaging<VoxPageProtocol>
 - [ ] T073 [US2] Remove old content/index.js (468 LOC of IIFE wrappers) - replaced by ES modules in entrypoints/content.ts
 - [ ] T074 [US2] Test content script injection on Wikipedia, Fextralife, Fandom pages
 - [ ] T075 [US2] Verify CSS Custom Highlight API word highlighting works identically
