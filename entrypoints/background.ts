@@ -3,56 +3,178 @@
  * Main entrypoint for WXT extension background context
  */
 
-// Import message handlers (Phase 3 - US1)
-// These handlers provide the type-safe messaging interface
-// Full implementation will be connected in Phase 4 (US2)
-import type { VoxPageProtocol } from '../utils/messaging/protocol';
-import * as handlers from '../utils/messaging/handlers';
+import { browser } from 'wxt/browser';
+
+// Import message handlers
+import * as playbackHandlers from '../utils/messaging/handlers/playback';
+import * as settingsHandlers from '../utils/messaging/handlers/settings';
+
+// ============================================
+// State Management
+// ============================================
+
+interface PlaybackState {
+  status: 'stopped' | 'loading' | 'playing' | 'paused';
+  currentParagraph: number;
+  totalParagraphs: number;
+  progress: number;
+  speed: number;
+  provider: string;
+}
+
+let playbackState: PlaybackState = {
+  status: 'stopped',
+  currentParagraph: 0,
+  totalParagraphs: 0,
+  progress: 0,
+  speed: 1.0,
+  provider: 'browser',
+};
+
+// ============================================
+// Message Router
+// ============================================
+
+type MessageHandler = (data: Record<string, unknown>) => Promise<unknown>;
+
+const messageHandlers: Record<string, MessageHandler> = {
+  // Playback messages
+  getPlaybackState: async () => {
+    return playbackState;
+  },
+
+  startPlayback: async () => {
+    playbackState.status = 'loading';
+    // In real implementation, this would trigger actual TTS
+    // For now, simulate loading -> playing transition
+    setTimeout(() => {
+      playbackState.status = 'playing';
+      notifyPopup();
+    }, 500);
+    return { success: true };
+  },
+
+  pausePlayback: async () => {
+    playbackState.status = 'paused';
+    notifyPopup();
+    return { success: true };
+  },
+
+  stopPlayback: async () => {
+    playbackState.status = 'stopped';
+    playbackState.currentParagraph = 0;
+    playbackState.progress = 0;
+    notifyPopup();
+    return { success: true };
+  },
+
+  nextParagraph: async () => {
+    if (playbackState.totalParagraphs > 0) {
+      playbackState.currentParagraph = Math.min(
+        playbackState.currentParagraph + 1,
+        playbackState.totalParagraphs - 1
+      );
+      playbackState.progress =
+        (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
+      notifyPopup();
+    }
+    return { success: true, currentParagraph: playbackState.currentParagraph };
+  },
+
+  previousParagraph: async () => {
+    playbackState.currentParagraph = Math.max(playbackState.currentParagraph - 1, 0);
+    if (playbackState.totalParagraphs > 0) {
+      playbackState.progress =
+        (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
+    }
+    notifyPopup();
+    return { success: true, currentParagraph: playbackState.currentParagraph };
+  },
+
+  seekToPosition: async (data) => {
+    const progress = data.progress as number;
+    playbackState.progress = progress;
+    if (playbackState.totalParagraphs > 0) {
+      playbackState.currentParagraph = Math.floor(
+        (progress / 100) * playbackState.totalParagraphs
+      );
+    }
+    notifyPopup();
+    return { success: true };
+  },
+
+  updateSettings: async (data) => {
+    if (typeof data.speed === 'number') {
+      playbackState.speed = data.speed;
+    }
+    if (typeof data.provider === 'string') {
+      playbackState.provider = data.provider;
+    }
+    notifyPopup();
+    return { success: true };
+  },
+
+  // Settings messages (delegate to handlers)
+  'settings.get': async () => {
+    return settingsHandlers.handleSettingsGet();
+  },
+
+  'settings.update': async (data) => {
+    return settingsHandlers.handleSettingsUpdate(data as Parameters<typeof settingsHandlers.handleSettingsUpdate>[0]);
+  },
+};
+
+// ============================================
+// Popup Notification
+// ============================================
+
+async function notifyPopup(): Promise<void> {
+  try {
+    await browser.runtime.sendMessage({
+      type: 'playbackStateUpdate',
+      state: playbackState,
+    });
+  } catch {
+    // Popup might be closed, ignore
+  }
+}
+
+// ============================================
+// Main Background Script
+// ============================================
 
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
 
-  /**
-   * Phase 3 (US1) Status: ✅ Type-Safe Messaging Infrastructure Complete
-   *
-   * Messaging handlers are defined and ready:
-   * - 37 handler functions across 9 domains
-   * - Full TypeScript autocomplete support
-   * - Zod runtime validation
-   *
-   * Phase 4 (US2) TODO: Integrate with actual business logic
-   * 1. Initialize core services:
-   *    - PlaybackController from background/playback-controller.js
-   *    - AudioCache from background/audio-cache.js
-   *    - RemoteLogger from background/remote-logger.js
-   *    - ProviderRegistry from background/provider-registry.js
-   *
-   * 2. Register message handlers using defineExtensionMessaging:
-   *    const messenger = defineExtensionMessaging<VoxPageProtocol>();
-   *    messenger.onMessage('playback.start', handlers.handlePlaybackStart);
-   *    messenger.onMessage('playback.pause', handlers.handlePlaybackPause);
-   *    ... (35 more handlers)
-   *
-   * 3. Replace old background/message-router.js (888 LOC)
-   * 4. Replace old background/ui-coordinator.js (250 LOC)
-   *
-   * For now, existing background/*.js modules continue to work via
-   * the old message-router pattern. Full migration in Phase 4.
-   */
+  // Set up message listener
+  browser.runtime.onMessage.addListener((message, _sender) => {
+    const { type, ...data } = message as { type: string; [key: string]: unknown };
 
-  // Verify handlers are available (demonstrates autocomplete works)
-  const handlerList = {
-    playback: handlers.handlePlaybackStart,
-    audio: handlers.handleAudioGenerate,
-    provider: handlers.handleProviderSelect,
-    content: handlers.handleContentExtract,
-    highlight: handlers.handleHighlightParagraph,
-    language: handlers.handleLanguageDetect,
-    settings: handlers.handleSettingsGet,
-    footer: handlers.handleFooterShow,
-    logging: handlers.handleLoggingLogRemote,
-  };
+    console.log('[Background] Received message:', type);
 
-  console.log('VoxPage: Message handlers loaded:', Object.keys(handlerList).length, 'domains');
-  console.log('VoxPage: Phase 3 (US1) messaging infrastructure ready for Phase 4 integration');
+    const handler = messageHandlers[type];
+    if (handler) {
+      // Return a promise for async response
+      return handler(data);
+    }
+
+    console.warn('[Background] Unknown message type:', type);
+    return Promise.resolve({ error: 'Unknown message type' });
+  });
+
+  // Initialize settings from storage
+  browser.storage.local.get(['speed', 'provider']).then((result) => {
+    if (typeof result.speed === 'number') {
+      playbackState.speed = result.speed;
+    }
+    if (typeof result.provider === 'string') {
+      playbackState.provider = result.provider;
+    }
+    console.log('[Background] Settings loaded:', {
+      speed: playbackState.speed,
+      provider: playbackState.provider,
+    });
+  });
+
+  console.log('VoxPage: Message handlers registered');
 });

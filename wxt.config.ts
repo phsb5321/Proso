@@ -44,14 +44,6 @@ export default defineConfig({
     },
   },
 
-  // Chrome-specific: Add offscreen permission for Offscreen Documents API
-  transformManifest: (manifest) => {
-    if (process.env.BROWSER === 'chrome' || process.env.BROWSER === 'edge') {
-      manifest.permissions = [...(manifest.permissions || []), 'offscreen'];
-    }
-    return manifest;
-  },
-
   browser: process.env.BROWSER || 'firefox',
 
   // Development server
