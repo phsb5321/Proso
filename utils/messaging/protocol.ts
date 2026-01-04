@@ -1,11 +1,9 @@
 /**
  * VoxPage Messaging Protocol
- * Type-safe message protocol using @webext-core/messaging ProtocolMap
+ * Type-safe message protocol using @webext-core/messaging
  *
  * @module utils/messaging/protocol
  */
-
-import type { ProtocolMap } from '@webext-core/messaging';
 
 /**
  * Playback status enum
@@ -35,8 +33,9 @@ export type FooterAction = 'play' | 'pause' | 'stop' | 'next' | 'prev' | 'seek' 
 /**
  * VoxPage Protocol Map
  * Defines all message types with their request/response signatures
+ * Compatible with @webext-core/messaging defineExtensionMessaging
  */
-export interface VoxPageProtocol extends ProtocolMap {
+export interface VoxPageProtocol {
   // ========== Playback Control Messages ==========
   'playback.start': {
     request: {

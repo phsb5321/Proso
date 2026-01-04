@@ -154,16 +154,16 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Domain-Based Message Handlers (US1)
 
-- [ ] T050 [P] [US1] Create utils/messaging/handlers/playback.ts with 5 handlers (startPlayback, pausePlayback, stopPlayback, seekPlayback, getPlaybackState)
-- [ ] T051 [P] [US1] Create utils/messaging/handlers/audio.ts with 4 handlers (generateAudio, cacheAudio, clearCache, getCache)
-- [ ] T052 [P] [US1] Create utils/messaging/handlers/provider.ts with 3 handlers (selectProvider, getProviders, validateSupport)
-- [ ] T053 [P] [US1] Create utils/messaging/handlers/content.ts with 3 handlers (extractContent, scoreContent, findDOM)
-- [ ] T054 [P] [US1] Create utils/messaging/handlers/highlight.ts with 4 handlers (highlightParagraph, highlightWord, clearHighlights, getState)
-- [ ] T055 [P] [US1] Create utils/messaging/handlers/language.ts with 4 handlers (detectLanguage, getState, setOverride, clearOverride)
-- [ ] T056 [P] [US1] Create utils/messaging/handlers/settings.ts with 3 handlers (getSettings, updateSettings, migrateSettings)
-- [ ] T057 [P] [US1] Create utils/messaging/handlers/footer.ts with 4 handlers (showFooter, hideFooter, updateState, getState)
-- [ ] T058 [P] [US1] Create utils/messaging/handlers/logging.ts with 3 handlers (logRemote, flushBuffer, getState)
-- [ ] T059 [US1] Create utils/messaging/handlers/index.ts to export all handlers
+- [X] T050 [P] [US1] Create utils/messaging/handlers/playback.ts with 8 handlers (startPlayback, pausePlayback, stopPlayback, next, prev, seekPlayback, getPlaybackState, setSpeed)
+- [X] T051 [P] [US1] Create utils/messaging/handlers/audio.ts with 4 handlers (generateAudio, cacheAudio, clearCache, getCacheState)
+- [X] T052 [P] [US1] Create utils/messaging/handlers/provider.ts with 3 handlers (selectProvider, getList, validateLanguageSupport)
+- [X] T053 [P] [US1] Create utils/messaging/handlers/content.ts with 3 handlers (extractContent, scoreContent, findDOMElements)
+- [X] T054 [P] [US1] Create utils/messaging/handlers/highlight.ts with 4 handlers (highlightParagraph, highlightWord, clearHighlights, getState)
+- [X] T055 [P] [US1] Create utils/messaging/handlers/language.ts with 4 handlers (detectLanguage, getState, setOverride, clearOverride)
+- [X] T056 [P] [US1] Create utils/messaging/handlers/settings.ts with 3 handlers (getSettings, updateSettings, migrateSettings)
+- [X] T057 [P] [US1] Create utils/messaging/handlers/footer.ts with 5 handlers (showFooter, hideFooter, updateState, getState, action)
+- [X] T058 [P] [US1] Create utils/messaging/handlers/logging.ts with 3 handlers (logRemote, flushBuffer, getState)
+- [X] T059 [US1] Create utils/messaging/handlers/index.ts to export all handlers
 
 ### Background Entrypoint Integration (US1)
 
