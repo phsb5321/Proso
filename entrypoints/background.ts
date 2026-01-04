@@ -17,6 +17,9 @@ interface PlaybackState {
   progress: number;
   speed: number;
   provider: string;
+  voice: string | null;
+  currentTime: number; // Current audio time in seconds
+  totalTime: number; // Total audio duration in seconds
 }
 
 interface ApiKeys {
@@ -33,6 +36,9 @@ let playbackState: PlaybackState = {
   progress: 0,
   speed: 1.0,
   provider: 'browser',
+  voice: null,
+  currentTime: 0,
+  totalTime: 0,
 };
 
 let activeTabId: number | null = null;
@@ -113,19 +119,31 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
   try {
     console.log('[Background] Generating ElevenLabs audio, text length:', text.length);
 
-    // Get default voice
-    const defaultVoice = provider.getDefaultVoice();
-    console.log('[Background] Using voice:', defaultVoice.name, defaultVoice.id);
+    // Get voice - use saved preference or default
+    let voiceId = playbackState.voice;
+    let voiceName = 'Unknown';
 
-    // Generate audio
-    const audioData = await provider.generateAudio(text, defaultVoice.id, {
+    if (!voiceId) {
+      const defaultVoice = provider.getDefaultVoice();
+      voiceId = defaultVoice.id;
+      voiceName = defaultVoice.name;
+    } else {
+      const voices = provider.getVoices();
+      const voice = voices.find(v => v.id === voiceId);
+      voiceName = voice?.name || 'Custom';
+    }
+
+    console.log('[Background] Using voice:', voiceName, voiceId);
+
+    // Generate audio (without timestamps for now - simplifies playback)
+    const audioData = await provider.generateAudio(text, voiceId, {
       turbo: false,
       stability: 0.5,
       similarityBoost: 0.75,
       style: 0.5,
     });
 
-    // Result is ArrayBuffer (no timestamps requested)
+    // Result is ArrayBuffer
     const arrayBuffer = audioData as ArrayBuffer;
 
     // Convert to base64 data URL for passing to content script
@@ -149,6 +167,34 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
 let currentAudio: HTMLAudioElement | null = null;
 
 /**
+ * Format seconds to MM:SS string
+ */
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Send footer state update with current time info
+ */
+async function updateFooterProgress(): Promise<void> {
+  if (!activeTabId) return;
+
+  await sendToContentScript(activeTabId, {
+    action: 'FOOTER_STATE_UPDATE',
+    status: playbackState.status,
+    progress: playbackState.progress,
+    currentTime: formatTime(playbackState.currentTime),
+    totalTime: formatTime(playbackState.totalTime),
+    currentParagraph: playbackState.currentParagraph + 1,
+    totalParagraphs: playbackState.totalParagraphs,
+    speed: playbackState.speed,
+  });
+}
+
+/**
  * Play audio in the background script (avoids content script autoplay restrictions)
  */
 function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
@@ -163,6 +209,22 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
     const audio = new Audio(audioUrl);
     currentAudio = audio;
     audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+    // Track audio duration when metadata loads
+    audio.onloadedmetadata = () => {
+      playbackState.totalTime = audio.duration;
+      console.log('[Background] Audio duration:', audio.duration, 'seconds');
+    };
+
+    // Update progress as audio plays
+    audio.ontimeupdate = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        playbackState.currentTime = audio.currentTime;
+        playbackState.totalTime = audio.duration;
+        // Update footer with current time
+        updateFooterProgress();
+      }
+    };
 
     audio.onended = () => {
       console.log('[Background] Audio playback ended');
@@ -295,12 +357,15 @@ const messageHandlers: Record<string, MessageHandler> = {
     playbackState.status = 'loading';
     notifyPopup();
 
-    // Reload API keys in case they changed
+    // Reload API keys and settings in case they changed
     const stored = await browser.storage.local.get([
       'elevenlabsApiKey',
       'openaiApiKey',
       'groqApiKey',
       'cartesiaApiKey',
+      'elevenlabsVoice', // Voice preference
+      'speed',
+      'provider',
     ]);
     apiKeys = {
       elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
@@ -308,7 +373,18 @@ const messageHandlers: Record<string, MessageHandler> = {
       groqApiKey: stored.groqApiKey as string | undefined,
       cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
     };
+    // Update playback state with saved preferences
+    if (stored.elevenlabsVoice) {
+      playbackState.voice = stored.elevenlabsVoice as string;
+    }
+    if (stored.speed) {
+      playbackState.speed = stored.speed as number;
+    }
+    if (stored.provider) {
+      playbackState.provider = stored.provider as string;
+    }
     console.log('[Background] API keys loaded, elevenlabs:', !!apiKeys.elevenlabsApiKey);
+    console.log('[Background] Settings loaded, voice:', playbackState.voice, 'speed:', playbackState.speed);
 
     // Extract text from the page
     const extractResult = await sendToContentScript(tab.id, {
@@ -590,6 +666,62 @@ const messageHandlers: Record<string, MessageHandler> = {
       return { success: true, message: 'API key is configured (validation not implemented for this provider)' };
     }
     return { success: false, error: 'No API key configured' };
+  },
+
+  // Voice management
+  getVoices: async (data) => {
+    const provider = (data.provider as string) || playbackState.provider;
+    console.log('[Background] Getting voices for provider:', provider);
+
+    if (provider === 'elevenlabs') {
+      const elevenlabs = await initElevenLabsProvider();
+      if (elevenlabs) {
+        const voices = elevenlabs.getVoices();
+        return {
+          success: true,
+          voices: voices.map(v => ({
+            id: v.id,
+            name: v.name,
+            language: v.language,
+            gender: v.gender,
+          })),
+        };
+      }
+      return { success: false, voices: [] };
+    }
+
+    // For browser TTS, we can't easily get voices from background
+    return { success: true, voices: [] };
+  },
+
+  setVoice: async (data) => {
+    const voiceId = data.voiceId as string;
+    console.log('[Background] Setting voice:', voiceId);
+
+    playbackState.voice = voiceId;
+
+    // Save to storage
+    await browser.storage.local.set({ elevenlabsVoice: voiceId });
+
+    return { success: true };
+  },
+
+  setSpeed: async (data) => {
+    const speed = data.speed as number;
+    console.log('[Background] Setting speed:', speed);
+
+    playbackState.speed = speed;
+
+    // Save to storage
+    await browser.storage.local.set({ speed: speed });
+
+    // Update current audio playback rate if playing
+    if (currentAudio) {
+      currentAudio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+    }
+
+    notifyPopup();
+    return { success: true };
   },
 };
 
