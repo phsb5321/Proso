@@ -206,21 +206,23 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Popup Migration (US2)
 
-- [ ] T076 [P] [US2] Create entrypoints/popup.html with script tag for popup/main.ts
-- [ ] T077 [P] [US2] Create entrypoints/popup/main.ts with popup initialization logic
-- [ ] T078 [P] [US2] Migrate popup/popup-controller.js → entrypoints/popup/controller.ts (business logic)
-- [ ] T079 [P] [US2] Migrate popup/popup-ui.js → entrypoints/popup/ui.ts (DOM manipulation)
-- [ ] T080 [P] [US2] Migrate popup/components/* → entrypoints/popup/components/ (accessibility, onboarding, visualizer)
-- [ ] T081 [US2] Wire up popup messaging using defineExtensionMessaging<VoxPageProtocol>
-- [ ] T082 [US2] Test popup: Verify playback controls, provider selection, settings work
+**NOTE**: T076-T082 marked as N/A - no popup files exist in current codebase. Popup UI is a new feature implemented in Phase 7 (US5, T132-T141).
+
+- [N/A] T076 [P] [US2] Create entrypoints/popup.html with script tag for popup/main.ts (NO SOURCE FILES - Phase 7 new feature)
+- [N/A] T077 [P] [US2] Create entrypoints/popup/main.ts with popup initialization logic (NO SOURCE FILES - Phase 7 new feature)
+- [N/A] T078 [P] [US2] Migrate popup/popup-controller.js → entrypoints/popup/controller.ts (FILE DOES NOT EXIST)
+- [N/A] T079 [P] [US2] Migrate popup/popup-ui.js → entrypoints/popup/ui.ts (FILE DOES NOT EXIST)
+- [N/A] T080 [P] [US2] Migrate popup/components/* → entrypoints/popup/components/ (DIRECTORY DOES NOT EXIST)
+- [N/A] T081 [US2] Wire up popup messaging using defineExtensionMessaging<VoxPageProtocol> (NO POPUP TO WIRE)
+- [N/A] T082 [US2] Test popup: Verify playback controls, provider selection, settings work (NO POPUP EXISTS)
 
 ### Options Page Migration (US2)
 
-- [ ] T083 [P] [US2] Create entrypoints/options.html with script tag for options/main.ts
-- [ ] T084 [P] [US2] Create entrypoints/options/main.ts with options page initialization
-- [ ] T085 [P] [US2] Migrate options page logic to entrypoints/options/ (settings form, API key management, logging config)
-- [ ] T086 [US2] Wire up options messaging using defineExtensionMessaging<VoxPageProtocol>
-- [ ] T087 [US2] Test options page: Verify all settings save correctly to browser.storage.local
+- [X] T083 [P] [US2] Create entrypoints/options.html with script tag for options/main.ts
+- [X] T084 [P] [US2] Create entrypoints/options/main.ts with options page initialization
+- [X] T085 [P] [US2] Migrate options page logic to entrypoints/options/ (settings form, API key management, logging config)
+- [X] T086 [US2] Wire up options messaging using defineExtensionMessaging<VoxPageProtocol>
+- [X] T087 [US2] Test options page: Verify all settings save correctly to browser.storage.local
 
 ### Assets & Styles Migration (US2)
 
