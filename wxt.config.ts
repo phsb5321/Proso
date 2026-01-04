@@ -28,6 +28,15 @@ export default defineConfig({
       96: 'icons/icon-96.png',
       128: 'icons/icon-128.png',
     },
+    // T132-T141: Popup UI - toolbar action with popup
+    action: {
+      default_popup: 'popup/index.html',
+      default_title: 'VoxPage - Text to Speech',
+      default_icon: {
+        16: 'icons/icon-16.png',
+        32: 'icons/icon-32.png',
+      },
+    },
     browser_specific_settings: {
       gecko: {
         id: 'voxpage@example.com',

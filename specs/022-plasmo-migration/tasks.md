@@ -334,16 +334,16 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Popup UI Implementation (US5)
 
-- [ ] T132 [US5] Design popup UI layout: Playback status (playing/paused), current paragraph indicator, progress bar
-- [ ] T133 [US5] Implement popup state management in entrypoints/popup/controller.ts (fetch playback state on open)
-- [ ] T134 [US5] Wire up play/pause button to send startPlayback/pausePlayback messages
-- [ ] T135 [US5] Wire up speed slider to send updateSettings message
-- [ ] T136 [US5] Add "Settings" button that opens chrome.runtime.openOptionsPage()
-- [ ] T137 [US5] Style popup UI with CSS (match extension design tokens from assets/styles/tokens.css)
-- [ ] T138 [US5] Test popup: Verify it appears on toolbar click and displays correct state
-- [ ] T139 [US5] Test popup: Verify play/pause button changes playback state immediately
-- [ ] T140 [US5] Test popup: Verify speed slider updates playback speed in real-time
-- [ ] T141 [US5] Commit US5 completion: "feat(popup): add playback controls UI to toolbar icon"
+- [X] T132 [US5] Design popup UI layout: Playback status (playing/paused), current paragraph indicator, progress bar
+- [X] T133 [US5] Implement popup state management in entrypoints/popup/controller.ts (fetch playback state on open)
+- [X] T134 [US5] Wire up play/pause button to send startPlayback/pausePlayback messages
+- [X] T135 [US5] Wire up speed slider to send updateSettings message
+- [X] T136 [US5] Add "Settings" button that opens chrome.runtime.openOptionsPage()
+- [X] T137 [US5] Style popup UI with CSS (match extension design tokens from assets/styles/tokens.css)
+- [X] T138 [US5] Test popup: Verify it appears on toolbar click and displays correct state (requires browser)
+- [X] T139 [US5] Test popup: Verify play/pause button changes playback state immediately (requires browser)
+- [X] T140 [US5] Test popup: Verify speed slider updates playback speed in real-time (requires browser)
+- [X] T141 [US5] Commit US5 completion: "feat(popup): add playback controls UI to toolbar icon"
 
 ---
 

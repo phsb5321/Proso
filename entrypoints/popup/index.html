@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxPage</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="voxpage-popup" id="popup">
+    <!-- Header -->
+    <header class="voxpage-popup__header">
+      <div class="voxpage-popup__title">
+        <img src="/icons/icon-32.png" alt="" class="voxpage-popup__icon" />
+        <h1>VoxPage</h1>
+      </div>
+      <button
+        id="settings-btn"
+        class="voxpage-button voxpage-button--icon voxpage-button--ghost"
+        title="Settings"
+        aria-label="Open settings"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Status Section -->
+    <section class="voxpage-popup__status" aria-live="polite">
+      <div class="voxpage-popup__status-indicator" id="status-indicator">
+        <span class="voxpage-popup__status-dot" id="status-dot"></span>
+        <span class="voxpage-popup__status-text" id="status-text">Ready</span>
+      </div>
+      <div class="voxpage-popup__paragraph" id="paragraph-info">
+        <span id="paragraph-current">-</span> / <span id="paragraph-total">-</span>
+      </div>
+    </section>
+
+    <!-- Progress Bar -->
+    <div class="voxpage-popup__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-container">
+      <div class="voxpage-popup__progress-bar" id="progress-bar"></div>
+      <input
+        type="range"
+        class="voxpage-popup__progress-seek"
+        id="progress-seek"
+        min="0"
+        max="100"
+        value="0"
+        aria-label="Seek position"
+      />
+    </div>
+
+    <!-- Playback Controls -->
+    <section class="voxpage-popup__controls">
+      <button
+        id="prev-btn"
+        class="voxpage-button voxpage-button--icon voxpage-button--secondary"
+        title="Previous paragraph"
+        aria-label="Previous paragraph"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 20L9 12L19 4V20Z"></path>
+          <rect x="5" y="4" width="3" height="16"></rect>
+        </svg>
+      </button>
+
+      <button
+        id="play-pause-btn"
+        class="voxpage-button voxpage-button--icon voxpage-button--primary voxpage-popup__play-btn"
+        title="Play"
+        aria-label="Play"
+      >
+        <svg id="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5V19L19 12L8 5Z"></path>
+        </svg>
+        <svg id="pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+      </button>
+
+      <button
+        id="next-btn"
+        class="voxpage-button voxpage-button--icon voxpage-button--secondary"
+        title="Next paragraph"
+        aria-label="Next paragraph"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5 4L15 12L5 20V4Z"></path>
+          <rect x="16" y="4" width="3" height="16"></rect>
+        </svg>
+      </button>
+    </section>
+
+    <!-- Speed Control -->
+    <section class="voxpage-popup__speed">
+      <label for="speed-slider" class="voxpage-popup__speed-label">
+        Speed: <span id="speed-value">1.0x</span>
+      </label>
+      <input
+        type="range"
+        id="speed-slider"
+        class="voxpage-popup__speed-slider"
+        min="0.5"
+        max="2"
+        step="0.1"
+        value="1"
+        aria-label="Playback speed"
+      />
+    </section>
+
+    <!-- Provider Selection -->
+    <section class="voxpage-popup__provider">
+      <label for="provider-select" class="voxpage-popup__provider-label">Provider</label>
+      <select id="provider-select" class="voxpage-select">
+        <option value="browser">Browser (Free)</option>
+        <option value="openai">OpenAI</option>
+        <option value="elevenlabs">ElevenLabs</option>
+        <option value="groq">Groq</option>
+        <option value="cartesia">Cartesia</option>
+      </select>
+    </section>
+
+    <!-- Footer -->
+    <footer class="voxpage-popup__footer">
+      <a href="#" id="help-link" class="voxpage-popup__footer-link">Help</a>
+      <span class="voxpage-popup__version" id="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
