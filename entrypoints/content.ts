@@ -539,6 +539,59 @@ export default defineContentScript({
           break;
         }
 
+        // ====================================================================
+        // Browser TTS (Web Speech API)
+        // ====================================================================
+        case 'speakText': {
+          const msg = message as { action: string; text: string; speed?: number };
+          const text = msg.text;
+          const speed = msg.speed ?? 1.0;
+
+          return new Promise<{ success: boolean }>((resolve) => {
+            if (typeof speechSynthesis === 'undefined') {
+              console.error('VoxPage: Web Speech API not available');
+              resolve({ success: false });
+              return;
+            }
+
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = Math.max(0.5, Math.min(2.0, speed));
+
+            // Try to use a good voice
+            const voices = speechSynthesis.getVoices();
+            const englishVoice = voices.find(v => v.lang.startsWith('en') && v.localService);
+            if (englishVoice) {
+              utterance.voice = englishVoice;
+            }
+
+            utterance.onend = () => {
+              console.log('VoxPage: Speech ended');
+              resolve({ success: true });
+            };
+
+            utterance.onerror = (event) => {
+              if (event.error !== 'canceled') {
+                console.error('VoxPage: Speech error:', event.error);
+              }
+              resolve({ success: false });
+            };
+
+            console.log('VoxPage: Speaking text of length', text.length);
+            speechSynthesis.speak(utterance);
+          });
+        }
+
+        case 'stopSpeech': {
+          if (typeof speechSynthesis !== 'undefined') {
+            speechSynthesis.cancel();
+            console.log('VoxPage: Speech cancelled');
+          }
+          return Promise.resolve({ success: true });
+        }
+
         default:
           console.warn('VoxPage: Unknown message action:', message.action);
       }

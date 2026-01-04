@@ -218,7 +218,13 @@ async function handlePlayPause(): Promise<void> {
       await sendMessage('pausePlayback');
       updateStatus('paused');
       updatePlayPauseButton(false);
+    } else if (currentState.status === 'paused') {
+      // Resume from paused state
+      await sendMessage('resumePlayback');
+      updateStatus('playing');
+      updatePlayPauseButton(true);
     } else {
+      // Start fresh playback
       await sendMessage('startPlayback');
       updateStatus('loading');
     }

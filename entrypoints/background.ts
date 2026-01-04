@@ -28,6 +28,8 @@ let playbackState: PlaybackState = {
 };
 
 let activeTabId: number | null = null;
+let paragraphs: string[] = [];
+let isSpeaking = false;
 
 // ============================================
 // Tab Communication
@@ -44,6 +46,68 @@ async function sendToContentScript(tabId: number, message: Record<string, unknow
   } catch (error) {
     console.error('[Background] Failed to send to content script:', error);
     return null;
+  }
+}
+
+// ============================================
+// TTS Playback
+// ============================================
+
+async function speakCurrentParagraph(): Promise<void> {
+  if (!activeTabId || playbackState.status !== 'playing') {
+    return;
+  }
+
+  if (playbackState.currentParagraph >= paragraphs.length) {
+    // Finished all paragraphs
+    console.log('[Background] Playback complete');
+    playbackState.status = 'stopped';
+    playbackState.currentParagraph = 0;
+    playbackState.progress = 100;
+    notifyPopup();
+    await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
+    return;
+  }
+
+  const text = paragraphs[playbackState.currentParagraph];
+  console.log('[Background] Speaking paragraph', playbackState.currentParagraph + 1, '/', paragraphs.length);
+
+  isSpeaking = true;
+
+  // Highlight the current paragraph
+  await sendToContentScript(activeTabId, {
+    action: 'highlight',
+    index: playbackState.currentParagraph,
+    text: text,
+  });
+
+  // Send text to content script for browser TTS
+  const result = await sendToContentScript(activeTabId, {
+    action: 'speakText',
+    text: text,
+    speed: playbackState.speed,
+  });
+
+  isSpeaking = false;
+
+  // Check if we're still playing (might have been paused/stopped)
+  if (playbackState.status === 'playing') {
+    // Move to next paragraph
+    playbackState.currentParagraph++;
+    playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
+    notifyPopup();
+
+    // Update footer
+    await sendToContentScript(activeTabId, {
+      action: 'FOOTER_STATE_UPDATE',
+      status: 'playing',
+      currentParagraph: playbackState.currentParagraph,
+      totalParagraphs: paragraphs.length,
+      progress: playbackState.progress,
+    });
+
+    // Speak next paragraph
+    speakCurrentParagraph();
   }
 }
 
@@ -77,8 +141,21 @@ const messageHandlers: Record<string, MessageHandler> = {
 
     if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
       const result = extractResult as { paragraphs: string[] };
-      playbackState.totalParagraphs = result.paragraphs.length;
+      paragraphs = result.paragraphs;
+      playbackState.totalParagraphs = paragraphs.length;
+      playbackState.currentParagraph = 0;
       console.log('[Background] Extracted', playbackState.totalParagraphs, 'paragraphs');
+    } else {
+      console.error('[Background] Failed to extract text');
+      playbackState.status = 'stopped';
+      notifyPopup();
+      return { success: false, error: 'Failed to extract text' };
+    }
+
+    if (paragraphs.length === 0) {
+      playbackState.status = 'stopped';
+      notifyPopup();
+      return { success: false, error: 'No text found on page' };
     }
 
     // Show the footer
@@ -107,6 +184,9 @@ const messageHandlers: Record<string, MessageHandler> = {
       speed: playbackState.speed,
     });
 
+    // Start speaking the first paragraph
+    speakCurrentParagraph();
+
     return { success: true };
   },
 
@@ -115,6 +195,8 @@ const messageHandlers: Record<string, MessageHandler> = {
     notifyPopup();
 
     if (activeTabId) {
+      // Stop speech synthesis
+      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
       await sendToContentScript(activeTabId, {
         action: 'FOOTER_STATE_UPDATE',
         status: 'paused',
@@ -124,16 +206,34 @@ const messageHandlers: Record<string, MessageHandler> = {
     return { success: true };
   },
 
+  resumePlayback: async () => {
+    if (playbackState.status === 'paused' && activeTabId) {
+      playbackState.status = 'playing';
+      notifyPopup();
+
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        status: 'playing',
+      });
+
+      // Resume speaking from current paragraph
+      speakCurrentParagraph();
+    }
+    return { success: true };
+  },
+
   stopPlayback: async () => {
     playbackState.status = 'stopped';
     playbackState.currentParagraph = 0;
     playbackState.progress = 0;
+    paragraphs = [];
     notifyPopup();
 
     if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_HIDE',
-      });
+      // Stop speech synthesis
+      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
+      await sendToContentScript(activeTabId, { action: 'clearHighlight' });
+      await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
     }
 
     return { success: true };
