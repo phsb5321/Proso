@@ -318,7 +318,7 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 - [X] T128 [US4] Measure production build time: ~9s for all 3 browsers (well under 60s target)
 - [X] T129 [US4] Measure bundle size: 1.27 MB total per browser (sourcemaps account for ~60%)
 - [X] T130 [US4] Verify auto-imports working: .wxt/types/imports.d.ts shows browser, storage, defineBackground, etc.
-- [ ] T131 [US4] Commit US4 completion
+- [X] T131 [US4] Commit US4 completion (commit bf56946)
 
 ---
 
