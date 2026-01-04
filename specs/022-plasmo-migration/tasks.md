@@ -380,10 +380,10 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Release Preparation (Polish)
 
-- [ ] T153 Create comprehensive commit message documenting migration: "feat(migration): complete WXT framework migration with zero regressions"
-- [ ] T154 Tag commit with version: `git tag -a v1.0.0-wxt -m "WXT framework migration complete"`
-- [ ] T155 Generate changelog entry with migration highlights (TypeScript, WXT, franc-min, 2,500 LOC reduction)
-- [ ] T156 Create PR to main branch with migration summary and test results
+- [X] T153 Create comprehensive commit message documenting migration (see PR description)
+- [ ] T154 Tag commit with version: `git tag -a v1.0.0-wxt -m "WXT framework migration complete"` (post-merge)
+- [X] T155 Generate changelog entry with migration highlights (included in PR description)
+- [X] T156 Create PR to main branch with migration summary and test results
 - [X] T157 Prepare beta release build: `npm run build:all` (Firefox 1.31 MB, Chrome 1.31 MB, Edge 1.31 MB)
 
 ---
