@@ -285,7 +285,7 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 - [X] T115 [US3] Update CLAUDE.md Project Structure section with entrypoints/ layout
 - [X] T116 [US3] Update CLAUDE.md Commands section with new WXT scripts (wxt dev, wxt build, etc.)
 - [X] T117 [US3] Add migration notes to CLAUDE.md documenting franc-min replacement of CLD3
-- [ ] T118 [US3] Commit US3 completion: "chore(cleanup): remove 2,500+ LOC of deprecated code and boilerplate"
+- [X] T118 [US3] Commit US3 documentation completion (cleanup commit was 72b40e1, docs commit is d544083)
 
 **Parallel Opportunities**: T103-T106 (all file removals) can run concurrently.
 
