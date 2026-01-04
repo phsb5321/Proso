@@ -5,10 +5,6 @@
 
 import { browser } from 'wxt/browser';
 
-// Import message handlers
-import * as playbackHandlers from '../utils/messaging/handlers/playback';
-import * as settingsHandlers from '../utils/messaging/handlers/settings';
-
 // ============================================
 // State Management
 // ============================================
@@ -31,6 +27,26 @@ let playbackState: PlaybackState = {
   provider: 'browser',
 };
 
+let activeTabId: number | null = null;
+
+// ============================================
+// Tab Communication
+// ============================================
+
+async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  return tabs[0] || null;
+}
+
+async function sendToContentScript(tabId: number, message: Record<string, unknown>): Promise<unknown> {
+  try {
+    return await browser.tabs.sendMessage(tabId, message);
+  } catch (error) {
+    console.error('[Background] Failed to send to content script:', error);
+    return null;
+  }
+}
+
 // ============================================
 // Message Router
 // ============================================
@@ -44,19 +60,67 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   startPlayback: async () => {
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    activeTabId = tab.id;
     playbackState.status = 'loading';
-    // In real implementation, this would trigger actual TTS
-    // For now, simulate loading -> playing transition
-    setTimeout(() => {
-      playbackState.status = 'playing';
-      notifyPopup();
-    }, 500);
+    notifyPopup();
+
+    // Extract text from the page
+    const extractResult = await sendToContentScript(tab.id, {
+      action: 'extractText',
+      mode: 'article',
+    });
+
+    if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
+      const result = extractResult as { paragraphs: string[] };
+      playbackState.totalParagraphs = result.paragraphs.length;
+      console.log('[Background] Extracted', playbackState.totalParagraphs, 'paragraphs');
+    }
+
+    // Show the footer
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_SHOW',
+      initialState: {
+        isPlaying: true,
+        currentIndex: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: 0,
+        speed: playbackState.speed,
+      },
+    });
+
+    // Update state to playing
+    playbackState.status = 'playing';
+    notifyPopup();
+
+    // Update footer state
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_STATE_UPDATE',
+      status: 'playing',
+      currentParagraph: playbackState.currentParagraph,
+      totalParagraphs: playbackState.totalParagraphs,
+      progress: 0,
+      speed: playbackState.speed,
+    });
+
     return { success: true };
   },
 
   pausePlayback: async () => {
     playbackState.status = 'paused';
     notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        status: 'paused',
+      });
+    }
+
     return { success: true };
   },
 
@@ -65,6 +129,13 @@ const messageHandlers: Record<string, MessageHandler> = {
     playbackState.currentParagraph = 0;
     playbackState.progress = 0;
     notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_HIDE',
+      });
+    }
+
     return { success: true };
   },
 
@@ -77,6 +148,15 @@ const messageHandlers: Record<string, MessageHandler> = {
       playbackState.progress =
         (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
       notifyPopup();
+
+      if (activeTabId) {
+        await sendToContentScript(activeTabId, {
+          action: 'FOOTER_STATE_UPDATE',
+          currentParagraph: playbackState.currentParagraph,
+          totalParagraphs: playbackState.totalParagraphs,
+          progress: playbackState.progress,
+        });
+      }
     }
     return { success: true, currentParagraph: playbackState.currentParagraph };
   },
@@ -88,6 +168,16 @@ const messageHandlers: Record<string, MessageHandler> = {
         (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
     }
     notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        currentParagraph: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: playbackState.progress,
+      });
+    }
+
     return { success: true, currentParagraph: playbackState.currentParagraph };
   },
 
@@ -100,6 +190,15 @@ const messageHandlers: Record<string, MessageHandler> = {
       );
     }
     notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        currentParagraph: playbackState.currentParagraph,
+        progress: playbackState.progress,
+      });
+    }
+
     return { success: true };
   },
 
@@ -111,16 +210,15 @@ const messageHandlers: Record<string, MessageHandler> = {
       playbackState.provider = data.provider;
     }
     notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        speed: playbackState.speed,
+      });
+    }
+
     return { success: true };
-  },
-
-  // Settings messages (delegate to handlers)
-  'settings.get': async () => {
-    return settingsHandlers.handleSettingsGet();
-  },
-
-  'settings.update': async (data) => {
-    return settingsHandlers.handleSettingsUpdate(data as Parameters<typeof settingsHandlers.handleSettingsUpdate>[0]);
   },
 };
 
@@ -148,18 +246,36 @@ export default defineBackground(() => {
 
   // Set up message listener
   browser.runtime.onMessage.addListener((message, _sender) => {
-    const { type, ...data } = message as { type: string; [key: string]: unknown };
+    // Handle messages with 'type' field (from popup)
+    if (message && typeof message === 'object' && 'type' in message) {
+      const { type, ...data } = message as { type: string; [key: string]: unknown };
 
-    console.log('[Background] Received message:', type);
+      // Skip internal messages like playbackStateUpdate
+      if (type === 'playbackStateUpdate') {
+        return;
+      }
 
-    const handler = messageHandlers[type];
-    if (handler) {
-      // Return a promise for async response
-      return handler(data);
+      console.log('[Background] Received message:', type);
+
+      const handler = messageHandlers[type];
+      if (handler) {
+        return handler(data);
+      }
+
+      console.warn('[Background] Unknown message type:', type);
+      return Promise.resolve({ error: 'Unknown message type' });
     }
 
-    console.warn('[Background] Unknown message type:', type);
-    return Promise.resolve({ error: 'Unknown message type' });
+    // Handle messages with 'action' field (legacy format from content script)
+    if (message && typeof message === 'object' && 'action' in message) {
+      const action = (message as { action: string }).action;
+      console.log('[Background] Received legacy action:', action);
+      // For now, just acknowledge - legacy handlers would go here
+      return Promise.resolve({ received: true });
+    }
+
+    // Ignore other messages (e.g., from other extensions)
+    return;
   });
 
   // Initialize settings from storage
