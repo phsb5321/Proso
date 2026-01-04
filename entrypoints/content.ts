@@ -353,13 +353,12 @@ export default defineContentScript({
           const msg = message as ExtractTextMessage;
           const text = extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
-          browser.runtime.sendMessage({
-            action: 'textContent',
+          // Return the result directly so background can await it
+          return Promise.resolve({
             text: text,
             paragraphs: paragraphTexts,
             mode: msg.mode,
           });
-          break;
         }
 
         // ====================================================================
