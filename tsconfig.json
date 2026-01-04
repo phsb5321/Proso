@@ -10,6 +10,7 @@
     "strictFunctionTypes": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "downlevelIteration": true,
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,

@@ -109,10 +109,10 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 ### Content Module Conversion (Foundational)
 
-- [ ] T031 [P] Convert content/content-extractor.js → utils/content/extractor.ts (Readability integration, extractedContentSchema)
+- [X] T031 [P] Convert content/content-extractor.js → utils/content/extractor.ts (Readability integration, extractedContentSchema)
 - [X] T032 [P] Convert content/content-scorer.js → utils/content/scorer.ts (Trafilatura-inspired scoring)
 - [X] T033 [P] Convert content/highlight-manager.js → utils/content/highlight.ts (CSS Custom Highlight API integration)
-- [ ] T034 [P] Convert content/sticky-footer.js → utils/content/sticky-footer.ts (Shadow DOM component, footerStateSchema)
+- [X] T034 [P] Convert content/sticky-footer.js → utils/content/sticky-footer.ts (Shadow DOM component, footerStateSchema)
 - [X] T035 [P] Convert content/text-segment.js → utils/content/text-segment.ts (Text-to-DOM mapping for highlights)
 
 ### Language Detection Conversion (Foundational)
