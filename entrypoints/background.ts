@@ -18,6 +18,13 @@ interface PlaybackState {
   provider: string;
 }
 
+interface ApiKeys {
+  elevenlabsApiKey?: string;
+  openaiApiKey?: string;
+  groqApiKey?: string;
+  cartesiaApiKey?: string;
+}
+
 let playbackState: PlaybackState = {
   status: 'stopped',
   currentParagraph: 0,
@@ -29,7 +36,7 @@ let playbackState: PlaybackState = {
 
 let activeTabId: number | null = null;
 let paragraphs: string[] = [];
-let isSpeaking = false;
+let apiKeys: ApiKeys = {};
 
 // ============================================
 // Tab Communication
@@ -45,6 +52,60 @@ async function sendToContentScript(tabId: number, message: Record<string, unknow
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
     console.error('[Background] Failed to send to content script:', error);
+    return null;
+  }
+}
+
+// ============================================
+// ElevenLabs TTS
+// ============================================
+
+async function generateElevenLabsAudio(text: string): Promise<string | null> {
+  const apiKey = apiKeys.elevenlabsApiKey;
+  if (!apiKey) {
+    console.error('[Background] ElevenLabs API key not configured');
+    return null;
+  }
+
+  const voiceId = '21m00Tcm4TlvDq8ikWAM'; // Rachel voice
+
+  try {
+    console.log('[Background] Calling ElevenLabs API...');
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg',
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.5,
+          use_speaker_boost: true,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('[Background] ElevenLabs API error:', response.status, errorText);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    // Convert to base64 data URL for passing to content script
+    const base64 = btoa(
+      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    const audioUrl = `data:audio/mpeg;base64,${base64}`;
+    console.log('[Background] ElevenLabs audio generated, size:', arrayBuffer.byteLength);
+    return audioUrl;
+  } catch (error) {
+    console.error('[Background] ElevenLabs error:', error);
     return null;
   }
 }
@@ -66,13 +127,12 @@ async function speakCurrentParagraph(): Promise<void> {
     playbackState.progress = 100;
     notifyPopup();
     await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
+    await sendToContentScript(activeTabId, { action: 'clearHighlight' });
     return;
   }
 
   const text = paragraphs[playbackState.currentParagraph];
   console.log('[Background] Speaking paragraph', playbackState.currentParagraph + 1, '/', paragraphs.length);
-
-  isSpeaking = true;
 
   // Highlight the current paragraph
   await sendToContentScript(activeTabId, {
@@ -81,14 +141,31 @@ async function speakCurrentParagraph(): Promise<void> {
     text: text,
   });
 
-  // Send text to content script for browser TTS
-  const result = await sendToContentScript(activeTabId, {
-    action: 'speakText',
-    text: text,
-    speed: playbackState.speed,
-  });
+  let success = false;
 
-  isSpeaking = false;
+  if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
+    // Use ElevenLabs
+    const audioUrl = await generateElevenLabsAudio(text);
+    if (audioUrl) {
+      const result = await sendToContentScript(activeTabId, {
+        action: 'playAudio',
+        audioUrl: audioUrl,
+        speed: playbackState.speed,
+      });
+      success = result !== null;
+    } else {
+      console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
+    }
+  }
+
+  if (!success) {
+    // Fallback to browser TTS
+    await sendToContentScript(activeTabId, {
+      action: 'speakText',
+      text: text,
+      speed: playbackState.speed,
+    });
+  }
 
   // Check if we're still playing (might have been paused/stopped)
   if (playbackState.status === 'playing') {
@@ -132,6 +209,21 @@ const messageHandlers: Record<string, MessageHandler> = {
     activeTabId = tab.id;
     playbackState.status = 'loading';
     notifyPopup();
+
+    // Reload API keys in case they changed
+    const stored = await browser.storage.local.get([
+      'elevenlabsApiKey',
+      'openaiApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
+    ]);
+    apiKeys = {
+      elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
+      openaiApiKey: stored.openaiApiKey as string | undefined,
+      groqApiKey: stored.groqApiKey as string | undefined,
+      cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
+    };
+    console.log('[Background] API keys loaded, elevenlabs:', !!apiKeys.elevenlabsApiKey);
 
     // Extract text from the page
     const extractResult = await sendToContentScript(tab.id, {
@@ -195,7 +287,8 @@ const messageHandlers: Record<string, MessageHandler> = {
     notifyPopup();
 
     if (activeTabId) {
-      // Stop speech synthesis
+      // Stop audio/speech
+      await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
       await sendToContentScript(activeTabId, {
         action: 'FOOTER_STATE_UPDATE',
@@ -230,7 +323,8 @@ const messageHandlers: Record<string, MessageHandler> = {
     notifyPopup();
 
     if (activeTabId) {
-      // Stop speech synthesis
+      // Stop audio/speech
+      await sendToContentScript(activeTabId, { action: 'stopAudio' });
       await sendToContentScript(activeTabId, { action: 'stopSpeech' });
       await sendToContentScript(activeTabId, { action: 'clearHighlight' });
       await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
@@ -240,6 +334,12 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   nextParagraph: async () => {
+    if (playbackState.status === 'playing' && activeTabId) {
+      // Stop current audio
+      await sendToContentScript(activeTabId, { action: 'stopAudio' });
+      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
+    }
+
     if (playbackState.totalParagraphs > 0) {
       playbackState.currentParagraph = Math.min(
         playbackState.currentParagraph + 1,
@@ -256,12 +356,23 @@ const messageHandlers: Record<string, MessageHandler> = {
           totalParagraphs: playbackState.totalParagraphs,
           progress: playbackState.progress,
         });
+
+        // If playing, speak the new paragraph
+        if (playbackState.status === 'playing') {
+          speakCurrentParagraph();
+        }
       }
     }
     return { success: true, currentParagraph: playbackState.currentParagraph };
   },
 
   previousParagraph: async () => {
+    if (playbackState.status === 'playing' && activeTabId) {
+      // Stop current audio
+      await sendToContentScript(activeTabId, { action: 'stopAudio' });
+      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
+    }
+
     playbackState.currentParagraph = Math.max(playbackState.currentParagraph - 1, 0);
     if (playbackState.totalParagraphs > 0) {
       playbackState.progress =
@@ -276,6 +387,11 @@ const messageHandlers: Record<string, MessageHandler> = {
         totalParagraphs: playbackState.totalParagraphs,
         progress: playbackState.progress,
       });
+
+      // If playing, speak the new paragraph
+      if (playbackState.status === 'playing') {
+        speakCurrentParagraph();
+      }
     }
 
     return { success: true, currentParagraph: playbackState.currentParagraph };
@@ -318,6 +434,38 @@ const messageHandlers: Record<string, MessageHandler> = {
       });
     }
 
+    return { success: true };
+  },
+
+  // Footer actions from the sticky footer
+  FOOTER_ACTION: async (data) => {
+    const action = data.action as string;
+    console.log('[Background] Footer action:', action);
+
+    switch (action) {
+      case 'play':
+        if (playbackState.status === 'paused') {
+          return messageHandlers.resumePlayback({});
+        } else if (playbackState.status === 'stopped') {
+          return messageHandlers.startPlayback({});
+        }
+        break;
+      case 'pause':
+        return messageHandlers.pausePlayback({});
+      case 'prev':
+        return messageHandlers.previousParagraph({});
+      case 'next':
+        return messageHandlers.nextParagraph({});
+      case 'stop':
+      case 'close':
+        return messageHandlers.stopPlayback({});
+      case 'speed':
+        if (typeof data.value === 'number') {
+          playbackState.speed = data.value;
+          notifyPopup();
+        }
+        break;
+    }
     return { success: true };
   },
 };
@@ -368,9 +516,16 @@ export default defineBackground(() => {
 
     // Handle messages with 'action' field (legacy format from content script)
     if (message && typeof message === 'object' && 'action' in message) {
-      const action = (message as { action: string }).action;
+      const { action, ...data } = message as { action: string; [key: string]: unknown };
       console.log('[Background] Received legacy action:', action);
-      // For now, just acknowledge - legacy handlers would go here
+
+      // Check if we have a handler for this action
+      const handler = messageHandlers[action];
+      if (handler) {
+        return handler(data);
+      }
+
+      // Acknowledge unknown actions
       return Promise.resolve({ received: true });
     }
 
@@ -379,18 +534,27 @@ export default defineBackground(() => {
   });
 
   // Initialize settings from storage
-  browser.storage.local.get(['speed', 'provider']).then((result) => {
-    if (typeof result.speed === 'number') {
-      playbackState.speed = result.speed;
-    }
-    if (typeof result.provider === 'string') {
-      playbackState.provider = result.provider;
-    }
-    console.log('[Background] Settings loaded:', {
-      speed: playbackState.speed,
-      provider: playbackState.provider,
+  browser.storage.local
+    .get(['speed', 'provider', 'elevenlabsApiKey', 'openaiApiKey', 'groqApiKey', 'cartesiaApiKey'])
+    .then((result) => {
+      if (typeof result.speed === 'number') {
+        playbackState.speed = result.speed;
+      }
+      if (typeof result.provider === 'string') {
+        playbackState.provider = result.provider;
+      }
+      apiKeys = {
+        elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
+        openaiApiKey: result.openaiApiKey as string | undefined,
+        groqApiKey: result.groqApiKey as string | undefined,
+        cartesiaApiKey: result.cartesiaApiKey as string | undefined,
+      };
+      console.log('[Background] Settings loaded:', {
+        speed: playbackState.speed,
+        provider: playbackState.provider,
+        hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
+      });
     });
-  });
 
   console.log('VoxPage: Message handlers registered');
 });

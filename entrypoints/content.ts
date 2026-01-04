@@ -592,6 +592,56 @@ export default defineContentScript({
           return Promise.resolve({ success: true });
         }
 
+        // ====================================================================
+        // Audio Playback (for ElevenLabs and other API providers)
+        // ====================================================================
+        case 'playAudio': {
+          const msg = message as { action: string; audioUrl: string; speed?: number };
+          const audioUrl = msg.audioUrl;
+          const speed = msg.speed ?? 1.0;
+
+          return new Promise<{ success: boolean }>((resolve) => {
+            // Stop any existing audio
+            if ((window as any).__voxpageAudio) {
+              (window as any).__voxpageAudio.pause();
+              (window as any).__voxpageAudio.src = '';
+              (window as any).__voxpageAudio = null;
+            }
+
+            const audio = new Audio(audioUrl);
+            (window as any).__voxpageAudio = audio;
+            audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+            audio.onended = () => {
+              console.log('VoxPage: Audio playback ended');
+              (window as any).__voxpageAudio = null;
+              resolve({ success: true });
+            };
+
+            audio.onerror = (event) => {
+              console.error('VoxPage: Audio playback error:', event);
+              (window as any).__voxpageAudio = null;
+              resolve({ success: false });
+            };
+
+            console.log('VoxPage: Playing audio, speed:', speed);
+            audio.play().catch((err) => {
+              console.error('VoxPage: Audio play() failed:', err);
+              resolve({ success: false });
+            });
+          });
+        }
+
+        case 'stopAudio': {
+          if ((window as any).__voxpageAudio) {
+            (window as any).__voxpageAudio.pause();
+            (window as any).__voxpageAudio.src = '';
+            (window as any).__voxpageAudio = null;
+            console.log('VoxPage: Audio stopped');
+          }
+          return Promise.resolve({ success: true });
+        }
+
         default:
           console.warn('VoxPage: Unknown message action:', message.action);
       }
