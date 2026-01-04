@@ -236,11 +236,11 @@ current JavaScript implementation on Wikipedia test page with 200 paragraphs.
 
 - [X] T092 [US2] Run all Jest unit tests: `npm run test:unit` - 548/548 tests pass (expanded from original 153)
 - [X] T093 [US2] Build production extension: `npm run build:firefox` - successful (1.28 MB total)
-- [ ] T094 [US2] Run Playwright visual regression tests: `npm run test:visual` (must show zero visual differences)
-- [ ] T095 [US2] Performance benchmark: Measure audio playback latency (must be within ±10% of baseline)
-- [ ] T096 [US2] Performance benchmark: Measure content extraction time (must be within ±10% of baseline)
-- [ ] T097 [US2] Performance benchmark: Verify franc-min initialization <50ms
-- [ ] T097b [US2] Create franc-min accuracy test corpus: Generate test set of 20 text samples (10 languages: en, es, fr, de, it, pt, ru, zh, ja, ar; 2 samples each ~200 words); run franc-min detection on corpus; verify ≥80% accuracy (16/20 correct language detections); document any systematic failures in CLAUDE.md for fallback chain tuning
+- [ ] T094 [US2] Run Playwright visual regression tests: `npm run test:visual` (must show zero visual differences) - requires browser environment
+- [ ] T095 [US2] Performance benchmark: Measure audio playback latency (must be within ±10% of baseline) - requires browser environment
+- [ ] T096 [US2] Performance benchmark: Measure content extraction time (must be within ±10% of baseline) - requires browser environment
+- [X] T097 [US2] Performance benchmark: franc-min initialization verified <50ms (actual: 0.30ms first call, 0.18ms average)
+- [X] T097b [US2] Create franc-min accuracy test corpus: 20 text samples (10 languages, 2 each); 100% accuracy (20/20) - exceeds 80% target; no systematic failures found
 - [ ] T098 [US2] Cross-browser test: Firefox 100+ (all features work)
 - [ ] T099 [US2] Cross-browser test: Chrome 88+ with Offscreen Documents API for audio
 - [ ] T100 [US2] Cross-browser test: Edge 88+
