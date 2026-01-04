@@ -23,7 +23,7 @@
     "test:all": "npm run test && npm run test:visual",
     "lint": "eslint --cache .",
     "lint:fix": "eslint --cache . --fix",
-    "lint:manifest": "web-ext lint",
+    "lint:manifest": "web-ext lint --source-dir .output/firefox-mv2",
     "deps:check": "madge --circular entrypoints/ utils/",
     "deps:graph": "madge --image deps.svg entrypoints/ utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 entrypoints/ utils/",

@@ -1,60 +1,66 @@
 /**
  * VoxPage Language Detector
- * Detects page language from metadata and text content using CLD3
+ * Detects page language from metadata and text content using franc-min
  *
  * @module background/language-detector
  * @description Core language detection infrastructure for multilingual TTS.
- * Combines HTML lang attribute with CLD3 text detection for accuracy.
+ * Combines HTML lang attribute with franc-min text detection for accuracy.
+ * Updated to use franc-min (pure JavaScript) instead of CLD3 (WASM).
  */
 
 import { StorageKey } from './constants.js';
 import { normalizeLanguageCode, isLanguageSupported } from '../shared/language-codes.js';
 import { validateDetectedLanguage } from '../shared/config/schema.js';
 
-/**
- * CLD3 instance (lazy-loaded)
- * @type {Object|null}
- */
-let cldInstance = null;
+// franc-min is imported dynamically to match the existing lazy-load pattern
+let francModule = null;
+let francLoadPromise = null;
 
 /**
- * CLD3 loading state
- * @type {Promise|null}
+ * ISO 639-3 to ISO 639-1 mapping
+ * franc-min returns 3-letter codes, we need 2-letter codes
  */
-let cldLoadPromise = null;
+const ISO6393_TO_ISO6391 = {
+  eng: 'en', spa: 'es', fra: 'fr', deu: 'de', ita: 'it',
+  por: 'pt', pol: 'pl', tur: 'tr', rus: 'ru', nld: 'nl',
+  ces: 'cs', arb: 'ar', cmn: 'zh', hun: 'hu', kor: 'ko',
+  jpn: 'ja', hin: 'hi', swe: 'sv', ind: 'id', ukr: 'uk',
+  ell: 'el', fin: 'fi', ron: 'ro', dan: 'da', bul: 'bg',
+  zsm: 'ms', slk: 'sk', hrv: 'hr', tam: 'ta', fil: 'fil',
+};
 
 /**
- * Initialize CLD3 language detector
- * Lazy-loads the WASM module on first use
- * @returns {Promise<Object>} CLD3 instance
+ * Initialize franc-min language detector
+ * Lazy-loads the module on first use
+ * @returns {Promise<Function>} franc function
  */
 export async function initCLD() {
-  if (cldInstance) {
-    return cldInstance;
+  if (francModule) {
+    return francModule;
   }
 
-  if (cldLoadPromise) {
-    return cldLoadPromise;
+  if (francLoadPromise) {
+    return francLoadPromise;
   }
 
-  cldLoadPromise = (async () => {
+  francLoadPromise = (async () => {
     try {
-      const { CLD3 } = await import('cld3-asm');
-      cldInstance = await CLD3.create();
-      console.log('VoxPage: CLD3 language detector initialized');
-      return cldInstance;
+      const mod = await import('franc-min');
+      francModule = mod.franc;
+      console.log('VoxPage: franc-min language detector initialized');
+      return francModule;
     } catch (error) {
-      console.error('VoxPage: Failed to initialize CLD3:', error);
-      cldLoadPromise = null;
+      console.error('VoxPage: Failed to initialize franc-min:', error);
+      francLoadPromise = null;
       throw error;
     }
   })();
 
-  return cldLoadPromise;
+  return francLoadPromise;
 }
 
 /**
- * Detect language from text content using CLD3
+ * Detect language from text content using franc-min
  * @param {string} text - Text to analyze (ideally 100-500 chars)
  * @returns {Promise<{code: string, confidence: number, isReliable: boolean}|null>}
  */
@@ -64,19 +70,29 @@ export async function detectLanguageFromText(text) {
   }
 
   try {
-    const cld = await initCLD();
+    const franc = await initCLD();
     // Use first 500 characters for detection
     const sample = text.slice(0, 500);
-    const result = cld.findLanguage(sample);
 
-    if (!result || !result.language || result.language === 'und') {
+    // franc returns ISO 639-3 (3-letter) codes
+    // Returns 'und' for undetermined
+    const iso6393 = franc(sample, { minLength: 20 });
+
+    if (!iso6393 || iso6393 === 'und') {
       return null;
     }
 
+    // Map ISO 639-3 to ISO 639-1 (2-letter) codes
+    const iso6391 = ISO6393_TO_ISO6391[iso6393] || iso6393.slice(0, 2);
+
+    // franc doesn't provide confidence scores, estimate based on text length
+    // Longer text = higher confidence, max 0.95
+    const confidence = Math.min(0.7 + (sample.length / 1000) * 0.25, 0.95);
+
     return {
-      code: result.language,
-      confidence: result.probability || 0,
-      isReliable: result.is_reliable || result.probability >= 0.9
+      code: iso6391,
+      confidence,
+      isReliable: confidence >= 0.9
     };
   } catch (error) {
     console.error('VoxPage: Text language detection failed:', error);
