@@ -2,36 +2,59 @@
 
 Auto-generated from all feature plans. Last updated: 2026-01-03
 
-## 🚧 MIGRATION IN PROGRESS 🚧
+## 🚧 MIGRATION STATUS 🚧
 
-**Current Status**: Migrating from JavaScript to TypeScript + WXT framework
+**Current Status**: WXT + TypeScript migration ~75% complete
 **Branch**: `022-plasmo-migration`
-**Progress**: Phase 1 complete ✅ | Phase 2 in progress 🔄 (15% done)
-**Tracking**: See `MIGRATION_STATUS.md` for detailed progress
+**Progress**: Phases 1-4 complete ✅ | Phase 5 (cleanup) ~75% ✅ | Phases 6-8 pending
+**Tracking**: See `specs/022-plasmo-migration/tasks.md` for detailed progress
 
-**Active Technologies (Migration Target)**:
-- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes)
-- WXT framework 0.20.13 (Vite 5.x bundler, auto-imports, manifest generation)
-- @webext-core/messaging 2.3.0 (type-safe messaging with ProtocolMap)
-- Zod 3.x (runtime validation, Zod-first types via z.infer<>)
-- franc-min 6.2.0 (replacing CLD3 WASM for language detection)
-- @mozilla/readability (content extraction, unchanged)
+### Active Technologies (Post-Migration)
 
-**New Project Structure** (WXT Convention):
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| TypeScript | 5.x | Strict mode (strictNullChecks, noImplicitAny, strictFunctionTypes) |
+| WXT | 0.20.13 | Framework (Vite 5.x bundler, auto-imports, manifest generation) |
+| @webext-core/messaging | 2.3.0 | Type-safe messaging with ProtocolMap (37 handlers) |
+| Zod | 4.3.4 | Runtime validation, Zod-first types via `z.infer<>` |
+| franc-min | 6.2.0 | Language detection (replaced CLD3 WASM - see Migration Notes) |
+| @mozilla/readability | - | Content extraction (unchanged) |
+
+### Current Project Structure (WXT Convention)
+
 ```
-entrypoints/          # WXT auto-discovery (background, content, popup, options)
-utils/                # Shared utilities (replaces background/, content/, shared/)
-  ├── config/         # ✅ CONVERTED - Settings, defaults, migrations
-  ├── audio/          # 🔄 IN PROGRESS - Playback sync (✅), cache, visualizer
-  ├── providers/      # 🔄 IN PROGRESS - Base interface (✅), 6 providers
-  ├── content/        # ⏸️ PENDING - Extractor, scorer, highlighter, footer
-  ├── language/       # ⏸️ PENDING - franc-min integration
-  └── logging/        # ⏸️ PENDING - Remote logger, buffer, entry
-assets/               # Static assets (icons, CSS)
-tests/                # Jest + Playwright (structure unchanged)
+entrypoints/          # WXT auto-discovery entry points
+  ├── background.ts   # Service worker with message handlers
+  ├── content.ts      # Content script (751 lines, 18 message handlers)
+  ├── options.html    # Options page with TypeScript controller
+  └── options/        # Options page modules
+      ├── main.ts     # Entry point
+      └── controller.ts # Settings form logic
+
+utils/                # Shared TypeScript utilities (Zod-first schemas)
+  ├── config/         # ✅ Settings, defaults, migrations, store
+  ├── audio/          # ✅ Playback sync, cache, visualizer
+  ├── providers/      # ✅ 6 TTS providers + base interface
+  ├── content/        # ✅ Extractor, scorer, highlighter, sticky-footer
+  ├── language/       # ✅ franc-min detector, mappings, extractor
+  ├── logging/        # ✅ Remote logger, buffer, entry
+  └── messaging/      # ✅ Protocol, schemas, types, 9 handler domains
+
+public/icons/         # Extension icons (auto-copied by WXT)
+styles/               # CSS design tokens and components
+tests/                # Jest + Playwright (557 tests passing)
 ```
 
-**Resume Migration**: Run `/speckit.implement` to continue from Task T019
+### Migration Notes
+
+**franc-min vs CLD3**: Replaced CLD3 WASM (~400KB) with franc-min (~40KB). Performance: 0.18ms/call avg, 100% accuracy on test corpus (20/20 samples across 10 languages). ISO 639-3 → ISO 639-1 mapping included.
+
+**Legacy Directories** (to be removed after Phase 4 integration):
+- `background/*.js` - Business logic awaiting integration into entrypoints/background.ts
+- `content/*.js` - Remaining files (highlight-manager, etc.) migrated to utils/
+- `shared/` - Migrated to utils/config/
+
+**Resume Migration**: Run `/speckit.implement` to continue implementation tasks
 
 ---
 
@@ -151,6 +174,30 @@ tests/
 
 ## Commands
 
+### Development (WXT)
+
+```bash
+# Start development server with HMR (default: Firefox)
+npm run dev
+
+# Start development for specific browser
+npm run dev:firefox
+npm run dev:chrome
+
+# Build production extension
+npm run build
+npm run build:firefox
+npm run build:chrome
+npm run build:all          # Builds Firefox, Chrome, and Edge
+
+# Create distributable zip
+npm run zip
+npm run zip:firefox
+npm run zip:chrome
+```
+
+### Testing
+
 ```bash
 # Run unit tests (runs ESLint first for import validation)
 npm test
@@ -169,32 +216,42 @@ npm run test:visual:update
 
 # Run all tests
 npm run test:all
+```
 
-# Lint imports with ESLint (009)
+### Code Quality
+
+```bash
+# Lint imports with ESLint
 npm run lint
 
-# Auto-fix ESLint issues (009)
+# Auto-fix ESLint issues
 npm run lint:fix
 
 # Lint manifest with web-ext
 npm run lint:manifest
 
-# Check for circular dependencies (008)
+# Check for circular dependencies
 npm run deps:check
 
-# Generate dependency graph to deps.svg (008)
+# Generate dependency graph to deps.svg
 npm run deps:graph
 
-# Check code duplication (008)
+# Check code duplication
 npm run duplication
 
-# Run full quality check: deps + duplication + manifest lint (008)
+# Run full quality check: deps + duplication + manifest lint
 npm run quality
 ```
 
 ## Code Style
 
-JavaScript ES2022+ (WebExtension Manifest V3): Follow standard conventions
+**TypeScript** (strict mode) for all new code. Follow these conventions:
+
+- **Zod-first types**: Define Zod schemas first, derive types via `z.infer<typeof schema>`
+- **ES modules**: Use `import`/`export`, no IIFE wrappers or global namespace patterns
+- **Relative imports**: Use `../` paths, not `@/` aliases (per WXT convention)
+- **Strict null checks**: Handle `null`/`undefined` explicitly
+- **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
 - 022-plasmo-migration: Added TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler)
