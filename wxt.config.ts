@@ -43,11 +43,10 @@ export default defineConfig({
         strict_min_version: '100.0',
       },
     },
-    // 027-settings-ux-overhaul: Open options page in dedicated tab
-    options_ui: {
-      page: 'entrypoints/options.html',
-      open_in_tab: true,
-    },
+    // NOTE: We intentionally DO NOT use options_ui here.
+    // Firefox embeds options_ui pages inside about:addons which looks ugly.
+    // Instead, we open our options page in a dedicated browser tab via
+    // browser.tabs.create() - see popup and background handlers.
   },
 
   browser: process.env.BROWSER || 'firefox',

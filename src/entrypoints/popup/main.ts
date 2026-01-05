@@ -396,10 +396,14 @@ async function handleProgressSeek(event: Event): Promise<void> {
 }
 
 /**
- * Handle settings button click - opens options page
+ * Handle settings button click - opens options page in dedicated tab
+ * NOTE: We use browser.tabs.create() instead of browser.runtime.openOptionsPage()
+ * because Firefox embeds options_ui pages inside about:addons which looks ugly.
  */
 function handleSettingsClick(): void {
-  browser.runtime.openOptionsPage();
+  browser.tabs.create({
+    url: browser.runtime.getURL('settings.html'),
+  });
   window.close();
 }
 
