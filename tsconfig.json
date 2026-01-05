@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictFunctionTypes": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["./utils/*"],
+      "~/*": ["./*"]
+    }
+  },
+  "include": [
+    "global.d.ts",
+    "types/**/*",
+    "entrypoints/**/*",
+    "utils/**/*",
+    "tests/**/*",
+    "wxt.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".wxt", ".output"]
+}

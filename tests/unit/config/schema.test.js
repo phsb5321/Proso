@@ -1,18 +1,21 @@
 /**
- * Unit tests for shared/config/schema.js
- * Verifies plain JavaScript validation behavior
+ * Unit tests for TypeScript config/schema.ts
+ * Verifies Zod-based validation behavior
+ *
+ * Note: TypeScript version uses Zod schemas directly for validation
+ * instead of the legacy validateSettings/validateSetting/getDefaultForKey functions
  */
 
 import { describe, test, expect } from '@jest/globals';
 import {
-  validateSettings,
-  validateSetting,
-  getDefaultForKey,
-} from '../../../shared/config/schema.js';
-import { defaults } from '../../../shared/config/defaults.js';
+  settingsSchema,
+  MODES,
+  PROVIDERS,
+} from '../../../src/utils/config/schema';
+import { defaults } from '../../../src/utils/config/defaults';
 
-describe('Configuration Schema', () => {
-  describe('validateSettings', () => {
+describe('Configuration Schema (TypeScript/Zod)', () => {
+  describe('settingsSchema.parse', () => {
     test('validates complete valid settings', () => {
       const settings = {
         mode: 'article',
@@ -23,130 +26,116 @@ describe('Configuration Schema', () => {
         cacheEnabled: true,
         maxCacheSize: 50,
         wordSyncEnabled: true,
-        autoDetectLanguage: true, // 019-multilingual-tts
+        autoDetectLanguage: true,
       };
 
-      const result = validateSettings(settings);
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual(settings);
+      const result = settingsSchema.parse(settings);
+      expect(result).toMatchObject(settings);
     });
 
     test('applies defaults for missing keys', () => {
-      const result = validateSettings({});
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual(defaults);
-    });
-
-    test('applies defaults for null/undefined input', () => {
-      const result1 = validateSettings(null);
-      expect(result1.success).toBe(true);
-      expect(result1.data.mode).toBe('article');
-
-      const result2 = validateSettings(undefined);
-      expect(result2.success).toBe(true);
-      expect(result2.data.mode).toBe('article');
+      const result = settingsSchema.parse({});
+      expect(result.mode).toBe('article');
+      expect(result.provider).toBe('browser');
+      expect(result.speed).toBe(1.0);
     });
 
     test('validates valid modes', () => {
-      expect(validateSettings({ mode: 'selection' }).data.mode).toBe('selection');
-      expect(validateSettings({ mode: 'article' }).data.mode).toBe('article');
-      expect(validateSettings({ mode: 'full' }).data.mode).toBe('full');
+      expect(settingsSchema.parse({ mode: 'selection' }).mode).toBe('selection');
+      expect(settingsSchema.parse({ mode: 'article' }).mode).toBe('article');
+      expect(settingsSchema.parse({ mode: 'full' }).mode).toBe('full');
     });
 
-    test('falls back to default for invalid modes', () => {
-      expect(validateSettings({ mode: 'invalid' }).data.mode).toBe('article');
-      expect(validateSettings({ mode: '' }).data.mode).toBe('article');
-      expect(validateSettings({ mode: 123 }).data.mode).toBe('article');
+    test('throws for invalid modes', () => {
+      expect(() => settingsSchema.parse({ mode: 'invalid' })).toThrow();
+      expect(() => settingsSchema.parse({ mode: '' })).toThrow();
+      expect(() => settingsSchema.parse({ mode: 123 })).toThrow();
     });
 
     test('validates valid providers', () => {
-      expect(validateSettings({ provider: 'openai' }).data.provider).toBe('openai');
-      expect(validateSettings({ provider: 'elevenlabs' }).data.provider).toBe('elevenlabs');
-      expect(validateSettings({ provider: 'cartesia' }).data.provider).toBe('cartesia');
-      expect(validateSettings({ provider: 'groq' }).data.provider).toBe('groq');
-      expect(validateSettings({ provider: 'browser' }).data.provider).toBe('browser');
+      expect(settingsSchema.parse({ provider: 'openai' }).provider).toBe('openai');
+      expect(settingsSchema.parse({ provider: 'elevenlabs' }).provider).toBe('elevenlabs');
+      expect(settingsSchema.parse({ provider: 'cartesia' }).provider).toBe('cartesia');
+      expect(settingsSchema.parse({ provider: 'groq' }).provider).toBe('groq');
+      expect(settingsSchema.parse({ provider: 'browser' }).provider).toBe('browser');
     });
 
-    test('falls back to default for invalid providers', () => {
-      expect(validateSettings({ provider: 'google' }).data.provider).toBe('browser');
-      expect(validateSettings({ provider: '' }).data.provider).toBe('browser');
+    test('throws for invalid providers', () => {
+      expect(() => settingsSchema.parse({ provider: 'google' })).toThrow();
+      expect(() => settingsSchema.parse({ provider: '' })).toThrow();
     });
 
     test('validates speed constraints', () => {
-      expect(validateSettings({ speed: 0.5 }).data.speed).toBe(0.5);
-      expect(validateSettings({ speed: 2.0 }).data.speed).toBe(2.0);
-      expect(validateSettings({ speed: 1.5 }).data.speed).toBe(1.5);
+      expect(settingsSchema.parse({ speed: 0.5 }).speed).toBe(0.5);
+      expect(settingsSchema.parse({ speed: 2.0 }).speed).toBe(2.0);
+      expect(settingsSchema.parse({ speed: 1.5 }).speed).toBe(1.5);
     });
 
-    test('falls back to default for invalid speed', () => {
-      expect(validateSettings({ speed: 0.4 }).data.speed).toBe(1.0);
-      expect(validateSettings({ speed: 2.1 }).data.speed).toBe(1.0);
-      expect(validateSettings({ speed: -1 }).data.speed).toBe(1.0);
-      expect(validateSettings({ speed: 'fast' }).data.speed).toBe(1.0);
+    test('throws for invalid speed', () => {
+      expect(() => settingsSchema.parse({ speed: 0.4 })).toThrow();
+      expect(() => settingsSchema.parse({ speed: 2.1 })).toThrow();
+      expect(() => settingsSchema.parse({ speed: -1 })).toThrow();
+      expect(() => settingsSchema.parse({ speed: 'fast' })).toThrow();
     });
 
     test('validates maxCacheSize constraints', () => {
-      expect(validateSettings({ maxCacheSize: 10 }).data.maxCacheSize).toBe(10);
-      expect(validateSettings({ maxCacheSize: 200 }).data.maxCacheSize).toBe(200);
-      expect(validateSettings({ maxCacheSize: 100 }).data.maxCacheSize).toBe(100);
+      expect(settingsSchema.parse({ maxCacheSize: 10 }).maxCacheSize).toBe(10);
+      expect(settingsSchema.parse({ maxCacheSize: 200 }).maxCacheSize).toBe(200);
+      expect(settingsSchema.parse({ maxCacheSize: 100 }).maxCacheSize).toBe(100);
     });
 
-    test('falls back to default for invalid maxCacheSize', () => {
-      expect(validateSettings({ maxCacheSize: 9 }).data.maxCacheSize).toBe(50);
-      expect(validateSettings({ maxCacheSize: 201 }).data.maxCacheSize).toBe(50);
+    test('throws for invalid maxCacheSize', () => {
+      expect(() => settingsSchema.parse({ maxCacheSize: 9 })).toThrow();
+      expect(() => settingsSchema.parse({ maxCacheSize: 201 })).toThrow();
     });
 
     test('validates boolean fields', () => {
-      expect(validateSettings({ showCostEstimate: true }).data.showCostEstimate).toBe(true);
-      expect(validateSettings({ showCostEstimate: false }).data.showCostEstimate).toBe(false);
-      expect(validateSettings({ cacheEnabled: true }).data.cacheEnabled).toBe(true);
-      expect(validateSettings({ wordSyncEnabled: false }).data.wordSyncEnabled).toBe(false);
-    });
-
-    test('falls back to default for invalid booleans', () => {
-      // Non-boolean values fall back to default
-      expect(validateSettings({ showCostEstimate: 'true' }).data.showCostEstimate).toBe(true);
-      expect(validateSettings({ cacheEnabled: 1 }).data.cacheEnabled).toBe(true);
+      expect(settingsSchema.parse({ showCostEstimate: true }).showCostEstimate).toBe(true);
+      expect(settingsSchema.parse({ showCostEstimate: false }).showCostEstimate).toBe(false);
+      expect(settingsSchema.parse({ cacheEnabled: true }).cacheEnabled).toBe(true);
+      expect(settingsSchema.parse({ wordSyncEnabled: false }).wordSyncEnabled).toBe(false);
     });
 
     test('validates voice as nullable string', () => {
-      expect(validateSettings({ voice: null }).data.voice).toBeNull();
-      expect(validateSettings({ voice: 'voice-id-123' }).data.voice).toBe('voice-id-123');
-    });
-
-    test('falls back to default for invalid voice', () => {
-      expect(validateSettings({ voice: 123 }).data.voice).toBeNull();
+      expect(settingsSchema.parse({ voice: null }).voice).toBeNull();
+      expect(settingsSchema.parse({ voice: 'voice-id-123' }).voice).toBe('voice-id-123');
     });
   });
 
-  describe('validateSetting function', () => {
-    test('validates individual mode settings', () => {
-      expect(validateSetting('mode', 'article').success).toBe(true);
-      expect(validateSetting('mode', 'article').data).toBe('article');
+  describe('MODES constant', () => {
+    test('contains selection, article, full', () => {
+      expect(MODES).toContain('selection');
+      expect(MODES).toContain('article');
+      expect(MODES).toContain('full');
+      expect(MODES).toHaveLength(3);
     });
 
-    test('validates individual speed settings', () => {
-      expect(validateSetting('speed', 1.5).success).toBe(true);
-      expect(validateSetting('speed', 1.5).data).toBe(1.5);
-    });
-
-    test('returns error for unknown keys', () => {
-      const result = validateSetting('unknownKey', 'value');
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+    test('default mode is in MODES', () => {
+      expect(MODES).toContain(defaults.mode);
     });
   });
 
-  describe('getDefaultForKey function', () => {
+  describe('PROVIDERS constant', () => {
+    test('contains all TTS providers', () => {
+      expect(PROVIDERS).toContain('openai');
+      expect(PROVIDERS).toContain('elevenlabs');
+      expect(PROVIDERS).toContain('cartesia');
+      expect(PROVIDERS).toContain('groq');
+      expect(PROVIDERS).toContain('browser');
+      expect(PROVIDERS).toHaveLength(5);
+    });
+
+    test('default provider is in PROVIDERS', () => {
+      expect(PROVIDERS).toContain(defaults.provider);
+    });
+  });
+
+  describe('defaults object', () => {
     test('returns default for known keys', () => {
-      expect(getDefaultForKey('mode')).toBe('article');
-      expect(getDefaultForKey('provider')).toBe('browser');
-      expect(getDefaultForKey('speed')).toBe(1.0);
-      expect(getDefaultForKey('voice')).toBeNull();
-    });
-
-    test('returns undefined for unknown keys', () => {
-      expect(getDefaultForKey('unknownKey')).toBeUndefined();
+      expect(defaults.mode).toBe('article');
+      expect(defaults.provider).toBe('browser');
+      expect(defaults.speed).toBe(1.0);
+      expect(defaults.voice).toBeNull();
     });
   });
 });

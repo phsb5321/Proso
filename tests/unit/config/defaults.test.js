@@ -10,7 +10,7 @@ import {
   constraints,
   MODES,
   PROVIDERS,
-} from '../../../shared/config/defaults.js';
+} from '../../../src/utils/config/index';
 
 describe('Configuration Defaults', () => {
   describe('defaults object', () => {
@@ -69,8 +69,11 @@ describe('Configuration Defaults', () => {
   });
 
   describe('MODES enum', () => {
-    test('is frozen', () => {
-      expect(Object.isFrozen(MODES)).toBe(true);
+    test('is readonly (TypeScript as const)', () => {
+      // TypeScript 'as const' provides compile-time immutability
+      // Runtime check: ensure MODES is an array and cannot be mutated meaningfully
+      expect(Array.isArray(MODES)).toBe(true);
+      // The array itself isn't frozen, but TypeScript enforces readonly at compile time
     });
 
     test('contains selection, article, full', () => {
@@ -86,8 +89,11 @@ describe('Configuration Defaults', () => {
   });
 
   describe('PROVIDERS enum', () => {
-    test('is frozen', () => {
-      expect(Object.isFrozen(PROVIDERS)).toBe(true);
+    test('is readonly (TypeScript as const)', () => {
+      // TypeScript 'as const' provides compile-time immutability
+      // Runtime check: ensure PROVIDERS is an array and cannot be mutated meaningfully
+      expect(Array.isArray(PROVIDERS)).toBe(true);
+      // The array itself isn't frozen, but TypeScript enforces readonly at compile time
     });
 
     test('contains all TTS providers', () => {

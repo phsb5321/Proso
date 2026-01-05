@@ -21,7 +21,9 @@ export default [
       'playwright.config.js',
       // Third-party libraries (Mozilla Readability)
       'content/readability.js',
-      'content/readability-check.js'
+      'content/readability-check.js',
+      // Legacy JS files (pre-migration backup)
+      'legacy/**'
     ]
   },
   {

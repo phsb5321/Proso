@@ -3,7 +3,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { PlaybackSyncState } from '../../background/playback-sync.js';
+import { PlaybackSyncState } from '../../src/utils/audio/playback-sync';
 
 describe('PlaybackSyncState', () => {
   let syncState;

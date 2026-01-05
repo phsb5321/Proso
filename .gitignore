@@ -11,6 +11,9 @@ node_modules/
 *.xpi
 *.zip
 web-ext-artifacts/
+.wxt/
+.output/
+dist/
 
 # IDE
 .vscode/

@@ -1,0 +1,59 @@
+/**
+ * Provider Message Handlers
+ * Handles TTS provider management messages
+ *
+ * @module utils/messaging/handlers/provider
+ */
+
+import type { VoxPageProtocol } from '../protocol';
+import type { ProviderSelectParams, ProviderValidateLanguageSupportParams } from '../types';
+import { providerSelectParamsSchema, providerValidateLanguageSupportParamsSchema } from '../schemas';
+
+/**
+ * Select provider handler
+ */
+export async function handleProviderSelect(
+  params: ProviderSelectParams
+): Promise<VoxPageProtocol['provider.select']['response']> {
+  const validated = providerSelectParamsSchema.parse(params);
+
+  // TODO Phase 4: Delegate to ProviderRegistry.setCurrentProvider()
+
+  return {
+    success: true,
+    providerId: validated.providerId,
+  };
+}
+
+/**
+ * Get provider list handler
+ */
+export async function handleProviderGetList(): Promise<VoxPageProtocol['provider.getList']['response']> {
+  // TODO Phase 4: Delegate to ProviderRegistry.getAllProviders()
+
+  return {
+    providers: [
+      { id: 'openai', name: 'OpenAI TTS', requiresApiKey: true, supportsWordTiming: false },
+      { id: 'elevenlabs', name: 'ElevenLabs', requiresApiKey: true, supportsWordTiming: true },
+      { id: 'cartesia', name: 'Cartesia', requiresApiKey: true, supportsWordTiming: false },
+      { id: 'groq', name: 'Groq TTS', requiresApiKey: true, supportsWordTiming: false },
+      { id: 'browser', name: 'Browser TTS', requiresApiKey: false, supportsWordTiming: false },
+    ],
+  };
+}
+
+/**
+ * Validate language support handler
+ */
+export async function handleProviderValidateLanguageSupport(
+  params: ProviderValidateLanguageSupportParams
+): Promise<VoxPageProtocol['provider.validateLanguageSupport']['response']> {
+  const validated = providerValidateLanguageSupportParamsSchema.parse(params);
+
+  // TODO Phase 4: Delegate to providerSupportsLanguage()
+
+  return {
+    supported: true,
+    alternativeProviders: [],
+  };
+}
