@@ -48,6 +48,10 @@ let playbackState: PlaybackState = {
   totalTime: 0,
 };
 
+// Track if audio was manually stopped (to resolve pending Promises)
+let audioStoppedManually = false;
+let audioResolveCallback: ((value: boolean) => void) | null = null;
+
 let activeTabId: number | null = null;
 let paragraphs: string[] = [];
 let apiKeys: ApiKeys = {};
@@ -150,14 +154,10 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
       style: 0.5,
     });
 
-    // Result is ArrayBuffer
+    // Result is ArrayBuffer - create Blob URL for proper audio metadata loading
     const arrayBuffer = audioData as ArrayBuffer;
-
-    // Convert to base64 data URL for passing to content script
-    const base64 = btoa(
-      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
-    const audioUrl = `data:audio/mpeg;base64,${base64}`;
+    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(blob);
     console.log('[Background] ElevenLabs audio generated, size:', arrayBuffer.byteLength);
     return audioUrl;
   } catch (error) {
@@ -206,6 +206,12 @@ async function updateFooterProgress(): Promise<void> {
  */
 function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
   return new Promise((resolve) => {
+    // Reset manual stop flag
+    audioStoppedManually = false;
+
+    // Store resolve callback so we can call it when manually stopped
+    audioResolveCallback = resolve;
+
     // Stop any existing audio
     if (currentAudio) {
       currentAudio.pause();
@@ -219,13 +225,18 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
 
     // Track audio duration when metadata loads
     audio.onloadedmetadata = () => {
-      playbackState.totalTime = audio.duration;
-      console.log('[Background] Audio duration:', audio.duration, 'seconds');
+      // Only set if duration is valid (not Infinity)
+      if (audio.duration && isFinite(audio.duration)) {
+        playbackState.totalTime = audio.duration;
+        console.log('[Background] Audio duration:', audio.duration, 'seconds');
+      } else {
+        console.warn('[Background] Audio duration not available:', audio.duration);
+      }
     };
 
     // Update progress as audio plays
     audio.ontimeupdate = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
+      if (audio.duration && isFinite(audio.duration)) {
         playbackState.currentTime = audio.currentTime;
         playbackState.totalTime = audio.duration;
         // Update footer with current time
@@ -236,12 +247,18 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
     audio.onended = () => {
       console.log('[Background] Audio playback ended');
       currentAudio = null;
+      audioResolveCallback = null;
       resolve(true);
     };
 
     audio.onerror = (event) => {
+      // Ignore errors caused by manual stop
+      if (audioStoppedManually) {
+        return;
+      }
       console.error('[Background] Audio playback error:', event);
       currentAudio = null;
+      audioResolveCallback = null;
       resolve(false);
     };
 
@@ -253,6 +270,7 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
       .catch((err) => {
         console.error('[Background] Audio play() failed:', err);
         currentAudio = null;
+        audioResolveCallback = null;
         resolve(false);
       });
   });
@@ -262,11 +280,20 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
  * Stop current audio playback
  */
 function stopCurrentAudio(): void {
+  // Set flag before stopping to prevent error handler issues
+  audioStoppedManually = true;
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
     currentAudio = null;
     console.log('[Background] Audio stopped');
+  }
+
+  // Resolve any pending audio Promise so speakCurrentParagraph can check status
+  if (audioResolveCallback) {
+    audioResolveCallback(false);
+    audioResolveCallback = null;
   }
 }
 

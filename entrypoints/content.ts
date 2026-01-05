@@ -1001,6 +1001,15 @@ export default defineContentScript({
           return Promise.resolve({ success: true });
         }
 
+        // ====================================================================
+        // Queue Notifications (T075 - cross-tab sync)
+        // ====================================================================
+        case 'queue.updated': {
+          // Queue state changed - content script doesn't need to act on this
+          // (popup handles queue UI updates via its own message listener)
+          return Promise.resolve({ success: true });
+        }
+
         default:
           console.warn('VoxPage: Unknown message action:', message.action);
       }
