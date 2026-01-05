@@ -1,6 +1,7 @@
 import { defineConfig } from 'wxt';
 
 export default defineConfig({
+  srcDir: 'src',
   manifest: {
     name: 'VoxPage',
     description: 'Text-to-speech for web pages with word-level highlighting',

@@ -21,7 +21,7 @@ jest.unstable_mockModule('lamejs', () => ({
 }));
 
 // Import after mock setup
-const mp3Module = await import('../../utils/audio/mp3-encoder');
+const mp3Module = await import('../../src/utils/audio/mp3-encoder');
 const { Mp3Encoder, createMp3Encoder } = mp3Module;
 type Mp3EncoderType = InstanceType<typeof Mp3Encoder>;
 

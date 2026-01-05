@@ -103,12 +103,12 @@ globalThis.OffscreenCanvas = class {
 };
 
 // Import the module at the top level after mocks are set up
-const ocrModulePromise = import('../../utils/content/ocr');
+const ocrModulePromise = import('../../src/utils/content/ocr');
 
 describe('OCRProcessor', () => {
   // Import module once at top level
-  let OCRProcessor: typeof import('../../utils/content/ocr').OCRProcessor;
-  let createOCRProcessor: typeof import('../../utils/content/ocr').createOCRProcessor;
+  let OCRProcessor: typeof import('../../src/utils/content/ocr').OCRProcessor;
+  let createOCRProcessor: typeof import('../../src/utils/content/ocr').createOCRProcessor;
 
   beforeAll(async () => {
     // Import module once before all tests

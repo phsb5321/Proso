@@ -2,7 +2,7 @@
  * Unit tests for TextSegment (T071)
  */
 
-import { TextSegment, TextSegmentMap } from '../../content/text-segment.js';
+import { TextSegment, TextSegmentMap } from '../../src/utils/content/text-segment';
 
 describe('TextSegment', () => {
   describe('Constructor', () => {

@@ -36,9 +36,9 @@ const mockStorageSet = jest.fn(async (items: Record<string, unknown>) => {
   },
 };
 
-import { QueuePlayer, createQueuePlayer, type QueuePlaybackState, type QueuePlayerCallbacks } from '../../utils/queue/player';
-import { QueueStore, createQueueStore } from '../../utils/queue/store';
-import type { QueueItem } from '../../utils/queue/types';
+import { QueuePlayer, createQueuePlayer, type QueuePlaybackState, type QueuePlayerCallbacks } from '../../src/utils/queue/player';
+import { QueueStore, createQueueStore } from '../../src/utils/queue/store';
+import type { QueueItem } from '../../src/utils/queue/types';
 
 describe('QueuePlayer', () => {
   let store: QueueStore;

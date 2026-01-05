@@ -54,7 +54,7 @@ import {
   handleQueuePlay,
   handleQueuePlayNext,
   handleQueuePlayPrevious,
-} from '../../utils/messaging/handlers/queue';
+} from '../../src/utils/messaging/handlers/queue';
 
 describe('Queue Message Contracts', () => {
   beforeEach(() => {

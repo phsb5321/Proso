@@ -9,7 +9,7 @@ import {
   loadElevenLabsApiKey,
   type WordTiming,
   type AudioWithTiming,
-} from '../src/background/providers/elevenlabs';
+} from '../background/providers/elevenlabs';
 
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
@@ -66,6 +66,16 @@ let elevenlabsProvider: ElevenLabsProvider | null = null;
 let currentWordTimings: WordTiming[] = [];
 let currentWordIndex = -1;
 let wordHighlightInterval: ReturnType<typeof setInterval> | null = null;
+
+// Audio prefetch cache - stores pre-generated audio for upcoming paragraphs
+interface PrefetchedAudio {
+  audioUrl: string;
+  wordTimings: WordTiming[];
+  paragraphIndex: number;
+}
+const audioPrefetchCache: Map<number, PrefetchedAudio> = new Map();
+const PREFETCH_AHEAD_COUNT = 3; // Number of paragraphs to prefetch ahead
+let prefetchInProgress = false;
 
 // ============================================
 // Tab Communication
@@ -193,6 +203,77 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
   }
 }
 
+/**
+ * Prefetch audio for upcoming paragraphs to eliminate buffering delays
+ * Called after current paragraph starts playing
+ */
+async function prefetchUpcomingAudio(): Promise<void> {
+  if (prefetchInProgress || playbackState.status !== 'playing') {
+    return;
+  }
+
+  // Only prefetch for ElevenLabs (API-based TTS)
+  if (playbackState.provider !== 'elevenlabs' || !apiKeys.elevenlabsApiKey) {
+    return;
+  }
+
+  prefetchInProgress = true;
+
+  const currentIndex = playbackState.currentParagraph;
+  const endIndex = Math.min(currentIndex + PREFETCH_AHEAD_COUNT + 1, paragraphs.length);
+
+  for (let i = currentIndex + 1; i < endIndex; i++) {
+    // Skip if already cached
+    if (audioPrefetchCache.has(i)) {
+      continue;
+    }
+
+    // Stop prefetching if playback stopped/paused
+    if (playbackState.status !== 'playing') {
+      break;
+    }
+
+    const text = paragraphs[i];
+    if (!text || text.trim().length === 0) {
+      continue;
+    }
+
+    console.log('[Background] Prefetching audio for paragraph', i + 1);
+    const audioResult = await generateElevenLabsAudio(text);
+
+    if (audioResult && playbackState.status === 'playing') {
+      audioPrefetchCache.set(i, {
+        audioUrl: audioResult.audioUrl,
+        wordTimings: audioResult.wordTimings,
+        paragraphIndex: i,
+      });
+      console.log('[Background] Prefetched paragraph', i + 1, '- cache size:', audioPrefetchCache.size);
+    }
+  }
+
+  prefetchInProgress = false;
+}
+
+/**
+ * Clear old entries from prefetch cache (paragraphs we've already passed)
+ */
+function cleanupPrefetchCache(): void {
+  const currentIndex = playbackState.currentParagraph;
+  for (const [index] of audioPrefetchCache) {
+    if (index < currentIndex) {
+      audioPrefetchCache.delete(index);
+    }
+  }
+}
+
+/**
+ * Clear all prefetch cache (called on stop/new playback)
+ */
+function clearPrefetchCache(): void {
+  audioPrefetchCache.clear();
+  prefetchInProgress = false;
+}
+
 // ============================================
 // TTS Playback
 // ============================================
@@ -299,6 +380,13 @@ async function updateFooterProgress(): Promise<void> {
  */
 function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
   return new Promise((resolve) => {
+    // Check if playback was stopped/paused before starting
+    if (playbackState.status !== 'playing') {
+      console.log('[Background] Audio playback cancelled - status is', playbackState.status);
+      resolve(false);
+      return;
+    }
+
     // Reset manual stop flag
     audioStoppedManually = false;
 
@@ -424,8 +512,37 @@ async function speakCurrentParagraph(): Promise<void> {
   let success = false;
 
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
-    // Use ElevenLabs - play audio in background script to avoid autoplay restrictions
-    const audioResult = await generateElevenLabsAudio(text);
+    // Check if we have prefetched audio for this paragraph
+    const prefetched = audioPrefetchCache.get(playbackState.currentParagraph);
+    let audioResult: { audioUrl: string; wordTimings: WordTiming[] } | null = null;
+
+    if (prefetched) {
+      console.log('[Background] Using prefetched audio for paragraph', playbackState.currentParagraph + 1);
+      audioResult = {
+        audioUrl: prefetched.audioUrl,
+        wordTimings: prefetched.wordTimings,
+      };
+      // Remove from cache since we're using it
+      audioPrefetchCache.delete(playbackState.currentParagraph);
+    } else {
+      // Generate audio on-demand (first paragraph or cache miss)
+      console.log('[Background] Generating audio on-demand for paragraph', playbackState.currentParagraph + 1);
+      const generated = await generateElevenLabsAudio(text);
+
+      // Check if playback was stopped/paused during API call
+      if (playbackState.status !== 'playing') {
+        console.log('[Background] Playback cancelled during audio generation');
+        return;
+      }
+
+      if (generated) {
+        audioResult = {
+          audioUrl: generated.audioUrl,
+          wordTimings: generated.wordTimings,
+        };
+      }
+    }
+
     if (audioResult) {
       console.log('[Background] Playing ElevenLabs audio with', audioResult.wordTimings.length, 'word timings');
 
@@ -450,10 +567,16 @@ async function speakCurrentParagraph(): Promise<void> {
         startWordHighlighting(playbackState.currentParagraph);
       }
 
+      // Start prefetching next paragraphs while this one plays
+      prefetchUpcomingAudio();
+
       success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
 
       // Stop word highlighting when audio ends
       stopWordHighlighting();
+
+      // Clean up old cache entries
+      cleanupPrefetchCache();
     } else {
       console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
     }
@@ -511,6 +634,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     if (!tab?.id) {
       return { success: false, error: 'No active tab' };
     }
+
+    // Clear any previous prefetch cache
+    clearPrefetchCache();
 
     activeTabId = tab.id;
     playbackState.status = 'loading';
@@ -644,6 +770,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     playbackState.progress = 0;
     paragraphs = [];
     notifyPopup();
+
+    // Clear prefetch cache
+    clearPrefetchCache();
 
     // Stop background audio
     stopCurrentAudio();

@@ -16,7 +16,7 @@ import {
   openAIResponseSchema,
   anthropicResponseSchema,
   AI_PROVIDER_CONFIGS,
-} from '../../utils/ai/types';
+} from '../../src/utils/ai/types';
 
 describe('AI API Message Contract', () => {
   describe('summarize.article request', () => {

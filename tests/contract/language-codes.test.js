@@ -5,7 +5,7 @@
  * @feature 020-code-quality-fix
  */
 
-import { getProviderLanguageCode, LANGUAGE_MAPPINGS } from '../../background/language-mappings.js';
+import { getProviderLanguageCode, LANGUAGE_MAPPINGS } from '../../src/utils/language/mappings';
 
 describe('ElevenLabs API Language Code Contract', () => {
   describe('Language code format requirements', () => {

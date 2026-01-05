@@ -151,20 +151,21 @@ npm run quality         # Full quality checks
 
 ```
 VoxPage/
-├── entrypoints/         # WXT entry points (auto-discovered)
-│   ├── background.ts    # Service worker
-│   ├── content.ts       # Content script
-│   └── options/         # Options page
-├── utils/               # Shared TypeScript utilities
-│   ├── config/          # Settings, defaults, migrations
-│   ├── audio/           # Playback sync, cache, visualizer
-│   ├── providers/       # TTS providers (6 supported)
-│   ├── content/         # Extractor, highlighter, footer
-│   ├── language/        # Language detection (franc-min)
-│   ├── logging/         # Remote logging
-│   └── messaging/       # Type-safe message handlers
+├── src/                 # Source code (WXT srcDir)
+│   ├── entrypoints/     # WXT entry points (auto-discovered)
+│   │   ├── background.ts    # Service worker
+│   │   ├── content.ts       # Content script
+│   │   └── options/         # Options page
+│   ├── utils/           # Shared TypeScript utilities
+│   │   ├── config/          # Settings, defaults, migrations
+│   │   ├── audio/           # Playback sync, cache, visualizer
+│   │   ├── providers/       # TTS providers (6 supported)
+│   │   ├── content/         # Extractor, highlighter, footer
+│   │   ├── language/        # Language detection (franc-min)
+│   │   ├── logging/         # Remote logging
+│   │   └── messaging/       # Type-safe message handlers
+│   └── styles/          # CSS design tokens
 ├── public/icons/        # Extension icons
-├── styles/              # CSS design tokens
 └── tests/               # Jest + Playwright tests
 ```
 

@@ -87,17 +87,17 @@ describe('Design Token Consistency (012-frontend-redesign)', () => {
     const projectRoot = path.resolve(process.cwd());
 
     tokensCSS = fs.readFileSync(
-      path.join(projectRoot, 'styles/tokens.css'),
+      path.join(projectRoot, 'src/styles/tokens.css'),
       'utf-8'
     );
 
     componentsCSS = fs.readFileSync(
-      path.join(projectRoot, 'styles/components.css'),
+      path.join(projectRoot, 'src/styles/components.css'),
       'utf-8'
     );
 
     stickyFooterTS = fs.readFileSync(
-      path.join(projectRoot, 'utils/content/sticky-footer.ts'),
+      path.join(projectRoot, 'src/utils/content/sticky-footer.ts'),
       'utf-8'
     );
   });

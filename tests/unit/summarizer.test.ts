@@ -8,8 +8,8 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 
 // Type for the module
-type SummarizerModule = typeof import('../../utils/ai/summarizer');
-type TypesModule = typeof import('../../utils/ai/types');
+type SummarizerModule = typeof import('../../src/utils/ai/summarizer');
+type TypesModule = typeof import('../../src/utils/ai/types');
 
 // Types for testing
 interface SummaryResult {
@@ -52,8 +52,8 @@ describe('ArticleSummarizer', () => {
     mockBrowserStorage.local.set.mockReset();
 
     // Import modules
-    const summarizerModule = await import('../../utils/ai/summarizer');
-    const typesModule = await import('../../utils/ai/types');
+    const summarizerModule = await import('../../src/utils/ai/summarizer');
+    const typesModule = await import('../../src/utils/ai/types');
 
     ArticleSummarizer = summarizerModule.ArticleSummarizer;
     createSummarizer = summarizerModule.createSummarizer;

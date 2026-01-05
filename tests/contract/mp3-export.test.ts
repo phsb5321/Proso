@@ -7,8 +7,8 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import type { VoxPageProtocol } from '../../utils/messaging/protocol';
-import { ROADMAP_STORAGE_KEYS } from '../../utils/config/schema';
+import type { VoxPageProtocol } from '../../src/utils/messaging/protocol';
+import { ROADMAP_STORAGE_KEYS } from '../../src/utils/config/schema';
 
 // Mock browser APIs before importing handlers
 const mockBrowser = {
@@ -58,7 +58,7 @@ import {
   handleExportCancel,
   handleExportGetProgress,
   handleExportDownload,
-} from '../../utils/messaging/handlers/export';
+} from '../../src/utils/messaging/handlers/export';
 
 describe('MP3 Export Message Contract', () => {
   beforeEach(() => {

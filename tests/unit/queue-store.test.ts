@@ -36,8 +36,8 @@ const mockStorageSet = jest.fn(async (items: Record<string, unknown>) => {
   },
 };
 
-import { QueueStore, createQueueStore } from '../../utils/queue/store';
-import type { QueueItem, QueueUpdateEvent } from '../../utils/queue/types';
+import { QueueStore, createQueueStore } from '../../src/utils/queue/store';
+import type { QueueItem, QueueUpdateEvent } from '../../src/utils/queue/types';
 
 describe('QueueStore', () => {
   beforeEach(() => {

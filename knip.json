@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/entrypoints/background.ts",
+    "src/entrypoints/content.ts",
+    "src/entrypoints/options/main.ts",
+    "src/entrypoints/popup/main.ts",
+    "tests/**/*.test.{js,ts}"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.{js,ts}"
+  ],
+  "ignore": [
+    "**/*.d.ts",
+    ".wxt/**",
+    ".output/**",
+    "node_modules/**",
+    "src/background/providers/elevenlabs.ts"
+  ],
+  "ignoreDependencies": [
+    "@types/jest",
+    "@types/node",
+    "@types/webextension-polyfill",
+    "jest-axe",
+    "jest-environment-jsdom",
+    "jest-webextension-mock",
+    "ts-jest",
+    "@playwright/test",
+    "vite",
+    "@webext-core/messaging"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "unlisted": "off"
+  }
+}

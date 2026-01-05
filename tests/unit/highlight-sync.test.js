@@ -4,7 +4,7 @@
  * Feature: 011-highlight-playback-fix
  */
 
-import { PlaybackSyncState } from '../../background/playback-sync.js';
+import { PlaybackSyncState } from '../../src/utils/audio/playback-sync';
 
 describe('Highlight Sync - Drift Detection (T009)', () => {
   let syncState;

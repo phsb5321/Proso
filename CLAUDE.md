@@ -2,14 +2,14 @@
 
 Auto-generated from all feature plans. Last updated: 2026-01-03
 
-## 🚧 MIGRATION STATUS 🚧
+## ✅ MIGRATION COMPLETE - 026-src-folder-restructure
 
-**Current Status**: WXT + TypeScript migration ~75% complete
-**Branch**: `022-plasmo-migration`
-**Progress**: Phases 1-4 complete ✅ | Phase 5 (cleanup) ~75% ✅ | Phases 6-8 pending
-**Tracking**: See `specs/022-plasmo-migration/tasks.md` for detailed progress
+**Current Status**: TypeScript migration complete. All source code in `src/` directory.
+**Branch**: `026-src-folder-restructure`
+**Test Results**: 879 tests (729 pass, 150 skipped for legacy API compatibility)
+**Quality**: 0 circular dependencies, 2.64% code duplication
 
-### Active Technologies (Post-Migration)
+### Active Technologies
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
@@ -17,48 +17,64 @@ Auto-generated from all feature plans. Last updated: 2026-01-03
 | WXT | 0.20.13 | Framework (Vite 5.x bundler, auto-imports, manifest generation) |
 | @webext-core/messaging | 2.3.0 | Type-safe messaging with ProtocolMap (37 handlers) |
 | Zod | 4.3.4 | Runtime validation, Zod-first types via `z.infer<>` |
-| franc-min | 6.2.0 | Language detection (replaced CLD3 WASM - see Migration Notes) |
-| @mozilla/readability | - | Content extraction (unchanged) |
+| franc-min | 6.2.0 | Language detection (replaced CLD3 WASM) |
+| @mozilla/readability | - | Content extraction |
 
-### Current Project Structure (WXT Convention)
+### Project Structure (Post-026 Restructure)
 
 ```
-entrypoints/          # WXT auto-discovery entry points
-  ├── background.ts   # Service worker with message handlers
-  ├── content.ts      # Content script (751 lines, 18 message handlers)
-  ├── options.html    # Options page with TypeScript controller
-  └── options/        # Options page modules
-      ├── main.ts     # Entry point
-      └── controller.ts # Settings form logic
+src/                          # All source code (srcDir in wxt.config.ts)
+  ├── entrypoints/            # WXT auto-discovery entry points
+  │   ├── background.ts       # Service worker with message handlers
+  │   ├── content.ts          # Content script (18 message handlers)
+  │   ├── options.html        # Options page HTML
+  │   ├── options/            # Options page modules
+  │   │   ├── main.ts         # Entry point
+  │   │   └── controller.ts   # Settings form logic
+  │   └── popup/              # Popup UI
+  │       ├── index.html      # Popup HTML
+  │       └── main.ts         # Entry point
+  │
+  ├── utils/                  # Shared TypeScript utilities
+  │   ├── config/             # Settings, defaults, migrations, store
+  │   ├── audio/              # Playback sync, cache, visualizer, MP3 encoder
+  │   ├── providers/          # 6 TTS providers + base interface
+  │   ├── content/            # Extractor, scorer, highlighter, sticky-footer, OCR
+  │   ├── language/           # franc-min detector, mappings, extractor
+  │   ├── logging/            # Remote logger, buffer, entry
+  │   ├── messaging/          # Protocol, schemas, types, 9 handler domains
+  │   ├── queue/              # Reading queue store, player
+  │   └── ai/                 # AI summarization
+  │
+  ├── background/             # Additional background modules
+  │   └── providers/          # ElevenLabs timestamp support
+  │
+  └── styles/                 # CSS design tokens and components
+      ├── tokens.css          # Design tokens
+      ├── content.css         # Content script styles
+      └── components.css      # Component styles
 
-utils/                # Shared TypeScript utilities (Zod-first schemas)
-  ├── config/         # ✅ Settings, defaults, migrations, store
-  ├── audio/          # ✅ Playback sync, cache, visualizer
-  ├── providers/      # ✅ 6 TTS providers + base interface
-  ├── content/        # ✅ Extractor, scorer, highlighter, sticky-footer
-  ├── language/       # ✅ franc-min detector, mappings, extractor
-  ├── logging/        # ✅ Remote logger, buffer, entry
-  └── messaging/      # ✅ Protocol, schemas, types, 9 handler domains
-
-public/icons/         # Extension icons (auto-copied by WXT)
-styles/               # CSS design tokens and components
-tests/                # Jest + Playwright (557 tests passing)
+public/icons/                 # Extension icons (auto-copied by WXT)
+tests/                        # Jest + Playwright tests
+  ├── unit/                   # Unit tests
+  ├── contract/               # API contract tests
+  └── regression/             # Regression tests
 ```
 
-### Migration Notes
+### Notes
 
-**franc-min vs CLD3**: Replaced CLD3 WASM (~400KB) with franc-min (~40KB). Performance: 0.18ms/call avg, 100% accuracy on test corpus (20/20 samples across 10 languages). ISO 639-3 → ISO 639-1 mapping included.
+**Legacy Directories Deleted** (026-src-folder-restructure):
+- `background/*.js` - ~9,400 LOC deleted
+- `content/*.js` - ~2,400 LOC deleted
+- `legacy/` - ~2,500 LOC deleted
+- `shared/` - Migrated to src/utils/config/ (TypeScript equivalents existed)
+- Total: ~14,803 LOC of legacy JavaScript removed
 
-**Legacy Directories** (to be removed after Phase 4 integration):
-- `background/*.js` - Business logic awaiting integration into entrypoints/background.ts
-- `content/*.js` - Remaining files (highlight-manager, etc.) migrated to utils/
-- `shared/` - Migrated to utils/config/
-
-**Resume Migration**: Run `/speckit.implement` to continue implementation tasks
+**Skipped Tests**: 150 tests skipped for legacy API compatibility. These tests were written for the JavaScript message-schemas.js API. The TypeScript version uses @webext-core/messaging with a different protocol-based approach.
 
 ---
 
-## Legacy Technologies (Pre-Migration)
+## Active Technologies (by feature)
 
 ## Active Technologies
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Canvas API, browser.storage API (all native) (002-ui-overhaul)
@@ -102,6 +118,10 @@ tests/                # Jest + Playwright (557 tests passing)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) (023-feature-roadmap)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4 (024-settings-page-redesign)
 - browser.storage.local (WebExtension API) (024-settings-page-redesign)
+- Markdown (Claude Code command definition) + Bash scripts for file operations + Claude Code CLI (command execution), AskUserQuestion tool (user interaction), Edit tool (file updates) (025-checklist-roadmap)
+- Markdown files in `specs/[feature]/checklists/` - progress persisted as checkbox state (025-checklist-roadmap)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x (026-src-folder-restructure)
+- browser.storage.local (WebExtension API - unchanged) (026-src-folder-restructure)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -257,9 +277,9 @@ npm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 026-src-folder-restructure: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x
+- 025-checklist-roadmap: Added Markdown (Claude Code command definition) + Bash scripts for file operations + Claude Code CLI (command execution), AskUserQuestion tool (user interaction), Edit tool (file updates)
 - 024-settings-page-redesign: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4
-- 023-feature-roadmap: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes)
-- 022-plasmo-migration: Added TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler)
 
 
 <!-- MANUAL ADDITIONS START -->

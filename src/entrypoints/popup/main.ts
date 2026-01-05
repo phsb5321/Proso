@@ -44,6 +44,7 @@ const elements = {
   pauseIcon: document.getElementById('pause-icon') as unknown as SVGElement,
   prevBtn: document.getElementById('prev-btn') as HTMLButtonElement,
   nextBtn: document.getElementById('next-btn') as HTMLButtonElement,
+  stopBtn: document.getElementById('stop-btn') as HTMLButtonElement,
 
   // Speed
   speedSlider: document.getElementById('speed-slider') as HTMLInputElement,
@@ -327,6 +328,19 @@ async function handleNext(): Promise<void> {
     await sendMessage('nextParagraph');
   } catch (error) {
     console.error('[Popup] Next error:', error);
+  }
+}
+
+/**
+ * Handle stop button click
+ */
+async function handleStop(): Promise<void> {
+  try {
+    await sendMessage('stopPlayback');
+    updateStatus('stopped');
+    updatePlayPauseButton(false);
+  } catch (error) {
+    console.error('[Popup] Stop error:', error);
   }
 }
 
@@ -1036,6 +1050,7 @@ function setupEventListeners(): void {
   elements.playPauseBtn.addEventListener('click', handlePlayPause);
   elements.prevBtn.addEventListener('click', handlePrev);
   elements.nextBtn.addEventListener('click', handleNext);
+  elements.stopBtn.addEventListener('click', handleStop);
 
   // Speed control
   elements.speedSlider.addEventListener('input', handleSpeedChange);
