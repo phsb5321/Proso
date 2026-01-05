@@ -19,6 +19,7 @@ import {
 } from '../utils/config';
 
 import { toast } from './components/toast';
+import { showConfirmModal } from './components/modal';
 import { testApiKey, saveApiKey, API_KEY_STORAGE_KEYS } from '../../utils/options/api-key-tester';
 import { createScrollSpy, type ScrollSpyInstance } from '../../utils/options/scroll-spy';
 import { setupSidebarKeyboardNav } from './components/sidebar';
@@ -194,6 +195,7 @@ export async function initOptionsPage(): Promise<void> {
   setupStorageChangeListener();
   setupSidebarNavigation();
   setupThemeEventListener();
+  setupResetButtons();
 }
 
 // ========================================
@@ -1588,5 +1590,94 @@ function showQueueStatus(message: string, type: 'success' | 'error' | 'loading')
         elements.queueStatus.className = 'queue-status';
       }
     }, 3000);
+  }
+}
+
+// ========================================
+// RESET FUNCTIONALITY (027-settings-ux-overhaul T064-T068)
+// ========================================
+
+/**
+ * Section display names for confirmation dialogs
+ */
+const SECTION_DISPLAY_NAMES: Record<string, string> = {
+  'quick-settings': 'Quick Settings',
+  'appearance': 'Appearance',
+  'reading-queue': 'Reading Queue',
+  'developer': 'Developer Settings',
+};
+
+/**
+ * Setup reset button event listeners
+ * T065: Implement reset button click handlers
+ */
+function setupResetButtons(): void {
+  document.querySelectorAll('.section-reset-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const button = e.currentTarget as HTMLButtonElement;
+      const section = button.dataset.section;
+      if (!section) return;
+
+      await handleSectionReset(section);
+    });
+  });
+}
+
+/**
+ * Handle section reset with confirmation modal
+ * T065: Implement reset button click handlers
+ * T066: Show confirmation modal before reset
+ * T068: Show toast on successful reset
+ */
+async function handleSectionReset(section: string): Promise<void> {
+  const sectionName = SECTION_DISPLAY_NAMES[section] || section;
+
+  // T066: Show confirmation modal before reset
+  const confirmed = await showConfirmModal({
+    title: 'Reset Settings',
+    message: `Are you sure you want to reset ${sectionName} to defaults? This action cannot be undone.`,
+    confirmText: 'Reset',
+    cancelText: 'Cancel',
+    confirmVariant: 'danger',
+    onConfirm: async () => {
+      // Send reset message to background
+      const response = await browser.runtime.sendMessage({
+        type: 'settings.resetSection',
+        section,
+      });
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Reset failed');
+      }
+    },
+  });
+
+  if (confirmed) {
+    // T068: Show toast on successful reset
+    toast.success(`${sectionName} reset to defaults`);
+
+    // Reload the settings to reflect changes
+    await reloadSectionSettings(section);
+  }
+}
+
+/**
+ * Reload settings for a specific section after reset
+ */
+async function reloadSectionSettings(section: string): Promise<void> {
+  switch (section) {
+    case 'quick-settings':
+      await loadQuickSettings();
+      break;
+    case 'appearance':
+      await loadSettings();
+      await loadThemePreference();
+      break;
+    case 'reading-queue':
+      await loadQueueConfig();
+      break;
+    case 'developer':
+      await loadLoggingConfig();
+      break;
   }
 }

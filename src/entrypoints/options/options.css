@@ -718,6 +718,129 @@ kbd {
 }
 
 /* ========================================
+   MODAL COMPONENT (T061)
+   Confirmation dialogs for reset and dangerous actions
+   ======================================== */
+
+.voxpage-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.voxpage-modal-overlay--visible {
+  opacity: 1;
+}
+
+.voxpage-modal-overlay--closing {
+  opacity: 0;
+}
+
+.voxpage-modal {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 400px;
+  width: calc(100% - var(--spacing-2xl));
+  margin: var(--spacing-lg);
+  transform: scale(0.95);
+  transition: transform var(--transition-normal);
+}
+
+.voxpage-modal-overlay--visible .voxpage-modal {
+  transform: scale(1);
+}
+
+.voxpage-modal-overlay--closing .voxpage-modal {
+  transform: scale(0.95);
+}
+
+.voxpage-modal__header {
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.voxpage-modal__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.voxpage-modal__body {
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.voxpage-modal__message {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.voxpage-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-xl) var(--spacing-xl);
+}
+
+/* Danger variant for destructive actions */
+.voxpage-button--danger {
+  background: var(--color-error);
+  color: white;
+}
+
+.voxpage-button--danger:hover {
+  background: #dc2626;
+}
+
+.voxpage-button--danger:focus-visible {
+  outline-color: var(--color-error);
+}
+
+/* Reset button in sections */
+.section-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.section-reset-btn:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.section-reset-btn:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.section-reset-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ========================================
    PRINT STYLES
    ======================================== */
 
