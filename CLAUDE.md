@@ -99,6 +99,7 @@ tests/                # Jest + Playwright (557 tests passing)
 - JavaScript ES2022+ (WebExtension Manifest V3) + Zod 4.3.4 (validation), cld3-asm 4.0.0 (language detection), Mozilla Readability (content extraction) (021-comprehensive-overhaul)
 - TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler) (022-plasmo-migration)
 - browser.storage.local (continue using directly, NOT wxt/storage) for API keys, settings, footer state, language cache (022-plasmo-migration)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) (023-feature-roadmap)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -254,9 +255,9 @@ npm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 023-feature-roadmap: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes)
 - 022-plasmo-migration: Added TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler)
 - 021-comprehensive-overhaul: Added JavaScript ES2022+ (WebExtension Manifest V3) + Zod 4.3.4 (validation), cld3-asm 4.0.0 (language detection), Mozilla Readability (content extraction)
-- 020-code-quality-fix: Added JavaScript ES2022+ (WebExtension Manifest V3) + Mozilla Readability, Web Audio API, CSS Custom Highlight API, browser.storage API, cld3-asm, zod
 
 
 <!-- MANUAL ADDITIONS START -->
