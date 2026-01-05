@@ -339,6 +339,41 @@ kbd {
 }
 
 /* ========================================
+   READING QUEUE SECTION (T078)
+   ======================================== */
+
+.queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.queue-status {
+  font-size: var(--font-size-sm);
+  transition: opacity var(--transition-normal);
+}
+
+.queue-status:empty {
+  display: none;
+}
+
+.queue-status--loading {
+  color: var(--color-warning);
+}
+
+.queue-status--success {
+  color: var(--color-success);
+}
+
+.queue-status--error {
+  color: var(--color-error);
+}
+
+/* ========================================
    DEVELOPER SECTION
    ======================================== */
 
