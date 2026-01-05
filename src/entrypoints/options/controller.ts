@@ -20,6 +20,8 @@ import {
 
 import { toast } from './components/toast';
 import { testApiKey, saveApiKey, API_KEY_STORAGE_KEYS } from '../../utils/options/api-key-tester';
+import { createScrollSpy, type ScrollSpyInstance } from '../../utils/options/scroll-spy';
+import { setupSidebarKeyboardNav } from './components/sidebar';
 
 /**
  * DOM element references
@@ -92,6 +94,7 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let loggingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let queueSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let quickSettingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+let scrollSpyInstance: ScrollSpyInstance | null = null;
 
 /**
  * Get DOM elements with type safety
@@ -181,6 +184,7 @@ export async function initOptionsPage(): Promise<void> {
   setupQueueEventListeners();
   setupAccordions();
   setupStorageChangeListener();
+  setupSidebarNavigation();
 }
 
 // ========================================
@@ -461,6 +465,113 @@ function setupAccordions(): void {
         (header as HTMLElement).click();
       }
     }) as EventListener);
+  });
+}
+
+// ========================================
+// SIDEBAR NAVIGATION (027-settings-ux-overhaul T043-T046)
+// ========================================
+
+/**
+ * Setup sidebar navigation with scroll-spy and deep linking
+ * T043: Smooth scroll on sidebar click
+ * T044: URL hash navigation (deep linking)
+ * T045: Initialize scroll-spy with IntersectionObserver
+ * T046: Add keyboard navigation for sidebar
+ */
+function setupSidebarNavigation(): void {
+  // T045: Initialize scroll-spy
+  scrollSpyInstance = createScrollSpy({
+    sectionSelector: 'section[id]',
+    navLinkSelector: '.sidebar-link',
+    onActiveChange: (sectionId) => {
+      // Update URL hash silently (without scrolling)
+      if (sectionId) {
+        const url = new URL(window.location.href);
+        url.hash = sectionId;
+        window.history.replaceState(null, '', url.toString());
+      }
+    },
+  });
+
+  scrollSpyInstance.start();
+
+  // T043: Smooth scroll on sidebar click
+  document.querySelectorAll('.sidebar-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      const href = link.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+
+      const sectionId = href.slice(1);
+      scrollToSection(sectionId);
+
+      // Update scroll-spy active state immediately
+      if (scrollSpyInstance) {
+        scrollSpyInstance.setActiveSection(sectionId);
+      }
+    });
+  });
+
+  // T044: Handle initial URL hash on page load
+  handleInitialHash();
+
+  // T044: Handle hash changes (e.g., back/forward navigation)
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      scrollToSection(hash);
+      if (scrollSpyInstance) {
+        scrollSpyInstance.setActiveSection(hash);
+      }
+    }
+  });
+
+  // T046: Keyboard navigation for sidebar
+  setupSidebarKeyboardNav();
+}
+
+/**
+ * Scroll to a section with smooth scroll
+ * T043: Smooth scroll on sidebar click
+ */
+function scrollToSection(sectionId: string): void {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+
+  // Check for reduced motion preference
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  section.scrollIntoView({
+    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    block: 'start',
+  });
+
+  // Update focus for accessibility
+  section.setAttribute('tabindex', '-1');
+  section.focus({ preventScroll: true });
+}
+
+/**
+ * Handle initial URL hash on page load
+ * T044: URL hash navigation (deep linking)
+ */
+function handleInitialHash(): void {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+
+  // Wait for DOM to be fully ready
+  requestAnimationFrame(() => {
+    const section = document.getElementById(hash);
+    if (section) {
+      // Scroll to section without animation on initial load
+      section.scrollIntoView({ block: 'start' });
+
+      if (scrollSpyInstance) {
+        scrollSpyInstance.setActiveSection(hash);
+      }
+    }
   });
 }
 
