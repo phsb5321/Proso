@@ -61,6 +61,26 @@
           </p>
         </div>
 
+        <!-- Anthropic (AI Summarization) -->
+        <div class="form-group">
+          <label for="anthropicKey" class="form-label">
+            <span class="voxpage-badge voxpage-badge--anthropic">Anthropic</span>
+            API Key
+          </label>
+          <div class="voxpage-input-wrapper">
+            <input type="password" id="anthropicKey" class="voxpage-input" placeholder="sk-ant-...">
+            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="anthropicKey">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <p class="form-hint">
+            Get your API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic Console</a> - For AI summarization
+          </p>
+        </div>
+
         <!-- ElevenLabs -->
         <div class="form-group">
           <label for="elevenlabsKey" class="form-label">
@@ -206,6 +226,70 @@
             <span class="voxpage-toggle__switch"></span>
             <span class="voxpage-toggle__text">Auto-scroll to current paragraph</span>
           </label>
+        </div>
+        </div>
+      </section>
+
+      <!-- Queue Settings Section (T079) -->
+      <section class="voxpage-card voxpage-accordion" data-section="queue">
+        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="queue-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="8" y1="6" x2="21" y2="6"/>
+              <line x1="8" y1="12" x2="21" y2="12"/>
+              <line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/>
+              <line x1="3" y1="12" x2="3.01" y2="12"/>
+              <line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            Reading Queue
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="queue-content" class="voxpage-accordion__content" hidden>
+        <p class="section-description">
+          Configure your reading queue behavior. Save articles for later and listen to them in sequence.
+        </p>
+
+        <div class="form-group">
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="queueAutoPlayNext" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Auto-play next article</span>
+          </label>
+          <p class="form-hint">Automatically start the next article when the current one finishes</p>
+        </div>
+
+        <div class="form-group">
+          <label for="queueMaxItems" class="form-label">Maximum Queue Size</label>
+          <select id="queueMaxItems" class="voxpage-select">
+            <option value="100">100 items</option>
+            <option value="200">200 items</option>
+            <option value="300" selected>300 items (Default)</option>
+            <option value="500">500 items</option>
+          </select>
+          <p class="form-hint">Oldest archived items are removed when the queue exceeds this limit</p>
+        </div>
+
+        <div class="form-group">
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="queueSaveProgress" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Save reading progress</span>
+          </label>
+          <p class="form-hint">Remember where you left off in each article</p>
+        </div>
+
+        <div class="form-group queue-actions">
+          <button id="clearCompletedQueue" class="voxpage-button voxpage-button--secondary">
+            Clear Completed
+          </button>
+          <button id="clearAllQueue" class="voxpage-button voxpage-button--ghost">
+            Clear All
+          </button>
+          <span id="queueStatus" class="queue-status"></span>
         </div>
         </div>
       </section>

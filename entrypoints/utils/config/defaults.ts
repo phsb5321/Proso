@@ -3,7 +3,7 @@
  * These match the values in shared/config/defaults.js and shared/config/logging-defaults.js
  */
 
-import type { VoxPageSettings, LoggingConfig, UISettings } from './types';
+import type { VoxPageSettings, LoggingConfig, UISettings, QueueSettings } from './types';
 
 export const settingsDefaults: VoxPageSettings = {
   provider: 'browser',
@@ -29,4 +29,11 @@ export const loggingDefaults: LoggingConfig = {
 export const uiDefaults: UISettings = {
   highlightEnabled: true,
   autoScroll: true,
+};
+
+export const queueDefaults: QueueSettings = {
+  autoPlayNext: true,
+  autoArchiveCompleted: false,
+  archiveAfterDays: 30,
+  maxQueueSize: 300,
 };

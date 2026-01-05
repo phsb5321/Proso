@@ -123,6 +123,202 @@
       </select>
     </section>
 
+    <!-- Summarize Section -->
+    <section class="voxpage-popup__summarize" id="summarize-section">
+      <button
+        id="summarize-btn"
+        class="voxpage-button voxpage-button--secondary voxpage-popup__summarize-btn"
+        title="Get AI summary of article"
+        aria-label="Summarize article"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span id="summarize-btn-text">Summarize</span>
+      </button>
+      <!-- Summary Display (hidden by default) -->
+      <div class="voxpage-popup__summary" id="summary-display" hidden>
+        <div class="voxpage-popup__summary-header">
+          <span class="voxpage-popup__summary-title">Summary</span>
+          <button
+            id="read-summary-btn"
+            class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+            title="Read summary aloud"
+            aria-label="Read summary aloud"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+          <button
+            id="close-summary-btn"
+            class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+            title="Close summary"
+            aria-label="Close summary"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <ul class="voxpage-popup__summary-bullets" id="summary-bullets"></ul>
+      </div>
+    </section>
+
+    <!-- OCR Section -->
+    <section class="voxpage-popup__ocr" id="ocr-section">
+      <button
+        id="ocr-btn"
+        class="voxpage-button voxpage-button--secondary voxpage-popup__ocr-btn"
+        title="Read text from screenshot"
+        aria-label="Read text from screenshot"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span id="ocr-btn-text">Read Image</span>
+      </button>
+      <!-- OCR Result Display (hidden by default) -->
+      <div class="voxpage-popup__ocr-result" id="ocr-result" hidden>
+        <div class="voxpage-popup__ocr-header">
+          <span class="voxpage-popup__ocr-title">Extracted Text</span>
+          <span class="voxpage-popup__ocr-confidence" id="ocr-confidence"></span>
+          <button
+            id="read-ocr-btn"
+            class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+            title="Read extracted text"
+            aria-label="Read extracted text"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+          </button>
+          <button
+            id="close-ocr-btn"
+            class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+            title="Close"
+            aria-label="Close OCR result"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <p class="voxpage-popup__ocr-text" id="ocr-text"></p>
+      </div>
+    </section>
+
+    <!-- Export Section -->
+    <section class="voxpage-popup__export" id="export-section">
+      <button
+        id="export-btn"
+        class="voxpage-button voxpage-button--secondary voxpage-popup__export-btn"
+        title="Download article as MP3"
+        aria-label="Download article as MP3"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span id="export-btn-text">Download MP3</span>
+      </button>
+      <!-- Export Progress (hidden by default) -->
+      <div class="voxpage-popup__export-progress" id="export-progress" hidden>
+        <div class="voxpage-popup__export-progress-bar" id="export-progress-bar"></div>
+        <span class="voxpage-popup__export-progress-text" id="export-progress-text">Preparing...</span>
+        <button
+          id="export-cancel-btn"
+          class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+          title="Cancel export"
+          aria-label="Cancel export"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Queue Section -->
+    <section class="voxpage-popup__queue" id="queue-section">
+      <div class="voxpage-popup__queue-actions">
+        <button
+          id="add-to-queue-btn"
+          class="voxpage-button voxpage-button--secondary voxpage-popup__queue-add-btn"
+          title="Add current page to reading queue"
+          aria-label="Add to reading queue"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span id="add-queue-btn-text">Add to Queue</span>
+        </button>
+        <button
+          id="toggle-queue-btn"
+          class="voxpage-button voxpage-button--icon voxpage-button--ghost"
+          title="Show reading queue"
+          aria-label="Show reading queue"
+          aria-expanded="false"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span class="voxpage-popup__queue-badge" id="queue-count-badge" hidden>0</span>
+        </button>
+      </div>
+      <!-- Queue Sidebar (hidden by default) -->
+      <div class="voxpage-popup__queue-sidebar" id="queue-sidebar" hidden>
+        <div class="voxpage-popup__queue-header">
+          <span class="voxpage-popup__queue-title">Reading Queue</span>
+          <span class="voxpage-popup__queue-count" id="queue-count">0 items</span>
+        </div>
+        <div class="voxpage-popup__queue-list" id="queue-list">
+          <p class="voxpage-popup__queue-empty" id="queue-empty-message">Queue is empty. Add articles to listen later.</p>
+        </div>
+        <div class="voxpage-popup__queue-controls" id="queue-controls" hidden>
+          <button
+            id="play-queue-btn"
+            class="voxpage-button voxpage-button--primary voxpage-popup__queue-play-btn"
+            title="Play queue from start"
+            aria-label="Play queue"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5V19L19 12L8 5Z"></path>
+            </svg>
+            Play Queue
+          </button>
+          <button
+            id="clear-queue-btn"
+            class="voxpage-button voxpage-button--ghost voxpage-button--small"
+            title="Clear completed items"
+            aria-label="Clear completed items"
+          >
+            Clear Completed
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="voxpage-popup__footer">
       <a href="#" id="help-link" class="voxpage-popup__footer-link">Help</a>

@@ -26,7 +26,7 @@ export {
 } from './schema';
 
 // Export defaults
-export { defaults, defaultVoices, constraints, footerStateDefaults } from './defaults';
+export { defaults, defaultVoices, constraints, footerStateDefaults, queueDefaults } from './defaults';
 
 // Export store
 export { SettingsStore, settingsStore } from './store';

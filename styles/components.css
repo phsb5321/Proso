@@ -699,3 +699,36 @@
   font-size: var(--font-size-xs);
   min-height: 32px;
 }
+
+/* ========================================
+   QUEUE STATUS (T079)
+   Status indicator for queue operations
+   ======================================== */
+
+.queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.queue-status {
+  font-size: var(--font-size-sm);
+  transition: opacity 0.2s ease;
+}
+
+.queue-status:empty {
+  display: none;
+}
+
+.queue-status--success {
+  color: var(--color-success);
+}
+
+.queue-status--error {
+  color: var(--color-error);
+}
+
+.queue-status--loading {
+  color: var(--color-warning);
+}

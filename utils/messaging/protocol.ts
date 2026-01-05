@@ -26,6 +26,26 @@ export type ProviderId = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'browse
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
+ * Export job status type (023-feature-roadmap)
+ */
+export type ExportJobStatus = 'pending' | 'generating' | 'encoding' | 'complete' | 'error';
+
+/**
+ * Export quality type (bitrate in kbps)
+ */
+export type ExportQualityType = '128' | '192' | '256';
+
+/**
+ * Queue item status type
+ */
+export type QueueItemStatus = 'pending' | 'reading' | 'completed' | 'archived';
+
+/**
+ * AI provider type
+ */
+export type AIProviderType = 'openai' | 'anthropic';
+
+/**
  * Footer action type
  */
 export type FooterAction = 'play' | 'pause' | 'stop' | 'next' | 'prev' | 'seek' | 'speed' | 'close' | 'minimize' | 'expand';
@@ -466,6 +486,357 @@ export interface VoxPageProtocol {
       lastFlushAttempt: number;
       consecutiveFailures: number;
       circuitBreakerOpen: boolean;
+    };
+  };
+
+  // ========== MP3 Export Messages (023-feature-roadmap) ==========
+  'export.start': {
+    request: {
+      jobId: string;
+      paragraphs: Array<{ index: number; text: string }>;
+      provider: ProviderId;
+      voice?: string;
+      speed: number;
+      quality: ExportQualityType;
+    };
+    response: {
+      success: boolean;
+      jobId: string;
+      error?: string;
+    };
+  };
+
+  'export.cancel': {
+    request: {
+      jobId: string;
+    };
+    response: {
+      success: boolean;
+      wasCancelled: boolean;
+    };
+  };
+
+  'export.getProgress': {
+    request: {
+      jobId: string;
+    };
+    response: {
+      status: ExportJobStatus;
+      currentParagraph: number;
+      totalParagraphs: number;
+      percentComplete: number;
+      error?: string;
+    };
+  };
+
+  'export.download': {
+    request: {
+      jobId: string;
+      filename?: string;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  // ========== AI Summarization Messages (023-feature-roadmap) ==========
+  'summarize.article': {
+    request: {
+      text: string;
+      title?: string;
+      url?: string;
+      provider: AIProviderType;
+      bulletCount: number;
+      outputLanguage: string;
+    };
+    response: {
+      success: boolean;
+      bullets: Array<{
+        text: string;
+        sourceOffset?: number;
+        confidence?: number;
+      }>;
+      provider: AIProviderType;
+      model: string;
+      tokensUsed?: {
+        input: number;
+        output: number;
+      };
+      processingTimeMs: number;
+      error?: string;
+    };
+  };
+
+  'summarize.readSummary': {
+    request: {
+      bullets: Array<{ text: string }>;
+      provider: ProviderId;
+      voice?: string;
+      speed?: number;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  'summarize.getProviderStatus': {
+    request: {
+      provider: AIProviderType;
+    };
+    response: {
+      available: boolean;
+      hasApiKey: boolean;
+      model?: string;
+      error?: string;
+    };
+  };
+
+  // ========== OCR Messages (023-feature-roadmap) ==========
+  'ocr.captureAndRead': {
+    request: {
+      tabId?: number;
+      region?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
+      languages: string[];
+    };
+    response: {
+      success: boolean;
+      text: string;
+      confidence: number;
+      lines: Array<{
+        text: string;
+        words: Array<{
+          text: string;
+          confidence: number;
+          bbox: { x0: number; y0: number; x1: number; y1: number };
+        }>;
+      }>;
+      processingTimeMs: number;
+      detectedLanguage?: string;
+      error?: string;
+    };
+  };
+
+  'ocr.processImage': {
+    request: {
+      imageData: string;
+      format: 'png' | 'jpeg' | 'webp';
+      languages: string[];
+    };
+    response: {
+      success: boolean;
+      text: string;
+      confidence: number;
+      lines: Array<{
+        text: string;
+        words: Array<{
+          text: string;
+          confidence: number;
+          bbox: { x0: number; y0: number; x1: number; y1: number };
+        }>;
+      }>;
+      processingTimeMs: number;
+      error?: string;
+    };
+  };
+
+  'ocr.readExtractedText': {
+    request: {
+      text: string;
+      provider: ProviderId;
+      voice?: string;
+      speed?: number;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  'ocr.selectRegion': {
+    request: {
+      tabId: number;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  // ========== Reading Queue Messages (023-feature-roadmap) ==========
+  'queue.add': {
+    request: {
+      url: string;
+      title: string;
+      excerpt?: string;
+      author?: string;
+      faviconUrl?: string;
+      language?: string;
+      estimatedReadTime?: number;
+    };
+    response: {
+      success: boolean;
+      id: string;
+      position: number;
+      error?: string;
+    };
+  };
+
+  'queue.remove': {
+    request: {
+      id: string;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  'queue.reorder': {
+    request: {
+      id: string;
+      newPosition: number;
+    };
+    response: {
+      success: boolean;
+      items: Array<{ id: string; position: number }>;
+      error?: string;
+    };
+  };
+
+  'queue.updateStatus': {
+    request: {
+      id: string;
+      status: QueueItemStatus;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  'queue.updateProgress': {
+    request: {
+      id: string;
+      progress: number;
+      lastParagraphIndex?: number;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  'queue.clear': {
+    request: {
+      filter?: 'all' | 'completed' | 'archived';
+    };
+    response: {
+      success: boolean;
+      removedCount: number;
+      error?: string;
+    };
+  };
+
+  'queue.getState': {
+    request: void;
+    response: {
+      metadata: {
+        version: number;
+        count: number;
+        lastModified: number;
+        totalSize: number;
+      };
+      items: Array<{
+        id: string;
+        url: string;
+        title: string;
+        domain: string;
+        excerpt?: string;
+        author?: string;
+        faviconUrl?: string;
+        language?: string;
+        estimatedReadTime?: number;
+        addedAt: number;
+        position: number;
+        status: QueueItemStatus;
+        progress: number;
+        lastParagraphIndex?: number;
+      }>;
+    };
+  };
+
+  'queue.getItem': {
+    request: {
+      id: string;
+    };
+    response: {
+      success: boolean;
+      item?: {
+        id: string;
+        url: string;
+        title: string;
+        domain: string;
+        excerpt?: string;
+        author?: string;
+        faviconUrl?: string;
+        language?: string;
+        estimatedReadTime?: number;
+        addedAt: number;
+        position: number;
+        status: QueueItemStatus;
+        progress: number;
+        lastParagraphIndex?: number;
+      };
+      error?: string;
+    };
+  };
+
+  'queue.play': {
+    request: {
+      startFromId?: string;
+    };
+    response: {
+      success: boolean;
+      currentItem?: {
+        id: string;
+        url: string;
+        title: string;
+      };
+      error?: string;
+    };
+  };
+
+  'queue.playNext': {
+    request: void;
+    response: {
+      success: boolean;
+      currentItem?: {
+        id: string;
+        url: string;
+        title: string;
+      };
+      hasMore: boolean;
+      error?: string;
+    };
+  };
+
+  'queue.playPrevious': {
+    request: void;
+    response: {
+      success: boolean;
+      currentItem?: {
+        id: string;
+        url: string;
+        title: string;
+      };
+      error?: string;
     };
   };
 }

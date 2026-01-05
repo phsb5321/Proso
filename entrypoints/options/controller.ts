@@ -7,13 +7,15 @@ import {
   settingsDefaults,
   loggingDefaults,
   uiDefaults,
+  queueDefaults,
   type VoxPageSettings,
   type ApiKeys,
   type UISettings,
   type LoggingConfig,
   type LogEntry,
   type LogViewerResponse,
-  type EndpointValidation
+  type EndpointValidation,
+  type QueueSettings
 } from '../utils/config';
 
 /**
@@ -22,6 +24,7 @@ import {
 interface OptionsElements {
   // API Key inputs
   openaiKey: HTMLInputElement;
+  anthropicKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
   testElevenlabsKey: HTMLButtonElement;
   elevenlabsKeyStatus: HTMLElement;
@@ -65,11 +68,20 @@ interface OptionsElements {
   logViewerStatus: HTMLElement;
   logViewerContainer: HTMLElement;
   logViewerContent: HTMLElement;
+
+  // Queue settings elements (T079)
+  queueAutoPlayNext: HTMLInputElement;
+  queueMaxItems: HTMLSelectElement;
+  queueSaveProgress: HTMLInputElement;
+  clearCompletedQueue: HTMLButtonElement;
+  clearAllQueue: HTMLButtonElement;
+  queueStatus: HTMLElement;
 }
 
 let elements: OptionsElements | null = null;
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let loggingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+let queueSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Get DOM elements with type safety
@@ -85,6 +97,7 @@ function getElements(): OptionsElements {
 
   return {
     openaiKey: getElement<HTMLInputElement>('openaiKey'),
+    anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     testElevenlabsKey: getElement<HTMLButtonElement>('testElevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
@@ -120,6 +133,14 @@ function getElements(): OptionsElements {
     logViewerStatus: getElement<HTMLElement>('logViewerStatus'),
     logViewerContainer: getElement<HTMLElement>('logViewerContainer'),
     logViewerContent: getElement<HTMLElement>('logViewerContent'),
+
+    // Queue settings elements (T079)
+    queueAutoPlayNext: getElement<HTMLInputElement>('queueAutoPlayNext'),
+    queueMaxItems: getElement<HTMLSelectElement>('queueMaxItems'),
+    queueSaveProgress: getElement<HTMLInputElement>('queueSaveProgress'),
+    clearCompletedQueue: getElement<HTMLButtonElement>('clearCompletedQueue'),
+    clearAllQueue: getElement<HTMLButtonElement>('clearAllQueue'),
+    queueStatus: getElement<HTMLElement>('queueStatus'),
   };
 }
 
@@ -131,9 +152,11 @@ export async function initOptionsPage(): Promise<void> {
 
   await loadSettings();
   await loadLoggingConfig();
+  await loadQueueConfig();
 
   setupEventListeners();
   setupLoggingEventListeners();
+  setupQueueEventListeners();
   setupAccordions();
 }
 
@@ -185,6 +208,7 @@ async function loadSettings(): Promise<void> {
     // Load all settings from storage
     const result = await browser.storage.local.get([
       'openaiApiKey',
+      'anthropic:apiKey',
       'elevenlabsApiKey',
       'cartesiaApiKey',
       'groqApiKey',
@@ -197,6 +221,7 @@ async function loadSettings(): Promise<void> {
 
     // API keys (no defaults, empty if not set)
     elements.openaiKey.value = (result.openaiApiKey as string | undefined) || '';
+    elements.anthropicKey.value = (result['anthropic:apiKey'] as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
     elements.cartesiaKey.value = (result.cartesiaApiKey as string | undefined) || '';
     elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
@@ -257,6 +282,7 @@ function setupEventListeners(): void {
   // Auto-save on input change (with debounce)
   const autoSaveInputs: HTMLElement[] = [
     elements.openaiKey,
+    elements.anthropicKey,
     elements.elevenlabsKey,
     elements.cartesiaKey,
     elements.groqKey,
@@ -340,6 +366,7 @@ async function saveSettings(): Promise<void> {
   try {
     await browser.storage.local.set({
       openaiApiKey: elements.openaiKey.value.trim(),
+      'anthropic:apiKey': elements.anthropicKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
       cartesiaApiKey: elements.cartesiaKey.value.trim(),
       groqApiKey: elements.groqKey.value.trim(),
@@ -763,4 +790,152 @@ function updateLogViewerStatus(message: string): void {
   if (!elements) return;
 
   elements.logViewerStatus.textContent = message;
+}
+
+// ========================================
+// QUEUE SETTINGS (T079)
+// ========================================
+
+/**
+ * Load queue configuration from storage
+ */
+async function loadQueueConfig(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const result = await browser.storage.local.get('queue:settings');
+    const config: QueueSettings = { ...queueDefaults, ...(result['queue:settings'] as Partial<QueueSettings> || {}) };
+
+    elements.queueAutoPlayNext.checked = config.autoPlayNext;
+    elements.queueMaxItems.value = String(config.maxQueueSize);
+    // Note: saveProgress is derived from autoPlayNext for now
+    elements.queueSaveProgress.checked = config.autoPlayNext;
+  } catch (error) {
+    console.error('Error loading queue config:', error);
+  }
+}
+
+/**
+ * Setup queue-specific event listeners
+ */
+function setupQueueEventListeners(): void {
+  if (!elements) return;
+
+  // Clear completed button
+  elements.clearCompletedQueue.addEventListener('click', clearCompletedQueue);
+
+  // Clear all button
+  elements.clearAllQueue.addEventListener('click', clearAllQueue);
+
+  // Auto-save queue config on change
+  const queueInputs: HTMLElement[] = [
+    elements.queueAutoPlayNext,
+    elements.queueMaxItems,
+    elements.queueSaveProgress,
+  ];
+
+  queueInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      if (queueSaveTimeout) {
+        clearTimeout(queueSaveTimeout);
+      }
+      queueSaveTimeout = setTimeout(saveQueueConfig, 500);
+    });
+  });
+}
+
+/**
+ * Save queue configuration to storage
+ */
+async function saveQueueConfig(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const config: QueueSettings = {
+      autoPlayNext: elements.queueAutoPlayNext.checked,
+      autoArchiveCompleted: queueDefaults.autoArchiveCompleted,
+      archiveAfterDays: queueDefaults.archiveAfterDays,
+      maxQueueSize: parseInt(elements.queueMaxItems.value, 10),
+    };
+
+    await browser.storage.local.set({ 'queue:settings': config });
+    showSaveStatus('Settings saved!');
+  } catch (error) {
+    console.error('Error saving queue config:', error);
+    showSaveStatus('Error saving settings', true);
+  }
+}
+
+/**
+ * Clear completed queue items
+ */
+async function clearCompletedQueue(): Promise<void> {
+  if (!elements) return;
+
+  showQueueStatus('Clearing completed...', 'loading');
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'queue.clear',
+      filter: 'completed',
+    });
+
+    if (response && response.success) {
+      showQueueStatus(`Cleared ${response.removedCount || 0} items`, 'success');
+    } else {
+      showQueueStatus(response?.error || 'Failed to clear', 'error');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    showQueueStatus(`Error: ${errorMessage}`, 'error');
+  }
+}
+
+/**
+ * Clear all queue items
+ */
+async function clearAllQueue(): Promise<void> {
+  if (!elements) return;
+
+  if (!confirm('Are you sure you want to clear all items from the reading queue? This cannot be undone.')) {
+    return;
+  }
+
+  showQueueStatus('Clearing all...', 'loading');
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'queue.clear',
+      filter: 'all',
+    });
+
+    if (response && response.success) {
+      showQueueStatus(`Cleared ${response.removedCount || 0} items`, 'success');
+    } else {
+      showQueueStatus(response?.error || 'Failed to clear', 'error');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    showQueueStatus(`Error: ${errorMessage}`, 'error');
+  }
+}
+
+/**
+ * Show queue status message
+ */
+function showQueueStatus(message: string, type: 'success' | 'error' | 'loading'): void {
+  if (!elements) return;
+
+  elements.queueStatus.textContent = message;
+  elements.queueStatus.className = `queue-status queue-status--${type}`;
+
+  // Auto-hide success/error messages
+  if (type !== 'loading') {
+    setTimeout(() => {
+      if (elements) {
+        elements.queueStatus.textContent = '';
+        elements.queueStatus.className = 'queue-status';
+      }
+    }, 3000);
+  }
 }

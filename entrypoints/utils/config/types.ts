@@ -59,3 +59,10 @@ export interface EndpointValidation {
   valid: boolean;
   error?: string;
 }
+
+export interface QueueSettings {
+  autoPlayNext: boolean;
+  autoArchiveCompleted: boolean;
+  archiveAfterDays: number;
+  maxQueueSize: number;
+}

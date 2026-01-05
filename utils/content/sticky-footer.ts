@@ -81,6 +81,7 @@ export const iconNameSchema = z.enum([
   'minimize-2',
   'maximize-2',
   'x',
+  'queue', // T077: Add to queue icon
 ]);
 
 /**
@@ -95,6 +96,7 @@ export const footerActionSchema = z.enum([
   'speed',
   'stop',
   'close',
+  'addToQueue', // T077: Add to queue action
 ]);
 
 /**
@@ -249,6 +251,45 @@ function createSvgIcon(name: IconName): SVGElement {
       l2.setAttribute('y2', '18');
       svg.appendChild(l1);
       svg.appendChild(l2);
+    },
+    queue: () => {
+      // List icon with plus for "add to queue"
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '8');
+      l1.setAttribute('y1', '6');
+      l1.setAttribute('x2', '21');
+      l1.setAttribute('y2', '6');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '8');
+      l2.setAttribute('y1', '12');
+      l2.setAttribute('x2', '21');
+      l2.setAttribute('y2', '12');
+      const l3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l3.setAttribute('x1', '8');
+      l3.setAttribute('y1', '18');
+      l3.setAttribute('x2', '21');
+      l3.setAttribute('y2', '18');
+      const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d1.setAttribute('x1', '3');
+      d1.setAttribute('y1', '6');
+      d1.setAttribute('x2', '3.01');
+      d1.setAttribute('y2', '6');
+      const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d2.setAttribute('x1', '3');
+      d2.setAttribute('y1', '12');
+      d2.setAttribute('x2', '3.01');
+      d2.setAttribute('y2', '12');
+      const d3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d3.setAttribute('x1', '3');
+      d3.setAttribute('y1', '18');
+      d3.setAttribute('x2', '3.01');
+      d3.setAttribute('y2', '18');
+      svg.appendChild(l1);
+      svg.appendChild(l2);
+      svg.appendChild(l3);
+      svg.appendChild(d1);
+      svg.appendChild(d2);
+      svg.appendChild(d3);
     },
   };
 
@@ -641,6 +682,15 @@ export class StickyFooter {
     const actions = document.createElement('div');
     actions.className = 'actions';
 
+    // T077: Add to Queue button
+    const queueBtn = createButton({
+      className: 'btn btn-sm btn-queue',
+      ariaLabel: 'Add to reading queue',
+      action: 'addToQueue',
+      icon: 'queue',
+    });
+    actions.appendChild(queueBtn);
+
     const minimizeBtn = createButton({
       className: 'btn btn-sm btn-minimize',
       ariaLabel: this.isMinimized ? 'Expand player' : 'Minimize player',
@@ -1026,6 +1076,11 @@ export class StickyFooter {
         break;
       case 'close':
         this._sendMessage('FOOTER_ACTION', { action: 'close' });
+        break;
+      case 'addToQueue':
+        // T077: Send add to queue action to background
+        this._sendMessage('FOOTER_ACTION', { action: 'addToQueue' });
+        this._announce('Added to queue');
         break;
     }
   }

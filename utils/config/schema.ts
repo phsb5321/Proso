@@ -107,3 +107,93 @@ export type LanguagePreference = z.infer<typeof languagePreferenceSchema>;
 export type Mode = typeof MODES[number];
 export type Provider = typeof PROVIDERS[number];
 export type DetectionSource = typeof DETECTION_SOURCES[number];
+
+// ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
+
+/**
+ * Valid AI summarization providers
+ */
+export const AI_PROVIDERS = ['openai', 'anthropic'] as const;
+export type AIProvider = typeof AI_PROVIDERS[number];
+
+/**
+ * Valid queue item statuses
+ */
+export const QUEUE_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
+export type QueueStatus = typeof QUEUE_STATUSES[number];
+
+/**
+ * Valid export job statuses
+ */
+export const EXPORT_STATUSES = ['pending', 'generating', 'encoding', 'complete', 'error'] as const;
+export type ExportStatus = typeof EXPORT_STATUSES[number];
+
+/**
+ * Valid export quality levels (bitrate in kbps)
+ */
+export const EXPORT_QUALITIES = ['128', '192', '256'] as const;
+export type ExportQuality = typeof EXPORT_QUALITIES[number];
+
+/**
+ * Queue settings schema
+ */
+export const queueSettingsSchema = z.object({
+  autoPlayNext: z.boolean().default(true),
+  autoArchiveCompleted: z.boolean().default(false),
+  archiveAfterDays: z.number().int().min(1).max(365).default(30),
+  maxQueueSize: z.number().int().min(10).max(500).default(300),
+});
+
+/**
+ * Export settings schema
+ */
+export const exportSettingsSchema = z.object({
+  defaultQuality: z.enum(EXPORT_QUALITIES).default('192'),
+  includeMetadata: z.boolean().default(true),
+});
+
+/**
+ * OCR settings schema
+ */
+export const ocrSettingsSchema = z.object({
+  defaultLanguages: z.array(z.string()).default(['eng']),
+  autoDetect: z.boolean().default(true),
+  showConfidence: z.boolean().default(false),
+});
+
+/**
+ * AI summarization settings schema
+ */
+export const aiSettingsSchema = z.object({
+  defaultProvider: z.enum(AI_PROVIDERS).default('openai'),
+  defaultBulletCount: z.number().int().min(3).max(7).default(5),
+  cacheEnabled: z.boolean().default(true),
+  cacheTTLMs: z.number().int().default(86400000), // 24 hours
+});
+
+/**
+ * Storage keys for roadmap features
+ */
+export const ROADMAP_STORAGE_KEYS = {
+  // Queue
+  QUEUE_METADATA: 'queue:metadata',
+  QUEUE_ITEMS: 'queue:items',
+  QUEUE_SETTINGS: 'queue:settings',
+
+  // Export
+  EXPORT_HISTORY: 'export:history',
+  EXPORT_SETTINGS: 'export:settings',
+
+  // AI Summarization
+  SUMMARY_CACHE: 'summary:cache',
+  AI_SETTINGS: 'ai:settings',
+
+  // OCR
+  OCR_LANGUAGE_PACKS: 'ocr:languagePacks',
+  OCR_SETTINGS: 'ocr:settings',
+} as const;
+
+export type QueueSettings = z.infer<typeof queueSettingsSchema>;
+export type ExportSettings = z.infer<typeof exportSettingsSchema>;
+export type OCRSettings = z.infer<typeof ocrSettingsSchema>;
+export type AISettings = z.infer<typeof aiSettingsSchema>;

@@ -15,6 +15,222 @@ import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import { StickyFooter, type StorageState, type PlaybackState, type PlaybackStatus } from '../utils/content/sticky-footer';
 
 // ============================================================================
+// OCR Region Selection
+// ============================================================================
+
+/**
+ * Region coordinates for OCR processing
+ */
+interface RegionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * RegionSelector class for OCR region selection overlay
+ * Allows users to click and drag to select a screen region
+ */
+class RegionSelector {
+  private overlay: HTMLDivElement | null = null;
+  private selection: HTMLDivElement | null = null;
+  private isSelecting = false;
+  private startX = 0;
+  private startY = 0;
+  private onComplete: ((region: RegionRect | null) => void) | null = null;
+
+  /**
+   * Show the region selection overlay
+   * @param callback Called when selection is complete or cancelled
+   */
+  show(callback: (region: RegionRect | null) => void): void {
+    this.onComplete = callback;
+    this.createOverlay();
+  }
+
+  /**
+   * Hide and remove the overlay
+   */
+  hide(): void {
+    if (this.overlay && this.overlay.parentNode) {
+      this.overlay.parentNode.removeChild(this.overlay);
+    }
+    this.overlay = null;
+    this.selection = null;
+    this.isSelecting = false;
+  }
+
+  /**
+   * Create the overlay elements
+   */
+  private createOverlay(): void {
+    // Remove existing overlay if any
+    this.hide();
+
+    // Create overlay container
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'voxpage-region-overlay';
+    this.overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.3);
+      cursor: crosshair;
+      z-index: 2147483647;
+      user-select: none;
+    `;
+
+    // Create instruction text
+    const instructions = document.createElement('div');
+    instructions.style.cssText = `
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      pointer-events: none;
+    `;
+    instructions.textContent = 'Click and drag to select region. Press Escape to cancel.';
+    this.overlay.appendChild(instructions);
+
+    // Create selection box (hidden initially)
+    this.selection = document.createElement('div');
+    this.selection.id = 'voxpage-region-selection';
+    this.selection.style.cssText = `
+      position: absolute;
+      border: 2px solid #0D9488;
+      background: rgba(13, 148, 136, 0.2);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+      display: none;
+      pointer-events: none;
+    `;
+    this.overlay.appendChild(this.selection);
+
+    // Event handlers
+    this.overlay.addEventListener('mousedown', this.handleMouseDown);
+    this.overlay.addEventListener('mousemove', this.handleMouseMove);
+    this.overlay.addEventListener('mouseup', this.handleMouseUp);
+    document.addEventListener('keydown', this.handleKeyDown);
+
+    // Add to DOM
+    document.body.appendChild(this.overlay);
+  }
+
+  /**
+   * Handle mouse down - start selection
+   */
+  private handleMouseDown = (e: MouseEvent): void => {
+    if (e.button !== 0) return; // Left click only
+
+    this.isSelecting = true;
+    this.startX = e.clientX;
+    this.startY = e.clientY;
+
+    if (this.selection) {
+      this.selection.style.left = `${e.clientX}px`;
+      this.selection.style.top = `${e.clientY}px`;
+      this.selection.style.width = '0';
+      this.selection.style.height = '0';
+      this.selection.style.display = 'block';
+    }
+  };
+
+  /**
+   * Handle mouse move - update selection box
+   */
+  private handleMouseMove = (e: MouseEvent): void => {
+    if (!this.isSelecting || !this.selection) return;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const left = Math.min(this.startX, currentX);
+    const top = Math.min(this.startY, currentY);
+    const width = Math.abs(currentX - this.startX);
+    const height = Math.abs(currentY - this.startY);
+
+    this.selection.style.left = `${left}px`;
+    this.selection.style.top = `${top}px`;
+    this.selection.style.width = `${width}px`;
+    this.selection.style.height = `${height}px`;
+  };
+
+  /**
+   * Handle mouse up - complete selection
+   */
+  private handleMouseUp = (e: MouseEvent): void => {
+    if (!this.isSelecting) return;
+    this.isSelecting = false;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    const left = Math.min(this.startX, currentX);
+    const top = Math.min(this.startY, currentY);
+    const width = Math.abs(currentX - this.startX);
+    const height = Math.abs(currentY - this.startY);
+
+    // Remove event listeners
+    document.removeEventListener('keydown', this.handleKeyDown);
+
+    // Complete selection if region is meaningful (at least 10x10 pixels)
+    if (width >= 10 && height >= 10) {
+      const region: RegionRect = {
+        x: Math.round(left * window.devicePixelRatio),
+        y: Math.round(top * window.devicePixelRatio),
+        width: Math.round(width * window.devicePixelRatio),
+        height: Math.round(height * window.devicePixelRatio),
+      };
+
+      this.hide();
+      if (this.onComplete) {
+        this.onComplete(region);
+      }
+    } else {
+      // Selection too small, treat as cancelled
+      this.hide();
+      if (this.onComplete) {
+        this.onComplete(null);
+      }
+    }
+  };
+
+  /**
+   * Handle escape key - cancel selection
+   */
+  private handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      document.removeEventListener('keydown', this.handleKeyDown);
+      this.hide();
+      if (this.onComplete) {
+        this.onComplete(null);
+      }
+    }
+  };
+}
+
+// Singleton instance
+let regionSelector: RegionSelector | null = null;
+
+/**
+ * Get or create region selector instance
+ */
+function getRegionSelector(): RegionSelector {
+  if (!regionSelector) {
+    regionSelector = new RegionSelector();
+  }
+  return regionSelector;
+}
+
+// ============================================================================
 // CSS Injection
 // ============================================================================
 
@@ -416,15 +632,17 @@ export default defineContentScript({
 
     console.log('VoxPage: Setting up message listener');
 
-    browser.runtime.onMessage.addListener((message: LegacyMessage) => {
-      console.log('VoxPage: Received message:', message.action);
+    browser.runtime.onMessage.addListener((message: LegacyMessage & { type?: string }) => {
+      // Support both 'action' (legacy) and 'type' (new protocol) fields
+      const messageKey = message.action || message.type;
+      console.log('VoxPage: Received message:', messageKey);
 
       if (!highlightManager || !stickyFooter) {
         console.warn('VoxPage: Modules not initialized, ignoring message');
         return;
       }
 
-      switch (message.action) {
+      switch (messageKey) {
         // ====================================================================
         // Content Extraction
         // ====================================================================
@@ -624,6 +842,60 @@ export default defineContentScript({
         case 'extractLanguage': {
           sendLanguageDetectionRequest();
           break;
+        }
+
+        // ====================================================================
+        // OCR Region Selection
+        // ====================================================================
+        case 'ocr.enableRegionSelection': {
+          console.log('VoxPage: Enabling OCR region selection');
+          const selector = getRegionSelector();
+          selector.show(async (region) => {
+            if (region) {
+              console.log('VoxPage: Region selected:', region);
+              // Send region to background for capture and OCR
+              try {
+                const response = await browser.runtime.sendMessage({
+                  type: 'ocr.captureAndRead',
+                  request: {
+                    tabId: 0, // Will be set by background
+                    region: region,
+                    languages: ['eng'],
+                  },
+                });
+                console.log('VoxPage: OCR response:', response);
+                // Send result back to popup
+                if (response) {
+                  browser.runtime.sendMessage({
+                    action: 'ocr.regionResult',
+                    ...response,
+                  }).catch(() => {
+                    // Popup may be closed
+                  });
+                }
+              } catch (err) {
+                console.error('VoxPage: OCR capture failed:', err);
+              }
+            } else {
+              console.log('VoxPage: Region selection cancelled');
+              // Notify popup that selection was cancelled
+              browser.runtime.sendMessage({
+                action: 'ocr.regionResult',
+                success: false,
+                error: 'Selection cancelled',
+              }).catch(() => {
+                // Popup may be closed
+              });
+            }
+          });
+          return Promise.resolve({ success: true });
+        }
+
+        case 'ocr.cancelRegionSelection': {
+          console.log('VoxPage: Cancelling OCR region selection');
+          const selector = getRegionSelector();
+          selector.hide();
+          return Promise.resolve({ success: true });
         }
 
         // ====================================================================

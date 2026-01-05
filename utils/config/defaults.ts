@@ -60,3 +60,60 @@ export const footerStateDefaults: Readonly<FooterState> = Object.freeze({
     yOffset: 0,
   }),
 });
+
+// ========== Roadmap Feature Defaults (023-feature-roadmap) ==========
+
+import type {
+  QueueSettings,
+  ExportSettings,
+  OCRSettings,
+  AISettings,
+  AIProvider,
+  ExportQuality,
+} from './schema';
+
+/**
+ * Queue settings defaults
+ */
+export const queueDefaults: Readonly<QueueSettings> = Object.freeze({
+  autoPlayNext: true,
+  autoArchiveCompleted: false,
+  archiveAfterDays: 30,
+  maxQueueSize: 300,
+});
+
+/**
+ * Export settings defaults
+ */
+export const exportDefaults: Readonly<ExportSettings> = Object.freeze({
+  defaultQuality: '192' as ExportQuality,
+  includeMetadata: true,
+});
+
+/**
+ * OCR settings defaults
+ */
+export const ocrDefaults: Readonly<OCRSettings> = Object.freeze({
+  defaultLanguages: ['eng'],
+  autoDetect: true,
+  showConfidence: false,
+});
+
+/**
+ * AI summarization settings defaults
+ */
+export const aiDefaults: Readonly<AISettings> = Object.freeze({
+  defaultProvider: 'openai' as AIProvider,
+  defaultBulletCount: 5,
+  cacheEnabled: true,
+  cacheTTLMs: 86400000, // 24 hours
+});
+
+/**
+ * Extended speed constraints (023-feature-roadmap)
+ * Updated from 2.0x max to 4.0x max for extended speed support
+ */
+export const extendedSpeedConstraints = Object.freeze({
+  min: 0.5,
+  max: 4.0,
+});

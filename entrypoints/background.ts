@@ -6,6 +6,13 @@
 import { browser } from 'wxt/browser';
 import { ElevenLabsProvider, loadElevenLabsApiKey } from '../src/background/providers/elevenlabs';
 
+// Roadmap feature handlers (023-feature-roadmap)
+import { exportHandlers } from '../utils/messaging/handlers/export';
+import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
+import { ocrHandlers } from '../utils/messaging/handlers/ocr';
+import { queueHandlers } from '../utils/messaging/handlers/queue';
+import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
+
 // ============================================
 // State Management
 // ============================================
@@ -636,6 +643,23 @@ const messageHandlers: Record<string, MessageHandler> = {
           notifyPopup();
         }
         break;
+      case 'addToQueue':
+        // T077: Add current page to queue from footer
+        if (activeTabId) {
+          try {
+            const tab = await browser.tabs.get(activeTabId);
+            if (tab.url && tab.title) {
+              return await queueHandlers['queue.add']({
+                url: tab.url,
+                title: tab.title,
+              });
+            }
+          } catch (err) {
+            console.error('[Background] Failed to add to queue:', err);
+            return { success: false, error: 'Failed to add to queue' };
+          }
+        }
+        return { success: false, error: 'No active tab' };
     }
     return { success: true };
   },
@@ -723,6 +747,36 @@ const messageHandlers: Record<string, MessageHandler> = {
     notifyPopup();
     return { success: true };
   },
+
+  // ========== Roadmap Feature Handlers (023-feature-roadmap) ==========
+  // Export handlers
+  ...Object.fromEntries(
+    Object.entries(exportHandlers).map(([key, handler]) => [
+      key,
+      async (data: Record<string, unknown>) => handler(data as never),
+    ])
+  ),
+  // Summarize handlers
+  ...Object.fromEntries(
+    Object.entries(summarizeHandlers).map(([key, handler]) => [
+      key,
+      async (data: Record<string, unknown>) => handler(data as never),
+    ])
+  ),
+  // OCR handlers
+  ...Object.fromEntries(
+    Object.entries(ocrHandlers).map(([key, handler]) => [
+      key,
+      async (data: Record<string, unknown>) => handler(data as never),
+    ])
+  ),
+  // Queue handlers
+  ...Object.fromEntries(
+    Object.entries(queueHandlers).map(([key, handler]) => [
+      key,
+      async (data: Record<string, unknown>) => handler(data as never),
+    ])
+  ),
 };
 
 // ============================================
@@ -812,4 +866,31 @@ export default defineBackground(() => {
     });
 
   console.log('VoxPage: Message handlers registered');
+
+  // Cross-tab sync for reading queue (T075)
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+
+    // Check if queue data changed
+    if (changes[QUEUE_STORAGE_KEYS.ITEMS] || changes[QUEUE_STORAGE_KEYS.METADATA]) {
+      console.log('[Background] Queue storage changed, broadcasting to tabs');
+
+      // Broadcast to all tabs
+      browser.tabs.query({}).then((tabs) => {
+        const queueUpdate = {
+          type: 'queue.updated',
+          items: changes[QUEUE_STORAGE_KEYS.ITEMS]?.newValue,
+          metadata: changes[QUEUE_STORAGE_KEYS.METADATA]?.newValue,
+        };
+
+        for (const tab of tabs) {
+          if (tab.id) {
+            browser.tabs.sendMessage(tab.id, queueUpdate).catch(() => {
+              // Ignore tabs that can't receive messages
+            });
+          }
+        }
+      });
+    }
+  });
 });
