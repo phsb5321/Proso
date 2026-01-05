@@ -34,8 +34,7 @@
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_title": "VoxPage - AI Page Reader",
-    "default_popup": "popup/popup.html"
+    "default_title": "VoxPage - AI Page Reader"
   },
 
   "background": {

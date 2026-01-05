@@ -14,11 +14,11 @@ const EXTENSION_PATH = path.resolve(__dirname, '..', '..', '..');
 
 /**
  * Get the popup URL for the extension
- * Note: For visual testing, we load popup.html directly as a file
- * since moz-extension:// URLs require actual extension installation
+ * @deprecated Popup was removed in 021-comprehensive-overhaul. Use getOptionsUrl() instead.
  */
 export function getPopupUrl() {
-  return `file://${path.join(EXTENSION_PATH, 'popup', 'popup.html')}`;
+  // Popup removed - redirect to options page
+  return getOptionsUrl();
 }
 
 /**
@@ -33,8 +33,8 @@ export function getOptionsUrl() {
  * Ensures design tokens are loaded for visual consistency
  */
 export async function setupPageWithTokens(page) {
-  // Navigate to popup
-  await page.goto(getPopupUrl());
+  // Navigate to options page (popup removed in 021-comprehensive-overhaul)
+  await page.goto(getOptionsUrl());
 
   // Wait for CSS to load
   await page.waitForLoadState('domcontentloaded');
@@ -120,11 +120,17 @@ export async function setColorScheme(page, scheme) {
 }
 
 /**
- * Viewport configuration for popup
+ * Viewport configuration for options page
+ * @deprecated Was POPUP_VIEWPORT, renamed in 021-comprehensive-overhaul
  */
 export const POPUP_VIEWPORT = {
-  width: 360,
-  height: 480
+  width: 800,
+  height: 600
+};
+
+export const OPTIONS_VIEWPORT = {
+  width: 800,
+  height: 600
 };
 
 export default {
@@ -133,5 +139,6 @@ export default {
   setupPageWithTokens,
   setUiState,
   setColorScheme,
-  POPUP_VIEWPORT
+  POPUP_VIEWPORT,
+  OPTIONS_VIEWPORT
 };

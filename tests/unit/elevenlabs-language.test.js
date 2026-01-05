@@ -5,7 +5,7 @@
  * @feature 020-code-quality-fix
  */
 
-import { getProviderLanguageCode, getLanguageMapping, LANGUAGE_MAPPINGS } from '../../background/language-mappings.js';
+import { getProviderLanguageCode, getLanguageMapping, LANGUAGE_MAPPINGS } from '../../src/utils/language/mappings';
 
 describe('ElevenLabs Language Code Mapping', () => {
   describe('getProviderLanguageCode for ElevenLabs', () => {

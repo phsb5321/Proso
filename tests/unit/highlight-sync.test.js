@@ -4,7 +4,7 @@
  * Feature: 011-highlight-playback-fix
  */
 
-import { PlaybackSyncState } from '../../background/playback-sync.js';
+import { PlaybackSyncState } from '../../src/utils/audio/playback-sync';
 
 describe('Highlight Sync - Drift Detection (T009)', () => {
   let syncState;
@@ -140,5 +140,175 @@ describe('Highlight Sync - Resync Timing (T010)', () => {
     syncState.syncToParagraph();
 
     expect(syncState.currentParagraphIndex).toBe(1); // Second paragraph
+  });
+});
+
+// =========================================================================
+// US1: Paragraph Transition Race Condition Fix (021-comprehensive-overhaul)
+// =========================================================================
+
+describe('Highlight Sync - Timeline Ready Acknowledgment (T011)', () => {
+  let syncState;
+
+  beforeEach(() => {
+    syncState = new PlaybackSyncState();
+  });
+
+  afterEach(() => {
+    syncState.reset();
+  });
+
+  test('timelineReady should be true by default', () => {
+    expect(syncState.timelineReady).toBe(true);
+  });
+
+  test('setTimelinePending should set timelineReady to false', () => {
+    syncState.setTimelinePending(1);
+
+    expect(syncState.timelineReady).toBe(false);
+    expect(syncState._pendingTimelineParagraph).toBe(1);
+  });
+
+  test('setTimelineReady should set timelineReady to true for correct paragraph', () => {
+    syncState.setTimelinePending(2);
+    expect(syncState.timelineReady).toBe(false);
+
+    syncState.setTimelineReady(2);
+
+    expect(syncState.timelineReady).toBe(true);
+    expect(syncState._pendingTimelineParagraph).toBe(-1);
+  });
+
+  test('setTimelineReady should ignore wrong paragraph index', () => {
+    syncState.setTimelinePending(2);
+
+    syncState.setTimelineReady(1); // Wrong paragraph
+
+    expect(syncState.timelineReady).toBe(false);
+    expect(syncState._pendingTimelineParagraph).toBe(2);
+  });
+
+  test('setTimelineReady should accept any paragraph when none pending', () => {
+    expect(syncState._pendingTimelineParagraph).toBe(-1);
+
+    syncState.setTimelineReady(5);
+
+    expect(syncState.timelineReady).toBe(true);
+  });
+});
+
+describe('Highlight Sync - Sync Loop Waits for Timeline Ready (T012)', () => {
+  let syncState;
+
+  beforeEach(() => {
+    syncState = new PlaybackSyncState();
+    syncState.buildParagraphTimeline(['Para 1', 'Para 2'], 6000);
+    syncState.setWordTimeline([
+      { word: 'Hello', startTimeMs: 0, endTimeMs: 500 },
+      { word: 'world', startTimeMs: 500, endTimeMs: 1000 }
+    ]);
+  });
+
+  afterEach(() => {
+    syncState.reset();
+  });
+
+  test('hasWordTiming should be true when timeline is set', () => {
+    expect(syncState.hasWordTiming).toBe(true);
+  });
+
+  test('sync should be skipped when timelineReady is false', () => {
+    syncState.setTimelinePending(1);
+
+    // Simulate sync loop check
+    const shouldSync = syncState.hasWordTiming && syncState.timelineReady;
+
+    expect(shouldSync).toBe(false);
+  });
+
+  test('sync should proceed when timelineReady is true', () => {
+    // Timeline ready (default state)
+    const shouldSync = syncState.hasWordTiming && syncState.timelineReady;
+
+    expect(shouldSync).toBe(true);
+  });
+
+  test('sync should proceed after TIMELINE_READY received', () => {
+    // Pending
+    syncState.setTimelinePending(1);
+    expect(syncState.hasWordTiming && syncState.timelineReady).toBe(false);
+
+    // ACK received
+    syncState.setTimelineReady(1);
+    expect(syncState.hasWordTiming && syncState.timelineReady).toBe(true);
+  });
+
+  test('reset should restore timelineReady to true', () => {
+    syncState.setTimelinePending(1);
+    expect(syncState.timelineReady).toBe(false);
+
+    syncState.reset();
+
+    expect(syncState.timelineReady).toBe(true);
+  });
+});
+
+describe('Highlight Sync - Paragraph Transition (T010)', () => {
+  let syncState;
+
+  beforeEach(() => {
+    syncState = new PlaybackSyncState();
+    syncState.buildParagraphTimeline(['Para 1', 'Para 2', 'Para 3'], 9000);
+  });
+
+  afterEach(() => {
+    syncState.reset();
+  });
+
+  test('word highlighting should work after paragraph 0 completes', () => {
+    // 1. Setup paragraph 0
+    syncState.setWordTimeline([
+      { word: 'First', startTimeMs: 0, endTimeMs: 500 }
+    ]);
+    expect(syncState.hasWordTiming).toBe(true);
+
+    // 2. Clear word timeline (paragraph 0 ends)
+    syncState.clearWordTimeline();
+    expect(syncState.hasWordTiming).toBe(false);
+
+    // 3. Setup paragraph 1
+    syncState.setTimelinePending(1);
+    syncState.setWordTimeline([
+      { word: 'Second', startTimeMs: 0, endTimeMs: 500 }
+    ]);
+    syncState.setTimelineReady(1);
+
+    // 4. Word highlighting should work
+    expect(syncState.hasWordTiming).toBe(true);
+    expect(syncState.timelineReady).toBe(true);
+
+    const wordIndex = syncState._binarySearchWord(250);
+    expect(wordIndex).toBe(0);
+  });
+
+  test('complete paragraph 0 -> 1 -> 2 transition', () => {
+    // Paragraph 0
+    syncState.setWordTimeline([{ word: 'P0', startTimeMs: 0, endTimeMs: 1000 }]);
+    expect(syncState._binarySearchWord(500)).toBe(0);
+
+    // Transition to paragraph 1
+    syncState.clearWordTimeline();
+    syncState.setTimelinePending(1);
+    syncState.setWordTimeline([{ word: 'P1', startTimeMs: 0, endTimeMs: 1000 }]);
+    syncState.setTimelineReady(1);
+    expect(syncState._binarySearchWord(500)).toBe(0);
+
+    // Transition to paragraph 2
+    syncState.clearWordTimeline();
+    syncState.setTimelinePending(2);
+    syncState.setWordTimeline([{ word: 'P2', startTimeMs: 0, endTimeMs: 1000 }]);
+    syncState.setTimelineReady(2);
+    expect(syncState._binarySearchWord(500)).toBe(0);
+    expect(syncState.timelineReady).toBe(true);
   });
 });

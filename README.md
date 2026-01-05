@@ -102,9 +102,11 @@ Right-click any selected text and choose "Read with VoxPage" to read it aloud in
 
 ## Development
 
+VoxPage uses **WXT** (Web Extension Tools) with TypeScript for a modern development experience.
+
 ### Prerequisites
 
-- Firefox 109+ (for Manifest V3 support)
+- Firefox 100+ or Chrome 88+
 - Node.js 20.x
 - npm
 
@@ -116,27 +118,76 @@ cd VoxPage
 npm install
 ```
 
-### Commands
+### Development Commands
 
 ```bash
-npm test          # Run tests
-npm run lint      # Check code style
-npm run quality   # Run full quality checks
+# Start development server with hot reload
+npm run dev              # Default browser (Firefox)
+npm run dev:firefox      # Firefox explicitly
+npm run dev:chrome       # Chrome
+
+# Build production extension
+npm run build            # Default browser
+npm run build:firefox    # Firefox (MV2)
+npm run build:chrome     # Chrome (MV3)
+npm run build:all        # All browsers
+
+# Create distributable zip
+npm run zip:firefox
+npm run zip:chrome
+```
+
+### Testing & Quality
+
+```bash
+npm test                # Run ESLint + unit tests
+npm run test:unit       # Unit tests only (Jest)
+npm run test:visual     # Visual regression (Playwright)
+npm run lint            # ESLint
+npm run quality         # Full quality checks
 ```
 
 ### Project Structure
 
 ```
 VoxPage/
-├── manifest.json          # Extension configuration
-├── background/            # Service worker modules
-├── content/               # Content scripts
-├── popup/                 # Extension popup UI
-├── options/               # Settings page
-├── shared/                # Shared utilities
-├── styles/                # CSS styles
-└── tests/                 # Test suites
+├── src/                 # Source code (WXT srcDir)
+│   ├── entrypoints/     # WXT entry points (auto-discovered)
+│   │   ├── background.ts    # Service worker
+│   │   ├── content.ts       # Content script
+│   │   └── options/         # Options page
+│   ├── utils/           # Shared TypeScript utilities
+│   │   ├── config/          # Settings, defaults, migrations
+│   │   ├── audio/           # Playback sync, cache, visualizer
+│   │   ├── providers/       # TTS providers (6 supported)
+│   │   ├── content/         # Extractor, highlighter, footer
+│   │   ├── language/        # Language detection (franc-min)
+│   │   ├── logging/         # Remote logging
+│   │   └── messaging/       # Type-safe message handlers
+│   └── styles/          # CSS design tokens
+├── public/icons/        # Extension icons
+└── tests/               # Jest + Playwright tests
 ```
+
+### Technology Stack
+
+| Technology | Purpose |
+|------------|---------|
+| TypeScript | Strict mode, type-safe codebase |
+| WXT | Framework for browser extensions |
+| Vite | Build tooling with HMR |
+| Zod | Runtime validation |
+| franc-min | Language detection (82 languages) |
+| Jest | Unit testing |
+| Playwright | Visual regression testing |
+
+### Language Detection
+
+VoxPage automatically detects page language using **franc-min**:
+- Supports 82 languages
+- ~100% accuracy on typical web content
+- ISO 639-1 language codes (en, es, fr, de, etc.)
+- Fallback to English if detection fails
 
 ## Privacy
 

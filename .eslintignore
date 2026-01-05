@@ -11,6 +11,8 @@ node_modules/
 coverage/
 dist/
 build/
+.wxt/
+.output/
 
 # Test files (handled by separate config if needed)
 tests/
@@ -27,6 +29,9 @@ deps.svg
 # Third-party libraries
 content/readability.js
 content/readability-check.js
+
+# Legacy JS files (pre-migration backup)
+legacy/
 
 # IDE/Editor files
 .vscode/

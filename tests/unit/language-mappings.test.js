@@ -13,13 +13,13 @@ import {
   getProvidersForLanguage,
   getAllLanguages,
   getVoicesForLanguage
-} from '../../background/language-mappings.js';
+} from '../../src/utils/language/mappings';
 import {
   parseBCP47,
   normalizeLanguageCode,
   isLanguageSupported,
   SUPPORTED_LANGUAGES
-} from '../../shared/language-codes.js';
+} from '../../src/utils/language/codes';
 
 describe('Language Mappings', () => {
   describe('LANGUAGE_MAPPINGS', () => {
