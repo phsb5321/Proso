@@ -22,11 +22,15 @@ import { toast } from './components/toast';
 import { testApiKey, saveApiKey, API_KEY_STORAGE_KEYS } from '../../utils/options/api-key-tester';
 import { createScrollSpy, type ScrollSpyInstance } from '../../utils/options/scroll-spy';
 import { setupSidebarKeyboardNav } from './components/sidebar';
+import { getThemeManager, type ThemeMode } from '../../utils/options/theme-manager';
 
 /**
  * DOM element references
  */
 interface OptionsElements {
+  // Theme selector (027-settings-ux-overhaul T057)
+  themeMode: HTMLSelectElement;
+
   // Quick Settings (027-settings-ux-overhaul T020-T023)
   quickProvider: HTMLSelectElement;
   quickVoice: HTMLSelectElement;
@@ -109,6 +113,9 @@ function getElements(): OptionsElements {
   };
 
   return {
+    // Theme selector (027-settings-ux-overhaul T057)
+    themeMode: getElement<HTMLSelectElement>('themeMode'),
+
     // Quick Settings (027-settings-ux-overhaul T020-T023)
     quickProvider: getElement<HTMLSelectElement>('quickProvider'),
     quickVoice: getElement<HTMLSelectElement>('quickVoice'),
@@ -176,6 +183,7 @@ export async function initOptionsPage(): Promise<void> {
   await loadQuickSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
+  await loadThemePreference();
 
   setupQuickSettingsEventListeners();
   setupEventListeners();
@@ -185,6 +193,7 @@ export async function initOptionsPage(): Promise<void> {
   setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
+  setupThemeEventListener();
 }
 
 // ========================================
@@ -666,8 +675,6 @@ function setupEventListeners(): void {
     elements.defaultProvider,
     elements.defaultSpeed,
     elements.defaultMode,
-    elements.highlightEnabled,
-    elements.autoScroll
   ];
 
   autoSaveInputs.forEach(input => {
@@ -677,6 +684,85 @@ function setupEventListeners(): void {
       }
       saveTimeout = setTimeout(saveSettings, 500);
     });
+  });
+
+  // T049-T051: Appearance toggles with auto-save and toast
+  setupAppearanceToggles();
+}
+
+// ========================================
+// APPEARANCE SETTINGS (027-settings-ux-overhaul T049-T051)
+// ========================================
+
+/**
+ * Setup appearance toggle event listeners with auto-save and toast
+ * T049: highlightEnabled toggle with auto-save
+ * T050: autoScroll toggle with auto-save
+ * T051: Show toast on appearance setting change
+ */
+function setupAppearanceToggles(): void {
+  if (!elements) return;
+
+  // T049: Highlight toggle
+  elements.highlightEnabled.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const enabled = elements.highlightEnabled.checked;
+    await browser.storage.local.set({ highlightEnabled: enabled });
+
+    toast.success(enabled ? 'Text highlighting enabled' : 'Text highlighting disabled');
+  });
+
+  // T050: Auto-scroll toggle
+  elements.autoScroll.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const enabled = elements.autoScroll.checked;
+    await browser.storage.local.set({ autoScroll: enabled });
+
+    toast.success(enabled ? 'Auto-scroll enabled' : 'Auto-scroll disabled');
+  });
+}
+
+// ========================================
+// THEME SETTINGS (027-settings-ux-overhaul T056-T058)
+// ========================================
+
+/**
+ * Load theme preference from storage and update UI
+ * T057: Theme change handler
+ */
+async function loadThemePreference(): Promise<void> {
+  if (!elements) return;
+
+  const themeManager = getThemeManager();
+  const currentMode = themeManager.getMode();
+
+  elements.themeMode.value = currentMode;
+}
+
+/**
+ * Setup theme selector event listener
+ * T057: Implement theme change handler with instant apply
+ */
+function setupThemeEventListener(): void {
+  if (!elements) return;
+
+  elements.themeMode.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const mode = elements.themeMode.value as ThemeMode;
+    const themeManager = getThemeManager();
+
+    await themeManager.setMode(mode);
+
+    const modeLabels: Record<ThemeMode, string> = {
+      system: 'system theme',
+      light: 'light theme',
+      dark: 'dark theme',
+    };
+
+    toast.success(`Switched to ${modeLabels[mode]}`);
   });
 }
 

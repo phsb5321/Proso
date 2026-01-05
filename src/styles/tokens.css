@@ -156,6 +156,123 @@
 }
 
 /* ========================================
+   THEME OVERRIDES (027-settings-ux-overhaul T053)
+   data-theme attribute for manual theme control
+   ======================================== */
+
+/* Force dark theme regardless of system preference */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Background colors */
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f0f1a;
+
+  /* Text colors */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b8c5d6;
+  --color-text-muted: #8899a8;
+
+  /* Accent colors */
+  --color-accent-primary: #0D9488;
+  --color-accent-secondary: #14B8A6;
+  --color-accent-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+
+  /* Semantic colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* Border and focus */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-focus-ring: rgba(13, 148, 136, 0.5);
+
+  /* Button colors */
+  --color-button-bg: rgba(255, 255, 255, 0.05);
+  --color-button-bg-hover: rgba(255, 255, 255, 0.1);
+  --color-button-text: var(--color-text-secondary);
+
+  /* Input colors */
+  --color-input-bg: var(--color-bg-secondary);
+  --color-input-border: var(--color-border);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  --shadow-accent: 0 4px 15px rgba(13, 148, 136, 0.4);
+
+  /* Accent backgrounds */
+  --color-accent-bg: rgba(13, 148, 136, 0.15);
+  --color-accent-glow: rgba(13, 148, 136, 0.2);
+
+  /* Overlay */
+  --color-overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* Disabled states */
+  --color-disabled-bg: rgba(255, 255, 255, 0.03);
+  --color-disabled-text: rgba(255, 255, 255, 0.4);
+}
+
+/* Force light theme regardless of system preference */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Background colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+
+  /* Text colors */
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+
+  /* Accent colors */
+  --color-accent-primary: #0F766E;
+  --color-accent-secondary: #0D9488;
+  --color-accent-gradient: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+
+  /* Semantic colors */
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #2563eb;
+
+  /* Border and focus */
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-focus-ring: rgba(15, 118, 110, 0.3);
+
+  /* Button colors */
+  --color-button-bg: rgba(0, 0, 0, 0.03);
+  --color-button-bg-hover: rgba(0, 0, 0, 0.06);
+  --color-button-text: var(--color-text-secondary);
+
+  /* Input colors */
+  --color-input-bg: var(--color-bg-primary);
+  --color-input-border: var(--color-border);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-accent: 0 4px 15px rgba(15, 118, 110, 0.25);
+
+  /* Accent backgrounds */
+  --color-accent-bg: rgba(15, 118, 110, 0.1);
+  --color-accent-glow: rgba(15, 118, 110, 0.15);
+
+  /* Overlay */
+  --color-overlay-bg: rgba(0, 0, 0, 0.5);
+
+  /* Disabled states */
+  --color-disabled-bg: rgba(0, 0, 0, 0.04);
+  --color-disabled-text: rgba(0, 0, 0, 0.35);
+}
+
+/* ========================================
    SPACING TOKENS
    ======================================== */
 :root {
