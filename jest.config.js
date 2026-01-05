@@ -1,6 +1,6 @@
 /**
  * Jest Configuration for VoxPage
- * ES Modules support with WebExtension mocking
+ * ES Modules support with WebExtension mocking and TypeScript
  */
 export default {
   testEnvironment: 'jsdom',
@@ -10,11 +10,14 @@ export default {
   ],
   testMatch: [
     '**/tests/unit/**/*.test.js',
+    '**/tests/unit/**/*.test.ts',
     '**/tests/contract/**/*.test.js',
+    '**/tests/contract/**/*.test.ts',
     '**/tests/regression/**/*.test.js'
   ],
   collectCoverageFrom: [
     'popup/components/**/*.js',
+    'utils/**/*.ts',
     '!**/node_modules/**'
   ],
   coverageThreshold: {
@@ -27,8 +30,18 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^(\\.{1,2}/.*)\\.ts$': '$1',
     '^@/(.*)$': '<rootDir>/utils/$1'
   },
-  transform: {},
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
+      tsconfig: '<rootDir>/tsconfig.json'
+    }]
+  },
+  extensionsToTreatAsEsm: ['.ts'],
+  transformIgnorePatterns: [
+    '/node_modules/(?!(lamejs|tesseract-wasm)/)'
+  ],
   verbose: true
 };
