@@ -100,6 +100,8 @@ tests/                # Jest + Playwright (557 tests passing)
 - TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler) (022-plasmo-migration)
 - browser.storage.local (continue using directly, NOT wxt/storage) for API keys, settings, footer state, language cache (022-plasmo-migration)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) (023-feature-roadmap)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4 (024-settings-page-redesign)
+- browser.storage.local (WebExtension API) (024-settings-page-redesign)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -255,9 +257,9 @@ npm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 024-settings-page-redesign: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4
 - 023-feature-roadmap: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes)
 - 022-plasmo-migration: Added TypeScript 5.x (strict mode enabled: strictNullChecks, noImplicitAny, strictFunctionTypes) with WebExtension Manifest V3 APIs + WXT framework (latest), @webext-core/messaging (type-safe messaging), Zod 3.x (schema validation), franc-min (language detection), @mozilla/readability (content extraction), Vite 5.x (bundler)
-- 021-comprehensive-overhaul: Added JavaScript ES2022+ (WebExtension Manifest V3) + Zod 4.3.4 (validation), cld3-asm 4.0.0 (language detection), Mozilla Readability (content extraction)
 
 
 <!-- MANUAL ADDITIONS START -->
