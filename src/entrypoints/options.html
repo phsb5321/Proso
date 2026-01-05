@@ -150,7 +150,7 @@
         </div>
       </section>
 
-      <!-- API Keys Section (018-ui-redesign: Collapsible) -->
+      <!-- API Keys Section (027-settings-ux-overhaul: Provider Cards) -->
       <section id="api-keys" class="voxpage-card voxpage-accordion" data-section="api-keys">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
           <h2 class="section-title">
@@ -164,111 +164,125 @@
           </svg>
         </button>
         <div id="api-keys-content" class="voxpage-accordion__content">
-        <p class="section-description">
-          Configure your API keys to enable AI-powered text-to-speech. Your keys are stored locally and never sent anywhere except to the respective API providers.
-        </p>
-
-        <!-- OpenAI -->
-        <div class="form-group">
-          <label for="openaiKey" class="form-label">
-            <span class="voxpage-badge voxpage-badge--openai">OpenAI</span>
-            API Key
-          </label>
-          <div class="voxpage-input-wrapper">
-            <input type="password" id="openaiKey" class="voxpage-input" placeholder="sk-...">
-            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="openaiKey">
-              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-          <p class="form-hint">
-            Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Dashboard</a>
+          <p class="section-description">
+            Configure your API keys to enable AI-powered text-to-speech. Your keys are stored locally and never sent anywhere except to the respective API providers.
           </p>
-        </div>
 
-        <!-- Anthropic (AI Summarization) -->
-        <div class="form-group">
-          <label for="anthropicKey" class="form-label">
-            <span class="voxpage-badge voxpage-badge--anthropic">Anthropic</span>
-            API Key
-          </label>
-          <div class="voxpage-input-wrapper">
-            <input type="password" id="anthropicKey" class="voxpage-input" placeholder="sk-ant-...">
-            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="anthropicKey">
-              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-          <p class="form-hint">
-            Get your API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic Console</a> - For AI summarization
-          </p>
-        </div>
+          <div class="provider-cards-grid">
+            <!-- OpenAI Provider Card -->
+            <div class="provider-card" data-provider="openai" style="--provider-color: #10a37f;">
+              <div class="provider-card__header">
+                <span class="voxpage-badge voxpage-badge--openai">OpenAI</span>
+              </div>
+              <p class="provider-card__description">High-quality voices with natural speech patterns</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="openaiKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="openaiKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="openai">Test</button>
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="openai">Save</button>
+              </div>
+              <div class="provider-card__status" role="status" aria-live="polite" data-provider="openai"></div>
+              <a class="provider-card__docs-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
 
-        <!-- ElevenLabs -->
-        <div class="form-group">
-          <label for="elevenlabsKey" class="form-label">
-            <span class="voxpage-badge voxpage-badge--elevenlabs">ElevenLabs</span>
-            API Key
-          </label>
-          <div class="voxpage-input-wrapper">
-            <input type="password" id="elevenlabsKey" class="voxpage-input" placeholder="Enter your ElevenLabs API key">
-            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="elevenlabsKey">
-              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-            <button type="button" id="testElevenlabsKey" class="voxpage-button voxpage-button--secondary voxpage-button--sm">Test</button>
-          </div>
-          <p class="form-hint">
-            Get your API key from <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">ElevenLabs Settings</a>
-          </p>
-          <span id="elevenlabsKeyStatus" class="api-key-status"></span>
-        </div>
+            <!-- ElevenLabs Provider Card -->
+            <div class="provider-card" data-provider="elevenlabs" style="--provider-color: #5e5ce6;">
+              <div class="provider-card__header">
+                <span class="voxpage-badge voxpage-badge--elevenlabs">ElevenLabs</span>
+              </div>
+              <p class="provider-card__description">Premium voice cloning and multilingual support</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="elevenlabsKey" class="voxpage-input provider-card__input" placeholder="xi-..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="elevenlabsKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="elevenlabs">Test</button>
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="elevenlabs">Save</button>
+              </div>
+              <div class="provider-card__status" role="status" aria-live="polite" data-provider="elevenlabs"></div>
+              <a class="provider-card__docs-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
 
-        <!-- Cartesia -->
-        <div class="form-group">
-          <label for="cartesiaKey" class="form-label">
-            <span class="voxpage-badge voxpage-badge--cartesia">Cartesia</span>
-            API Key
-          </label>
-          <div class="voxpage-input-wrapper">
-            <input type="password" id="cartesiaKey" class="voxpage-input" placeholder="Enter your Cartesia API key">
-            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="cartesiaKey">
-              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-          <p class="form-hint">
-            Get your API key from <a href="https://play.cartesia.ai/settings" target="_blank" rel="noopener">Cartesia Dashboard</a>
-          </p>
-        </div>
+            <!-- Groq Provider Card -->
+            <div class="provider-card" data-provider="groq" style="--provider-color: #f55036;">
+              <div class="provider-card__header">
+                <span class="voxpage-badge voxpage-badge--groq">Groq</span>
+              </div>
+              <p class="provider-card__description">Ultra-fast inference with LPU technology</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="groqKey" class="voxpage-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="groq">Test</button>
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="groq">Save</button>
+              </div>
+              <div class="provider-card__status" role="status" aria-live="polite" data-provider="groq"></div>
+              <a class="provider-card__docs-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
 
-        <!-- Groq -->
-        <div class="form-group">
-          <label for="groqKey" class="form-label">
-            <span class="voxpage-badge voxpage-badge--groq">Groq</span>
-            API Key
-          </label>
-          <div class="voxpage-input-wrapper">
-            <input type="password" id="groqKey" class="voxpage-input" placeholder="gsk_...">
-            <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="groqKey">
-              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
+            <!-- Cartesia Provider Card -->
+            <div class="provider-card" data-provider="cartesia" style="--provider-color: #ff6b35;">
+              <div class="provider-card__header">
+                <span class="voxpage-badge voxpage-badge--cartesia">Cartesia</span>
+              </div>
+              <p class="provider-card__description">Fast, low-latency voice synthesis</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="cartesiaKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="cartesiaKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="cartesia">Test</button>
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="cartesia">Save</button>
+              </div>
+              <div class="provider-card__status" role="status" aria-live="polite" data-provider="cartesia"></div>
+              <a class="provider-card__docs-link" href="https://play.cartesia.ai/settings" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
+
+            <!-- Anthropic Provider Card -->
+            <div class="provider-card" data-provider="anthropic" style="--provider-color: #cc785c;">
+              <div class="provider-card__header">
+                <span class="voxpage-badge voxpage-badge--anthropic">Anthropic</span>
+              </div>
+              <p class="provider-card__description">AI assistant for content summarization</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="anthropicKey" class="voxpage-input provider-card__input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="anthropicKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="anthropic">Save</button>
+              </div>
+              <div class="provider-card__status" role="status" aria-live="polite" data-provider="anthropic"></div>
+              <a class="provider-card__docs-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
           </div>
-          <p class="form-hint">
-            Get your API key from <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq Console</a> - Fast & affordable!
-          </p>
-        </div>
         </div>
       </section>
 

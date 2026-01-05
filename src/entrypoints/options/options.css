@@ -552,7 +552,8 @@ kbd {
   display: none;
 }
 
-.provider-card__status--testing {
+.provider-card__status--testing,
+.provider-card__status--loading {
   color: var(--color-warning);
 }
 
@@ -562,6 +563,13 @@ kbd {
 
 .provider-card__status--error {
   color: var(--color-error);
+}
+
+/* Button loading state */
+.provider-card__test-btn.loading,
+.provider-card__save-btn.loading {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .provider-card__docs-link {

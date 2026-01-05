@@ -19,6 +19,7 @@ import {
 } from '../utils/config';
 
 import { toast } from './components/toast';
+import { testApiKey, saveApiKey, API_KEY_STORAGE_KEYS } from '../../utils/options/api-key-tester';
 
 /**
  * DOM element references
@@ -175,6 +176,7 @@ export async function initOptionsPage(): Promise<void> {
 
   setupQuickSettingsEventListeners();
   setupEventListeners();
+  setupProviderCardEventListeners();
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupAccordions();
@@ -603,7 +605,7 @@ async function testElevenLabsApiKey(): Promise<void> {
 }
 
 /**
- * Show API key test status
+ * Show API key test status (legacy - for elevenlabs only)
  */
 function showApiKeyStatus(provider: string, message: string, type: 'success' | 'error' | 'loading'): void {
   if (!elements) return;
@@ -619,6 +621,194 @@ function showApiKeyStatus(provider: string, message: string, type: 'success' | '
       statusElement.style.display = 'none';
     }, 5000);
   }
+}
+
+// ========================================
+// PROVIDER CARD HANDLERS (027-settings-ux-overhaul T033-T035)
+// ========================================
+
+/**
+ * Storage key mapping for each provider's API key
+ */
+const PROVIDER_INPUT_IDS: Record<string, string> = {
+  openai: 'openaiKey',
+  elevenlabs: 'elevenlabsKey',
+  groq: 'groqKey',
+  cartesia: 'cartesiaKey',
+  anthropic: 'anthropicKey',
+};
+
+/**
+ * Setup provider card event listeners
+ * T033: Test button with loading state
+ * T034: Display test results with success/error icons
+ * T035: Explicit Save button per provider card
+ */
+function setupProviderCardEventListeners(): void {
+  // Test buttons (T033)
+  document.querySelectorAll('.provider-card__test-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const button = e.currentTarget as HTMLButtonElement;
+      const provider = button.dataset.provider;
+      if (!provider) return;
+
+      await handleProviderTest(provider, button);
+    });
+  });
+
+  // Save buttons (T035)
+  document.querySelectorAll('.provider-card__save-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const button = e.currentTarget as HTMLButtonElement;
+      const provider = button.dataset.provider;
+      if (!provider) return;
+
+      await handleProviderSave(provider, button);
+    });
+  });
+
+  // Auto-trim whitespace on paste for API key inputs (T037)
+  document.querySelectorAll('.provider-card__input').forEach(input => {
+    input.addEventListener('paste', (e) => {
+      const inputEl = e.target as HTMLInputElement;
+      // Let the paste complete, then trim
+      setTimeout(() => {
+        inputEl.value = inputEl.value.trim();
+      }, 0);
+    });
+  });
+}
+
+/**
+ * Handle provider API key test
+ * T033: Test button with loading state
+ * T034: Display test results with success/error icons
+ */
+async function handleProviderTest(provider: string, button: HTMLButtonElement): Promise<void> {
+  const inputId = PROVIDER_INPUT_IDS[provider];
+  if (!inputId) return;
+
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  if (!input) return;
+
+  const apiKey = input.value.trim();
+  const statusEl = document.querySelector(`.provider-card__status[data-provider="${provider}"]`) as HTMLElement | null;
+
+  // Validate input
+  if (!apiKey) {
+    showProviderCardStatus(statusEl, 'No API key entered', 'error');
+    toast.error('Please enter an API key first');
+    return;
+  }
+
+  // Set loading state (T033)
+  button.disabled = true;
+  button.textContent = 'Testing...';
+  button.classList.add('loading');
+  showProviderCardStatus(statusEl, 'Testing...', 'loading');
+
+  try {
+    const result = await testApiKey(provider, apiKey);
+
+    if (result.success) {
+      // T034: Display success with icon
+      const latencyInfo = result.latencyMs ? ` (${result.latencyMs}ms)` : '';
+      showProviderCardStatus(statusEl, `✓ Valid${latencyInfo}`, 'success');
+      toast.success(`${capitalizeProvider(provider)} API key is valid`);
+    } else {
+      // T034: Display error with icon
+      showProviderCardStatus(statusEl, `✗ ${result.message}`, 'error');
+      toast.error(result.message);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Test failed';
+    showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
+    toast.error(errorMessage);
+  } finally {
+    // Reset button state
+    button.disabled = false;
+    button.textContent = 'Test';
+    button.classList.remove('loading');
+  }
+}
+
+/**
+ * Handle provider API key save
+ * T035: Explicit Save button per provider card
+ */
+async function handleProviderSave(provider: string, button: HTMLButtonElement): Promise<void> {
+  const inputId = PROVIDER_INPUT_IDS[provider];
+  if (!inputId) return;
+
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  if (!input) return;
+
+  const apiKey = input.value.trim();
+  const statusEl = document.querySelector(`.provider-card__status[data-provider="${provider}"]`) as HTMLElement | null;
+
+  // Set loading state
+  button.disabled = true;
+  button.textContent = 'Saving...';
+
+  try {
+    await saveApiKey(provider, apiKey);
+
+    showProviderCardStatus(statusEl, '✓ Saved', 'success');
+    toast.success(`${capitalizeProvider(provider)} API key saved`);
+
+    // Update legacy elements if they exist
+    if (elements) {
+      const legacyInput = elements[inputId as keyof OptionsElements] as HTMLInputElement | undefined;
+      if (legacyInput && legacyInput.value !== undefined) {
+        legacyInput.value = apiKey;
+      }
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Save failed';
+    showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
+    toast.error(errorMessage);
+  } finally {
+    // Reset button state
+    button.disabled = false;
+    button.textContent = 'Save';
+  }
+}
+
+/**
+ * Show status in provider card status element
+ * T034: Display test results with success/error icons
+ */
+function showProviderCardStatus(
+  statusEl: HTMLElement | null,
+  message: string,
+  type: 'success' | 'error' | 'loading'
+): void {
+  if (!statusEl) return;
+
+  statusEl.textContent = message;
+  statusEl.className = `provider-card__status provider-card__status--${type}`;
+
+  // Auto-hide success messages after 5 seconds
+  if (type === 'success') {
+    setTimeout(() => {
+      statusEl.textContent = '';
+      statusEl.className = 'provider-card__status';
+    }, 5000);
+  }
+}
+
+/**
+ * Capitalize provider name for display
+ */
+function capitalizeProvider(provider: string): string {
+  const names: Record<string, string> = {
+    openai: 'OpenAI',
+    elevenlabs: 'ElevenLabs',
+    groq: 'Groq',
+    cartesia: 'Cartesia',
+    anthropic: 'Anthropic',
+  };
+  return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
 /**
