@@ -365,7 +365,13 @@ interface HighlightMessage extends LegacyMessage {
  */
 interface WordTimelineMessage extends LegacyMessage {
   action: 'setWordTimeline';
-  wordTimeline: Array<{ word: string; startMs: number; endMs: number }>;
+  wordTimeline: Array<{
+    word: string;
+    charOffset?: number;
+    charLength?: number;
+    startMs: number;
+    endMs: number;
+  }>;
   paragraphIndex: number;
 }
 
@@ -682,15 +688,16 @@ export default defineContentScript({
 
         case 'setWordTimeline': {
           const msg = message as WordTimelineMessage;
-          // Convert legacy format {word, startMs, endMs} to {word, charOffset, charLength, startTimeMs, endTimeMs}
-          // Note: charOffset and charLength are computed in HighlightManager from the word text
-          const convertedTimeline: WordTiming[] = msg.wordTimeline.map((item, index) => ({
+          // Convert message format to HighlightManager WordTiming format
+          // charOffset and charLength come from ElevenLabs API word alignment
+          const convertedTimeline: WordTiming[] = msg.wordTimeline.map((item) => ({
             word: item.word,
-            charOffset: 0, // Will be computed by HighlightManager
-            charLength: item.word.length,
+            charOffset: item.charOffset ?? 0,
+            charLength: item.charLength ?? item.word.length,
             startTimeMs: item.startMs,
             endTimeMs: item.endMs,
           }));
+          console.log('VoxPage: Setting word timeline with', convertedTimeline.length, 'words');
           highlightManager.setWordTimeline(convertedTimeline, msg.paragraphIndex);
           break;
         }

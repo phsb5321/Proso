@@ -4,7 +4,12 @@
  */
 
 import { browser } from 'wxt/browser';
-import { ElevenLabsProvider, loadElevenLabsApiKey } from '../src/background/providers/elevenlabs';
+import {
+  ElevenLabsProvider,
+  loadElevenLabsApiKey,
+  type WordTiming,
+  type AudioWithTiming,
+} from '../src/background/providers/elevenlabs';
 
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
@@ -56,6 +61,11 @@ let activeTabId: number | null = null;
 let paragraphs: string[] = [];
 let apiKeys: ApiKeys = {};
 let elevenlabsProvider: ElevenLabsProvider | null = null;
+
+// Word timing state for word-by-word highlighting
+let currentWordTimings: WordTiming[] = [];
+let currentWordIndex = -1;
+let wordHighlightInterval: ReturnType<typeof setInterval> | null = null;
 
 // ============================================
 // Tab Communication
@@ -119,7 +129,13 @@ async function initElevenLabsProvider(): Promise<ElevenLabsProvider | null> {
   }
 }
 
-async function generateElevenLabsAudio(text: string): Promise<string | null> {
+interface ElevenLabsAudioResult {
+  audioUrl: string;
+  wordTimings: WordTiming[];
+  duration: number;
+}
+
+async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioResult | null> {
   // Initialize/refresh provider with latest key
   const provider = await initElevenLabsProvider();
   if (!provider) {
@@ -128,7 +144,7 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
   }
 
   try {
-    console.log('[Background] Generating ElevenLabs audio, text length:', text.length);
+    console.log('[Background] Generating ElevenLabs audio with timestamps, text length:', text.length);
 
     // Get voice - use saved preference or default
     let voiceId = playbackState.voice;
@@ -146,20 +162,31 @@ async function generateElevenLabsAudio(text: string): Promise<string | null> {
 
     console.log('[Background] Using voice:', voiceName, voiceId);
 
-    // Generate audio (without timestamps for now - simplifies playback)
-    const audioData = await provider.generateAudio(text, voiceId, {
+    // Generate audio WITH timestamps for word-by-word highlighting
+    const result = await provider.generateAudio(text, voiceId, {
       turbo: false,
       stability: 0.5,
       similarityBoost: 0.75,
       style: 0.5,
-    });
+      withTimestamps: true,
+    }) as AudioWithTiming;
 
-    // Result is ArrayBuffer - create Blob URL for proper audio metadata loading
-    const arrayBuffer = audioData as ArrayBuffer;
-    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    // Result is AudioWithTiming with audioData and wordTiming
+    const blob = new Blob([result.audioData], { type: 'audio/mpeg' });
     const audioUrl = URL.createObjectURL(blob);
-    console.log('[Background] ElevenLabs audio generated, size:', arrayBuffer.byteLength);
-    return audioUrl;
+
+    // Calculate duration from last word timing
+    const duration = result.wordTiming.length > 0
+      ? result.wordTiming[result.wordTiming.length - 1].endTimeMs / 1000
+      : 0;
+
+    console.log('[Background] ElevenLabs audio generated with', result.wordTiming.length, 'word timings, duration:', duration);
+
+    return {
+      audioUrl,
+      wordTimings: result.wordTiming,
+      duration,
+    };
   } catch (error) {
     console.error('[Background] ElevenLabs generation error:', error);
     return null;
@@ -181,6 +208,72 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Start word-by-word highlighting based on audio currentTime
+ * Uses a polling interval to check the current time and highlight the corresponding word
+ */
+function startWordHighlighting(paragraphIndex: number): void {
+  // Clear any existing interval
+  stopWordHighlighting();
+
+  if (currentWordTimings.length === 0 || !activeTabId) {
+    console.log('[Background] No word timings or active tab for word highlighting');
+    return;
+  }
+
+  currentWordIndex = -1;
+
+  // Poll every 50ms (20Hz) for smooth word highlighting
+  wordHighlightInterval = setInterval(() => {
+    if (!currentAudio || playbackState.status !== 'playing') {
+      return;
+    }
+
+    const currentTimeMs = currentAudio.currentTime * 1000;
+
+    // Binary search for the current word
+    let newWordIndex = -1;
+    for (let i = 0; i < currentWordTimings.length; i++) {
+      const timing = currentWordTimings[i];
+      if (currentTimeMs >= timing.startTimeMs && currentTimeMs <= timing.endTimeMs) {
+        newWordIndex = i;
+        break;
+      }
+      // If we've passed this word but haven't reached the next, show this word
+      if (currentTimeMs > timing.endTimeMs && (i + 1 >= currentWordTimings.length || currentTimeMs < currentWordTimings[i + 1].startTimeMs)) {
+        newWordIndex = i;
+        break;
+      }
+    }
+
+    // Only send highlight if word changed
+    if (newWordIndex !== currentWordIndex && newWordIndex >= 0 && activeTabId) {
+      currentWordIndex = newWordIndex;
+      sendToContentScript(activeTabId, {
+        action: 'highlightWord',
+        paragraphIndex: paragraphIndex,
+        wordIndex: currentWordIndex,
+        timestamp: currentTimeMs,
+      }).catch(() => {
+        // Ignore errors - tab might be closed
+      });
+    }
+  }, 50);
+
+  console.log('[Background] Started word highlighting for paragraph', paragraphIndex, 'with', currentWordTimings.length, 'words');
+}
+
+/**
+ * Stop word-by-word highlighting
+ */
+function stopWordHighlighting(): void {
+  if (wordHighlightInterval) {
+    clearInterval(wordHighlightInterval);
+    wordHighlightInterval = null;
+  }
+  currentWordIndex = -1;
 }
 
 /**
@@ -283,6 +376,10 @@ function stopCurrentAudio(): void {
   // Set flag before stopping to prevent error handler issues
   audioStoppedManually = true;
 
+  // Stop word highlighting
+  stopWordHighlighting();
+  currentWordTimings = [];
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
@@ -328,16 +425,44 @@ async function speakCurrentParagraph(): Promise<void> {
 
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
     // Use ElevenLabs - play audio in background script to avoid autoplay restrictions
-    const audioUrl = await generateElevenLabsAudio(text);
-    if (audioUrl) {
-      console.log('[Background] Playing ElevenLabs audio in background script');
-      success = await playAudioInBackground(audioUrl, playbackState.speed);
+    const audioResult = await generateElevenLabsAudio(text);
+    if (audioResult) {
+      console.log('[Background] Playing ElevenLabs audio with', audioResult.wordTimings.length, 'word timings');
+
+      // Store word timings for highlighting
+      currentWordTimings = audioResult.wordTimings;
+
+      // Send word timeline to content script for word-by-word highlighting
+      if (audioResult.wordTimings.length > 0) {
+        await sendToContentScript(activeTabId, {
+          action: 'setWordTimeline',
+          wordTimeline: audioResult.wordTimings.map(wt => ({
+            word: wt.word,
+            charOffset: wt.charOffset,
+            charLength: wt.charLength,
+            startMs: wt.startTimeMs,
+            endMs: wt.endTimeMs,
+          })),
+          paragraphIndex: playbackState.currentParagraph,
+        });
+
+        // Start word highlighting
+        startWordHighlighting(playbackState.currentParagraph);
+      }
+
+      success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
+
+      // Stop word highlighting when audio ends
+      stopWordHighlighting();
     } else {
       console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
     }
   }
 
   if (!success) {
+    // Clear word timings for browser TTS (no word-by-word support)
+    currentWordTimings = [];
+
     // Fallback to browser TTS (in content script - has different autoplay behavior)
     await sendToContentScript(activeTabId, {
       action: 'speakText',

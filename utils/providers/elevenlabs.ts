@@ -9,6 +9,41 @@ import { BaseTTSProvider, type TTSRequest, type TTSResponse, type VoiceOption } 
 import { ProviderPricing } from './pricing';
 
 /**
+ * Word timing data structure
+ */
+export interface WordTiming {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+
+/**
+ * Response from ElevenLabs with-timestamps endpoint
+ */
+interface ElevenLabsTimestampResponse {
+  audio_base64: string;
+  alignment: {
+    characters: string[];
+    character_start_times_seconds: number[];
+    character_end_times_seconds: number[];
+  };
+  normalized_alignment?: {
+    characters: string[];
+    character_start_times_seconds: number[];
+    character_end_times_seconds: number[];
+  };
+}
+
+/**
+ * Audio with word timing response
+ */
+export interface AudioWithTimingResponse {
+  audioBlob: Blob;
+  wordTimings: WordTiming[];
+  duration: number;
+}
+
+/**
  * ElevenLabs voice definitions
  * Note: multilingual_v2 model supports all 29+ languages with any voice
  */
@@ -100,6 +135,144 @@ export class ElevenLabsProvider extends BaseTTSProvider {
     const estimatedDuration = validated.text.length / (150 * 5) * 60;
 
     return this.createResponse(audioBlob, estimatedDuration, null);
+  }
+
+  /**
+   * Generate audio with word-level timestamps using ElevenLabs with-timestamps endpoint
+   * @see https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps
+   */
+  async generateAudioWithTimestamps(
+    text: string,
+    voiceId?: string,
+    language?: string
+  ): Promise<AudioWithTimingResponse> {
+    if (!this.hasApiKey()) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+
+    const voice = voiceId || '21m00Tcm4TlvDq8ikWAM'; // Default to Rachel
+
+    const requestBody: Record<string, unknown> = {
+      text: text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0.5,
+        use_speaker_boost: true,
+      },
+    };
+
+    // Add language code if specified
+    if (language) {
+      const langCode = language.split('-')[0].toLowerCase();
+      if (this.supportsLanguage(langCode)) {
+        requestBody.language_code = langCode;
+      }
+    }
+
+    console.log('[ElevenLabs] Generating audio with timestamps, text length:', text.length);
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': this.apiKey!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`ElevenLabs API error (${response.status}): ${errorText}`);
+    }
+
+    const data: ElevenLabsTimestampResponse = await response.json();
+
+    // Convert base64 audio to Blob
+    const binaryString = atob(data.audio_base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+
+    // Use normalized alignment if available (handles text normalization like numbers -> words)
+    const alignment = data.normalized_alignment || data.alignment;
+
+    // Parse character-level timestamps into word-level timestamps
+    const wordTimings = this.parseWordTimings(
+      alignment.characters,
+      alignment.character_start_times_seconds,
+      alignment.character_end_times_seconds
+    );
+
+    // Get duration from last character end time
+    const duration = alignment.character_end_times_seconds.length > 0
+      ? alignment.character_end_times_seconds[alignment.character_end_times_seconds.length - 1]
+      : 0;
+
+    console.log('[ElevenLabs] Generated audio with', wordTimings.length, 'word timings, duration:', duration);
+
+    return {
+      audioBlob,
+      wordTimings,
+      duration,
+    };
+  }
+
+  /**
+   * Parse character-level timestamps into word-level timestamps
+   * Groups consecutive characters between spaces into words
+   */
+  private parseWordTimings(
+    characters: string[],
+    startTimes: number[],
+    endTimes: number[]
+  ): WordTiming[] {
+    const wordTimings: WordTiming[] = [];
+    let currentWord = '';
+    let wordStartMs = 0;
+    let wordEndMs = 0;
+
+    for (let i = 0; i < characters.length; i++) {
+      const char = characters[i];
+      const startMs = Math.round(startTimes[i] * 1000);
+      const endMs = Math.round(endTimes[i] * 1000);
+
+      if (char === ' ' || char === '\n' || char === '\t') {
+        // End of word - save it if we have content
+        if (currentWord.trim().length > 0) {
+          wordTimings.push({
+            word: currentWord.trim(),
+            startMs: wordStartMs,
+            endMs: wordEndMs,
+          });
+        }
+        currentWord = '';
+      } else {
+        // Add character to current word
+        if (currentWord === '') {
+          wordStartMs = startMs;
+        }
+        currentWord += char;
+        wordEndMs = endMs;
+      }
+    }
+
+    // Don't forget the last word
+    if (currentWord.trim().length > 0) {
+      wordTimings.push({
+        word: currentWord.trim(),
+        startMs: wordStartMs,
+        endMs: wordEndMs,
+      });
+    }
+
+    return wordTimings;
   }
 
   async getVoices(language?: string): Promise<VoiceOption[]> {
