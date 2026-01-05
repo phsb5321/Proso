@@ -18,10 +18,18 @@ import {
   type QueueSettings
 } from '../utils/config';
 
+import { toast } from './components/toast';
+
 /**
  * DOM element references
  */
 interface OptionsElements {
+  // Quick Settings (027-settings-ux-overhaul T020-T023)
+  quickProvider: HTMLSelectElement;
+  quickVoice: HTMLSelectElement;
+  quickSpeed: HTMLInputElement;
+  quickSpeedValue: HTMLElement;
+
   // API Key inputs
   openaiKey: HTMLInputElement;
   anthropicKey: HTMLInputElement;
@@ -31,7 +39,7 @@ interface OptionsElements {
   cartesiaKey: HTMLInputElement;
   groqKey: HTMLInputElement;
 
-  // Settings inputs
+  // Settings inputs (legacy, kept for backwards compatibility)
   defaultProvider: HTMLSelectElement;
   defaultSpeed: HTMLInputElement;
   speedValue: HTMLElement;
@@ -82,6 +90,7 @@ let elements: OptionsElements | null = null;
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let loggingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let queueSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+let quickSettingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Get DOM elements with type safety
@@ -96,6 +105,13 @@ function getElements(): OptionsElements {
   };
 
   return {
+    // Quick Settings (027-settings-ux-overhaul T020-T023)
+    quickProvider: getElement<HTMLSelectElement>('quickProvider'),
+    quickVoice: getElement<HTMLSelectElement>('quickVoice'),
+    quickSpeed: getElement<HTMLInputElement>('quickSpeed'),
+    quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
+
+    // API Key inputs
     openaiKey: getElement<HTMLInputElement>('openaiKey'),
     anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
@@ -103,6 +119,8 @@ function getElements(): OptionsElements {
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
     cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
     groqKey: getElement<HTMLInputElement>('groqKey'),
+
+    // Legacy settings inputs (kept for backwards compatibility)
     defaultProvider: getElement<HTMLSelectElement>('defaultProvider'),
     defaultSpeed: getElement<HTMLInputElement>('defaultSpeed'),
     speedValue: getElement<HTMLElement>('speedValue'),
@@ -151,13 +169,259 @@ export async function initOptionsPage(): Promise<void> {
   elements = getElements();
 
   await loadSettings();
+  await loadQuickSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
 
+  setupQuickSettingsEventListeners();
   setupEventListeners();
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupAccordions();
+  setupStorageChangeListener();
+}
+
+// ========================================
+// QUICK SETTINGS (027-settings-ux-overhaul T020-T024)
+// ========================================
+
+/**
+ * Voice configurations by provider
+ * T021: Voice options filtered by provider
+ */
+const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
+  browser: [], // Populated dynamically from browser's speech synthesis
+  groq: [
+    { value: 'default', label: 'Default' },
+  ],
+  openai: [
+    { value: 'alloy', label: 'Alloy' },
+    { value: 'echo', label: 'Echo' },
+    { value: 'fable', label: 'Fable' },
+    { value: 'onyx', label: 'Onyx' },
+    { value: 'nova', label: 'Nova' },
+    { value: 'shimmer', label: 'Shimmer' },
+  ],
+  elevenlabs: [
+    { value: 'default', label: 'Default Voice' },
+    // Additional voices fetched from API when key is configured
+  ],
+  cartesia: [
+    { value: 'default', label: 'Default Voice' },
+  ],
+};
+
+/**
+ * Load Quick Settings from storage
+ * T020: Provider dropdown, T021: Voice dropdown, T022: Speed slider
+ */
+async function loadQuickSettings(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const result = await browser.storage.local.get(['provider', 'voice', 'speed']);
+
+    // Provider dropdown
+    const provider = (result.provider as string) || settingsDefaults.provider;
+    elements.quickProvider.value = provider;
+
+    // Voice dropdown - populate based on provider
+    await updateVoiceDropdown(provider);
+    const voice = (result.voice as string) || '';
+    if (voice) {
+      elements.quickVoice.value = voice;
+    }
+
+    // Speed slider
+    const speed = (result.speed as number) || settingsDefaults.speed;
+    elements.quickSpeed.value = String(speed);
+    elements.quickSpeedValue.textContent = `${speed.toFixed(1)}x`;
+  } catch (error) {
+    console.error('Error loading Quick Settings:', error);
+  }
+}
+
+/**
+ * Update voice dropdown based on selected provider
+ * T021: Voice dropdown filtered by provider
+ */
+async function updateVoiceDropdown(provider: string): Promise<void> {
+  if (!elements) return;
+
+  const voiceSelect = elements.quickVoice;
+
+  // Clear existing options using safe DOM method
+  while (voiceSelect.firstChild) {
+    voiceSelect.removeChild(voiceSelect.firstChild);
+  }
+
+  // Add default option
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Default Voice';
+  voiceSelect.appendChild(defaultOption);
+
+  // Get voices for provider
+  let voices = PROVIDER_VOICES[provider] || [];
+
+  // For browser TTS, get available system voices
+  if (provider === 'browser' && 'speechSynthesis' in window) {
+    const getVoices = (): SpeechSynthesisVoice[] => {
+      return window.speechSynthesis.getVoices();
+    };
+
+    let systemVoices = getVoices();
+
+    // Voices may not be loaded yet
+    if (systemVoices.length === 0) {
+      await new Promise<void>((resolve) => {
+        window.speechSynthesis.onvoiceschanged = () => {
+          systemVoices = getVoices();
+          resolve();
+        };
+        // Timeout fallback
+        setTimeout(resolve, 1000);
+      });
+    }
+
+    voices = systemVoices.map((v) => ({
+      value: v.name,
+      label: `${v.name} (${v.lang})`,
+    }));
+  }
+
+  // Add voice options
+  voices.forEach((voice) => {
+    const option = document.createElement('option');
+    option.value = voice.value;
+    option.textContent = voice.label;
+    voiceSelect.appendChild(option);
+  });
+}
+
+/**
+ * Setup Quick Settings event listeners
+ * T020: Provider auto-save, T022-T023: Speed slider with debounce, T024: Toast notifications
+ */
+function setupQuickSettingsEventListeners(): void {
+  if (!elements) return;
+
+  // T020: Provider dropdown with auto-save
+  elements.quickProvider.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const provider = elements.quickProvider.value;
+
+    // Update voice dropdown for new provider
+    await updateVoiceDropdown(provider);
+
+    // Auto-save provider
+    await saveQuickSetting('provider', provider);
+    toast.success('Provider updated');
+  });
+
+  // T021: Voice dropdown with auto-save
+  elements.quickVoice.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const voice = elements.quickVoice.value;
+    await saveQuickSetting('voice', voice);
+    toast.success('Voice updated');
+  });
+
+  // T022: Speed slider with live value display
+  elements.quickSpeed.addEventListener('input', () => {
+    if (!elements) return;
+
+    const value = parseFloat(elements.quickSpeed.value);
+    elements.quickSpeedValue.textContent = `${value.toFixed(1)}x`;
+  });
+
+  // T023: Debounced auto-save for slider on release
+  elements.quickSpeed.addEventListener('change', () => {
+    if (!elements) return;
+
+    // Clear any pending save
+    if (quickSettingsSaveTimeout) {
+      clearTimeout(quickSettingsSaveTimeout);
+    }
+
+    // Debounce save by 300ms
+    quickSettingsSaveTimeout = setTimeout(async () => {
+      if (!elements) return;
+
+      const speed = parseFloat(elements.quickSpeed.value);
+      await saveQuickSetting('speed', speed);
+      toast.success('Speed updated');
+    }, 300);
+  });
+}
+
+/**
+ * Save a single Quick Setting to storage
+ * T020: Auto-save functionality
+ */
+async function saveQuickSetting(key: string, value: string | number): Promise<void> {
+  try {
+    await browser.storage.local.set({ [key]: value });
+
+    // Also update legacy elements if they exist
+    if (elements) {
+      switch (key) {
+        case 'provider':
+          if (elements.defaultProvider) {
+            elements.defaultProvider.value = value as string;
+          }
+          break;
+        case 'speed':
+          if (elements.defaultSpeed) {
+            elements.defaultSpeed.value = String(value);
+          }
+          if (elements.speedValue) {
+            elements.speedValue.textContent = `${(value as number).toFixed(1)}x`;
+          }
+          break;
+      }
+    }
+  } catch (error) {
+    console.error(`Error saving ${key}:`, error);
+    toast.error(`Failed to save ${key}`);
+  }
+}
+
+/**
+ * Setup storage change listener for cross-tab sync
+ * T013/FR-036: Cross-tab sync
+ */
+function setupStorageChangeListener(): void {
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !elements) return;
+
+    // Update Quick Settings if changed from another tab
+    if (changes.provider) {
+      elements.quickProvider.value = changes.provider.newValue as string;
+      updateVoiceDropdown(changes.provider.newValue as string);
+    }
+
+    if (changes.voice) {
+      elements.quickVoice.value = changes.voice.newValue as string;
+    }
+
+    if (changes.speed) {
+      const speed = changes.speed.newValue as number;
+      elements.quickSpeed.value = String(speed);
+      elements.quickSpeedValue.textContent = `${speed.toFixed(1)}x`;
+    }
+
+    // Update appearance settings
+    if (changes.highlightEnabled !== undefined) {
+      elements.highlightEnabled.checked = changes.highlightEnabled.newValue as boolean;
+    }
+
+    if (changes.autoScroll !== undefined) {
+      elements.autoScroll.checked = changes.autoScroll.newValue as boolean;
+    }
+  });
 }
 
 /**
