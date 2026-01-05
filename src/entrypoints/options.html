@@ -3,13 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
   <title>VoxPage Settings</title>
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/components.css">
-  <link rel="stylesheet" href="../options/options.css">
+  <link rel="stylesheet" href="./options/options.css">
   <script type="module" src="./options/main.ts"></script>
 </head>
 <body>
+  <!-- Skip link for keyboard navigation (FR-029) -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <div class="container">
     <!-- Header -->
     <header class="header">
@@ -20,11 +24,134 @@
         </svg>
         <h1 class="logo-text">VoxPage Settings</h1>
       </div>
+
+      <!-- Theme selector (027-settings-ux-overhaul) -->
+      <div class="theme-selector">
+        <label for="themeMode" class="sr-only">Theme</label>
+        <select id="themeMode" class="voxpage-select voxpage-select--compact" aria-label="Select theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
     </header>
 
-    <main class="main-content">
+    <!-- Sidebar Navigation (027-settings-ux-overhaul FR-002) -->
+    <nav id="settings-sidebar" class="settings-sidebar" aria-label="Settings navigation">
+      <ul class="sidebar-nav" role="list">
+        <li>
+          <a href="#quick-settings" class="sidebar-link sidebar-link--active" aria-current="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 3v2M12 19v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M3 12h2M19 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+              <circle cx="12" cy="12" r="4"/>
+            </svg>
+            <span>Quick Settings</span>
+          </a>
+        </li>
+        <li>
+          <a href="#api-keys" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+            <span>API Keys</span>
+          </a>
+        </li>
+        <li>
+          <a href="#appearance" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+            </svg>
+            <span>Appearance</span>
+          </a>
+        </li>
+        <li>
+          <a href="#reading-queue" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="8" y1="6" x2="21" y2="6"/>
+              <line x1="8" y1="12" x2="21" y2="12"/>
+              <line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/>
+              <line x1="3" y1="12" x2="3.01" y2="12"/>
+              <line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            <span>Reading Queue</span>
+          </a>
+        </li>
+        <li>
+          <a href="#keyboard-shortcuts" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+              <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+            </svg>
+            <span>Shortcuts</span>
+          </a>
+        </li>
+        <li>
+          <a href="#developer" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span>Developer</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <main id="main-content" class="main-content">
+      <!-- Quick Settings Section (027-settings-ux-overhaul FR-014) -->
+      <section id="quick-settings" class="voxpage-card quick-settings-section" data-section="quick-settings">
+        <h2 class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 3v2M12 19v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M3 12h2M19 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            <circle cx="12" cy="12" r="4"/>
+          </svg>
+          Quick Settings
+        </h2>
+        <p class="section-description">
+          Quickly adjust your most-used settings. Changes are saved automatically.
+        </p>
+
+        <div class="quick-settings-grid">
+          <div class="form-group">
+            <label for="quickProvider" class="form-label">Provider</label>
+            <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint">
+              <option value="browser">Browser TTS (Free)</option>
+              <option value="groq">Groq (Fast)</option>
+              <option value="openai">OpenAI</option>
+              <option value="elevenlabs">ElevenLabs</option>
+              <option value="cartesia">Cartesia</option>
+            </select>
+            <p id="quickProviderHint" class="form-hint">Select your preferred text-to-speech provider</p>
+          </div>
+
+          <div class="form-group">
+            <label for="quickVoice" class="form-label">Voice</label>
+            <select id="quickVoice" class="voxpage-select" aria-describedby="quickVoiceHint">
+              <option value="">Default Voice</option>
+            </select>
+            <p id="quickVoiceHint" class="form-hint">Voice options vary by provider</p>
+          </div>
+
+          <div class="form-group">
+            <label for="quickSpeed" class="form-label">Speed</label>
+            <div class="range-wrapper">
+              <input type="range" id="quickSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1" aria-describedby="quickSpeedHint">
+              <span id="quickSpeedValue" class="range-value">1.0x</span>
+            </div>
+            <p id="quickSpeedHint" class="form-hint">Adjust playback speed (0.5x - 2.0x)</p>
+          </div>
+        </div>
+      </section>
+
       <!-- API Keys Section (018-ui-redesign: Collapsible) -->
-      <section class="voxpage-card voxpage-accordion" data-section="api-keys">
+      <section id="api-keys" class="voxpage-card voxpage-accordion" data-section="api-keys">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -145,8 +272,8 @@
         </div>
       </section>
 
-      <!-- Default Settings Section (018-ui-redesign: Collapsible) -->
-      <section class="voxpage-card voxpage-accordion" data-section="defaults">
+      <!-- Default Settings Section - merged into Quick Settings above -->
+      <section id="defaults" class="voxpage-card voxpage-accordion voxpage-hidden" data-section="defaults">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="defaults-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -191,7 +318,7 @@
       </section>
 
       <!-- Appearance Section (018-ui-redesign: Collapsible) -->
-      <section class="voxpage-card voxpage-accordion" data-section="appearance">
+      <section id="appearance" class="voxpage-card voxpage-accordion" data-section="appearance">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="appearance-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -231,7 +358,7 @@
       </section>
 
       <!-- Queue Settings Section (T079) -->
-      <section class="voxpage-card voxpage-accordion" data-section="queue">
+      <section id="reading-queue" class="voxpage-card voxpage-accordion" data-section="queue">
         <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="queue-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -295,7 +422,7 @@
       </section>
 
       <!-- Keyboard Shortcuts Section (018-ui-redesign: Collapsible) -->
-      <section class="voxpage-card voxpage-accordion" data-section="shortcuts">
+      <section id="keyboard-shortcuts" class="voxpage-card voxpage-accordion" data-section="shortcuts">
         <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="shortcuts-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -333,7 +460,7 @@
       </section>
 
       <!-- Developer Settings Section (014-loki-remote-logging, 018-ui-redesign: Collapsible) -->
-      <section class="voxpage-card voxpage-card--developer voxpage-accordion" data-section="developer">
+      <section id="developer" class="voxpage-card voxpage-card--developer voxpage-accordion" data-section="developer">
         <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="developer-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

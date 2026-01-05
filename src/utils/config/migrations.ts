@@ -13,7 +13,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 4;
+export const CURRENT_CONFIG_VERSION = 5;
 
 /**
  * Valid Groq Orpheus voice IDs (as of Jan 2025)
@@ -31,6 +31,9 @@ interface StoredSettings extends Record<string, unknown> {
   mode?: string;
   provider?: string;
   voice?: string | null;
+  themeMode?: string;
+  highlightEnabled?: boolean;
+  autoScroll?: boolean;
 }
 
 /**
@@ -163,6 +166,41 @@ export const migrations: Migration[] = [
       };
       await save({ voice: null });
       return updated;
+    },
+  },
+  {
+    version: 5,
+    key: 'themeMode',
+    description: 'Add themeMode, highlightEnabled, and autoScroll settings (027-settings-ux-overhaul)',
+    /**
+     * Add new settings fields with sensible defaults
+     * No data loss risk - only adds new fields
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add themeMode if not present
+      if (stored.themeMode === undefined) {
+        updates.themeMode = defaults.themeMode; // 'system'
+      }
+
+      // Add highlightEnabled if not present
+      if (stored.highlightEnabled === undefined) {
+        updates.highlightEnabled = defaults.highlightEnabled; // true
+      }
+
+      // Add autoScroll if not present
+      if (stored.autoScroll === undefined) {
+        updates.autoScroll = defaults.autoScroll; // true
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
     },
   },
 ];

@@ -24,6 +24,11 @@ export const PROVIDERS = ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']
 export const DETECTION_SOURCES = ['metadata', 'text', 'user'] as const;
 
 /**
+ * Valid theme mode values (027-settings-ux-overhaul)
+ */
+export const THEME_MODES = ['light', 'dark', 'system'] as const;
+
+/**
  * Footer position schema
  */
 export const footerPositionSchema = z.object({
@@ -73,6 +78,15 @@ export const settingsSchema = z.object({
 
   // Footer state (018-ui-redesign)
   footerState: footerStateSchema.optional(),
+
+  // Theme mode preference (027-settings-ux-overhaul)
+  themeMode: z.enum(THEME_MODES).default('system'),
+
+  // Enable text highlighting during playback (027-settings-ux-overhaul)
+  highlightEnabled: z.boolean().default(true),
+
+  // Enable auto-scroll to follow playback (027-settings-ux-overhaul)
+  autoScroll: z.boolean().default(true),
 });
 
 /**
@@ -107,6 +121,7 @@ export type LanguagePreference = z.infer<typeof languagePreferenceSchema>;
 export type Mode = typeof MODES[number];
 export type Provider = typeof PROVIDERS[number];
 export type DetectionSource = typeof DETECTION_SOURCES[number];
+export type ThemeMode = typeof THEME_MODES[number];
 
 // ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
 

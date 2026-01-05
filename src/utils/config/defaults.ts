@@ -7,7 +7,7 @@
  * No hardcoded default values should exist elsewhere in the codebase.
  */
 
-import type { Settings, FooterState, Mode, Provider } from './schema';
+import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema';
 
 /**
  * Default configuration values
@@ -26,6 +26,10 @@ export const defaults: Readonly<Settings> = Object.freeze({
   maxCacheSize: 50,
   wordSyncEnabled: true,
   autoDetectLanguage: true,
+  // 027-settings-ux-overhaul
+  themeMode: 'system' as ThemeMode,
+  highlightEnabled: true,
+  autoScroll: true,
 });
 
 /**

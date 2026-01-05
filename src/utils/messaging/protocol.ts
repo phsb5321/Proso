@@ -46,6 +46,21 @@ export type QueueItemStatus = 'pending' | 'reading' | 'completed' | 'archived';
 export type AIProviderType = 'openai' | 'anthropic';
 
 /**
+ * Theme mode type (027-settings-ux-overhaul)
+ */
+export type ThemeModeType = 'light' | 'dark' | 'system';
+
+/**
+ * Settings section type for reset (027-settings-ux-overhaul)
+ */
+export type SettingsSectionType = 'quick-settings' | 'appearance' | 'reading-queue' | 'developer' | 'all';
+
+/**
+ * API provider type for testing (027-settings-ux-overhaul)
+ */
+export type ApiProviderType = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'anthropic';
+
+/**
  * Footer action type
  */
 export type FooterAction = 'play' | 'pause' | 'stop' | 'next' | 'prev' | 'seek' | 'speed' | 'close' | 'minimize' | 'expand';
@@ -837,6 +852,63 @@ export interface VoxPageProtocol {
         title: string;
       };
       error?: string;
+    };
+  };
+
+  // ========== Settings UX Messages (027-settings-ux-overhaul) ==========
+
+  /**
+   * Test an API key validity by making a minimal API call
+   */
+  'settings.testApiKey': {
+    request: {
+      provider: ApiProviderType;
+      apiKey: string;
+    };
+    response: {
+      success: boolean;
+      provider: string;
+      error?: string;
+      latencyMs?: number;
+    };
+  };
+
+  /**
+   * Get current theme preference
+   */
+  'settings.getTheme': {
+    request: void;
+    response: {
+      mode: ThemeModeType;
+      resolvedTheme: 'light' | 'dark';
+    };
+  };
+
+  /**
+   * Set theme preference
+   */
+  'settings.setTheme': {
+    request: {
+      mode: ThemeModeType;
+    };
+    response: {
+      success: boolean;
+      mode: ThemeModeType;
+      resolvedTheme: 'light' | 'dark';
+    };
+  };
+
+  /**
+   * Reset settings for a specific section to defaults
+   */
+  'settings.resetSection': {
+    request: {
+      section: SettingsSectionType;
+    };
+    response: {
+      success: boolean;
+      section: string;
+      resetKeys: string[];
     };
   };
 }

@@ -43,6 +43,11 @@ export default defineConfig({
         strict_min_version: '100.0',
       },
     },
+    // 027-settings-ux-overhaul: Open options page in dedicated tab
+    options_ui: {
+      page: 'entrypoints/options.html',
+      open_in_tab: true,
+    },
   },
 
   browser: process.env.BROWSER || 'firefox',

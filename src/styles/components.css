@@ -732,3 +732,332 @@
 .queue-status--loading {
   color: var(--color-warning);
 }
+
+/* ========================================
+   ACCORDION COMPONENT (027-settings-ux-overhaul)
+   Collapsible sections with expand/collapse
+   FR-011: Accordion animations
+   ======================================== */
+
+.voxpage-accordion {
+  overflow: hidden;
+}
+
+.voxpage-accordion__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--spacing-lg);
+  margin: calc(-1 * var(--spacing-xl));
+  margin-bottom: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  transition: var(--transition-colors);
+}
+
+.voxpage-accordion__header:hover {
+  background: var(--color-button-bg);
+}
+
+.voxpage-accordion__header:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: -2px;
+}
+
+.voxpage-accordion__chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-normal) var(--ease-default);
+  flex-shrink: 0;
+}
+
+.voxpage-accordion__header[aria-expanded="true"] .voxpage-accordion__chevron {
+  transform: rotate(180deg);
+}
+
+.voxpage-accordion__content {
+  padding-top: var(--spacing-lg);
+  animation: accordion-expand var(--transition-normal) var(--ease-default);
+}
+
+.voxpage-accordion__content[hidden] {
+  display: none;
+}
+
+@keyframes accordion-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   TOAST NOTIFICATIONS (027-settings-ux-overhaul)
+   FR-020, FR-021, FR-031
+   ======================================== */
+
+.toast-container {
+  position: fixed;
+  bottom: var(--spacing-xl);
+  right: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  z-index: var(--z-toast);
+  max-width: 360px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateX(100%);
+  transition:
+    opacity var(--transition-normal) var(--ease-default),
+    transform var(--transition-normal) var(--ease-default);
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.toast--exiting {
+  animation: toast-exit var(--transition-normal) var(--ease-default) forwards;
+}
+
+@keyframes toast-exit {
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.toast__icon {
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.toast__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast__message {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  word-wrap: break-word;
+}
+
+.toast__action {
+  display: inline-block;
+  margin-top: var(--spacing-xs);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-accent-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.toast__action:hover {
+  color: var(--color-accent-secondary);
+}
+
+.toast__dismiss {
+  padding: var(--spacing-xs);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-colors);
+}
+
+.toast__dismiss:hover {
+  background: var(--color-button-bg);
+  color: var(--color-text-primary);
+}
+
+.toast__dismiss:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Toast type variants */
+.toast--success {
+  border-left: 3px solid var(--color-success);
+}
+
+.toast--success .toast__icon {
+  color: var(--color-success);
+}
+
+.toast--error {
+  border-left: 3px solid var(--color-error);
+}
+
+.toast--error .toast__icon {
+  color: var(--color-error);
+}
+
+.toast--warning {
+  border-left: 3px solid var(--color-warning);
+}
+
+.toast--warning .toast__icon {
+  color: var(--color-warning);
+}
+
+.toast--info {
+  border-left: 3px solid var(--color-info);
+}
+
+.toast--info .toast__icon {
+  color: var(--color-info);
+}
+
+/* Mobile toast positioning */
+@media (max-width: 480px) {
+  .toast-container {
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    bottom: var(--spacing-md);
+    max-width: none;
+  }
+
+  .toast {
+    transform: translateY(100%);
+  }
+
+  .toast--visible {
+    transform: translateY(0);
+  }
+
+  .toast--exiting {
+    animation: toast-exit-mobile var(--transition-normal) var(--ease-default) forwards;
+  }
+
+  @keyframes toast-exit-mobile {
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
+}
+
+/* ========================================
+   WCAG 2.1 AA FOCUS INDICATORS (027-settings-ux-overhaul)
+   FR-027: Visible focus indicators
+   ======================================== */
+
+/* Enhanced focus ring for all interactive elements */
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* High contrast focus for form inputs */
+.voxpage-input:focus-visible,
+.voxpage-select:focus-visible,
+.voxpage-slider:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-focus-ring);
+}
+
+/* Focus indicator for toggle switches */
+.voxpage-toggle__input:focus-visible + .voxpage-toggle__switch {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-accent-primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  z-index: var(--z-overlay);
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: var(--spacing-md);
+}
+
+/* ========================================
+   REDUCED MOTION SUPPORT (027-settings-ux-overhaul)
+   FR-033: prefers-reduced-motion
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast--visible,
+  .toast--exiting,
+  .voxpage-accordion__chevron,
+  .voxpage-accordion__content {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .toast {
+    opacity: 1;
+    transform: none;
+  }
+
+  .toast--exiting {
+    display: none;
+  }
+
+  @keyframes accordion-expand {
+    from, to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes toast-exit {
+    from, to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes save-pulse {
+    from, to {
+      transform: none;
+    }
+  }
+}
