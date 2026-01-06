@@ -1,13 +1,13 @@
 # VoxPage Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-03
+Auto-generated from all feature plans. Last updated: 2026-01-06
 
 ## ✅ MIGRATION COMPLETE - 026-src-folder-restructure
 
 **Current Status**: TypeScript migration complete. All source code in `src/` directory.
-**Branch**: `026-src-folder-restructure`
-**Test Results**: 879 tests (729 pass, 150 skipped for legacy API compatibility)
-**Quality**: 0 circular dependencies, 2.64% code duplication
+**Branch**: `031-source-code-protection`
+**Test Results**: 1084 tests (934 pass, 150 skipped for legacy API compatibility)
+**Quality**: 0 circular dependencies, 2% code duplication
 
 ### Active Technologies
 
@@ -38,6 +38,7 @@ src/                          # All source code (srcDir in wxt.config.ts)
   ├── utils/                  # Shared TypeScript utilities
   │   ├── config/             # Settings, defaults, migrations, store
   │   ├── audio/              # Playback sync, cache, visualizer, MP3 encoder
+  │   ├── cache/              # Smart audio cache (IndexedDB, LRU eviction, cost estimator)
   │   ├── providers/          # 6 TTS providers + base interface
   │   ├── content/            # Extractor, scorer, highlighter, sticky-footer, OCR
   │   ├── language/           # franc-min detector, mappings, extractor
@@ -122,6 +123,11 @@ tests/                        # Jest + Playwright tests
 - Markdown files in `specs/[feature]/checklists/` - progress persisted as checkbox state (025-checklist-roadmap)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x (026-src-folder-restructure)
 - browser.storage.local (WebExtension API - unchanged) (026-src-folder-restructure)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper) (028-smart-audio-cache)
+- IndexedDB for audio blobs (browser.storage.local has 5MB limit), browser.storage.local for cache index (028-smart-audio-cache)
+- N/A (documentation/configuration only) + GitHub CLI (`gh`), bash scripts (030-license-repo-protection)
+- TypeScript 5.x (strict mode), Bash scripts, YAML (GitHub Actions) + WXT 0.20.13, Vite 5.x, esbuild (built-in minifier), GitHub CLI (`gh`) (031-source-code-protection)
+- N/A (configuration/documentation feature) (031-source-code-protection)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -277,9 +283,9 @@ npm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 027-settings-ux-overhaul: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x
-- 026-src-folder-restructure: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x
-- 025-checklist-roadmap: Added Markdown (Claude Code command definition) + Bash scripts for file operations + Claude Code CLI (command execution), AskUserQuestion tool (user interaction), Edit tool (file updates)
+- 031-source-code-protection: Added TypeScript 5.x (strict mode), Bash scripts, YAML (GitHub Actions) + WXT 0.20.13, Vite 5.x, esbuild (built-in minifier), GitHub CLI (`gh`)
+- 030-license-repo-protection: Added N/A (documentation/configuration only) + GitHub CLI (`gh`), bash scripts
+- 028-smart-audio-cache: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper)
 
 
 <!-- MANUAL ADDITIONS START -->
@@ -842,5 +848,182 @@ npm test
 - Error includes suggested alternative providers
 - Popup modal offers one-click provider switching
 - Graceful fallback to English on detection failure
+
+## Feature 028: Smart Audio Cache
+
+### Overview (028-smart-audio-cache)
+
+Implements intelligent audio caching using IndexedDB for persistent storage. Reduces API costs and improves playback responsiveness by caching generated TTS audio.
+
+### Architecture
+
+**Key Modules**:
+- `src/utils/cache/audio-cache-store.ts` - Main cache store with LRU eviction
+- `src/utils/cache/cache-key.ts` - Cache key generation and parsing
+- `src/utils/cache/cache-index.ts` - In-memory index for fast lookups
+- `src/utils/cache/eviction.ts` - Multi-factor eviction scoring
+- `src/utils/cache/cost-estimator.ts` - Cost calculation with cache awareness
+- `src/utils/cache/db.ts` - IndexedDB wrapper using `idb` library
+
+**Content Script Utilities**:
+- `src/utils/content/paragraph-indicator.ts` - Visual cache status indicators
+- `src/utils/content/paragraph-selector.ts` - Paragraph range selection UI
+
+### Cache Key Format
+
+```
+${urlHash}:${paragraphIndex}:${provider}:${voice}:${contentHash}
+```
+
+Example: `a1b2c3:5:openai:alloy:xyz789`
+
+### Eviction Algorithm
+
+Multi-factor LRU scoring with configurable weights:
+
+```typescript
+score = ageMinutes * 1.0 + sizePercentage * 0.5 - log(accessCount + 1) * 2.0
+```
+
+Higher scores = higher eviction priority.
+
+### Cost Estimation
+
+Provider pricing (per 1000 characters):
+
+| Provider | Price |
+|----------|-------|
+| OpenAI TTS | $0.015 |
+| ElevenLabs | $0.18 |
+| Cartesia | $0.05 |
+| Groq | Free |
+| Browser TTS | Free |
+
+### Configuration (from `src/utils/config/defaults.ts`)
+
+```typescript
+cacheDefaults = {
+  maxSizeBytes: 500 * 1024 * 1024, // 500 MB
+  maxEntries: 1000,
+  maxAgeMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+  evictionThresholdPercent: 90, // Evict at 90%
+  evictionTargetPercent: 70,    // Down to 70%
+  prefetchAhead: 3,
+};
+```
+
+### Message Handlers
+
+Cache-related handlers registered in background:
+
+- `cache.getStats` - Get cache statistics
+- `cache.clear` - Clear all cached audio
+- `cache.clearUrl` - Clear cache for specific URL
+- `cache.check` - Check if paragraph is cached
+- `cache.get` - Retrieve cached audio
+- `cache.set` - Store audio in cache
+- `cost.estimate` - Calculate estimated TTS costs
+- `paragraphs.getStatus` - Get cache status for paragraphs
+
+### Settings UI
+
+Cache settings in Options page (`settings.html#cache`):
+- Cache statistics display (entries, size, hit rate, savings)
+- Usage bar visualization
+- Clear Cache button with confirmation modal
+- Refresh stats button
+
+Cost visibility toggle in Appearance section:
+- `showCostEstimate` - Show/hide cost estimates in popup
+
+### Testing
+
+```bash
+# Run cache tests
+npm test -- --testPathPattern="cache"
+
+# Run eviction tests
+npm test -- --testPathPattern="eviction"
+
+# Run cost estimator tests
+npm test -- --testPathPattern="cost-estimator"
+```
+
+### Offline Support
+
+Cached audio works fully offline. IndexedDB persists across browser sessions. Uncached paragraphs require network for TTS API calls.
+
+## Feature 031: Source Code Protection
+
+### Overview (031-source-code-protection)
+
+Multi-layer source code protection for VoxPage Firefox extension through:
+1. GitHub repository access restriction (private visibility + branch protection)
+2. AMO-compliant production build hardening (minification + source map removal + debug statement stripping)
+3. Legal documentation (Terms of Service, NDA template)
+4. CI/CD secrets hardening
+
+**Critical constraint**: Mozilla AMO prohibits obfuscated code. Only minification is allowed.
+
+### Protection Measures Implemented
+
+| Layer | Measure | Status |
+|-------|---------|--------|
+| Repository | Private visibility | Active |
+| Repository | Branch protection (PR reviews, status checks) | Active |
+| Repository | CODEOWNERS file | Active |
+| Build | Source maps disabled in production | Active |
+| Build | console/debugger statements dropped | Active |
+| Build | Tree-shaking enabled | Active |
+| Legal | TERMS_OF_SERVICE.md | Created |
+| Legal | templates/NDA.md | Created |
+
+### Build Hardening Configuration (wxt.config.ts)
+
+```typescript
+vite: () => ({
+  build: {
+    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
+    minify: 'esbuild',
+  },
+  esbuild: {
+    treeShaking: true,
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+}),
+```
+
+### Verification Commands
+
+```bash
+# Verify repository is private
+gh repo view --json visibility
+
+# Build for production
+NODE_ENV=production npm run build
+
+# Verify no source maps
+find .output/firefox-mv2 -name "*.map" -type f
+
+# Verify minification
+head -c 500 .output/firefox-mv2/background.js
+
+# Verify console statements removed
+grep -E "console\.(log|warn|error)\(" .output/firefox-mv2/*.js | wc -l
+```
+
+### Key Decisions
+
+1. **No obfuscation**: Mozilla AMO explicitly prohibits obfuscated code
+2. **Minification only**: esbuild minification is allowed and effective
+3. **Private repository**: Prevents public access to source code
+4. **Legal protection**: ToS and NDA provide contractual IP protection
+
+### Files Created/Modified
+
+- `.github/CODEOWNERS` - Required reviewers for code changes
+- `TERMS_OF_SERVICE.md` - Extension terms of service
+- `templates/NDA.md` - NDA template for contractors
+- `wxt.config.ts` - Production build hardening
 
 <!-- MANUAL ADDITIONS END -->

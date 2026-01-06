@@ -8,6 +8,7 @@ export default defineConfig({
     version: '1.0.0',
     permissions: [
       'storage',
+      'unlimitedStorage', // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
       'activeTab',
       'tabs', // Tab management and URL tracking
       'contextMenus', // Right-click menu integration
@@ -63,7 +64,8 @@ export default defineConfig({
     build: {
       target: 'es2020',
       // T121: Inline sourcemaps for development debugging
-      sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : true,
+      // T011 (031): Disable source maps in production for IP protection
+      sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
       // T120: Enable tree-shaking via esbuild minification (default in Vite)
       minify: 'esbuild',
       // T119: Code splitting - WXT handles chunking automatically for extensions
@@ -75,8 +77,10 @@ export default defineConfig({
       include: ['zod', 'franc-min'],
     },
     // T120: Ensure dead code elimination
+    // T012-T013 (031): Remove console/debugger in production, tree-shaking enabled
     esbuild: {
       treeShaking: true,
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
     },
   }),
 });
