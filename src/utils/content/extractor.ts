@@ -257,9 +257,7 @@ export function extractText(mode: ExtractionMode): string {
       return extractArticle();
     case 'full':
     default:
-      console.log(
-        'VoxPage: Using full page extraction (consider using article mode)',
-      );
+      console.log('VoxPage: Using full page extraction (consider using article mode)');
       return extractFullPage();
   }
 }
@@ -283,19 +281,14 @@ export function extractSelection(): string {
     // Get the common ancestor and find all paragraph-like elements within
     const container = range.commonAncestorContainer;
     const containerEl =
-      container.nodeType === Node.ELEMENT_NODE
-        ? (container as Element)
-        : container.parentElement;
+      container.nodeType === Node.ELEMENT_NODE ? (container as Element) : container.parentElement;
 
     if (containerEl) {
       // If selection is within a single paragraph-like element, use it
       const paragraphParent = containerEl.closest(
         'p, li, blockquote, h1, h2, h3, h4, h5, h6, div, article, section',
       );
-      if (
-        paragraphParent &&
-        paragraphParent.textContent?.includes(text.substring(0, 50))
-      ) {
+      if (paragraphParent && paragraphParent.textContent?.includes(text.substring(0, 50))) {
         selectedElements.push(paragraphParent);
       } else {
         // Selection spans multiple elements - find all paragraph elements in range
@@ -303,9 +296,7 @@ export function extractSelection(): string {
           acceptNode: (node: Node) => {
             const el = node as Element;
             if (
-              ['P', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(
-                el.tagName,
-              )
+              ['P', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(el.tagName)
             ) {
               if (selection.containsNode(el, true)) {
                 return NodeFilter.FILTER_ACCEPT;
@@ -343,29 +334,20 @@ export function extractSelection(): string {
 export function extractArticle(): string {
   console.log('VoxPage: extractArticle() called');
   console.log('VoxPage: Readability available:', typeof window.Readability);
-  console.log(
-    'VoxPage: isProbablyReaderable available:',
-    typeof window.isProbablyReaderable,
-  );
+  console.log('VoxPage: isProbablyReaderable available:', typeof window.isProbablyReaderable);
 
   // Try Mozilla Readability first (best content extraction)
   const readabilityResult = tryReadabilityExtraction();
   if (readabilityResult) {
     console.log('VoxPage: Used Readability for extraction');
-    console.log(
-      'VoxPage: Extracted paragraphs count:',
-      extractedParagraphs.length,
-    );
+    console.log('VoxPage: Extracted paragraphs count:', extractedParagraphs.length);
     return readabilityResult;
   }
 
   // Fallback to manual heuristics
   console.log('VoxPage: Readability failed, using heuristic extraction');
   const result = extractArticleHeuristic();
-  console.log(
-    'VoxPage: Heuristic extracted paragraphs count:',
-    extractedParagraphs.length,
-  );
+  console.log('VoxPage: Heuristic extracted paragraphs count:', extractedParagraphs.length);
   return result;
 }
 
@@ -433,11 +415,7 @@ export function findContentParagraphs(container: Element): Element[] {
     seenTexts.add(normalizedText);
 
     const computedStyle = window.getComputedStyle(el);
-    if (
-      computedStyle.position === 'fixed' ||
-      computedStyle.position === 'sticky'
-    )
-      continue;
+    if (computedStyle.position === 'fixed' || computedStyle.position === 'sticky') continue;
 
     paragraphs.push(el);
   }
@@ -509,9 +487,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
   let removedCount = 0;
 
   // Build comprehensive selector list for unwanted elements
-  const classSelectors = UNWANTED_CONFIG.patterns
-    .map((p) => `[class*="${p}"]`)
-    .join(', ');
+  const classSelectors = UNWANTED_CONFIG.patterns.map((p) => `[class*="${p}"]`).join(', ');
   const idSelectors = UNWANTED_CONFIG.patterns.map((p) => `[id*="${p}"]`).join(', ');
   const tagSelectors = UNWANTED_CONFIG.unwantedTags.join(', ');
 
@@ -537,12 +513,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
   ].join(', ');
 
   // Combine all selectors
-  const combinedSelector = [
-    classSelectors,
-    idSelectors,
-    tagSelectors,
-    fextralifeSelectors,
-  ]
+  const combinedSelector = [classSelectors, idSelectors, tagSelectors, fextralifeSelectors]
     .filter((s) => s.length > 0)
     .join(', ');
 
@@ -567,9 +538,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
       const paragraphCount = el.querySelectorAll('p').length;
       if (paragraphCount > 10) {
         // This might be a main content area, skip it
-        console.log(
-          `VoxPage: Skipping removal of element with ${paragraphCount} paragraphs`,
-        );
+        console.log(`VoxPage: Skipping removal of element with ${paragraphCount} paragraphs`);
         continue;
       }
 
@@ -647,11 +616,7 @@ function tryReadabilityExtraction(): string | null {
 
     const article = reader.parse();
 
-    if (
-      !article ||
-      !article.textContent ||
-      article.textContent.trim().length < 100
-    ) {
+    if (!article || !article.textContent || article.textContent.trim().length < 100) {
       console.log('VoxPage: Readability returned insufficient content');
       return null;
     }
@@ -670,9 +635,7 @@ function tryReadabilityExtraction(): string | null {
     }
 
     // Get paragraph elements from parsed content
-    const paragraphElements = tempDiv.querySelectorAll(
-      'p, h1, h2, h3, h4, h5, h6, li, blockquote',
-    );
+    const paragraphElements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
     const meaningfulParagraphs: Element[] = [];
     const seenTexts = new Set<string>();
 
@@ -691,9 +654,7 @@ function tryReadabilityExtraction(): string | null {
     // Now find corresponding elements in the actual DOM for highlighting
     extractedParagraphs = findMatchingDOMElements(meaningfulParagraphs);
 
-    console.log(
-      `VoxPage: Found ${extractedParagraphs.length} paragraphs for highlighting`,
-    );
+    console.log(`VoxPage: Found ${extractedParagraphs.length} paragraphs for highlighting`);
 
     // Feature 015: Return ONLY the text from matched DOM paragraphs
     // This ensures audio matches exactly what will be highlighted
@@ -866,9 +827,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
       const candidates = fingerprintToElements.get(targetFingerprint)!;
       // If multiple matches, prefer ones not already used
       for (const candidate of candidates) {
-        const candidateFp = createTextFingerprint(
-          candidate.textContent?.trim() || '',
-        );
+        const candidateFp = createTextFingerprint(candidate.textContent?.trim() || '');
         if (!seenFingerprints.has(candidateFp)) {
           bestMatch = candidate;
           break;
@@ -893,9 +852,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     }
 
     if (bestMatch) {
-      const domFingerprint = createTextFingerprint(
-        bestMatch.textContent?.trim() || '',
-      );
+      const domFingerprint = createTextFingerprint(bestMatch.textContent?.trim() || '');
       seenFingerprints.add(domFingerprint);
       seenFingerprints.add(targetFingerprint);
       matchedElements.push(bestMatch);
@@ -904,9 +861,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
 
   // If matching failed, fall back to direct DOM extraction
   if (matchedElements.length === 0 && extractedEls.length > 0) {
-    console.log(
-      'VoxPage: Readability matching failed, using direct DOM extraction',
-    );
+    console.log('VoxPage: Readability matching failed, using direct DOM extraction');
     return extractParagraphsDirectlyFromDOM();
   }
 
@@ -963,10 +918,7 @@ function findWikiContentContainer(): Element | null {
  * This is a lighter check than the full isInsideUnwantedElement - only checks
  * immediate parents for things like TOC, infoboxes, etc. within the content
  */
-function isInsideUnwantedSubContainer(
-  el: Element,
-  contentContainer: Element,
-): boolean {
+function isInsideUnwantedSubContainer(el: Element, contentContainer: Element): boolean {
   // Patterns for sub-containers within content that should be skipped
   const unwantedSubPatterns = [
     // Table of contents
@@ -1039,8 +991,7 @@ function isInsideUnwantedSubContainer(
 
   let parent: Element | null = el.parentElement;
   while (parent && parent !== contentContainer && parent !== document.body) {
-    const classId =
-      ((parent.className as string) || '' + ' ' + (parent.id || '')).toLowerCase();
+    const classId = ((parent.className as string) || '' + ' ' + (parent.id || '')).toLowerCase();
 
     for (const pattern of unwantedSubPatterns) {
       if (classId.includes(pattern)) {
@@ -1079,18 +1030,14 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
 
   // Track if we found a known content container (skip aggressive filtering if so)
   const isKnownContentContainer =
-    !!wikiContainer ||
-    container.tagName === 'ARTICLE' ||
-    container.tagName === 'MAIN';
+    !!wikiContainer || container.tagName === 'ARTICLE' || container.tagName === 'MAIN';
 
   console.log(
     `VoxPage: Direct extraction from container: ${container.tagName}${container.id ? '#' + container.id : ''} (known: ${isKnownContentContainer})`,
   );
 
   // Get all paragraph-like elements
-  const candidates = container.querySelectorAll(
-    'p, h1, h2, h3, h4, h5, h6, blockquote',
-  );
+  const candidates = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote');
 
   console.log(`VoxPage: Found ${candidates.length} candidate elements`);
 
@@ -1201,24 +1148,14 @@ function extractArticleHeuristic(): string {
   ];
 
   // Priority 3: Generic content containers
-  const genericSelectors = [
-    '[role="main"]',
-    'main',
-    '#main-content',
-    '#content',
-    '.content-area',
-  ];
+  const genericSelectors = ['[role="main"]', 'main', '#main-content', '#content', '.content-area'];
 
   let articleElement: Element | null = null;
 
   // Try wiki selectors first
   for (const selector of wikiSelectors) {
     const el = document.querySelector(selector);
-    if (
-      el &&
-      (el.textContent?.length || 0) > 500 &&
-      !scorer.isNavigationElement?.(el)
-    ) {
+    if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
       articleElement = el;
       break;
     }
@@ -1228,11 +1165,7 @@ function extractArticleHeuristic(): string {
   if (!articleElement) {
     for (const selector of articleSelectors) {
       const el = document.querySelector(selector);
-      if (
-        el &&
-        (el.textContent?.length || 0) > 500 &&
-        !scorer.isNavigationElement?.(el)
-      ) {
+      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
         articleElement = el;
         break;
       }
@@ -1243,11 +1176,7 @@ function extractArticleHeuristic(): string {
   if (!articleElement) {
     for (const selector of genericSelectors) {
       const el = document.querySelector(selector);
-      if (
-        el &&
-        (el.textContent?.length || 0) > 500 &&
-        !scorer.isNavigationElement?.(el)
-      ) {
+      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
         articleElement = el;
         break;
       }
@@ -1485,21 +1414,12 @@ function findParagraphElements(container: Element): Element[] {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: (node: Node) => {
       const el = node as Element;
-      if (
-        scorer.isBlockElement?.(el) &&
-        (el.textContent?.trim().length || 0) > 20
-      ) {
-        const nestedBlocks = el.querySelectorAll(
-          'p, div, h1, h2, h3, h4, h5, h6, li',
-        );
+      if (scorer.isBlockElement?.(el) && (el.textContent?.trim().length || 0) > 20) {
+        const nestedBlocks = el.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li');
         const hasNestedContent = Array.from(nestedBlocks).some(
           (b) => (b.textContent?.trim().length || 0) > 50,
         );
-        if (
-          !hasNestedContent ||
-          el.tagName === 'P' ||
-          el.tagName === 'LI'
-        ) {
+        if (!hasNestedContent || el.tagName === 'P' || el.tagName === 'LI') {
           return NodeFilter.FILTER_ACCEPT;
         }
       }

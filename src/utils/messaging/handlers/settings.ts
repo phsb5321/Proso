@@ -10,7 +10,12 @@
  * @description FR-023: API key testing, FR-008: Theme management, FR-026: Reset functionality
  */
 
-import type { VoxPageProtocol, ApiProviderType, ThemeModeType, SettingsSectionType } from '../protocol';
+import type {
+  VoxPageProtocol,
+  ApiProviderType,
+  ThemeModeType,
+  SettingsSectionType,
+} from '../protocol';
 import type { SettingsUpdateParams, SettingsMigrateParams } from '../types';
 import { settingsUpdateParamsSchema, settingsMigrateParamsSchema } from '../schemas';
 import { defaults } from '../../config';
@@ -37,7 +42,7 @@ export async function handleSettingsGet(): Promise<VoxPageProtocol['settings.get
  * Update settings handler
  */
 export async function handleSettingsUpdate(
-  params: SettingsUpdateParams
+  params: SettingsUpdateParams,
 ): Promise<VoxPageProtocol['settings.update']['response']> {
   const validated = settingsUpdateParamsSchema.parse(params);
 
@@ -62,7 +67,7 @@ export async function handleSettingsUpdate(
  * Migrate settings handler
  */
 export async function handleSettingsMigrate(
-  params: SettingsMigrateParams
+  params: SettingsMigrateParams,
 ): Promise<VoxPageProtocol['settings.migrate']['response']> {
   const validated = settingsMigrateParamsSchema.parse(params);
 
@@ -81,17 +86,20 @@ export async function handleSettingsMigrate(
 /**
  * API endpoint configurations for testing
  */
-const API_TEST_ENDPOINTS: Record<ApiProviderType, {
-  url: string;
-  method: string;
-  headers: (apiKey: string) => Record<string, string>;
-  body?: unknown;
-}> = {
+const API_TEST_ENDPOINTS: Record<
+  ApiProviderType,
+  {
+    url: string;
+    method: string;
+    headers: (apiKey: string) => Record<string, string>;
+    body?: unknown;
+  }
+> = {
   openai: {
     url: 'https://api.openai.com/v1/models',
     method: 'GET',
     headers: (apiKey) => ({
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     }),
   },
   elevenlabs: {
@@ -113,7 +121,7 @@ const API_TEST_ENDPOINTS: Record<ApiProviderType, {
     url: 'https://api.groq.com/openai/v1/models',
     method: 'GET',
     headers: (apiKey) => ({
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     }),
   },
   anthropic: {
@@ -136,9 +144,10 @@ const API_TEST_ENDPOINTS: Record<ApiProviderType, {
  * Test API key handler
  * FR-023: API key testing with feedback
  */
-export async function handleSettingsTestApiKey(
-  params: { provider: ApiProviderType; apiKey: string }
-): Promise<VoxPageProtocol['settings.testApiKey']['response']> {
+export async function handleSettingsTestApiKey(params: {
+  provider: ApiProviderType;
+  apiKey: string;
+}): Promise<VoxPageProtocol['settings.testApiKey']['response']> {
   const { provider, apiKey } = params;
   const startTime = performance.now();
 
@@ -223,7 +232,9 @@ export async function handleSettingsTestApiKey(
  * Get current theme preference
  * FR-008: Theme switching
  */
-export async function handleSettingsGetTheme(): Promise<VoxPageProtocol['settings.getTheme']['response']> {
+export async function handleSettingsGetTheme(): Promise<
+  VoxPageProtocol['settings.getTheme']['response']
+> {
   const result = await browser.storage.local.get('themeMode');
   const mode = (result.themeMode as ThemeModeType) || 'system';
 
@@ -247,9 +258,9 @@ export async function handleSettingsGetTheme(): Promise<VoxPageProtocol['setting
  * Set theme preference
  * FR-008: Theme switching with instant apply
  */
-export async function handleSettingsSetTheme(
-  params: { mode: ThemeModeType }
-): Promise<VoxPageProtocol['settings.setTheme']['response']> {
+export async function handleSettingsSetTheme(params: { mode: ThemeModeType }): Promise<
+  VoxPageProtocol['settings.setTheme']['response']
+> {
   const { mode } = params;
 
   await browser.storage.local.set({ themeMode: mode });
@@ -276,10 +287,19 @@ export async function handleSettingsSetTheme(
  */
 const SECTION_KEYS: Record<SettingsSectionType, string[]> = {
   'quick-settings': ['provider', 'voice', 'speed'],
-  'appearance': ['themeMode', 'highlightEnabled', 'autoScroll'],
+  appearance: ['themeMode', 'highlightEnabled', 'autoScroll'],
   'reading-queue': ['queue:settings'],
-  'developer': ['loggingConfig'],
-  'all': ['provider', 'voice', 'speed', 'themeMode', 'highlightEnabled', 'autoScroll', 'queue:settings', 'loggingConfig'],
+  developer: ['loggingConfig'],
+  all: [
+    'provider',
+    'voice',
+    'speed',
+    'themeMode',
+    'highlightEnabled',
+    'autoScroll',
+    'queue:settings',
+    'loggingConfig',
+  ],
 };
 
 /**
@@ -313,9 +333,9 @@ const RESET_DEFAULTS: Record<string, unknown> = {
  * Reset settings section handler
  * FR-026: Reset with API key exclusion
  */
-export async function handleSettingsResetSection(
-  params: { section: SettingsSectionType }
-): Promise<VoxPageProtocol['settings.resetSection']['response']> {
+export async function handleSettingsResetSection(params: { section: SettingsSectionType }): Promise<
+  VoxPageProtocol['settings.resetSection']['response']
+> {
   const { section } = params;
 
   const keysToReset = SECTION_KEYS[section];

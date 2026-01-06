@@ -1,0 +1,125 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedImports": "warn",
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noConsoleLog": "off",
+        "noGlobalIsNan": "off",
+        "noGlobalIsFinite": "off",
+        "noAssignInExpressions": "off",
+        "noConfusingVoidType": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useOptionalChain": "off",
+        "useLiteralKeys": "off",
+        "noUselessSwitchCase": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useConst": "error",
+        "noParameterAssign": "off",
+        "useNumberNamespace": "off",
+        "useTemplate": "off",
+        "useDefaultParameterLast": "off",
+        "noUselessElse": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    },
+    "globals": [
+      "browser",
+      "document",
+      "window",
+      "HTMLElement",
+      "Element",
+      "Node",
+      "NodeList",
+      "MutationObserver",
+      "ResizeObserver",
+      "IntersectionObserver",
+      "console",
+      "setTimeout",
+      "clearTimeout",
+      "setInterval",
+      "clearInterval",
+      "requestAnimationFrame",
+      "cancelAnimationFrame",
+      "fetch",
+      "Blob",
+      "URL",
+      "URLSearchParams",
+      "FormData",
+      "Headers",
+      "Request",
+      "Response",
+      "Audio",
+      "AudioContext",
+      "OfflineAudioContext",
+      "GainNode",
+      "AnalyserNode",
+      "CanvasRenderingContext2D",
+      "CSS",
+      "Highlight",
+      "Range",
+      "Event",
+      "CustomEvent",
+      "KeyboardEvent",
+      "MouseEvent",
+      "localStorage",
+      "sessionStorage",
+      "navigator",
+      "location",
+      "history",
+      "performance",
+      "atob",
+      "btoa",
+      "TextEncoder",
+      "TextDecoder"
+    ]
+  },
+  "files": {
+    "ignore": [
+      "node_modules/**",
+      ".output/**",
+      "coverage/**",
+      "tests/**",
+      "playwright-report/**",
+      "test-results/**",
+      "*.config.js",
+      "*.config.ts",
+      "jest.config.js",
+      "playwright.config.js",
+      "wxt.config.ts",
+      "legacy/**",
+      "dist/**",
+      "pnpm-lock.yaml",
+      "package-lock.json"
+    ]
+  }
+}

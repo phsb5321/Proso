@@ -110,7 +110,7 @@ export class OCRProcessor {
     } catch (error) {
       this.initPromise = null;
       throw new Error(
-        `Failed to initialize OCR engine: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to initialize OCR engine: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -121,10 +121,7 @@ export class OCRProcessor {
    * @param options - OCR processing options
    * @returns Promise resolving to OCR result
    */
-  async processImage(
-    imageData: string,
-    options: Partial<OCROptions> = {}
-  ): Promise<OCRResult> {
+  async processImage(imageData: string, options: Partial<OCROptions> = {}): Promise<OCRResult> {
     const startTime = Date.now();
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
@@ -198,7 +195,7 @@ export class OCRProcessor {
       this.loadedLanguages.add(languageCode);
     } catch (error) {
       throw new Error(
-        `Failed to load language '${languageCode}': ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to load language '${languageCode}': ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -206,10 +203,7 @@ export class OCRProcessor {
   /**
    * Decode image from base64/data URL to ImageData
    */
-  private async decodeImage(
-    imageData: string,
-    region?: OCROptions['region']
-  ): Promise<ImageData> {
+  private async decodeImage(imageData: string, region?: OCROptions['region']): Promise<ImageData> {
     // Create an image element
     const img = new Image();
 
@@ -227,10 +221,7 @@ export class OCRProcessor {
     });
 
     // Create canvas and draw image
-    const canvas = new OffscreenCanvas(
-      region?.width || img.width,
-      region?.height || img.height
-    );
+    const canvas = new OffscreenCanvas(region?.width || img.width, region?.height || img.height);
     const ctx = canvas.getContext('2d');
 
     if (!ctx) {
@@ -247,7 +238,7 @@ export class OCRProcessor {
         0,
         0,
         region.width,
-        region.height
+        region.height,
       );
     } else {
       ctx.drawImage(img, 0, 0);
@@ -291,8 +282,7 @@ export class OCRProcessor {
       }));
 
       const lineText = words.map((w) => w.text).join(' ');
-      const lineConfidence =
-        words.reduce((sum, w) => sum + w.confidence, 0) / words.length;
+      const lineConfidence = words.reduce((sum, w) => sum + w.confidence, 0) / words.length;
 
       return {
         text: lineText,

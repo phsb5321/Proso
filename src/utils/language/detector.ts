@@ -11,7 +11,7 @@
 
 import { franc } from 'franc-min';
 import { normalizeLanguageCode, isLanguageSupported } from './codes';
-import { type LanguageDetectionResult, type PageLanguage } from './types';
+import type { LanguageDetectionResult, PageLanguage } from './types';
 
 /**
  * Storage keys for language detection
@@ -139,7 +139,7 @@ function mapISO6393toISO6391(iso6393: string): string {
 function createDetectedLanguage(
   code: string,
   confidence: number,
-  source: 'metadata' | 'text' | 'fallback'
+  source: 'metadata' | 'text' | 'fallback',
 ): DetectedLanguage {
   const primaryCode = normalizeLanguageCode(code);
   const isReliable = confidence >= 0.9 || source === 'metadata';
@@ -178,7 +178,9 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const textResult = detectLanguageFromText(textSample);
     if (textResult && textResult.confidence >= 0.9) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
-      console.log(`VoxPage: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`);
+      console.log(
+        `VoxPage: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
+      );
     }
   }
 
@@ -196,7 +198,9 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const textResult = detectLanguageFromText(textSample);
     if (textResult && textResult.confidence >= 0.5) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
-      console.log(`VoxPage: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`);
+      console.log(
+        `VoxPage: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
+      );
     }
   }
 
@@ -218,7 +222,8 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
 async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> = (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+    const cache: Record<string, DetectedLanguage> =
+      (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
     const cached = cache[url];
 
     if (!cached) return null;
@@ -242,14 +247,15 @@ async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> 
 async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<void> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> = (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+    const cache: Record<string, DetectedLanguage> =
+      (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
 
     // Limit cache size (max 100 entries)
     const urls = Object.keys(cache);
     if (urls.length >= 100) {
       // Remove oldest 20 entries
       const sorted = urls.sort((a, b) => (cache[a].detectedAt || 0) - (cache[b].detectedAt || 0));
-      sorted.slice(0, 20).forEach(oldUrl => delete cache[oldUrl]);
+      sorted.slice(0, 20).forEach((oldUrl) => delete cache[oldUrl]);
     }
 
     cache[url] = detected;
@@ -268,8 +274,11 @@ export async function getLanguageState(tabId: number): Promise<LanguageState> {
     STORAGE_KEYS.LANGUAGE_PREFERENCE,
   ]);
 
-  const detected: DetectedLanguage | null = (result[STORAGE_KEYS.DETECTED_LANGUAGE] as DetectedLanguage | undefined) || null;
-  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
+  const detected: DetectedLanguage | null =
+    (result[STORAGE_KEYS.DETECTED_LANGUAGE] as DetectedLanguage | undefined) || null;
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as
+    | LanguagePreference
+    | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -290,7 +299,9 @@ export async function getLanguageState(tabId: number): Promise<LanguageState> {
  */
 export async function setLanguageOverride(languageCode: string): Promise<void> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as
+    | LanguagePreference
+    | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -310,7 +321,9 @@ export async function setLanguageOverride(languageCode: string): Promise<void> {
  */
 export async function clearLanguageOverride(): Promise<void> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
+  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as
+    | LanguagePreference
+    | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
@@ -367,7 +380,9 @@ export function setupNavigationListener(): void {
 
         // Cross-domain navigation - clear override if exists
         const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-        const preference: LanguagePreference | undefined = result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined;
+        const preference: LanguagePreference | undefined = result[
+          STORAGE_KEYS.LANGUAGE_PREFERENCE
+        ] as LanguagePreference | undefined;
 
         if (preference?.currentOverride) {
           console.log('VoxPage: Cross-domain navigation, clearing language override');

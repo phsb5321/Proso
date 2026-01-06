@@ -74,7 +74,7 @@ export const openAIResponseSchema = z.object({
       message: z.object({
         content: z.string(),
       }),
-    })
+    }),
   ),
   usage: z
     .object({
@@ -92,7 +92,7 @@ export const anthropicResponseSchema = z.object({
     z.object({
       type: z.literal('text'),
       text: z.string(),
-    })
+    }),
   ),
   usage: z
     .object({

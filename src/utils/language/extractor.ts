@@ -9,7 +9,7 @@
  * @module utils/language/extractor
  */
 
-import { type PageLanguage } from './types';
+import type { PageLanguage } from './types';
 
 /**
  * Extract language information from the current page
@@ -24,7 +24,7 @@ export function extractPageLanguage(): PageLanguage {
   // Check meta tags for language
   let metaLang: string | null = null;
   const metaElements = document.querySelectorAll<HTMLMetaElement>(
-    'meta[http-equiv="content-language"], meta[name="language"]'
+    'meta[http-equiv="content-language"], meta[name="language"]',
   );
 
   for (const meta of metaElements) {

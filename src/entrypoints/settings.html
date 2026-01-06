@@ -71,6 +71,14 @@
           </a>
         </li>
         <li>
+          <a href="#cache" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span>Audio Cache</span>
+          </a>
+        </li>
+        <li>
           <a href="#reading-queue" class="sidebar-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <line x1="8" y1="6" x2="21" y2="6"/>
@@ -388,6 +396,87 @@
             <span class="voxpage-toggle__text">Auto-scroll to current paragraph</span>
           </label>
         </div>
+
+        <div class="form-group">
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="showCostEstimate" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Show cost estimates in popup</span>
+          </label>
+          <p class="form-hint">Display estimated API costs and cache savings when using paid TTS providers</p>
+        </div>
+        </div>
+      </section>
+
+      <!-- Cache Settings Section (028-smart-audio-cache T063-T064) -->
+      <section id="cache" class="voxpage-card voxpage-accordion" data-section="cache">
+        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="cache-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            Audio Cache
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="cache-content" class="voxpage-accordion__content" hidden>
+          <p class="section-description">
+            VoxPage caches generated audio to reduce API costs and improve playback performance. Cached audio is stored locally and automatically managed.
+          </p>
+
+          <!-- Cache Statistics Display -->
+          <div class="cache-stats" id="cacheStats">
+            <div class="cache-stat">
+              <span class="cache-stat__label">Entries</span>
+              <span class="cache-stat__value" id="cacheEntries">--</span>
+            </div>
+            <div class="cache-stat">
+              <span class="cache-stat__label">Size</span>
+              <span class="cache-stat__value" id="cacheSizeDisplay">-- / -- MB</span>
+            </div>
+            <div class="cache-stat">
+              <span class="cache-stat__label">Hit Rate</span>
+              <span class="cache-stat__value" id="cacheHitRate">--%</span>
+            </div>
+            <div class="cache-stat">
+              <span class="cache-stat__label">Savings</span>
+              <span class="cache-stat__value" id="cacheSavings">$0.00</span>
+            </div>
+          </div>
+
+          <!-- Cache Usage Bar -->
+          <div class="cache-usage" id="cacheUsageContainer">
+            <div class="cache-usage__bar">
+              <div class="cache-usage__fill" id="cacheUsageFill" style="width: 0%"></div>
+            </div>
+            <span class="cache-usage__label" id="cacheUsageLabel">0% used</span>
+          </div>
+
+          <div class="form-group cache-actions">
+            <button id="clearCacheBtn" class="voxpage-button voxpage-button--secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              Clear Cache
+            </button>
+            <button id="refreshCacheStatsBtn" class="voxpage-button voxpage-button--ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              Refresh
+            </button>
+            <span id="cacheStatus" class="cache-status" role="status" aria-live="polite"></span>
+          </div>
+
+          <p class="form-hint">
+            Cache is automatically managed. Old entries are removed when storage limits are reached.
+          </p>
         </div>
       </section>
 

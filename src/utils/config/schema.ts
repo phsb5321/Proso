@@ -122,10 +122,10 @@ export type FooterState = z.infer<typeof footerStateSchema>;
 export type FooterPosition = z.infer<typeof footerPositionSchema>;
 export type DetectedLanguage = z.infer<typeof detectedLanguageSchema>;
 export type LanguagePreference = z.infer<typeof languagePreferenceSchema>;
-export type Mode = typeof MODES[number];
-export type Provider = typeof PROVIDERS[number];
-export type DetectionSource = typeof DETECTION_SOURCES[number];
-export type ThemeMode = typeof THEME_MODES[number];
+export type Mode = (typeof MODES)[number];
+export type Provider = (typeof PROVIDERS)[number];
+export type DetectionSource = (typeof DETECTION_SOURCES)[number];
+export type ThemeMode = (typeof THEME_MODES)[number];
 
 // ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
 
@@ -133,25 +133,25 @@ export type ThemeMode = typeof THEME_MODES[number];
  * Valid AI summarization providers
  */
 export const AI_PROVIDERS = ['openai', 'anthropic'] as const;
-export type AIProvider = typeof AI_PROVIDERS[number];
+export type AIProvider = (typeof AI_PROVIDERS)[number];
 
 /**
  * Valid queue item statuses
  */
 export const QUEUE_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
-export type QueueStatus = typeof QUEUE_STATUSES[number];
+export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
 /**
  * Valid export job statuses
  */
 export const EXPORT_STATUSES = ['pending', 'generating', 'encoding', 'complete', 'error'] as const;
-export type ExportStatus = typeof EXPORT_STATUSES[number];
+export type ExportStatus = (typeof EXPORT_STATUSES)[number];
 
 /**
  * Valid export quality levels (bitrate in kbps)
  */
 export const EXPORT_QUALITIES = ['128', '192', '256'] as const;
-export type ExportQuality = typeof EXPORT_QUALITIES[number];
+export type ExportQuality = (typeof EXPORT_QUALITIES)[number];
 
 /**
  * Queue settings schema

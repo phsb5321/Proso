@@ -16,7 +16,12 @@
 import { browser } from 'wxt/browser';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
-import { StickyFooter, type StorageState, type PlaybackState, type PlaybackStatus } from '../utils/content/sticky-footer';
+import {
+  StickyFooter,
+  type StorageState,
+  type PlaybackState,
+  type PlaybackStatus,
+} from '../utils/content/sticky-footer';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 
@@ -521,7 +526,7 @@ export default defineContentScript({
         // Check if we clicked on a selectable paragraph (selection mode)
         const selectableEl = target.closest('.voxpage-selectable') as HTMLElement;
         if (selectableEl && (window as any).VoxPage?.paragraphSelector?.isActive?.()) {
-          const index = parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
+          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
           if (!isNaN(index)) {
             // Selection mode: just select visually, don't play
             (window as any).VoxPage.paragraphSelector?.selectParagraph?.(index);
@@ -532,7 +537,7 @@ export default defineContentScript({
         // Check if we clicked on an active highlight (during playback)
         const highlightedEl = target.closest('.voxpage-highlight') as HTMLElement;
         if (highlightedEl) {
-          const index = parseInt(highlightedEl.dataset.voxpageIndex || '', 10);
+          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || '', 10);
           if (!isNaN(index)) {
             // During playback: jump to the clicked paragraph
             jumpToClickedParagraph(index);
@@ -546,8 +551,8 @@ export default defineContentScript({
 
         // Only allow paragraph jumping if playback is active (highlights exist)
         if (highlightElements.length > 0) {
-          const clickedParagraph = extractedParagraphs.findIndex((el) =>
-            el.contains(target) || el === target
+          const clickedParagraph = extractedParagraphs.findIndex(
+            (el) => el.contains(target) || el === target,
           );
 
           if (clickedParagraph !== -1) {
@@ -573,7 +578,7 @@ export default defineContentScript({
       // Check meta tags for language
       let metaLang: string | null = null;
       const metaElements = document.querySelectorAll(
-        'meta[http-equiv="content-language"], meta[name="language"]'
+        'meta[http-equiv="content-language"], meta[name="language"]',
       );
       for (let i = 0; i < metaElements.length; i++) {
         const content = metaElements[i].getAttribute('content');
@@ -692,7 +697,7 @@ export default defineContentScript({
             msg.text,
             msg.timestamp,
             extractedParagraphs,
-            extractor.findElementByText
+            extractor.findElementByText,
           );
           break;
         }
@@ -751,19 +756,17 @@ export default defineContentScript({
           const msg = message as FooterPositionMessage;
           if ((window as any).VoxPage?.floatingController) {
             (window as any).VoxPage.floatingController.show(msg.position);
-            (window as any).VoxPage.floatingController.onAction(
-              (action: string, data: unknown) => {
-                browser.runtime
-                  .sendMessage({
-                    action: 'controllerAction',
-                    controllerAction: action,
-                    ...((data as object) || {}),
-                  })
-                  .catch((err) => {
-                    console.error('VoxPage: Failed to send controller action:', err);
-                  });
-              }
-            );
+            (window as any).VoxPage.floatingController.onAction((action: string, data: unknown) => {
+              browser.runtime
+                .sendMessage({
+                  action: 'controllerAction',
+                  controllerAction: action,
+                  ...((data as object) || {}),
+                })
+                .catch((err) => {
+                  console.error('VoxPage: Failed to send controller action:', err);
+                });
+            });
           }
           break;
         }
@@ -852,7 +855,9 @@ export default defineContentScript({
             // Also add indicators for cache status
             if (paragraphIndicator) {
               extractedParagraphs.forEach((el, index) => {
-                const status: ParagraphStatus = cachedIndices.includes(index) ? 'cached' : 'pending';
+                const status: ParagraphStatus = cachedIndices.includes(index)
+                  ? 'cached'
+                  : 'pending';
                 paragraphIndicator.addIndicator(el, index, status);
               });
             }
@@ -933,12 +938,14 @@ export default defineContentScript({
                 console.log('VoxPage: OCR response:', response);
                 // Send result back to popup
                 if (response) {
-                  browser.runtime.sendMessage({
-                    action: 'ocr.regionResult',
-                    ...response,
-                  }).catch(() => {
-                    // Popup may be closed
-                  });
+                  browser.runtime
+                    .sendMessage({
+                      action: 'ocr.regionResult',
+                      ...response,
+                    })
+                    .catch(() => {
+                      // Popup may be closed
+                    });
                 }
               } catch (err) {
                 console.error('VoxPage: OCR capture failed:', err);
@@ -946,13 +953,15 @@ export default defineContentScript({
             } else {
               console.log('VoxPage: Region selection cancelled');
               // Notify popup that selection was cancelled
-              browser.runtime.sendMessage({
-                action: 'ocr.regionResult',
-                success: false,
-                error: 'Selection cancelled',
-              }).catch(() => {
-                // Popup may be closed
-              });
+              browser.runtime
+                .sendMessage({
+                  action: 'ocr.regionResult',
+                  success: false,
+                  error: 'Selection cancelled',
+                })
+                .catch(() => {
+                  // Popup may be closed
+                });
             }
           });
           return Promise.resolve({ success: true });
@@ -988,7 +997,7 @@ export default defineContentScript({
 
             // Try to use a good voice
             const voices = speechSynthesis.getVoices();
-            const englishVoice = voices.find(v => v.lang.startsWith('en') && v.localService);
+            const englishVoice = voices.find((v) => v.lang.startsWith('en') && v.localService);
             if (englishVoice) {
               utterance.voice = englishVoice;
             }
@@ -1109,7 +1118,7 @@ export default defineContentScript({
           scrollListenerDebounce = null;
         }, 100); // 100ms debounce for scroll events
       },
-      { passive: true }
+      { passive: true },
     );
 
     /**
@@ -1204,12 +1213,10 @@ export default defineContentScript({
             const resyncDuration = performance.now() - resyncStart;
             if (resyncDuration > 500) {
               console.warn(
-                `VoxPage: Resync took ${resyncDuration.toFixed(0)}ms, exceeds 500ms target (FR-005)`
+                `VoxPage: Resync took ${resyncDuration.toFixed(0)}ms, exceeds 500ms target (FR-005)`,
               );
             } else {
-              console.log(
-                `VoxPage: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`
-              );
+              console.log(`VoxPage: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`);
             }
           })
           .catch(() => {
@@ -1233,7 +1240,7 @@ export default defineContentScript({
       const hasRelevantMutations = mutations.some((mutation) => {
         if (
           highlightElements.some(
-            (el) => mutation.target.contains(el) || el.contains(mutation.target)
+            (el) => mutation.target.contains(el) || el.contains(mutation.target),
           )
         ) {
           return true;
@@ -1249,7 +1256,7 @@ export default defineContentScript({
         mutationDebounceTimer = window.setTimeout(() => {
           const extractedParagraphs = extractor.getExtractedParagraphs();
           extractor.setExtractedParagraphs(
-            extractedParagraphs.filter((el) => document.body.contains(el))
+            extractedParagraphs.filter((el) => document.body.contains(el)),
           );
           highlightManager.filterValidHighlightElements();
           mutationDebounceTimer = null;

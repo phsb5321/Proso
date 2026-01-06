@@ -11,7 +11,12 @@
  * @module utils/messaging/handlers/cache-handlers
  */
 
-import { getCacheStore, estimateCost, getParagraphCacheStatus, getProviderPricing } from '../../cache';
+import {
+  getCacheStore,
+  estimateCost,
+  getParagraphCacheStatus,
+  getProviderPricing,
+} from '../../cache';
 import type { CacheStats, CostEstimate } from '../../cache/types';
 
 // ============================================================================
@@ -84,7 +89,7 @@ export async function handleCacheCheck(data: {
     data.paragraphIndex,
     data.provider,
     data.voice,
-    data.contentHash
+    data.contentHash,
   );
 
   const isCached = store.has(cacheKey);
@@ -307,10 +312,5 @@ export async function handleParagraphsGetStatus(data: {
   }
 
   // Use the cost estimator service
-  return getParagraphCacheStatus(
-    data.url,
-    data.paragraphs,
-    data.provider,
-    data.voice
-  );
+  return getParagraphCacheStatus(data.url, data.paragraphs, data.provider, data.voice);
 }

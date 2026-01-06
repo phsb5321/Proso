@@ -109,7 +109,7 @@ export function createSidebar(options: SidebarOptions): HTMLElement {
 export function updateSidebarActive(sectionId: string): void {
   const links = document.querySelectorAll('.voxpage-sidebar__link');
 
-  links.forEach(link => {
+  links.forEach((link) => {
     const linkSection = link.getAttribute('data-section');
     const isActive = linkSection === sectionId;
 
@@ -129,7 +129,7 @@ export function setupSidebarKeyboardNav(): void {
   sidebar.addEventListener('keydown', (e: Event) => {
     const event = e as KeyboardEvent;
     const links = Array.from(sidebar.querySelectorAll('.voxpage-sidebar__link')) as HTMLElement[];
-    const currentIndex = links.findIndex(link => link === document.activeElement);
+    const currentIndex = links.findIndex((link) => link === document.activeElement);
 
     if (currentIndex === -1) return;
 

@@ -70,7 +70,7 @@ export class OpenAIProvider extends BaseTTSProvider {
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -92,7 +92,7 @@ export class OpenAIProvider extends BaseTTSProvider {
 
     // Estimate duration (OpenAI doesn't provide it)
     // Rough estimate: ~150 words per minute, ~5 chars per word
-    const estimatedDuration = validated.text.length / (150 * 5) * 60;
+    const estimatedDuration = (validated.text.length / (150 * 5)) * 60;
 
     return this.createResponse(audioBlob, estimatedDuration, null);
   }
@@ -115,7 +115,7 @@ export class OpenAIProvider extends BaseTTSProvider {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -145,7 +145,7 @@ export class OpenAIProvider extends BaseTTSProvider {
    * @param text - Text to estimate
    * @param useHD - Whether to use HD model (optional)
    */
-  estimateCost(text: string, useHD: boolean = false): number {
+  estimateCost(text: string, useHD = false): number {
     const pricing = useHD ? ProviderPricing.openaiHd : this.pricingModel;
     return (text.length / pricing.unit) * pricing.rate;
   }

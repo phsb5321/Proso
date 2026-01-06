@@ -10,12 +10,7 @@
  */
 
 import type { VoxPageProtocol } from '../protocol';
-import type {
-  PlaybackStartParams,
-  PlaybackSeekParams,
-  PlaybackSetSpeedParams,
-  PlaybackStateResponse,
-} from '../types';
+import type { PlaybackStartParams, PlaybackSeekParams, PlaybackSetSpeedParams } from '../types';
 import {
   playbackStartParamsSchema,
   playbackSeekParamsSchema,
@@ -35,7 +30,7 @@ import {
  * Start playback handler
  */
 export async function handlePlaybackStart(
-  params: PlaybackStartParams
+  params: PlaybackStartParams,
 ): Promise<VoxPageProtocol['playback.start']['response']> {
   // Validate params
   const validated = playbackStartParamsSchema.parse(params);
@@ -55,7 +50,9 @@ export async function handlePlaybackStart(
 /**
  * Pause playback handler
  */
-export async function handlePlaybackPause(): Promise<VoxPageProtocol['playback.pause']['response']> {
+export async function handlePlaybackPause(): Promise<
+  VoxPageProtocol['playback.pause']['response']
+> {
   // TODO Phase 4: Delegate to PlaybackController.pause()
 
   return {
@@ -107,7 +104,7 @@ export async function handlePlaybackPrev(): Promise<VoxPageProtocol['playback.pr
  * Seek to paragraph handler
  */
 export async function handlePlaybackSeek(
-  params: PlaybackSeekParams
+  params: PlaybackSeekParams,
 ): Promise<VoxPageProtocol['playback.seek']['response']> {
   // Validate params
   const validated = playbackSeekParamsSchema.parse(params);
@@ -123,7 +120,9 @@ export async function handlePlaybackSeek(
 /**
  * Get playback state handler
  */
-export async function handlePlaybackGetState(): Promise<VoxPageProtocol['playback.getState']['response']> {
+export async function handlePlaybackGetState(): Promise<
+  VoxPageProtocol['playback.getState']['response']
+> {
   // TODO Phase 4: Delegate to PlaybackController.getState()
 
   return {
@@ -143,7 +142,7 @@ export async function handlePlaybackGetState(): Promise<VoxPageProtocol['playbac
  * Set playback speed handler
  */
 export async function handlePlaybackSetSpeed(
-  params: PlaybackSetSpeedParams
+  params: PlaybackSetSpeedParams,
 ): Promise<VoxPageProtocol['playback.setSpeed']['response']> {
   // Validate params
   const validated = playbackSetSpeedParamsSchema.parse(params);

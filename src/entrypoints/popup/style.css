@@ -20,10 +20,11 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   width: var(--popup-width, 360px);
   min-height: var(--popup-min-height, 320px);
-  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   font-size: var(--font-size-md, 14px);
   line-height: var(--line-height-normal, 1.5);
   background: var(--color-bg-primary, #1a1a2e);
@@ -115,7 +116,8 @@ html, body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -151,7 +153,7 @@ html, body {
   left: 0;
   height: 100%;
   width: 0%;
-  background: var(--color-accent-gradient, linear-gradient(135deg, #0D9488 0%, #14B8A6 100%));
+  background: var(--color-accent-gradient, linear-gradient(135deg, #0d9488 0%, #14b8a6 100%));
   border-radius: var(--radius-full, 9999px);
   transition: width var(--transition-fast, 100ms) ease;
 }
@@ -228,7 +230,7 @@ html, body {
   appearance: none;
   width: 16px;
   height: 16px;
-  background: var(--color-accent-primary, #0D9488);
+  background: var(--color-accent-primary, #0d9488);
   border-radius: var(--radius-full, 9999px);
   cursor: pointer;
   transition: transform var(--transition-fast, 100ms) ease;
@@ -241,7 +243,7 @@ html, body {
 .voxpage-popup__speed-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: var(--color-accent-primary, #0D9488);
+  background: var(--color-accent-primary, #0d9488);
   border: none;
   border-radius: var(--radius-full, 9999px);
   cursor: pointer;
@@ -277,7 +279,7 @@ html, body {
 
 .voxpage-select:hover,
 .voxpage-select:focus {
-  border-color: var(--color-accent-primary, #0D9488);
+  border-color: var(--color-accent-primary, #0d9488);
   outline: none;
 }
 
@@ -324,7 +326,7 @@ html, body {
 }
 
 .voxpage-popup__cost-value--free {
-  color: var(--color-accent-primary, #0D9488);
+  color: var(--color-accent-primary, #0d9488);
 }
 
 .voxpage-popup__cost-cache-bar {
@@ -397,10 +399,10 @@ html, body {
 }
 
 .voxpage-popup__summary-bullets li::before {
-  content: '•';
+  content: "•";
   position: absolute;
   left: 0;
-  color: var(--color-accent-primary, #0D9488);
+  color: var(--color-accent-primary, #0d9488);
 }
 
 .voxpage-popup__summary-bullets li:last-child {
@@ -448,13 +450,13 @@ html, body {
 .voxpage-popup__ocr-title {
   font-size: var(--font-size-sm, 12px);
   font-weight: 600;
-  color: var(--color-text-primary, #F8FAFC);
+  color: var(--color-text-primary, #f8fafc);
   flex: 1;
 }
 
 .voxpage-popup__ocr-confidence {
   font-size: var(--font-size-xs, 10px);
-  color: var(--color-text-secondary, #94A3B8);
+  color: var(--color-text-secondary, #94a3b8);
   padding: 2px 6px;
   background: var(--color-bg-tertiary, rgba(255, 255, 255, 0.05));
   border-radius: var(--radius-full, 9999px);
@@ -462,7 +464,7 @@ html, body {
 
 .voxpage-popup__ocr-text {
   font-size: var(--font-size-sm, 12px);
-  color: var(--color-text-secondary, #94A3B8);
+  color: var(--color-text-secondary, #94a3b8);
   line-height: 1.5;
   max-height: 100px;
   overflow-y: auto;
@@ -509,13 +511,13 @@ html, body {
 }
 
 .voxpage-popup__export-progress-bar::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
   width: var(--progress, 0%);
-  background: var(--color-accent-primary, #0D9488);
+  background: var(--color-accent-primary, #0d9488);
   border-radius: var(--radius-full, 9999px);
   transition: width var(--transition-normal, 200ms) ease;
 }
@@ -548,7 +550,7 @@ html, body {
 
 .voxpage-popup__footer-link {
   font-size: var(--font-size-sm, 12px);
-  color: var(--color-accent-primary, #0D9488);
+  color: var(--color-accent-primary, #0d9488);
   text-decoration: none;
 }
 
@@ -584,7 +586,7 @@ html, body {
 }
 
 .voxpage-button--primary {
-  background: var(--color-accent-gradient, linear-gradient(135deg, #0D9488 0%, #14B8A6 100%));
+  background: var(--color-accent-gradient, linear-gradient(135deg, #0d9488 0%, #14b8a6 100%));
   color: white;
   border-color: transparent;
   box-shadow: var(--shadow-accent, 0 4px 15px rgba(13, 148, 136, 0.4));
@@ -607,7 +609,7 @@ html, body {
 
 .voxpage-button--secondary:hover {
   background: var(--color-button-bg-hover, rgba(255, 255, 255, 0.1));
-  border-color: var(--color-accent-primary, #0D9488);
+  border-color: var(--color-accent-primary, #0d9488);
   color: var(--color-text-primary, #ffffff);
 }
 
@@ -643,7 +645,7 @@ html, body {
 .voxpage-select:focus-visible,
 .voxpage-popup__speed-slider:focus-visible,
 .voxpage-popup__progress-seek:focus-visible {
-  outline: 2px solid var(--color-accent-primary, #0D9488);
+  outline: 2px solid var(--color-accent-primary, #0d9488);
   outline-offset: 2px;
 }
 
@@ -652,7 +654,8 @@ html, body {
    ======================================== */
 
 @media (prefers-color-scheme: light) {
-  html, body {
+  html,
+  body {
     background: var(--color-bg-primary, #ffffff);
     color: var(--color-text-primary, #1e293b);
   }
@@ -706,7 +709,7 @@ html, body {
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--color-accent-primary, #0D9488);
+  background: var(--color-accent-primary, #0d9488);
   color: white;
   font-size: 10px;
   font-weight: 600;
@@ -814,13 +817,13 @@ html, body {
 }
 
 .voxpage-popup__queue-item-progress::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
   height: 100%;
   width: var(--progress, 0%);
-  background: var(--color-accent-primary, #0D9488);
+  background: var(--color-accent-primary, #0d9488);
   border-radius: 1px;
 }
 

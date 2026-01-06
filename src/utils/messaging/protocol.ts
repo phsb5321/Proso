@@ -57,7 +57,12 @@ export type ThemeModeType = 'light' | 'dark' | 'system';
 /**
  * Settings section type for reset (027-settings-ux-overhaul)
  */
-export type SettingsSectionType = 'quick-settings' | 'appearance' | 'reading-queue' | 'developer' | 'all';
+export type SettingsSectionType =
+  | 'quick-settings'
+  | 'appearance'
+  | 'reading-queue'
+  | 'developer'
+  | 'all';
 
 /**
  * API provider type for testing (027-settings-ux-overhaul)
@@ -67,7 +72,17 @@ export type ApiProviderType = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'a
 /**
  * Footer action type
  */
-export type FooterAction = 'play' | 'pause' | 'stop' | 'next' | 'prev' | 'seek' | 'speed' | 'close' | 'minimize' | 'expand';
+export type FooterAction =
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'next'
+  | 'prev'
+  | 'seek'
+  | 'speed'
+  | 'close'
+  | 'minimize'
+  | 'expand';
 
 /**
  * VoxPage Protocol Map

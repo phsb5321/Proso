@@ -31,7 +31,7 @@ function getSummarizer(): ArticleSummarizer {
  * Generates AI summary of article text
  */
 export async function handleSummarizeArticle(
-  request: VoxPageProtocol['summarize.article']['request']
+  request: VoxPageProtocol['summarize.article']['request'],
 ): Promise<VoxPageProtocol['summarize.article']['response']> {
   const { text, title, url, provider, bulletCount, outputLanguage } = request;
 
@@ -71,15 +71,13 @@ export async function handleSummarizeArticle(
  * Reads summary bullets aloud using TTS
  */
 export async function handleSummarizeReadSummary(
-  request: VoxPageProtocol['summarize.readSummary']['request']
+  request: VoxPageProtocol['summarize.readSummary']['request'],
 ): Promise<VoxPageProtocol['summarize.readSummary']['response']> {
   const { bullets, provider, voice, speed } = request;
 
   try {
     // Combine bullets into readable text
-    const text = bullets
-      .map((bullet, index) => `Point ${index + 1}: ${bullet.text}`)
-      .join('. ');
+    const text = bullets.map((bullet, index) => `Point ${index + 1}: ${bullet.text}`).join('. ');
 
     // Send to audio generation
     const response = await browser.runtime.sendMessage({
@@ -126,7 +124,7 @@ export async function handleSummarizeReadSummary(
  * Checks if AI provider is configured and available
  */
 export async function handleSummarizeGetProviderStatus(
-  request: VoxPageProtocol['summarize.getProviderStatus']['request']
+  request: VoxPageProtocol['summarize.getProviderStatus']['request'],
 ): Promise<VoxPageProtocol['summarize.getProviderStatus']['response']> {
   const { provider } = request;
 

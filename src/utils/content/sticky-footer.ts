@@ -347,8 +347,8 @@ function getStyles(): string {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --footer-bg: #1a1a2e;
       --footer-bg-secondary: #16213e;
-      --footer-accent: #0D9488;
-      --footer-accent-hover: #14B8A6;
+      --footer-accent: #0d9488;
+      --footer-accent-hover: #14b8a6;
       --footer-text: #ffffff;
       --footer-text-muted: #b8c5d6;
       --footer-border: rgba(255, 255, 255, 0.1);
@@ -367,8 +367,8 @@ function getStyles(): string {
       :host {
         --footer-bg: #ffffff;
         --footer-bg-secondary: #f8fafc;
-        --footer-accent: #0F766E;
-        --footer-accent-hover: #0D9488;
+        --footer-accent: #0f766e;
+        --footer-accent-hover: #0d9488;
         --footer-text: #1e293b;
         --footer-text-muted: #475569;
         --footer-border: rgba(0, 0, 0, 0.1);
@@ -829,7 +829,10 @@ export class StickyFooter {
 
       // Update progress bar ARIA
       if (this._progressBar) {
-        this._progressBar.setAttribute('aria-valuenow', String(Math.round(this.playbackState.progress)));
+        this._progressBar.setAttribute(
+          'aria-valuenow',
+          String(Math.round(this.playbackState.progress)),
+        );
         this._progressBar.setAttribute(
           'aria-valuetext',
           `${Math.round(this.playbackState.progress)}% complete`,
@@ -876,7 +879,8 @@ export class StickyFooter {
   private _adjustBodyPadding(show: boolean): void {
     if (show) {
       this._originalBodyPadding = document.body.style.paddingBottom || '';
-      const computedPadding = parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
+      const computedPadding =
+        Number.parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
       const footerHeight = this.isMinimized ? FOOTER_HEIGHT_MINIMIZED : FOOTER_HEIGHT;
       document.body.style.paddingBottom = `${computedPadding + footerHeight + 16}px`;
     } else {
@@ -1017,7 +1021,7 @@ export class StickyFooter {
     speedOptions.forEach((option) => {
       option.addEventListener('click', (e) => {
         e.stopPropagation();
-        const speed = parseFloat((option as HTMLElement).dataset.speed || '1.0');
+        const speed = Number.parseFloat((option as HTMLElement).dataset.speed || '1.0');
         this._handleAction('speed', { value: speed });
         this._closeSpeedDropdown();
       });

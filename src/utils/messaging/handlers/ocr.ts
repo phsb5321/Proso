@@ -10,7 +10,7 @@
  */
 
 import type { VoxPageProtocol } from '../protocol';
-import { OCRProcessor, type OCRResult } from '../../content/ocr';
+import { OCRProcessor } from '../../content/ocr';
 import { ROADMAP_STORAGE_KEYS } from '../../config/schema';
 
 // Singleton OCR processor instance
@@ -31,7 +31,7 @@ function getOCRProcessor(): OCRProcessor {
  * Captures screenshot and extracts text via OCR
  */
 export async function handleOCRCaptureAndRead(
-  request: VoxPageProtocol['ocr.captureAndRead']['request']
+  request: VoxPageProtocol['ocr.captureAndRead']['request'],
 ): Promise<VoxPageProtocol['ocr.captureAndRead']['response']> {
   const { tabId, region, languages } = request;
 
@@ -79,7 +79,7 @@ export async function handleOCRCaptureAndRead(
  * Processes provided image data with OCR
  */
 export async function handleOCRProcessImage(
-  request: VoxPageProtocol['ocr.processImage']['request']
+  request: VoxPageProtocol['ocr.processImage']['request'],
 ): Promise<VoxPageProtocol['ocr.processImage']['response']> {
   const { imageData, languages } = request;
 
@@ -113,7 +113,7 @@ export async function handleOCRProcessImage(
  * Reads OCR-extracted text using TTS
  */
 export async function handleOCRReadExtractedText(
-  request: VoxPageProtocol['ocr.readExtractedText']['request']
+  request: VoxPageProtocol['ocr.readExtractedText']['request'],
 ): Promise<VoxPageProtocol['ocr.readExtractedText']['response']> {
   const { text, provider, voice, speed } = request;
 
@@ -163,7 +163,7 @@ export async function handleOCRReadExtractedText(
  * Enables region selection mode on page
  */
 export async function handleOCRSelectRegion(
-  request: VoxPageProtocol['ocr.selectRegion']['request']
+  request: VoxPageProtocol['ocr.selectRegion']['request'],
 ): Promise<VoxPageProtocol['ocr.selectRegion']['response']> {
   const { tabId } = request;
 

@@ -17,7 +17,7 @@ import { loggingLogRemoteParamsSchema } from '../schemas';
  * Log remote handler
  */
 export async function handleLoggingLogRemote(
-  params: LoggingLogRemoteParams
+  params: LoggingLogRemoteParams,
 ): Promise<VoxPageProtocol['logging.logRemote']['response']> {
   const validated = loggingLogRemoteParamsSchema.parse(params);
 
@@ -32,7 +32,9 @@ export async function handleLoggingLogRemote(
 /**
  * Flush buffer handler
  */
-export async function handleLoggingFlushBuffer(): Promise<VoxPageProtocol['logging.flushBuffer']['response']> {
+export async function handleLoggingFlushBuffer(): Promise<
+  VoxPageProtocol['logging.flushBuffer']['response']
+> {
   // TODO Phase 4: Delegate to RemoteLogger.flush()
 
   return {
@@ -44,7 +46,9 @@ export async function handleLoggingFlushBuffer(): Promise<VoxPageProtocol['loggi
 /**
  * Get logging state handler
  */
-export async function handleLoggingGetState(): Promise<VoxPageProtocol['logging.getState']['response']> {
+export async function handleLoggingGetState(): Promise<
+  VoxPageProtocol['logging.getState']['response']
+> {
   // TODO Phase 4: Delegate to RemoteLogger.getState()
 
   return {

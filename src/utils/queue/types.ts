@@ -124,7 +124,7 @@ export type QueueItem = z.infer<typeof queueItemSchema>;
 export type QueueMetadata = z.infer<typeof queueMetadataSchema>;
 export type QueueState = z.infer<typeof queueStateSchema>;
 export type QueueAction = z.infer<typeof queueActionSchema>;
-export type QueueItemStatus = typeof QUEUE_ITEM_STATUSES[number];
+export type QueueItemStatus = (typeof QUEUE_ITEM_STATUSES)[number];
 export type AddItemRequest = z.infer<typeof addItemRequestSchema>;
 
 /**

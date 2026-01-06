@@ -84,11 +84,11 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
  */
 export function createProviderCard(
   config: ProviderConfig,
-  initialKey: string = '',
+  initialKey = '',
   callbacks: {
     onTest: (providerId: string, apiKey: string) => Promise<{ success: boolean; message: string }>;
     onSave: (providerId: string, apiKey: string) => Promise<void>;
-  }
+  },
 ): HTMLElement {
   const card = document.createElement('div');
   card.className = 'provider-card';
@@ -124,7 +124,8 @@ export function createProviderCard(
   // Toggle visibility button
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
-  toggleBtn.className = 'voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle';
+  toggleBtn.className =
+    'voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle';
   toggleBtn.setAttribute('aria-label', 'Toggle API key visibility');
   toggleBtn.dataset.target = input.id;
 
@@ -237,7 +238,7 @@ export function createProviderCard(
     input.type = input.type === 'password' ? 'text' : 'password';
     toggleBtn.setAttribute(
       'aria-label',
-      input.type === 'password' ? 'Show API key' : 'Hide API key'
+      input.type === 'password' ? 'Show API key' : 'Hide API key',
     );
   });
 
@@ -271,7 +272,7 @@ export function createProviderCard(
 function updateStatus(
   card: HTMLElement,
   type: 'idle' | 'testing' | 'success' | 'error',
-  message: string
+  message: string,
 ): void {
   const status = card.querySelector('.provider-card__status');
   if (!status) return;

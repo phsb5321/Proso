@@ -135,9 +135,13 @@ export function dismissToast(toast: HTMLElement): void {
   toast.classList.add('toast--exiting');
 
   // Remove after animation completes
-  toast.addEventListener('animationend', () => {
-    toast.remove();
-  }, { once: true });
+  toast.addEventListener(
+    'animationend',
+    () => {
+      toast.remove();
+    },
+    { once: true },
+  );
 
   // Fallback removal if animation doesn't fire
   setTimeout(() => {
@@ -154,7 +158,7 @@ export function dismissAllToasts(): void {
   const container = document.getElementById('toast-container');
   if (container) {
     const toasts = container.querySelectorAll('.toast');
-    toasts.forEach(toast => dismissToast(toast as HTMLElement));
+    toasts.forEach((toast) => dismissToast(toast as HTMLElement));
   }
 }
 

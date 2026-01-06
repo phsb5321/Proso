@@ -153,7 +153,7 @@ export const migrations: Migration[] = [
       }
 
       // Check if voice is a valid Orpheus voice
-      if (VALID_GROQ_VOICES.includes(currentVoice as typeof VALID_GROQ_VOICES[number])) {
+      if (VALID_GROQ_VOICES.includes(currentVoice as (typeof VALID_GROQ_VOICES)[number])) {
         return stored;
       }
 
@@ -175,7 +175,8 @@ export const migrations: Migration[] = [
   {
     version: 5,
     key: 'themeMode',
-    description: 'Add themeMode, highlightEnabled, and autoScroll settings (027-settings-ux-overhaul)',
+    description:
+      'Add themeMode, highlightEnabled, and autoScroll settings (027-settings-ux-overhaul)',
     /**
      * Add new settings fields with sensible defaults
      * No data loss risk - only adds new fields
@@ -217,7 +218,7 @@ export const migrations: Migration[] = [
  */
 export async function applyMigrations(
   stored: StoredSettings,
-  save: SaveFunction
+  save: SaveFunction,
 ): Promise<StoredSettings> {
   let current = { ...stored };
   const currentVersion = stored._configVersion || 0;

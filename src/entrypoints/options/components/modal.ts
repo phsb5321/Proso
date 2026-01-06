@@ -159,7 +159,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
       // Trap focus within modal
       if (e.key === 'Tab') {
         const focusableElements = modal.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          'button:not([disabled]), [tabindex]:not([tabindex="-1"])',
         );
         const firstElement = focusableElements[0];
         const lastElement = focusableElements[focusableElements.length - 1];

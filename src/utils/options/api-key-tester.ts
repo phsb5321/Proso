@@ -67,7 +67,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
  * Test all configured API keys
  */
 export async function testAllApiKeys(
-  keys: Record<string, string>
+  keys: Record<string, string>,
 ): Promise<Record<string, TestResult>> {
   const results: Record<string, TestResult> = {};
 

@@ -27,13 +27,7 @@ import { getCacheStore, generateContentHash, generateCacheKey, estimateCost } fr
 import type { CachedAudioEntry, WordTimelineItem } from '../utils/cache';
 
 // Playback Queue and Prefetch Service (028-smart-audio-cache User Story 3)
-import {
-  PlaybackQueue,
-  PrefetchService,
-  playbackQueue,
-  prefetchService,
-  type PrefetchedAudio as PrefetchedAudioType,
-} from '../utils/playback';
+import { playbackQueue, prefetchService } from '../utils/playback';
 
 // ============================================
 // State Management
@@ -58,7 +52,7 @@ interface ApiKeys {
   cartesiaApiKey?: string;
 }
 
-let playbackState: PlaybackState = {
+const playbackState: PlaybackState = {
   status: 'stopped',
   currentParagraph: 0,
   totalParagraphs: 0,
@@ -106,7 +100,10 @@ async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
   return tabs[0] || null;
 }
 
-async function sendToContentScript(tabId: number, message: Record<string, unknown>): Promise<unknown> {
+async function sendToContentScript(
+  tabId: number,
+  message: Record<string, unknown>,
+): Promise<unknown> {
   try {
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
@@ -175,7 +172,10 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
   }
 
   try {
-    console.log('[Background] Generating ElevenLabs audio with timestamps, text length:', text.length);
+    console.log(
+      '[Background] Generating ElevenLabs audio with timestamps, text length:',
+      text.length,
+    );
 
     // Get voice - use saved preference or default
     let voiceId = playbackState.voice;
@@ -187,31 +187,37 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
       voiceName = defaultVoice.name;
     } else {
       const voices = provider.getVoices();
-      const voice = voices.find(v => v.id === voiceId);
+      const voice = voices.find((v) => v.id === voiceId);
       voiceName = voice?.name || 'Custom';
     }
 
     console.log('[Background] Using voice:', voiceName, voiceId);
 
     // Generate audio WITH timestamps for word-by-word highlighting
-    const result = await provider.generateAudio(text, voiceId, {
+    const result = (await provider.generateAudio(text, voiceId, {
       turbo: false,
       stability: 0.5,
       similarityBoost: 0.75,
       style: 0.5,
       withTimestamps: true,
-    }) as AudioWithTiming;
+    })) as AudioWithTiming;
 
     // Result is AudioWithTiming with audioData and wordTiming
     const blob = new Blob([result.audioData], { type: 'audio/mpeg' });
     const audioUrl = URL.createObjectURL(blob);
 
     // Calculate duration from last word timing
-    const duration = result.wordTiming.length > 0
-      ? result.wordTiming[result.wordTiming.length - 1].endTimeMs / 1000
-      : 0;
+    const duration =
+      result.wordTiming.length > 0
+        ? result.wordTiming[result.wordTiming.length - 1].endTimeMs / 1000
+        : 0;
 
-    console.log('[Background] ElevenLabs audio generated with', result.wordTiming.length, 'word timings, duration:', duration);
+    console.log(
+      '[Background] ElevenLabs audio generated with',
+      result.wordTiming.length,
+      'word timings, duration:',
+      duration,
+    );
 
     return {
       audioUrl,
@@ -256,7 +262,13 @@ function configurePrefetchService(): void {
     if (!text) return false;
 
     const contentHash = generateContentHash(text);
-    const cacheKey = generateCacheKey(currentPageUrl, index, contentHash, playbackState.provider, voiceId);
+    const cacheKey = generateCacheKey(
+      currentPageUrl,
+      index,
+      contentHash,
+      playbackState.provider,
+      voiceId,
+    );
     return await cacheStore.has(cacheKey);
   };
 
@@ -339,7 +351,12 @@ async function prefetchUpcomingAudio(): Promise<void> {
         wordTimings: audioResult.wordTimings,
         paragraphIndex: i,
       });
-      console.log('[Background] Prefetched paragraph', i + 1, '- cache size:', audioPrefetchCache.size);
+      console.log(
+        '[Background] Prefetched paragraph',
+        i + 1,
+        '- cache size:',
+        audioPrefetchCache.size,
+      );
     }
   }
 
@@ -385,7 +402,7 @@ async function checkPersistentCache(
   paragraphIndex: number,
   text: string,
   provider: string,
-  voice: string
+  voice: string,
 ): Promise<{ audioUrl: string; wordTimings: WordTiming[] } | null> {
   try {
     const cacheStore = getCacheStore();
@@ -405,7 +422,12 @@ async function checkPersistentCache(
       return null;
     }
 
-    console.log('[Background] Cache hit for paragraph', paragraphIndex, '- size:', entry.compressedSize);
+    console.log(
+      '[Background] Cache hit for paragraph',
+      paragraphIndex,
+      '- size:',
+      entry.compressedSize,
+    );
 
     // Convert ArrayBuffer to blob URL
     const blob = new Blob([entry.audioData], { type: 'audio/mpeg' });
@@ -437,7 +459,7 @@ async function storeToPersistentCache(
   provider: string,
   voice: string,
   audioData: ArrayBuffer,
-  wordTimings: WordTiming[]
+  wordTimings: WordTiming[],
 ): Promise<void> {
   try {
     const cacheStore = getCacheStore();
@@ -453,7 +475,10 @@ async function storeToPersistentCache(
     }));
 
     // Create cache entry
-    const entry: Omit<CachedAudioEntry, 'cacheKey' | 'createdAt' | 'lastAccessedAt' | 'accessCount'> = {
+    const entry: Omit<
+      CachedAudioEntry,
+      'cacheKey' | 'createdAt' | 'lastAccessedAt' | 'accessCount'
+    > = {
       url,
       paragraphIndex,
       provider,
@@ -462,9 +487,7 @@ async function storeToPersistentCache(
       audioData,
       compressedSize: audioData.byteLength,
       wordTimeline,
-      durationMs: wordTimings.length > 0
-        ? wordTimings[wordTimings.length - 1].endTimeMs
-        : 0,
+      durationMs: wordTimings.length > 0 ? wordTimings[wordTimings.length - 1].endTimeMs : 0,
     };
 
     const cacheKey = await cacheStore.set(entry);
@@ -524,7 +547,11 @@ function startWordHighlighting(paragraphIndex: number): void {
         break;
       }
       // If we've passed this word but haven't reached the next, show this word
-      if (currentTimeMs > timing.endTimeMs && (i + 1 >= currentWordTimings.length || currentTimeMs < currentWordTimings[i + 1].startTimeMs)) {
+      if (
+        currentTimeMs > timing.endTimeMs &&
+        (i + 1 >= currentWordTimings.length ||
+          currentTimeMs < currentWordTimings[i + 1].startTimeMs)
+      ) {
         newWordIndex = i;
         break;
       }
@@ -544,7 +571,13 @@ function startWordHighlighting(paragraphIndex: number): void {
     }
   }, 50);
 
-  console.log('[Background] Started word highlighting for paragraph', paragraphIndex, 'with', currentWordTimings.length, 'words');
+  console.log(
+    '[Background] Started word highlighting for paragraph',
+    paragraphIndex,
+    'with',
+    currentWordTimings.length,
+    'words',
+  );
 }
 
 /**
@@ -645,7 +678,8 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
     };
 
     console.log('[Background] Playing audio in background, speed:', speed);
-    audio.play()
+    audio
+      .play()
       .then(() => {
         console.log('[Background] Audio play() started successfully');
       })
@@ -701,7 +735,12 @@ async function speakCurrentParagraph(): Promise<void> {
   }
 
   const text = paragraphs[playbackState.currentParagraph];
-  console.log('[Background] Speaking paragraph', playbackState.currentParagraph + 1, '/', paragraphs.length);
+  console.log(
+    '[Background] Speaking paragraph',
+    playbackState.currentParagraph + 1,
+    '/',
+    paragraphs.length,
+  );
 
   // Highlight the current paragraph
   await sendToContentScript(activeTabId, {
@@ -725,11 +764,14 @@ async function speakCurrentParagraph(): Promise<void> {
         playbackState.currentParagraph,
         text,
         playbackState.provider,
-        voiceId
+        voiceId,
       );
 
       if (cached) {
-        console.log('[Background] Using persistently cached audio for paragraph', playbackState.currentParagraph + 1);
+        console.log(
+          '[Background] Using persistently cached audio for paragraph',
+          playbackState.currentParagraph + 1,
+        );
         audioResult = cached;
       }
     }
@@ -738,7 +780,10 @@ async function speakCurrentParagraph(): Promise<void> {
     if (!audioResult) {
       const prefetchedModular = prefetchService.consume(playbackState.currentParagraph);
       if (prefetchedModular) {
-        console.log('[Background] Using modular prefetch buffer for paragraph', playbackState.currentParagraph + 1);
+        console.log(
+          '[Background] Using modular prefetch buffer for paragraph',
+          playbackState.currentParagraph + 1,
+        );
         audioResult = {
           audioUrl: prefetchedModular.audioUrl,
           wordTimings: prefetchedModular.wordTimings,
@@ -750,7 +795,10 @@ async function speakCurrentParagraph(): Promise<void> {
     if (!audioResult) {
       const prefetched = audioPrefetchCache.get(playbackState.currentParagraph);
       if (prefetched) {
-        console.log('[Background] Using legacy prefetch cache for paragraph', playbackState.currentParagraph + 1);
+        console.log(
+          '[Background] Using legacy prefetch cache for paragraph',
+          playbackState.currentParagraph + 1,
+        );
         audioResult = {
           audioUrl: prefetched.audioUrl,
           wordTimings: prefetched.wordTimings,
@@ -762,7 +810,10 @@ async function speakCurrentParagraph(): Promise<void> {
 
     // Fourth, generate audio on-demand if not cached
     if (!audioResult) {
-      console.log('[Background] Generating audio on-demand for paragraph', playbackState.currentParagraph + 1);
+      console.log(
+        '[Background] Generating audio on-demand for paragraph',
+        playbackState.currentParagraph + 1,
+      );
       const generated = await generateElevenLabsAudio(text);
 
       // Check if playback was stopped/paused during API call
@@ -783,7 +834,11 @@ async function speakCurrentParagraph(): Promise<void> {
     }
 
     if (audioResult) {
-      console.log('[Background] Playing ElevenLabs audio with', audioResult.wordTimings.length, 'word timings');
+      console.log(
+        '[Background] Playing ElevenLabs audio with',
+        audioResult.wordTimings.length,
+        'word timings',
+      );
 
       // Store word timings for highlighting
       currentWordTimings = audioResult.wordTimings;
@@ -792,7 +847,7 @@ async function speakCurrentParagraph(): Promise<void> {
       if (audioResult.wordTimings.length > 0) {
         await sendToContentScript(activeTabId, {
           action: 'setWordTimeline',
-          wordTimeline: audioResult.wordTimings.map(wt => ({
+          wordTimeline: audioResult.wordTimings.map((wt) => ({
             word: wt.word,
             charOffset: wt.charOffset,
             charLength: wt.charLength,
@@ -821,7 +876,7 @@ async function speakCurrentParagraph(): Promise<void> {
           playbackState.provider,
           voiceId,
           generatedAudioData,
-          audioResult.wordTimings
+          audioResult.wordTimings,
         ).catch((err) => {
           console.error('[Background] Failed to store to persistent cache:', err);
         });
@@ -930,7 +985,12 @@ const messageHandlers: Record<string, MessageHandler> = {
       playbackState.provider = stored.provider as string;
     }
     console.log('[Background] API keys loaded, elevenlabs:', !!apiKeys.elevenlabsApiKey);
-    console.log('[Background] Settings loaded, voice:', playbackState.voice, 'speed:', playbackState.speed);
+    console.log(
+      '[Background] Settings loaded, voice:',
+      playbackState.voice,
+      'speed:',
+      playbackState.speed,
+    );
 
     // Extract text from the page
     const extractResult = await sendToContentScript(tab.id, {
@@ -1064,7 +1124,7 @@ const messageHandlers: Record<string, MessageHandler> = {
     if (playbackState.totalParagraphs > 0) {
       playbackState.currentParagraph = Math.min(
         playbackState.currentParagraph + 1,
-        playbackState.totalParagraphs - 1
+        playbackState.totalParagraphs - 1,
       );
       playbackState.progress =
         (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
@@ -1124,9 +1184,7 @@ const messageHandlers: Record<string, MessageHandler> = {
     const progress = data.progress as number;
     playbackState.progress = progress;
     if (playbackState.totalParagraphs > 0) {
-      playbackState.currentParagraph = Math.floor(
-        (progress / 100) * playbackState.totalParagraphs
-      );
+      playbackState.currentParagraph = Math.floor((progress / 100) * playbackState.totalParagraphs);
     }
     notifyPopup();
 
@@ -1232,7 +1290,10 @@ const messageHandlers: Record<string, MessageHandler> = {
     const stored = await browser.storage.local.get([`${provider}ApiKey`]);
     const key = stored[`${provider}ApiKey`] as string | undefined;
     if (key && key.trim().length > 0) {
-      return { success: true, message: 'API key is configured (validation not implemented for this provider)' };
+      return {
+        success: true,
+        message: 'API key is configured (validation not implemented for this provider)',
+      };
     }
     return { success: false, error: 'No API key configured' };
   },
@@ -1248,7 +1309,7 @@ const messageHandlers: Record<string, MessageHandler> = {
         const voices = elevenlabs.getVoices();
         return {
           success: true,
-          voices: voices.map(v => ({
+          voices: voices.map((v) => ({
             id: v.id,
             name: v.name,
             language: v.language,
@@ -1366,7 +1427,12 @@ const messageHandlers: Record<string, MessageHandler> = {
 
     // Validate paragraph index
     if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
-      console.error('[Background] Invalid paragraph index:', paragraphIndex, 'total:', paragraphs.length);
+      console.error(
+        '[Background] Invalid paragraph index:',
+        paragraphIndex,
+        'total:',
+        paragraphs.length,
+      );
       return { success: false, playbackStarted: false, error: 'Invalid paragraph index' };
     }
 
@@ -1530,28 +1596,28 @@ const messageHandlers: Record<string, MessageHandler> = {
     Object.entries(exportHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
-    ])
+    ]),
   ),
   // Summarize handlers
   ...Object.fromEntries(
     Object.entries(summarizeHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
-    ])
+    ]),
   ),
   // OCR handlers
   ...Object.fromEntries(
     Object.entries(ocrHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
-    ])
+    ]),
   ),
   // Queue handlers
   ...Object.fromEntries(
     Object.entries(queueHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
-    ])
+    ]),
   ),
 };
 
@@ -1579,13 +1645,23 @@ export default defineBackground(() => {
 
   // T021: Initialize audio cache on extension startup
   const cacheStore = getCacheStore();
-  cacheStore.init().then(() => {
-    console.log('[Background] Audio cache initialized, mode:', cacheStore.isInMemoryMode ? 'in-memory' : 'IndexedDB');
-    const stats = cacheStore.getStats();
-    console.log('[Background] Cache stats:', { entries: stats.entries, size: stats.totalSize, hitRate: stats.hitRate });
-  }).catch((error) => {
-    console.error('[Background] Failed to initialize audio cache:', error);
-  });
+  cacheStore
+    .init()
+    .then(() => {
+      console.log(
+        '[Background] Audio cache initialized, mode:',
+        cacheStore.isInMemoryMode ? 'in-memory' : 'IndexedDB',
+      );
+      const stats = cacheStore.getStats();
+      console.log('[Background] Cache stats:', {
+        entries: stats.entries,
+        size: stats.totalSize,
+        hitRate: stats.hitRate,
+      });
+    })
+    .catch((error) => {
+      console.error('[Background] Failed to initialize audio cache:', error);
+    });
 
   // Set up message listener
   browser.runtime.onMessage.addListener((message, _sender) => {

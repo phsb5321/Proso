@@ -12,19 +12,15 @@ import {
   loggingDefaults,
   uiDefaults,
   queueDefaults,
-  type VoxPageSettings,
-  type ApiKeys,
-  type UISettings,
   type LoggingConfig,
-  type LogEntry,
   type LogViewerResponse,
   type EndpointValidation,
-  type QueueSettings
+  type QueueSettings,
 } from '../utils/config';
 
 import { toast } from './components/toast';
 import { showConfirmModal } from './components/modal';
-import { testApiKey, saveApiKey, API_KEY_STORAGE_KEYS } from '../../utils/options/api-key-tester';
+import { testApiKey, saveApiKey } from '../../utils/options/api-key-tester';
 import { createScrollSpy, type ScrollSpyInstance } from '../../utils/options/scroll-spy';
 import { setupSidebarKeyboardNav } from './components/sidebar';
 import { getThemeManager, type ThemeMode } from '../../utils/options/theme-manager';
@@ -214,9 +210,7 @@ export async function initOptionsPage(): Promise<void> {
  */
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
   browser: [], // Populated dynamically from browser's speech synthesis
-  groq: [
-    { value: 'default', label: 'Default' },
-  ],
+  groq: [{ value: 'default', label: 'Default' }],
   openai: [
     { value: 'alloy', label: 'Alloy' },
     { value: 'echo', label: 'Echo' },
@@ -229,9 +223,7 @@ const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> =
     { value: 'default', label: 'Default Voice' },
     // Additional voices fetched from API when key is configured
   ],
-  cartesia: [
-    { value: 'default', label: 'Default Voice' },
-  ],
+  cartesia: [{ value: 'default', label: 'Default Voice' }],
 };
 
 /**
@@ -356,7 +348,7 @@ function setupQuickSettingsEventListeners(): void {
   elements.quickSpeed.addEventListener('input', () => {
     if (!elements) return;
 
-    const value = parseFloat(elements.quickSpeed.value);
+    const value = Number.parseFloat(elements.quickSpeed.value);
     elements.quickSpeedValue.textContent = `${value.toFixed(1)}x`;
   });
 
@@ -373,7 +365,7 @@ function setupQuickSettingsEventListeners(): void {
     quickSettingsSaveTimeout = setTimeout(async () => {
       if (!elements) return;
 
-      const speed = parseFloat(elements.quickSpeed.value);
+      const speed = Number.parseFloat(elements.quickSpeed.value);
       await saveQuickSetting('speed', speed);
       toast.success('Speed updated');
     }, 300);
@@ -447,7 +439,9 @@ function setupStorageChangeListener(): void {
 
     // T073: Cost estimate toggle sync (028-smart-audio-cache)
     if (changes.showCostEstimate !== undefined) {
-      const showCostEstimateEl = document.getElementById('showCostEstimate') as HTMLInputElement | null;
+      const showCostEstimateEl = document.getElementById(
+        'showCostEstimate',
+      ) as HTMLInputElement | null;
       if (showCostEstimateEl) {
         showCostEstimateEl.checked = changes.showCostEstimate.newValue as boolean;
       }
@@ -461,7 +455,7 @@ function setupStorageChangeListener(): void {
 function setupAccordions(): void {
   const accordionHeaders = document.querySelectorAll('.voxpage-accordion__header');
 
-  accordionHeaders.forEach(header => {
+  accordionHeaders.forEach((header) => {
     header.addEventListener('click', () => {
       const expanded = header.getAttribute('aria-expanded') === 'true';
       const contentId = header.getAttribute('aria-controls');
@@ -522,7 +516,7 @@ function setupSidebarNavigation(): void {
   scrollSpyInstance.start();
 
   // T043: Smooth scroll on sidebar click
-  document.querySelectorAll('.sidebar-link').forEach(link => {
+  document.querySelectorAll('.sidebar-link').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
 
@@ -619,7 +613,7 @@ async function loadSettings(): Promise<void> {
       'mode',
       'highlightEnabled',
       'autoScroll',
-      'showCostEstimate'
+      'showCostEstimate',
     ]);
 
     // API keys (no defaults, empty if not set)
@@ -630,28 +624,39 @@ async function loadSettings(): Promise<void> {
     elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
 
     // Settings with defaults
-    elements.defaultProvider.value = (result.provider as string | undefined) || settingsDefaults.provider;
-    elements.defaultSpeed.value = String((result.speed as number | undefined) || settingsDefaults.speed);
+    elements.defaultProvider.value =
+      (result.provider as string | undefined) || settingsDefaults.provider;
+    elements.defaultSpeed.value = String(
+      (result.speed as number | undefined) || settingsDefaults.speed,
+    );
     elements.speedValue.textContent = `${(result.speed as number | undefined) || settingsDefaults.speed}x`;
     elements.defaultMode.value = (result.mode as string | undefined) || settingsDefaults.mode;
 
-    console.log('VoxPage options: Settings loaded, mode:', (result.mode as string | undefined) || settingsDefaults.mode);
+    console.log(
+      'VoxPage options: Settings loaded, mode:',
+      (result.mode as string | undefined) || settingsDefaults.mode,
+    );
 
     // Boolean settings with defaults
-    elements.highlightEnabled.checked = (result.highlightEnabled as boolean | undefined) !== undefined
-      ? (result.highlightEnabled as boolean)
-      : uiDefaults.highlightEnabled;
+    elements.highlightEnabled.checked =
+      (result.highlightEnabled as boolean | undefined) !== undefined
+        ? (result.highlightEnabled as boolean)
+        : uiDefaults.highlightEnabled;
 
-    elements.autoScroll.checked = (result.autoScroll as boolean | undefined) !== undefined
-      ? (result.autoScroll as boolean)
-      : uiDefaults.autoScroll;
+    elements.autoScroll.checked =
+      (result.autoScroll as boolean | undefined) !== undefined
+        ? (result.autoScroll as boolean)
+        : uiDefaults.autoScroll;
 
     // Cost estimate toggle (028-smart-audio-cache T073)
-    const showCostEstimateEl = document.getElementById('showCostEstimate') as HTMLInputElement | null;
+    const showCostEstimateEl = document.getElementById(
+      'showCostEstimate',
+    ) as HTMLInputElement | null;
     if (showCostEstimateEl) {
-      showCostEstimateEl.checked = (result.showCostEstimate as boolean | undefined) !== undefined
-        ? (result.showCostEstimate as boolean)
-        : true; // Default to true
+      showCostEstimateEl.checked =
+        (result.showCostEstimate as boolean | undefined) !== undefined
+          ? (result.showCostEstimate as boolean)
+          : true; // Default to true
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -665,7 +670,7 @@ function setupEventListeners(): void {
   if (!elements) return;
 
   // Toggle password visibility
-  document.querySelectorAll('.toggle-visibility').forEach(btn => {
+  document.querySelectorAll('.toggle-visibility').forEach((btn) => {
     btn.addEventListener('click', () => {
       const targetId = (btn as HTMLElement).dataset.target;
       if (!targetId) return;
@@ -680,7 +685,7 @@ function setupEventListeners(): void {
   // Speed slider
   elements.defaultSpeed.addEventListener('input', (e) => {
     if (!elements) return;
-    const value = parseFloat((e.target as HTMLInputElement).value);
+    const value = Number.parseFloat((e.target as HTMLInputElement).value);
     elements.speedValue.textContent = `${value.toFixed(1)}x`;
   });
 
@@ -702,7 +707,7 @@ function setupEventListeners(): void {
     elements.defaultMode,
   ];
 
-  autoSaveInputs.forEach(input => {
+  autoSaveInputs.forEach((input) => {
     input.addEventListener('change', () => {
       if (saveTimeout) {
         clearTimeout(saveTimeout);
@@ -840,7 +845,11 @@ async function testElevenLabsApiKey(): Promise<void> {
 /**
  * Show API key test status (legacy - for elevenlabs only)
  */
-function showApiKeyStatus(provider: string, message: string, type: 'success' | 'error' | 'loading'): void {
+function showApiKeyStatus(
+  provider: string,
+  message: string,
+  type: 'success' | 'error' | 'loading',
+): void {
   if (!elements) return;
 
   const statusElement = elements.elevenlabsKeyStatus;
@@ -879,7 +888,7 @@ const PROVIDER_INPUT_IDS: Record<string, string> = {
  */
 function setupProviderCardEventListeners(): void {
   // Test buttons (T033)
-  document.querySelectorAll('.provider-card__test-btn').forEach(btn => {
+  document.querySelectorAll('.provider-card__test-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const button = e.currentTarget as HTMLButtonElement;
       const provider = button.dataset.provider;
@@ -890,7 +899,7 @@ function setupProviderCardEventListeners(): void {
   });
 
   // Save buttons (T035)
-  document.querySelectorAll('.provider-card__save-btn').forEach(btn => {
+  document.querySelectorAll('.provider-card__save-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const button = e.currentTarget as HTMLButtonElement;
       const provider = button.dataset.provider;
@@ -901,7 +910,7 @@ function setupProviderCardEventListeners(): void {
   });
 
   // Auto-trim whitespace on paste for API key inputs (T037)
-  document.querySelectorAll('.provider-card__input').forEach(input => {
+  document.querySelectorAll('.provider-card__input').forEach((input) => {
     input.addEventListener('paste', (e) => {
       const inputEl = e.target as HTMLInputElement;
       // Let the paste complete, then trim
@@ -925,7 +934,9 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
   if (!input) return;
 
   const apiKey = input.value.trim();
-  const statusEl = document.querySelector(`.provider-card__status[data-provider="${provider}"]`) as HTMLElement | null;
+  const statusEl = document.querySelector(
+    `.provider-card__status[data-provider="${provider}"]`,
+  ) as HTMLElement | null;
 
   // Validate input
   if (!apiKey) {
@@ -977,7 +988,9 @@ async function handleProviderSave(provider: string, button: HTMLButtonElement): 
   if (!input) return;
 
   const apiKey = input.value.trim();
-  const statusEl = document.querySelector(`.provider-card__status[data-provider="${provider}"]`) as HTMLElement | null;
+  const statusEl = document.querySelector(
+    `.provider-card__status[data-provider="${provider}"]`,
+  ) as HTMLElement | null;
 
   // Set loading state
   button.disabled = true;
@@ -991,7 +1004,9 @@ async function handleProviderSave(provider: string, button: HTMLButtonElement): 
 
     // Update legacy elements if they exist
     if (elements) {
-      const legacyInput = elements[inputId as keyof OptionsElements] as HTMLInputElement | undefined;
+      const legacyInput = elements[inputId as keyof OptionsElements] as
+        | HTMLInputElement
+        | undefined;
       if (legacyInput && legacyInput.value !== undefined) {
         legacyInput.value = apiKey;
       }
@@ -1014,7 +1029,7 @@ async function handleProviderSave(provider: string, button: HTMLButtonElement): 
 function showProviderCardStatus(
   statusEl: HTMLElement | null,
   message: string,
-  type: 'success' | 'error' | 'loading'
+  type: 'success' | 'error' | 'loading',
 ): void {
   if (!statusEl) return;
 
@@ -1058,10 +1073,10 @@ async function saveSettings(): Promise<void> {
       cartesiaApiKey: elements.cartesiaKey.value.trim(),
       groqApiKey: elements.groqKey.value.trim(),
       provider: elements.defaultProvider.value,
-      speed: parseFloat(elements.defaultSpeed.value),
+      speed: Number.parseFloat(elements.defaultSpeed.value),
       mode: elements.defaultMode.value,
       highlightEnabled: elements.highlightEnabled.checked,
-      autoScroll: elements.autoScroll.checked
+      autoScroll: elements.autoScroll.checked,
     });
 
     showSaveStatus('Settings saved!');
@@ -1106,7 +1121,10 @@ async function loadLoggingConfig(): Promise<void> {
 
   try {
     const result = await browser.storage.local.get('loggingConfig');
-    const config: LoggingConfig = { ...loggingDefaults, ...(result.loggingConfig as Partial<LoggingConfig> || {}) };
+    const config: LoggingConfig = {
+      ...loggingDefaults,
+      ...((result.loggingConfig as Partial<LoggingConfig>) || {}),
+    };
 
     elements.loggingEnabled.checked = config.enabled;
     elements.loggingEndpoint.value = config.endpoint || '';
@@ -1164,7 +1182,7 @@ function setupLoggingEventListeners(): void {
     elements.loggingLogLevel,
   ];
 
-  loggingInputs.forEach(input => {
+  loggingInputs.forEach((input) => {
     input.addEventListener('change', () => {
       if (loggingSaveTimeout) {
         clearTimeout(loggingSaveTimeout);
@@ -1180,8 +1198,7 @@ function setupLoggingEventListeners(): void {
 function updateLoggingConfigVisibility(): void {
   if (!elements) return;
 
-  elements.loggingConfigSection.style.display =
-    elements.loggingEnabled.checked ? 'block' : 'none';
+  elements.loggingConfigSection.style.display = elements.loggingEnabled.checked ? 'block' : 'none';
 }
 
 /**
@@ -1349,7 +1366,9 @@ async function viewLogs(): Promise<void> {
   updateLogViewerStatus('Loading logs...');
 
   try {
-    const response = await browser.runtime.sendMessage({ action: 'getLogs' }) as LogViewerResponse;
+    const response = (await browser.runtime.sendMessage({
+      action: 'getLogs',
+    })) as LogViewerResponse;
 
     if (response && response.logs) {
       const { logs, status } = response;
@@ -1364,7 +1383,7 @@ async function viewLogs(): Promise<void> {
       elements.logViewerContent.textContent = '';
 
       // Create log entries using safe DOM methods
-      logs.forEach(log => {
+      logs.forEach((log) => {
         const entry = document.createElement('div');
         entry.className = `log-entry log-entry--${log.level}`;
 
@@ -1438,7 +1457,9 @@ async function clearLogs(): Promise<void> {
  */
 async function exportLogs(): Promise<void> {
   try {
-    const response = await browser.runtime.sendMessage({ action: 'getLogs' }) as LogViewerResponse;
+    const response = (await browser.runtime.sendMessage({
+      action: 'getLogs',
+    })) as LogViewerResponse;
 
     if (response && response.logs) {
       const { logs, status } = response;
@@ -1491,7 +1512,10 @@ async function loadQueueConfig(): Promise<void> {
 
   try {
     const result = await browser.storage.local.get('queue:settings');
-    const config: QueueSettings = { ...queueDefaults, ...(result['queue:settings'] as Partial<QueueSettings> || {}) };
+    const config: QueueSettings = {
+      ...queueDefaults,
+      ...((result['queue:settings'] as Partial<QueueSettings>) || {}),
+    };
 
     elements.queueAutoPlayNext.checked = config.autoPlayNext;
     elements.queueMaxItems.value = String(config.maxQueueSize);
@@ -1521,7 +1545,7 @@ function setupQueueEventListeners(): void {
     elements.queueSaveProgress,
   ];
 
-  queueInputs.forEach(input => {
+  queueInputs.forEach((input) => {
     input.addEventListener('change', () => {
       if (queueSaveTimeout) {
         clearTimeout(queueSaveTimeout);
@@ -1542,7 +1566,7 @@ async function saveQueueConfig(): Promise<void> {
       autoPlayNext: elements.queueAutoPlayNext.checked,
       autoArchiveCompleted: queueDefaults.autoArchiveCompleted,
       archiveAfterDays: queueDefaults.archiveAfterDays,
-      maxQueueSize: parseInt(elements.queueMaxItems.value, 10),
+      maxQueueSize: Number.parseInt(elements.queueMaxItems.value, 10),
     };
 
     await browser.storage.local.set({ 'queue:settings': config });
@@ -1584,7 +1608,11 @@ async function clearCompletedQueue(): Promise<void> {
 async function clearAllQueue(): Promise<void> {
   if (!elements) return;
 
-  if (!confirm('Are you sure you want to clear all items from the reading queue? This cannot be undone.')) {
+  if (
+    !confirm(
+      'Are you sure you want to clear all items from the reading queue? This cannot be undone.',
+    )
+  ) {
     return;
   }
 
@@ -1636,9 +1664,9 @@ function showQueueStatus(message: string, type: 'success' | 'error' | 'loading')
  */
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
   'quick-settings': 'Quick Settings',
-  'appearance': 'Appearance',
+  appearance: 'Appearance',
   'reading-queue': 'Reading Queue',
-  'developer': 'Developer Settings',
+  developer: 'Developer Settings',
 };
 
 /**
@@ -1646,7 +1674,7 @@ const SECTION_DISPLAY_NAMES: Record<string, string> = {
  * T065: Implement reset button click handlers
  */
 function setupResetButtons(): void {
-  document.querySelectorAll('.section-reset-btn').forEach(btn => {
+  document.querySelectorAll('.section-reset-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const button = e.currentTarget as HTMLButtonElement;
       const section = button.dataset.section;
@@ -1808,7 +1836,8 @@ async function clearCache(): Promise<void> {
   // Show confirmation modal
   const confirmed = await showConfirmModal({
     title: 'Clear Audio Cache',
-    message: 'This will delete all cached audio. You will need to regenerate audio for pages you revisit. This cannot be undone.',
+    message:
+      'This will delete all cached audio. You will need to regenerate audio for pages you revisit. This cannot be undone.',
     confirmText: 'Clear Cache',
     cancelText: 'Cancel',
     confirmVariant: 'danger',

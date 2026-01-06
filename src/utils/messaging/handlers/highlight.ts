@@ -17,7 +17,7 @@ import { highlightParagraphParamsSchema, highlightWordParamsSchema } from '../sc
  * Highlight paragraph handler
  */
 export async function handleHighlightParagraph(
-  params: HighlightParagraphParams
+  params: HighlightParagraphParams,
 ): Promise<VoxPageProtocol['highlight.paragraph']['response']> {
   const validated = highlightParagraphParamsSchema.parse(params);
 
@@ -33,7 +33,7 @@ export async function handleHighlightParagraph(
  * Highlight word handler
  */
 export async function handleHighlightWord(
-  params: HighlightWordParams
+  params: HighlightWordParams,
 ): Promise<VoxPageProtocol['highlight.word']['response']> {
   const validated = highlightWordParamsSchema.parse(params);
 
@@ -48,7 +48,9 @@ export async function handleHighlightWord(
 /**
  * Clear highlights handler
  */
-export async function handleHighlightClear(): Promise<VoxPageProtocol['highlight.clear']['response']> {
+export async function handleHighlightClear(): Promise<
+  VoxPageProtocol['highlight.clear']['response']
+> {
   // TODO Phase 4: Delegate to HighlightManager.clearHighlights()
 
   return {
@@ -59,7 +61,9 @@ export async function handleHighlightClear(): Promise<VoxPageProtocol['highlight
 /**
  * Get highlight state handler
  */
-export async function handleHighlightGetState(): Promise<VoxPageProtocol['highlight.getState']['response']> {
+export async function handleHighlightGetState(): Promise<
+  VoxPageProtocol['highlight.getState']['response']
+> {
   // TODO Phase 4: Delegate to HighlightManager.getState()
 
   return {

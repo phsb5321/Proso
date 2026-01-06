@@ -9,8 +9,8 @@
  * @module utils/queue/player
  */
 
-import type { QueueItem, QueueItemStatus } from './types';
-import { QueueStore } from './store';
+import type { QueueItem } from './types';
+import type { QueueStore } from './store';
 
 /**
  * Playback state
@@ -228,17 +228,10 @@ export class QueuePlayer {
    * @param progress - Progress percentage (0-100)
    * @param paragraphIndex - Current paragraph index
    */
-  async updateCurrentProgress(
-    progress: number,
-    paragraphIndex?: number
-  ): Promise<void> {
+  async updateCurrentProgress(progress: number, paragraphIndex?: number): Promise<void> {
     if (!this.state.currentItem) return;
 
-    await this.store.updateProgress(
-      this.state.currentItem.id,
-      progress,
-      paragraphIndex
-    );
+    await this.store.updateProgress(this.state.currentItem.id, progress, paragraphIndex);
   }
 
   /**
@@ -274,7 +267,7 @@ export class QueuePlayer {
  */
 export function createQueuePlayer(
   store: QueueStore,
-  callbacks?: QueuePlayerCallbacks
+  callbacks?: QueuePlayerCallbacks,
 ): QueuePlayer {
   return new QueuePlayer(store, callbacks);
 }

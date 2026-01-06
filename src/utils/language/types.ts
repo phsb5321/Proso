@@ -104,4 +104,4 @@ export const COMMON_LANGUAGES = [
   'cs', // Czech
 ] as const;
 
-export type CommonLanguage = typeof COMMON_LANGUAGES[number];
+export type CommonLanguage = (typeof COMMON_LANGUAGES)[number];

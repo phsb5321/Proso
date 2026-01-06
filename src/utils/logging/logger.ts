@@ -11,7 +11,14 @@
 
 import { z } from 'zod';
 import { LogBuffer } from './buffer';
-import { type LogEntry, type LogLevel, type Component, createLogEntry, serializeForLoki, loggingConstants } from './entry';
+import {
+  type LogEntry,
+  type LogLevel,
+  type Component,
+  createLogEntry,
+  serializeForLoki,
+  loggingConstants,
+} from './entry';
 
 /**
  * Logging configuration schema
@@ -57,7 +64,7 @@ export class RemoteLogger {
   private version: string | null = null;
   private flushIntervalId: number | null = null;
   private retryQueue: LogEntry[][] = [];
-  private initialized: boolean = false;
+  private initialized = false;
 
   constructor() {
     this.config = loggingConfigSchema.parse({});
@@ -115,7 +122,12 @@ export class RemoteLogger {
    * @param component - Source component
    * @param metadata - Optional structured metadata
    */
-  log(level: LogLevel, message: string, component: Component, metadata?: Record<string, any>): void {
+  log(
+    level: LogLevel,
+    message: string,
+    component: Component,
+    metadata?: Record<string, any>,
+  ): void {
     // Check if logging is enabled and level is sufficient
     if (!this.config.enabled) return;
     if (LOG_LEVEL_VALUES[level] < LOG_LEVEL_VALUES[this.config.logLevel]) return;
@@ -204,7 +216,7 @@ export class RemoteLogger {
             level,
             component,
           },
-          values: streamEntries.map(e => serializeForLoki(e)),
+          values: streamEntries.map((e) => serializeForLoki(e)),
         };
       });
 

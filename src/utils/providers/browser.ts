@@ -41,7 +41,7 @@ export class BrowserProvider extends BaseTTSProvider {
 
     // Filter voices by language
     const langPrefix = language.split('-')[0].toLowerCase();
-    return this.voices.filter(v => v.language?.toLowerCase().startsWith(langPrefix));
+    return this.voices.filter((v) => v.language?.toLowerCase().startsWith(langPrefix));
   }
 
   async validateApiKey(apiKey: string): Promise<boolean> {
@@ -68,7 +68,7 @@ export class BrowserProvider extends BaseTTSProvider {
     }
 
     const systemVoices = speechSynthesis.getVoices();
-    this.voices = systemVoices.map(voice => ({
+    this.voices = systemVoices.map((voice) => ({
       id: voice.voiceURI,
       name: voice.name,
       language: voice.lang,
@@ -84,7 +84,7 @@ export class BrowserProvider extends BaseTTSProvider {
    * @param speed - Playback speed
    * @param language - Language code
    */
-  async playDirect(text: string, voiceId: string, speed: number = 1.0, language?: string): Promise<void> {
+  async playDirect(text: string, voiceId: string, speed = 1.0, language?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (typeof speechSynthesis === 'undefined') {
         reject(new Error('Web Speech API not available'));
@@ -95,7 +95,7 @@ export class BrowserProvider extends BaseTTSProvider {
 
       // Find and set the voice
       const voices = speechSynthesis.getVoices();
-      const selectedVoice = voices.find(v => v.voiceURI === voiceId);
+      const selectedVoice = voices.find((v) => v.voiceURI === voiceId);
       if (selectedVoice) {
         utterance.voice = selectedVoice;
         utterance.lang = selectedVoice.lang;

@@ -175,8 +175,8 @@ describe('Design Token Consistency (012-frontend-redesign)', () => {
       dark: {
         '--footer-bg': { cssToken: '--color-bg-primary', value: '#1a1a2e' },
         '--footer-bg-secondary': { cssToken: '--color-bg-secondary', value: '#16213e' },
-        '--footer-accent': { cssToken: '--color-accent-primary', value: '#0D9488' },
-        '--footer-accent-hover': { cssToken: '--color-accent-secondary', value: '#14B8A6' },
+        '--footer-accent': { cssToken: '--color-accent-primary', value: '#0d9488' },
+        '--footer-accent-hover': { cssToken: '--color-accent-secondary', value: '#14b8a6' },
         '--footer-text': { cssToken: '--color-text-primary', value: '#ffffff' },
         '--footer-text-muted': { cssToken: '--color-text-secondary', value: '#b8c5d6' },
         '--footer-border': { cssToken: '--color-border', value: 'rgba(255, 255, 255, 0.1)' },
@@ -185,8 +185,8 @@ describe('Design Token Consistency (012-frontend-redesign)', () => {
       // Light theme mappings
       light: {
         '--footer-bg': { cssToken: '--color-bg-primary', value: '#ffffff' },
-        '--footer-accent': { cssToken: '--color-accent-primary', value: '#0F766E' },
-        '--footer-accent-hover': { cssToken: '--color-accent-secondary', value: '#0D9488' },
+        '--footer-accent': { cssToken: '--color-accent-primary', value: '#0f766e' },
+        '--footer-accent-hover': { cssToken: '--color-accent-secondary', value: '#0d9488' },
         '--footer-text': { cssToken: '--color-text-primary', value: '#1e293b' },
         '--footer-text-muted': { cssToken: '--color-text-secondary', value: '#475569' },
         '--footer-border': { cssToken: '--color-border', value: 'rgba(0, 0, 0, 0.1)' },

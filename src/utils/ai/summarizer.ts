@@ -115,7 +115,7 @@ export class ArticleSummarizer {
    */
   private async callOpenAI(
     request: SummarizationRequest,
-    apiKey: string
+    apiKey: string,
   ): Promise<Omit<SummaryResult, 'processingTimeMs'>> {
     const config = AI_PROVIDER_CONFIGS.openai;
 
@@ -165,7 +165,7 @@ export class ArticleSummarizer {
    */
   private async callAnthropic(
     request: SummarizationRequest,
-    apiKey: string
+    apiKey: string,
   ): Promise<Omit<SummaryResult, 'processingTimeMs'>> {
     const config = AI_PROVIDER_CONFIGS.anthropic;
 
@@ -278,11 +278,7 @@ ${title ? `Title: ${title}\n\n` : ''}${text}`;
   /**
    * Cache a summary result
    */
-  private cacheSummary(
-    url: string,
-    bullets: SummaryBullet[],
-    provider: AIProvider
-  ): void {
+  private cacheSummary(url: string, bullets: SummaryBullet[], provider: AIProvider): void {
     const hash = this.hashUrl(url);
     const now = Date.now();
 

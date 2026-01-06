@@ -17,8 +17,14 @@ import { AudioSegment, type AudioSegmentMetadata } from './segment';
  */
 export const cacheConfigSchema = z.object({
   maxEntries: z.number().int().positive().default(50),
-  maxAgeMs: z.number().positive().default(30 * 60 * 1000), // 30 minutes
-  maxSizeBytes: z.number().positive().default(100 * 1024 * 1024), // 100MB
+  maxAgeMs: z
+    .number()
+    .positive()
+    .default(30 * 60 * 1000), // 30 minutes
+  maxSizeBytes: z
+    .number()
+    .positive()
+    .default(100 * 1024 * 1024), // 100MB
 });
 
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;
@@ -120,7 +126,11 @@ export class AudioCache {
    * @param metadata - Segment metadata
    * @returns The created AudioSegment
    */
-  set(key: string, audioData: ArrayBuffer, metadata: Partial<AudioSegmentMetadata> = {}): AudioSegment {
+  set(
+    key: string,
+    audioData: ArrayBuffer,
+    metadata: Partial<AudioSegmentMetadata> = {},
+  ): AudioSegment {
     // Remove existing entry if present
     if (this._cache.has(key)) {
       this.delete(key);
@@ -178,7 +188,7 @@ export class AudioCache {
       maxEntries: this._config.maxEntries,
       totalSize: this._totalSize,
       maxSize: this._config.maxSizeBytes,
-      sizePercentage: (this._totalSize / this._config.maxSizeBytes * 100).toFixed(1),
+      sizePercentage: ((this._totalSize / this._config.maxSizeBytes) * 100).toFixed(1),
     };
   }
 

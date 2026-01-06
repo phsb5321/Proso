@@ -61,7 +61,7 @@ export class AudioSegment implements AudioSegmentData {
   constructor(
     cacheKey: string,
     audioData: ArrayBuffer,
-    metadata: Partial<AudioSegmentMetadata> = {}
+    metadata: Partial<AudioSegmentMetadata> = {},
   ) {
     // Validate metadata using Zod schema
     const validated = audioSegmentMetadataSchema.parse(metadata);
@@ -126,7 +126,7 @@ export class AudioSegment implements AudioSegmentData {
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
     return `audio_${provider}_${Math.abs(hash).toString(16)}`;

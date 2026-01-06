@@ -49,7 +49,7 @@ export class SettingsStore {
 
       // Apply any pending migrations
       const migrated = await applyMigrations(stored, (partial) =>
-        browser.storage.local.set(partial)
+        browser.storage.local.set(partial),
       );
 
       // Merge with defaults (stored values override defaults)

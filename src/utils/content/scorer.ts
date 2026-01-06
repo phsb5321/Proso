@@ -30,8 +30,8 @@ export function calculateContentScore(element: Element): number {
 
   // Count meaningful paragraphs (not just short text snippets)
   const paragraphs = element.querySelectorAll('p');
-  const meaningfulParagraphs = Array.from(paragraphs).filter(
-    p => p.textContent ? p.textContent.trim().length > 50 : false
+  const meaningfulParagraphs = Array.from(paragraphs).filter((p) =>
+    p.textContent ? p.textContent.trim().length > 50 : false,
   );
   score += meaningfulParagraphs.length * 10;
 
@@ -50,8 +50,16 @@ export function calculateContentScore(element: Element): number {
   // Penalty for navigation-like class/id names
   const classId = ((element.className || '') + ' ' + (element.id || '')).toLowerCase();
   const navKeywords = [
-    'nav', 'menu', 'sidebar', 'footer', 'header', 'comment',
-    'ad', 'social', 'share', 'related'
+    'nav',
+    'menu',
+    'sidebar',
+    'footer',
+    'header',
+    'comment',
+    'ad',
+    'social',
+    'share',
+    'related',
   ];
   for (const keyword of navKeywords) {
     if (classId.includes(keyword)) {
@@ -61,8 +69,15 @@ export function calculateContentScore(element: Element): number {
 
   // Bonus for content-like class/id names
   const contentKeywords = [
-    'content', 'article', 'post', 'entry', 'story',
-    'wiki', 'body', 'text', 'main'
+    'content',
+    'article',
+    'post',
+    'entry',
+    'story',
+    'wiki',
+    'body',
+    'text',
+    'main',
   ];
   for (const keyword of contentKeywords) {
     if (classId.includes(keyword)) {
@@ -83,7 +98,7 @@ export function calculateContentScore(element: Element): number {
 export function calculateLinkDensity(element: Element): number {
   const links = element.querySelectorAll('a');
   let linkText = 0;
-  links.forEach(a => linkText += a.textContent?.length || 0);
+  links.forEach((a) => (linkText += a.textContent?.length || 0));
   const totalText = element.textContent?.length || 1;
   return linkText / totalText;
 }
@@ -100,7 +115,7 @@ export function isNavigationElement(element: Element): boolean {
   const className = (element.className || '').toLowerCase();
   const id = (element.id || '').toLowerCase();
 
-  return navClasses.some(c => className.includes(c) || id.includes(c));
+  return navClasses.some((c) => className.includes(c) || id.includes(c));
 }
 
 /**
@@ -133,8 +148,8 @@ export function isNavigationText(text: string | null | undefined): boolean {
   const words = trimmed.split(/\s+/);
   if (words.length >= 3 && words.length <= 10) {
     const avgWordLength = trimmed.replace(/\s+/g, '').length / words.length;
-    if (avgWordLength < 7 && words.every(w => w.length < 15)) {
-      const capitalizedCount = words.filter(w => /^[A-Z]/.test(w)).length;
+    if (avgWordLength < 7 && words.every((w) => w.length < 15)) {
+      const capitalizedCount = words.filter((w) => /^[A-Z]/.test(w)).length;
       if (capitalizedCount >= words.length * 0.7) {
         return true;
       }
@@ -153,9 +168,25 @@ export function isNavigationText(text: string | null | undefined): boolean {
  */
 export function isBlockElement(element: Element): boolean {
   const blockTags = [
-    'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-    'LI', 'BLOCKQUOTE', 'PRE', 'ARTICLE', 'SECTION', 'ASIDE',
-    'HEADER', 'FOOTER', 'MAIN', 'FIGURE', 'FIGCAPTION',
+    'P',
+    'DIV',
+    'H1',
+    'H2',
+    'H3',
+    'H4',
+    'H5',
+    'H6',
+    'LI',
+    'BLOCKQUOTE',
+    'PRE',
+    'ARTICLE',
+    'SECTION',
+    'ASIDE',
+    'HEADER',
+    'FOOTER',
+    'MAIN',
+    'FIGURE',
+    'FIGCAPTION',
   ];
   return blockTags.includes(element.tagName);
 }
@@ -188,12 +219,46 @@ export function isInsideUnwantedElement(element: Element): boolean {
 
     // Check unwanted patterns in class/id
     const unwantedPatterns = [
-      'nav', 'menu', 'sidebar', 'footer', 'header', 'comment', 'ad-', 'social', 'share',
-      'related', 'toc', 'infobox', 'breadcrumb', 'toolbar', 'topbar', 'bottom-bar',
-      'widget', 'promo', 'banner', 'masthead', 'global-header', 'global-footer',
-      'fex-header', 'fex-footer', 'site-header', 'site-footer', 'page-header', 'page-footer',
-      'user-nav', 'user-menu', 'account-', 'login', 'signin', 'signup', 'auth-',
-      'dropdown', 'flyout', 'mega-menu', 'subnav', 'submenu',
+      'nav',
+      'menu',
+      'sidebar',
+      'footer',
+      'header',
+      'comment',
+      'ad-',
+      'social',
+      'share',
+      'related',
+      'toc',
+      'infobox',
+      'breadcrumb',
+      'toolbar',
+      'topbar',
+      'bottom-bar',
+      'widget',
+      'promo',
+      'banner',
+      'masthead',
+      'global-header',
+      'global-footer',
+      'fex-header',
+      'fex-footer',
+      'site-header',
+      'site-footer',
+      'page-header',
+      'page-footer',
+      'user-nav',
+      'user-menu',
+      'account-',
+      'login',
+      'signin',
+      'signup',
+      'auth-',
+      'dropdown',
+      'flyout',
+      'mega-menu',
+      'subnav',
+      'submenu',
     ];
     for (const pattern of unwantedPatterns) {
       if (classId.includes(pattern)) return true;

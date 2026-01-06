@@ -329,7 +329,7 @@
 }
 
 .voxpage-toggle__switch::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 3px;
   left: 3px;
@@ -834,9 +834,8 @@
   pointer-events: auto;
   opacity: 0;
   transform: translateX(100%);
-  transition:
-    opacity var(--transition-normal) var(--ease-default),
-    transform var(--transition-normal) var(--ease-default);
+  transition: opacity var(--transition-normal) var(--ease-default), transform
+    var(--transition-normal) var(--ease-default);
 }
 
 .toast--visible {
@@ -1047,20 +1046,23 @@
   }
 
   @keyframes accordion-expand {
-    from, to {
+    from,
+    to {
       opacity: 1;
       transform: none;
     }
   }
 
   @keyframes toast-exit {
-    from, to {
+    from,
+    to {
       opacity: 0;
     }
   }
 
   @keyframes save-pulse {
-    from, to {
+    from,
+    to {
       transform: none;
     }
   }

@@ -9,8 +9,8 @@
  * @module utils/messaging/types
  */
 
-import { z } from 'zod';
-import * as schemas from './schemas';
+import type { z } from 'zod';
+import type * as schemas from './schemas';
 
 // ========== Enum Types ==========
 
@@ -42,8 +42,12 @@ export type AudioCacheStateResponse = z.infer<typeof schemas.audioCacheStateResp
 
 export type ProviderSelectParams = z.infer<typeof schemas.providerSelectParamsSchema>;
 export type ProviderInfo = z.infer<typeof schemas.providerInfoSchema>;
-export type ProviderValidateLanguageSupportParams = z.infer<typeof schemas.providerValidateLanguageSupportParamsSchema>;
-export type ProviderValidateLanguageSupportResponse = z.infer<typeof schemas.providerValidateLanguageSupportResponseSchema>;
+export type ProviderValidateLanguageSupportParams = z.infer<
+  typeof schemas.providerValidateLanguageSupportParamsSchema
+>;
+export type ProviderValidateLanguageSupportResponse = z.infer<
+  typeof schemas.providerValidateLanguageSupportResponseSchema
+>;
 
 // ========== Content Types ==========
 

@@ -37,26 +37,26 @@
      Secondary: hover/highlight states
      Gradient: buttons and active indicators
      ---------------------------------------- */
-  --color-accent-primary: #0D9488;
-  --color-accent-secondary: #14B8A6;
-  --color-accent-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+  --color-accent-primary: #0d9488;
+  --color-accent-secondary: #14b8a6;
+  --color-accent-gradient: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
 
   /* ----------------------------------------
      Semantic Colors
      Used for status indicators, banners, and feedback
      Each color conveys specific meaning (see FR-004)
      ---------------------------------------- */
-  --color-success: #10b981;  /* Positive actions, confirmations */
-  --color-warning: #f59e0b;  /* Cautions, attention needed */
-  --color-error: #ef4444;    /* Errors, failures, destructive */
-  --color-info: #3b82f6;     /* Informational, neutral status */
+  --color-success: #10b981; /* Positive actions, confirmations */
+  --color-warning: #f59e0b; /* Cautions, attention needed */
+  --color-error: #ef4444; /* Errors, failures, destructive */
+  --color-info: #3b82f6; /* Informational, neutral status */
 
   /* ----------------------------------------
      UI Element Colors
      Borders, focus rings, button backgrounds
      ---------------------------------------- */
   --color-border: rgba(255, 255, 255, 0.1);
-  --color-focus-ring: rgba(13, 148, 136, 0.5);  /* Accessibility: visible focus indicator */
+  --color-focus-ring: rgba(13, 148, 136, 0.5); /* Accessibility: visible focus indicator */
 
   /* Button colors - used by .voxpage-button */
   --color-button-bg: rgba(255, 255, 255, 0.05);
@@ -115,9 +115,9 @@
     --color-text-muted: #64748b;
 
     /* Accent colors - Teal/Cyan (adjusted for light mode contrast) */
-    --color-accent-primary: #0F766E;
-    --color-accent-secondary: #0D9488;
-    --color-accent-gradient: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+    --color-accent-primary: #0f766e;
+    --color-accent-secondary: #0d9488;
+    --color-accent-gradient: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
 
     /* Semantic colors (adjusted for light background) */
     --color-success: #059669;
@@ -179,9 +179,9 @@
   --color-text-muted: #8899a8;
 
   /* Accent colors */
-  --color-accent-primary: #0D9488;
-  --color-accent-secondary: #14B8A6;
-  --color-accent-gradient: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+  --color-accent-primary: #0d9488;
+  --color-accent-secondary: #14b8a6;
+  --color-accent-gradient: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
 
   /* Semantic colors */
   --color-success: #10b981;
@@ -235,9 +235,9 @@
   --color-text-muted: #64748b;
 
   /* Accent colors */
-  --color-accent-primary: #0F766E;
-  --color-accent-secondary: #0D9488;
-  --color-accent-gradient: linear-gradient(135deg, #0F766E 0%, #0D9488 100%);
+  --color-accent-primary: #0f766e;
+  --color-accent-secondary: #0d9488;
+  --color-accent-gradient: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
 
   /* Semantic colors */
   --color-success: #059669;
@@ -294,14 +294,15 @@
    ======================================== */
 :root {
   /* Font family */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+    sans-serif;
 
   /* Font sizes */
-  --font-size-xs: 0.625rem;   /* 10px */
-  --font-size-sm: 0.75rem;    /* 12px */
-  --font-size-md: 0.875rem;   /* 14px */
-  --font-size-lg: 1rem;       /* 16px */
-  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-xs: 0.625rem; /* 10px */
+  --font-size-sm: 0.75rem; /* 12px */
+  --font-size-md: 0.875rem; /* 14px */
+  --font-size-lg: 1rem; /* 16px */
+  --font-size-xl: 1.25rem; /* 20px */
 
   /* Font weights */
   --font-weight-normal: 400;
@@ -356,9 +357,9 @@
 
   /* Combined transitions */
   --transition: all var(--transition-normal) var(--ease-default);
-  --transition-colors: color var(--transition-fast) var(--ease-default),
-                       background-color var(--transition-fast) var(--ease-default),
-                       border-color var(--transition-fast) var(--ease-default);
+  --transition-colors: color var(--transition-fast) var(--ease-default), background-color
+    var(--transition-fast) var(--ease-default), border-color var(--transition-fast)
+    var(--ease-default);
 }
 
 /* Reduced motion support */
@@ -385,13 +386,13 @@
    ======================================== */
 :root {
   /* Stacking layer system - use these instead of arbitrary z-index values */
-  --z-base: auto;          /* Normal document flow */
-  --z-elevated: 1;         /* Hover states, focus rings */
-  --z-dropdown: 50;        /* Dropdowns, tooltips */
-  --z-sticky: 60;          /* Sticky headers */
-  --z-overlay: 100;        /* Modals, overlays */
+  --z-base: auto; /* Normal document flow */
+  --z-elevated: 1; /* Hover states, focus rings */
+  --z-dropdown: 50; /* Dropdowns, tooltips */
+  --z-sticky: 60; /* Sticky headers */
+  --z-overlay: 100; /* Modals, overlays */
   --z-overlay-content: 101; /* Content within overlays */
-  --z-toast: 200;          /* Toast notifications */
+  --z-toast: 200; /* Toast notifications */
 }
 
 /* ========================================

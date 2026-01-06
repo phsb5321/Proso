@@ -629,7 +629,7 @@ kbd {
 }
 
 .provider-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -726,7 +726,7 @@ kbd {
 }
 
 .provider-card__docs-link::after {
-  content: '\\2197'; /* ↗ */
+  content: "\\2197"; /* ↗ */
   font-size: 0.8em;
 }
 
@@ -784,7 +784,8 @@ kbd {
 }
 
 @keyframes save-pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {

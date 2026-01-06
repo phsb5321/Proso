@@ -4,6 +4,17 @@
  */
 
 import { jest } from '@jest/globals';
+import { TextEncoder, TextDecoder } from 'util';
+
+// Polyfill TextEncoder/TextDecoder for jsdom environment
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+// Polyfill crypto.subtle for Web Crypto API
+if (!global.crypto) {
+  const { webcrypto } = await import('crypto');
+  global.crypto = webcrypto;
+}
 
 // Mock browser.storage.local for testing
 if (typeof browser === 'undefined') {

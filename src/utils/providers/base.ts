@@ -123,7 +123,7 @@ export abstract class BaseTTSProvider implements ITTSProvider {
   protected createResponse(
     audioData: Blob,
     duration: number,
-    wordTimings: WordBoundary[] | null = null
+    wordTimings: WordBoundary[] | null = null,
   ): TTSResponse {
     return {
       audioData,

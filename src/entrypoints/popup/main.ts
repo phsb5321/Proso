@@ -128,7 +128,7 @@ let exportPollingInterval: ReturnType<typeof setInterval> | null = null;
 let currentSummaryBullets: Array<{ text: string }> = [];
 
 // OCR state
-let currentOcrText: string = '';
+let currentOcrText = '';
 
 // Queue state
 interface QueueItem {
@@ -359,7 +359,7 @@ async function handleStop(): Promise<void> {
  */
 async function handleSpeedChange(event: Event): Promise<void> {
   const target = event.target as HTMLInputElement;
-  const speed = parseFloat(target.value);
+  const speed = Number.parseFloat(target.value);
 
   updateSpeed(speed);
   currentState.speed = speed;
@@ -394,7 +394,7 @@ async function handleProviderChange(event: Event): Promise<void> {
  */
 async function handleProgressSeek(event: Event): Promise<void> {
   const target = event.target as HTMLInputElement;
-  const progress = parseFloat(target.value);
+  const progress = Number.parseFloat(target.value);
 
   updateProgress(progress);
 
@@ -479,9 +479,9 @@ async function handleSummarizeClick(): Promise<void> {
     }
 
     // Request article text from content script
-    const contentResponse = await browser.tabs.sendMessage(tab.id, {
+    const contentResponse = (await browser.tabs.sendMessage(tab.id, {
       type: 'getArticleText',
-    }) as { text?: string; title?: string; url?: string };
+    })) as { text?: string; title?: string; url?: string };
 
     if (!contentResponse?.text || contentResponse.text.length < 100) {
       throw new Error('Not enough content to summarize');
@@ -507,7 +507,8 @@ async function handleSummarizeClick(): Promise<void> {
     showSummaryDisplay(response.bullets);
   } catch (error) {
     console.error('[Popup] Summarize error:', error);
-    elements.summarizeBtnText.textContent = error instanceof Error ? error.message : 'Summarize failed';
+    elements.summarizeBtnText.textContent =
+      error instanceof Error ? error.message : 'Summarize failed';
     setTimeout(() => {
       elements.summarizeBtnText.textContent = 'Summarize';
       elements.summarizeBtn.disabled = false;
@@ -741,9 +742,9 @@ async function handleExportClick(): Promise<void> {
     }
 
     // Request paragraphs from content script
-    const contentResponse = await browser.tabs.sendMessage(tab.id, {
+    const contentResponse = (await browser.tabs.sendMessage(tab.id, {
       type: 'getParagraphs',
-    }) as { paragraphs?: Array<{ index: number; text: string }> };
+    })) as { paragraphs?: Array<{ index: number; text: string }> };
 
     if (!contentResponse?.paragraphs?.length) {
       throw new Error('No content to export');
@@ -761,7 +762,7 @@ async function handleExportClick(): Promise<void> {
         provider: currentState.provider,
         speed: currentState.speed,
         quality: '192',
-      }
+      },
     );
 
     if (!response.success) {
@@ -944,9 +945,9 @@ async function handleAddToQueue(): Promise<void> {
     // Get article excerpt from content script
     let excerpt = '';
     try {
-      const contentResponse = await browser.tabs.sendMessage(tab.id, {
+      const contentResponse = (await browser.tabs.sendMessage(tab.id, {
         type: 'getArticleText',
-      }) as { text?: string };
+      })) as { text?: string };
       if (contentResponse?.text) {
         excerpt = contentResponse.text.substring(0, 200);
       }
@@ -1091,7 +1092,7 @@ function updateCostDisplay(estimate: CostEstimateResponse): void {
     elements.costSavingsRow.hidden = false;
     elements.costSavings.textContent = formatSavingsDisplay(
       estimate.savingsFromCache,
-      estimate.savingsPercentage
+      estimate.savingsPercentage,
     );
   } else {
     elements.costSavingsRow.hidden = true;
@@ -1130,9 +1131,9 @@ async function fetchCostEstimate(): Promise<void> {
     }
 
     // Request paragraphs from content script
-    const contentResponse = await browser.tabs.sendMessage(tab.id, {
+    const contentResponse = (await browser.tabs.sendMessage(tab.id, {
       type: 'getParagraphs',
-    }) as { paragraphs?: Array<{ index: number; text: string }> };
+    })) as { paragraphs?: Array<{ index: number; text: string }> };
 
     if (!contentResponse?.paragraphs?.length) {
       // No content, show as free

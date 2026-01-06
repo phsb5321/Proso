@@ -10,17 +10,41 @@
  */
 
 import { BaseTTSProvider, type TTSRequest, type TTSResponse, type VoiceOption } from './base';
-import { ProviderPricing } from './pricing';
 
 /**
  * Cartesia voice definitions
  */
 const CARTESIA_VOICES: VoiceOption[] = [
-  { id: 'a0e99841-438c-4a64-b679-ae501e7d6091', name: 'Barbershop Man', language: 'en-US', gender: 'male' },
-  { id: '156fb8d2-335b-4950-9cb3-a2d33befec77', name: 'Friendly Sidekick', language: 'en-US', gender: 'neutral' },
-  { id: '5619d38c-cf51-4d8e-9575-48f61a280413', name: 'Sweet Lady', language: 'en-US', gender: 'female' },
-  { id: '79a125e8-cd45-4c13-8a67-188112f4dd22', name: 'Sportsman', language: 'en-US', gender: 'male' },
-  { id: 'c45bc5ec-dc68-4feb-8829-6e6b2748095d', name: 'Storyteller', language: 'en-US', gender: 'neutral' },
+  {
+    id: 'a0e99841-438c-4a64-b679-ae501e7d6091',
+    name: 'Barbershop Man',
+    language: 'en-US',
+    gender: 'male',
+  },
+  {
+    id: '156fb8d2-335b-4950-9cb3-a2d33befec77',
+    name: 'Friendly Sidekick',
+    language: 'en-US',
+    gender: 'neutral',
+  },
+  {
+    id: '5619d38c-cf51-4d8e-9575-48f61a280413',
+    name: 'Sweet Lady',
+    language: 'en-US',
+    gender: 'female',
+  },
+  {
+    id: '79a125e8-cd45-4c13-8a67-188112f4dd22',
+    name: 'Sportsman',
+    language: 'en-US',
+    gender: 'male',
+  },
+  {
+    id: 'c45bc5ec-dc68-4feb-8829-6e6b2748095d',
+    name: 'Storyteller',
+    language: 'en-US',
+    gender: 'neutral',
+  },
 ];
 
 const CARTESIA_API_VERSION = '2025-04-16';
@@ -54,7 +78,9 @@ export class CartesiaProvider extends BaseTTSProvider {
 
     // Check language support
     if (validated.language && !this.supportsLanguage(validated.language)) {
-      throw new Error(`Cartesia only supports English. Use OpenAI or ElevenLabs for ${validated.language}`);
+      throw new Error(
+        `Cartesia only supports English. Use OpenAI or ElevenLabs for ${validated.language}`,
+      );
     }
 
     const voiceId = validated.voice || 'a0e99841-438c-4a64-b679-ae501e7d6091'; // Default voice
@@ -63,7 +89,7 @@ export class CartesiaProvider extends BaseTTSProvider {
     const response = await fetch('https://api.cartesia.ai/tts/bytes', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         'Cartesia-Version': CARTESIA_API_VERSION,
         'Content-Type': 'application/json',
       },
@@ -94,7 +120,7 @@ export class CartesiaProvider extends BaseTTSProvider {
     const audioBlob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
 
     // Estimate duration
-    const estimatedDuration = validated.text.length / (150 * 5) * 60 / speed;
+    const estimatedDuration = ((validated.text.length / (150 * 5)) * 60) / speed;
 
     return this.createResponse(audioBlob, estimatedDuration, null);
   }
@@ -108,7 +134,7 @@ export class CartesiaProvider extends BaseTTSProvider {
       const response = await fetch('https://api.cartesia.ai/voices', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Cartesia-Version': CARTESIA_API_VERSION,
         },
       });

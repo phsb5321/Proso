@@ -58,7 +58,7 @@ export function createScrollSpy(options: ScrollSpyOptions): ScrollSpyInstance {
   function updateActiveLink(sectionId: string | null): void {
     const navLinks = document.querySelectorAll(navLinkSelector);
 
-    navLinks.forEach(link => {
+    navLinks.forEach((link) => {
       const href = link.getAttribute('href');
       const isActive = href === `#${sectionId}`;
 
@@ -83,7 +83,7 @@ export function createScrollSpy(options: ScrollSpyOptions): ScrollSpyInstance {
     // Find the most visible section
     let mostVisible: IntersectionObserverEntry | null = null;
 
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       if (entry.isIntersecting) {
         if (!mostVisible || entry.intersectionRatio > mostVisible.intersectionRatio) {
           mostVisible = entry;
@@ -117,7 +117,7 @@ export function createScrollSpy(options: ScrollSpyOptions): ScrollSpyInstance {
     });
 
     // Observe all sections
-    sections.forEach(section => {
+    sections.forEach((section) => {
       if (section.id) {
         observer?.observe(section);
       }
