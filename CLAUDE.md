@@ -207,69 +207,69 @@ tests/
 
 ```bash
 # Start development server with HMR (default: Firefox)
-npm run dev
+pnpm run dev
 
 # Start development for specific browser
-npm run dev:firefox
-npm run dev:chrome
+pnpm run dev:firefox
+pnpm run dev:chrome
 
 # Build production extension
-npm run build
-npm run build:firefox
-npm run build:chrome
-npm run build:all          # Builds Firefox, Chrome, and Edge
+pnpm run build
+pnpm run build:firefox
+pnpm run build:chrome
+pnpm run build:all          # Builds Firefox, Chrome, and Edge
 
 # Create distributable zip
-npm run zip
-npm run zip:firefox
-npm run zip:chrome
+pnpm run zip
+pnpm run zip:firefox
+pnpm run zip:chrome
 ```
 
 ### Testing
 
 ```bash
 # Run unit tests (runs ESLint first for import validation)
-npm test
+pnpm test
 
 # Run unit tests only (skip ESLint)
-npm run test:unit
+pnpm run test:unit
 
 # Run unit tests with coverage
-npm run test:coverage
+pnpm run test:coverage
 
 # Run visual regression tests
-npm run test:visual
+pnpm run test:visual
 
 # Update visual test baselines
-npm run test:visual:update
+pnpm run test:visual:update
 
 # Run all tests
-npm run test:all
+pnpm run test:all
 ```
 
 ### Code Quality
 
 ```bash
 # Lint imports with ESLint
-npm run lint
+pnpm run lint
 
 # Auto-fix ESLint issues
-npm run lint:fix
+pnpm run lint:fix
 
 # Lint manifest with web-ext
-npm run lint:manifest
+pnpm run lint:manifest
 
 # Check for circular dependencies
-npm run deps:check
+pnpm run deps:check
 
 # Generate dependency graph to deps.svg
-npm run deps:graph
+pnpm run deps:graph
 
 # Check code duplication
-npm run duplication
+pnpm run duplication
 
 # Run full quality check: deps + duplication + manifest lint
-npm run quality
+pnpm run quality
 ```
 
 ## Code Style
@@ -382,8 +382,8 @@ The codebase was refactored from monolithic files into focused modules:
 ### Quality Metrics
 
 - All modules ≤300 lines (except core orchestrators ~350-690 lines)
-- No circular dependencies (`npm run deps:check`)
-- Low duplication: ~1.4% (`npm run duplication`)
+- No circular dependencies (`pnpm run deps:check`)
+- Low duplication: ~1.4% (`pnpm run duplication`)
 - 153 unit tests passing
 
 ## Feature 010: Single Source of Truth Architecture
@@ -515,10 +515,10 @@ Developer Settings section in options page includes:
 
 ```bash
 # Run logging-specific tests
-npm test -- --testPathPattern="log-buffer|loki-api"
+pnpm test -- --testPathPattern="log-buffer|loki-api"
 
 # All tests (includes 20+ logging tests)
-npm test
+pnpm test
 ```
 
 ## Feature 015: Improved DOM Element Matching
@@ -575,10 +575,10 @@ const UNWANTED_CONFIG = {
 
 ```bash
 # Run DOM matching tests
-npm test -- --testPathPattern="dom-element-matching"
+pnpm test -- --testPathPattern="dom-element-matching"
 
 # All tests (includes 33 DOM matching tests)
-npm test
+pnpm test
 ```
 
 ## Feature 017: Git Workflow Automation
@@ -730,13 +730,13 @@ footerStateDefaults = {
 
 ```bash
 # Run all tests (includes 467 tests)
-npm test
+pnpm test
 
 # Run linting
-npm run lint
+pnpm run lint
 
 # Validate manifest
-npm run lint:manifest
+pnpm run lint:manifest
 ```
 
 ## Feature 019: Multilingual TTS Integration
@@ -836,10 +836,10 @@ languageDefaults = {
 
 ```bash
 # Run language-specific tests
-npm test -- --testPathPattern="language"
+pnpm test -- --testPathPattern="language"
 
 # All tests (includes 557 tests with 50+ language tests)
-npm test
+pnpm test
 ```
 
 ### Error Handling
@@ -940,13 +940,13 @@ Cost visibility toggle in Appearance section:
 
 ```bash
 # Run cache tests
-npm test -- --testPathPattern="cache"
+pnpm test -- --testPathPattern="cache"
 
 # Run eviction tests
-npm test -- --testPathPattern="eviction"
+pnpm test -- --testPathPattern="eviction"
 
 # Run cost estimator tests
-npm test -- --testPathPattern="cost-estimator"
+pnpm test -- --testPathPattern="cost-estimator"
 ```
 
 ### Offline Support
@@ -1000,7 +1000,7 @@ vite: () => ({
 gh repo view --json visibility
 
 # Build for production
-NODE_ENV=production npm run build
+NODE_ENV=production pnpm run build
 
 # Verify no source maps
 find .output/firefox-mv2 -name "*.map" -type f

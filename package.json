@@ -2,6 +2,7 @@
   "name": "voxpage",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.14.0",
   "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
   "scripts": {
     "dev": "wxt",
@@ -15,12 +16,12 @@
     "zip:firefox": "wxt zip -b firefox",
     "zip:chrome": "wxt zip -b chrome",
     "postinstall": "wxt prepare",
-    "test": "npm run lint && node --experimental-vm-modules node_modules/.bin/jest",
+    "test": "pnpm run lint && node --experimental-vm-modules node_modules/.bin/jest",
     "test:unit": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
     "test:visual": "npx playwright test",
     "test:visual:update": "npx playwright test --update-snapshots",
-    "test:all": "npm run test && npm run test:visual",
+    "test:all": "pnpm run test && pnpm run test:visual",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
@@ -30,7 +31,7 @@
     "deps:check": "madge --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
-    "quality": "npm run deps:check && npm run duplication && npm run lint:manifest"
+    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
