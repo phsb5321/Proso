@@ -1,6 +1,6 @@
 # VoxPage
 
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![CI](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml)
 [![Firefox 109+](https://img.shields.io/badge/Firefox-109%2B-orange.svg)](https://www.mozilla.org/firefox/)
 
@@ -210,7 +210,14 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+VoxPage is dual-licensed:
+
+- **Open Source**: [AGPL-3.0](LICENSE) for personal use and open source projects
+- **Commercial**: [Commercial license](COMMERCIAL.md) for businesses
+
+See [COMMERCIAL.md](COMMERCIAL.md) for commercial licensing options.
+
+Third-party licenses are documented in [NOTICE](NOTICE).
 
 ## Acknowledgments
 

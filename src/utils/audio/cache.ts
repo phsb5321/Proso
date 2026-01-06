@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Audio Cache Module
  * LRU cache for audio segments to enable instant rewind and reduce API calls

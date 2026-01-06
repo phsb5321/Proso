@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Audio Visualizer Module
  * Provides frequency analysis data for audio visualization using Web Audio API

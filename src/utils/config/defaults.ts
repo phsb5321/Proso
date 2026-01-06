@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Configuration Defaults
  * SINGLE SOURCE OF TRUTH for all default configuration values
@@ -120,4 +124,42 @@ export const aiDefaults: Readonly<AISettings> = Object.freeze({
 export const extendedSpeedConstraints = Object.freeze({
   min: 0.5,
   max: 4.0,
+});
+
+// ========== Audio Cache Defaults (028-smart-audio-cache) ==========
+
+import type { CacheConfig } from '../cache/types';
+
+/**
+ * Audio cache configuration defaults
+ * IndexedDB-based persistent cache for TTS audio
+ */
+export const cacheDefaults: Readonly<CacheConfig> = Object.freeze({
+  // Size limits
+  maxSizeBytes: 500 * 1024 * 1024, // 500 MB
+  maxEntries: 1000,
+
+  // Age limits
+  maxAgeMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+
+  // Eviction thresholds - evict to 70% when at 90%
+  evictionThresholdPercent: 90,
+  evictionTargetPercent: 70,
+
+  // Feature toggles
+  enabled: true,
+  persistToIndexedDB: true,
+
+  // Prefetch settings
+  prefetchAhead: 3,
+});
+
+/**
+ * Cache constraints for validation
+ */
+export const cacheConstraints = Object.freeze({
+  maxSizeBytes: { min: 50 * 1024 * 1024, max: 2 * 1024 * 1024 * 1024 }, // 50MB - 2GB
+  maxEntries: { min: 100, max: 10000 },
+  maxAgeDays: { min: 1, max: 365 },
+  prefetchAhead: { min: 1, max: 10 },
 });

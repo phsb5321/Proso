@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Options Page Controller
  * TypeScript conversion from options/options.js
@@ -184,6 +188,7 @@ export async function initOptionsPage(): Promise<void> {
   await loadQuickSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
+  await loadCacheStats();
   await loadThemePreference();
 
   setupQuickSettingsEventListeners();
@@ -191,6 +196,7 @@ export async function initOptionsPage(): Promise<void> {
   setupProviderCardEventListeners();
   setupLoggingEventListeners();
   setupQueueEventListeners();
+  setupCacheEventListeners();
   setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
@@ -438,6 +444,14 @@ function setupStorageChangeListener(): void {
     if (changes.autoScroll !== undefined) {
       elements.autoScroll.checked = changes.autoScroll.newValue as boolean;
     }
+
+    // T073: Cost estimate toggle sync (028-smart-audio-cache)
+    if (changes.showCostEstimate !== undefined) {
+      const showCostEstimateEl = document.getElementById('showCostEstimate') as HTMLInputElement | null;
+      if (showCostEstimateEl) {
+        showCostEstimateEl.checked = changes.showCostEstimate.newValue as boolean;
+      }
+    }
   });
 }
 
@@ -604,7 +618,8 @@ async function loadSettings(): Promise<void> {
       'speed',
       'mode',
       'highlightEnabled',
-      'autoScroll'
+      'autoScroll',
+      'showCostEstimate'
     ]);
 
     // API keys (no defaults, empty if not set)
@@ -630,6 +645,14 @@ async function loadSettings(): Promise<void> {
     elements.autoScroll.checked = (result.autoScroll as boolean | undefined) !== undefined
       ? (result.autoScroll as boolean)
       : uiDefaults.autoScroll;
+
+    // Cost estimate toggle (028-smart-audio-cache T073)
+    const showCostEstimateEl = document.getElementById('showCostEstimate') as HTMLInputElement | null;
+    if (showCostEstimateEl) {
+      showCostEstimateEl.checked = (result.showCostEstimate as boolean | undefined) !== undefined
+        ? (result.showCostEstimate as boolean)
+        : true; // Default to true
+    }
   } catch (error) {
     console.error('Error loading settings:', error);
   }
@@ -724,6 +747,17 @@ function setupAppearanceToggles(): void {
 
     toast.success(enabled ? 'Auto-scroll enabled' : 'Auto-scroll disabled');
   });
+
+  // T073: Cost estimate toggle (028-smart-audio-cache)
+  const showCostEstimateEl = document.getElementById('showCostEstimate') as HTMLInputElement | null;
+  if (showCostEstimateEl) {
+    showCostEstimateEl.addEventListener('change', async () => {
+      const enabled = showCostEstimateEl.checked;
+      await browser.storage.local.set({ showCostEstimate: enabled });
+
+      toast.success(enabled ? 'Cost estimates enabled' : 'Cost estimates hidden');
+    });
+  }
 }
 
 // ========================================
@@ -1679,5 +1713,138 @@ async function reloadSectionSettings(section: string): Promise<void> {
     case 'developer':
       await loadLoggingConfig();
       break;
+    case 'cache':
+      await loadCacheStats();
+      break;
+  }
+}
+
+// ========================================
+// CACHE SECTION (028-smart-audio-cache T063-T064)
+// ========================================
+
+interface CacheStats {
+  entries: number;
+  totalSize: number;
+  maxSize: number;
+  sizePercentage: number;
+  hitCount: number;
+  missCount: number;
+  hitRate: number;
+  oldestEntryAge?: number;
+  newestEntryAge?: number;
+}
+
+/**
+ * Load and display cache statistics
+ */
+async function loadCacheStats(): Promise<void> {
+  const entriesEl = document.getElementById('cacheEntries');
+  const sizeEl = document.getElementById('cacheSizeDisplay');
+  const hitRateEl = document.getElementById('cacheHitRate');
+  const savingsEl = document.getElementById('cacheSavings');
+  const usageFillEl = document.getElementById('cacheUsageFill');
+  const usageLabelEl = document.getElementById('cacheUsageLabel');
+
+  if (!entriesEl || !sizeEl || !hitRateEl || !savingsEl || !usageFillEl || !usageLabelEl) {
+    return;
+  }
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'cache.getStats',
+    });
+
+    if (response) {
+      const stats = response as CacheStats;
+
+      // Update stats display
+      entriesEl.textContent = String(stats.entries);
+
+      // Format size in MB
+      const sizeMB = (stats.totalSize / (1024 * 1024)).toFixed(1);
+      const maxSizeMB = (stats.maxSize / (1024 * 1024)).toFixed(0);
+      sizeEl.textContent = `${sizeMB} / ${maxSizeMB} MB`;
+
+      // Hit rate percentage
+      hitRateEl.textContent = `${Math.round(stats.hitRate * 100)}%`;
+
+      // Estimated savings (rough estimate based on hit count * avg cost)
+      // Using $0.015 per 1000 chars as average TTS cost
+      const estimatedSavings = (stats.hitCount * 0.05).toFixed(2);
+      savingsEl.textContent = `~$${estimatedSavings}`;
+
+      // Update usage bar
+      const usagePercent = Math.min(100, stats.sizePercentage);
+      usageFillEl.style.width = `${usagePercent}%`;
+      usageLabelEl.textContent = `${Math.round(usagePercent)}% used`;
+
+      // Add warning/danger classes based on usage
+      usageFillEl.classList.remove('cache-usage__fill--warning', 'cache-usage__fill--danger');
+      if (usagePercent >= 90) {
+        usageFillEl.classList.add('cache-usage__fill--danger');
+      } else if (usagePercent >= 70) {
+        usageFillEl.classList.add('cache-usage__fill--warning');
+      }
+    }
+  } catch (error) {
+    console.error('[Options] Failed to load cache stats:', error);
+    entriesEl.textContent = '--';
+    sizeEl.textContent = '-- / -- MB';
+    hitRateEl.textContent = '--%';
+    savingsEl.textContent = '$0.00';
+  }
+}
+
+/**
+ * Clear the audio cache
+ */
+async function clearCache(): Promise<void> {
+  const statusEl = document.getElementById('cacheStatus');
+  const clearBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement | null;
+
+  if (!statusEl || !clearBtn) return;
+
+  // Show confirmation modal
+  const confirmed = await showConfirmModal({
+    title: 'Clear Audio Cache',
+    message: 'This will delete all cached audio. You will need to regenerate audio for pages you revisit. This cannot be undone.',
+    confirmText: 'Clear Cache',
+    cancelText: 'Cancel',
+    confirmVariant: 'danger',
+    onConfirm: async () => {
+      const response = await browser.runtime.sendMessage({
+        type: 'cache.clear',
+      });
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Failed to clear cache');
+      }
+    },
+  });
+
+  if (confirmed) {
+    toast.success('Audio cache cleared');
+    await loadCacheStats();
+  }
+}
+
+/**
+ * Setup cache section event listeners
+ */
+function setupCacheEventListeners(): void {
+  const clearBtn = document.getElementById('clearCacheBtn');
+  const refreshBtn = document.getElementById('refreshCacheStatsBtn');
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      void clearCache();
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      void loadCacheStats();
+    });
   }
 }

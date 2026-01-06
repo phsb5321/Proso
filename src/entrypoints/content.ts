@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Content Script - Entry Point
  * Handles text extraction and highlighting on web pages.
@@ -13,6 +17,8 @@ import { browser } from 'wxt/browser';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import { StickyFooter, type StorageState, type PlaybackState, type PlaybackStatus } from '../utils/content/sticky-footer';
+import { ParagraphSelector } from '../utils/content/paragraph-selector';
+import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 
 // ============================================================================
 // OCR Region Selection
@@ -431,6 +437,8 @@ export default defineContentScript({
 
     let highlightManager: HighlightManager | null = null;
     let stickyFooter: StickyFooter | null = null;
+    let paragraphSelector: ParagraphSelector | null = null;
+    let paragraphIndicator: ParagraphIndicator | null = null;
 
     // Prevent re-initialization
     if ((window as any).VoxPage?._contentInitialized) {
@@ -446,11 +454,19 @@ export default defineContentScript({
     try {
       highlightManager = new HighlightManager();
       stickyFooter = new StickyFooter();
+      paragraphSelector = new ParagraphSelector();
+      paragraphIndicator = new ParagraphIndicator();
+
+      // Expose paragraph selector on namespace for legacy code
+      (window as any).VoxPage.paragraphSelector = paragraphSelector;
+      (window as any).VoxPage.paragraphIndicator = paragraphIndicator;
 
       console.log('VoxPage: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
         hasHighlightManager: !!highlightManager,
         hasStickyFooter: !!stickyFooter,
+        hasParagraphSelector: !!paragraphSelector,
+        hasParagraphIndicator: !!paragraphIndicator,
       });
     } catch (error) {
       console.error('VoxPage: Failed to initialize modules:', error);
@@ -820,25 +836,69 @@ export default defineContentScript({
         }
 
         // ====================================================================
-        // Paragraph Selection Mode
+        // Paragraph Selection Mode (028-smart-audio-cache)
         // ====================================================================
         case 'enableSelectionMode': {
-          if ((window as any).VoxPage?.paragraphSelector) {
-            (window as any).VoxPage.paragraphSelector.enableSelectionMode();
+          if (paragraphSelector) {
+            // Get extracted paragraphs and cached indices from message
+            const enableMsg = message as LegacyMessage & {
+              cachedIndices?: number[];
+            };
+            const extractedParagraphs = extractor.getExtractedParagraphs();
+            const cachedIndices = enableMsg.cachedIndices || [];
+
+            paragraphSelector.enableSelectionMode(extractedParagraphs, cachedIndices);
+
+            // Also add indicators for cache status
+            if (paragraphIndicator) {
+              extractedParagraphs.forEach((el, index) => {
+                const status: ParagraphStatus = cachedIndices.includes(index) ? 'cached' : 'pending';
+                paragraphIndicator.addIndicator(el, index, status);
+              });
+            }
           }
           break;
         }
 
         case 'disableSelectionMode': {
-          if ((window as any).VoxPage?.paragraphSelector) {
-            (window as any).VoxPage.paragraphSelector.disableSelectionMode();
+          if (paragraphSelector) {
+            paragraphSelector.disableSelectionMode();
+          }
+          if (paragraphIndicator) {
+            paragraphIndicator.clearAll();
           }
           break;
         }
 
         case 'refreshSelection': {
-          if ((window as any).VoxPage?.paragraphSelector) {
-            (window as any).VoxPage.paragraphSelector.refresh();
+          if (paragraphSelector) {
+            paragraphSelector.refresh();
+          }
+          break;
+        }
+
+        case 'updateCachedParagraphs': {
+          // Update cache status indicators when cache changes
+          const updateMsg = message as LegacyMessage & {
+            cachedIndices: number[];
+          };
+          if (paragraphSelector) {
+            paragraphSelector.updateCachedIndices(updateMsg.cachedIndices);
+          }
+          if (paragraphIndicator) {
+            paragraphIndicator.markCached(updateMsg.cachedIndices);
+          }
+          break;
+        }
+
+        case 'setIndicatorStatus': {
+          // Set status for a specific paragraph
+          const statusMsg = message as LegacyMessage & {
+            paragraphIndex: number;
+            status: ParagraphStatus;
+          };
+          if (paragraphIndicator) {
+            paragraphIndicator.updateIndicator(statusMsg.paragraphIndex, statusMsg.status);
           }
           break;
         }

@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+ * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+ * Commercial licensing: https://voxpage.com/commercial
+ */
 /**
  * VoxPage Options Page Styles
  * Full-page settings layout with sidebar navigation
@@ -336,6 +340,107 @@ kbd {
   font-size: var(--font-size-xs);
   color: var(--color-text-primary);
   box-shadow: 0 1px 0 var(--color-border);
+}
+
+/* ========================================
+   AUDIO CACHE SECTION (028-smart-audio-cache)
+   ======================================== */
+
+.cache-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.cache-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.cache-stat__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-xs);
+}
+
+.cache-stat__value {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.cache-usage {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.cache-usage__bar {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cache-usage__fill {
+  height: 100%;
+  background: var(--color-accent-primary);
+  border-radius: var(--radius-sm);
+  transition: width 0.3s ease-out;
+}
+
+.cache-usage__fill--warning {
+  background: var(--color-warning);
+}
+
+.cache-usage__fill--danger {
+  background: var(--color-error);
+}
+
+.cache-usage__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  min-width: 80px;
+  text-align: right;
+}
+
+.cache-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.cache-status {
+  font-size: var(--font-size-sm);
+  transition: opacity var(--transition-normal);
+}
+
+.cache-status:empty {
+  display: none;
+}
+
+.cache-status--loading {
+  color: var(--color-warning);
+}
+
+.cache-status--success {
+  color: var(--color-success);
+}
+
+.cache-status--error {
+  color: var(--color-error);
 }
 
 /* ========================================

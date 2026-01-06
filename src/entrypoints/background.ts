@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Background Service Worker
  * Main entrypoint for WXT extension background context
@@ -17,6 +21,19 @@ import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
 import { ocrHandlers } from '../utils/messaging/handlers/ocr';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
+
+// Smart Audio Cache (028-smart-audio-cache)
+import { getCacheStore, generateContentHash, generateCacheKey, estimateCost } from '../utils/cache';
+import type { CachedAudioEntry, WordTimelineItem } from '../utils/cache';
+
+// Playback Queue and Prefetch Service (028-smart-audio-cache User Story 3)
+import {
+  PlaybackQueue,
+  PrefetchService,
+  playbackQueue,
+  prefetchService,
+  type PrefetchedAudio as PrefetchedAudioType,
+} from '../utils/playback';
 
 // ============================================
 // State Management
@@ -76,6 +93,9 @@ interface PrefetchedAudio {
 const audioPrefetchCache: Map<number, PrefetchedAudio> = new Map();
 const PREFETCH_AHEAD_COUNT = 3; // Number of paragraphs to prefetch ahead
 let prefetchInProgress = false;
+
+// Current page URL for cache lookups
+let currentPageUrl: string | null = null;
 
 // ============================================
 // Tab Communication
@@ -141,6 +161,7 @@ async function initElevenLabsProvider(): Promise<ElevenLabsProvider | null> {
 
 interface ElevenLabsAudioResult {
   audioUrl: string;
+  audioData: ArrayBuffer; // Raw audio data for caching
   wordTimings: WordTiming[];
   duration: number;
 }
@@ -194,6 +215,7 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
 
     return {
       audioUrl,
+      audioData: result.audioData, // Return raw data for caching
       wordTimings: result.wordTiming,
       duration,
     };
@@ -204,8 +226,73 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
 }
 
 /**
+ * Configure and start the modular prefetch service
+ * Called when playback starts
+ */
+function configurePrefetchService(): void {
+  // Audio generator function for the prefetch service
+  const audioGenerator = async (text: string, index: number) => {
+    // Only generate for ElevenLabs
+    if (playbackState.provider !== 'elevenlabs' || !apiKeys.elevenlabsApiKey) {
+      return null;
+    }
+
+    console.log('[Background] Prefetch generating audio for paragraph', index + 1);
+    const result = await generateElevenLabsAudio(text);
+    if (!result) return null;
+
+    return {
+      audioUrl: result.audioUrl,
+      wordTimings: result.wordTimings,
+    };
+  };
+
+  // Cache checker function
+  const cacheChecker = async (index: number): Promise<boolean> => {
+    if (!currentPageUrl) return false;
+    const cacheStore = getCacheStore();
+    const voiceId = playbackState.voice ?? 'default';
+    const text = paragraphs[index];
+    if (!text) return false;
+
+    const contentHash = generateContentHash(text);
+    const cacheKey = generateCacheKey(currentPageUrl, index, contentHash, playbackState.provider, voiceId);
+    return await cacheStore.has(cacheKey);
+  };
+
+  // Initialize playback queue with paragraphs
+  playbackQueue.initialize(paragraphs, {
+    startIndex: playbackState.currentParagraph,
+  });
+
+  // Configure prefetch service
+  prefetchService.configure(playbackQueue, audioGenerator, cacheChecker);
+}
+
+/**
+ * Start prefetching (wrapper for legacy compatibility)
+ */
+function startPrefetching(): void {
+  // Only prefetch for ElevenLabs (API-based TTS)
+  if (playbackState.provider !== 'elevenlabs' || !apiKeys.elevenlabsApiKey) {
+    return;
+  }
+
+  prefetchService.start();
+}
+
+/**
+ * Stop prefetching and clear buffer
+ */
+function stopPrefetching(): void {
+  prefetchService.stop();
+  prefetchService.clearBuffer();
+}
+
+/**
  * Prefetch audio for upcoming paragraphs to eliminate buffering delays
  * Called after current paragraph starts playing
+ * @deprecated Use startPrefetching() with the modular prefetch service
  */
 async function prefetchUpcomingAudio(): Promise<void> {
   if (prefetchInProgress || playbackState.status !== 'playing') {
@@ -223,7 +310,12 @@ async function prefetchUpcomingAudio(): Promise<void> {
   const endIndex = Math.min(currentIndex + PREFETCH_AHEAD_COUNT + 1, paragraphs.length);
 
   for (let i = currentIndex + 1; i < endIndex; i++) {
-    // Skip if already cached
+    // Skip if already in modular prefetch buffer
+    if (prefetchService.has(i)) {
+      continue;
+    }
+
+    // Skip if already cached in legacy cache
     if (audioPrefetchCache.has(i)) {
       continue;
     }
@@ -259,19 +351,128 @@ async function prefetchUpcomingAudio(): Promise<void> {
  */
 function cleanupPrefetchCache(): void {
   const currentIndex = playbackState.currentParagraph;
+  // Clean up legacy prefetch cache
   for (const [index] of audioPrefetchCache) {
     if (index < currentIndex) {
       audioPrefetchCache.delete(index);
     }
   }
+  // Clean up modular prefetch buffer
+  prefetchService.clearBuffer([currentIndex, currentIndex + 1, currentIndex + 2]);
 }
 
 /**
  * Clear all prefetch cache (called on stop/new playback)
  */
 function clearPrefetchCache(): void {
+  // Stop and clear modular prefetch service
+  stopPrefetching();
+  // Clear legacy prefetch cache
   audioPrefetchCache.clear();
   prefetchInProgress = false;
+}
+
+// ============================================
+// Persistent Audio Cache (T023-T024)
+// ============================================
+
+/**
+ * T023: Check persistent cache for audio entry
+ * Returns cached audio if found, null otherwise
+ */
+async function checkPersistentCache(
+  url: string,
+  paragraphIndex: number,
+  text: string,
+  provider: string,
+  voice: string
+): Promise<{ audioUrl: string; wordTimings: WordTiming[] } | null> {
+  try {
+    const cacheStore = getCacheStore();
+    const contentHash = await generateContentHash(text);
+    const cacheKey = generateCacheKey(url, paragraphIndex, provider, voice, contentHash);
+
+    // Check if entry exists in cache
+    if (!cacheStore.has(cacheKey)) {
+      console.log('[Background] Cache miss for paragraph', paragraphIndex);
+      return null;
+    }
+
+    // Retrieve the cached entry
+    const entry = await cacheStore.get(cacheKey);
+    if (!entry) {
+      console.log('[Background] Cache miss (entry not found) for paragraph', paragraphIndex);
+      return null;
+    }
+
+    console.log('[Background] Cache hit for paragraph', paragraphIndex, '- size:', entry.compressedSize);
+
+    // Convert ArrayBuffer to blob URL
+    const blob = new Blob([entry.audioData], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(blob);
+
+    // Parse word timings from entry
+    const wordTimings: WordTiming[] = (entry.wordTimeline ?? []).map((wt: WordTimelineItem) => ({
+      word: wt.word,
+      charOffset: wt.charOffset,
+      charLength: wt.charLength,
+      startTimeMs: wt.startMs,
+      endTimeMs: wt.endMs,
+    }));
+
+    return { audioUrl, wordTimings };
+  } catch (error) {
+    console.error('[Background] Persistent cache lookup error:', error);
+    return null;
+  }
+}
+
+/**
+ * T024: Store audio to persistent cache
+ */
+async function storeToPersistentCache(
+  url: string,
+  paragraphIndex: number,
+  text: string,
+  provider: string,
+  voice: string,
+  audioData: ArrayBuffer,
+  wordTimings: WordTiming[]
+): Promise<void> {
+  try {
+    const cacheStore = getCacheStore();
+    const contentHash = await generateContentHash(text);
+
+    // Convert WordTiming[] to WordTimelineItem[]
+    const wordTimeline: WordTimelineItem[] = wordTimings.map((wt) => ({
+      word: wt.word,
+      charOffset: wt.charOffset,
+      charLength: wt.charLength,
+      startMs: wt.startTimeMs,
+      endMs: wt.endTimeMs,
+    }));
+
+    // Create cache entry
+    const entry: Omit<CachedAudioEntry, 'cacheKey' | 'createdAt' | 'lastAccessedAt' | 'accessCount'> = {
+      url,
+      paragraphIndex,
+      provider,
+      voice,
+      contentHash,
+      audioData,
+      compressedSize: audioData.byteLength,
+      wordTimeline,
+      durationMs: wordTimings.length > 0
+        ? wordTimings[wordTimings.length - 1].endTimeMs
+        : 0,
+    };
+
+    const cacheKey = await cacheStore.set(entry);
+    console.log('[Background] Stored audio to cache:', cacheKey, '- size:', audioData.byteLength);
+  } catch (error) {
+    console.error('[Background] Failed to store audio to cache:', error);
+    // Non-fatal error - audio playback continues without caching
+  }
 }
 
 // ============================================
@@ -512,20 +713,55 @@ async function speakCurrentParagraph(): Promise<void> {
   let success = false;
 
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
-    // Check if we have prefetched audio for this paragraph
-    const prefetched = audioPrefetchCache.get(playbackState.currentParagraph);
     let audioResult: { audioUrl: string; wordTimings: WordTiming[] } | null = null;
+    let shouldStoreToCache = false;
+    let generatedAudioData: ArrayBuffer | null = null;
 
-    if (prefetched) {
-      console.log('[Background] Using prefetched audio for paragraph', playbackState.currentParagraph + 1);
-      audioResult = {
-        audioUrl: prefetched.audioUrl,
-        wordTimings: prefetched.wordTimings,
-      };
-      // Remove from cache since we're using it
-      audioPrefetchCache.delete(playbackState.currentParagraph);
-    } else {
-      // Generate audio on-demand (first paragraph or cache miss)
+    // T023: First, check persistent cache for this paragraph
+    const voiceId = playbackState.voice ?? 'default';
+    if (currentPageUrl) {
+      const cached = await checkPersistentCache(
+        currentPageUrl,
+        playbackState.currentParagraph,
+        text,
+        playbackState.provider,
+        voiceId
+      );
+
+      if (cached) {
+        console.log('[Background] Using persistently cached audio for paragraph', playbackState.currentParagraph + 1);
+        audioResult = cached;
+      }
+    }
+
+    // Second, check modular prefetch service buffer (T048)
+    if (!audioResult) {
+      const prefetchedModular = prefetchService.consume(playbackState.currentParagraph);
+      if (prefetchedModular) {
+        console.log('[Background] Using modular prefetch buffer for paragraph', playbackState.currentParagraph + 1);
+        audioResult = {
+          audioUrl: prefetchedModular.audioUrl,
+          wordTimings: prefetchedModular.wordTimings,
+        };
+      }
+    }
+
+    // Third, check legacy in-memory prefetch cache
+    if (!audioResult) {
+      const prefetched = audioPrefetchCache.get(playbackState.currentParagraph);
+      if (prefetched) {
+        console.log('[Background] Using legacy prefetch cache for paragraph', playbackState.currentParagraph + 1);
+        audioResult = {
+          audioUrl: prefetched.audioUrl,
+          wordTimings: prefetched.wordTimings,
+        };
+        // Remove from cache since we're using it
+        audioPrefetchCache.delete(playbackState.currentParagraph);
+      }
+    }
+
+    // Fourth, generate audio on-demand if not cached
+    if (!audioResult) {
       console.log('[Background] Generating audio on-demand for paragraph', playbackState.currentParagraph + 1);
       const generated = await generateElevenLabsAudio(text);
 
@@ -540,6 +776,9 @@ async function speakCurrentParagraph(): Promise<void> {
           audioUrl: generated.audioUrl,
           wordTimings: generated.wordTimings,
         };
+        // T024: Mark for storing to persistent cache
+        shouldStoreToCache = true;
+        generatedAudioData = generated.audioData;
       }
     }
 
@@ -568,9 +807,25 @@ async function speakCurrentParagraph(): Promise<void> {
       }
 
       // Start prefetching next paragraphs while this one plays
-      prefetchUpcomingAudio();
+      startPrefetching(); // Use modular prefetch service
+      prefetchUpcomingAudio(); // Also run legacy prefetch for backward compatibility
 
       success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
+
+      // T024: Store to persistent cache after successful playback
+      if (shouldStoreToCache && generatedAudioData && currentPageUrl) {
+        storeToPersistentCache(
+          currentPageUrl,
+          playbackState.currentParagraph,
+          text,
+          playbackState.provider,
+          voiceId,
+          generatedAudioData,
+          audioResult.wordTimings
+        ).catch((err) => {
+          console.error('[Background] Failed to store to persistent cache:', err);
+        });
+      }
 
       // Stop word highlighting when audio ends
       stopWordHighlighting();
@@ -598,6 +853,9 @@ async function speakCurrentParagraph(): Promise<void> {
 
   // Check if we're still playing (might have been paused/stopped)
   if (playbackState.status === 'playing') {
+    // Advance playback queue (T047)
+    playbackQueue.advance();
+
     // Move to next paragraph
     playbackState.currentParagraph++;
     playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
@@ -637,6 +895,9 @@ const messageHandlers: Record<string, MessageHandler> = {
 
     // Clear any previous prefetch cache
     clearPrefetchCache();
+
+    // Store current page URL for persistent cache lookups
+    currentPageUrl = tab.url ?? null;
 
     activeTabId = tab.id;
     playbackState.status = 'loading';
@@ -695,6 +956,9 @@ const messageHandlers: Record<string, MessageHandler> = {
       notifyPopup();
       return { success: false, error: 'No text found on page' };
     }
+
+    // Configure prefetch service with playback queue (T046)
+    configurePrefetchService();
 
     // Show the footer
     await sendToContentScript(tab.id, {
@@ -1029,6 +1293,237 @@ const messageHandlers: Record<string, MessageHandler> = {
     return { success: true };
   },
 
+  // ========== Paragraph Selection Handlers (028-smart-audio-cache) ==========
+
+  /**
+   * T035-T037: Handle paragraph click from content script
+   * Starts playback from the clicked paragraph index
+   */
+  PARAGRAPH_CLICKED: async (data) => {
+    const paragraphIndex = data.paragraphIndex as number;
+    const isCached = data.isCached as boolean;
+
+    console.log('[Background] Paragraph clicked:', paragraphIndex, 'cached:', isCached);
+
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      return { success: false, playbackStarted: false, error: 'No active tab' };
+    }
+
+    // Store current page URL for cache lookups
+    currentPageUrl = tab.url ?? null;
+    activeTabId = tab.id;
+
+    // If paragraphs not yet extracted, extract them first
+    if (paragraphs.length === 0) {
+      playbackState.status = 'loading';
+      notifyPopup();
+
+      // Reload API keys and settings
+      const stored = await browser.storage.local.get([
+        'elevenlabsApiKey',
+        'openaiApiKey',
+        'groqApiKey',
+        'cartesiaApiKey',
+        'elevenlabsVoice',
+        'speed',
+        'provider',
+      ]);
+      apiKeys = {
+        elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
+        openaiApiKey: stored.openaiApiKey as string | undefined,
+        groqApiKey: stored.groqApiKey as string | undefined,
+        cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
+      };
+      if (stored.elevenlabsVoice) {
+        playbackState.voice = stored.elevenlabsVoice as string;
+      }
+      if (stored.speed) {
+        playbackState.speed = stored.speed as number;
+      }
+      if (stored.provider) {
+        playbackState.provider = stored.provider as string;
+      }
+
+      // Extract text from the page
+      const extractResult = await sendToContentScript(tab.id, {
+        action: 'extractText',
+        mode: 'article',
+      });
+
+      if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
+        const result = extractResult as { paragraphs: string[] };
+        paragraphs = result.paragraphs;
+        playbackState.totalParagraphs = paragraphs.length;
+        console.log('[Background] Extracted', playbackState.totalParagraphs, 'paragraphs');
+      } else {
+        console.error('[Background] Failed to extract text');
+        playbackState.status = 'stopped';
+        notifyPopup();
+        return { success: false, playbackStarted: false, error: 'Failed to extract text' };
+      }
+    }
+
+    // Validate paragraph index
+    if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
+      console.error('[Background] Invalid paragraph index:', paragraphIndex, 'total:', paragraphs.length);
+      return { success: false, playbackStarted: false, error: 'Invalid paragraph index' };
+    }
+
+    // Clear prefetch cache and stop current audio
+    clearPrefetchCache();
+    stopCurrentAudio();
+
+    // Set the current paragraph to the clicked index
+    playbackState.currentParagraph = paragraphIndex;
+    playbackState.progress = (paragraphIndex / playbackState.totalParagraphs) * 100;
+    playbackState.status = 'playing';
+    notifyPopup();
+
+    // Show the footer
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_SHOW',
+      initialState: {
+        isPlaying: true,
+        currentIndex: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: playbackState.progress,
+        speed: playbackState.speed,
+      },
+    });
+
+    // Update footer state
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_STATE_UPDATE',
+      status: 'playing',
+      currentParagraph: playbackState.currentParagraph,
+      totalParagraphs: playbackState.totalParagraphs,
+      progress: playbackState.progress,
+      speed: playbackState.speed,
+    });
+
+    // Start speaking from the clicked paragraph
+    speakCurrentParagraph();
+
+    return { success: true, playbackStarted: true };
+  },
+
+  /**
+   * Get cached paragraph indices for the current page
+   */
+  getCachedParagraphs: async (data) => {
+    const url = data.url as string;
+    const provider = (data.provider as string) || playbackState.provider;
+    const voice = (data.voice as string) || playbackState.voice || '';
+
+    const cacheStore = getCacheStore();
+    if (!cacheStore.isInitialized) {
+      return { cachedIndices: [], totalParagraphs: paragraphs.length };
+    }
+
+    const cachedIndices = cacheStore.getCachedParagraphs(url, provider, voice);
+    return { cachedIndices, totalParagraphs: paragraphs.length };
+  },
+
+  // ========== Prefetch Message Handlers (T049-T050) ==========
+
+  'prefetch.start': async (data) => {
+    const currentIndex = (data.currentIndex as number) ?? playbackState.currentParagraph;
+
+    // Configure and start prefetching from current position
+    if (paragraphs.length > 0) {
+      playbackQueue.jumpTo(currentIndex);
+      startPrefetching();
+      const status = prefetchService.getStatus();
+      return {
+        success: true,
+        queuedCount: status.pendingTasks,
+      };
+    }
+
+    return { success: false, queuedCount: 0, error: 'No paragraphs loaded' };
+  },
+
+  'prefetch.stop': async () => {
+    stopPrefetching();
+    return { success: true };
+  },
+
+  'prefetch.getStatus': async () => {
+    const status = prefetchService.getStatus();
+    return {
+      isActive: status.isActive,
+      bufferSize: status.bufferSize,
+      bufferedIndices: status.bufferedIndices,
+      pendingTasks: status.pendingTasks,
+      inProgressTasks: status.inProgressTasks,
+    };
+  },
+
+  'prefetch.clearBuffer': async (data) => {
+    const keepIndices = data.keepIndices as number[] | undefined;
+    const previousSize = prefetchService.getStatus().bufferSize;
+    prefetchService.clearBuffer(keepIndices);
+    const newSize = prefetchService.getStatus().bufferSize;
+    return {
+      success: true,
+      clearedCount: previousSize - newSize,
+    };
+  },
+
+  // ========== Cost Estimation Handlers (028-smart-audio-cache T071-T072) ==========
+
+  'cost.estimate': async (data) => {
+    const url = data.url as string;
+    const paragraphsData = data.paragraphs as string[];
+    const provider = (data.provider as string) || playbackState.provider;
+    const voice = (data.voice as string) || playbackState.voice || '';
+    const startParagraph = data.startParagraph as number | undefined;
+    const endParagraph = data.endParagraph as number | undefined;
+
+    // If no paragraphs provided, return empty estimate
+    if (!paragraphsData || paragraphsData.length === 0) {
+      return {
+        totalCharacters: 0,
+        cachedCharacters: 0,
+        uncachedCharacters: 0,
+        provider,
+        pricePerKiloChar: 0,
+        estimatedCost: 0,
+        actualCost: 0,
+        savingsFromCache: 0,
+        savingsPercentage: 0,
+        paragraphCosts: [],
+      };
+    }
+
+    // Use the cost estimator service
+    try {
+      return await estimateCost({
+        url,
+        paragraphs: paragraphsData,
+        provider,
+        voice,
+        startParagraph,
+        endParagraph,
+      });
+    } catch (error) {
+      console.error('[Background] Cost estimation error:', error);
+      return {
+        totalCharacters: 0,
+        cachedCharacters: 0,
+        uncachedCharacters: 0,
+        provider,
+        pricePerKiloChar: 0,
+        estimatedCost: 0,
+        actualCost: 0,
+        savingsFromCache: 0,
+        savingsPercentage: 0,
+        paragraphCosts: [],
+      };
+    }
+  },
+
   // ========== Roadmap Feature Handlers (023-feature-roadmap) ==========
   // Export handlers
   ...Object.fromEntries(
@@ -1081,6 +1576,16 @@ async function notifyPopup(): Promise<void> {
 
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
+
+  // T021: Initialize audio cache on extension startup
+  const cacheStore = getCacheStore();
+  cacheStore.init().then(() => {
+    console.log('[Background] Audio cache initialized, mode:', cacheStore.isInMemoryMode ? 'in-memory' : 'IndexedDB');
+    const stats = cacheStore.getStats();
+    console.log('[Background] Cache stats:', { entries: stats.entries, size: stats.totalSize, hitRate: stats.hitRate });
+  }).catch((error) => {
+    console.error('[Background] Failed to initialize audio cache:', error);
+  });
 
   // Set up message listener
   browser.runtime.onMessage.addListener((message, _sender) => {
@@ -1173,5 +1678,64 @@ export default defineBackground(() => {
         }
       });
     }
+  });
+
+  // ============================================
+  // Cache Cleanup Scheduling (028-smart-audio-cache T059)
+  // ============================================
+
+  // Run initial cleanup on startup after a short delay
+  // This handles stale entries that may have accumulated
+  const INITIAL_CLEANUP_DELAY_MS = 5000; // 5 seconds after startup
+  const PERIODIC_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // Every hour
+
+  setTimeout(async () => {
+    try {
+      const store = getCacheStore();
+      const result = await store.cleanup();
+      if (result.entriesRemoved > 0) {
+        console.log('[Background] Initial cache cleanup:', {
+          entriesRemoved: result.entriesRemoved,
+          bytesFreed: result.bytesFreed,
+          durationMs: result.durationMs,
+        });
+      }
+    } catch (error) {
+      console.error('[Background] Initial cache cleanup failed:', error);
+    }
+  }, INITIAL_CLEANUP_DELAY_MS);
+
+  // Schedule periodic cleanup (every hour)
+  setInterval(async () => {
+    try {
+      const store = getCacheStore();
+
+      // Run cleanup for stale entries
+      const cleanupResult = await store.cleanup();
+      if (cleanupResult.entriesRemoved > 0) {
+        console.log('[Background] Periodic cache cleanup:', {
+          staleRemoved: cleanupResult.staleEntriesRemoved,
+          corruptRemoved: cleanupResult.corruptEntriesRemoved,
+          bytesFreed: cleanupResult.bytesFreed,
+        });
+      }
+
+      // Check if eviction is needed
+      const evictionResult = await store.evictIfNeeded();
+      if (evictionResult.triggered && evictionResult.entriesEvicted > 0) {
+        console.log('[Background] Periodic cache eviction:', {
+          entriesEvicted: evictionResult.entriesEvicted,
+          bytesFreed: evictionResult.bytesFreed,
+          reason: evictionResult.reason,
+        });
+      }
+    } catch (error) {
+      console.error('[Background] Periodic cache maintenance failed:', error);
+    }
+  }, PERIODIC_CLEANUP_INTERVAL_MS);
+
+  console.log('[Background] Cache cleanup scheduled:', {
+    initialDelay: `${INITIAL_CLEANUP_DELAY_MS / 1000}s`,
+    periodicInterval: `${PERIODIC_CLEANUP_INTERVAL_MS / 1000 / 60}min`,
   });
 });

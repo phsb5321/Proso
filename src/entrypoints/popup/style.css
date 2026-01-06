@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+ * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+ * Commercial licensing: https://voxpage.com/commercial
+ */
 /**
  * VoxPage Popup Styles
  * Toolbar popup UI for playback controls
@@ -280,6 +284,62 @@ html, body {
 .voxpage-select option {
   background: var(--color-bg-primary, #1a1a2e);
   color: var(--color-text-primary, #ffffff);
+}
+
+/* ========================================
+   COST ESTIMATE SECTION (028-smart-audio-cache)
+   ======================================== */
+
+.voxpage-popup__cost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 4px);
+  padding: var(--spacing-sm, 8px);
+  background: var(--color-bg-secondary, #16213e);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--font-size-xs, 10px);
+}
+
+.voxpage-popup__cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.voxpage-popup__cost-row--savings {
+  color: var(--color-success, #10b981);
+}
+
+.voxpage-popup__cost-label {
+  color: var(--color-text-secondary, #b8c5d6);
+}
+
+.voxpage-popup__cost-value {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.voxpage-popup__cost-value--savings {
+  color: var(--color-success, #10b981);
+}
+
+.voxpage-popup__cost-value--free {
+  color: var(--color-accent-primary, #0D9488);
+}
+
+.voxpage-popup__cost-cache-bar {
+  height: 4px;
+  background: var(--color-bg-tertiary, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-full, 9999px);
+  overflow: hidden;
+  margin-top: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__cost-cache-fill {
+  height: 100%;
+  background: var(--color-success, #10b981);
+  border-radius: var(--radius-full, 9999px);
+  transition: width var(--transition-normal, 200ms) ease;
 }
 
 /* ========================================

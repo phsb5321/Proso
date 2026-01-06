@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Popup Main Entry Point
  *
@@ -95,6 +99,12 @@ const elements = {
   queueControls: document.getElementById('queue-controls') as HTMLDivElement,
   playQueueBtn: document.getElementById('play-queue-btn') as HTMLButtonElement,
   clearQueueBtn: document.getElementById('clear-queue-btn') as HTMLButtonElement,
+
+  // Cost display
+  costSection: document.getElementById('cost-section') as HTMLElement,
+  costEstimate: document.getElementById('cost-estimate') as HTMLSpanElement,
+  costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
+  costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
 };
 
 // ============================================
@@ -1026,6 +1036,134 @@ async function handleClearQueue(): Promise<void> {
 }
 
 // ============================================
+// Cost Display Functions (T071-T072)
+// ============================================
+
+/**
+ * Cost estimate response type
+ */
+interface CostEstimateResponse {
+  totalCharacters: number;
+  cachedCharacters: number;
+  uncachedCharacters: number;
+  provider: string;
+  pricePerKiloChar: number;
+  estimatedCost: number;
+  actualCost: number;
+  savingsFromCache: number;
+  savingsPercentage: number;
+}
+
+/**
+ * Format cost as display string
+ */
+function formatCostDisplay(cost: number): string {
+  if (cost === 0) {
+    return 'Free';
+  }
+  if (cost < 0.01) {
+    return '<$0.01';
+  }
+  return `$${cost.toFixed(2)}`;
+}
+
+/**
+ * Format savings with percentage
+ */
+function formatSavingsDisplay(savings: number, percentage: number): string {
+  if (savings === 0) {
+    return '$0.00 (0%)';
+  }
+  return `${formatCostDisplay(savings)} (${Math.round(percentage)}%)`;
+}
+
+/**
+ * Update cost display in the popup UI
+ */
+function updateCostDisplay(estimate: CostEstimateResponse): void {
+  if (!elements.costSection) return;
+
+  // Update estimated cost
+  elements.costEstimate.textContent = formatCostDisplay(estimate.actualCost);
+
+  // Update savings (show row only if there are savings)
+  if (estimate.savingsFromCache > 0) {
+    elements.costSavingsRow.hidden = false;
+    elements.costSavings.textContent = formatSavingsDisplay(
+      estimate.savingsFromCache,
+      estimate.savingsPercentage
+    );
+  } else {
+    elements.costSavingsRow.hidden = true;
+  }
+
+  // Show the cost section
+  elements.costSection.hidden = false;
+}
+
+/**
+ * Hide cost display
+ */
+function hideCostDisplay(): void {
+  if (elements.costSection) {
+    elements.costSection.hidden = true;
+  }
+}
+
+/**
+ * Fetch cost estimate for current page
+ */
+async function fetchCostEstimate(): Promise<void> {
+  try {
+    // Check if cost display is enabled in settings
+    const settings = await browser.storage.local.get(['showCostEstimate', 'provider', 'voice']);
+    if (settings.showCostEstimate === false) {
+      hideCostDisplay();
+      return;
+    }
+
+    // Get current tab
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url) {
+      hideCostDisplay();
+      return;
+    }
+
+    // Request paragraphs from content script
+    const contentResponse = await browser.tabs.sendMessage(tab.id, {
+      type: 'getParagraphs',
+    }) as { paragraphs?: Array<{ index: number; text: string }> };
+
+    if (!contentResponse?.paragraphs?.length) {
+      // No content, show as free
+      elements.costEstimate.textContent = 'Free';
+      elements.costSavingsRow.hidden = true;
+      elements.costSection.hidden = false;
+      return;
+    }
+
+    // Extract text from paragraphs
+    const paragraphTexts = contentResponse.paragraphs.map((p) => p.text);
+
+    // Request cost estimate from background
+    const response = await sendMessage<CostEstimateResponse>('cost.estimate', {
+      url: tab.url,
+      paragraphs: paragraphTexts,
+      provider: settings.provider || currentState.provider,
+      voice: settings.voice || '',
+    });
+
+    if (response) {
+      updateCostDisplay(response);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to fetch cost estimate:', error);
+    // On error, hide cost section silently
+    hideCostDisplay();
+  }
+}
+
+// ============================================
 // Message Listener (State Updates from Background)
 // ============================================
 
@@ -1121,6 +1259,11 @@ async function init(): Promise<void> {
   await fetchSettings();
   await fetchPlaybackState();
   await fetchQueueState();
+
+  // Fetch cost estimate (non-blocking)
+  fetchCostEstimate().catch((err) => {
+    console.error('[Popup] Cost estimate fetch failed:', err);
+  });
 
   console.log('[Popup] Initialized');
 }
