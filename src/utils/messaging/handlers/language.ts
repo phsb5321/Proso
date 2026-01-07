@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Language Message Handlers
  * Handles language detection and override messages
@@ -6,7 +10,11 @@
  */
 
 import type { VoxPageProtocol } from '../protocol';
-import type { LanguageDetectParams, LanguageGetStateParams, LanguageSetOverrideParams } from '../types';
+import type {
+  LanguageDetectParams,
+  LanguageGetStateParams,
+  LanguageSetOverrideParams,
+} from '../types';
 import {
   languageDetectParamsSchema,
   languageGetStateParamsSchema,
@@ -17,7 +25,7 @@ import {
  * Detect language handler
  */
 export async function handleLanguageDetect(
-  params: LanguageDetectParams
+  params: LanguageDetectParams,
 ): Promise<VoxPageProtocol['language.detect']['response']> {
   const validated = languageDetectParamsSchema.parse(params);
 
@@ -35,7 +43,7 @@ export async function handleLanguageDetect(
  * Get language state handler
  */
 export async function handleLanguageGetState(
-  params: LanguageGetStateParams
+  params: LanguageGetStateParams,
 ): Promise<VoxPageProtocol['language.getState']['response']> {
   const validated = languageGetStateParamsSchema.parse(params);
 
@@ -57,7 +65,7 @@ export async function handleLanguageGetState(
  * Set language override handler
  */
 export async function handleLanguageSetOverride(
-  params: LanguageSetOverrideParams
+  params: LanguageSetOverrideParams,
 ): Promise<VoxPageProtocol['language.setOverride']['response']> {
   const validated = languageSetOverrideParamsSchema.parse(params);
 
@@ -72,7 +80,9 @@ export async function handleLanguageSetOverride(
 /**
  * Clear language override handler
  */
-export async function handleLanguageClearOverride(): Promise<VoxPageProtocol['language.clearOverride']['response']> {
+export async function handleLanguageClearOverride(): Promise<
+  VoxPageProtocol['language.clearOverride']['response']
+> {
   // TODO Phase 4: Delegate to clearLanguageOverride()
 
   return {

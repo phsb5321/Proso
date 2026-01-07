@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * MP3 Encoding Web Worker for VoxPage
  * Provides non-blocking MP3 encoding in a separate thread
@@ -55,18 +59,14 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 async function handleEncode(
   id: string,
   audioData: Float32Array,
-  options: EncoderOptions
+  options: EncoderOptions,
 ): Promise<void> {
   const job = { cancelled: false };
   activeJobs.set(id, job);
 
   try {
-    const kbps = parseInt(options.quality, 10);
-    const encoder = new LameMp3Encoder(
-      options.channels,
-      options.sampleRate,
-      kbps
-    );
+    const kbps = Number.parseInt(options.quality, 10);
+    const encoder = new LameMp3Encoder(options.channels, options.sampleRate, kbps);
 
     // Convert float to int16
     const samples = floatTo16BitPCM(audioData);
@@ -214,7 +214,7 @@ export class Mp3WorkerEncoder {
   async encode(
     audioData: Float32Array,
     options: EncoderOptions,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
   ): Promise<{ blob: Blob; durationMs: number }> {
     await this.initialize();
 

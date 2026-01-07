@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Audio Visualizer Module
  * Provides frequency analysis data for audio visualization using Web Audio API
@@ -196,7 +200,7 @@ export class AudioVisualizer {
     // Return normalized data (0-1 range)
     return {
       available: true,
-      data: Array.from(this.frequencyData).map(v => v / 255),
+      data: Array.from(this.frequencyData).map((v) => v / 255),
       average: average / 255,
       peak: peak / 255,
       binCount: this.frequencyData.length,
@@ -230,7 +234,7 @@ export class AudioVisualizer {
     // Return normalized data (-1 to 1 range centered at 0)
     return {
       available: true,
-      data: Array.from(this.timeDomainData).map(v => (v - 128) / 128),
+      data: Array.from(this.timeDomainData).map((v) => (v - 128) / 128),
       rms,
       bufferLength: this.timeDomainData.length,
     };
@@ -373,7 +377,8 @@ export const audioVisualizer = new AudioVisualizer();
 
 // Export functional API for backwards compatibility
 export const initializeVisualizer = () => audioVisualizer.initialize();
-export const connectAudioElement = (el: HTMLAudioElement) => audioVisualizer.connectAudioElement(el);
+export const connectAudioElement = (el: HTMLAudioElement) =>
+  audioVisualizer.connectAudioElement(el);
 export const getFrequencyData = () => audioVisualizer.getFrequencyData();
 export const getWaveformData = () => audioVisualizer.getWaveformData();
 export const getVisualizerData = () => audioVisualizer.getVisualizerData();

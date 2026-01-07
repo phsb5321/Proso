@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Language Extractor
  * Extracts page language from DOM metadata and text content
@@ -5,7 +9,7 @@
  * @module utils/language/extractor
  */
 
-import { type PageLanguage } from './types';
+import type { PageLanguage } from './types';
 
 /**
  * Extract language information from the current page
@@ -20,7 +24,7 @@ export function extractPageLanguage(): PageLanguage {
   // Check meta tags for language
   let metaLang: string | null = null;
   const metaElements = document.querySelectorAll<HTMLMetaElement>(
-    'meta[http-equiv="content-language"], meta[name="language"]'
+    'meta[http-equiv="content-language"], meta[name="language"]',
   );
 
   for (const meta of metaElements) {

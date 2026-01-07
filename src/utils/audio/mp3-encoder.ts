@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * MP3 Encoder for VoxPage
  * Converts audio blobs to MP3 format using lamejs
@@ -15,7 +19,7 @@ import type { ExportQuality } from '../config/schema';
 export type EncodingProgressCallback = (
   currentParagraph: number,
   totalParagraphs: number,
-  percentComplete: number
+  percentComplete: number,
 ) => void;
 
 /**
@@ -70,12 +74,8 @@ export class Mp3Encoder {
    * Initialize the encoder with the specified options
    */
   private initEncoder(): void {
-    const kbps = parseInt(this.options.quality, 10);
-    this.encoder = new LameMp3Encoder(
-      this.options.channels,
-      this.options.sampleRate,
-      kbps
-    );
+    const kbps = Number.parseInt(this.options.quality, 10);
+    this.encoder = new LameMp3Encoder(this.options.channels, this.options.sampleRate, kbps);
     this.cancelled = false;
   }
 
@@ -92,10 +92,7 @@ export class Mp3Encoder {
     }
 
     // Convert Float32Array to Int16Array if needed
-    const samples =
-      audioData instanceof Float32Array
-        ? this.floatTo16BitPCM(audioData)
-        : audioData;
+    const samples = audioData instanceof Float32Array ? this.floatTo16BitPCM(audioData) : audioData;
 
     const mp3Data: Uint8Array[] = [];
 
@@ -132,9 +129,7 @@ export class Mp3Encoder {
     // TODO: Implement proper audio concatenation
     // This is a placeholder that just concatenates raw data
     // Real implementation needs to handle audio headers and decode/re-encode
-    const arrayBuffers = await Promise.all(
-      blobs.map((blob) => blob.arrayBuffer())
-    );
+    const arrayBuffers = await Promise.all(blobs.map((blob) => blob.arrayBuffer()));
 
     const totalLength = arrayBuffers.reduce((acc, buf) => acc + buf.byteLength, 0);
     const combined = new Uint8Array(totalLength);
@@ -153,9 +148,7 @@ export class Mp3Encoder {
    * @param paragraphAudios - Array of audio blobs for each paragraph
    * @returns Promise resolving to encoding result
    */
-  async encodeArticle(
-    paragraphAudios: Blob[]
-  ): Promise<EncodingResult> {
+  async encodeArticle(paragraphAudios: Blob[]): Promise<EncodingResult> {
     const startTime = Date.now();
 
     // Concatenate all audio blobs
@@ -163,8 +156,10 @@ export class Mp3Encoder {
 
     // Convert to ArrayBuffer for encoding
     const arrayBuffer = await combinedBlob.arrayBuffer();
-    const audioContext = new (globalThis.AudioContext ||
-      (globalThis as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const audioContext = new (
+      globalThis.AudioContext ||
+      (globalThis as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    )();
 
     let audioBuffer: AudioBuffer;
     try {
@@ -220,8 +215,6 @@ export class Mp3Encoder {
 /**
  * Create a new MP3 encoder with default options
  */
-export function createMp3Encoder(
-  options?: Partial<EncodingOptions>
-): Mp3Encoder {
+export function createMp3Encoder(options?: Partial<EncodingOptions>): Mp3Encoder {
   return new Mp3Encoder(options);
 }

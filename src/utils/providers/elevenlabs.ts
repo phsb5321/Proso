@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * ElevenLabs TTS Provider
  * Implementation of ITTSProvider for ElevenLabs text-to-speech API with word timing support
@@ -6,7 +10,6 @@
  */
 
 import { BaseTTSProvider, type TTSRequest, type TTSResponse, type VoiceOption } from './base';
-import { ProviderPricing } from './pricing';
 
 /**
  * Word timing data structure
@@ -69,9 +72,36 @@ export class ElevenLabsProvider extends BaseTTSProvider {
   readonly name = 'ElevenLabs';
   readonly supportsWordTiming = true; // ElevenLabs provides character-level alignment
   readonly supportedLanguages: string[] = [
-    'en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl',
-    'cs', 'ar', 'zh', 'hu', 'ko', 'ja', 'hi', 'sv', 'id', 'fil',
-    'uk', 'el', 'fi', 'ro', 'da', 'bg', 'ms', 'sk', 'hr', 'ta',
+    'en',
+    'es',
+    'fr',
+    'de',
+    'it',
+    'pt',
+    'pl',
+    'tr',
+    'ru',
+    'nl',
+    'cs',
+    'ar',
+    'zh',
+    'hu',
+    'ko',
+    'ja',
+    'hi',
+    'sv',
+    'id',
+    'fil',
+    'uk',
+    'el',
+    'fi',
+    'ro',
+    'da',
+    'bg',
+    'ms',
+    'sk',
+    'hr',
+    'ta',
   ];
 
   private apiKey: string | null = null;
@@ -118,7 +148,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
       headers: {
         'xi-api-key': this.apiKey!,
         'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg',
+        Accept: 'audio/mpeg',
       },
       body: JSON.stringify(requestBody),
     });
@@ -132,7 +162,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
     const audioBlob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
 
     // Estimate duration
-    const estimatedDuration = validated.text.length / (150 * 5) * 60;
+    const estimatedDuration = (validated.text.length / (150 * 5)) * 60;
 
     return this.createResponse(audioBlob, estimatedDuration, null);
   }
@@ -144,7 +174,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
   async generateAudioWithTimestamps(
     text: string,
     voiceId?: string,
-    language?: string
+    language?: string,
   ): Promise<AudioWithTimingResponse> {
     if (!this.hasApiKey()) {
       throw new Error('ElevenLabs API key not configured');
@@ -182,7 +212,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -207,15 +237,21 @@ export class ElevenLabsProvider extends BaseTTSProvider {
     const wordTimings = this.parseWordTimings(
       alignment.characters,
       alignment.character_start_times_seconds,
-      alignment.character_end_times_seconds
+      alignment.character_end_times_seconds,
     );
 
     // Get duration from last character end time
-    const duration = alignment.character_end_times_seconds.length > 0
-      ? alignment.character_end_times_seconds[alignment.character_end_times_seconds.length - 1]
-      : 0;
+    const duration =
+      alignment.character_end_times_seconds.length > 0
+        ? alignment.character_end_times_seconds[alignment.character_end_times_seconds.length - 1]
+        : 0;
 
-    console.log('[ElevenLabs] Generated audio with', wordTimings.length, 'word timings, duration:', duration);
+    console.log(
+      '[ElevenLabs] Generated audio with',
+      wordTimings.length,
+      'word timings, duration:',
+      duration,
+    );
 
     return {
       audioBlob,
@@ -231,7 +267,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
   private parseWordTimings(
     characters: string[],
     startTimes: number[],
-    endTimes: number[]
+    endTimes: number[],
   ): WordTiming[] {
     const wordTimings: WordTiming[] = [];
     let currentWord = '';

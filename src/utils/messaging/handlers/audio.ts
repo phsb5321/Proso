@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Audio Message Handlers
  * Handles audio generation and caching messages
@@ -13,7 +17,7 @@ import { audioGenerateParamsSchema, audioCacheParamsSchema } from '../schemas';
  * Generate audio handler
  */
 export async function handleAudioGenerate(
-  params: AudioGenerateParams
+  params: AudioGenerateParams,
 ): Promise<VoxPageProtocol['audio.generate']['response']> {
   const validated = audioGenerateParamsSchema.parse(params);
 
@@ -30,7 +34,7 @@ export async function handleAudioGenerate(
  * Cache audio handler
  */
 export async function handleAudioCache(
-  params: AudioCacheParams
+  params: AudioCacheParams,
 ): Promise<VoxPageProtocol['audio.cache']['response']> {
   const validated = audioCacheParamsSchema.parse(params);
 
@@ -45,7 +49,9 @@ export async function handleAudioCache(
 /**
  * Clear audio cache handler
  */
-export async function handleAudioClearCache(): Promise<VoxPageProtocol['audio.clearCache']['response']> {
+export async function handleAudioClearCache(): Promise<
+  VoxPageProtocol['audio.clearCache']['response']
+> {
   // TODO Phase 4: Delegate to AudioCache.clear()
 
   return {
@@ -57,7 +63,9 @@ export async function handleAudioClearCache(): Promise<VoxPageProtocol['audio.cl
 /**
  * Get cache state handler
  */
-export async function handleAudioGetCacheState(): Promise<VoxPageProtocol['audio.getCacheState']['response']> {
+export async function handleAudioGetCacheState(): Promise<
+  VoxPageProtocol['audio.getCacheState']['response']
+> {
   // TODO Phase 4: Delegate to AudioCache.getState()
 
   return {

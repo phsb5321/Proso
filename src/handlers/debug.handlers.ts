@@ -1,0 +1,92 @@
+/**
+ * Debug Message Handlers
+ *
+ * Handlers for debugging and telemetry in the hexagonal architecture.
+ * These handlers expose internal statistics for migration tracking.
+ *
+ * @module handlers/debug
+ */
+
+import { getContainerStatus, getHexagonalDispatchStats, getHexagonalDispatchSummary, resetHexagonalDispatchStats } from '../background/init-hexagonal';
+import { isPlaybackServiceAvailable, isContentExtractionServiceAvailable } from '../composition';
+import type { Result } from '../core/shared/result';
+import { Ok } from '../core/shared/result';
+import type { DispatchStats, DispatchSummary } from '../utils/telemetry';
+import type { HandlerRegistry } from './registry';
+
+/**
+ * Debug handler error type.
+ */
+export type DebugHandlerError = { type: 'operation_failed'; message: string };
+
+/**
+ * Hexagonal status response.
+ */
+export interface HexagonalStatusResponse {
+  initialized: boolean;
+  adapters: string[];
+  services: string[];
+  handlers: string[];
+  playbackServiceAvailable: boolean;
+  contentExtractionServiceAvailable: boolean;
+}
+
+/**
+ * Register debug message handlers on the registry.
+ *
+ * @param registry - Handler registry to register on
+ */
+export function registerDebugHandlers(registry: HandlerRegistry): void {
+  /**
+   * Get hexagonal architecture status.
+   */
+  registry.register<void, Result<HexagonalStatusResponse, DebugHandlerError>>(
+    'hexagonal.getStatus',
+    async () => {
+      const status = getContainerStatus();
+      return Ok({
+        ...status,
+        playbackServiceAvailable: isPlaybackServiceAvailable(),
+        contentExtractionServiceAvailable: isContentExtractionServiceAvailable(),
+      });
+    },
+    'Get hexagonal architecture status',
+  );
+
+  /**
+   * Get dispatch statistics.
+   */
+  registry.register<void, Result<DispatchStats, DebugHandlerError>>(
+    'hexagonal.getDispatchStats',
+    async () => {
+      return Ok(getHexagonalDispatchStats());
+    },
+    'Get dispatch telemetry statistics',
+  );
+
+  /**
+   * Get dispatch summary with migration analysis.
+   */
+  registry.register<
+    { legacyHandlers?: string[] },
+    Result<DispatchSummary, DebugHandlerError>
+  >(
+    'hexagonal.getDispatchSummary',
+    async (params) => {
+      return Ok(getHexagonalDispatchSummary(params?.legacyHandlers ?? []));
+    },
+    'Get dispatch summary with migration analysis',
+  );
+
+  /**
+   * Reset dispatch statistics.
+   */
+  registry.register<void, Result<{ success: boolean }, DebugHandlerError>>(
+    'hexagonal.resetStats',
+    async () => {
+      resetHexagonalDispatchStats();
+      return Ok({ success: true });
+    },
+    'Reset dispatch statistics',
+  );
+}

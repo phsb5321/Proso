@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Footer Message Handlers
  * Handles sticky footer (player) control messages
@@ -37,7 +41,7 @@ export async function handleFooterHide(): Promise<VoxPageProtocol['footer.hide']
  * Update footer state handler
  */
 export async function handleFooterUpdateState(
-  params: FooterUpdateStateParams
+  params: FooterUpdateStateParams,
 ): Promise<VoxPageProtocol['footer.updateState']['response']> {
   const validated = footerUpdateStateParamsSchema.parse(params);
 
@@ -51,7 +55,9 @@ export async function handleFooterUpdateState(
 /**
  * Get footer state handler
  */
-export async function handleFooterGetState(): Promise<VoxPageProtocol['footer.getState']['response']> {
+export async function handleFooterGetState(): Promise<
+  VoxPageProtocol['footer.getState']['response']
+> {
   // TODO Phase 4: Delegate to FooterManager.getState()
 
   return {
@@ -68,7 +74,7 @@ export async function handleFooterGetState(): Promise<VoxPageProtocol['footer.ge
  * Footer action handler
  */
 export async function handleFooterAction(
-  params: FooterActionParams
+  params: FooterActionParams,
 ): Promise<VoxPageProtocol['footer.action']['response']> {
   const validated = footerActionParamsSchema.parse(params);
 

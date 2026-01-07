@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage TTS Provider Base Interface
  * Common interface for all text-to-speech providers
@@ -119,7 +123,7 @@ export abstract class BaseTTSProvider implements ITTSProvider {
   protected createResponse(
     audioData: Blob,
     duration: number,
-    wordTimings: WordBoundary[] | null = null
+    wordTimings: WordBoundary[] | null = null,
   ): TTSResponse {
     return {
       audioData,

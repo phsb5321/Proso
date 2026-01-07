@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Message Parameter Schemas
  * Zod schemas for runtime validation of message parameters
@@ -9,7 +13,14 @@ import { z } from 'zod';
 
 // ========== Enum Schemas ==========
 
-export const playbackStatusSchema = z.enum(['idle', 'loading', 'playing', 'paused', 'stopped', 'error']);
+export const playbackStatusSchema = z.enum([
+  'idle',
+  'loading',
+  'playing',
+  'paused',
+  'stopped',
+  'error',
+]);
 
 export const extractionModeSchema = z.enum(['selection', 'article', 'full']);
 
@@ -19,12 +30,20 @@ export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 
 export const logComponentSchema = z.enum(['background', 'content', 'popup', 'options']);
 
-export const footerActionSchema = z.enum(['play', 'pause', 'stop', 'next', 'prev', 'seek', 'speed', 'close', 'minimize', 'expand']);
-
-export const footerPositionXSchema = z.union([
-  z.enum(['left', 'center', 'right']),
-  z.number()
+export const footerActionSchema = z.enum([
+  'play',
+  'pause',
+  'stop',
+  'next',
+  'prev',
+  'seek',
+  'speed',
+  'close',
+  'minimize',
+  'expand',
 ]);
+
+export const footerPositionXSchema = z.union([z.enum(['left', 'center', 'right']), z.number()]);
 
 export const segmentTypeSchema = z.enum(['paragraph', 'heading', 'list']);
 
@@ -148,10 +167,12 @@ export const contentScoreResponseSchema = z.object({
 });
 
 export const contentFindDOMParamsSchema = z.object({
-  paragraphs: z.array(z.object({
-    text: z.string(),
-    index: z.number().int().nonnegative(),
-  })),
+  paragraphs: z.array(
+    z.object({
+      text: z.string(),
+      index: z.number().int().nonnegative(),
+    }),
+  ),
 });
 
 export const contentDOMElementSchema = z.object({
@@ -198,11 +219,13 @@ export const languageGetStateParamsSchema = z.object({
 });
 
 export const languageStateResponseSchema = z.object({
-  detected: z.object({
-    code: z.string().length(2),
-    confidence: z.number().min(0).max(1),
-    source: languageSourceSchema,
-  }).nullable(),
+  detected: z
+    .object({
+      code: z.string().length(2),
+      confidence: z.number().min(0).max(1),
+      source: languageSourceSchema,
+    })
+    .nullable(),
   override: z.string().length(2).nullable(),
   effective: z.string().length(2),
   autoDetect: z.boolean(),

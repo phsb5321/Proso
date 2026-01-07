@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Configuration Schema
  * Zod-first TypeScript validation
@@ -22,6 +26,11 @@ export const PROVIDERS = ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']
  * Valid language detection sources
  */
 export const DETECTION_SOURCES = ['metadata', 'text', 'user'] as const;
+
+/**
+ * Valid theme mode values (027-settings-ux-overhaul)
+ */
+export const THEME_MODES = ['light', 'dark', 'system'] as const;
 
 /**
  * Footer position schema
@@ -73,6 +82,15 @@ export const settingsSchema = z.object({
 
   // Footer state (018-ui-redesign)
   footerState: footerStateSchema.optional(),
+
+  // Theme mode preference (027-settings-ux-overhaul)
+  themeMode: z.enum(THEME_MODES).default('system'),
+
+  // Enable text highlighting during playback (027-settings-ux-overhaul)
+  highlightEnabled: z.boolean().default(true),
+
+  // Enable auto-scroll to follow playback (027-settings-ux-overhaul)
+  autoScroll: z.boolean().default(true),
 });
 
 /**
@@ -104,9 +122,10 @@ export type FooterState = z.infer<typeof footerStateSchema>;
 export type FooterPosition = z.infer<typeof footerPositionSchema>;
 export type DetectedLanguage = z.infer<typeof detectedLanguageSchema>;
 export type LanguagePreference = z.infer<typeof languagePreferenceSchema>;
-export type Mode = typeof MODES[number];
-export type Provider = typeof PROVIDERS[number];
-export type DetectionSource = typeof DETECTION_SOURCES[number];
+export type Mode = (typeof MODES)[number];
+export type Provider = (typeof PROVIDERS)[number];
+export type DetectionSource = (typeof DETECTION_SOURCES)[number];
+export type ThemeMode = (typeof THEME_MODES)[number];
 
 // ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
 
@@ -114,25 +133,25 @@ export type DetectionSource = typeof DETECTION_SOURCES[number];
  * Valid AI summarization providers
  */
 export const AI_PROVIDERS = ['openai', 'anthropic'] as const;
-export type AIProvider = typeof AI_PROVIDERS[number];
+export type AIProvider = (typeof AI_PROVIDERS)[number];
 
 /**
  * Valid queue item statuses
  */
 export const QUEUE_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
-export type QueueStatus = typeof QUEUE_STATUSES[number];
+export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
 /**
  * Valid export job statuses
  */
 export const EXPORT_STATUSES = ['pending', 'generating', 'encoding', 'complete', 'error'] as const;
-export type ExportStatus = typeof EXPORT_STATUSES[number];
+export type ExportStatus = (typeof EXPORT_STATUSES)[number];
 
 /**
  * Valid export quality levels (bitrate in kbps)
  */
 export const EXPORT_QUALITIES = ['128', '192', '256'] as const;
-export type ExportQuality = typeof EXPORT_QUALITIES[number];
+export type ExportQuality = (typeof EXPORT_QUALITIES)[number];
 
 /**
  * Queue settings schema

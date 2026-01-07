@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Log Entry Model
  * Represents a single log event for remote logging
@@ -11,21 +15,21 @@ import { z } from 'zod';
  * Log levels enum
  */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
-export type LogLevel = typeof LOG_LEVELS[number];
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /**
  * Log components enum
  */
 export const COMPONENTS = ['background', 'content', 'popup', 'options'] as const;
-export type Component = typeof COMPONENTS[number];
+export type Component = (typeof COMPONENTS)[number];
 
 /**
  * Logging constants
  */
 export const loggingConstants = {
-  maxMessageBytes: 8192,    // 8KB max message size
-  maxMetadataBytes: 4096,   // 4KB max metadata size
-  maxBufferBytes: 1048576,  // 1MB max buffer size
+  maxMessageBytes: 8192, // 8KB max message size
+  maxMetadataBytes: 4096, // 4KB max metadata size
+  maxBufferBytes: 1048576, // 1MB max buffer size
 } as const;
 
 /**
@@ -69,13 +73,17 @@ export function generateTimestamp(): string {
 export function createLogEntry(params: CreateLogEntryParams): LogEntry | null {
   // Validate level
   if (!LOG_LEVELS.includes(params.level)) {
-    console.warn(`LogEntry: Invalid level "${params.level}", must be one of: ${LOG_LEVELS.join(', ')}`);
+    console.warn(
+      `LogEntry: Invalid level "${params.level}", must be one of: ${LOG_LEVELS.join(', ')}`,
+    );
     return null;
   }
 
   // Validate component
   if (!COMPONENTS.includes(params.component)) {
-    console.warn(`LogEntry: Invalid component "${params.component}", must be one of: ${COMPONENTS.join(', ')}`);
+    console.warn(
+      `LogEntry: Invalid component "${params.component}", must be one of: ${COMPONENTS.join(', ')}`,
+    );
     return null;
   }
 
@@ -93,7 +101,11 @@ export function createLogEntry(params: CreateLogEntryParams): LogEntry | null {
 
   // Validate and sanitize metadata
   let sanitizedMetadata: Record<string, any> | null = null;
-  if (params.metadata !== null && params.metadata !== undefined && typeof params.metadata === 'object') {
+  if (
+    params.metadata !== null &&
+    params.metadata !== undefined &&
+    typeof params.metadata === 'object'
+  ) {
     try {
       const metadataStr = JSON.stringify(params.metadata);
       if (metadataStr.length <= loggingConstants.maxMetadataBytes) {
@@ -155,7 +167,9 @@ export function getEntrySize(entry: LogEntry): number {
  * Serialize LogEntry for Loki values array
  * Returns [timestamp, message] or [timestamp, message, metadata]
  */
-export function serializeForLoki(entry: LogEntry): [string, string] | [string, string, Record<string, any>] {
+export function serializeForLoki(
+  entry: LogEntry,
+): [string, string] | [string, string, Record<string, any>] {
   if (entry.metadata && Object.keys(entry.metadata).length > 0) {
     return [entry.timestamp, entry.message, entry.metadata];
   }

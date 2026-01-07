@@ -1,0 +1,23 @@
+# CODEOWNERS - Defines code owners for automatic PR review requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owner - all files require review from owner
+* @phsb5321
+
+# Protect sensitive directories
+/.github/ @phsb5321
+/src/utils/providers/ @phsb5321
+/src/background/ @phsb5321
+/src/utils/config/ @phsb5321
+
+# Protect configuration files
+/wxt.config.ts @phsb5321
+/package.json @phsb5321
+/tsconfig.json @phsb5321
+
+# Protect legal documents
+/LICENSE @phsb5321
+/CONTRIBUTING.md @phsb5321
+/COMMERCIAL.md @phsb5321
+/NOTICE @phsb5321
+/TERMS_OF_SERVICE.md @phsb5321

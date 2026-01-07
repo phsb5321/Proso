@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Message Handlers Index
  * Exports all domain-based message handlers
@@ -77,3 +81,17 @@ export {
   handleLoggingFlushBuffer,
   handleLoggingGetState,
 } from './logging';
+
+// Cache handlers (028-smart-audio-cache)
+export {
+  handleCacheGetStats,
+  handleCacheClear,
+  handleCacheClearUrl,
+  handleCacheCheck,
+  handleCacheGet,
+  handleCacheSet,
+  handlePrefetchStart,
+  handlePrefetchGetStatus,
+  handleCostEstimate,
+  handleParagraphsGetStatus,
+} from './cache-handlers';

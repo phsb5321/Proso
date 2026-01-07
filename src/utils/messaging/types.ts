@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Message Parameter Types
  * TypeScript types inferred from Zod schemas
@@ -5,8 +9,8 @@
  * @module utils/messaging/types
  */
 
-import { z } from 'zod';
-import * as schemas from './schemas';
+import type { z } from 'zod';
+import type * as schemas from './schemas';
 
 // ========== Enum Types ==========
 
@@ -38,8 +42,12 @@ export type AudioCacheStateResponse = z.infer<typeof schemas.audioCacheStateResp
 
 export type ProviderSelectParams = z.infer<typeof schemas.providerSelectParamsSchema>;
 export type ProviderInfo = z.infer<typeof schemas.providerInfoSchema>;
-export type ProviderValidateLanguageSupportParams = z.infer<typeof schemas.providerValidateLanguageSupportParamsSchema>;
-export type ProviderValidateLanguageSupportResponse = z.infer<typeof schemas.providerValidateLanguageSupportResponseSchema>;
+export type ProviderValidateLanguageSupportParams = z.infer<
+  typeof schemas.providerValidateLanguageSupportParamsSchema
+>;
+export type ProviderValidateLanguageSupportResponse = z.infer<
+  typeof schemas.providerValidateLanguageSupportResponseSchema
+>;
 
 // ========== Content Types ==========
 
@@ -83,3 +91,23 @@ export type FooterActionParams = z.infer<typeof schemas.footerActionParamsSchema
 
 export type LoggingLogRemoteParams = z.infer<typeof schemas.loggingLogRemoteParamsSchema>;
 export type LoggingStateResponse = z.infer<typeof schemas.loggingStateResponseSchema>;
+
+// ========== PDF Types (033-pdf-reading-support) ==========
+
+export type {
+  PDFDetectedRequest,
+  PDFDetectedResponse,
+  PDFExtractRequest,
+  PDFExtractResponse,
+  PDFOCRRequest,
+  PDFOCRProgress,
+  PDFOCRResponse,
+  PDFGetStateRequest,
+  PDFGetStateResponse,
+  PDFPlayRequest,
+  PDFPlayResponse,
+  PDFSeekRequest,
+  PDFSeekResponse,
+  PDFHighlightRequest,
+  PDFScrollToPageRequest,
+} from './schemas/pdf';

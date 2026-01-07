@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Log Buffer
  * Circular buffer for storing log entries before transmission
@@ -62,9 +66,9 @@ const loggingDefaults = {
  */
 export class LogBuffer {
   private entries: LogEntry[] = [];
-  private totalBytes: number = 0;
-  private lastFlushAttempt: number = 0;
-  private consecutiveFailures: number = 0;
+  private totalBytes = 0;
+  private lastFlushAttempt = 0;
+  private consecutiveFailures = 0;
 
   readonly maxBytes: number;
   readonly maxEntries: number;
@@ -222,7 +226,7 @@ export class LogBuffer {
     try {
       await browser.storage.local.set({
         [STORAGE_KEY]: {
-          entries: this.entries.filter(e => e !== null),
+          entries: this.entries.filter((e) => e !== null),
           totalBytes: this.totalBytes,
           lastFlushAttempt: this.lastFlushAttempt,
           consecutiveFailures: this.consecutiveFailures,

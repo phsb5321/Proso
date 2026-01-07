@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Configuration Migrations
  * Version-based migration logic for configuration changes
@@ -13,7 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 4;
+export const CURRENT_CONFIG_VERSION = 6;
 
 /**
  * Valid Groq Orpheus voice IDs (as of Jan 2025)
@@ -31,6 +35,9 @@ interface StoredSettings extends Record<string, unknown> {
   mode?: string;
   provider?: string;
   voice?: string | null;
+  themeMode?: string;
+  highlightEnabled?: boolean;
+  autoScroll?: boolean;
 }
 
 /**
@@ -146,7 +153,7 @@ export const migrations: Migration[] = [
       }
 
       // Check if voice is a valid Orpheus voice
-      if (VALID_GROQ_VOICES.includes(currentVoice as typeof VALID_GROQ_VOICES[number])) {
+      if (VALID_GROQ_VOICES.includes(currentVoice as (typeof VALID_GROQ_VOICES)[number])) {
         return stored;
       }
 
@@ -165,6 +172,81 @@ export const migrations: Migration[] = [
       return updated;
     },
   },
+  {
+    version: 5,
+    key: 'themeMode',
+    description:
+      'Add themeMode, highlightEnabled, and autoScroll settings (027-settings-ux-overhaul)',
+    /**
+     * Add new settings fields with sensible defaults
+     * No data loss risk - only adds new fields
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add themeMode if not present
+      if (stored.themeMode === undefined) {
+        updates.themeMode = defaults.themeMode; // 'system'
+      }
+
+      // Add highlightEnabled if not present
+      if (stored.highlightEnabled === undefined) {
+        updates.highlightEnabled = defaults.highlightEnabled; // true
+      }
+
+      // Add autoScroll if not present
+      if (stored.autoScroll === undefined) {
+        updates.autoScroll = defaults.autoScroll; // true
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 6,
+    key: 'pdfSettings',
+    description: 'Add PDF reading support settings (033-pdf-reading-support)',
+    /**
+     * Add PDF settings and history with defaults
+     * No data loss risk - only adds new storage keys
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add pdfSettings if not present
+      if ((stored as Record<string, unknown>).pdfSettings === undefined) {
+        updates.pdfSettings = {
+          ocrEnabled: true,
+          autoDetectScanned: true,
+          headerFooterSkip: true,
+          columnDetectionEnabled: true,
+          prefetchPages: 3,
+        };
+      }
+
+      // Add pdfHistory if not present
+      if ((stored as Record<string, unknown>).pdfHistory === undefined) {
+        updates.pdfHistory = {
+          items: [],
+          maxItems: 100,
+        };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added PDF reading support settings:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
 ];
 
 /**
@@ -175,7 +257,7 @@ export const migrations: Migration[] = [
  */
 export async function applyMigrations(
   stored: StoredSettings,
-  save: SaveFunction
+  save: SaveFunction,
 ): Promise<StoredSettings> {
   let current = { ...stored };
   const currentVersion = stored._configVersion || 0;

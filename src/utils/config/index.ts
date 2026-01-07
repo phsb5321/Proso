@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Configuration Module
  * Centralized exports for all configuration-related functionality
@@ -26,10 +30,21 @@ export {
 } from './schema';
 
 // Export defaults
-export { defaults, defaultVoices, constraints, footerStateDefaults, queueDefaults } from './defaults';
+export {
+  defaults,
+  defaultVoices,
+  constraints,
+  footerStateDefaults,
+  queueDefaults,
+} from './defaults';
 
 // Export store
 export { SettingsStore, settingsStore } from './store';
 
 // Export migrations
-export { migrations, applyMigrations, getPendingMigrationCount, CURRENT_CONFIG_VERSION } from './migrations';
+export {
+  migrations,
+  applyMigrations,
+  getPendingMigrationCount,
+  CURRENT_CONFIG_VERSION,
+} from './migrations';

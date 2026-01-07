@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Playback Sync Module
  * Manages synchronization state between audio playback and text highlighting
@@ -108,12 +112,15 @@ export class PlaybackSyncState {
    * Mark timeline as ready (called when TIMELINE_READY ACK received from content)
    */
   setTimelineReady(paragraphIndex: number): void {
-    if (paragraphIndex === this._pendingTimelineParagraph || this._pendingTimelineParagraph === -1) {
+    if (
+      paragraphIndex === this._pendingTimelineParagraph ||
+      this._pendingTimelineParagraph === -1
+    ) {
       this._timelineReady = true;
       this._pendingTimelineParagraph = -1;
     } else {
       console.warn(
-        `VoxPage: Ignoring TIMELINE_READY for paragraph ${paragraphIndex}, expected ${this._pendingTimelineParagraph}`
+        `VoxPage: Ignoring TIMELINE_READY for paragraph ${paragraphIndex}, expected ${this._pendingTimelineParagraph}`,
       );
     }
   }
@@ -264,7 +271,7 @@ export class PlaybackSyncState {
       if (estimatedDuration > 0 && Math.abs(durationMs - estimatedDuration) > 100) {
         const scaleFactor = durationMs / estimatedDuration;
         console.log(
-          `VoxPage: Scaling word timings by ${scaleFactor.toFixed(2)} (${estimatedDuration}ms -> ${durationMs}ms)`
+          `VoxPage: Scaling word timings by ${scaleFactor.toFixed(2)} (${estimatedDuration}ms -> ${durationMs}ms)`,
         );
 
         for (const word of this.wordTimeline) {
@@ -332,7 +339,7 @@ export class PlaybackSyncState {
       if (currentTime < this.paragraphTimeline[0].startTimeMs) {
         newIndex = 0;
       } else {
-        let closestDist = Infinity;
+        let closestDist = Number.POSITIVE_INFINITY;
         for (let i = 0; i < this.paragraphTimeline.length; i++) {
           const timing = this.paragraphTimeline[i];
           const midpoint = (timing.startTimeMs + timing.endTimeMs) / 2;
@@ -437,7 +444,9 @@ export class PlaybackSyncState {
         this._driftMs = audioTimeMs - expectedTime;
 
         if (Math.abs(this._driftMs) > this._driftThresholdMs) {
-          console.warn(`VoxPage: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`);
+          console.warn(
+            `VoxPage: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`,
+          );
           this._currentTimeMs = audioTimeMs;
           this._driftMs = 0;
           if (this.hasWordTiming) {
@@ -472,7 +481,9 @@ export class PlaybackSyncState {
       this._maxSyncDurationMs = this._lastSyncDurationMs;
     }
     if (this._perfLogging && this._lastSyncDurationMs > 5) {
-      console.warn(`VoxPage: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`);
+      console.warn(
+        `VoxPage: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`,
+      );
     }
 
     this._animationFrameId = requestAnimationFrame(() => this._syncLoop());
@@ -595,7 +606,9 @@ export function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoun
       rawTiming.startMs ??
       (rawTiming.start !== undefined ? rawTiming.start * 1000 : 0),
     endTimeMs:
-      rawTiming.endTimeMs ?? rawTiming.endMs ?? (rawTiming.end !== undefined ? rawTiming.end * 1000 : 0),
+      rawTiming.endTimeMs ??
+      rawTiming.endMs ??
+      (rawTiming.end !== undefined ? rawTiming.end * 1000 : 0),
     charOffset: rawTiming.charOffset ?? 0,
     charLength: rawTiming.charLength ?? rawTiming.word?.length ?? 0,
     confidence: rawTiming.confidence ?? 1.0,

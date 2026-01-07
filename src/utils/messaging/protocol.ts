@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Messaging Protocol
  * Type-safe message protocol using @webext-core/messaging
@@ -46,9 +50,39 @@ export type QueueItemStatus = 'pending' | 'reading' | 'completed' | 'archived';
 export type AIProviderType = 'openai' | 'anthropic';
 
 /**
+ * Theme mode type (027-settings-ux-overhaul)
+ */
+export type ThemeModeType = 'light' | 'dark' | 'system';
+
+/**
+ * Settings section type for reset (027-settings-ux-overhaul)
+ */
+export type SettingsSectionType =
+  | 'quick-settings'
+  | 'appearance'
+  | 'reading-queue'
+  | 'developer'
+  | 'all';
+
+/**
+ * API provider type for testing (027-settings-ux-overhaul)
+ */
+export type ApiProviderType = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'anthropic';
+
+/**
  * Footer action type
  */
-export type FooterAction = 'play' | 'pause' | 'stop' | 'next' | 'prev' | 'seek' | 'speed' | 'close' | 'minimize' | 'expand';
+export type FooterAction =
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'next'
+  | 'prev'
+  | 'seek'
+  | 'speed'
+  | 'close'
+  | 'minimize'
+  | 'expand';
 
 /**
  * VoxPage Protocol Map
@@ -261,6 +295,63 @@ export interface VoxPageProtocol {
         xpath?: string;
         found: boolean;
       }>;
+    };
+  };
+
+  // ========== Paragraph Selection Messages (028-smart-audio-cache) ==========
+  /**
+   * Notification when user clicks a paragraph to start playback from that point
+   */
+  'selection.paragraphClicked': {
+    request: {
+      paragraphIndex: number;
+      text: string;
+      characterCount: number;
+      isCached: boolean;
+    };
+    response: {
+      success: boolean;
+      playbackStarted: boolean;
+      error?: string;
+    };
+  };
+
+  /**
+   * Enable paragraph selection mode
+   */
+  'selection.enable': {
+    request: {
+      url: string;
+      paragraphCount: number;
+      cachedIndices: number[];
+    };
+    response: {
+      success: boolean;
+    };
+  };
+
+  /**
+   * Disable paragraph selection mode
+   */
+  'selection.disable': {
+    request: void;
+    response: {
+      success: boolean;
+    };
+  };
+
+  /**
+   * Get cached paragraph indices for current page
+   */
+  'selection.getCachedParagraphs': {
+    request: {
+      url: string;
+      provider: ProviderId;
+      voice: string;
+    };
+    response: {
+      cachedIndices: number[];
+      totalParagraphs: number;
     };
   };
 
@@ -837,6 +928,290 @@ export interface VoxPageProtocol {
         title: string;
       };
       error?: string;
+    };
+  };
+
+  // ========== Prefetch Messages (028-smart-audio-cache) ==========
+
+  /**
+   * Start prefetching upcoming paragraphs
+   */
+  'prefetch.start': {
+    request: {
+      /** Current paragraph index to start from */
+      currentIndex: number;
+      /** Provider to use for audio generation */
+      provider: ProviderId;
+      /** Voice ID to use */
+      voice?: string;
+    };
+    response: {
+      success: boolean;
+      /** Number of items queued for prefetch */
+      queuedCount: number;
+      error?: string;
+    };
+  };
+
+  /**
+   * Stop prefetching
+   */
+  'prefetch.stop': {
+    request: void;
+    response: {
+      success: boolean;
+    };
+  };
+
+  /**
+   * Get current prefetch status
+   */
+  'prefetch.getStatus': {
+    request: void;
+    response: {
+      /** Whether prefetching is active */
+      isActive: boolean;
+      /** Number of items in prefetch buffer */
+      bufferSize: number;
+      /** Indices currently in buffer */
+      bufferedIndices: number[];
+      /** Number of pending tasks */
+      pendingTasks: number;
+      /** Number of tasks in progress */
+      inProgressTasks: number;
+    };
+  };
+
+  /**
+   * Clear prefetch buffer
+   */
+  'prefetch.clearBuffer': {
+    request: {
+      /** Optional indices to keep in buffer */
+      keepIndices?: number[];
+    };
+    response: {
+      success: boolean;
+      /** Number of items cleared */
+      clearedCount: number;
+    };
+  };
+
+  // ========== Smart Audio Cache Messages (028-smart-audio-cache) ==========
+
+  /**
+   * Get cache statistics
+   */
+  'cache.getStats': {
+    request: void;
+    response: {
+      entries: number;
+      totalSize: number;
+      maxSize: number;
+      sizePercentage: number;
+      hitCount: number;
+      missCount: number;
+      hitRate: number;
+      oldestEntryAge?: number;
+      newestEntryAge?: number;
+    };
+  };
+
+  /**
+   * Clear all cache entries
+   */
+  'cache.clear': {
+    request: void;
+    response: {
+      success: boolean;
+      entriesRemoved: number;
+      bytesFreed: number;
+    };
+  };
+
+  /**
+   * Clear cache entries for specific URL
+   */
+  'cache.clearUrl': {
+    request: {
+      url: string;
+    };
+    response: {
+      success: boolean;
+      entriesRemoved: number;
+    };
+  };
+
+  /**
+   * Check if paragraph is cached
+   */
+  'cache.check': {
+    request: {
+      url: string;
+      paragraphIndex: number;
+      provider: string;
+      voice: string;
+      contentHash: string;
+    };
+    response: {
+      isCached: boolean;
+      cacheKey?: string;
+      size?: number;
+    };
+  };
+
+  /**
+   * Get cached audio
+   */
+  'cache.get': {
+    request: {
+      cacheKey: string;
+    };
+    response: {
+      success: boolean;
+      audioUrl?: string;
+      duration?: number;
+      wordTimeline?: Array<{
+        word: string;
+        startTimeMs: number;
+        endTimeMs: number;
+      }>;
+    };
+  };
+
+  /**
+   * Store audio in cache
+   */
+  'cache.set': {
+    request: {
+      url: string;
+      paragraphIndex: number;
+      provider: string;
+      voice: string;
+      contentHash: string;
+      audioData: ArrayBuffer;
+      durationMs?: number;
+      codec?: 'mp3' | 'opus';
+      wordTimeline?: Array<{
+        word: string;
+        startMs: number;
+        endMs: number;
+        charOffset: number;
+        charLength: number;
+      }>;
+    };
+    response: {
+      success: boolean;
+      cacheKey: string;
+      evictedCount: number;
+    };
+  };
+
+  /**
+   * Get cost estimate
+   */
+  'cost.estimate': {
+    request: {
+      url: string;
+      startParagraph?: number;
+      endParagraph?: number;
+      provider: string;
+      voice: string;
+    };
+    response: {
+      totalCharacters: number;
+      cachedCharacters: number;
+      uncachedCharacters: number;
+      provider: string;
+      pricePerKiloChar: number;
+      estimatedCost: number;
+      actualCost: number;
+      savingsFromCache: number;
+      savingsPercentage: number;
+      paragraphCosts: Array<{
+        index: number;
+        characters: number;
+        isCached: boolean;
+        cost: number;
+      }>;
+    };
+  };
+
+  /**
+   * Get paragraph cache status
+   */
+  'paragraphs.getStatus': {
+    request: {
+      url: string;
+      provider: string;
+      voice: string;
+    };
+    response: {
+      paragraphs: Array<{
+        index: number;
+        isCached: boolean;
+        estimatedCost: number;
+      }>;
+      totalCachedCount: number;
+      totalEstimatedCost: number;
+      totalSavings: number;
+    };
+  };
+
+  // ========== Settings UX Messages (027-settings-ux-overhaul) ==========
+
+  /**
+   * Test an API key validity by making a minimal API call
+   */
+  'settings.testApiKey': {
+    request: {
+      provider: ApiProviderType;
+      apiKey: string;
+    };
+    response: {
+      success: boolean;
+      provider: string;
+      error?: string;
+      latencyMs?: number;
+    };
+  };
+
+  /**
+   * Get current theme preference
+   */
+  'settings.getTheme': {
+    request: void;
+    response: {
+      mode: ThemeModeType;
+      resolvedTheme: 'light' | 'dark';
+    };
+  };
+
+  /**
+   * Set theme preference
+   */
+  'settings.setTheme': {
+    request: {
+      mode: ThemeModeType;
+    };
+    response: {
+      success: boolean;
+      mode: ThemeModeType;
+      resolvedTheme: 'light' | 'dark';
+    };
+  };
+
+  /**
+   * Reset settings for a specific section to defaults
+   */
+  'settings.resetSection': {
+    request: {
+      section: SettingsSectionType;
+    };
+    response: {
+      success: boolean;
+      section: string;
+      resetKeys: string[];
     };
   };
 }

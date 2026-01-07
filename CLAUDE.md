@@ -1,13 +1,13 @@
 # VoxPage Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-03
+Auto-generated from all feature plans. Last updated: 2026-01-06
 
 ## ✅ MIGRATION COMPLETE - 026-src-folder-restructure
 
 **Current Status**: TypeScript migration complete. All source code in `src/` directory.
-**Branch**: `026-src-folder-restructure`
-**Test Results**: 879 tests (729 pass, 150 skipped for legacy API compatibility)
-**Quality**: 0 circular dependencies, 2.64% code duplication
+**Branch**: `031-source-code-protection`
+**Test Results**: 1084 tests (934 pass, 150 skipped for legacy API compatibility)
+**Quality**: 0 circular dependencies, 2% code duplication
 
 ### Active Technologies
 
@@ -38,6 +38,7 @@ src/                          # All source code (srcDir in wxt.config.ts)
   ├── utils/                  # Shared TypeScript utilities
   │   ├── config/             # Settings, defaults, migrations, store
   │   ├── audio/              # Playback sync, cache, visualizer, MP3 encoder
+  │   ├── cache/              # Smart audio cache (IndexedDB, LRU eviction, cost estimator)
   │   ├── providers/          # 6 TTS providers + base interface
   │   ├── content/            # Extractor, scorer, highlighter, sticky-footer, OCR
   │   ├── language/           # franc-min detector, mappings, extractor
@@ -71,6 +72,105 @@ tests/                        # Jest + Playwright tests
 - Total: ~14,803 LOC of legacy JavaScript removed
 
 **Skipped Tests**: 150 tests skipped for legacy API compatibility. These tests were written for the JavaScript message-schemas.js API. The TypeScript version uses @webext-core/messaging with a different protocol-based approach.
+
+---
+
+## Hexagonal Architecture (034-hexagonal-architecture)
+
+**Status**: Migration ~90% complete. Most message handlers migrated to hexagonal architecture.
+**Branch**: `034-hexagonal-architecture`
+**Test Results**: 1086 tests (51 suites pass, 4 skipped)
+**Quality**: 0 circular dependencies, 1.61% code duplication
+
+**Migration Progress**:
+- ✅ Playback handlers → `src/handlers/playback.handlers.ts`
+- ✅ Settings handlers → `src/handlers/settings.handlers.ts`
+- ✅ Footer handlers → `src/handlers/footer.handlers.ts`
+- ✅ Cache handlers → `src/handlers/cache.handlers.ts`
+- ✅ Prefetch handlers → `src/handlers/prefetch.handlers.ts`
+- ✅ Audio handlers → `src/handlers/audio.handlers.ts`
+- ✅ Provider handlers → `src/handlers/provider.handlers.ts`
+- ⏳ PARAGRAPH_CLICKED handler (complex orchestration, kept in background.ts)
+- ⏳ TTS playback functions (speakCurrentParagraph, etc.)
+
+**Remaining Legacy in background.ts (~1682 LOC)**:
+- PARAGRAPH_CLICKED handler (combines extraction + playback + footer)
+- TTS playback functions (audio generation, prefetch)
+- Strangler Fig dispatch for backward compatibility
+- Initialization and cache cleanup code
+
+### Architecture Layers
+
+```
+src/
+  ├── core/                    # Domain layer (pure business logic)
+  │   ├── shared/              # Result<T,E> type, domain errors
+  │   ├── playback/            # PlaybackState entity, PlaybackService
+  │   └── content-extraction/  # ExtractedContent entity, ContentExtractionService
+  │
+  ├── ports/                   # Port interfaces (dependency contracts)
+  │   ├── audio-generator.port.ts     # IAudioGenerator
+  │   ├── cache-store.port.ts         # ICacheStore
+  │   ├── highlight-sync.port.ts      # IHighlightSynchronizer
+  │   ├── text-extractor.port.ts      # ITextExtractor
+  │   ├── content-scorer.port.ts      # IContentScorer
+  │   └── settings-store.port.ts      # ISettingsStore
+  │
+  ├── adapters/                # Adapter implementations
+  │   ├── audio/               # TTS provider adapters (OpenAI, ElevenLabs, etc.)
+  │   ├── cache/               # IndexedDB and in-memory cache adapters
+  │   ├── content/             # Readability extractor, Trafilatura scorer
+  │   ├── messaging/           # Content script messaging adapter
+  │   └── storage/             # Browser settings adapter
+  │
+  ├── composition/             # Dependency injection container
+  │   ├── container.ts         # Service container (singleton)
+  │   ├── factories.ts         # Adapter factory functions
+  │   └── types.ts             # Container type definitions
+  │
+  └── handlers/                # Message handler registry
+      ├── registry.ts          # HandlerRegistry class
+      ├── playback.handlers.ts # Playback message handlers
+      ├── cache.handlers.ts    # Cache message handlers
+      └── content.handlers.ts  # Content extraction handlers
+```
+
+### Key Patterns
+
+- **Result<T, E>**: All fallible operations return `Result<T, E>` instead of throwing
+- **Port Interfaces**: Services depend on interfaces, not concrete implementations
+- **Adapter Pattern**: Existing code wrapped in adapters implementing port interfaces
+- **Composition Root**: Single place (`src/composition/`) where all dependencies are wired
+- **Contract Tests**: Tests verify adapters behave identically per port contract
+- **Strangler Fig**: Incremental migration - new architecture coexists with legacy code
+
+### Adding a New TTS Provider
+
+1. Create adapter in `src/adapters/audio/` implementing `IAudioGenerator`
+2. Add factory case in `src/composition/factories.ts`
+3. Run contract tests: `pnpm test -- --testPathPattern=audio-generator.contract`
+
+### Testing with Mocks
+
+```typescript
+import { MockAudioGenerator } from 'tests/mocks';
+import { PlaybackService } from 'src/core/playback';
+
+const service = new PlaybackService({
+  audioGenerator: new MockAudioGenerator(),
+  cacheStore: new MockCacheStore(),
+  highlightSync: new MockHighlightSync(),
+  settingsStore: new MockSettingsStore(),
+});
+// All tests run in <5ms with no network calls
+```
+
+### Quality Metrics (034)
+
+- 0 circular dependencies
+- 1.79% code duplication (below 2% threshold)
+- 1051 tests passing
+- Contract tests verify adapter interchangeability
 
 ---
 
@@ -122,6 +222,16 @@ tests/                        # Jest + Playwright tests
 - Markdown files in `specs/[feature]/checklists/` - progress persisted as checkbox state (025-checklist-roadmap)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x (026-src-folder-restructure)
 - browser.storage.local (WebExtension API - unchanged) (026-src-folder-restructure)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper) (028-smart-audio-cache)
+- IndexedDB for audio blobs (browser.storage.local has 5MB limit), browser.storage.local for cache index (028-smart-audio-cache)
+- N/A (documentation/configuration only) + GitHub CLI (`gh`), bash scripts (030-license-repo-protection)
+- TypeScript 5.x (strict mode), Bash scripts, YAML (GitHub Actions) + WXT 0.20.13, Vite 5.x, esbuild (built-in minifier), GitHub CLI (`gh`) (031-source-code-protection)
+- N/A (configuration/documentation feature) (031-source-code-protection)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, pdfjs-dist (PDF parsing), tesseract.js (OCR, lazy-loaded), @webext-core/messaging 2.3.0, Zod 4.3.4 (033-pdf-reading-support)
+- IndexedDB for audio cache (existing), browser.storage.local for reading positions and settings (033-pdf-reading-support)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper) (034-hexagonal-architecture)
+- IndexedDB for audio cache (via idb), browser.storage.local for settings (034-hexagonal-architecture)
+- IndexedDB for audio cache (500MB+), browser.storage.local for settings (034-hexagonal-architecture)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -201,69 +311,69 @@ tests/
 
 ```bash
 # Start development server with HMR (default: Firefox)
-npm run dev
+pnpm run dev
 
 # Start development for specific browser
-npm run dev:firefox
-npm run dev:chrome
+pnpm run dev:firefox
+pnpm run dev:chrome
 
 # Build production extension
-npm run build
-npm run build:firefox
-npm run build:chrome
-npm run build:all          # Builds Firefox, Chrome, and Edge
+pnpm run build
+pnpm run build:firefox
+pnpm run build:chrome
+pnpm run build:all          # Builds Firefox, Chrome, and Edge
 
 # Create distributable zip
-npm run zip
-npm run zip:firefox
-npm run zip:chrome
+pnpm run zip
+pnpm run zip:firefox
+pnpm run zip:chrome
 ```
 
 ### Testing
 
 ```bash
 # Run unit tests (runs ESLint first for import validation)
-npm test
+pnpm test
 
 # Run unit tests only (skip ESLint)
-npm run test:unit
+pnpm run test:unit
 
 # Run unit tests with coverage
-npm run test:coverage
+pnpm run test:coverage
 
 # Run visual regression tests
-npm run test:visual
+pnpm run test:visual
 
 # Update visual test baselines
-npm run test:visual:update
+pnpm run test:visual:update
 
 # Run all tests
-npm run test:all
+pnpm run test:all
 ```
 
 ### Code Quality
 
 ```bash
 # Lint imports with ESLint
-npm run lint
+pnpm run lint
 
 # Auto-fix ESLint issues
-npm run lint:fix
+pnpm run lint:fix
 
 # Lint manifest with web-ext
-npm run lint:manifest
+pnpm run lint:manifest
 
 # Check for circular dependencies
-npm run deps:check
+pnpm run deps:check
 
 # Generate dependency graph to deps.svg
-npm run deps:graph
+pnpm run deps:graph
 
 # Check code duplication
-npm run duplication
+pnpm run duplication
 
 # Run full quality check: deps + duplication + manifest lint
-npm run quality
+pnpm run quality
 ```
 
 ## Code Style
@@ -277,9 +387,9 @@ npm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 026-src-folder-restructure: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, Vite 5.x
-- 025-checklist-roadmap: Added Markdown (Claude Code command definition) + Bash scripts for file operations + Claude Code CLI (command execution), AskUserQuestion tool (user interaction), Edit tool (file updates)
-- 024-settings-page-redesign: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4
+- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper)
+- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper)
+- 033-pdf-reading-support: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, pdfjs-dist (PDF parsing), tesseract.js (OCR, lazy-loaded), @webext-core/messaging 2.3.0, Zod 4.3.4
 
 
 <!-- MANUAL ADDITIONS START -->
@@ -376,8 +486,8 @@ The codebase was refactored from monolithic files into focused modules:
 ### Quality Metrics
 
 - All modules ≤300 lines (except core orchestrators ~350-690 lines)
-- No circular dependencies (`npm run deps:check`)
-- Low duplication: ~1.4% (`npm run duplication`)
+- No circular dependencies (`pnpm run deps:check`)
+- Low duplication: ~1.4% (`pnpm run duplication`)
 - 153 unit tests passing
 
 ## Feature 010: Single Source of Truth Architecture
@@ -509,10 +619,10 @@ Developer Settings section in options page includes:
 
 ```bash
 # Run logging-specific tests
-npm test -- --testPathPattern="log-buffer|loki-api"
+pnpm test -- --testPathPattern="log-buffer|loki-api"
 
 # All tests (includes 20+ logging tests)
-npm test
+pnpm test
 ```
 
 ## Feature 015: Improved DOM Element Matching
@@ -569,10 +679,10 @@ const UNWANTED_CONFIG = {
 
 ```bash
 # Run DOM matching tests
-npm test -- --testPathPattern="dom-element-matching"
+pnpm test -- --testPathPattern="dom-element-matching"
 
 # All tests (includes 33 DOM matching tests)
-npm test
+pnpm test
 ```
 
 ## Feature 017: Git Workflow Automation
@@ -724,13 +834,13 @@ footerStateDefaults = {
 
 ```bash
 # Run all tests (includes 467 tests)
-npm test
+pnpm test
 
 # Run linting
-npm run lint
+pnpm run lint
 
 # Validate manifest
-npm run lint:manifest
+pnpm run lint:manifest
 ```
 
 ## Feature 019: Multilingual TTS Integration
@@ -830,10 +940,10 @@ languageDefaults = {
 
 ```bash
 # Run language-specific tests
-npm test -- --testPathPattern="language"
+pnpm test -- --testPathPattern="language"
 
 # All tests (includes 557 tests with 50+ language tests)
-npm test
+pnpm test
 ```
 
 ### Error Handling
@@ -842,5 +952,182 @@ npm test
 - Error includes suggested alternative providers
 - Popup modal offers one-click provider switching
 - Graceful fallback to English on detection failure
+
+## Feature 028: Smart Audio Cache
+
+### Overview (028-smart-audio-cache)
+
+Implements intelligent audio caching using IndexedDB for persistent storage. Reduces API costs and improves playback responsiveness by caching generated TTS audio.
+
+### Architecture
+
+**Key Modules**:
+- `src/utils/cache/audio-cache-store.ts` - Main cache store with LRU eviction
+- `src/utils/cache/cache-key.ts` - Cache key generation and parsing
+- `src/utils/cache/cache-index.ts` - In-memory index for fast lookups
+- `src/utils/cache/eviction.ts` - Multi-factor eviction scoring
+- `src/utils/cache/cost-estimator.ts` - Cost calculation with cache awareness
+- `src/utils/cache/db.ts` - IndexedDB wrapper using `idb` library
+
+**Content Script Utilities**:
+- `src/utils/content/paragraph-indicator.ts` - Visual cache status indicators
+- `src/utils/content/paragraph-selector.ts` - Paragraph range selection UI
+
+### Cache Key Format
+
+```
+${urlHash}:${paragraphIndex}:${provider}:${voice}:${contentHash}
+```
+
+Example: `a1b2c3:5:openai:alloy:xyz789`
+
+### Eviction Algorithm
+
+Multi-factor LRU scoring with configurable weights:
+
+```typescript
+score = ageMinutes * 1.0 + sizePercentage * 0.5 - log(accessCount + 1) * 2.0
+```
+
+Higher scores = higher eviction priority.
+
+### Cost Estimation
+
+Provider pricing (per 1000 characters):
+
+| Provider | Price |
+|----------|-------|
+| OpenAI TTS | $0.015 |
+| ElevenLabs | $0.18 |
+| Cartesia | $0.05 |
+| Groq | Free |
+| Browser TTS | Free |
+
+### Configuration (from `src/utils/config/defaults.ts`)
+
+```typescript
+cacheDefaults = {
+  maxSizeBytes: 500 * 1024 * 1024, // 500 MB
+  maxEntries: 1000,
+  maxAgeMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+  evictionThresholdPercent: 90, // Evict at 90%
+  evictionTargetPercent: 70,    // Down to 70%
+  prefetchAhead: 3,
+};
+```
+
+### Message Handlers
+
+Cache-related handlers registered in background:
+
+- `cache.getStats` - Get cache statistics
+- `cache.clear` - Clear all cached audio
+- `cache.clearUrl` - Clear cache for specific URL
+- `cache.check` - Check if paragraph is cached
+- `cache.get` - Retrieve cached audio
+- `cache.set` - Store audio in cache
+- `cost.estimate` - Calculate estimated TTS costs
+- `paragraphs.getStatus` - Get cache status for paragraphs
+
+### Settings UI
+
+Cache settings in Options page (`settings.html#cache`):
+- Cache statistics display (entries, size, hit rate, savings)
+- Usage bar visualization
+- Clear Cache button with confirmation modal
+- Refresh stats button
+
+Cost visibility toggle in Appearance section:
+- `showCostEstimate` - Show/hide cost estimates in popup
+
+### Testing
+
+```bash
+# Run cache tests
+pnpm test -- --testPathPattern="cache"
+
+# Run eviction tests
+pnpm test -- --testPathPattern="eviction"
+
+# Run cost estimator tests
+pnpm test -- --testPathPattern="cost-estimator"
+```
+
+### Offline Support
+
+Cached audio works fully offline. IndexedDB persists across browser sessions. Uncached paragraphs require network for TTS API calls.
+
+## Feature 031: Source Code Protection
+
+### Overview (031-source-code-protection)
+
+Multi-layer source code protection for VoxPage Firefox extension through:
+1. GitHub repository access restriction (private visibility + branch protection)
+2. AMO-compliant production build hardening (minification + source map removal + debug statement stripping)
+3. Legal documentation (Terms of Service, NDA template)
+4. CI/CD secrets hardening
+
+**Critical constraint**: Mozilla AMO prohibits obfuscated code. Only minification is allowed.
+
+### Protection Measures Implemented
+
+| Layer | Measure | Status |
+|-------|---------|--------|
+| Repository | Private visibility | Active |
+| Repository | Branch protection (PR reviews, status checks) | Active |
+| Repository | CODEOWNERS file | Active |
+| Build | Source maps disabled in production | Active |
+| Build | console/debugger statements dropped | Active |
+| Build | Tree-shaking enabled | Active |
+| Legal | TERMS_OF_SERVICE.md | Created |
+| Legal | templates/NDA.md | Created |
+
+### Build Hardening Configuration (wxt.config.ts)
+
+```typescript
+vite: () => ({
+  build: {
+    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
+    minify: 'esbuild',
+  },
+  esbuild: {
+    treeShaking: true,
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+}),
+```
+
+### Verification Commands
+
+```bash
+# Verify repository is private
+gh repo view --json visibility
+
+# Build for production
+NODE_ENV=production pnpm run build
+
+# Verify no source maps
+find .output/firefox-mv2 -name "*.map" -type f
+
+# Verify minification
+head -c 500 .output/firefox-mv2/background.js
+
+# Verify console statements removed
+grep -E "console\.(log|warn|error)\(" .output/firefox-mv2/*.js | wc -l
+```
+
+### Key Decisions
+
+1. **No obfuscation**: Mozilla AMO explicitly prohibits obfuscated code
+2. **Minification only**: esbuild minification is allowed and effective
+3. **Private repository**: Prevents public access to source code
+4. **Legal protection**: ToS and NDA provide contractual IP protection
+
+### Files Created/Modified
+
+- `.github/CODEOWNERS` - Required reviewers for code changes
+- `TERMS_OF_SERVICE.md` - Extension terms of service
+- `templates/NDA.md` - NDA template for contractors
+- `wxt.config.ts` - Production build hardening
 
 <!-- MANUAL ADDITIONS END -->
