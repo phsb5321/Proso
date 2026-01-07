@@ -3,179 +3,183 @@
 // Commercial licensing: https://voxpage.com/commercial
 
 /**
- * Cache Types - Smart Audio Cache & Cost Optimization
+ * Cache Types Module
+ * Type definitions for the audio cache system
  *
- * Zod schemas and TypeScript types for the audio cache system.
- * Based on data-model.md from 028-smart-audio-cache feature.
+ * Feature: 028-smart-audio-cache
  *
  * @module utils/cache/types
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
-// Word Timeline Schema (shared with audio module)
+// Configuration Types
 // ============================================================================
 
-export const wordTimelineItemSchema = z.object({
-  word: z.string(),
-  startMs: z.number().nonnegative(),
-  endMs: z.number().nonnegative(),
-  charOffset: z.number().int().nonnegative(),
-  charLength: z.number().int().positive(),
-});
-
-export type WordTimelineItem = z.infer<typeof wordTimelineItemSchema>;
-
-// ============================================================================
-// CachedAudioEntry - Single cached audio segment in IndexedDB
-// ============================================================================
-
-export const cachedAudioEntrySchema = z.object({
-  // Primary key - composite of URL, paragraph, provider, voice, content hash
-  cacheKey: z.string().min(1),
-
-  // Audio data
-  audioData: z.instanceof(ArrayBuffer),
-  compressedSize: z.number().nonnegative(),
-  originalSize: z.number().nonnegative().optional(), // Optional - same as compressed for TTS
-  codec: z.enum(['mp3', 'opus']).optional(), // Defaults to 'mp3' in handler
-  durationMs: z.number().nonnegative().optional(), // milliseconds
-
-  // Source identification
-  url: z.string().url(),
-  paragraphIndex: z.number().int().nonnegative(),
-  contentHash: z.string().min(8).max(64), // SHA-256 truncated
-
-  // Provider metadata
-  provider: z.string().min(1),
-  voice: z.string().min(1),
-
-  // Timing data (optional - only if provider supports word timing)
-  wordTimeline: z.array(wordTimelineItemSchema).optional(),
-
-  // LRU tracking
-  createdAt: z.number(), // Unix timestamp ms
-  lastAccessedAt: z.number(), // Unix timestamp ms
-  accessCount: z.number().int().nonnegative().default(0),
-});
-
-export type CachedAudioEntry = z.infer<typeof cachedAudioEntrySchema>;
-
-// ============================================================================
-// CacheIndexEntry - Lightweight reference for in-memory index
-// ============================================================================
-
-export const cacheIndexEntrySchema = z.object({
-  paragraphIndex: z.number().int().nonnegative(),
-  cacheKey: z.string(),
-  size: z.number().nonnegative(),
-  lastAccessedAt: z.number(),
-});
-
-export type CacheIndexEntry = z.infer<typeof cacheIndexEntrySchema>;
-
-// ============================================================================
-// CacheIndex - In-memory index for fast lookups
-// ============================================================================
-
-export const cacheIndexSchema = z.object({
-  // Mapping: URL → paragraph entries
-  urlIndex: z.record(z.string(), z.array(cacheIndexEntrySchema)),
-
-  // Cache statistics
-  totalSize: z.number().nonnegative(),
-  entryCount: z.number().int().nonnegative(),
-  hitCount: z.number().int().nonnegative(),
-  missCount: z.number().int().nonnegative(),
-
-  // Configuration
-  maxSize: z.number().positive(),
-  maxEntries: z.number().int().positive(),
-
-  // Metadata
-  lastUpdated: z.number(),
-  version: z.number().int().positive(),
-});
-
-export type CacheIndex = z.infer<typeof cacheIndexSchema>;
-
-// ============================================================================
-// CacheConfig - User-configurable cache settings
-// ============================================================================
-
+/**
+ * Cache configuration schema
+ */
 export const cacheConfigSchema = z.object({
-  // Size limits
+  /** Maximum cache size in bytes */
   maxSizeBytes: z
     .number()
     .positive()
-    .default(500 * 1024 * 1024), // 500MB
+    .default(500 * 1024 * 1024), // 500MB default
+  /** Maximum number of entries */
   maxEntries: z.number().int().positive().default(1000),
-
-  // Age limits
+  /** Maximum age for entries in milliseconds */
   maxAgeMs: z
     .number()
     .positive()
-    .default(30 * 24 * 60 * 60 * 1000), // 30 days
-
-  // Eviction thresholds
-  evictionThresholdPercent: z.number().min(50).max(100).default(90),
-  evictionTargetPercent: z.number().min(30).max(90).default(70),
-
-  // Feature toggles
-  enabled: z.boolean().default(true),
+    .default(7 * 24 * 60 * 60 * 1000), // 7 days
+  /** Eviction threshold percentage (0-100) */
+  evictionThresholdPercent: z.number().min(0).max(100).default(90),
+  /** Target percentage after eviction (0-100) */
+  evictionTargetPercent: z.number().min(0).max(100).default(70),
+  /** Whether to persist to IndexedDB */
   persistToIndexedDB: z.boolean().default(true),
-
-  // Prefetch settings
-  prefetchAhead: z.number().int().min(1).max(10).default(3),
+  /** IndexedDB database name */
+  dbName: z.string().default("voxpage-audio-cache"),
+  /** IndexedDB store name */
+  storeName: z.string().default("audio-entries"),
 });
 
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;
 
 // ============================================================================
-// PlaybackQueueItem - Single paragraph in playback queue
+// Word Timeline Types
 // ============================================================================
 
-export const playbackQueueItemSchema = z.object({
-  paragraphIndex: z.number().int().nonnegative(),
-  text: z.string().min(1),
-  cacheStatus: z.enum(['cached', 'pending', 'loading', 'error']),
-  cacheKey: z.string().optional(), // Only if cached
-  estimatedCost: z.number().nonnegative(), // $0.00 if cached
-  characterCount: z.number().int().positive(),
+/**
+ * Word timeline item for audio-text synchronization
+ */
+export const wordTimelineItemSchema = z.object({
+  word: z.string(),
+  charOffset: z.number().int().nonnegative(),
+  charLength: z.number().int().positive(),
+  startMs: z.number().nonnegative(),
+  endMs: z.number().nonnegative(),
 });
 
-export type PlaybackQueueItem = z.infer<typeof playbackQueueItemSchema>;
+export type WordTimelineItem = z.infer<typeof wordTimelineItemSchema>;
 
 // ============================================================================
-// PlaybackQueue - Ordered list of paragraphs for current session
+// Cache Entry Types
 // ============================================================================
 
-export const playbackQueueSchema = z.object({
-  items: z.array(playbackQueueItemSchema),
-  startIndex: z.number().int().nonnegative(), // User-selected start
-  currentIndex: z.number().int().nonnegative(),
-  prefetchedIndices: z.array(z.number()), // Indices with audio ready (Set not serializable)
-
-  // Queue metadata
-  url: z.string().url(),
+/**
+ * Cached audio entry stored in IndexedDB
+ */
+export const cachedAudioEntrySchema = z.object({
+  /** Unique cache key */
+  cacheKey: z.string(),
+  /** Source URL */
+  url: z.string(),
+  /** Paragraph index in the document */
+  paragraphIndex: z.number().int().nonnegative(),
+  /** Hash of the text content */
+  contentHash: z.string(),
+  /** TTS provider ID */
   provider: z.string(),
+  /** Voice ID used */
   voice: z.string(),
-
-  // Totals
-  totalParagraphs: z.number().int().nonnegative(),
-  cachedCount: z.number().int().nonnegative(),
-  estimatedTotalCost: z.number().nonnegative(),
+  /** Audio data as ArrayBuffer (stored as Blob in IndexedDB) */
+  audioData: z.instanceof(ArrayBuffer),
+  /** Word timing data for synchronization */
+  wordTimeline: z.array(wordTimelineItemSchema),
+  /** Compressed size in bytes */
+  compressedSize: z.number().nonnegative(),
+  /** Audio duration in milliseconds */
+  durationMs: z.number().nonnegative(),
+  /** When the entry was created */
+  createdAt: z.number(),
+  /** When the entry was last accessed */
+  lastAccessedAt: z.number(),
+  /** Number of times the entry was accessed */
+  accessCount: z.number().int().nonnegative(),
 });
 
-export type PlaybackQueue = z.infer<typeof playbackQueueSchema>;
+export type CachedAudioEntry = z.infer<typeof cachedAudioEntrySchema>;
 
 // ============================================================================
-// CostEstimate - Calculated cost for playback content
+// Cache Statistics Types
 // ============================================================================
 
+/**
+ * Cache statistics for monitoring
+ */
+export const cacheStatsSchema = z.object({
+  /** Number of entries in the cache */
+  entries: z.number().int().nonnegative(),
+  /** Total size of all entries in bytes */
+  totalSize: z.number().nonnegative(),
+  /** Maximum allowed size in bytes */
+  maxSize: z.number().positive(),
+  /** Cache hit count */
+  hitCount: z.number().int().nonnegative(),
+  /** Cache miss count */
+  missCount: z.number().int().nonnegative(),
+  /** Hit rate as a decimal (0-1) */
+  hitRate: z.number().min(0).max(1),
+  /** Oldest entry age in milliseconds */
+  oldestEntryAgeMs: z.number().nullable(),
+});
+
+export type CacheStats = z.infer<typeof cacheStatsSchema>;
+
+// ============================================================================
+// Cleanup Result Types
+// ============================================================================
+
+/**
+ * Result of cache cleanup operation
+ */
+export const cleanupResultSchema = z.object({
+  /** Number of entries removed */
+  entriesRemoved: z.number().int().nonnegative(),
+  /** Number of stale entries removed */
+  staleEntriesRemoved: z.number().int().nonnegative(),
+  /** Number of corrupt entries removed */
+  corruptEntriesRemoved: z.number().int().nonnegative(),
+  /** Bytes freed */
+  bytesFreed: z.number().nonnegative(),
+  /** Duration of cleanup in milliseconds */
+  durationMs: z.number().nonnegative(),
+});
+
+export type CleanupResult = z.infer<typeof cleanupResultSchema>;
+
+/**
+ * Result of cache eviction operation
+ */
+export const evictionResultSchema = z.object({
+  /** Whether eviction was triggered */
+  triggered: z.boolean(),
+  /** Number of entries evicted */
+  entriesEvicted: z.number().int().nonnegative(),
+  /** Bytes freed */
+  bytesFreed: z.number().nonnegative(),
+  /** Reason for eviction */
+  reason: z.string().optional(),
+  /** Duration of eviction in milliseconds */
+  durationMs: z.number().nonnegative().optional(),
+});
+
+export type EvictionResult = z.infer<typeof evictionResultSchema>;
+
+// ============================================================================
+// Cost Estimation Types
+// ============================================================================
+
+/**
+ * Cost estimation result
+ */
+/**
+ * Per-paragraph cost breakdown
+ */
 export const paragraphCostSchema = z.object({
-  paragraphIndex: z.number().int().nonnegative(),
+  index: z.number().int().nonnegative(),
   characters: z.number().int().nonnegative(),
   isCached: z.boolean(),
   cost: z.number().nonnegative(),
@@ -184,84 +188,76 @@ export const paragraphCostSchema = z.object({
 export type ParagraphCost = z.infer<typeof paragraphCostSchema>;
 
 export const costEstimateSchema = z.object({
-  // Character counts
-  totalCharacters: z.number().int().nonnegative(),
-  cachedCharacters: z.number().int().nonnegative(),
-  uncachedCharacters: z.number().int().nonnegative(),
-
-  // Provider pricing
+  /** Provider ID */
   provider: z.string(),
-  pricePerKiloChar: z.number().nonnegative(), // $/1000 chars
-
-  // Cost calculations
-  estimatedCost: z.number().nonnegative(), // Total if not cached
-  actualCost: z.number().nonnegative(), // After cache savings
+  /** Total characters to process */
+  totalCharacters: z.number().int().nonnegative(),
+  /** Characters already cached */
+  cachedCharacters: z.number().int().nonnegative(),
+  /** Characters not cached */
+  uncachedCharacters: z.number().int().nonnegative(),
+  /** Price per 1000 characters */
+  pricePerKiloChar: z.number().nonnegative(),
+  /** Estimated cost without cache */
+  estimatedCost: z.number().nonnegative(),
+  /** Actual cost with cache */
+  actualCost: z.number().nonnegative(),
+  /** Savings from cache */
   savingsFromCache: z.number().nonnegative(),
+  /** Savings percentage */
   savingsPercentage: z.number().min(0).max(100),
-
-  // Breakdown by paragraph
+  /** Per-paragraph cost breakdown */
   paragraphCosts: z.array(paragraphCostSchema),
 });
 
 export type CostEstimate = z.infer<typeof costEstimateSchema>;
 
 // ============================================================================
-// Cache Statistics
+// Cache Index Types (for in-memory index)
 // ============================================================================
 
-export const cacheStatsSchema = z.object({
-  entries: z.number().int().nonnegative(),
-  totalSize: z.number().nonnegative(),
-  maxSize: z.number().positive(),
-  sizePercentage: z.number().min(0).max(100),
-  hitCount: z.number().int().nonnegative(),
-  missCount: z.number().int().nonnegative(),
-  hitRate: z.number().min(0).max(100),
-  oldestEntryAge: z.number().nonnegative().optional(),
-  newestEntryAge: z.number().nonnegative().optional(),
-});
+/**
+ * Entry in the cache index (lightweight, for fast lookups)
+ */
+export interface CacheIndexEntry {
+  /** Unique cache key */
+  cacheKey: string;
+  /** Paragraph index */
+  paragraphIndex: number;
+  /** Provider used */
+  provider: string;
+  /** Voice used */
+  voice: string;
+  /** Content hash for invalidation */
+  contentHash: string;
+  /** Size in bytes */
+  size: number;
+  /** Creation timestamp */
+  createdAt: number;
+  /** Last access timestamp */
+  lastAccessedAt: number;
+}
 
-export type CacheStats = z.infer<typeof cacheStatsSchema>;
-
-// ============================================================================
-// Eviction Result
-// ============================================================================
-
-export const evictionResultSchema = z.object({
-  triggered: z.boolean(),
-  entriesEvicted: z.number().int().nonnegative(),
-  bytesFreed: z.number().nonnegative(),
-  reason: z.enum(['size_limit', 'entry_limit', 'none']),
-  durationMs: z.number().nonnegative(),
-});
-
-export type EvictionResult = z.infer<typeof evictionResultSchema>;
-
-// ============================================================================
-// Cleanup Result
-// ============================================================================
-
-export const cleanupResultSchema = z.object({
-  entriesRemoved: z.number().int().nonnegative(),
-  bytesFreed: z.number().nonnegative(),
-  staleEntriesRemoved: z.number().int().nonnegative(),
-  corruptEntriesRemoved: z.number().int().nonnegative(),
-  durationMs: z.number().nonnegative(),
-});
-
-export type CleanupResult = z.infer<typeof cleanupResultSchema>;
-
-// ============================================================================
-// Cache Events for Monitoring
-// ============================================================================
-
-export type CacheEvent =
-  | { type: 'hit'; cacheKey: string; size: number }
-  | { type: 'miss'; cacheKey: string }
-  | { type: 'set'; cacheKey: string; size: number }
-  | { type: 'delete'; cacheKey: string; size: number }
-  | { type: 'eviction'; count: number; bytesFreed: number }
-  | { type: 'cleanup'; count: number; bytesFreed: number }
-  | { type: 'error'; operation: string; error: string };
-
-export type CacheEventListener = (event: CacheEvent) => void;
+/**
+ * Cache index structure (persisted to browser.storage.local)
+ */
+export interface CacheIndex {
+  /** URL-indexed entries: url -> entries[] */
+  urlIndex: Record<string, CacheIndexEntry[]>;
+  /** Total size of all cached audio */
+  totalSize: number;
+  /** Number of entries */
+  entryCount: number;
+  /** Cache hit count */
+  hitCount: number;
+  /** Cache miss count */
+  missCount: number;
+  /** Maximum cache size */
+  maxSize: number;
+  /** Maximum entries */
+  maxEntries: number;
+  /** Last update timestamp */
+  lastUpdated: number;
+  /** Index version for migrations */
+  version: number;
+}

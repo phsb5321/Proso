@@ -40,6 +40,52 @@ if (typeof browser === 'undefined') {
 global.requestAnimationFrame = (callback) => setTimeout(callback, 16);
 global.cancelAnimationFrame = (id) => clearTimeout(id);
 
+// Mock URL.createObjectURL and URL.revokeObjectURL for audio tests
+URL.createObjectURL = jest.fn((blob) => `blob:mock-url-${Math.random()}`);
+URL.revokeObjectURL = jest.fn();
+
+// Mock Audio element for playback tests
+class MockAudio {
+  constructor() {
+    this.src = '';
+    this.currentTime = 0;
+    this.duration = 10;
+    this.playbackRate = 1;
+    this.paused = true;
+    this._listeners = {};
+  }
+
+  play() {
+    this.paused = false;
+    return Promise.resolve();
+  }
+
+  pause() {
+    this.paused = true;
+  }
+
+  addEventListener(event, callback) {
+    if (!this._listeners[event]) {
+      this._listeners[event] = [];
+    }
+    this._listeners[event].push(callback);
+  }
+
+  removeEventListener(event, callback) {
+    if (this._listeners[event]) {
+      this._listeners[event] = this._listeners[event].filter(cb => cb !== callback);
+    }
+  }
+
+  dispatchEvent(event) {
+    if (this._listeners[event.type]) {
+      this._listeners[event.type].forEach(cb => cb(event));
+    }
+  }
+}
+
+global.Audio = MockAudio;
+
 // Mock canvas context for visualizer tests
 HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   fillRect: jest.fn(),

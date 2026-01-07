@@ -234,28 +234,25 @@ export class CacheIndexManager {
    */
   getStats(): CacheStats {
     const now = Date.now();
-    let oldestAge: number | undefined;
-    let newestAge: number | undefined;
+    let oldestEntryAgeMs: number | null = null;
 
     const allEntries = this.getEntriesByAge();
     if (allEntries.length > 0) {
-      oldestAge = now - allEntries[0].lastAccessedAt;
-      newestAge = now - allEntries[allEntries.length - 1].lastAccessedAt;
+      oldestEntryAgeMs = now - allEntries[0].lastAccessedAt;
     }
 
     const totalHits = this.index.hitCount + this.index.missCount;
-    const hitRate = totalHits > 0 ? (this.index.hitCount / totalHits) * 100 : 0;
+    // hitRate is a decimal (0-1) per CacheStats type
+    const hitRate = totalHits > 0 ? this.index.hitCount / totalHits : 0;
 
     return {
       entries: this.index.entryCount,
       totalSize: this.index.totalSize,
       maxSize: this.index.maxSize,
-      sizePercentage: (this.index.totalSize / this.index.maxSize) * 100,
       hitCount: this.index.hitCount,
       missCount: this.index.missCount,
       hitRate,
-      oldestEntryAge: oldestAge,
-      newestEntryAge: newestAge,
+      oldestEntryAgeMs,
     };
   }
 

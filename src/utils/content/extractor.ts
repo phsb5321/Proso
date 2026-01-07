@@ -10,7 +10,7 @@
  * @module utils/content/extractor
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Zod Schemas (Zod-first approach)
@@ -55,7 +55,7 @@ export type DOMMapping = z.infer<typeof domMappingSchema>;
 /**
  * Extraction mode enum
  */
-export const extractionModeSchema = z.enum(['selection', 'article', 'full']);
+export const extractionModeSchema = z.enum(["selection", "article", "full"]);
 export type ExtractionMode = z.infer<typeof extractionModeSchema>;
 
 /**
@@ -87,69 +87,69 @@ export type TextFingerprint = z.infer<typeof textFingerprintSchema>;
 export const UNWANTED_CONFIG: UnwantedConfig = {
   patterns: [
     // Table of contents
-    'toc',
-    'table-of-contents',
-    'contents-list',
+    "toc",
+    "table-of-contents",
+    "contents-list",
     // Info boxes
-    'infobox',
-    'info-box',
-    'sidebar-content',
-    'portable-infobox',
+    "infobox",
+    "info-box",
+    "sidebar-content",
+    "portable-infobox",
     // Navigation
-    'navbox',
-    'nav-box',
-    'navigation-box',
+    "navbox",
+    "nav-box",
+    "navigation-box",
     // Wiki-specific
-    'hatnote',
-    'dablink',
-    'rellink',
-    'reference',
-    'reflist',
-    'citations',
-    'see-also',
-    'external-links',
-    'edit-section',
-    'mw-editsection',
+    "hatnote",
+    "dablink",
+    "rellink",
+    "reference",
+    "reflist",
+    "citations",
+    "see-also",
+    "external-links",
+    "edit-section",
+    "mw-editsection",
     // Fextralife specific
-    'bonfire',
-    'widget',
-    'boss-card',
-    'enemy-card',
-    'item-card',
-    'wiki-table-wrapper',
-    'build-planner',
-    'inline-nav',
-    'related-',
-    'quick-link',
-    'map-marker',
-    'location-card',
+    "bonfire",
+    "widget",
+    "boss-card",
+    "enemy-card",
+    "item-card",
+    "wiki-table-wrapper",
+    "build-planner",
+    "inline-nav",
+    "related-",
+    "quick-link",
+    "map-marker",
+    "location-card",
     // Generic
-    'card',
-    'box',
-    'panel',
-    'aside',
-    'summary',
-    'stat-block',
-    'stats-table',
+    "card",
+    "box",
+    "panel",
+    "aside",
+    "summary",
+    "stat-block",
+    "stats-table",
     // Interactive elements
-    'calculator',
-    'planner',
-    'builder',
-    'tool-',
+    "calculator",
+    "planner",
+    "builder",
+    "tool-",
     // Ad/promo containers
-    'promo',
-    'sponsor',
-    'advertisement',
-    'ad-',
+    "promo",
+    "sponsor",
+    "advertisement",
+    "ad-",
   ],
-  unwantedTags: ['aside', 'figure'],
+  unwantedTags: ["aside", "figure"],
   wikiSelectors: [
-    '#wiki-content-block',
-    '.wiki-content',
-    '#mw-content-text',
-    '.mw-parser-output',
-    '#WikiaArticle',
-    '.page-content',
+    "#wiki-content-block",
+    ".wiki-content",
+    "#mw-content-text",
+    ".mw-parser-output",
+    "#WikiaArticle",
+    ".page-content",
   ],
 };
 
@@ -233,7 +233,7 @@ export function getExtractedParagraphs(): Element[] {
  */
 export function getParagraphTexts(): string[] {
   return extractedParagraphs
-    .map((el) => el.textContent?.trim() || '')
+    .map((el) => el.textContent?.trim() || "")
     .filter((text) => text.length > 0);
 }
 
@@ -251,13 +251,13 @@ export function extractText(mode: ExtractionMode): string {
   console.log(`VoxPage: extractText() called with mode: "${mode}"`);
 
   switch (mode) {
-    case 'selection':
+    case "selection":
       return extractSelection();
-    case 'article':
+    case "article":
       return extractArticle();
-    case 'full':
+    case "full":
     default:
-      console.log('VoxPage: Using full page extraction (consider using article mode)');
+      console.log("VoxPage: Using full page extraction (consider using article mode)");
       return extractFullPage();
   }
 }
@@ -268,7 +268,7 @@ export function extractText(mode: ExtractionMode): string {
 export function extractSelection(): string {
   const selection = window.getSelection();
   if (!selection || !selection.toString().trim()) {
-    return '';
+    return "";
   }
 
   const text = selection.toString();
@@ -286,7 +286,7 @@ export function extractSelection(): string {
     if (containerEl) {
       // If selection is within a single paragraph-like element, use it
       const paragraphParent = containerEl.closest(
-        'p, li, blockquote, h1, h2, h3, h4, h5, h6, div, article, section',
+        "p, li, blockquote, h1, h2, h3, h4, h5, h6, div, article, section",
       );
       if (paragraphParent && paragraphParent.textContent?.includes(text.substring(0, 50))) {
         selectedElements.push(paragraphParent);
@@ -296,7 +296,7 @@ export function extractSelection(): string {
           acceptNode: (node: Node) => {
             const el = node as Element;
             if (
-              ['P', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(el.tagName)
+              ["P", "LI", "BLOCKQUOTE", "H1", "H2", "H3", "H4", "H5", "H6"].includes(el.tagName)
             ) {
               if (selection.containsNode(el, true)) {
                 return NodeFilter.FILTER_ACCEPT;
@@ -332,22 +332,22 @@ export function extractSelection(): string {
  * Falls back to heuristics if Readability fails
  */
 export function extractArticle(): string {
-  console.log('VoxPage: extractArticle() called');
-  console.log('VoxPage: Readability available:', typeof window.Readability);
-  console.log('VoxPage: isProbablyReaderable available:', typeof window.isProbablyReaderable);
+  console.log("VoxPage: extractArticle() called");
+  console.log("VoxPage: Readability available:", typeof window.Readability);
+  console.log("VoxPage: isProbablyReaderable available:", typeof window.isProbablyReaderable);
 
   // Try Mozilla Readability first (best content extraction)
   const readabilityResult = tryReadabilityExtraction();
   if (readabilityResult) {
-    console.log('VoxPage: Used Readability for extraction');
-    console.log('VoxPage: Extracted paragraphs count:', extractedParagraphs.length);
+    console.log("VoxPage: Used Readability for extraction");
+    console.log("VoxPage: Extracted paragraphs count:", extractedParagraphs.length);
     return readabilityResult;
   }
 
   // Fallback to manual heuristics
-  console.log('VoxPage: Readability failed, using heuristic extraction');
+  console.log("VoxPage: Readability failed, using heuristic extraction");
   const result = extractArticleHeuristic();
-  console.log('VoxPage: Heuristic extracted paragraphs count:', extractedParagraphs.length);
+  console.log("VoxPage: Heuristic extracted paragraphs count:", extractedParagraphs.length);
   return result;
 }
 
@@ -356,7 +356,7 @@ export function extractArticle(): string {
  */
 export function extractFullPage(): string {
   const body = document.body;
-  if (!body) return '';
+  if (!body) return "";
 
   const text = extractTextFromElement(body);
   extractedParagraphs = findParagraphElements(body);
@@ -368,7 +368,7 @@ export function extractFullPage(): string {
  */
 export function findBestContentBlock(): Element | null {
   const scorer = getScorer();
-  const candidates = document.querySelectorAll('div, section, article, main');
+  const candidates = document.querySelectorAll("div, section, article, main");
   let bestElement: Element | null = null;
   let bestScore = 0;
 
@@ -395,16 +395,16 @@ export function findContentParagraphs(container: Element): Element[] {
   const seenTexts = new Set<string>();
 
   const candidates = container.querySelectorAll(
-    'p, h1, h2, h3, h4, h5, h6, blockquote, .wiki-paragraph, article p, .content p',
+    "p, h1, h2, h3, h4, h5, h6, blockquote, .wiki-paragraph, article p, .content p",
   );
 
   for (const el of candidates) {
     if (scorer.isInsideUnwantedElement?.(el)) continue;
-    const text = el.textContent?.trim() || '';
+    const text = el.textContent?.trim() || "";
     if (text.length < 30) continue;
     if (scorer.isNavigationText?.(text)) continue;
 
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
+    const linkText = Array.from(el.querySelectorAll("a")).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
       0,
     );
@@ -415,7 +415,7 @@ export function findContentParagraphs(container: Element): Element[] {
     seenTexts.add(normalizedText);
 
     const computedStyle = window.getComputedStyle(el);
-    if (computedStyle.position === 'fixed' || computedStyle.position === 'sticky') continue;
+    if (computedStyle.position === "fixed" || computedStyle.position === "sticky") continue;
 
     paragraphs.push(el);
   }
@@ -426,11 +426,11 @@ export function findContentParagraphs(container: Element): Element[] {
   );
   for (const el of contentLists) {
     if (scorer.isInsideUnwantedElement?.(el)) continue;
-    const text = el.textContent?.trim() || '';
+    const text = el.textContent?.trim() || "";
     if (text.length < 30) continue;
     if (scorer.isNavigationText?.(text)) continue;
 
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
+    const linkText = Array.from(el.querySelectorAll("a")).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
       0,
     );
@@ -452,20 +452,20 @@ export function findContentParagraphs(container: Element): Element[] {
 export function findElementByText(searchText: string): Element | null {
   if (!searchText || searchText.length < 10) return null;
 
-  const normalizedSearch = searchText.toLowerCase().replace(/\s+/g, ' ').trim();
+  const normalizedSearch = searchText.toLowerCase().replace(/\s+/g, " ").trim();
 
   for (const el of extractedParagraphs) {
-    const elText = el.textContent?.toLowerCase().replace(/\s+/g, ' ').trim() || '';
+    const elText = el.textContent?.toLowerCase().replace(/\s+/g, " ").trim() || "";
     if (elText.startsWith(normalizedSearch) || elText.includes(normalizedSearch)) {
       return el;
     }
   }
 
   const blockElements = document.querySelectorAll(
-    'p, h1, h2, h3, h4, h5, h6, li, blockquote, div.content, article p',
+    "p, h1, h2, h3, h4, h5, h6, li, blockquote, div.content, article p",
   );
   for (const el of blockElements) {
-    const elText = el.textContent?.toLowerCase().replace(/\s+/g, ' ').trim() || '';
+    const elText = el.textContent?.toLowerCase().replace(/\s+/g, " ").trim() || "";
     if (elText.startsWith(normalizedSearch) || elText.includes(normalizedSearch)) {
       return el;
     }
@@ -487,16 +487,16 @@ function preFilterDocumentForReadability(docClone: Document): number {
   let removedCount = 0;
 
   // Build comprehensive selector list for unwanted elements
-  const classSelectors = UNWANTED_CONFIG.patterns.map((p) => `[class*="${p}"]`).join(', ');
-  const idSelectors = UNWANTED_CONFIG.patterns.map((p) => `[id*="${p}"]`).join(', ');
-  const tagSelectors = UNWANTED_CONFIG.unwantedTags.join(', ');
+  const classSelectors = UNWANTED_CONFIG.patterns.map((p) => `[class*="${p}"]`).join(", ");
+  const idSelectors = UNWANTED_CONFIG.patterns.map((p) => `[id*="${p}"]`).join(", ");
+  const tagSelectors = UNWANTED_CONFIG.unwantedTags.join(", ");
 
   // Also target specific Fextralife structures
   const fextralifeSelectors = [
-    '.infobox',
-    '.navbox',
-    '.toc',
-    '.sidebar',
+    ".infobox",
+    ".navbox",
+    ".toc",
+    ".sidebar",
     '[class*="card"]',
     '[class*="widget"]',
     '[class*="bonfire"]',
@@ -505,17 +505,17 @@ function preFilterDocumentForReadability(docClone: Document): number {
     '[class*="item-"]',
     '[class*="stat"]',
     '[class*="inline-nav"]',
-    'table:not(.wikitable)', // Most wiki tables are stat tables
-    '.reference',
-    '.reflist',
-    '.external-links',
-    '.see-also',
-  ].join(', ');
+    "table:not(.wikitable)", // Most wiki tables are stat tables
+    ".reference",
+    ".reflist",
+    ".external-links",
+    ".see-also",
+  ].join(", ");
 
   // Combine all selectors
   const combinedSelector = [classSelectors, idSelectors, tagSelectors, fextralifeSelectors]
     .filter((s) => s.length > 0)
-    .join(', ');
+    .join(", ");
 
   try {
     const unwantedElements = docClone.querySelectorAll(combinedSelector);
@@ -526,16 +526,16 @@ function preFilterDocumentForReadability(docClone: Document): number {
     for (const el of unwantedElements) {
       // Don't remove the wiki content container itself
       if (
-        el.id === 'wiki-content-block' ||
-        el.id === 'mw-content-text' ||
-        el.classList.contains('wiki-content') ||
-        el.classList.contains('mw-parser-output')
+        el.id === "wiki-content-block" ||
+        el.id === "mw-content-text" ||
+        el.classList.contains("wiki-content") ||
+        el.classList.contains("mw-parser-output")
       ) {
         continue;
       }
 
       // Check if this is a significant content container (has many paragraphs)
-      const paragraphCount = el.querySelectorAll('p').length;
+      const paragraphCount = el.querySelectorAll("p").length;
       if (paragraphCount > 10) {
         // This might be a main content area, skip it
         console.log(`VoxPage: Skipping removal of element with ${paragraphCount} paragraphs`);
@@ -550,9 +550,9 @@ function preFilterDocumentForReadability(docClone: Document): number {
     }
 
     // Also remove all tables that look like stat tables (less than 3 paragraphs inside)
-    const tables = docClone.querySelectorAll('table');
+    const tables = docClone.querySelectorAll("table");
     for (const table of tables) {
-      const tableParagraphs = table.querySelectorAll('p');
+      const tableParagraphs = table.querySelectorAll("p");
       if (tableParagraphs.length < 3 && table.parentNode) {
         table.parentNode.removeChild(table);
         removedCount++;
@@ -561,7 +561,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
 
     console.log(`VoxPage: Pre-filter removed ${removedCount} unwanted elements`);
   } catch (e) {
-    console.error('VoxPage: Pre-filter error:', e);
+    console.error("VoxPage: Pre-filter error:", e);
   }
 
   return removedCount;
@@ -587,15 +587,15 @@ function sortByDocumentPosition(elements: Element[]): Element[] {
 function tryReadabilityExtraction(): string | null {
   try {
     // Check if Readability is available
-    if (typeof window.Readability !== 'function') {
-      console.log('VoxPage: Readability not available');
+    if (typeof window.Readability !== "function") {
+      console.log("VoxPage: Readability not available");
       return null;
     }
 
     // Check if page is probably readable
-    if (typeof window.isProbablyReaderable === 'function') {
+    if (typeof window.isProbablyReaderable === "function") {
       if (!window.isProbablyReaderable(document)) {
-        console.log('VoxPage: Page not suitable for Readability');
+        console.log("VoxPage: Page not suitable for Readability");
         return null;
       }
     }
@@ -617,30 +617,34 @@ function tryReadabilityExtraction(): string | null {
     const article = reader.parse();
 
     if (!article || !article.textContent || article.textContent.trim().length < 100) {
-      console.log('VoxPage: Readability returned insufficient content');
+      console.log("VoxPage: Readability returned insufficient content");
       return null;
     }
+
+    // Extract the article title for TTS to read first
+    const articleTitle = article.title?.trim() || "";
+    console.log(`VoxPage: Article title: "${articleTitle}"`);
 
     console.log(
       `VoxPage: Readability extracted ${article.textContent.length} chars (after pre-filtering)`,
     );
 
     // Find paragraphs from the parsed content
-    const tempDiv = document.createElement('div');
+    const tempDiv = document.createElement("div");
     // Use DOMParser for safe HTML parsing instead of innerHTML
     const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(article.content, 'text/html');
+    const parsedDoc = parser.parseFromString(article.content, "text/html");
     while (parsedDoc.body.firstChild) {
       tempDiv.appendChild(parsedDoc.body.firstChild);
     }
 
     // Get paragraph elements from parsed content
-    const paragraphElements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
+    const paragraphElements = tempDiv.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote");
     const meaningfulParagraphs: Element[] = [];
     const seenTexts = new Set<string>();
 
     for (const el of paragraphElements) {
-      const text = el.textContent?.trim() || '';
+      const text = el.textContent?.trim() || "";
       if (text.length < 20) continue;
 
       // Deduplicate
@@ -654,25 +658,115 @@ function tryReadabilityExtraction(): string | null {
     // Now find corresponding elements in the actual DOM for highlighting
     extractedParagraphs = findMatchingDOMElements(meaningfulParagraphs);
 
-    console.log(`VoxPage: Found ${extractedParagraphs.length} paragraphs for highlighting`);
+    // Try to find the title element in the DOM for highlighting
+    let titleElement: Element | null = null;
+    const normalizedTitle = articleTitle.toLowerCase().replace(/\s+/g, " ").trim();
+
+    if (articleTitle && normalizedTitle.length > 0) {
+      // Look for h1 first (most common for article titles)
+      const h1Elements = document.querySelectorAll("h1");
+      for (const h1 of h1Elements) {
+        const h1Text = h1.textContent?.toLowerCase().replace(/\s+/g, " ").trim() || "";
+        // Fuzzy match: check if h1 contains the title or vice versa
+        if (
+          h1Text === normalizedTitle ||
+          h1Text.includes(normalizedTitle) ||
+          normalizedTitle.includes(h1Text) ||
+          (h1Text.length > 10 && normalizedTitle.startsWith(h1Text.substring(0, 20)))
+        ) {
+          titleElement = h1;
+          console.log("VoxPage: Found title h1 element:", h1Text.substring(0, 50));
+          break;
+        }
+      }
+
+      // If no h1 match, try other title-like elements
+      if (!titleElement) {
+        const titleSelectors = [
+          "h2",
+          ".title",
+          ".headline",
+          ".article-title",
+          ".post-title",
+          ".entry-title",
+          '[class*="title"]',
+          '[class*="headline"]',
+        ];
+        for (const selector of titleSelectors) {
+          const elements = document.querySelectorAll(selector);
+          for (const el of elements) {
+            const elText = el.textContent?.toLowerCase().replace(/\s+/g, " ").trim() || "";
+            if (
+              elText === normalizedTitle ||
+              elText.includes(normalizedTitle) ||
+              normalizedTitle.includes(elText)
+            ) {
+              titleElement = el;
+              console.log("VoxPage: Found title element via selector:", selector);
+              break;
+            }
+          }
+          if (titleElement) break;
+        }
+      }
+
+      // Prepend title element to extractedParagraphs if found and not already included
+      if (titleElement && !extractedParagraphs.includes(titleElement)) {
+        extractedParagraphs = [titleElement, ...extractedParagraphs];
+        console.log("VoxPage: Prepended title element for highlighting");
+      } else if (!titleElement) {
+        // No DOM element found for title - create a virtual entry by logging
+        // The title text will still be included in the returned text below
+        console.log("VoxPage: Title element not found in DOM, but title text will be read");
+      }
+    }
+
+    console.log(
+      `VoxPage: Found ${extractedParagraphs.length} paragraphs for highlighting (including title)`,
+    );
 
     // Feature 015: Return ONLY the text from matched DOM paragraphs
     // This ensures audio matches exactly what will be highlighted
     if (extractedParagraphs.length > 0) {
-      const filteredText = extractedParagraphs
-        .map((el) => el.textContent?.trim() || '')
+      let filteredText = extractedParagraphs
+        .map((el) => el.textContent?.trim() || "")
         .filter((text) => text.length > 0)
-        .join('\n\n');
+        .join("\n\n");
+
+      // ALWAYS prepend the article title if we have one and it's not already the first paragraph
+      if (articleTitle) {
+        const firstParagraphText =
+          extractedParagraphs[0]?.textContent?.toLowerCase().replace(/\s+/g, " ").trim() || "";
+        const titleNormalized = articleTitle.toLowerCase().replace(/\s+/g, " ").trim();
+
+        // Check if first paragraph already contains/is the title
+        if (
+          !firstParagraphText.includes(titleNormalized) &&
+          !titleNormalized.includes(firstParagraphText)
+        ) {
+          filteredText = `${articleTitle}\n\n${filteredText}`;
+          console.log("VoxPage: Prepended title text to output:", articleTitle.substring(0, 50));
+        } else {
+          console.log("VoxPage: Title already present in first paragraph");
+        }
+      }
+
       console.log(
         `VoxPage: Returning filtered text (${filteredText.length} chars) from ${extractedParagraphs.length} matched paragraphs`,
       );
       return filteredText;
     }
 
-    // Fallback to article textContent if no paragraphs matched
+    // Fallback: prepend title to article textContent if we have a title
+    if (articleTitle) {
+      console.log("VoxPage: Using fallback with title prepended");
+      return `${articleTitle}\n\n${article.textContent}`;
+    }
+
+    // Final fallback to article textContent if no paragraphs matched
     return article.textContent;
   } catch (e) {
-    console.error('VoxPage: Readability extraction failed:', e);
+    console.error("VoxPage: Readability extraction failed:", e);
     return null;
   }
 }
@@ -682,11 +776,11 @@ function tryReadabilityExtraction(): string | null {
  * Normalizes text to handle differences between Readability output and live DOM
  */
 function createTextFingerprint(text: string): string {
-  if (!text) return '';
+  if (!text) return "";
   return text
     .toLowerCase()
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .replace(/[^\w\s]/g, "") // Remove punctuation
     .trim()
     .substring(0, 50); // Use first 50 chars for comparison
 }
@@ -736,29 +830,29 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   // Build comprehensive selector list including wiki-specific patterns
   const selectors = [
     // Wiki-specific selectors (Fextralife, Wikipedia, Fandom)
-    '#wiki-content-block p',
-    '.wiki-content p',
-    '#WikiaArticle p',
-    '#mw-content-text p',
-    '.mw-parser-output p',
-    '.page-content p',
+    "#wiki-content-block p",
+    ".wiki-content p",
+    "#WikiaArticle p",
+    "#mw-content-text p",
+    ".mw-parser-output p",
+    ".page-content p",
     // Standard paragraph selectors
-    'article p',
-    'main p',
+    "article p",
+    "main p",
     '[role="main"] p',
-    '.article-content p',
-    '.entry-content p',
-    '.post-content p',
+    ".article-content p",
+    ".entry-content p",
+    ".post-content p",
     // Headings
-    'h1',
-    'h2',
-    'h3',
-    'h4',
-    'h5',
-    'h6',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
     // Other content elements
-    'blockquote',
-    'li',
+    "blockquote",
+    "li",
   ];
 
   // Get DOM paragraphs, preferring wiki container if found
@@ -777,7 +871,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   // Fallback: get all paragraph-like elements
   if (domParagraphs.length === 0) {
     domParagraphs = Array.from(
-      document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote'),
+      document.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, blockquote"),
     );
   }
 
@@ -801,7 +895,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   // Build a map of fingerprint -> all matching DOM elements
   const fingerprintToElements = new Map<string, Element[]>();
   for (const domEl of filteredDomParagraphs) {
-    const domText = domEl.textContent?.trim() || '';
+    const domText = domEl.textContent?.trim() || "";
     if (domText.length < 20) continue;
 
     const fingerprint = createTextFingerprint(domText);
@@ -813,7 +907,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
 
   // Match extracted elements to DOM using fuzzy text matching
   for (const extractedEl of extractedEls) {
-    const targetText = extractedEl.textContent?.trim() || '';
+    const targetText = extractedEl.textContent?.trim() || "";
     if (targetText.length < 20) continue;
 
     const targetFingerprint = createTextFingerprint(targetText);
@@ -827,7 +921,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
       const candidates = fingerprintToElements.get(targetFingerprint)!;
       // If multiple matches, prefer ones not already used
       for (const candidate of candidates) {
-        const candidateFp = createTextFingerprint(candidate.textContent?.trim() || '');
+        const candidateFp = createTextFingerprint(candidate.textContent?.trim() || "");
         if (!seenFingerprints.has(candidateFp)) {
           bestMatch = candidate;
           break;
@@ -838,7 +932,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     // Fall back to fuzzy matching if no exact match
     if (!bestMatch) {
       for (const domEl of filteredDomParagraphs) {
-        const domText = domEl.textContent?.trim() || '';
+        const domText = domEl.textContent?.trim() || "";
         if (domText.length < 20) continue;
 
         const domFingerprint = createTextFingerprint(domText);
@@ -852,7 +946,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     }
 
     if (bestMatch) {
-      const domFingerprint = createTextFingerprint(bestMatch.textContent?.trim() || '');
+      const domFingerprint = createTextFingerprint(bestMatch.textContent?.trim() || "");
       seenFingerprints.add(domFingerprint);
       seenFingerprints.add(targetFingerprint);
       matchedElements.push(bestMatch);
@@ -861,7 +955,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
 
   // If matching failed, fall back to direct DOM extraction
   if (matchedElements.length === 0 && extractedEls.length > 0) {
-    console.log('VoxPage: Readability matching failed, using direct DOM extraction');
+    console.log("VoxPage: Readability matching failed, using direct DOM extraction");
     return extractParagraphsDirectlyFromDOM();
   }
 
@@ -887,19 +981,19 @@ function findWikiContentContainer(): Element | null {
   // Priority-ordered wiki selectors
   const wikiContainerSelectors = [
     // Fextralife
-    '#wiki-content-block',
-    '.wiki-content',
+    "#wiki-content-block",
+    ".wiki-content",
     // Wikipedia / MediaWiki
-    '#mw-content-text',
-    '.mw-parser-output',
-    '#bodyContent',
+    "#mw-content-text",
+    ".mw-parser-output",
+    "#bodyContent",
     // Fandom
-    '#WikiaArticle',
-    '.page-content',
-    '#content-wrapper',
+    "#WikiaArticle",
+    ".page-content",
+    "#content-wrapper",
     // Generic wiki patterns
-    '.wiki-article',
-    '.article-content',
+    ".wiki-article",
+    ".article-content",
   ];
 
   for (const selector of wikiContainerSelectors) {
@@ -922,68 +1016,68 @@ function isInsideUnwantedSubContainer(el: Element, contentContainer: Element): b
   // Patterns for sub-containers within content that should be skipped
   const unwantedSubPatterns = [
     // Table of contents
-    'toc',
-    'table-of-contents',
-    'contents-list',
+    "toc",
+    "table-of-contents",
+    "contents-list",
     // Info boxes / cards (generic)
-    'infobox',
-    'info-box',
-    'sidebar-content',
-    'portable-infobox',
+    "infobox",
+    "info-box",
+    "sidebar-content",
+    "portable-infobox",
     // Navigation boxes
-    'navbox',
-    'nav-box',
-    'navigation-box',
+    "navbox",
+    "nav-box",
+    "navigation-box",
     // Wikipedia/MediaWiki specific
-    'hatnote',
-    'dablink',
-    'rellink',
-    'reference',
-    'reflist',
-    'citations',
-    'see-also',
-    'external-links',
-    'edit-section',
-    'mw-editsection',
+    "hatnote",
+    "dablink",
+    "rellink",
+    "reference",
+    "reflist",
+    "citations",
+    "see-also",
+    "external-links",
+    "edit-section",
+    "mw-editsection",
     // Fextralife wiki specific
-    'bonfire',
-    'widget',
-    'boss-card',
-    'enemy-card',
-    'item-card',
-    'wiki-table-wrapper',
-    'build-planner',
-    'inline-nav',
-    'related-',
-    'quick-link',
-    'map-marker',
-    'location-card',
+    "bonfire",
+    "widget",
+    "boss-card",
+    "enemy-card",
+    "item-card",
+    "wiki-table-wrapper",
+    "build-planner",
+    "inline-nav",
+    "related-",
+    "quick-link",
+    "map-marker",
+    "location-card",
     // General card/box patterns
-    'card',
-    'box',
-    'panel',
-    'aside',
-    'summary',
-    'stat-block',
-    'stats-table',
+    "card",
+    "box",
+    "panel",
+    "aside",
+    "summary",
+    "stat-block",
+    "stats-table",
     // Interactive elements
-    'calculator',
-    'planner',
-    'builder',
-    'tool-',
+    "calculator",
+    "planner",
+    "builder",
+    "tool-",
     // Ad/promo containers
-    'promo',
-    'sponsor',
-    'advertisement',
-    'ad-',
+    "promo",
+    "sponsor",
+    "advertisement",
+    "ad-",
   ];
 
   // Check if element is inside a table (often used for stat boxes on wikis)
-  const table = el.closest('table');
+  const table = el.closest("table");
   if (table && table !== el) {
     // Tables in wiki content are usually stat/info boxes, not article text
     // Exception: tables that are part of article content (very large with p tags)
-    const tableParagraphs = table.querySelectorAll('p');
+    const tableParagraphs = table.querySelectorAll("p");
     if (tableParagraphs.length < 3) {
       return true; // Likely a stat/info table, not content
     }
@@ -991,7 +1085,7 @@ function isInsideUnwantedSubContainer(el: Element, contentContainer: Element): b
 
   let parent: Element | null = el.parentElement;
   while (parent && parent !== contentContainer && parent !== document.body) {
-    const classId = ((parent.className as string) || '' + ' ' + (parent.id || '')).toLowerCase();
+    const classId = ((parent.className as string) || "" + " " + (parent.id || "")).toLowerCase();
 
     for (const pattern of unwantedSubPatterns) {
       if (classId.includes(pattern)) {
@@ -1001,7 +1095,7 @@ function isInsideUnwantedSubContainer(el: Element, contentContainer: Element): b
 
     // Check for common card/widget tag structures
     const tagName = parent.tagName.toLowerCase();
-    if (tagName === 'aside' || tagName === 'figure') {
+    if (tagName === "aside" || tagName === "figure") {
       return true;
     }
 
@@ -1023,21 +1117,21 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
   const wikiContainer = findWikiContentContainer();
   const container =
     wikiContainer ||
-    document.querySelector('article') ||
-    document.querySelector('main') ||
+    document.querySelector("article") ||
+    document.querySelector("main") ||
     document.querySelector('[role="main"]') ||
     document.body;
 
   // Track if we found a known content container (skip aggressive filtering if so)
   const isKnownContentContainer =
-    !!wikiContainer || container.tagName === 'ARTICLE' || container.tagName === 'MAIN';
+    !!wikiContainer || container.tagName === "ARTICLE" || container.tagName === "MAIN";
 
   console.log(
-    `VoxPage: Direct extraction from container: ${container.tagName}${container.id ? '#' + container.id : ''} (known: ${isKnownContentContainer})`,
+    `VoxPage: Direct extraction from container: ${container.tagName}${container.id ? "#" + container.id : ""} (known: ${isKnownContentContainer})`,
   );
 
   // Get all paragraph-like elements
-  const candidates = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote');
+  const candidates = container.querySelectorAll("p, h1, h2, h3, h4, h5, h6, blockquote");
 
   console.log(`VoxPage: Found ${candidates.length} candidate elements`);
 
@@ -1050,7 +1144,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
       if (scorer.isInsideUnwantedElement?.(el)) continue;
     }
 
-    const text = el.textContent?.trim() || '';
+    const text = el.textContent?.trim() || "";
 
     // Minimum length check
     if (text.length < 30) continue;
@@ -1059,7 +1153,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     if (!isKnownContentContainer && scorer.isNavigationText?.(text)) continue;
 
     // Skip high link density (navigation) - more lenient threshold for known content
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
+    const linkText = Array.from(el.querySelectorAll("a")).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
       0,
     );
@@ -1069,7 +1163,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     // Skip fixed/sticky elements
     try {
       const style = window.getComputedStyle(el);
-      if (style.position === 'fixed' || style.position === 'sticky') continue;
+      if (style.position === "fixed" || style.position === "sticky") continue;
     } catch (e) {
       // Ignore styling errors
     }
@@ -1083,7 +1177,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
   }
 
   // Also check for content in list items (common in wikis)
-  const listItems = container.querySelectorAll('li');
+  const listItems = container.querySelectorAll("li");
   for (const el of listItems) {
     if (isKnownContentContainer) {
       if (isInsideUnwantedSubContainer(el, container)) continue;
@@ -1091,11 +1185,11 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
       if (scorer.isInsideUnwantedElement?.(el)) continue;
     }
 
-    const text = el.textContent?.trim() || '';
+    const text = el.textContent?.trim() || "";
     if (text.length < 30) continue;
     if (!isKnownContentContainer && scorer.isNavigationText?.(text)) continue;
 
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
+    const linkText = Array.from(el.querySelectorAll("a")).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
       0,
     );
@@ -1121,34 +1215,34 @@ function extractArticleHeuristic(): string {
 
   // Priority 1: Wiki-specific selectors
   const wikiSelectors = [
-    '#wiki-content-block',
-    '.wiki-content',
-    '#WikiaArticle',
-    '#mw-content-text',
-    '.mw-parser-output',
-    '#bodyContent',
-    '.page-content',
-    '#content-wrapper',
+    "#wiki-content-block",
+    ".wiki-content",
+    "#WikiaArticle",
+    "#mw-content-text",
+    ".mw-parser-output",
+    "#bodyContent",
+    ".page-content",
+    "#content-wrapper",
   ];
 
   // Priority 2: Standard article selectors
   const articleSelectors = [
     'article[role="main"]',
-    'main article',
+    "main article",
     '[role="main"] article',
-    'article.post',
-    'article.entry',
-    '.post-content',
-    '.article-content',
-    '.article-body',
-    '.entry-content',
-    '.story-body',
-    '.markdown-body',
-    '.prose',
+    "article.post",
+    "article.entry",
+    ".post-content",
+    ".article-content",
+    ".article-body",
+    ".entry-content",
+    ".story-body",
+    ".markdown-body",
+    ".prose",
   ];
 
   // Priority 3: Generic content containers
-  const genericSelectors = ['[role="main"]', 'main', '#main-content', '#content', '.content-area'];
+  const genericSelectors = ['[role="main"]', "main", "#main-content", "#content", ".content-area"];
 
   let articleElement: Element | null = null;
 
@@ -1205,66 +1299,66 @@ function extractCleanTextFromElement(element: Element): string {
   const clone = element.cloneNode(true) as Element;
 
   const unwantedSelectors = [
-    'script',
-    'style',
-    'noscript',
-    'iframe',
-    'svg',
-    'canvas',
-    'nav',
-    'header',
-    'footer',
-    'aside',
-    '.nav',
-    '.navigation',
-    '.menu',
-    '.sidebar',
-    '.footer',
-    '.header',
-    '.advertisement',
-    '.ad',
-    '.ads',
-    '.adsbygoogle',
-    '.social-share',
-    '.comments',
-    '#comments',
-    '.comment-section',
-    '.disqus',
-    '.related',
-    '.related-posts',
-    '.recommended',
+    "script",
+    "style",
+    "noscript",
+    "iframe",
+    "svg",
+    "canvas",
+    "nav",
+    "header",
+    "footer",
+    "aside",
+    ".nav",
+    ".navigation",
+    ".menu",
+    ".sidebar",
+    ".footer",
+    ".header",
+    ".advertisement",
+    ".ad",
+    ".ads",
+    ".adsbygoogle",
+    ".social-share",
+    ".comments",
+    "#comments",
+    ".comment-section",
+    ".disqus",
+    ".related",
+    ".related-posts",
+    ".recommended",
     '[role="navigation"]',
     '[role="banner"]',
     '[role="complementary"]',
-    '.hidden',
-    '[hidden]',
+    ".hidden",
+    "[hidden]",
     '[aria-hidden="true"]',
-    '.toc',
-    '.table-of-contents',
-    '#toc',
-    '.infobox',
-    '.infobox-wrapper',
-    '.navbox',
-    '.navbox-wrapper',
-    '.mw-editsection',
-    '.reference',
-    '.references',
-    'form',
-    'input',
-    'button',
-    'select',
-    'textarea',
-    '.breadcrumb',
-    '.breadcrumbs',
-    '.pagination',
-    '.author-bio',
-    '.author-box',
-    '.share-buttons',
-    '.social-buttons',
-    '.newsletter',
-    '.subscribe',
-    '.popup',
-    '.modal',
+    ".toc",
+    ".table-of-contents",
+    "#toc",
+    ".infobox",
+    ".infobox-wrapper",
+    ".navbox",
+    ".navbox-wrapper",
+    ".mw-editsection",
+    ".reference",
+    ".references",
+    "form",
+    "input",
+    "button",
+    "select",
+    "textarea",
+    ".breadcrumb",
+    ".breadcrumbs",
+    ".pagination",
+    ".author-bio",
+    ".author-box",
+    ".share-buttons",
+    ".social-buttons",
+    ".newsletter",
+    ".subscribe",
+    ".popup",
+    ".modal",
     '[class*="cookie"]',
     '[id*="cookie"]',
     '[class*="banner"]',
@@ -1285,16 +1379,16 @@ function extractCleanTextFromElement(element: Element): string {
       const parent = node.parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
       const style = window.getComputedStyle(parent);
-      if (style.display === 'none' || style.visibility === 'hidden') {
+      if (style.display === "none" || style.visibility === "hidden") {
         return NodeFilter.FILTER_REJECT;
       }
-      const text = node.textContent?.trim() || '';
+      const text = node.textContent?.trim() || "";
       if (!text || text.length < 2) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
 
-  let currentBlock = '';
+  let currentBlock = "";
   let lastParent: Element | null = null;
 
   while (walker.nextNode()) {
@@ -1305,10 +1399,10 @@ function extractCleanTextFromElement(element: Element): string {
 
     if (isNewBlock && currentBlock.trim()) {
       texts.push(currentBlock.trim());
-      currentBlock = '';
+      currentBlock = "";
     }
 
-    currentBlock += (node.textContent || '') + ' ';
+    currentBlock += (node.textContent || "") + " ";
     lastParent = parent;
   }
 
@@ -1324,7 +1418,7 @@ function extractCleanTextFromElement(element: Element): string {
     return true;
   });
 
-  return filteredTexts.join('\n\n');
+  return filteredTexts.join("\n\n");
 }
 
 /**
@@ -1335,33 +1429,33 @@ function extractTextFromElement(element: Element): string {
   const clone = element.cloneNode(true) as Element;
 
   const unwantedSelectors = [
-    'script',
-    'style',
-    'noscript',
-    'iframe',
-    'svg',
-    'nav',
-    'header',
-    'footer',
-    'aside',
-    '.nav',
-    '.navigation',
-    '.menu',
-    '.sidebar',
-    '.footer',
-    '.header',
-    '.advertisement',
-    '.ad',
-    '.ads',
-    '.social-share',
-    '.comments',
-    '#comments',
-    '.comment-section',
+    "script",
+    "style",
+    "noscript",
+    "iframe",
+    "svg",
+    "nav",
+    "header",
+    "footer",
+    "aside",
+    ".nav",
+    ".navigation",
+    ".menu",
+    ".sidebar",
+    ".footer",
+    ".header",
+    ".advertisement",
+    ".ad",
+    ".ads",
+    ".social-share",
+    ".comments",
+    "#comments",
+    ".comment-section",
     '[role="navigation"]',
     '[role="banner"]',
     '[role="complementary"]',
-    '.hidden',
-    '[hidden]',
+    ".hidden",
+    "[hidden]",
     '[aria-hidden="true"]',
   ];
 
@@ -1375,7 +1469,7 @@ function extractTextFromElement(element: Element): string {
       const parent = node.parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
       const style = window.getComputedStyle(parent);
-      if (style.display === 'none' || style.visibility === 'hidden') {
+      if (style.display === "none" || style.visibility === "hidden") {
         return NodeFilter.FILTER_REJECT;
       }
       if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
@@ -1383,7 +1477,7 @@ function extractTextFromElement(element: Element): string {
     },
   });
 
-  let currentBlock = '';
+  let currentBlock = "";
 
   while (walker.nextNode()) {
     const node = walker.currentNode;
@@ -1392,17 +1486,17 @@ function extractTextFromElement(element: Element): string {
 
     if (isBlock && currentBlock) {
       texts.push(currentBlock.trim());
-      currentBlock = '';
+      currentBlock = "";
     }
 
-    currentBlock += (node.textContent || '') + ' ';
+    currentBlock += (node.textContent || "") + " ";
   }
 
   if (currentBlock.trim()) {
     texts.push(currentBlock.trim());
   }
 
-  return texts.join('\n\n');
+  return texts.join("\n\n");
 }
 
 /**
@@ -1415,11 +1509,11 @@ function findParagraphElements(container: Element): Element[] {
     acceptNode: (node: Node) => {
       const el = node as Element;
       if (scorer.isBlockElement?.(el) && (el.textContent?.trim().length || 0) > 20) {
-        const nestedBlocks = el.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li');
+        const nestedBlocks = el.querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li");
         const hasNestedContent = Array.from(nestedBlocks).some(
           (b) => (b.textContent?.trim().length || 0) > 50,
         );
-        if (!hasNestedContent || el.tagName === 'P' || el.tagName === 'LI') {
+        if (!hasNestedContent || el.tagName === "P" || el.tagName === "LI") {
           return NodeFilter.FILTER_ACCEPT;
         }
       }
@@ -1448,4 +1542,4 @@ export function splitTextIntoParagraphs(text: string): string[] {
 // Console Log
 // ============================================================================
 
-console.log('VoxPage: utils/content/extractor.ts loaded');
+console.log("VoxPage: utils/content/extractor.ts loaded");

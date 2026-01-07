@@ -17,7 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 5;
+export const CURRENT_CONFIG_VERSION = 6;
 
 /**
  * Valid Groq Orpheus voice IDs (as of Jan 2025)
@@ -202,6 +202,45 @@ export const migrations: Migration[] = [
       if (Object.keys(updates).length > 0) {
         await save(updates);
         console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 6,
+    key: 'pdfSettings',
+    description: 'Add PDF reading support settings (033-pdf-reading-support)',
+    /**
+     * Add PDF settings and history with defaults
+     * No data loss risk - only adds new storage keys
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add pdfSettings if not present
+      if ((stored as Record<string, unknown>).pdfSettings === undefined) {
+        updates.pdfSettings = {
+          ocrEnabled: true,
+          autoDetectScanned: true,
+          headerFooterSkip: true,
+          columnDetectionEnabled: true,
+          prefetchPages: 3,
+        };
+      }
+
+      // Add pdfHistory if not present
+      if ((stored as Record<string, unknown>).pdfHistory === undefined) {
+        updates.pdfHistory = {
+          items: [],
+          maxItems: 100,
+        };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added PDF reading support settings:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 

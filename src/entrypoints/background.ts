@@ -22,12 +22,239 @@ import { ocrHandlers } from '../utils/messaging/handlers/ocr';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
 
+// TTS Providers (multi-provider support)
+import { OpenAIProvider } from '../utils/providers/openai';
+import { GroqProvider } from '../utils/providers/groq';
+import { CartesiaProvider } from '../utils/providers/cartesia';
+
 // Smart Audio Cache (028-smart-audio-cache)
 import { getCacheStore, generateContentHash, generateCacheKey, estimateCost } from '../utils/cache';
 import type { CachedAudioEntry, WordTimelineItem } from '../utils/cache';
 
 // Playback Queue and Prefetch Service (028-smart-audio-cache User Story 3)
 import { playbackQueue, prefetchService } from '../utils/playback';
+
+// Hexagonal Architecture (034-hexagonal-architecture)
+import {
+  initHexagonalArchitecture,
+  dispatchToHexagonal,
+  logLegacyDispatch,
+} from '../background/init-hexagonal';
+
+// ============================================
+// Strangler Fig Pattern: Hexagonal Migration
+// ============================================
+
+/**
+ * Maps legacy message types to hexagonal handler names.
+ * Used during migration to route messages through the new architecture.
+ * Once a mapping exists, messages are tried via hex first, then legacy fallback.
+ */
+const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
+  // Phase 2: Playback handlers (T025)
+  startPlayback: 'playback.start',
+  pausePlayback: 'playback.pause',
+  resumePlayback: 'playback.resume',
+  stopPlayback: 'playback.stop',
+  seekToPosition: 'playback.seekToParagraph',
+  nextParagraph: 'playback.next',
+  previousParagraph: 'playback.previous',
+  getPlaybackState: 'playback.getState',
+  setSpeed: 'playback.setSpeed',
+  jumpToParagraph: 'playback.seekToParagraph',
+
+  // Phase 3: Audio/Provider handlers (T035)
+  getVoices: 'audio.getVoices',
+  setVoice: 'audio.setVoice',
+  testApiKey: 'audio.validateCredentials',
+  testElevenLabsKey: 'audio.validateCredentials',
+  'audio.generate': 'audio.generate',
+  'provider.select': 'provider.select',
+  'provider.getList': 'provider.getList',
+  validateLanguageSupport: 'provider.validateLanguage',
+
+  // Phase 4: Settings/Footer handlers (T045)
+  'settings.get': 'settings.get',
+  'settings.update': 'settings.update',
+  'settings.migrate': 'settings.migrate',
+  'settings.testApiKey': 'settings.testApiKey',
+  'settings.getTheme': 'settings.getTheme',
+  'settings.setTheme': 'settings.setTheme',
+  updateSettings: 'settings.update',
+  FOOTER_ACTION: 'footer.action',
+  FOOTER_SHOW: 'footer.show',
+  FOOTER_HIDE: 'footer.hide',
+  FOOTER_STATE_UPDATE: 'footer.stateUpdate',
+  FOOTER_VISIBILITY_CHANGED: 'footer.visibilityChanged',
+  FOOTER_POSITION_CHANGED: 'footer.positionChanged',
+
+  // Phase 5: Cache/Prefetch handlers (T054)
+  getCachedParagraphs: 'cache.getCachedParagraphs',
+  'cost.estimate': 'cost.estimate',
+  'cache.getStats': 'cache.getStats',
+  'cache.clear': 'cache.clear',
+  'cache.check': 'cache.check',
+  'cache.get': 'cache.get',
+  'cache.evict': 'cache.evict',
+  'prefetch.start': 'prefetch.start',
+  'prefetch.stop': 'prefetch.stop',
+  'prefetch.getStatus': 'prefetch.getStatus',
+  'prefetch.clearBuffer': 'prefetch.clearBuffer',
+
+  // Phase 6: PDF handlers (T066)
+  'pdf.detected': 'pdf.detected',
+  'pdf.extract': 'pdf.extract',
+  'pdf.ocr': 'pdf.ocr',
+  'pdf.getState': 'pdf.getState',
+  'pdf.saveState': 'pdf.saveState',
+  'pdf.play': 'pdf.play',
+  'pdf.seek': 'pdf.seek',
+  'pdf.highlight': 'pdf.highlight',
+  'pdf.scrollToPage': 'pdf.scrollToPage',
+
+  // Phase 6: Queue handlers (T066)
+  'queue.add': 'queue.add',
+  'queue.remove': 'queue.remove',
+  'queue.reorder': 'queue.reorder',
+  'queue.updateStatus': 'queue.updateStatus',
+  'queue.updateProgress': 'queue.updateProgress',
+  'queue.clear': 'queue.clear',
+  'queue.getState': 'queue.getState',
+  'queue.getItem': 'queue.getItem',
+  'queue.play': 'queue.play',
+  'queue.playNext': 'queue.playNext',
+  'queue.playPrevious': 'queue.playPrevious',
+
+  // Debug handlers
+  'hexagonal.getStatus': 'hexagonal.getStatus',
+  'hexagonal.getDispatchStats': 'hexagonal.getDispatchStats',
+};
+
+/**
+ * Feature flags for per-domain rollback capability.
+ * Set via browser.storage.local.set({ USE_LEGACY_PLAYBACK: true }) to disable hex handlers.
+ * Loaded on startup from storage and can be changed at runtime.
+ */
+interface MigrationFlags {
+  USE_LEGACY_PLAYBACK: boolean;
+  USE_LEGACY_AUDIO: boolean;
+  USE_LEGACY_SETTINGS: boolean;
+  USE_LEGACY_CACHE: boolean;
+  USE_LEGACY_PDF: boolean;
+  USE_LEGACY_QUEUE: boolean;
+}
+
+const MIGRATION_FLAGS: MigrationFlags = {
+  USE_LEGACY_PLAYBACK: false,
+  USE_LEGACY_AUDIO: false,
+  USE_LEGACY_SETTINGS: false,
+  USE_LEGACY_CACHE: false,
+  USE_LEGACY_PDF: false,
+  USE_LEGACY_QUEUE: false,
+};
+
+/**
+ * Check if a message type should use legacy handlers based on feature flags.
+ */
+function shouldUseLegacy(messageType: string): boolean {
+  // Map message types to their feature flag domain
+  if (
+    messageType.startsWith('playback.') ||
+    [
+      'startPlayback',
+      'pausePlayback',
+      'resumePlayback',
+      'stopPlayback',
+      'seekToPosition',
+      'nextParagraph',
+      'previousParagraph',
+      'getPlaybackState',
+      'setSpeed',
+      'jumpToParagraph',
+    ].includes(messageType)
+  ) {
+    return MIGRATION_FLAGS.USE_LEGACY_PLAYBACK;
+  }
+  if (
+    messageType.startsWith('audio.') ||
+    messageType.startsWith('provider.') ||
+    [
+      'getVoices',
+      'setVoice',
+      'testApiKey',
+      'testElevenLabsKey',
+      'validateLanguageSupport',
+    ].includes(messageType)
+  ) {
+    return MIGRATION_FLAGS.USE_LEGACY_AUDIO;
+  }
+  if (
+    messageType.startsWith('settings.') ||
+    messageType.startsWith('FOOTER_') ||
+    messageType.startsWith('footer.') ||
+    messageType === 'updateSettings'
+  ) {
+    return MIGRATION_FLAGS.USE_LEGACY_SETTINGS;
+  }
+  if (
+    messageType.startsWith('cache.') ||
+    messageType.startsWith('prefetch.') ||
+    messageType.startsWith('cost.') ||
+    messageType === 'getCachedParagraphs'
+  ) {
+    return MIGRATION_FLAGS.USE_LEGACY_CACHE;
+  }
+  if (messageType.startsWith('pdf.')) {
+    return MIGRATION_FLAGS.USE_LEGACY_PDF;
+  }
+  if (messageType.startsWith('queue.')) {
+    return MIGRATION_FLAGS.USE_LEGACY_QUEUE;
+  }
+  return false;
+}
+
+/**
+ * Load migration flags from storage.
+ */
+async function loadMigrationFlags(): Promise<void> {
+  try {
+    const stored = await browser.storage.local.get([
+      'USE_LEGACY_PLAYBACK',
+      'USE_LEGACY_AUDIO',
+      'USE_LEGACY_SETTINGS',
+      'USE_LEGACY_CACHE',
+      'USE_LEGACY_PDF',
+      'USE_LEGACY_QUEUE',
+    ]);
+
+    if (typeof stored.USE_LEGACY_PLAYBACK === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_PLAYBACK = stored.USE_LEGACY_PLAYBACK;
+    }
+    if (typeof stored.USE_LEGACY_AUDIO === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_AUDIO = stored.USE_LEGACY_AUDIO;
+    }
+    if (typeof stored.USE_LEGACY_SETTINGS === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_SETTINGS = stored.USE_LEGACY_SETTINGS;
+    }
+    if (typeof stored.USE_LEGACY_CACHE === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_CACHE = stored.USE_LEGACY_CACHE;
+    }
+    if (typeof stored.USE_LEGACY_PDF === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_PDF = stored.USE_LEGACY_PDF;
+    }
+    if (typeof stored.USE_LEGACY_QUEUE === 'boolean') {
+      MIGRATION_FLAGS.USE_LEGACY_QUEUE = stored.USE_LEGACY_QUEUE;
+    }
+
+    console.log('[Background] Migration flags loaded:', MIGRATION_FLAGS);
+  } catch (error) {
+    console.warn('[Background] Failed to load migration flags:', error);
+  }
+}
+
+// Track if hexagonal architecture is initialized
+// eslint-disable-next-line prefer-const
+let hexagonalInitialized = false;
 
 // ============================================
 // State Management
@@ -261,15 +488,15 @@ function configurePrefetchService(): void {
     const text = paragraphs[index];
     if (!text) return false;
 
-    const contentHash = generateContentHash(text);
+    const contentHash = await generateContentHash(text);
     const cacheKey = generateCacheKey(
       currentPageUrl,
       index,
-      contentHash,
       playbackState.provider,
       voiceId,
+      contentHash,
     );
-    return await cacheStore.has(cacheKey);
+    return cacheStore.has(cacheKey);
   };
 
   // Initialize playback queue with paragraphs
@@ -614,6 +841,13 @@ async function updateFooterProgress(): Promise<void> {
  */
 function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
   return new Promise((resolve) => {
+    // Validate audio URL before attempting to play
+    if (!audioUrl || audioUrl.trim() === '') {
+      console.error('[Background] Invalid audio URL: empty or undefined');
+      resolve(false);
+      return;
+    }
+
     // Check if playback was stopped/paused before starting
     if (playbackState.status !== 'playing') {
       console.log('[Background] Audio playback cancelled - status is', playbackState.status);
@@ -751,6 +985,10 @@ async function speakCurrentParagraph(): Promise<void> {
 
   let success = false;
 
+  // Log the provider being used
+  console.log('[Background] Using provider:', playbackState.provider, '| reason: user selection');
+
+  // Provider routing - use the selected provider
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
     let audioResult: { audioUrl: string; wordTimings: WordTiming[] } | null = null;
     let shouldStoreToCache = false;
@@ -865,7 +1103,13 @@ async function speakCurrentParagraph(): Promise<void> {
       startPrefetching(); // Use modular prefetch service
       prefetchUpcomingAudio(); // Also run legacy prefetch for backward compatibility
 
-      success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
+      // Guard against empty audio URLs
+      if (!audioResult.audioUrl || audioResult.audioUrl.trim() === '') {
+        console.error('[Background] Empty audio URL in audioResult, skipping playback');
+        success = false;
+      } else {
+        success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
+      }
 
       // T024: Store to persistent cache after successful playback
       if (shouldStoreToCache && generatedAudioData && currentPageUrl) {
@@ -890,9 +1134,105 @@ async function speakCurrentParagraph(): Promise<void> {
     } else {
       console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
     }
+  } else if (playbackState.provider === 'openai' && apiKeys.openaiApiKey) {
+    // OpenAI TTS provider
+    console.log('[Background] Generating audio with OpenAI');
+    try {
+      const openaiProvider = new OpenAIProvider();
+      openaiProvider.setApiKey(apiKeys.openaiApiKey);
+
+      const response = await openaiProvider.generateAudio({
+        text,
+        voice: playbackState.voice,
+        speed: playbackState.speed,
+      });
+
+      // Convert Blob to URL
+      const audioUrl = URL.createObjectURL(response.audioData);
+
+      if (audioUrl && audioUrl.trim() !== '') {
+        success = await playAudioInBackground(audioUrl, playbackState.speed);
+      }
+
+      if (!success) {
+        console.warn('[Background] OpenAI playback failed');
+      }
+    } catch (error) {
+      console.error('[Background] OpenAI TTS error:', error);
+    }
+  } else if (playbackState.provider === 'groq' && apiKeys.groqApiKey) {
+    // Groq TTS provider
+    console.log('[Background] Generating audio with Groq');
+    try {
+      const groqProvider = new GroqProvider();
+      groqProvider.setApiKey(apiKeys.groqApiKey);
+
+      const response = await groqProvider.generateAudio({
+        text,
+        voice: playbackState.voice,
+        speed: playbackState.speed,
+      });
+
+      // Convert Blob to URL
+      const audioUrl = URL.createObjectURL(response.audioData);
+
+      if (audioUrl && audioUrl.trim() !== '') {
+        success = await playAudioInBackground(audioUrl, playbackState.speed);
+      }
+
+      if (!success) {
+        console.warn('[Background] Groq playback failed');
+      }
+    } catch (error) {
+      console.error('[Background] Groq TTS error:', error);
+    }
+  } else if (playbackState.provider === 'cartesia' && apiKeys.cartesiaApiKey) {
+    // Cartesia TTS provider
+    console.log('[Background] Generating audio with Cartesia');
+    try {
+      const cartesiaProvider = new CartesiaProvider();
+      cartesiaProvider.setApiKey(apiKeys.cartesiaApiKey);
+
+      const response = await cartesiaProvider.generateAudio({
+        text,
+        voice: playbackState.voice,
+        speed: playbackState.speed,
+      });
+
+      // Convert Blob to URL
+      const audioUrl = URL.createObjectURL(response.audioData);
+
+      if (audioUrl && audioUrl.trim() !== '') {
+        success = await playAudioInBackground(audioUrl, playbackState.speed);
+      }
+
+      if (!success) {
+        console.warn('[Background] Cartesia playback failed');
+      }
+    } catch (error) {
+      console.error('[Background] Cartesia TTS error:', error);
+    }
+  } else if (playbackState.provider === 'browser') {
+    // Browser TTS explicitly selected
+    console.log('[Background] Using browser TTS (explicitly selected)');
+    currentWordTimings = [];
+    await sendToContentScript(activeTabId, {
+      action: 'speakText',
+      text: text,
+      speed: playbackState.speed,
+    });
+    success = true; // Browser TTS doesn't return completion status
   }
 
-  if (!success) {
+  // Fallback to browser TTS only if:
+  // 1. No provider succeeded AND
+  // 2. Provider was not explicitly "browser" (already handled above)
+  if (!success && playbackState.provider !== 'browser') {
+    console.warn(
+      '[Background] Provider',
+      playbackState.provider,
+      'failed or not configured, falling back to browser TTS',
+    );
     // Clear word timings for browser TTS (no word-by-word support)
     currentWordTimings = [];
 
@@ -902,8 +1242,6 @@ async function speakCurrentParagraph(): Promise<void> {
       text: text,
       speed: playbackState.speed,
     });
-    // Browser TTS doesn't return when finished, so we just continue
-    // TODO: Add proper callback mechanism for browser TTS
   }
 
   // Check if we're still playing (might have been paused/stopped)
@@ -936,429 +1274,28 @@ async function speakCurrentParagraph(): Promise<void> {
 
 type MessageHandler = (data: Record<string, unknown>) => Promise<unknown>;
 
+/**
+ * Legacy message handlers - most handlers migrated to hexagonal architecture.
+ * Only PARAGRAPH_CLICKED and roadmap handlers remain here.
+ *
+ * T077: Removed commented-out legacy handlers after successful hexagonal migration.
+ *
+ * Hexagonal handlers: see src/handlers/
+ * - playback.handlers.ts (playback.start, playback.pause, etc.)
+ * - settings.handlers.ts (settings.get, settings.update, etc.)
+ * - footer.handlers.ts (footer.action, footer.show, etc.)
+ * - cache.handlers.ts (cache.getStats, cache.clear, etc.)
+ * - prefetch.handlers.ts (prefetch.start, prefetch.stop, etc.)
+ */
 const messageHandlers: Record<string, MessageHandler> = {
-  // Playback messages
-  getPlaybackState: async () => {
-    return playbackState;
-  },
-
-  startPlayback: async () => {
-    const tab = await getActiveTab();
-    if (!tab?.id) {
-      return { success: false, error: 'No active tab' };
-    }
-
-    // Clear any previous prefetch cache
-    clearPrefetchCache();
-
-    // Store current page URL for persistent cache lookups
-    currentPageUrl = tab.url ?? null;
-
-    activeTabId = tab.id;
-    playbackState.status = 'loading';
-    notifyPopup();
-
-    // Reload API keys and settings in case they changed
-    const stored = await browser.storage.local.get([
-      'elevenlabsApiKey',
-      'openaiApiKey',
-      'groqApiKey',
-      'cartesiaApiKey',
-      'elevenlabsVoice', // Voice preference
-      'speed',
-      'provider',
-    ]);
-    apiKeys = {
-      elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-      openaiApiKey: stored.openaiApiKey as string | undefined,
-      groqApiKey: stored.groqApiKey as string | undefined,
-      cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
-    };
-    // Update playback state with saved preferences
-    if (stored.elevenlabsVoice) {
-      playbackState.voice = stored.elevenlabsVoice as string;
-    }
-    if (stored.speed) {
-      playbackState.speed = stored.speed as number;
-    }
-    if (stored.provider) {
-      playbackState.provider = stored.provider as string;
-    }
-    console.log('[Background] API keys loaded, elevenlabs:', !!apiKeys.elevenlabsApiKey);
-    console.log(
-      '[Background] Settings loaded, voice:',
-      playbackState.voice,
-      'speed:',
-      playbackState.speed,
-    );
-
-    // Extract text from the page
-    const extractResult = await sendToContentScript(tab.id, {
-      action: 'extractText',
-      mode: 'article',
-    });
-
-    if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
-      const result = extractResult as { paragraphs: string[] };
-      paragraphs = result.paragraphs;
-      playbackState.totalParagraphs = paragraphs.length;
-      playbackState.currentParagraph = 0;
-      console.log('[Background] Extracted', playbackState.totalParagraphs, 'paragraphs');
-    } else {
-      console.error('[Background] Failed to extract text');
-      playbackState.status = 'stopped';
-      notifyPopup();
-      return { success: false, error: 'Failed to extract text' };
-    }
-
-    if (paragraphs.length === 0) {
-      playbackState.status = 'stopped';
-      notifyPopup();
-      return { success: false, error: 'No text found on page' };
-    }
-
-    // Configure prefetch service with playback queue (T046)
-    configurePrefetchService();
-
-    // Show the footer
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_SHOW',
-      initialState: {
-        isPlaying: true,
-        currentIndex: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: 0,
-        speed: playbackState.speed,
-      },
-    });
-
-    // Update state to playing
-    playbackState.status = 'playing';
-    notifyPopup();
-
-    // Update footer state
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: playbackState.currentParagraph,
-      totalParagraphs: playbackState.totalParagraphs,
-      progress: 0,
-      speed: playbackState.speed,
-    });
-
-    // Start speaking the first paragraph
-    speakCurrentParagraph();
-
-    return { success: true };
-  },
-
-  pausePlayback: async () => {
-    playbackState.status = 'paused';
-    notifyPopup();
-
-    // Stop background audio
-    stopCurrentAudio();
-
-    if (activeTabId) {
-      // Stop content script audio/speech (for browser TTS fallback)
-      await sendToContentScript(activeTabId, { action: 'stopAudio' });
-      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'paused',
-      });
-    }
-
-    return { success: true };
-  },
-
-  resumePlayback: async () => {
-    if (playbackState.status === 'paused' && activeTabId) {
-      playbackState.status = 'playing';
-      notifyPopup();
-
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'playing',
-      });
-
-      // Resume speaking from current paragraph
-      speakCurrentParagraph();
-    }
-    return { success: true };
-  },
-
-  stopPlayback: async () => {
-    playbackState.status = 'stopped';
-    playbackState.currentParagraph = 0;
-    playbackState.progress = 0;
-    paragraphs = [];
-    notifyPopup();
-
-    // Clear prefetch cache
-    clearPrefetchCache();
-
-    // Stop background audio
-    stopCurrentAudio();
-
-    if (activeTabId) {
-      // Stop content script audio/speech
-      await sendToContentScript(activeTabId, { action: 'stopAudio' });
-      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
-      await sendToContentScript(activeTabId, { action: 'clearHighlight' });
-      await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
-    }
-
-    return { success: true };
-  },
-
-  nextParagraph: async () => {
-    // Stop current audio first
-    stopCurrentAudio();
-
-    if (activeTabId) {
-      await sendToContentScript(activeTabId, { action: 'stopAudio' });
-      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
-    }
-
-    if (playbackState.totalParagraphs > 0) {
-      playbackState.currentParagraph = Math.min(
-        playbackState.currentParagraph + 1,
-        playbackState.totalParagraphs - 1,
-      );
-      playbackState.progress =
-        (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
-      notifyPopup();
-
-      if (activeTabId) {
-        await sendToContentScript(activeTabId, {
-          action: 'FOOTER_STATE_UPDATE',
-          currentParagraph: playbackState.currentParagraph,
-          totalParagraphs: playbackState.totalParagraphs,
-          progress: playbackState.progress,
-        });
-
-        // If playing, speak the new paragraph
-        if (playbackState.status === 'playing') {
-          speakCurrentParagraph();
-        }
-      }
-    }
-    return { success: true, currentParagraph: playbackState.currentParagraph };
-  },
-
-  previousParagraph: async () => {
-    // Stop current audio first
-    stopCurrentAudio();
-
-    if (activeTabId) {
-      await sendToContentScript(activeTabId, { action: 'stopAudio' });
-      await sendToContentScript(activeTabId, { action: 'stopSpeech' });
-    }
-
-    playbackState.currentParagraph = Math.max(playbackState.currentParagraph - 1, 0);
-    if (playbackState.totalParagraphs > 0) {
-      playbackState.progress =
-        (playbackState.currentParagraph / playbackState.totalParagraphs) * 100;
-    }
-    notifyPopup();
-
-    if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-      });
-
-      // If playing, speak the new paragraph
-      if (playbackState.status === 'playing') {
-        speakCurrentParagraph();
-      }
-    }
-
-    return { success: true, currentParagraph: playbackState.currentParagraph };
-  },
-
-  seekToPosition: async (data) => {
-    const progress = data.progress as number;
-    playbackState.progress = progress;
-    if (playbackState.totalParagraphs > 0) {
-      playbackState.currentParagraph = Math.floor((progress / 100) * playbackState.totalParagraphs);
-    }
-    notifyPopup();
-
-    if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        currentParagraph: playbackState.currentParagraph,
-        progress: playbackState.progress,
-      });
-    }
-
-    return { success: true };
-  },
-
-  updateSettings: async (data) => {
-    if (typeof data.speed === 'number') {
-      playbackState.speed = data.speed;
-    }
-    if (typeof data.provider === 'string') {
-      playbackState.provider = data.provider;
-    }
-    notifyPopup();
-
-    if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        speed: playbackState.speed,
-      });
-    }
-
-    return { success: true };
-  },
-
-  // Footer actions from the sticky footer
-  FOOTER_ACTION: async (data) => {
-    const action = data.action as string;
-    console.log('[Background] Footer action:', action);
-
-    switch (action) {
-      case 'play':
-        if (playbackState.status === 'paused') {
-          return messageHandlers.resumePlayback({});
-        } else if (playbackState.status === 'stopped') {
-          return messageHandlers.startPlayback({});
-        }
-        break;
-      case 'pause':
-        return messageHandlers.pausePlayback({});
-      case 'prev':
-        return messageHandlers.previousParagraph({});
-      case 'next':
-        return messageHandlers.nextParagraph({});
-      case 'stop':
-      case 'close':
-        return messageHandlers.stopPlayback({});
-      case 'speed':
-        if (typeof data.value === 'number') {
-          playbackState.speed = data.value;
-          notifyPopup();
-        }
-        break;
-      case 'addToQueue':
-        // T077: Add current page to queue from footer
-        if (activeTabId) {
-          try {
-            const tab = await browser.tabs.get(activeTabId);
-            if (tab.url && tab.title) {
-              return await queueHandlers['queue.add']({
-                url: tab.url,
-                title: tab.title,
-              });
-            }
-          } catch (err) {
-            console.error('[Background] Failed to add to queue:', err);
-            return { success: false, error: 'Failed to add to queue' };
-          }
-        }
-        return { success: false, error: 'No active tab' };
-    }
-    return { success: true };
-  },
-
-  // Test API key validation
-  testElevenLabsKey: async () => {
-    console.log('[Background] Testing ElevenLabs API key...');
-    const provider = await initElevenLabsProvider();
-    if (!provider) {
-      return { success: false, error: 'No API key configured or key is invalid' };
-    }
-    return { success: true, message: 'API key is valid!' };
-  },
-
-  testApiKey: async (data) => {
-    const provider = data.provider as string;
-    console.log('[Background] Testing API key for provider:', provider);
-
-    if (provider === 'elevenlabs') {
-      const result = await messageHandlers.testElevenLabsKey({});
-      return result;
-    }
-
-    // For other providers, just check if key exists
-    const stored = await browser.storage.local.get([`${provider}ApiKey`]);
-    const key = stored[`${provider}ApiKey`] as string | undefined;
-    if (key && key.trim().length > 0) {
-      return {
-        success: true,
-        message: 'API key is configured (validation not implemented for this provider)',
-      };
-    }
-    return { success: false, error: 'No API key configured' };
-  },
-
-  // Voice management
-  getVoices: async (data) => {
-    const provider = (data.provider as string) || playbackState.provider;
-    console.log('[Background] Getting voices for provider:', provider);
-
-    if (provider === 'elevenlabs') {
-      const elevenlabs = await initElevenLabsProvider();
-      if (elevenlabs) {
-        const voices = elevenlabs.getVoices();
-        return {
-          success: true,
-          voices: voices.map((v) => ({
-            id: v.id,
-            name: v.name,
-            language: v.language,
-            gender: v.gender,
-          })),
-        };
-      }
-      return { success: false, voices: [] };
-    }
-
-    // For browser TTS, we can't easily get voices from background
-    return { success: true, voices: [] };
-  },
-
-  setVoice: async (data) => {
-    const voiceId = data.voiceId as string;
-    console.log('[Background] Setting voice:', voiceId);
-
-    playbackState.voice = voiceId;
-
-    // Save to storage
-    await browser.storage.local.set({ elevenlabsVoice: voiceId });
-
-    return { success: true };
-  },
-
-  setSpeed: async (data) => {
-    const speed = data.speed as number;
-    console.log('[Background] Setting speed:', speed);
-
-    playbackState.speed = speed;
-
-    // Save to storage
-    await browser.storage.local.set({ speed: speed });
-
-    // Update current audio playback rate if playing
-    if (currentAudio) {
-      currentAudio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
-    }
-
-    notifyPopup();
-    return { success: true };
-  },
-
-  // ========== Paragraph Selection Handlers (028-smart-audio-cache) ==========
-
   /**
-   * T035-T037: Handle paragraph click from content script
-   * Starts playback from the clicked paragraph index
+   * Handle paragraph click from content script.
+   * Starts playback from the clicked paragraph index.
+   * NOTE: This is kept as a legacy handler because it combines:
+   * - Text extraction (if needed)
+   * - Playback start from specific paragraph
+   * - Footer initialization
+   * A hexagonal equivalent would require orchestration across multiple services.
    */
   PARAGRAPH_CLICKED: async (data) => {
     const paragraphIndex = data.paragraphIndex as number;
@@ -1474,123 +1411,8 @@ const messageHandlers: Record<string, MessageHandler> = {
     return { success: true, playbackStarted: true };
   },
 
-  /**
-   * Get cached paragraph indices for the current page
-   */
-  getCachedParagraphs: async (data) => {
-    const url = data.url as string;
-    const provider = (data.provider as string) || playbackState.provider;
-    const voice = (data.voice as string) || playbackState.voice || '';
-
-    const cacheStore = getCacheStore();
-    if (!cacheStore.isInitialized) {
-      return { cachedIndices: [], totalParagraphs: paragraphs.length };
-    }
-
-    const cachedIndices = cacheStore.getCachedParagraphs(url, provider, voice);
-    return { cachedIndices, totalParagraphs: paragraphs.length };
-  },
-
-  // ========== Prefetch Message Handlers (T049-T050) ==========
-
-  'prefetch.start': async (data) => {
-    const currentIndex = (data.currentIndex as number) ?? playbackState.currentParagraph;
-
-    // Configure and start prefetching from current position
-    if (paragraphs.length > 0) {
-      playbackQueue.jumpTo(currentIndex);
-      startPrefetching();
-      const status = prefetchService.getStatus();
-      return {
-        success: true,
-        queuedCount: status.pendingTasks,
-      };
-    }
-
-    return { success: false, queuedCount: 0, error: 'No paragraphs loaded' };
-  },
-
-  'prefetch.stop': async () => {
-    stopPrefetching();
-    return { success: true };
-  },
-
-  'prefetch.getStatus': async () => {
-    const status = prefetchService.getStatus();
-    return {
-      isActive: status.isActive,
-      bufferSize: status.bufferSize,
-      bufferedIndices: status.bufferedIndices,
-      pendingTasks: status.pendingTasks,
-      inProgressTasks: status.inProgressTasks,
-    };
-  },
-
-  'prefetch.clearBuffer': async (data) => {
-    const keepIndices = data.keepIndices as number[] | undefined;
-    const previousSize = prefetchService.getStatus().bufferSize;
-    prefetchService.clearBuffer(keepIndices);
-    const newSize = prefetchService.getStatus().bufferSize;
-    return {
-      success: true,
-      clearedCount: previousSize - newSize,
-    };
-  },
-
-  // ========== Cost Estimation Handlers (028-smart-audio-cache T071-T072) ==========
-
-  'cost.estimate': async (data) => {
-    const url = data.url as string;
-    const paragraphsData = data.paragraphs as string[];
-    const provider = (data.provider as string) || playbackState.provider;
-    const voice = (data.voice as string) || playbackState.voice || '';
-    const startParagraph = data.startParagraph as number | undefined;
-    const endParagraph = data.endParagraph as number | undefined;
-
-    // If no paragraphs provided, return empty estimate
-    if (!paragraphsData || paragraphsData.length === 0) {
-      return {
-        totalCharacters: 0,
-        cachedCharacters: 0,
-        uncachedCharacters: 0,
-        provider,
-        pricePerKiloChar: 0,
-        estimatedCost: 0,
-        actualCost: 0,
-        savingsFromCache: 0,
-        savingsPercentage: 0,
-        paragraphCosts: [],
-      };
-    }
-
-    // Use the cost estimator service
-    try {
-      return await estimateCost({
-        url,
-        paragraphs: paragraphsData,
-        provider,
-        voice,
-        startParagraph,
-        endParagraph,
-      });
-    } catch (error) {
-      console.error('[Background] Cost estimation error:', error);
-      return {
-        totalCharacters: 0,
-        cachedCharacters: 0,
-        uncachedCharacters: 0,
-        provider,
-        pricePerKiloChar: 0,
-        estimatedCost: 0,
-        actualCost: 0,
-        savingsFromCache: 0,
-        savingsPercentage: 0,
-        paragraphCosts: [],
-      };
-    }
-  },
-
-  // ========== Roadmap Feature Handlers (023-feature-roadmap) ==========
+  // Roadmap Feature Handlers - These are domain handlers that haven't been
+  // migrated to hexagonal yet. They use their own modular pattern.
   // Export handlers
   ...Object.fromEntries(
     Object.entries(exportHandlers).map(([key, handler]) => [
@@ -1643,6 +1465,19 @@ async function notifyPopup(): Promise<void> {
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
 
+  // Initialize hexagonal architecture (034-hexagonal-architecture)
+  initHexagonalArchitecture()
+    .then(() => {
+      hexagonalInitialized = true;
+      console.log('[Background] Hexagonal architecture initialized');
+    })
+    .catch((error) => {
+      console.error('[Background] Failed to initialize hexagonal architecture:', error);
+    });
+
+  // Load migration flags from storage
+  loadMigrationFlags();
+
   // T021: Initialize audio cache on extension startup
   const cacheStore = getCacheStore();
   cacheStore
@@ -1663,7 +1498,38 @@ export default defineBackground(() => {
       console.error('[Background] Failed to initialize audio cache:', error);
     });
 
-  // Set up message listener
+  /**
+   * Strangler Fig dispatch: Try hexagonal handler first, fall back to legacy.
+   * Returns the response, or null if neither handler exists.
+   */
+  async function dispatchMessage(type: string, data: Record<string, unknown>): Promise<unknown> {
+    const startTime = Date.now();
+
+    // Check if we have a hexagonal mapping for this message type
+    const hexType = LEGACY_TO_HEXAGONAL_MAP[type] ?? type;
+
+    // Check feature flags - if legacy is forced, skip hex
+    if (!shouldUseLegacy(type) && hexagonalInitialized) {
+      // Try hexagonal handler first
+      const hexResult = await dispatchToHexagonal(hexType, data);
+      if (hexResult !== null) {
+        return hexResult;
+      }
+    }
+
+    // Fall back to legacy handler
+    const handler = messageHandlers[type];
+    if (handler) {
+      const result = await handler(data);
+      const durationMs = Date.now() - startTime;
+      logLegacyDispatch(type, durationMs, true);
+      return result;
+    }
+
+    return null;
+  }
+
+  // Set up message listener with Strangler Fig dispatch
   browser.runtime.onMessage.addListener((message, _sender) => {
     // Handle messages with 'type' field (from popup)
     if (message && typeof message === 'object' && 'type' in message) {
@@ -1676,13 +1542,13 @@ export default defineBackground(() => {
 
       console.log('[Background] Received message:', type);
 
-      const handler = messageHandlers[type];
-      if (handler) {
-        return handler(data);
-      }
-
-      console.warn('[Background] Unknown message type:', type);
-      return Promise.resolve({ error: 'Unknown message type' });
+      return dispatchMessage(type, data).then((result) => {
+        if (result === null) {
+          console.warn('[Background] Unknown message type:', type);
+          return { error: 'Unknown message type' };
+        }
+        return result;
+      });
     }
 
     // Handle messages with 'action' field (legacy format from content script)
@@ -1690,14 +1556,13 @@ export default defineBackground(() => {
       const { action, ...data } = message as { action: string; [key: string]: unknown };
       console.log('[Background] Received legacy action:', action);
 
-      // Check if we have a handler for this action
-      const handler = messageHandlers[action];
-      if (handler) {
-        return handler(data);
-      }
-
-      // Acknowledge unknown actions
-      return Promise.resolve({ received: true });
+      return dispatchMessage(action, data).then((result) => {
+        if (result === null) {
+          // Acknowledge unknown actions
+          return { received: true };
+        }
+        return result;
+      });
     }
 
     // Ignore other messages (e.g., from other extensions)

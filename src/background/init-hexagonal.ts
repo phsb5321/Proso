@@ -1,0 +1,239 @@
+/**
+ * Hexagonal Architecture Initialization
+ *
+ * Initializes the composition container and handler registry for the
+ * hexagonal architecture. This module is the bridge between the legacy
+ * background.ts and the new architecture.
+ *
+ * Uses Strangler Fig pattern: new handlers coexist with legacy handlers
+ * until migration is complete.
+ *
+ * @module background/init-hexagonal
+ */
+
+import { browser } from 'wxt/browser';
+import {
+  type ApiKeys,
+  type AppConfig,
+  createContainer,
+  getContainer,
+  isContainerInitialized,
+} from '../composition';
+import { type HandlerRegistry, createConfiguredRegistry, getGlobalRegistry } from '../handlers';
+import {
+  type DispatchStats,
+  type DispatchSummary,
+  getDispatchStats,
+  getDispatchSummary,
+  logDispatch,
+  resetDispatchStats,
+} from '../utils/telemetry';
+
+/**
+ * Load API keys from browser storage.
+ */
+async function loadApiKeys(): Promise<ApiKeys> {
+  const stored = await browser.storage.local.get([
+    'elevenlabsApiKey',
+    'openaiApiKey',
+    'groqApiKey',
+    'cartesiaApiKey',
+  ]);
+
+  return {
+    elevenlabs: (stored.elevenlabsApiKey as string) || null,
+    openai: (stored.openaiApiKey as string) || null,
+    groq: (stored.groqApiKey as string) || null,
+    cartesia: (stored.cartesiaApiKey as string) || null,
+  };
+}
+
+/**
+ * Load app configuration from browser storage.
+ */
+async function loadAppConfig(): Promise<AppConfig> {
+  const stored = await browser.storage.local.get(['provider', 'cacheType']);
+
+  return {
+    provider: (stored.provider as AppConfig['provider']) || 'browser',
+    cacheType: (stored.cacheType as 'indexeddb' | 'memory') || 'indexeddb',
+  };
+}
+
+/**
+ * Initialize the hexagonal architecture container and handler registry.
+ *
+ * This should be called once during background script startup.
+ * Safe to call multiple times - will skip if already initialized.
+ *
+ * @returns The initialized handler registry
+ */
+export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
+  // Skip if already initialized
+  if (isContainerInitialized()) {
+    console.log('[Hexagonal] Container already initialized');
+    return getGlobalRegistry();
+  }
+
+  console.log('[Hexagonal] Initializing composition container...');
+
+  try {
+    // Load configuration
+    const apiKeys = await loadApiKeys();
+    const config = await loadAppConfig();
+
+    // Create and initialize the container
+    createContainer(config, apiKeys);
+
+    // Create the handler registry with all handlers registered
+    const registry = createConfiguredRegistry();
+
+    console.log('[Hexagonal] Container initialized with config:', {
+      provider: config.provider,
+      cacheType: config.cacheType,
+      hasElevenLabsKey: !!apiKeys.elevenlabs,
+      hasOpenAIKey: !!apiKeys.openai,
+      registeredHandlers: registry.getHandlerNames().length,
+    });
+
+    return registry;
+  } catch (error) {
+    console.error('[Hexagonal] Failed to initialize container:', error);
+    // Return an empty registry - legacy handlers will continue to work
+    return createConfiguredRegistry();
+  }
+}
+
+/**
+ * Get the current container status for debugging.
+ */
+export function getContainerStatus(): {
+  initialized: boolean;
+  adapters: string[];
+  services: string[];
+  handlers: string[];
+} {
+  if (!isContainerInitialized()) {
+    return {
+      initialized: false,
+      adapters: [],
+      services: [],
+      handlers: [],
+    };
+  }
+
+  const container = getContainer();
+  const registry = getGlobalRegistry();
+
+  const adapters = Object.entries(container.adapters)
+    .filter(([, v]) => v !== null)
+    .map(([k]) => k);
+
+  const services = Object.entries(container.services)
+    .filter(([, v]) => v !== undefined)
+    .map(([k]) => k);
+
+  return {
+    initialized: true,
+    adapters,
+    services,
+    handlers: registry.getHandlerNames(),
+  };
+}
+
+/**
+ * Dispatch a message through the hexagonal handler registry.
+ *
+ * This can be used alongside legacy handlers during the transition period.
+ * Returns null if the handler is not found, allowing fallback to legacy.
+ * Logs dispatch telemetry for migration tracking.
+ *
+ * @param type - Message type (e.g., 'playback.start', 'cache.getStats')
+ * @param data - Message data
+ * @returns Handler response or null if not found
+ */
+export async function dispatchToHexagonal<T = unknown>(
+  type: string,
+  data: unknown,
+): Promise<T | null> {
+  const registry = getGlobalRegistry();
+  const startTime = Date.now();
+
+  if (!registry.has(type)) {
+    return null;
+  }
+
+  const result = await registry.dispatch(type, data);
+  const durationMs = Date.now() - startTime;
+
+  // Log dispatch telemetry
+  logDispatch({
+    type,
+    path: 'hex',
+    durationMs,
+    success: result.ok,
+    error: result.ok ? undefined : String(result.error),
+    timestamp: startTime,
+  });
+
+  if (!result.ok) {
+    console.warn('[Hexagonal] Handler error:', result.error);
+    return null;
+  }
+
+  return result.value as T;
+}
+
+/**
+ * Log a legacy dispatch for telemetry tracking.
+ *
+ * Call this when a message falls back to a legacy handler.
+ *
+ * @param type - Message type that used legacy handler
+ * @param durationMs - How long the legacy handler took
+ * @param success - Whether the legacy handler succeeded
+ * @param error - Error message if failed
+ */
+export function logLegacyDispatch(
+  type: string,
+  durationMs: number,
+  success: boolean,
+  error?: string,
+): void {
+  logDispatch({
+    type,
+    path: 'legacy',
+    durationMs,
+    success,
+    error,
+    timestamp: Date.now() - durationMs,
+  });
+}
+
+/**
+ * Get current dispatch statistics.
+ *
+ * @returns Dispatch statistics
+ */
+export function getHexagonalDispatchStats(): DispatchStats {
+  return getDispatchStats();
+}
+
+/**
+ * Get dispatch summary with handler analysis.
+ *
+ * @param legacyHandlerNames - Names of legacy handlers for comparison
+ * @returns Dispatch summary with migration status
+ */
+export function getHexagonalDispatchSummary(legacyHandlerNames: string[] = []): DispatchSummary {
+  const registry = getGlobalRegistry();
+  return getDispatchSummary(registry.getHandlerNames(), legacyHandlerNames);
+}
+
+/**
+ * Reset dispatch statistics.
+ * Useful for starting a fresh measurement period.
+ */
+export function resetHexagonalDispatchStats(): void {
+  resetDispatchStats();
+}

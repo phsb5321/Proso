@@ -3,111 +3,42 @@
 // Commercial licensing: https://voxpage.com/commercial
 
 /**
- * Cache Module - Central Export
+ * Cache Module Index
+ * Re-exports all cache utilities for convenient imports
  *
- * Smart Audio Cache & Cost Optimization (028-smart-audio-cache)
- * Provides IndexedDB-based persistent audio caching with LRU eviction.
+ * Feature: 028-smart-audio-cache
  *
  * @module utils/cache
  */
 
 // Types
 export type {
-  CachedAudioEntry,
-  CacheIndex,
-  CacheIndexEntry,
   CacheConfig,
+  CachedAudioEntry,
   CacheStats,
-  EvictionResult,
   CleanupResult,
-  CacheEvent,
-  CacheEventListener,
+  EvictionResult,
   WordTimelineItem,
-  PlaybackQueue,
-  PlaybackQueueItem,
   CostEstimate,
-  ParagraphCost,
-} from './types';
+} from "./types";
 
-// Schemas (for runtime validation)
 export {
-  cachedAudioEntrySchema,
-  cacheIndexSchema,
-  cacheIndexEntrySchema,
   cacheConfigSchema,
+  cachedAudioEntrySchema,
   cacheStatsSchema,
-  evictionResultSchema,
   cleanupResultSchema,
+  evictionResultSchema,
   wordTimelineItemSchema,
-  playbackQueueSchema,
-  playbackQueueItemSchema,
   costEstimateSchema,
-  paragraphCostSchema,
-} from './types';
-
-// Cache Key utilities
-export {
-  generateCacheKey,
-  generateCacheKeyFromText,
-  generateContentHash,
-  generateContentHashSync,
-  parseCacheKey,
-  isValidCacheKey,
-  isSameContent,
-  normalizeUrl,
-  getUrlPattern,
-} from './cache-key';
-
-// Cache Index
-export { CacheIndexManager, createCacheIndex } from './cache-index';
-
-// Database
-export {
-  VoxPageCacheDB,
-  getDatabase,
-  closeDatabase,
-  deleteDatabase,
-  isIndexedDBAvailable,
-  cacheDB,
-  AUDIO_CACHE_SCHEMA,
-} from './db';
+} from "./types";
 
 // Audio Cache Store
 export {
   AudioCacheStore,
-  createAudioCacheStore,
   getCacheStore,
   resetCacheStore,
-} from './audio-cache-store';
-
-// Eviction Module
-export {
-  calculateEvictionScore,
-  scoreEntriesForEviction,
-  calculateEvictionTargets,
-  selectEntriesForEviction,
-  needsEviction,
-  getStaleEntries,
-  createEvictionResult,
-  createCleanupResult,
-  createEvictionStats,
-  updateEvictionStats,
-  type EvictionCandidate,
-  type EvictionWeights,
-  type EvictionStats,
-} from './eviction';
-
-// Cost Estimator
-export {
-  PROVIDER_PRICING,
-  getProviderPricing,
-  calculateTextCost,
+  createAudioCacheStore,
+  generateContentHash,
+  generateCacheKey,
   estimateCost,
-  formatCost,
-  formatSavings,
-  getParagraphCacheStatus,
-  createCumulativeSavings,
-  recordCacheHit,
-  type CostEstimateOptions,
-  type CumulativeSavings,
-} from './cost-estimator';
+} from "./audio-cache-store";

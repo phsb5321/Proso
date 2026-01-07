@@ -12,8 +12,8 @@
  * @module utils/playback/prefetch
  */
 
-import { z } from 'zod';
-import type { PlaybackQueue, QueueState } from './playback-queue';
+import { z } from "zod";
+import type { PlaybackQueue, QueueState } from "./playback-queue";
 
 // ============================================================================
 // Types & Schemas
@@ -22,7 +22,7 @@ import type { PlaybackQueue, QueueState } from './playback-queue';
 /**
  * Prefetch priority level - higher means more urgent
  */
-export const prefetchPrioritySchema = z.enum(['high', 'medium', 'low']);
+export const prefetchPrioritySchema = z.enum(["high", "medium", "low"]);
 export type PrefetchPriority = z.infer<typeof prefetchPrioritySchema>;
 
 /**
@@ -57,9 +57,12 @@ export interface PrefetchedAudio {
 
 /**
  * Word timing for highlight sync
+ * Compatible with ElevenLabs WordTiming interface
  */
 export interface WordTiming {
   word: string;
+  charOffset: number;
+  charLength: number;
   startTimeMs: number;
   endTimeMs: number;
 }
@@ -118,9 +121,9 @@ const DEFAULT_BATCH_INTERVAL_MS = 500;
  */
 function safeRevokeObjectURL(url: string): void {
   if (
-    url.startsWith('blob:') &&
-    typeof URL !== 'undefined' &&
-    typeof URL.revokeObjectURL === 'function'
+    url.startsWith("blob:") &&
+    typeof URL !== "undefined" &&
+    typeof URL.revokeObjectURL === "function"
   ) {
     URL.revokeObjectURL(url);
   }
@@ -192,12 +195,12 @@ export class PrefetchService {
    */
   start(): void {
     if (!this.queue || !this.generateAudio) {
-      console.warn('[Prefetch] Cannot start - not configured');
+      console.warn("[Prefetch] Cannot start - not configured");
       return;
     }
 
     this.isActive = true;
-    console.log('[Prefetch] Started');
+    console.log("[Prefetch] Started");
 
     // Immediately process current queue state
     const currentState = this.queue.getState();
@@ -216,7 +219,7 @@ export class PrefetchService {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
-    console.log('[Prefetch] Stopped');
+    console.log("[Prefetch] Stopped");
   }
 
   /**
@@ -235,7 +238,7 @@ export class PrefetchService {
       }
     }
 
-    console.log('[Prefetch] Buffer cleared, kept:', keepIndices?.length ?? 0);
+    console.log("[Prefetch] Buffer cleared, kept:", keepIndices?.length ?? 0);
   }
 
   /**
@@ -281,7 +284,7 @@ export class PrefetchService {
     const audio = this.buffer.get(index);
     if (audio) {
       this.buffer.delete(index);
-      console.log('[Prefetch] Consumed index', index, '- buffer size:', this.buffer.size);
+      console.log("[Prefetch] Consumed index", index, "- buffer size:", this.buffer.size);
     }
     return audio ?? null;
   }
@@ -342,9 +345,9 @@ export class PrefetchService {
    * Get priority level from score
    */
   getPriorityLevel(score: number): PrefetchPriority {
-    if (score >= 80) return 'high';
-    if (score >= 40) return 'medium';
-    return 'low';
+    if (score >= 80) return "high";
+    if (score >= 40) return "medium";
+    return "low";
   }
 
   // ============================================================================
@@ -438,7 +441,7 @@ export class PrefetchService {
     if (availableTasks.length === 0) return;
 
     console.log(
-      '[Prefetch] Processing batch:',
+      "[Prefetch] Processing batch:",
       availableTasks.map((t) => t.index),
     );
 
@@ -470,7 +473,7 @@ export class PrefetchService {
       if (this.checkCache) {
         const isCached = await this.checkCache(task.index);
         if (isCached) {
-          console.log('[Prefetch] Index', task.index, 'is cached, skipping');
+          console.log("[Prefetch] Index", task.index, "is cached, skipping");
           this.pendingTasks.delete(task.index);
           this.queue.markCached(task.index);
           return;
@@ -482,7 +485,7 @@ export class PrefetchService {
 
       if (!result || !this.isActive) {
         // Generation failed or service stopped
-        this.queue.markError(task.index, 'Prefetch failed');
+        this.queue.markError(task.index, "Prefetch failed");
         return;
       }
 
@@ -497,7 +500,7 @@ export class PrefetchService {
       this.buffer.set(task.index, prefetchedAudio);
       this.queue.markPrefetched(task.index);
 
-      console.log('[Prefetch] Completed index', task.index, '- buffer size:', this.buffer.size);
+      console.log("[Prefetch] Completed index", task.index, "- buffer size:", this.buffer.size);
 
       // Remove from pending
       this.pendingTasks.delete(task.index);
@@ -505,8 +508,8 @@ export class PrefetchService {
       // Trim buffer if over limit
       this.trimBuffer();
     } catch (error) {
-      console.error('[Prefetch] Error prefetching index', task.index, error);
-      this.queue.markError(task.index, error instanceof Error ? error.message : 'Unknown error');
+      console.error("[Prefetch] Error prefetching index", task.index, error);
+      this.queue.markError(task.index, error instanceof Error ? error.message : "Unknown error");
     } finally {
       task.inProgress = false;
       this.inProgressIndices.delete(task.index);
@@ -555,4 +558,4 @@ export class PrefetchService {
  */
 export const prefetchService = new PrefetchService();
 
-console.log('VoxPage: utils/playback/prefetch.ts loaded');
+console.log("VoxPage: utils/playback/prefetch.ts loaded");

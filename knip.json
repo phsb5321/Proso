@@ -7,11 +7,7 @@
     "src/entrypoints/popup/main.ts",
     "tests/**/*.test.{js,ts}"
   ],
-  "project": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/**/*.{js,ts}"
-  ],
+  "project": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.{js,ts}"],
   "ignore": [
     "**/*.d.ts",
     ".wxt/**",

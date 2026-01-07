@@ -9,19 +9,36 @@
  * @module utils/messaging/handlers/ocr
  */
 
-import type { VoxPageProtocol } from '../protocol';
-import { OCRProcessor } from '../../content/ocr';
-import { ROADMAP_STORAGE_KEYS } from '../../config/schema';
+import type { VoxPageProtocol } from "../protocol";
+import { ROADMAP_STORAGE_KEYS } from "../../config/schema";
 
-// Singleton OCR processor instance
-let ocrProcessor: OCRProcessor | null = null;
+// Dynamic import type for OCRProcessor
+type OCRProcessorType = import("../../content/ocr").OCRProcessor;
+
+// Singleton OCR processor instance (lazily loaded)
+let ocrProcessor: OCRProcessorType | null = null;
+let ocrModulePromise: Promise<typeof import("../../content/ocr")> | null = null;
+
+/**
+ * Dynamically load the OCR module
+ * This avoids loading tesseract-wasm until OCR is actually used,
+ * preventing CSP eval errors on extension startup
+ */
+async function loadOCRModule(): Promise<typeof import("../../content/ocr")> {
+  if (!ocrModulePromise) {
+    ocrModulePromise = import("../../content/ocr");
+  }
+  return ocrModulePromise;
+}
 
 /**
  * Get or create OCR processor instance
+ * Uses dynamic import to avoid CSP issues
  */
-function getOCRProcessor(): OCRProcessor {
+async function getOCRProcessor(): Promise<OCRProcessorType> {
   if (!ocrProcessor) {
-    ocrProcessor = new OCRProcessor();
+    const ocrModule = await loadOCRModule();
+    ocrProcessor = new ocrModule.OCRProcessor();
   }
   return ocrProcessor;
 }
@@ -31,24 +48,25 @@ function getOCRProcessor(): OCRProcessor {
  * Captures screenshot and extracts text via OCR
  */
 export async function handleOCRCaptureAndRead(
-  request: VoxPageProtocol['ocr.captureAndRead']['request'],
-): Promise<VoxPageProtocol['ocr.captureAndRead']['response']> {
+  request: VoxPageProtocol["ocr.captureAndRead"]["request"],
+): Promise<VoxPageProtocol["ocr.captureAndRead"]["response"]> {
   const { tabId, region, languages } = request;
 
   try {
     // Get the active window ID
     const window = await browser.windows.getCurrent();
     if (!window.id) {
-      throw new Error('No active window');
+      throw new Error("No active window");
     }
 
     // Capture visible tab
     const dataUrl = await browser.tabs.captureVisibleTab(window.id, {
-      format: 'png',
+      format: "png",
     });
 
-    // Process with OCR
-    const result = await getOCRProcessor().processImage(dataUrl, {
+    // Process with OCR (dynamically loaded)
+    const processor = await getOCRProcessor();
+    const result = await processor.processImage(dataUrl, {
       languages,
       region,
     });
@@ -65,11 +83,11 @@ export async function handleOCRCaptureAndRead(
   } catch (error) {
     return {
       success: false,
-      text: '',
+      text: "",
       confidence: 0,
       lines: [],
       processingTimeMs: 0,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -79,12 +97,13 @@ export async function handleOCRCaptureAndRead(
  * Processes provided image data with OCR
  */
 export async function handleOCRProcessImage(
-  request: VoxPageProtocol['ocr.processImage']['request'],
-): Promise<VoxPageProtocol['ocr.processImage']['response']> {
+  request: VoxPageProtocol["ocr.processImage"]["request"],
+): Promise<VoxPageProtocol["ocr.processImage"]["response"]> {
   const { imageData, languages } = request;
 
   try {
-    const result = await getOCRProcessor().processImage(imageData, {
+    const processor = await getOCRProcessor();
+    const result = await processor.processImage(imageData, {
       languages,
     });
 
@@ -99,11 +118,11 @@ export async function handleOCRProcessImage(
   } catch (error) {
     return {
       success: false,
-      text: '',
+      text: "",
       confidence: 0,
       lines: [],
       processingTimeMs: 0,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -113,14 +132,14 @@ export async function handleOCRProcessImage(
  * Reads OCR-extracted text using TTS
  */
 export async function handleOCRReadExtractedText(
-  request: VoxPageProtocol['ocr.readExtractedText']['request'],
-): Promise<VoxPageProtocol['ocr.readExtractedText']['response']> {
+  request: VoxPageProtocol["ocr.readExtractedText"]["request"],
+): Promise<VoxPageProtocol["ocr.readExtractedText"]["response"]> {
   const { text, provider, voice, speed } = request;
 
   try {
     // Send to audio generation
     const response = await browser.runtime.sendMessage({
-      type: 'audio.generate',
+      type: "audio.generate",
       request: {
         text,
         provider,
@@ -132,15 +151,15 @@ export async function handleOCRReadExtractedText(
     if (!response?.success) {
       return {
         success: false,
-        error: response?.error || 'Failed to generate audio',
+        error: response?.error || "Failed to generate audio",
       };
     }
 
     // Start playback
     await browser.runtime.sendMessage({
-      type: 'playback.start',
+      type: "playback.start",
       request: {
-        mode: 'selection',
+        mode: "selection",
         provider,
         voice,
         speed,
@@ -153,7 +172,7 @@ export async function handleOCRReadExtractedText(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -163,14 +182,14 @@ export async function handleOCRReadExtractedText(
  * Enables region selection mode on page
  */
 export async function handleOCRSelectRegion(
-  request: VoxPageProtocol['ocr.selectRegion']['request'],
-): Promise<VoxPageProtocol['ocr.selectRegion']['response']> {
+  request: VoxPageProtocol["ocr.selectRegion"]["request"],
+): Promise<VoxPageProtocol["ocr.selectRegion"]["response"]> {
   const { tabId } = request;
 
   try {
     // Send message to content script to enable region selection
     await browser.tabs.sendMessage(tabId, {
-      type: 'ocr.enableRegionSelection',
+      type: "ocr.enableRegionSelection",
     });
 
     return {
@@ -179,7 +198,7 @@ export async function handleOCRSelectRegion(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -193,24 +212,24 @@ export async function getLanguagePacks(): Promise<{
 }> {
   // Available language packs (subset of common languages)
   const available = [
-    { code: 'eng', name: 'English', size: 4500000 },
-    { code: 'fra', name: 'French', size: 4200000 },
-    { code: 'deu', name: 'German', size: 4300000 },
-    { code: 'spa', name: 'Spanish', size: 4100000 },
-    { code: 'ita', name: 'Italian', size: 4000000 },
-    { code: 'por', name: 'Portuguese', size: 4100000 },
-    { code: 'nld', name: 'Dutch', size: 3900000 },
-    { code: 'rus', name: 'Russian', size: 4800000 },
-    { code: 'jpn', name: 'Japanese', size: 5200000 },
-    { code: 'chi_sim', name: 'Chinese (Simplified)', size: 5500000 },
-    { code: 'chi_tra', name: 'Chinese (Traditional)', size: 5600000 },
-    { code: 'kor', name: 'Korean', size: 5100000 },
-    { code: 'ara', name: 'Arabic', size: 4700000 },
+    { code: "eng", name: "English", size: 4500000 },
+    { code: "fra", name: "French", size: 4200000 },
+    { code: "deu", name: "German", size: 4300000 },
+    { code: "spa", name: "Spanish", size: 4100000 },
+    { code: "ita", name: "Italian", size: 4000000 },
+    { code: "por", name: "Portuguese", size: 4100000 },
+    { code: "nld", name: "Dutch", size: 3900000 },
+    { code: "rus", name: "Russian", size: 4800000 },
+    { code: "jpn", name: "Japanese", size: 5200000 },
+    { code: "chi_sim", name: "Chinese (Simplified)", size: 5500000 },
+    { code: "chi_tra", name: "Chinese (Traditional)", size: 5600000 },
+    { code: "kor", name: "Korean", size: 5100000 },
+    { code: "ara", name: "Arabic", size: 4700000 },
   ];
 
   // Get downloaded packs from storage
   const result = await browser.storage.local.get(ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS);
-  const downloaded = (result[ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS] as string[]) || ['eng'];
+  const downloaded = (result[ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS] as string[]) || ["eng"];
 
   return { available, downloaded };
 }
@@ -219,12 +238,13 @@ export async function getLanguagePacks(): Promise<{
  * Download a language pack
  */
 export async function downloadLanguagePack(languageCode: string): Promise<void> {
-  // Load the language in the processor
-  await getOCRProcessor().loadLanguage(languageCode);
+  // Load the language in the processor (dynamically loaded)
+  const processor = await getOCRProcessor();
+  await processor.loadLanguage(languageCode);
 
   // Save to storage
   const result = await browser.storage.local.get(ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS);
-  const downloaded = (result[ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS] as string[]) || ['eng'];
+  const downloaded = (result[ROADMAP_STORAGE_KEYS.OCR_LANGUAGE_PACKS] as string[]) || ["eng"];
 
   if (!downloaded.includes(languageCode)) {
     downloaded.push(languageCode);
@@ -248,8 +268,8 @@ export function destroyOCRProcessor(): void {
  * OCR handlers object for registration
  */
 export const ocrHandlers = {
-  'ocr.captureAndRead': handleOCRCaptureAndRead,
-  'ocr.processImage': handleOCRProcessImage,
-  'ocr.readExtractedText': handleOCRReadExtractedText,
-  'ocr.selectRegion': handleOCRSelectRegion,
+  "ocr.captureAndRead": handleOCRCaptureAndRead,
+  "ocr.processImage": handleOCRProcessImage,
+  "ocr.readExtractedText": handleOCRReadExtractedText,
+  "ocr.selectRegion": handleOCRSelectRegion,
 };

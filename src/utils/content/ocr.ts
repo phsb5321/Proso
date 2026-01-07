@@ -6,10 +6,50 @@
  * OCR Processor for VoxPage
  * Text extraction from images using tesseract-wasm
  *
+ * NOTE: tesseract-wasm is loaded dynamically to avoid CSP eval errors.
+ * The library requires 'unsafe-eval' which is not allowed in extension contexts.
+ * Dynamic import ensures it's only loaded when OCR is actually used.
+ *
  * @module utils/content/ocr
  */
 
-import { createOCREngine, type OCREngine, type TextRect } from 'tesseract-wasm';
+// Types imported dynamically - we define interfaces to avoid static import
+interface TextRect {
+  text: string;
+  confidence: number;
+  rect: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  };
+}
+
+interface OCREngine {
+  loadImage(imageData: ImageData): void;
+  loadModel(modelPath: string): Promise<void>;
+  getTextBoxes(level: string): TextRect[];
+}
+
+// Dynamic import promise for tesseract-wasm module
+let tesseractModulePromise: Promise<{
+  createOCREngine: (options?: unknown) => Promise<OCREngine>;
+}> | null = null;
+
+/**
+ * Dynamically load tesseract-wasm module
+ * This avoids CSP eval errors by only loading when needed
+ */
+async function loadTesseractModule(): Promise<{
+  createOCREngine: (options?: unknown) => Promise<OCREngine>;
+}> {
+  if (!tesseractModulePromise) {
+    tesseractModulePromise = import("tesseract-wasm") as Promise<{
+      createOCREngine: (options?: unknown) => Promise<OCREngine>;
+    }>;
+  }
+  return tesseractModulePromise;
+}
 
 /**
  * OCR word result with bounding box
@@ -72,7 +112,7 @@ export interface OCROptions {
  * Default OCR options
  */
 const DEFAULT_OPTIONS: OCROptions = {
-  languages: ['eng'],
+  languages: ["eng"],
 };
 
 /**
@@ -99,6 +139,9 @@ export class OCRProcessor {
 
   private async _initialize(): Promise<void> {
     try {
+      // Dynamically load tesseract-wasm to avoid CSP eval errors
+      const { createOCREngine } = await loadTesseractModule();
+
       // Create OCR engine
       // Note: tesseract-wasm loads WASM and model data from CDN by default
       this.engine = await createOCREngine({
@@ -110,7 +153,7 @@ export class OCRProcessor {
     } catch (error) {
       this.initPromise = null;
       throw new Error(
-        `Failed to initialize OCR engine: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to initialize OCR engine: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }
@@ -130,7 +173,7 @@ export class OCRProcessor {
       await this.initialize();
 
       if (!this.engine) {
-        throw new Error('OCR engine not initialized');
+        throw new Error("OCR engine not initialized");
       }
 
       // Load required language data if not already loaded
@@ -147,11 +190,11 @@ export class OCRProcessor {
       this.engine.loadImage(imageDataObj);
 
       // Get text rectangles
-      const textRects = this.engine.getTextBoxes('word');
+      const textRects = this.engine.getTextBoxes("word");
 
       // Build result structure
       const lines = this.buildLines(textRects);
-      const fullText = lines.map((l) => l.text).join('\n');
+      const fullText = lines.map((l) => l.text).join("\n");
       const avgConfidence = this.calculateAverageConfidence(lines);
 
       return {
@@ -165,11 +208,11 @@ export class OCRProcessor {
     } catch (error) {
       return {
         success: false,
-        text: '',
+        text: "",
         lines: [],
         confidence: 0,
         processingTimeMs: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -180,7 +223,7 @@ export class OCRProcessor {
    */
   async loadLanguage(languageCode: string): Promise<void> {
     if (!this.engine) {
-      throw new Error('OCR engine not initialized');
+      throw new Error("OCR engine not initialized");
     }
 
     // Skip if already loaded
@@ -195,7 +238,7 @@ export class OCRProcessor {
       this.loadedLanguages.add(languageCode);
     } catch (error) {
       throw new Error(
-        `Failed to load language '${languageCode}': ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to load language '${languageCode}': ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
   }
@@ -203,17 +246,17 @@ export class OCRProcessor {
   /**
    * Decode image from base64/data URL to ImageData
    */
-  private async decodeImage(imageData: string, region?: OCROptions['region']): Promise<ImageData> {
+  private async decodeImage(imageData: string, region?: OCROptions["region"]): Promise<ImageData> {
     // Create an image element
     const img = new Image();
 
     // Load image from data URL
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => reject(new Error("Failed to load image"));
 
       // Handle both raw base64 and data URLs
-      if (imageData.startsWith('data:')) {
+      if (imageData.startsWith("data:")) {
         img.src = imageData;
       } else {
         img.src = `data:image/png;base64,${imageData}`;
@@ -222,10 +265,10 @@ export class OCRProcessor {
 
     // Create canvas and draw image
     const canvas = new OffscreenCanvas(region?.width || img.width, region?.height || img.height);
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
 
     if (!ctx) {
-      throw new Error('Failed to get canvas context');
+      throw new Error("Failed to get canvas context");
     }
 
     if (region) {
@@ -281,7 +324,7 @@ export class OCRProcessor {
         },
       }));
 
-      const lineText = words.map((w) => w.text).join(' ');
+      const lineText = words.map((w) => w.text).join(" ");
       const lineConfidence = words.reduce((sum, w) => sum + w.confidence, 0) / words.length;
 
       return {

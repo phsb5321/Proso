@@ -106,7 +106,7 @@ export async function estimateCost(options: CostEstimateOptions): Promise<CostEs
     if (isCached) {
       cachedCharacters += charCount;
       paragraphCosts.push({
-        paragraphIndex: absoluteIndex,
+        index: absoluteIndex,
         characters: charCount,
         isCached: true,
         cost: 0, // Cached = no cost
@@ -115,7 +115,7 @@ export async function estimateCost(options: CostEstimateOptions): Promise<CostEs
       uncachedCharacters += charCount;
       const cost = (charCount / 1000) * pricing.pricePerKiloChar;
       paragraphCosts.push({
-        paragraphIndex: absoluteIndex,
+        index: absoluteIndex,
         characters: charCount,
         isCached: false,
         cost,

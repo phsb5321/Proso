@@ -75,6 +75,105 @@ tests/                        # Jest + Playwright tests
 
 ---
 
+## Hexagonal Architecture (034-hexagonal-architecture)
+
+**Status**: Migration ~90% complete. Most message handlers migrated to hexagonal architecture.
+**Branch**: `034-hexagonal-architecture`
+**Test Results**: 1086 tests (51 suites pass, 4 skipped)
+**Quality**: 0 circular dependencies, 1.61% code duplication
+
+**Migration Progress**:
+- ✅ Playback handlers → `src/handlers/playback.handlers.ts`
+- ✅ Settings handlers → `src/handlers/settings.handlers.ts`
+- ✅ Footer handlers → `src/handlers/footer.handlers.ts`
+- ✅ Cache handlers → `src/handlers/cache.handlers.ts`
+- ✅ Prefetch handlers → `src/handlers/prefetch.handlers.ts`
+- ✅ Audio handlers → `src/handlers/audio.handlers.ts`
+- ✅ Provider handlers → `src/handlers/provider.handlers.ts`
+- ⏳ PARAGRAPH_CLICKED handler (complex orchestration, kept in background.ts)
+- ⏳ TTS playback functions (speakCurrentParagraph, etc.)
+
+**Remaining Legacy in background.ts (~1682 LOC)**:
+- PARAGRAPH_CLICKED handler (combines extraction + playback + footer)
+- TTS playback functions (audio generation, prefetch)
+- Strangler Fig dispatch for backward compatibility
+- Initialization and cache cleanup code
+
+### Architecture Layers
+
+```
+src/
+  ├── core/                    # Domain layer (pure business logic)
+  │   ├── shared/              # Result<T,E> type, domain errors
+  │   ├── playback/            # PlaybackState entity, PlaybackService
+  │   └── content-extraction/  # ExtractedContent entity, ContentExtractionService
+  │
+  ├── ports/                   # Port interfaces (dependency contracts)
+  │   ├── audio-generator.port.ts     # IAudioGenerator
+  │   ├── cache-store.port.ts         # ICacheStore
+  │   ├── highlight-sync.port.ts      # IHighlightSynchronizer
+  │   ├── text-extractor.port.ts      # ITextExtractor
+  │   ├── content-scorer.port.ts      # IContentScorer
+  │   └── settings-store.port.ts      # ISettingsStore
+  │
+  ├── adapters/                # Adapter implementations
+  │   ├── audio/               # TTS provider adapters (OpenAI, ElevenLabs, etc.)
+  │   ├── cache/               # IndexedDB and in-memory cache adapters
+  │   ├── content/             # Readability extractor, Trafilatura scorer
+  │   ├── messaging/           # Content script messaging adapter
+  │   └── storage/             # Browser settings adapter
+  │
+  ├── composition/             # Dependency injection container
+  │   ├── container.ts         # Service container (singleton)
+  │   ├── factories.ts         # Adapter factory functions
+  │   └── types.ts             # Container type definitions
+  │
+  └── handlers/                # Message handler registry
+      ├── registry.ts          # HandlerRegistry class
+      ├── playback.handlers.ts # Playback message handlers
+      ├── cache.handlers.ts    # Cache message handlers
+      └── content.handlers.ts  # Content extraction handlers
+```
+
+### Key Patterns
+
+- **Result<T, E>**: All fallible operations return `Result<T, E>` instead of throwing
+- **Port Interfaces**: Services depend on interfaces, not concrete implementations
+- **Adapter Pattern**: Existing code wrapped in adapters implementing port interfaces
+- **Composition Root**: Single place (`src/composition/`) where all dependencies are wired
+- **Contract Tests**: Tests verify adapters behave identically per port contract
+- **Strangler Fig**: Incremental migration - new architecture coexists with legacy code
+
+### Adding a New TTS Provider
+
+1. Create adapter in `src/adapters/audio/` implementing `IAudioGenerator`
+2. Add factory case in `src/composition/factories.ts`
+3. Run contract tests: `pnpm test -- --testPathPattern=audio-generator.contract`
+
+### Testing with Mocks
+
+```typescript
+import { MockAudioGenerator } from 'tests/mocks';
+import { PlaybackService } from 'src/core/playback';
+
+const service = new PlaybackService({
+  audioGenerator: new MockAudioGenerator(),
+  cacheStore: new MockCacheStore(),
+  highlightSync: new MockHighlightSync(),
+  settingsStore: new MockSettingsStore(),
+});
+// All tests run in <5ms with no network calls
+```
+
+### Quality Metrics (034)
+
+- 0 circular dependencies
+- 1.79% code duplication (below 2% threshold)
+- 1051 tests passing
+- Contract tests verify adapter interchangeability
+
+---
+
 ## Active Technologies (by feature)
 
 ## Active Technologies
@@ -128,6 +227,11 @@ tests/                        # Jest + Playwright tests
 - N/A (documentation/configuration only) + GitHub CLI (`gh`), bash scripts (030-license-repo-protection)
 - TypeScript 5.x (strict mode), Bash scripts, YAML (GitHub Actions) + WXT 0.20.13, Vite 5.x, esbuild (built-in minifier), GitHub CLI (`gh`) (031-source-code-protection)
 - N/A (configuration/documentation feature) (031-source-code-protection)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, pdfjs-dist (PDF parsing), tesseract.js (OCR, lazy-loaded), @webext-core/messaging 2.3.0, Zod 4.3.4 (033-pdf-reading-support)
+- IndexedDB for audio cache (existing), browser.storage.local for reading positions and settings (033-pdf-reading-support)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper) (034-hexagonal-architecture)
+- IndexedDB for audio cache (via idb), browser.storage.local for settings (034-hexagonal-architecture)
+- IndexedDB for audio cache (500MB+), browser.storage.local for settings (034-hexagonal-architecture)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -283,9 +387,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 031-source-code-protection: Added TypeScript 5.x (strict mode), Bash scripts, YAML (GitHub Actions) + WXT 0.20.13, Vite 5.x, esbuild (built-in minifier), GitHub CLI (`gh`)
-- 030-license-repo-protection: Added N/A (documentation/configuration only) + GitHub CLI (`gh`), bash scripts
-- 028-smart-audio-cache: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper)
+- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper)
+- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper)
+- 033-pdf-reading-support: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, pdfjs-dist (PDF parsing), tesseract.js (OCR, lazy-loaded), @webext-core/messaging 2.3.0, Zod 4.3.4
 
 
 <!-- MANUAL ADDITIONS START -->

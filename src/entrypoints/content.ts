@@ -13,17 +13,17 @@
  * @module entrypoints/content
  */
 
-import { browser } from 'wxt/browser';
-import * as extractor from '../utils/content/extractor';
-import { HighlightManager, type WordTiming } from '../utils/content/highlight';
+import { browser } from "wxt/browser";
+import * as extractor from "../utils/content/extractor";
+import { HighlightManager, type WordTiming } from "../utils/content/highlight";
 import {
   StickyFooter,
   type StorageState,
   type PlaybackState,
   type PlaybackStatus,
-} from '../utils/content/sticky-footer';
-import { ParagraphSelector } from '../utils/content/paragraph-selector';
-import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
+} from "../utils/content/sticky-footer";
+import { ParagraphSelector } from "../utils/content/paragraph-selector";
+import { ParagraphIndicator, type ParagraphStatus } from "../utils/content/paragraph-indicator";
 
 // ============================================================================
 // OCR Region Selection
@@ -80,8 +80,8 @@ class RegionSelector {
     this.hide();
 
     // Create overlay container
-    this.overlay = document.createElement('div');
-    this.overlay.id = 'voxpage-region-overlay';
+    this.overlay = document.createElement("div");
+    this.overlay.id = "voxpage-region-overlay";
     this.overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -95,7 +95,7 @@ class RegionSelector {
     `;
 
     // Create instruction text
-    const instructions = document.createElement('div');
+    const instructions = document.createElement("div");
     instructions.style.cssText = `
       position: absolute;
       top: 20px;
@@ -109,12 +109,12 @@ class RegionSelector {
       font-size: 14px;
       pointer-events: none;
     `;
-    instructions.textContent = 'Click and drag to select region. Press Escape to cancel.';
+    instructions.textContent = "Click and drag to select region. Press Escape to cancel.";
     this.overlay.appendChild(instructions);
 
     // Create selection box (hidden initially)
-    this.selection = document.createElement('div');
-    this.selection.id = 'voxpage-region-selection';
+    this.selection = document.createElement("div");
+    this.selection.id = "voxpage-region-selection";
     this.selection.style.cssText = `
       position: absolute;
       border: 2px solid #0D9488;
@@ -126,10 +126,10 @@ class RegionSelector {
     this.overlay.appendChild(this.selection);
 
     // Event handlers
-    this.overlay.addEventListener('mousedown', this.handleMouseDown);
-    this.overlay.addEventListener('mousemove', this.handleMouseMove);
-    this.overlay.addEventListener('mouseup', this.handleMouseUp);
-    document.addEventListener('keydown', this.handleKeyDown);
+    this.overlay.addEventListener("mousedown", this.handleMouseDown);
+    this.overlay.addEventListener("mousemove", this.handleMouseMove);
+    this.overlay.addEventListener("mouseup", this.handleMouseUp);
+    document.addEventListener("keydown", this.handleKeyDown);
 
     // Add to DOM
     document.body.appendChild(this.overlay);
@@ -148,9 +148,9 @@ class RegionSelector {
     if (this.selection) {
       this.selection.style.left = `${e.clientX}px`;
       this.selection.style.top = `${e.clientY}px`;
-      this.selection.style.width = '0';
-      this.selection.style.height = '0';
-      this.selection.style.display = 'block';
+      this.selection.style.width = "0";
+      this.selection.style.height = "0";
+      this.selection.style.display = "block";
     }
   };
 
@@ -190,7 +190,7 @@ class RegionSelector {
     const height = Math.abs(currentY - this.startY);
 
     // Remove event listeners
-    document.removeEventListener('keydown', this.handleKeyDown);
+    document.removeEventListener("keydown", this.handleKeyDown);
 
     // Complete selection if region is meaningful (at least 10x10 pixels)
     if (width >= 10 && height >= 10) {
@@ -218,8 +218,8 @@ class RegionSelector {
    * Handle escape key - cancel selection
    */
   private handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') {
-      document.removeEventListener('keydown', this.handleKeyDown);
+    if (e.key === "Escape") {
+      document.removeEventListener("keydown", this.handleKeyDown);
       this.hide();
       if (this.onComplete) {
         this.onComplete(null);
@@ -250,12 +250,12 @@ function getRegionSelector(): RegionSelector {
  * Required because WXT css[] property doesn't work reliably for all setups
  */
 function injectContentStyles(): void {
-  if (document.getElementById('voxpage-content-styles')) {
+  if (document.getElementById("voxpage-content-styles")) {
     return; // Already injected
   }
 
-  const style = document.createElement('style');
-  style.id = 'voxpage-content-styles';
+  const style = document.createElement("style");
+  style.id = "voxpage-content-styles";
   style.textContent = `
     /* VoxPage Highlight Styles */
     .voxpage-highlight {
@@ -311,10 +311,142 @@ function injectContentStyles(): void {
         background-color: rgba(20, 184, 166, 0.5);
       }
     }
+
+    /* Paragraph Selection Mode Styles */
+    .voxpage-selectable {
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+      border-radius: 4px;
+    }
+
+    .voxpage-selectable:hover {
+      background-color: rgba(13, 148, 136, 0.08) !important;
+      box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
+    }
+
+    .voxpage-selectable:hover .voxpage-play-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .voxpage-selected {
+      background-color: rgba(13, 148, 136, 0.15) !important;
+      box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.4) !important;
+    }
+
+    .voxpage-cached {
+      border-left: 3px solid #10B981 !important;
+      padding-left: 8px !important;
+    }
+
+    .voxpage-cached::before {
+      content: "✓";
+      position: absolute;
+      left: -20px;
+      top: 0;
+      font-size: 12px;
+      color: #10B981;
+      font-weight: bold;
+    }
+
+    .voxpage-play-icon {
+      position: absolute;
+      left: -32px;
+      top: 50%;
+      transform: translateY(-50%) scale(0.8);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #0D9488;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+    }
+
+    .voxpage-play-icon::before {
+      content: "";
+      width: 0;
+      height: 0;
+      border-left: 8px solid white;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      margin-left: 2px;
+    }
+
+    .voxpage-play-icon:hover {
+      background: #0F766E;
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .voxpage-play-icon:focus {
+      outline: 2px solid #0D9488;
+      outline-offset: 2px;
+    }
+
+    .voxpage-play-icon--inline {
+      position: relative;
+      left: 0;
+      top: 0;
+      transform: none;
+      margin-right: 8px;
+      opacity: 0;
+      display: inline-flex;
+      vertical-align: middle;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .voxpage-selectable:hover .voxpage-play-icon--inline,
+    .voxpage-selectable:focus-within .voxpage-play-icon--inline {
+      opacity: 1;
+    }
+
+    .voxpage-play-icon--inline:hover {
+      transform: scale(1.1);
+    }
+
+    .voxpage-play-icon--inline:focus-visible {
+      opacity: 1;
+      outline: 2px solid #0D9488;
+      outline-offset: 2px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .voxpage-selectable:hover {
+        background-color: rgba(20, 184, 166, 0.12) !important;
+        box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.3);
+      }
+
+      .voxpage-selected {
+        background-color: rgba(20, 184, 166, 0.2) !important;
+        box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.5) !important;
+      }
+
+      .voxpage-play-icon {
+        background: #14B8A6;
+      }
+
+      .voxpage-play-icon:hover {
+        background: #0D9488;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .voxpage-selectable,
+      .voxpage-play-icon {
+        transition: none !important;
+      }
+    }
   `;
 
   document.head.appendChild(style);
-  console.log('VoxPage: Content styles injected');
+  console.log("VoxPage: Content styles injected");
 }
 
 // ============================================================================
@@ -333,7 +465,7 @@ interface LegacyMessage {
  * Playback state update message
  */
 interface PlaybackStateMessage extends LegacyMessage {
-  action: 'updatePlaybackState';
+  action: "updatePlaybackState";
   isPlaying: boolean;
   progress?: number;
   timeRemaining?: number;
@@ -343,7 +475,7 @@ interface PlaybackStateMessage extends LegacyMessage {
  * Footer state update message
  */
 interface FooterStateMessage extends LegacyMessage {
-  action: 'FOOTER_STATE_UPDATE';
+  action: "FOOTER_STATE_UPDATE";
   status?: string;
   progress?: number;
   currentTime?: string;
@@ -357,15 +489,15 @@ interface FooterStateMessage extends LegacyMessage {
  * Text extraction message
  */
 interface ExtractTextMessage extends LegacyMessage {
-  action: 'extractText';
-  mode: 'selection' | 'article' | 'full';
+  action: "extractText";
+  mode: "selection" | "article" | "full";
 }
 
 /**
  * Highlight message
  */
 interface HighlightMessage extends LegacyMessage {
-  action: 'highlight';
+  action: "highlight";
   index: number;
   text: string;
   timestamp: number;
@@ -375,7 +507,7 @@ interface HighlightMessage extends LegacyMessage {
  * Word timeline message
  */
 interface WordTimelineMessage extends LegacyMessage {
-  action: 'setWordTimeline';
+  action: "setWordTimeline";
   wordTimeline: Array<{
     word: string;
     charOffset?: number;
@@ -390,7 +522,7 @@ interface WordTimelineMessage extends LegacyMessage {
  * Word highlight message
  */
 interface WordHighlightMessage extends LegacyMessage {
-  action: 'highlightWord';
+  action: "highlightWord";
   paragraphIndex: number;
   wordIndex: number;
   timestamp: number;
@@ -400,7 +532,7 @@ interface WordHighlightMessage extends LegacyMessage {
  * Footer show message
  */
 interface FooterShowMessage extends LegacyMessage {
-  action: 'FOOTER_SHOW';
+  action: "FOOTER_SHOW";
   initialState?: {
     isPlaying?: boolean;
     currentIndex?: number;
@@ -414,9 +546,9 @@ interface FooterShowMessage extends LegacyMessage {
  * Footer position message
  */
 interface FooterPositionMessage extends LegacyMessage {
-  action: 'showFloatingController';
+  action: "showFloatingController";
   position?: {
-    x: 'left' | 'center' | 'right' | number;
+    x: "left" | "center" | "right" | number;
     yOffset: number;
   };
 }
@@ -426,12 +558,12 @@ interface FooterPositionMessage extends LegacyMessage {
 // ============================================================================
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
-  runAt: 'document_idle',
-  cssInjectionMode: 'ui',
+  matches: ["<all_urls>"],
+  runAt: "document_idle",
+  cssInjectionMode: "ui",
 
   main() {
-    console.log('VoxPage: Content script starting (WXT TypeScript)');
+    console.log("VoxPage: Content script starting (WXT TypeScript)");
 
     // Inject highlight CSS into page
     injectContentStyles();
@@ -447,7 +579,7 @@ export default defineContentScript({
 
     // Prevent re-initialization
     if ((window as any).VoxPage?._contentInitialized) {
-      console.log('VoxPage: Content script already initialized, skipping');
+      console.log("VoxPage: Content script already initialized, skipping");
       return;
     }
 
@@ -466,7 +598,7 @@ export default defineContentScript({
       (window as any).VoxPage.paragraphSelector = paragraphSelector;
       (window as any).VoxPage.paragraphIndicator = paragraphIndicator;
 
-      console.log('VoxPage: Modules initialized successfully', {
+      console.log("VoxPage: Modules initialized successfully", {
         hasExtractor: true, // extractor is a module with functions
         hasHighlightManager: !!highlightManager,
         hasStickyFooter: !!stickyFooter,
@@ -474,7 +606,7 @@ export default defineContentScript({
         hasParagraphIndicator: !!paragraphIndicator,
       });
     } catch (error) {
-      console.error('VoxPage: Failed to initialize modules:', error);
+      console.error("VoxPage: Failed to initialize modules:", error);
       return;
     }
 
@@ -486,10 +618,10 @@ export default defineContentScript({
      * Format time remaining in seconds to MM:SS format
      */
     function formatTimeRemaining(seconds: number | undefined): string {
-      if (!seconds || seconds < 0) return '0:00';
+      if (!seconds || seconds < 0) return "0:00";
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
+      return `${mins}:${secs.toString().padStart(2, "0")}`;
     }
 
     /**
@@ -498,11 +630,11 @@ export default defineContentScript({
     function jumpToClickedParagraph(index: number): void {
       browser.runtime
         .sendMessage({
-          action: 'jumpToParagraph',
+          action: "jumpToParagraph",
           index: index,
         })
         .catch((err) => {
-          console.error('VoxPage: Failed to jump to paragraph:', err);
+          console.error("VoxPage: Failed to jump to paragraph:", err);
         });
     }
 
@@ -513,20 +645,20 @@ export default defineContentScript({
      * - Neither: paragraph clicks are ignored to prevent accidental triggers
      */
     function setupParagraphClickHandlers(): void {
-      document.addEventListener('click', (event: MouseEvent) => {
+      document.addEventListener("click", (event: MouseEvent) => {
         if (!highlightManager) return;
 
         const target = event.target as HTMLElement;
 
         // Ignore clicks on play icons (they have their own handlers)
-        if (target.closest('.voxpage-play-icon')) {
+        if (target.closest(".voxpage-play-icon")) {
           return;
         }
 
         // Check if we clicked on a selectable paragraph (selection mode)
-        const selectableEl = target.closest('.voxpage-selectable') as HTMLElement;
+        const selectableEl = target.closest(".voxpage-selectable") as HTMLElement;
         if (selectableEl && (window as any).VoxPage?.paragraphSelector?.isActive?.()) {
-          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
+          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || "", 10);
           if (!isNaN(index)) {
             // Selection mode: just select visually, don't play
             (window as any).VoxPage.paragraphSelector?.selectParagraph?.(index);
@@ -535,9 +667,9 @@ export default defineContentScript({
         }
 
         // Check if we clicked on an active highlight (during playback)
-        const highlightedEl = target.closest('.voxpage-highlight') as HTMLElement;
+        const highlightedEl = target.closest(".voxpage-highlight") as HTMLElement;
         if (highlightedEl) {
-          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || '', 10);
+          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || "", 10);
           if (!isNaN(index)) {
             // During playback: jump to the clicked paragraph
             jumpToClickedParagraph(index);
@@ -581,7 +713,7 @@ export default defineContentScript({
         'meta[http-equiv="content-language"], meta[name="language"]',
       );
       for (let i = 0; i < metaElements.length; i++) {
-        const content = metaElements[i].getAttribute('content');
+        const content = metaElements[i].getAttribute("content");
         if (content) {
           metaLang = content;
           break;
@@ -606,21 +738,21 @@ export default defineContentScript({
      */
     function extractTextSample(): string {
       const contentSelectors = [
-        'article',
-        'main',
-        '#content',
+        "article",
+        "main",
+        "#content",
         '[role="main"]',
-        '.content',
-        '#mw-content-text', // Wikipedia
+        ".content",
+        "#mw-content-text", // Wikipedia
       ];
 
-      let textSample = '';
+      let textSample = "";
 
       // Try to extract from main content areas first
       for (const selector of contentSelectors) {
         const container = document.querySelector(selector);
         if (container) {
-          textSample = container.textContent?.trim() || '';
+          textSample = container.textContent?.trim() || "";
           if (textSample.length > 500) {
             break;
           }
@@ -629,7 +761,7 @@ export default defineContentScript({
 
       // Fallback to body if no good content found
       if (textSample.length < 100) {
-        textSample = document.body.textContent?.trim() || '';
+        textSample = document.body.textContent?.trim() || "";
       }
 
       // Limit to 1000 characters for efficiency
@@ -643,13 +775,13 @@ export default defineContentScript({
       const langData = extractPageLanguage();
       browser.runtime
         .sendMessage({
-          action: 'languageDetected',
+          action: "languageDetected",
           metadata: langData.metadata,
           textSample: langData.textSample,
           url: langData.url,
         })
         .catch((err) => {
-          console.error('VoxPage: Failed to send language detection:', err);
+          console.error("VoxPage: Failed to send language detection:", err);
         });
     }
 
@@ -657,15 +789,15 @@ export default defineContentScript({
     // Message Listener
     // ========================================================================
 
-    console.log('VoxPage: Setting up message listener');
+    console.log("VoxPage: Setting up message listener");
 
     browser.runtime.onMessage.addListener((message: LegacyMessage & { type?: string }) => {
       // Support both 'action' (legacy) and 'type' (new protocol) fields
       const messageKey = message.action || message.type;
-      console.log('VoxPage: Received message:', messageKey);
+      console.log("VoxPage: Received message:", messageKey);
 
       if (!highlightManager || !stickyFooter) {
-        console.warn('VoxPage: Modules not initialized, ignoring message');
+        console.warn("VoxPage: Modules not initialized, ignoring message");
         return;
       }
 
@@ -673,7 +805,7 @@ export default defineContentScript({
         // ====================================================================
         // Content Extraction
         // ====================================================================
-        case 'extractText': {
+        case "extractText": {
           const msg = message as ExtractTextMessage;
           const text = extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
@@ -688,7 +820,7 @@ export default defineContentScript({
         // ====================================================================
         // Highlighting
         // ====================================================================
-        case 'highlight': {
+        case "highlight": {
           const msg = message as HighlightMessage;
           // Pass DOM elements and text lookup function for reliable highlighting
           const extractedParagraphs = extractor.getExtractedParagraphs();
@@ -702,12 +834,12 @@ export default defineContentScript({
           break;
         }
 
-        case 'clearHighlight': {
+        case "clearHighlight": {
           highlightManager.clearHighlights();
           break;
         }
 
-        case 'setWordTimeline': {
+        case "setWordTimeline": {
           const msg = message as WordTimelineMessage;
           // Convert message format to HighlightManager WordTiming format
           // charOffset and charLength come from ElevenLabs API word alignment
@@ -718,32 +850,32 @@ export default defineContentScript({
             startTimeMs: item.startMs,
             endTimeMs: item.endMs,
           }));
-          console.log('VoxPage: Setting word timeline with', convertedTimeline.length, 'words');
+          console.log("VoxPage: Setting word timeline with", convertedTimeline.length, "words");
           highlightManager.setWordTimeline(convertedTimeline, msg.paragraphIndex);
           break;
         }
 
-        case 'highlightWord': {
+        case "highlightWord": {
           const msg = message as WordHighlightMessage;
           highlightManager.highlightWord(msg.paragraphIndex, msg.wordIndex, msg.timestamp);
           break;
         }
 
-        case 'jumpToWord': {
+        case "jumpToWord": {
           // Type guard to narrow message to expected shape
-          if ('paragraphIndex' in message && 'wordIndex' in message) {
+          if ("paragraphIndex" in message && "wordIndex" in message) {
             const { paragraphIndex, wordIndex } = message as LegacyMessage & {
               paragraphIndex: number;
               wordIndex: number;
             };
             browser.runtime
               .sendMessage({
-                action: 'jumpToWord',
+                action: "jumpToWord",
                 paragraphIndex,
                 wordIndex,
               })
               .catch((err) => {
-                console.error('VoxPage: Failed to jump to word:', err);
+                console.error("VoxPage: Failed to jump to word:", err);
               });
           }
           break;
@@ -752,36 +884,36 @@ export default defineContentScript({
         // ====================================================================
         // Floating Controller (Legacy - TODO: Remove after sticky footer migration)
         // ====================================================================
-        case 'showFloatingController': {
+        case "showFloatingController": {
           const msg = message as FooterPositionMessage;
           if ((window as any).VoxPage?.floatingController) {
             (window as any).VoxPage.floatingController.show(msg.position);
             (window as any).VoxPage.floatingController.onAction((action: string, data: unknown) => {
               browser.runtime
                 .sendMessage({
-                  action: 'controllerAction',
+                  action: "controllerAction",
                   controllerAction: action,
                   ...((data as object) || {}),
                 })
                 .catch((err) => {
-                  console.error('VoxPage: Failed to send controller action:', err);
+                  console.error("VoxPage: Failed to send controller action:", err);
                 });
             });
           }
           break;
         }
 
-        case 'hideFloatingController': {
+        case "hideFloatingController": {
           if ((window as any).VoxPage?.floatingController) {
             (window as any).VoxPage.floatingController.hide();
           }
           break;
         }
 
-        case 'updatePlaybackState': {
+        case "updatePlaybackState": {
           const msg = message as PlaybackStateMessage;
           if ((window as any).VoxPage?.floatingController) {
-            const status = msg.isPlaying ? 'playing' : 'paused';
+            const status = msg.isPlaying ? "playing" : "paused";
             const timeRemaining = formatTimeRemaining(msg.timeRemaining);
             (window as any).VoxPage.floatingController.updateState({
               status: status,
@@ -795,31 +927,31 @@ export default defineContentScript({
         // ====================================================================
         // Sticky Footer
         // ====================================================================
-        case 'FOOTER_SHOW': {
+        case "FOOTER_SHOW": {
           const msg = message as FooterShowMessage;
           // Convert legacy initialState to StorageState format
           const storageState: Partial<StorageState> = {
             isMinimized: false,
-            position: { x: 'center', yOffset: 0 },
+            position: { x: "center", yOffset: 0 },
           };
           stickyFooter.show(storageState);
           break;
         }
 
-        case 'FOOTER_HIDE': {
+        case "FOOTER_HIDE": {
           stickyFooter.hide();
           break;
         }
 
-        case 'FOOTER_STATE_UPDATE': {
+        case "FOOTER_STATE_UPDATE": {
           const msg = message as FooterStateMessage;
           // Convert status string to PlaybackStatus type
-          const status = (msg.status || 'stopped') as PlaybackStatus;
+          const status = (msg.status || "stopped") as PlaybackStatus;
           const playbackState: Partial<PlaybackState> = {
             status,
             progress: msg.progress ?? 0,
-            currentTime: msg.currentTime ?? '0:00',
-            totalTime: msg.totalTime ?? '0:00',
+            currentTime: msg.currentTime ?? "0:00",
+            totalTime: msg.totalTime ?? "0:00",
             currentParagraph: msg.currentParagraph ?? 0,
             totalParagraphs: msg.totalParagraphs ?? 0,
             speed: msg.speed ?? 1.0,
@@ -828,7 +960,7 @@ export default defineContentScript({
           break;
         }
 
-        case 'TOGGLE_FOOTER_SETTINGS': {
+        case "TOGGLE_FOOTER_SETTINGS": {
           // If footer is visible, do nothing (settings are part of the footer)
           // If footer is hidden, show it
           if (!stickyFooter.isFooterVisible()) {
@@ -841,7 +973,7 @@ export default defineContentScript({
         // ====================================================================
         // Paragraph Selection Mode (028-smart-audio-cache)
         // ====================================================================
-        case 'enableSelectionMode': {
+        case "enableSelectionMode": {
           if (paragraphSelector) {
             // Get extracted paragraphs and cached indices from message
             const enableMsg = message as LegacyMessage & {
@@ -856,8 +988,8 @@ export default defineContentScript({
             if (paragraphIndicator) {
               extractedParagraphs.forEach((el, index) => {
                 const status: ParagraphStatus = cachedIndices.includes(index)
-                  ? 'cached'
-                  : 'pending';
+                  ? "cached"
+                  : "pending";
                 paragraphIndicator.addIndicator(el, index, status);
               });
             }
@@ -865,7 +997,7 @@ export default defineContentScript({
           break;
         }
 
-        case 'disableSelectionMode': {
+        case "disableSelectionMode": {
           if (paragraphSelector) {
             paragraphSelector.disableSelectionMode();
           }
@@ -875,14 +1007,14 @@ export default defineContentScript({
           break;
         }
 
-        case 'refreshSelection': {
+        case "refreshSelection": {
           if (paragraphSelector) {
             paragraphSelector.refresh();
           }
           break;
         }
 
-        case 'updateCachedParagraphs': {
+        case "updateCachedParagraphs": {
           // Update cache status indicators when cache changes
           const updateMsg = message as LegacyMessage & {
             cachedIndices: number[];
@@ -896,7 +1028,7 @@ export default defineContentScript({
           break;
         }
 
-        case 'setIndicatorStatus': {
+        case "setIndicatorStatus": {
           // Set status for a specific paragraph
           const statusMsg = message as LegacyMessage & {
             paragraphIndex: number;
@@ -911,7 +1043,7 @@ export default defineContentScript({
         // ====================================================================
         // Language Detection
         // ====================================================================
-        case 'extractLanguage': {
+        case "extractLanguage": {
           sendLanguageDetectionRequest();
           break;
         }
@@ -919,28 +1051,28 @@ export default defineContentScript({
         // ====================================================================
         // OCR Region Selection
         // ====================================================================
-        case 'ocr.enableRegionSelection': {
-          console.log('VoxPage: Enabling OCR region selection');
+        case "ocr.enableRegionSelection": {
+          console.log("VoxPage: Enabling OCR region selection");
           const selector = getRegionSelector();
           selector.show(async (region) => {
             if (region) {
-              console.log('VoxPage: Region selected:', region);
+              console.log("VoxPage: Region selected:", region);
               // Send region to background for capture and OCR
               try {
                 const response = await browser.runtime.sendMessage({
-                  type: 'ocr.captureAndRead',
+                  type: "ocr.captureAndRead",
                   request: {
                     tabId: 0, // Will be set by background
                     region: region,
-                    languages: ['eng'],
+                    languages: ["eng"],
                   },
                 });
-                console.log('VoxPage: OCR response:', response);
+                console.log("VoxPage: OCR response:", response);
                 // Send result back to popup
                 if (response) {
                   browser.runtime
                     .sendMessage({
-                      action: 'ocr.regionResult',
+                      action: "ocr.regionResult",
                       ...response,
                     })
                     .catch(() => {
@@ -948,16 +1080,16 @@ export default defineContentScript({
                     });
                 }
               } catch (err) {
-                console.error('VoxPage: OCR capture failed:', err);
+                console.error("VoxPage: OCR capture failed:", err);
               }
             } else {
-              console.log('VoxPage: Region selection cancelled');
+              console.log("VoxPage: Region selection cancelled");
               // Notify popup that selection was cancelled
               browser.runtime
                 .sendMessage({
-                  action: 'ocr.regionResult',
+                  action: "ocr.regionResult",
                   success: false,
-                  error: 'Selection cancelled',
+                  error: "Selection cancelled",
                 })
                 .catch(() => {
                   // Popup may be closed
@@ -967,8 +1099,8 @@ export default defineContentScript({
           return Promise.resolve({ success: true });
         }
 
-        case 'ocr.cancelRegionSelection': {
-          console.log('VoxPage: Cancelling OCR region selection');
+        case "ocr.cancelRegionSelection": {
+          console.log("VoxPage: Cancelling OCR region selection");
           const selector = getRegionSelector();
           selector.hide();
           return Promise.resolve({ success: true });
@@ -977,14 +1109,14 @@ export default defineContentScript({
         // ====================================================================
         // Browser TTS (Web Speech API)
         // ====================================================================
-        case 'speakText': {
+        case "speakText": {
           const msg = message as { action: string; text: string; speed?: number };
           const text = msg.text;
           const speed = msg.speed ?? 1.0;
 
           return new Promise<{ success: boolean }>((resolve) => {
-            if (typeof speechSynthesis === 'undefined') {
-              console.error('VoxPage: Web Speech API not available');
+            if (typeof speechSynthesis === "undefined") {
+              console.error("VoxPage: Web Speech API not available");
               resolve({ success: false });
               return;
             }
@@ -997,32 +1129,32 @@ export default defineContentScript({
 
             // Try to use a good voice
             const voices = speechSynthesis.getVoices();
-            const englishVoice = voices.find((v) => v.lang.startsWith('en') && v.localService);
+            const englishVoice = voices.find((v) => v.lang.startsWith("en") && v.localService);
             if (englishVoice) {
               utterance.voice = englishVoice;
             }
 
             utterance.onend = () => {
-              console.log('VoxPage: Speech ended');
+              console.log("VoxPage: Speech ended");
               resolve({ success: true });
             };
 
             utterance.onerror = (event) => {
-              if (event.error !== 'canceled') {
-                console.error('VoxPage: Speech error:', event.error);
+              if (event.error !== "canceled") {
+                console.error("VoxPage: Speech error:", event.error);
               }
               resolve({ success: false });
             };
 
-            console.log('VoxPage: Speaking text of length', text.length);
+            console.log("VoxPage: Speaking text of length", text.length);
             speechSynthesis.speak(utterance);
           });
         }
 
-        case 'stopSpeech': {
-          if (typeof speechSynthesis !== 'undefined') {
+        case "stopSpeech": {
+          if (typeof speechSynthesis !== "undefined") {
             speechSynthesis.cancel();
-            console.log('VoxPage: Speech cancelled');
+            console.log("VoxPage: Speech cancelled");
           }
           return Promise.resolve({ success: true });
         }
@@ -1030,16 +1162,22 @@ export default defineContentScript({
         // ====================================================================
         // Audio Playback (for ElevenLabs and other API providers)
         // ====================================================================
-        case 'playAudio': {
+        case "playAudio": {
           const msg = message as { action: string; audioUrl: string; speed?: number };
           const audioUrl = msg.audioUrl;
           const speed = msg.speed ?? 1.0;
+
+          // Validate audio URL before attempting to play
+          if (!audioUrl || audioUrl.trim() === "") {
+            console.error("VoxPage: Invalid audio URL: empty or undefined");
+            return Promise.resolve({ success: false });
+          }
 
           return new Promise<{ success: boolean }>((resolve) => {
             // Stop any existing audio
             if ((window as any).__voxpageAudio) {
               (window as any).__voxpageAudio.pause();
-              (window as any).__voxpageAudio.src = '';
+              (window as any).__voxpageAudio.src = "";
               (window as any).__voxpageAudio = null;
             }
 
@@ -1048,31 +1186,31 @@ export default defineContentScript({
             audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
 
             audio.onended = () => {
-              console.log('VoxPage: Audio playback ended');
+              console.log("VoxPage: Audio playback ended");
               (window as any).__voxpageAudio = null;
               resolve({ success: true });
             };
 
             audio.onerror = (event) => {
-              console.error('VoxPage: Audio playback error:', event);
+              console.error("VoxPage: Audio playback error:", event);
               (window as any).__voxpageAudio = null;
               resolve({ success: false });
             };
 
-            console.log('VoxPage: Playing audio, speed:', speed);
+            console.log("VoxPage: Playing audio, speed:", speed);
             audio.play().catch((err) => {
-              console.error('VoxPage: Audio play() failed:', err);
+              console.error("VoxPage: Audio play() failed:", err);
               resolve({ success: false });
             });
           });
         }
 
-        case 'stopAudio': {
+        case "stopAudio": {
           if ((window as any).__voxpageAudio) {
             (window as any).__voxpageAudio.pause();
-            (window as any).__voxpageAudio.src = '';
+            (window as any).__voxpageAudio.src = "";
             (window as any).__voxpageAudio = null;
-            console.log('VoxPage: Audio stopped');
+            console.log("VoxPage: Audio stopped");
           }
           return Promise.resolve({ success: true });
         }
@@ -1080,14 +1218,14 @@ export default defineContentScript({
         // ====================================================================
         // Queue Notifications (T075 - cross-tab sync)
         // ====================================================================
-        case 'queue.updated': {
+        case "queue.updated": {
           // Queue state changed - content script doesn't need to act on this
           // (popup handles queue UI updates via its own message listener)
           return Promise.resolve({ success: true });
         }
 
         default:
-          console.warn('VoxPage: Unknown message action:', message.action);
+          console.warn("VoxPage: Unknown message action:", message.action);
       }
     });
 
@@ -1104,7 +1242,7 @@ export default defineContentScript({
      */
     let scrollListenerDebounce: number | null = null;
     window.addEventListener(
-      'scroll',
+      "scroll",
       () => {
         // Debounce scroll events to avoid excessive calls
         if (scrollListenerDebounce) {
@@ -1136,7 +1274,7 @@ export default defineContentScript({
       // Send stop message to background
       browser.runtime
         .sendMessage({
-          action: 'stopPlayback',
+          action: "stopPlayback",
           reason: reason,
         })
         .catch(() => {
@@ -1163,7 +1301,7 @@ export default defineContentScript({
         try {
           cb(reason);
         } catch (e) {
-          console.warn('VoxPage: Cleanup callback failed:', e);
+          console.warn("VoxPage: Cleanup callback failed:", e);
         }
       });
     }
@@ -1172,7 +1310,7 @@ export default defineContentScript({
      * Register a cleanup callback
      */
     function registerCleanupCallback(callback: (reason: string) => void): void {
-      if (typeof callback === 'function') {
+      if (typeof callback === "function") {
         cleanupCallbacks.push(callback);
       }
     }
@@ -1184,29 +1322,29 @@ export default defineContentScript({
      * Handle pagehide event (primary navigation handler)
      * Implements FR-011: Stop audio on page navigation
      */
-    window.addEventListener('pagehide', () => {
-      executeCleanup('navigation');
+    window.addEventListener("pagehide", () => {
+      executeCleanup("navigation");
     });
 
     /**
      * Handle beforeunload event (backup for reload detection)
      * Implements FR-012: Stop audio on page reload
      */
-    window.addEventListener('beforeunload', () => {
-      executeCleanup('beforeunload');
+    window.addEventListener("beforeunload", () => {
+      executeCleanup("beforeunload");
     });
 
     /**
      * Handle page visibility changes - notify background for resync
      * Implements FR-005: Resync within 500ms when tab becomes visible
      */
-    document.addEventListener('visibilitychange', () => {
+    document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
         const resyncStart = performance.now();
         browser.runtime
           .sendMessage({
-            action: 'requestResync',
-            reason: 'tab-visible',
+            action: "requestResync",
+            reason: "tab-visible",
             timestamp: Date.now(),
           })
           .then(() => {
@@ -1280,17 +1418,17 @@ export default defineContentScript({
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         sendLanguageDetectionRequest();
-        console.log('VoxPage: Sent initial language detection request');
+        console.log("VoxPage: Sent initial language detection request");
       }, 100);
     }
 
     // Send language detection on load
-    if (document.readyState === 'complete') {
+    if (document.readyState === "complete") {
       sendInitialLanguageDetection();
     } else {
-      window.addEventListener('load', sendInitialLanguageDetection, { once: true });
+      window.addEventListener("load", sendInitialLanguageDetection, { once: true });
     }
 
-    console.log('VoxPage content script fully loaded and message listener registered');
+    console.log("VoxPage content script fully loaded and message listener registered");
   },
 });

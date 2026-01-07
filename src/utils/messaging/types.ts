@@ -91,3 +91,23 @@ export type FooterActionParams = z.infer<typeof schemas.footerActionParamsSchema
 
 export type LoggingLogRemoteParams = z.infer<typeof schemas.loggingLogRemoteParamsSchema>;
 export type LoggingStateResponse = z.infer<typeof schemas.loggingStateResponseSchema>;
+
+// ========== PDF Types (033-pdf-reading-support) ==========
+
+export type {
+  PDFDetectedRequest,
+  PDFDetectedResponse,
+  PDFExtractRequest,
+  PDFExtractResponse,
+  PDFOCRRequest,
+  PDFOCRProgress,
+  PDFOCRResponse,
+  PDFGetStateRequest,
+  PDFGetStateResponse,
+  PDFPlayRequest,
+  PDFPlayResponse,
+  PDFSeekRequest,
+  PDFSeekResponse,
+  PDFHighlightRequest,
+  PDFScrollToPageRequest,
+} from './schemas/pdf';

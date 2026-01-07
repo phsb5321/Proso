@@ -3,681 +3,486 @@
 // Commercial licensing: https://voxpage.com/commercial
 
 /**
- * Audio Cache Store - IndexedDB Operations
+ * Audio Cache Store Module
+ * IndexedDB-backed cache for TTS audio with in-memory fallback
  *
- * Implements IAudioCacheStore interface from contracts.
- * Provides persistent audio caching with in-memory fallback.
+ * Feature: 028-smart-audio-cache
  *
  * @module utils/cache/audio-cache-store
  */
 
-import { getDatabase, isIndexedDBAvailable, closeDatabase } from './db';
-import { type CacheIndexManager, createCacheIndex } from './cache-index';
-import { generateCacheKey, generateContentHash, parseCacheKey, normalizeUrl } from './cache-key';
 import type {
-  CachedAudioEntry,
   CacheConfig,
+  CachedAudioEntry,
   CacheStats,
-  CacheIndex,
-  EvictionResult,
   CleanupResult,
-  CacheEvent,
-  CacheEventListener,
+  EvictionResult,
+  WordTimelineItem,
 } from './types';
-import { cacheDefaults } from '../config/defaults';
-import {
-  selectEntriesForEviction,
-  needsEviction as checkNeedsEviction,
-  getStaleEntries as findStaleEntries,
-  createEvictionResult,
-  createCleanupResult,
-  createEvictionStats,
-  updateEvictionStats,
-  type EvictionStats,
-} from './eviction';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const DEFAULT_CONFIG: CacheConfig = {
+  maxSizeBytes: 500 * 1024 * 1024, // 500MB
+  maxEntries: 1000,
+  maxAgeMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+  evictionThresholdPercent: 90,
+  evictionTargetPercent: 70,
+  persistToIndexedDB: true,
+  dbName: 'voxpage-audio-cache',
+  storeName: 'audio-entries',
+};
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
- * Logger for cache operations
+ * Generate a SHA-256 hash of text content
+ * Returns a hex string truncated to 16 characters
  */
-function logCacheEvent(event: CacheEvent, listeners: Set<CacheEventListener>): void {
-  // Notify all listeners
-  for (const listener of listeners) {
-    try {
-      listener(event);
-    } catch {
-      // Ignore listener errors
+export async function generateContentHash(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+
+  try {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.substring(0, 16);
+  } catch {
+    // Fallback for environments without crypto.subtle
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
     }
+    return Math.abs(hash).toString(16).padStart(16, '0').substring(0, 16);
   }
 }
 
 /**
- * Audio Cache Store implementation
+ * Generate a cache key from components
+ */
+export function generateCacheKey(
+  url: string,
+  paragraphIndex: number,
+  provider: string,
+  voice: string,
+  contentHash: string,
+): string {
+  // Create URL hash for shorter keys
+  const urlHash = url.replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+  return `${urlHash}:${paragraphIndex}:${provider}:${voice}:${contentHash}`;
+}
+
+/**
+ * Estimate cost based on character count and provider
+ */
+export function estimateCost(
+  characters: number,
+  provider: string,
+  _voice?: string,
+): { estimatedCost: number; pricePerKiloChar: number } {
+  // Provider pricing per 1000 characters (approximate)
+  const pricing: Record<string, number> = {
+    elevenlabs: 0.3, // $0.30 per 1000 chars
+    openai: 0.015, // $0.015 per 1000 chars
+    browser: 0, // Free
+    groq: 0, // Free tier
+    cartesia: 0.1, // $0.10 per 1000 chars (estimate)
+  };
+
+  const pricePerKiloChar = pricing[provider] ?? 0;
+  const estimatedCost = (characters / 1000) * pricePerKiloChar;
+
+  return { estimatedCost, pricePerKiloChar };
+}
+
+// ============================================================================
+// AudioCacheStore Class
+// ============================================================================
+
+/**
+ * Audio cache store with IndexedDB persistence and in-memory fallback
  */
 export class AudioCacheStore {
   private config: CacheConfig;
-  private index: CacheIndexManager;
-  private initialized = false;
-  private useInMemoryFallback = false;
-  private inMemoryCache: Map<string, CachedAudioEntry> = new Map();
-  private eventListeners: Set<CacheEventListener> = new Set();
-  private evictionStats: EvictionStats = createEvictionStats();
+  private db: IDBDatabase | null = null;
+  private memoryCache: Map<string, CachedAudioEntry> = new Map();
+  private _isInitialized = false;
+  private _isInMemoryMode = false;
+  private hitCount = 0;
+  private missCount = 0;
 
   constructor(config: Partial<CacheConfig> = {}) {
-    this.config = { ...cacheDefaults, ...config };
-    this.index = createCacheIndex(this.config);
+    this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   /**
    * Initialize the cache store
-   * Opens IndexedDB connection, loads index into memory
    */
   async init(): Promise<void> {
-    if (this.initialized) return;
+    if (this._isInitialized) return;
 
-    // Check if IndexedDB is available
-    const idbAvailable = await isIndexedDBAvailable();
-
-    if (!idbAvailable || !this.config.persistToIndexedDB) {
-      // Fall back to in-memory cache
-      this.useInMemoryFallback = true;
-      this.initialized = true;
-      this.logEvent({
-        type: 'error',
-        operation: 'init',
-        error: 'IndexedDB unavailable, using in-memory fallback',
-      });
-      return;
+    if (this.config.persistToIndexedDB) {
+      try {
+        this.db = await this.openDatabase();
+        this._isInMemoryMode = false;
+      } catch (error) {
+        console.warn('[AudioCacheStore] IndexedDB unavailable, using in-memory mode:', error);
+        this._isInMemoryMode = true;
+      }
+    } else {
+      this._isInMemoryMode = true;
     }
 
-    try {
-      // Load existing index from IndexedDB
-      await this.loadIndexFromDB();
-      this.initialized = true;
-    } catch (error) {
-      // Fall back to in-memory on error
-      this.useInMemoryFallback = true;
-      this.initialized = true;
-      this.logEvent({
-        type: 'error',
-        operation: 'init',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
+    this._isInitialized = true;
   }
 
   /**
-   * Load cache index from IndexedDB
+   * Open IndexedDB database
    */
-  private async loadIndexFromDB(): Promise<void> {
-    const db = getDatabase();
-    const entries = await db.audioCache.toArray();
+  private openDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.config.dbName, 1);
 
-    // Build index from stored entries
-    for (const entry of entries) {
-      const url = entry.url;
-      this.index.set(url, {
-        paragraphIndex: entry.paragraphIndex,
-        cacheKey: entry.cacheKey,
-        size: entry.compressedSize,
-        lastAccessedAt: entry.lastAccessedAt,
-      });
-    }
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(this.config.storeName)) {
+          const store = db.createObjectStore(this.config.storeName, { keyPath: 'cacheKey' });
+          store.createIndex('url', 'url', { unique: false });
+          store.createIndex('lastAccessedAt', 'lastAccessedAt', { unique: false });
+          store.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+      };
+    });
   }
 
   /**
-   * Close the cache store
+   * Check if cache is initialized
    */
-  async close(): Promise<void> {
-    if (!this.useInMemoryFallback) {
-      await closeDatabase();
-    }
-    this.initialized = false;
+  get isInitialized(): boolean {
+    return this._isInitialized;
   }
 
   /**
-   * Check if an entry exists in cache (O(1) using in-memory index)
+   * Check if using in-memory mode
    */
-  has(cacheKey: string): boolean {
-    if (this.useInMemoryFallback) {
-      return this.inMemoryCache.has(cacheKey);
-    }
-    return this.index.has(cacheKey);
+  get isInMemoryMode(): boolean {
+    return this._isInMemoryMode;
   }
 
   /**
-   * Get a cached audio entry
-   * Updates lastAccessedAt, returns null if not found or invalid
+   * Check if a key exists in the cache
    */
-  async get(cacheKey: string): Promise<CachedAudioEntry | null> {
-    if (!this.initialized) await this.init();
+  has(key: string): boolean {
+    if (this._isInMemoryMode) {
+      return this.memoryCache.has(key);
+    }
+    // For IndexedDB, we need async check - this is a sync approximation
+    return false;
+  }
 
-    if (this.useInMemoryFallback) {
-      const entry = this.inMemoryCache.get(cacheKey);
+  /**
+   * Get an entry from the cache
+   */
+  async get(key: string): Promise<CachedAudioEntry | null> {
+    if (!this._isInitialized) await this.init();
+
+    if (this._isInMemoryMode) {
+      const entry = this.memoryCache.get(key);
       if (entry) {
+        this.hitCount++;
         entry.lastAccessedAt = Date.now();
         entry.accessCount++;
-        this.index.recordHit();
-        this.logEvent({ type: 'hit', cacheKey, size: entry.compressedSize });
         return entry;
       }
-      this.index.recordMiss();
-      this.logEvent({ type: 'miss', cacheKey });
+      this.missCount++;
       return null;
     }
 
-    try {
-      const db = getDatabase();
-      const entry = await db.audioCache.get(cacheKey);
+    // IndexedDB path
+    if (!this.db) {
+      this.missCount++;
+      return null;
+    }
 
-      if (!entry) {
-        this.index.recordMiss();
-        this.logEvent({ type: 'miss', cacheKey });
-        return null;
-      }
+    return new Promise((resolve) => {
+      const transaction = this.db!.transaction(this.config.storeName, 'readwrite');
+      const store = transaction.objectStore(this.config.storeName);
+      const request = store.get(key);
 
-      // Validate entry integrity (T022a - FR-020)
-      if (!this.validateEntry(entry)) {
-        // Corrupt entry - remove it
-        await this.delete(cacheKey);
-        this.index.recordMiss();
-        this.logEvent({ type: 'error', operation: 'get', error: `Corrupt entry: ${cacheKey}` });
-        return null;
-      }
-
-      // Update access metadata
-      const now = Date.now();
-      await db.audioCache.update(cacheKey, {
-        lastAccessedAt: now,
-        accessCount: entry.accessCount + 1,
-      });
-
-      // Update index
-      this.index.touch(cacheKey);
-      this.index.recordHit();
-      this.logEvent({ type: 'hit', cacheKey, size: entry.compressedSize });
-
-      return {
-        ...entry,
-        lastAccessedAt: now,
-        accessCount: entry.accessCount + 1,
+      request.onsuccess = () => {
+        const entry = request.result as CachedAudioEntry | undefined;
+        if (entry) {
+          this.hitCount++;
+          // Update access time
+          entry.lastAccessedAt = Date.now();
+          entry.accessCount++;
+          store.put(entry);
+          resolve(entry);
+        } else {
+          this.missCount++;
+          resolve(null);
+        }
       };
-    } catch (error) {
-      this.index.recordMiss();
-      this.logEvent({
-        type: 'error',
-        operation: 'get',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return null;
-    }
+
+      request.onerror = () => {
+        this.missCount++;
+        resolve(null);
+      };
+    });
   }
 
   /**
-   * Validate cached audio entry integrity (FR-020)
-   */
-  private validateEntry(entry: CachedAudioEntry): boolean {
-    // Check required fields exist
-    if (!entry.cacheKey || !entry.audioData || !entry.url) {
-      return false;
-    }
-
-    // Check audio data is valid ArrayBuffer with content
-    if (!(entry.audioData instanceof ArrayBuffer) || entry.audioData.byteLength === 0) {
-      return false;
-    }
-
-    // Check size consistency
-    if (entry.compressedSize !== entry.audioData.byteLength) {
-      return false;
-    }
-
-    // Check timestamps are valid
-    if (entry.createdAt <= 0 || entry.lastAccessedAt <= 0) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Store an audio entry in cache
-   * Triggers eviction if needed, returns the cache key
+   * Store an entry in the cache
    */
   async set(
     entry: Omit<CachedAudioEntry, 'cacheKey' | 'createdAt' | 'lastAccessedAt' | 'accessCount'>,
   ): Promise<string> {
-    if (!this.initialized) await this.init();
+    if (!this._isInitialized) await this.init();
 
-    // Generate cache key
+    const contentHash = await generateContentHash(
+      entry.audioData.byteLength.toString() + entry.paragraphIndex,
+    );
     const cacheKey = generateCacheKey(
       entry.url,
       entry.paragraphIndex,
       entry.provider,
       entry.voice,
-      entry.contentHash,
+      contentHash,
     );
 
-    const now = Date.now();
     const fullEntry: CachedAudioEntry = {
       ...entry,
       cacheKey,
-      createdAt: now,
-      lastAccessedAt: now,
+      createdAt: Date.now(),
+      lastAccessedAt: Date.now(),
       accessCount: 0,
     };
 
-    if (this.useInMemoryFallback) {
-      this.inMemoryCache.set(cacheKey, fullEntry);
-      this.index.set(entry.url, {
-        paragraphIndex: entry.paragraphIndex,
-        cacheKey,
-        size: entry.compressedSize,
-        lastAccessedAt: now,
-      });
-      this.logEvent({ type: 'set', cacheKey, size: entry.compressedSize });
-      return cacheKey;
-    }
-
-    try {
-      // Check if eviction is needed before adding
+    if (this._isInMemoryMode) {
+      // Check size limits
       await this.evictIfNeeded();
-
-      const db = getDatabase();
-      await db.audioCache.put(fullEntry);
-
-      // Update index
-      this.index.set(entry.url, {
-        paragraphIndex: entry.paragraphIndex,
-        cacheKey,
-        size: entry.compressedSize,
-        lastAccessedAt: now,
-      });
-
-      this.logEvent({ type: 'set', cacheKey, size: entry.compressedSize });
+      this.memoryCache.set(cacheKey, fullEntry);
       return cacheKey;
-    } catch (error) {
-      // Handle QuotaExceededError
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        // Force eviction and retry
-        await this.forceEviction();
-        try {
-          const db = getDatabase();
-          await db.audioCache.put(fullEntry);
-          this.index.set(entry.url, {
-            paragraphIndex: entry.paragraphIndex,
-            cacheKey,
-            size: entry.compressedSize,
-            lastAccessedAt: now,
-          });
-          return cacheKey;
-        } catch {
-          // If still failing, fall back to in-memory
-          this.inMemoryCache.set(cacheKey, fullEntry);
-          this.logEvent({
-            type: 'error',
-            operation: 'set',
-            error: 'QuotaExceededError, falling back to in-memory',
-          });
-          return cacheKey;
-        }
-      }
-
-      this.logEvent({
-        type: 'error',
-        operation: 'set',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      throw error;
     }
+
+    // IndexedDB path
+    if (!this.db) {
+      throw new Error('Cache not initialized');
+    }
+
+    await this.evictIfNeeded();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(this.config.storeName, 'readwrite');
+      const store = transaction.objectStore(this.config.storeName);
+      const request = store.put(fullEntry);
+
+      request.onsuccess = () => resolve(cacheKey);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   /**
-   * Delete a cache entry
+   * Delete an entry from the cache
    */
-  async delete(cacheKey: string): Promise<boolean> {
-    if (!this.initialized) await this.init();
+  async delete(key: string): Promise<boolean> {
+    if (!this._isInitialized) await this.init();
 
-    const entry = this.index.get(cacheKey);
-    const size = entry?.size ?? 0;
-
-    if (this.useInMemoryFallback) {
-      const deleted = this.inMemoryCache.delete(cacheKey);
-      if (deleted) {
-        this.index.delete(cacheKey);
-        this.logEvent({ type: 'delete', cacheKey, size });
-      }
-      return deleted;
+    if (this._isInMemoryMode) {
+      return this.memoryCache.delete(key);
     }
 
-    try {
-      const db = getDatabase();
-      await db.audioCache.delete(cacheKey);
-      this.index.delete(cacheKey);
-      this.logEvent({ type: 'delete', cacheKey, size });
-      return true;
-    } catch {
-      return false;
-    }
+    if (!this.db) return false;
+
+    return new Promise((resolve) => {
+      const transaction = this.db!.transaction(this.config.storeName, 'readwrite');
+      const store = transaction.objectStore(this.config.storeName);
+      const request = store.delete(key);
+
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    });
   }
 
   /**
-   * Clear all cache entries
+   * Clear all entries from the cache
    */
-  async clear(): Promise<number> {
-    if (!this.initialized) await this.init();
+  async clear(): Promise<void> {
+    if (!this._isInitialized) await this.init();
 
-    const count = this.index.entryCount;
-
-    if (this.useInMemoryFallback) {
-      this.inMemoryCache.clear();
-      this.index.clear();
-      return count;
+    if (this._isInMemoryMode) {
+      this.memoryCache.clear();
+      return;
     }
 
-    try {
-      const db = getDatabase();
-      await db.audioCache.clear();
-      this.index.clear();
-      return count;
-    } catch {
-      return 0;
-    }
-  }
+    if (!this.db) return;
 
-  /**
-   * Clear cache entries for a specific URL
-   */
-  async clearForUrl(url: string): Promise<number> {
-    if (!this.initialized) await this.init();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(this.config.storeName, 'readwrite');
+      const store = transaction.objectStore(this.config.storeName);
+      const request = store.clear();
 
-    const normalizedUrl = normalizeUrl(url);
-
-    if (this.useInMemoryFallback) {
-      let count = 0;
-      for (const [key, entry] of this.inMemoryCache) {
-        if (normalizeUrl(entry.url) === normalizedUrl) {
-          this.inMemoryCache.delete(key);
-          count++;
-        }
-      }
-      this.index.deleteForUrl(url);
-      return count;
-    }
-
-    try {
-      const db = getDatabase();
-      const count = await db.audioCache.where('url').equals(url).delete();
-      this.index.deleteForUrl(url);
-      return count;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Clear cache entries for a specific provider/voice
-   */
-  async clearForProvider(provider: string, voice?: string): Promise<number> {
-    if (!this.initialized) await this.init();
-
-    if (this.useInMemoryFallback) {
-      let count = 0;
-      for (const [key, entry] of this.inMemoryCache) {
-        if (entry.provider === provider && (!voice || entry.voice === voice)) {
-          this.inMemoryCache.delete(key);
-          this.index.delete(key);
-          count++;
-        }
-      }
-      return count;
-    }
-
-    try {
-      const db = getDatabase();
-
-      if (voice) {
-        // Delete entries for specific provider+voice
-        const count = await db.audioCache
-          .where('[provider+voice]')
-          .equals([provider, voice])
-          .delete();
-        // Rebuild index for consistency
-        await this.loadIndexFromDB();
-        return count;
-      } else {
-        // Get all entries for provider
-        const entries = await db.audioCache.filter((e) => e.provider === provider).toArray();
-
-        for (const entry of entries) {
-          await db.audioCache.delete(entry.cacheKey);
-          this.index.delete(entry.cacheKey);
-        }
-        return entries.length;
-      }
-    } catch {
-      return 0;
-    }
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   /**
    * Get cache statistics
    */
   getStats(): CacheStats {
-    return this.index.getStats();
-  }
+    let entries = 0;
+    let totalSize = 0;
+    let oldestEntryAgeMs: number | null = null;
+    const now = Date.now();
 
-  /**
-   * Get the in-memory cache index
-   */
-  getIndex(): CacheIndex {
-    return this.index.getRawIndex();
+    if (this._isInMemoryMode) {
+      entries = this.memoryCache.size;
+      for (const entry of this.memoryCache.values()) {
+        totalSize += entry.compressedSize;
+        const age = now - entry.createdAt;
+        if (oldestEntryAgeMs === null || age > oldestEntryAgeMs) {
+          oldestEntryAgeMs = age;
+        }
+      }
+    }
+
+    const totalAccess = this.hitCount + this.missCount;
+    const hitRate = totalAccess > 0 ? this.hitCount / totalAccess : 0;
+
+    return {
+      entries,
+      totalSize,
+      maxSize: this.config.maxSizeBytes,
+      hitCount: this.hitCount,
+      missCount: this.missCount,
+      hitRate,
+      oldestEntryAgeMs,
+    };
   }
 
   /**
    * Get cached paragraph indices for a URL
    */
   getCachedParagraphs(url: string, provider: string, voice: string): number[] {
-    const normalizedUrl = normalizeUrl(url);
-    const cachedIndices: number[] = [];
+    const indices: number[] = [];
 
-    // Filter by provider and voice
-    const entries = this.index.getRawIndex().urlIndex[url] ?? [];
-    for (const entry of entries) {
-      const parsed = parseCacheKey(entry.cacheKey);
-      if (parsed && parsed.provider === provider && parsed.voice === voice) {
-        cachedIndices.push(entry.paragraphIndex);
+    if (this._isInMemoryMode) {
+      for (const entry of this.memoryCache.values()) {
+        if (entry.url === url && entry.provider === provider && entry.voice === voice) {
+          indices.push(entry.paragraphIndex);
+        }
       }
     }
 
-    return cachedIndices.sort((a, b) => a - b);
+    return indices.sort((a, b) => a - b);
   }
 
   /**
-   * Generate cache key from components (convenience method)
-   */
-  generateKey(
-    url: string,
-    paragraphIndex: number,
-    provider: string,
-    voice: string,
-    contentHash: string,
-  ): string {
-    return generateCacheKey(url, paragraphIndex, provider, voice, contentHash);
-  }
-
-  /**
-   * Generate content hash (convenience method)
-   */
-  async hashContent(text: string): Promise<string> {
-    return generateContentHash(text);
-  }
-
-  /**
-   * Run eviction if cache exceeds thresholds
-   * Uses multi-factor scoring from eviction module
+   * Evict entries if cache is over threshold
    */
   async evictIfNeeded(): Promise<EvictionResult> {
-    const startTime = Date.now();
+    const stats = this.getStats();
+    const usagePercent = (stats.totalSize / this.config.maxSizeBytes) * 100;
 
-    // Use new eviction module for threshold check
-    if (!checkNeedsEviction(this.index.totalSize, this.index.entryCount, this.config)) {
-      return createEvictionResult(false, 0, 0, 'none', startTime);
+    if (usagePercent < this.config.evictionThresholdPercent) {
+      return {
+        triggered: false,
+        entriesEvicted: 0,
+        bytesFreed: 0,
+      };
     }
 
-    return this.runEviction(startTime);
-  }
-
-  /**
-   * Force eviction regardless of thresholds
-   */
-  private async forceEviction(): Promise<EvictionResult> {
-    return this.runEviction(Date.now());
-  }
-
-  /**
-   * Run the eviction process using multi-factor scoring
-   */
-  private async runEviction(startTime: number): Promise<EvictionResult> {
-    // Get all entries from the index
-    const allEntries = this.index.getEntriesByAge();
-
-    // Use new eviction module for smart selection
-    const candidates = selectEntriesForEviction(
-      allEntries,
-      this.index.totalSize,
-      this.index.entryCount,
-      this.config,
-    );
-
-    if (candidates.length === 0) {
-      return createEvictionResult(true, 0, 0, 'none', startTime);
-    }
-
+    const targetSize = (this.config.evictionTargetPercent / 100) * this.config.maxSizeBytes;
     let bytesFreed = 0;
     let entriesEvicted = 0;
 
-    // Batch delete for efficiency
-    for (const candidate of candidates) {
-      const deleted = await this.delete(candidate.cacheKey);
-      if (deleted) {
-        bytesFreed += candidate.size;
+    if (this._isInMemoryMode) {
+      // Sort by last accessed time (oldest first)
+      const entries = [...this.memoryCache.entries()].sort(
+        ([, a], [, b]) => a.lastAccessedAt - b.lastAccessedAt,
+      );
+
+      for (const [key, entry] of entries) {
+        if (stats.totalSize - bytesFreed <= targetSize) break;
+        this.memoryCache.delete(key);
+        bytesFreed += entry.compressedSize;
         entriesEvicted++;
       }
     }
 
-    const result = createEvictionResult(
-      true,
+    return {
+      triggered: true,
       entriesEvicted,
       bytesFreed,
-      this.index.totalSize > this.config.maxSizeBytes * 0.9 ? 'size_limit' : 'entry_limit',
-      startTime,
-    );
-
-    // Update eviction statistics
-    this.evictionStats = updateEvictionStats(this.evictionStats, result);
-
-    this.logEvent({ type: 'eviction', count: entriesEvicted, bytesFreed });
-    return result;
+      reason: 'size_limit',
+    };
   }
 
   /**
-   * Get eviction statistics
-   */
-  getEvictionStats(): EvictionStats {
-    return { ...this.evictionStats };
-  }
-
-  /**
-   * Run cleanup for stale entries (older than maxAgeMs)
-   * Uses eviction module for stale entry detection
+   * Run cleanup to remove stale/corrupt entries
    */
   async cleanup(): Promise<CleanupResult> {
-    if (!this.initialized) await this.init();
-
     const startTime = Date.now();
-
-    // Get all entries from index
-    const allEntries = this.index.getEntriesByAge();
-
-    // Use eviction module for stale entry detection
-    const staleEntries = findStaleEntries(allEntries, this.config.maxAgeMs);
-
-    let bytesFreed = 0;
+    let entriesRemoved = 0;
     let staleEntriesRemoved = 0;
-    const corruptEntriesRemoved = 0;
+    const corruptEntriesRemoved = 0; // In-memory mode doesn't have corrupt entries
+    let bytesFreed = 0;
 
-    for (const entry of staleEntries) {
-      const deleted = await this.delete(entry.cacheKey);
-      if (deleted) {
-        bytesFreed += entry.size;
-        staleEntriesRemoved++;
+    const now = Date.now();
+
+    if (this._isInMemoryMode) {
+      for (const [key, entry] of this.memoryCache.entries()) {
+        // Check for stale entries
+        if (now - entry.createdAt > this.config.maxAgeMs) {
+          this.memoryCache.delete(key);
+          bytesFreed += entry.compressedSize;
+          staleEntriesRemoved++;
+          entriesRemoved++;
+        }
       }
     }
 
-    const result = createCleanupResult(
+    return {
+      entriesRemoved,
       staleEntriesRemoved,
       corruptEntriesRemoved,
       bytesFreed,
-      startTime,
-    );
+      durationMs: Date.now() - startTime,
+    };
+  }
 
-    if (result.entriesRemoved > 0) {
-      this.logEvent({ type: 'cleanup', count: result.entriesRemoved, bytesFreed });
+  /**
+   * Destroy the cache store and release resources
+   */
+  destroy(): void {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
     }
-
-    return result;
-  }
-
-  /**
-   * Add event listener
-   */
-  addEventListener(listener: CacheEventListener): void {
-    this.eventListeners.add(listener);
-  }
-
-  /**
-   * Remove event listener
-   */
-  removeEventListener(listener: CacheEventListener): void {
-    this.eventListeners.delete(listener);
-  }
-
-  /**
-   * Log cache event
-   */
-  private logEvent(event: CacheEvent): void {
-    logCacheEvent(event, this.eventListeners);
-  }
-
-  /**
-   * Check if using in-memory fallback
-   */
-  get isInMemoryMode(): boolean {
-    return this.useInMemoryFallback;
-  }
-
-  /**
-   * Check if initialized
-   */
-  get isInitialized(): boolean {
-    return this.initialized;
+    this.memoryCache.clear();
+    this._isInitialized = false;
   }
 }
 
-/**
- * Create audio cache store factory
- */
-export function createAudioCacheStore(config?: Partial<CacheConfig>): AudioCacheStore {
-  return new AudioCacheStore(config);
-}
+// ============================================================================
+// Singleton Management
+// ============================================================================
 
-/**
- * Singleton instance for global use
- */
 let cacheStoreInstance: AudioCacheStore | null = null;
 
 /**
- * Get the global cache store instance
+ * Get the singleton cache store instance
  */
 export function getCacheStore(): AudioCacheStore {
   if (!cacheStoreInstance) {
@@ -687,11 +492,18 @@ export function getCacheStore(): AudioCacheStore {
 }
 
 /**
- * Reset the global cache store instance
+ * Reset the singleton cache store (for testing)
  */
 export function resetCacheStore(): void {
   if (cacheStoreInstance) {
-    cacheStoreInstance.close();
+    cacheStoreInstance.destroy();
     cacheStoreInstance = null;
   }
+}
+
+/**
+ * Create a new cache store instance with custom config
+ */
+export function createAudioCacheStore(config?: Partial<CacheConfig>): AudioCacheStore {
+  return new AudioCacheStore(config);
 }
