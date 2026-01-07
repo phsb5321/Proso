@@ -1,15 +1,15 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+ * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+ * Commercial licensing: https://voxpage.com/commercial
+ */
 /**
  * VoxPage Content Styles
  * Styles injected into web pages for highlighting
  */
 
 .voxpage-highlight {
-  background: linear-gradient(
-    135deg,
-    rgba(13, 148, 136, 0.15) 0%,
-    rgba(20, 184, 166, 0.15) 100%
-  ) !important;
-  border-left: 3px solid #0D9488 !important;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(20, 184, 166, 0.15) 100%) !important;
+  border-left: 3px solid #0d9488 !important;
   padding-left: 12px !important;
   margin-left: -15px !important;
   border-radius: 0 8px 8px 0 !important;
@@ -22,7 +22,8 @@
 
 /* Animation for highlight */
 @keyframes voxpage-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1);
   }
   50% {
@@ -37,11 +38,7 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .voxpage-highlight {
-    background: linear-gradient(
-      135deg,
-      rgba(13, 148, 136, 0.25) 0%,
-      rgba(20, 184, 166, 0.25) 100%
-    ) !important;
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(20, 184, 166, 0.25) 100%) !important;
   }
 }
 
@@ -116,7 +113,7 @@
   transform: translateY(-50%) !important;
   width: 28px !important;
   height: 28px !important;
-  background: #0D9488 !important;
+  background: #0d9488 !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
@@ -137,7 +134,7 @@
 
 /* Play icon hover effect */
 .voxpage-play-icon:hover {
-  background: #14B8A6 !important;
+  background: #14b8a6 !important;
   transform: translateY(-50%) scale(1.1) !important;
 }
 
@@ -148,7 +145,7 @@
 
 /* Play icon SVG/content */
 .voxpage-play-icon::after {
-  content: '' !important;
+  content: "" !important;
   width: 0 !important;
   height: 0 !important;
   border-style: solid !important;
@@ -195,12 +192,12 @@
   }
 
   .voxpage-play-icon {
-    background: #14B8A6 !important;
+    background: #14b8a6 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 
   .voxpage-play-icon:hover {
-    background: #2DD4BF !important;
+    background: #2dd4bf !important;
   }
 }
 

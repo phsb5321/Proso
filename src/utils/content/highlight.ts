@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Highlight Manager
  * Manages paragraph and word highlighting for TTS playback
@@ -61,7 +65,8 @@ export class HighlightManager {
       currentHighlightedElement: null,
       currentWordTimeline: null,
       currentParagraphForWords: -1,
-      wordHighlightSupported: typeof CSS !== 'undefined' && typeof (CSS as any).highlights !== 'undefined',
+      wordHighlightSupported:
+        typeof CSS !== 'undefined' && typeof (CSS as any).highlights !== 'undefined',
       autoScrollEnabled: true,
       userScrollTimestamp: 0,
       prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -77,15 +82,19 @@ export class HighlightManager {
   private setupScrollListener(): void {
     let scrollTimeout: number | null = null;
 
-    window.addEventListener('scroll', () => {
-      if (scrollTimeout) {
-        window.clearTimeout(scrollTimeout);
-      }
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (scrollTimeout) {
+          window.clearTimeout(scrollTimeout);
+        }
 
-      scrollTimeout = window.setTimeout(() => {
-        this.onUserScroll();
-      }, 100);
-    }, { passive: true });
+        scrollTimeout = window.setTimeout(() => {
+          this.onUserScroll();
+        }, 100);
+      },
+      { passive: true },
+    );
   }
 
   /**
@@ -117,9 +126,11 @@ export class HighlightManager {
     text?: string,
     timestamp?: number,
     extractedParagraphs?: Element[],
-    findElementByText?: (text: string) => Element | null
+    findElementByText?: (text: string) => Element | null,
   ): void {
-    console.log(`VoxPage: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs?.length || 0}`);
+    console.log(
+      `VoxPage: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs?.length || 0}`,
+    );
 
     this.clearParagraphHighlights();
     this.clearWordHighlightVisual(); // FR-003: Clear visual only, keep timeline data
@@ -128,7 +139,9 @@ export class HighlightManager {
     if (timestamp) {
       const latency = Date.now() - timestamp;
       if (latency > PARAGRAPH_LATENCY_THRESHOLD_MS) {
-        console.warn(`VoxPage: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`);
+        console.warn(
+          `VoxPage: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`,
+        );
 
         // Notify background for drift correction tracking
         this.reportDrift(latency, index);
@@ -148,7 +161,11 @@ export class HighlightManager {
     }
 
     if (element && element.nodeType === Node.ELEMENT_NODE) {
-      console.log(`VoxPage: Highlighting element at index ${index}:`, element.tagName, element.textContent?.substring(0, 50));
+      console.log(
+        `VoxPage: Highlighting element at index ${index}:`,
+        element.tagName,
+        element.textContent?.substring(0, 50),
+      );
       element.classList.add('voxpage-highlight');
       (element as HTMLElement).dataset.voxpageIndex = String(index);
       this.state.highlightElements.push(element);
@@ -157,7 +174,9 @@ export class HighlightManager {
       // Auto-scroll to highlighted element
       this.scrollToHighlight(element);
     } else {
-      console.warn(`VoxPage: No element found for highlight at index ${index}, text lookup: ${text ? 'yes' : 'no'}`);
+      console.warn(
+        `VoxPage: No element found for highlight at index ${index}, text lookup: ${text ? 'yes' : 'no'}`,
+      );
       this.state.currentHighlightedElement = null;
     }
   }
@@ -191,7 +210,9 @@ export class HighlightManager {
     if (timestamp) {
       const latency = Date.now() - timestamp;
       if (latency > WORD_LATENCY_THRESHOLD_MS) {
-        console.warn(`VoxPage: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`);
+        console.warn(
+          `VoxPage: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`,
+        );
       }
     }
 
@@ -205,7 +226,9 @@ export class HighlightManager {
 
     // FR-004: Validate paragraph index matches current timeline
     if (paragraphIndex !== this.state.currentParagraphForWords) {
-      console.warn(`VoxPage: Paragraph mismatch (expected ${this.state.currentParagraphForWords}, got ${paragraphIndex}), ignoring highlightWord`);
+      console.warn(
+        `VoxPage: Paragraph mismatch (expected ${this.state.currentParagraphForWords}, got ${paragraphIndex}), ignoring highlightWord`,
+      );
       return;
     }
 
@@ -372,12 +395,12 @@ export class HighlightManager {
    * Clear paragraph highlights only
    */
   clearParagraphHighlights(): void {
-    this.state.highlightElements.forEach(el => {
+    this.state.highlightElements.forEach((el) => {
       el.classList.remove('voxpage-highlight');
     });
     this.state.highlightElements = [];
 
-    document.querySelectorAll('.voxpage-highlight').forEach(el => {
+    document.querySelectorAll('.voxpage-highlight').forEach((el) => {
       el.classList.remove('voxpage-highlight');
     });
   }
@@ -424,8 +447,8 @@ export class HighlightManager {
    * Filter highlight elements to only those still in DOM
    */
   filterValidHighlightElements(): void {
-    this.state.highlightElements = this.state.highlightElements.filter(el =>
-      document.body.contains(el)
+    this.state.highlightElements = this.state.highlightElements.filter((el) =>
+      document.body.contains(el),
     );
   }
 
@@ -434,13 +457,15 @@ export class HighlightManager {
    */
   private reportDrift(latencyMs: number, paragraphIndex: number): void {
     try {
-      browser.runtime.sendMessage({
-        action: 'reportDrift',
-        latencyMs,
-        paragraphIndex,
-      }).catch(() => {
-        // Ignore send errors
-      });
+      browser.runtime
+        .sendMessage({
+          action: 'reportDrift',
+          latencyMs,
+          paragraphIndex,
+        })
+        .catch(() => {
+          // Ignore send errors
+        });
     } catch (e) {
       // Ignore
     }
@@ -451,13 +476,15 @@ export class HighlightManager {
    */
   private sendTimelineReady(paragraphIndex: number): void {
     try {
-      browser.runtime.sendMessage({
-        type: 'TIMELINE_READY',
-        paragraphIndex,
-        timestamp: Date.now(),
-      }).catch(() => {
-        // Ignore send errors
-      });
+      browser.runtime
+        .sendMessage({
+          type: 'TIMELINE_READY',
+          paragraphIndex,
+          timestamp: Date.now(),
+        })
+        .catch(() => {
+          // Ignore send errors
+        });
     } catch (e) {
       console.warn('VoxPage: Failed to send TIMELINE_READY:', e);
     }
@@ -468,12 +495,14 @@ export class HighlightManager {
    */
   private reportScrollState(userScrolledAt: number): void {
     try {
-      browser.runtime.sendMessage({
-        action: 'reportScrollState',
-        userScrolledAt,
-      }).catch(() => {
-        // Ignore send errors
-      });
+      browser.runtime
+        .sendMessage({
+          action: 'reportScrollState',
+          userScrolledAt,
+        })
+        .catch(() => {
+          // Ignore send errors
+        });
     } catch (e) {
       // Ignore
     }

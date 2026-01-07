@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Reading Queue Types for VoxPage
  * Zod-first type definitions for reading queue feature
@@ -120,7 +124,7 @@ export type QueueItem = z.infer<typeof queueItemSchema>;
 export type QueueMetadata = z.infer<typeof queueMetadataSchema>;
 export type QueueState = z.infer<typeof queueStateSchema>;
 export type QueueAction = z.infer<typeof queueActionSchema>;
-export type QueueItemStatus = typeof QUEUE_ITEM_STATUSES[number];
+export type QueueItemStatus = (typeof QUEUE_ITEM_STATUSES)[number];
 export type AddItemRequest = z.infer<typeof addItemRequestSchema>;
 
 /**

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Language Detection Types
  * Type definitions and Zod schemas for language detection
@@ -100,4 +104,4 @@ export const COMMON_LANGUAGES = [
   'cs', // Czech
 ] as const;
 
-export type CommonLanguage = typeof COMMON_LANGUAGES[number];
+export type CommonLanguage = (typeof COMMON_LANGUAGES)[number];

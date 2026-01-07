@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Export Message Handlers for VoxPage
  * Handles MP3 export requests from popup/content
@@ -33,7 +37,7 @@ const activeJobs = new Map<string, ExportJob>();
  * Starts MP3 export job for article paragraphs
  */
 export async function handleExportStart(
-  request: VoxPageProtocol['export.start']['request']
+  request: VoxPageProtocol['export.start']['request'],
 ): Promise<VoxPageProtocol['export.start']['response']> {
   const { jobId, paragraphs, provider, voice, speed, quality } = request;
 
@@ -74,7 +78,7 @@ export async function handleExportStart(
  * Cancels an ongoing export job
  */
 export async function handleExportCancel(
-  request: VoxPageProtocol['export.cancel']['request']
+  request: VoxPageProtocol['export.cancel']['request'],
 ): Promise<VoxPageProtocol['export.cancel']['response']> {
   const { jobId } = request;
   const job = activeJobs.get(jobId);
@@ -109,7 +113,7 @@ export async function handleExportCancel(
  * Returns current progress of export job
  */
 export async function handleExportGetProgress(
-  request: VoxPageProtocol['export.getProgress']['request']
+  request: VoxPageProtocol['export.getProgress']['request'],
 ): Promise<VoxPageProtocol['export.getProgress']['response']> {
   const { jobId } = request;
   const job = activeJobs.get(jobId);
@@ -125,9 +129,7 @@ export async function handleExportGetProgress(
   }
 
   const percentComplete =
-    job.totalParagraphs > 0
-      ? Math.round((job.currentParagraph / job.totalParagraphs) * 100)
-      : 0;
+    job.totalParagraphs > 0 ? Math.round((job.currentParagraph / job.totalParagraphs) * 100) : 0;
 
   return {
     status: job.status,
@@ -143,7 +145,7 @@ export async function handleExportGetProgress(
  * Triggers download of completed export
  */
 export async function handleExportDownload(
-  request: VoxPageProtocol['export.download']['request']
+  request: VoxPageProtocol['export.download']['request'],
 ): Promise<VoxPageProtocol['export.download']['response']> {
   const { jobId, filename } = request;
   const job = activeJobs.get(jobId);
@@ -187,7 +189,7 @@ async function processExportJob(
   paragraphs: Array<{ index: number; text: string }>,
   provider: string,
   voice: string | undefined,
-  speed: number
+  speed: number,
 ): Promise<void> {
   job.status = 'generating';
 
@@ -239,10 +241,7 @@ async function processExportJob(
 /**
  * Save export to history
  */
-async function saveExportHistory(
-  job: ExportJob,
-  filename: string
-): Promise<void> {
+async function saveExportHistory(job: ExportJob, filename: string): Promise<void> {
   const historyKey = ROADMAP_STORAGE_KEYS.EXPORT_HISTORY;
   const result = await browser.storage.local.get(historyKey);
   const history = (result[historyKey] as Array<unknown>) || [];

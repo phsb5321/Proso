@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Settings Store
  * Centralized settings management with validation and persistence
@@ -45,7 +49,7 @@ export class SettingsStore {
 
       // Apply any pending migrations
       const migrated = await applyMigrations(stored, (partial) =>
-        browser.storage.local.set(partial)
+        browser.storage.local.set(partial),
       );
 
       // Merge with defaults (stored values override defaults)

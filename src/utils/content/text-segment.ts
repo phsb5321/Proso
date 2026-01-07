@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Text Segment Module
  * Maps extracted text to DOM elements for highlighting
@@ -23,7 +27,7 @@ export type WordBoundary = z.infer<typeof wordBoundarySchema>;
  * Segment type enum
  */
 export const SEGMENT_TYPES = ['paragraph', 'heading', 'listItem'] as const;
-export type SegmentType = typeof SEGMENT_TYPES[number];
+export type SegmentType = (typeof SEGMENT_TYPES)[number];
 
 /**
  * Text segment configuration
@@ -169,7 +173,7 @@ export class TextSegment {
   private findTextNode(
     element: Element,
     charOffset: number,
-    charLength: number
+    charLength: number,
   ): TextNodeWithOffset | null {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
 

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Groq Timestamp Provider
  * Uses Groq Whisper API to generate word-level timestamps for any TTS provider
@@ -56,7 +60,7 @@ export class GroqTimestampProvider extends BaseTTSProvider {
     const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: formData,
     });
@@ -90,7 +94,7 @@ export class GroqTimestampProvider extends BaseTTSProvider {
       const response = await fetch('https://api.groq.com/openai/v1/models', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
       });
 

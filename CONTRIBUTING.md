@@ -6,6 +6,22 @@ Thank you for your interest in contributing to VoxPage! This document provides g
 
 By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). Please read it before contributing.
 
+## Contributor License Agreement (CLA)
+
+By submitting a pull request, you agree to the following terms:
+
+1. **License Grant**: You grant VoxPage a perpetual, worldwide, non-exclusive,
+   royalty-free license to use, reproduce, modify, and distribute your contribution.
+
+2. **Relicensing Rights**: You grant VoxPage the right to relicense your contribution
+   under commercial license terms for enterprise customers.
+
+3. **Original Work**: You represent that your contribution is your original work
+   and you have the right to grant these permissions.
+
+4. **Open Source Commitment**: The open source version of VoxPage will always
+   remain available under AGPL-3.0.
+
 ## How to Contribute
 
 ### Reporting Bugs

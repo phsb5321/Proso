@@ -134,6 +134,21 @@
       </select>
     </section>
 
+    <!-- Cost Estimate Section (028-smart-audio-cache T071-T072) -->
+    <section class="voxpage-popup__cost" id="cost-section">
+      <div class="voxpage-popup__cost-row">
+        <span class="voxpage-popup__cost-label">Estimated Cost:</span>
+        <span class="voxpage-popup__cost-value" id="cost-estimate">--</span>
+      </div>
+      <div class="voxpage-popup__cost-row voxpage-popup__cost-row--savings" id="cost-savings-row" hidden>
+        <span class="voxpage-popup__cost-label">Cache Savings:</span>
+        <span class="voxpage-popup__cost-value voxpage-popup__cost-value--savings" id="cost-savings">$0.00 (0%)</span>
+      </div>
+      <div class="voxpage-popup__cost-cache-bar" id="cost-cache-bar" hidden>
+        <div class="voxpage-popup__cost-cache-fill" id="cost-cache-fill" style="width: 0%"></div>
+      </div>
+    </section>
+
     <!-- Summarize Section -->
     <section class="voxpage-popup__summarize" id="summarize-section">
       <button

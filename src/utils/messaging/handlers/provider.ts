@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Provider Message Handlers
  * Handles TTS provider management messages
@@ -7,13 +11,16 @@
 
 import type { VoxPageProtocol } from '../protocol';
 import type { ProviderSelectParams, ProviderValidateLanguageSupportParams } from '../types';
-import { providerSelectParamsSchema, providerValidateLanguageSupportParamsSchema } from '../schemas';
+import {
+  providerSelectParamsSchema,
+  providerValidateLanguageSupportParamsSchema,
+} from '../schemas';
 
 /**
  * Select provider handler
  */
 export async function handleProviderSelect(
-  params: ProviderSelectParams
+  params: ProviderSelectParams,
 ): Promise<VoxPageProtocol['provider.select']['response']> {
   const validated = providerSelectParamsSchema.parse(params);
 
@@ -28,7 +35,9 @@ export async function handleProviderSelect(
 /**
  * Get provider list handler
  */
-export async function handleProviderGetList(): Promise<VoxPageProtocol['provider.getList']['response']> {
+export async function handleProviderGetList(): Promise<
+  VoxPageProtocol['provider.getList']['response']
+> {
   // TODO Phase 4: Delegate to ProviderRegistry.getAllProviders()
 
   return {
@@ -46,7 +55,7 @@ export async function handleProviderGetList(): Promise<VoxPageProtocol['provider
  * Validate language support handler
  */
 export async function handleProviderValidateLanguageSupport(
-  params: ProviderValidateLanguageSupportParams
+  params: ProviderValidateLanguageSupportParams,
 ): Promise<VoxPageProtocol['provider.validateLanguageSupport']['response']> {
   const validated = providerValidateLanguageSupportParamsSchema.parse(params);
 

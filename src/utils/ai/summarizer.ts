@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Article Summarizer for VoxPage
  * Provides AI-powered article summarization using OpenAI or Anthropic
@@ -111,7 +115,7 @@ export class ArticleSummarizer {
    */
   private async callOpenAI(
     request: SummarizationRequest,
-    apiKey: string
+    apiKey: string,
   ): Promise<Omit<SummaryResult, 'processingTimeMs'>> {
     const config = AI_PROVIDER_CONFIGS.openai;
 
@@ -161,7 +165,7 @@ export class ArticleSummarizer {
    */
   private async callAnthropic(
     request: SummarizationRequest,
-    apiKey: string
+    apiKey: string,
   ): Promise<Omit<SummaryResult, 'processingTimeMs'>> {
     const config = AI_PROVIDER_CONFIGS.anthropic;
 
@@ -274,11 +278,7 @@ ${title ? `Title: ${title}\n\n` : ''}${text}`;
   /**
    * Cache a summary result
    */
-  private cacheSummary(
-    url: string,
-    bullets: SummaryBullet[],
-    provider: AIProvider
-  ): void {
+  private cacheSummary(url: string, bullets: SummaryBullet[], provider: AIProvider): void {
     const hash = this.hashUrl(url);
     const now = Date.now();
 

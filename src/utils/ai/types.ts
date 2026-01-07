@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * AI Provider Types for VoxPage
  * Type definitions for AI summarization feature
@@ -70,7 +74,7 @@ export const openAIResponseSchema = z.object({
       message: z.object({
         content: z.string(),
       }),
-    })
+    }),
   ),
   usage: z
     .object({
@@ -88,7 +92,7 @@ export const anthropicResponseSchema = z.object({
     z.object({
       type: z.literal('text'),
       text: z.string(),
-    })
+    }),
   ),
   usage: z
     .object({

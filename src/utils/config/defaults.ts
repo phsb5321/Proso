@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * VoxPage Configuration Defaults
  * SINGLE SOURCE OF TRUTH for all default configuration values
@@ -7,7 +11,7 @@
  * No hardcoded default values should exist elsewhere in the codebase.
  */
 
-import type { Settings, FooterState, Mode, Provider } from './schema';
+import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema';
 
 /**
  * Default configuration values
@@ -26,6 +30,10 @@ export const defaults: Readonly<Settings> = Object.freeze({
   maxCacheSize: 50,
   wordSyncEnabled: true,
   autoDetectLanguage: true,
+  // 027-settings-ux-overhaul
+  themeMode: 'system' as ThemeMode,
+  highlightEnabled: true,
+  autoScroll: true,
 });
 
 /**
@@ -116,4 +124,78 @@ export const aiDefaults: Readonly<AISettings> = Object.freeze({
 export const extendedSpeedConstraints = Object.freeze({
   min: 0.5,
   max: 4.0,
+});
+
+// ========== Audio Cache Defaults (028-smart-audio-cache) ==========
+
+import type { CacheConfig } from '../cache/types';
+
+/**
+ * Audio cache configuration defaults
+ * IndexedDB-based persistent cache for TTS audio
+ */
+export const cacheDefaults: Readonly<CacheConfig> = Object.freeze({
+  // Size limits
+  maxSizeBytes: 500 * 1024 * 1024, // 500 MB
+  maxEntries: 1000,
+
+  // Age limits
+  maxAgeMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+
+  // Eviction thresholds - evict to 70% when at 90%
+  evictionThresholdPercent: 90,
+  evictionTargetPercent: 70,
+
+  // IndexedDB settings
+  persistToIndexedDB: true,
+  dbName: 'voxpage-audio-cache',
+  storeName: 'audio-entries',
+});
+
+/**
+ * Cache constraints for validation
+ */
+export const cacheConstraints = Object.freeze({
+  maxSizeBytes: { min: 50 * 1024 * 1024, max: 2 * 1024 * 1024 * 1024 }, // 50MB - 2GB
+  maxEntries: { min: 100, max: 10000 },
+  maxAgeDays: { min: 1, max: 365 },
+  prefetchAhead: { min: 1, max: 10 },
+});
+
+// ========== PDF Settings Defaults (033-pdf-reading-support) ==========
+
+import type { PDFSettings, PDFHistory } from '../pdf/types';
+
+/**
+ * PDF reading settings defaults
+ * Controls text extraction, OCR, and reading behavior
+ */
+export const pdfDefaults: Readonly<PDFSettings> = Object.freeze({
+  /** Enable OCR for scanned PDFs */
+  ocrEnabled: true,
+  /** Automatically detect scanned PDFs and offer OCR option */
+  autoDetectScanned: true,
+  /** Skip headers and footers during continuous reading */
+  headerFooterSkip: true,
+  /** Enable multi-column layout detection */
+  columnDetectionEnabled: true,
+  /** Number of pages to prefetch during extraction */
+  prefetchPages: 3,
+});
+
+/**
+ * PDF history defaults
+ * LRU history of recently read PDFs
+ */
+export const pdfHistoryDefaults: Readonly<PDFHistory> = Object.freeze({
+  items: [],
+  maxItems: 100,
+});
+
+/**
+ * PDF constraints for validation
+ */
+export const pdfConstraints = Object.freeze({
+  prefetchPages: { min: 1, max: 10 },
+  maxHistoryItems: { min: 10, max: 500 },
 });

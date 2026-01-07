@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * ElevenLabs TTS Provider
  * TypeScript port of the working JavaScript implementation
@@ -48,22 +52,109 @@ export interface AudioWithTiming {
  * All voices work with all 29+ supported languages via the multilingual model
  */
 export const ELEVENLABS_VOICES: Voice[] = [
-  { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', language: 'en-US', gender: 'female', description: 'Calm, soothing' },
-  { id: '29vD33N1CtxCmqQRPOHJ', name: 'Drew', language: 'en-US', gender: 'male', description: 'Well-rounded, confident' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', language: 'en-US', gender: 'female', description: 'Soft news presenter' },
-  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', language: 'en-US', gender: 'male', description: 'Crisp, natural' },
-  { id: '2EiwWnXFnvU5JabPnv8n', name: 'Clyde', language: 'en-US', gender: 'male', description: 'Deep, warm' },
-  { id: '5Q0t7uMcjvnagumLfvZi', name: 'Paul', language: 'en-US', gender: 'male', description: 'News anchor style' },
-  { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi', language: 'en-US', gender: 'female', description: 'Assertive, strong' },
-  { id: 'CYw3kZ02Hs0563khs1Fj', name: 'Dave', language: 'en-GB', gender: 'male', description: 'British, conversational' },
-  { id: 'D38z5RcWu1voky8WS1ja', name: 'Fin', language: 'en-IE', gender: 'male', description: 'Irish, friendly' },
-  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', language: 'en-US', gender: 'female', description: 'Youthful, engaging' },
+  {
+    id: '21m00Tcm4TlvDq8ikWAM',
+    name: 'Rachel',
+    language: 'en-US',
+    gender: 'female',
+    description: 'Calm, soothing',
+  },
+  {
+    id: '29vD33N1CtxCmqQRPOHJ',
+    name: 'Drew',
+    language: 'en-US',
+    gender: 'male',
+    description: 'Well-rounded, confident',
+  },
+  {
+    id: 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Sarah',
+    language: 'en-US',
+    gender: 'female',
+    description: 'Soft news presenter',
+  },
+  {
+    id: 'ErXwobaYiN019PkySvjV',
+    name: 'Antoni',
+    language: 'en-US',
+    gender: 'male',
+    description: 'Crisp, natural',
+  },
+  {
+    id: '2EiwWnXFnvU5JabPnv8n',
+    name: 'Clyde',
+    language: 'en-US',
+    gender: 'male',
+    description: 'Deep, warm',
+  },
+  {
+    id: '5Q0t7uMcjvnagumLfvZi',
+    name: 'Paul',
+    language: 'en-US',
+    gender: 'male',
+    description: 'News anchor style',
+  },
+  {
+    id: 'AZnzlk1XvdvUeBnXmlld',
+    name: 'Domi',
+    language: 'en-US',
+    gender: 'female',
+    description: 'Assertive, strong',
+  },
+  {
+    id: 'CYw3kZ02Hs0563khs1Fj',
+    name: 'Dave',
+    language: 'en-GB',
+    gender: 'male',
+    description: 'British, conversational',
+  },
+  {
+    id: 'D38z5RcWu1voky8WS1ja',
+    name: 'Fin',
+    language: 'en-IE',
+    gender: 'male',
+    description: 'Irish, friendly',
+  },
+  {
+    id: 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Elli',
+    language: 'en-US',
+    gender: 'female',
+    description: 'Youthful, engaging',
+  },
 ];
 
 export const SUPPORTED_LANGUAGES = [
-  'en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl',
-  'cs', 'ar', 'zh', 'hu', 'ko', 'ja', 'hi', 'sv', 'id', 'fil',
-  'uk', 'el', 'fi', 'ro', 'da', 'bg', 'ms', 'sk', 'hr', 'ta'
+  'en',
+  'es',
+  'fr',
+  'de',
+  'it',
+  'pt',
+  'pl',
+  'tr',
+  'ru',
+  'nl',
+  'cs',
+  'ar',
+  'zh',
+  'hu',
+  'ko',
+  'ja',
+  'hi',
+  'sv',
+  'id',
+  'fil',
+  'uk',
+  'el',
+  'fi',
+  'ro',
+  'da',
+  'bg',
+  'ms',
+  'sk',
+  'hr',
+  'ta',
 ];
 
 // ============================================
@@ -126,8 +217,8 @@ export class ElevenLabsProvider {
    */
   async generateAudio(
     text: string,
-    voiceId: string = '21m00Tcm4TlvDq8ikWAM',
-    options: GenerateOptions = {}
+    voiceId = '21m00Tcm4TlvDq8ikWAM',
+    options: GenerateOptions = {},
   ): Promise<ArrayBuffer | AudioWithTiming> {
     if (!this.hasApiKey()) {
       throw new Error('ElevenLabs API key not configured');
@@ -167,7 +258,7 @@ export class ElevenLabsProvider {
       headers: {
         'xi-api-key': this.apiKey!,
         'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg',
+        Accept: 'audio/mpeg',
       },
       body: JSON.stringify(requestBody),
     });
@@ -191,7 +282,7 @@ export class ElevenLabsProvider {
   async generateAudioWithTimestamps(
     text: string,
     voiceId: string,
-    options: GenerateOptions = {}
+    options: GenerateOptions = {},
   ): Promise<AudioWithTiming> {
     const modelId = options.turbo ? 'eleven_turbo_v2_5' : 'eleven_multilingual_v2';
 
@@ -213,14 +304,17 @@ export class ElevenLabsProvider {
       }
     }
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': this.apiKey!,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': this.apiKey!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       },
-      body: JSON.stringify(requestBody),
-    });
+    );
 
     if (!response.ok) {
       let errorBody: { detail?: { message?: string } } | null = null;
@@ -265,7 +359,7 @@ export class ElevenLabsProvider {
       characters: string[];
       character_start_times_seconds: number[];
       character_end_times_seconds: number[];
-    }
+    },
   ): WordTiming[] {
     if (!alignment || !alignment.characters || !alignment.character_start_times_seconds) {
       return [];
@@ -296,7 +390,12 @@ export class ElevenLabsProvider {
         wordEndTime = endTime;
       } else {
         // Non-word character - save current word if exists
-        if (currentWord.length > 0 && wordStartIndex !== null && wordStartTime !== null && wordEndTime !== null) {
+        if (
+          currentWord.length > 0 &&
+          wordStartIndex !== null &&
+          wordStartTime !== null &&
+          wordEndTime !== null
+        ) {
           wordTimings.push({
             word: currentWord,
             charOffset: wordStartIndex,
@@ -315,7 +414,12 @@ export class ElevenLabsProvider {
     }
 
     // Don't forget the last word
-    if (currentWord.length > 0 && wordStartIndex !== null && wordStartTime !== null && wordEndTime !== null) {
+    if (
+      currentWord.length > 0 &&
+      wordStartIndex !== null &&
+      wordStartTime !== null &&
+      wordEndTime !== null
+    ) {
       wordTimings.push({
         word: currentWord,
         charOffset: wordStartIndex,

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Queue Store for VoxPage
  * Manages reading queue persistence in browser.storage.local
@@ -194,11 +198,7 @@ export class QueueStore {
    * @param progress - Progress percentage (0-100)
    * @param lastParagraphIndex - Optional last paragraph index
    */
-  async updateProgress(
-    id: string,
-    progress: number,
-    lastParagraphIndex?: number
-  ): Promise<void> {
+  async updateProgress(id: string, progress: number, lastParagraphIndex?: number): Promise<void> {
     const state = await this.getState();
     const item = state.items.find((item) => item.id === id);
 

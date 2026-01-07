@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Pricing Model Utility
  * Handles cost calculation for TTS providers
@@ -16,7 +20,7 @@ export const PricingType = {
   FREE: 'free',
 } as const;
 
-export type PricingTypeValue = typeof PricingType[keyof typeof PricingType];
+export type PricingTypeValue = (typeof PricingType)[keyof typeof PricingType];
 
 /**
  * Pricing model schema
@@ -41,7 +45,7 @@ export function createPricingModel(
   type: PricingTypeValue,
   rate: number,
   unit: number,
-  currency: string = 'USD'
+  currency = 'USD',
 ): Readonly<PricingModel> {
   return Object.freeze(
     pricingModelSchema.parse({
@@ -49,7 +53,7 @@ export function createPricingModel(
       rate,
       unit,
       currency,
-    })
+    }),
   );
 }
 
@@ -58,8 +62,8 @@ export function createPricingModel(
  */
 export const ProviderPricing = Object.freeze({
   openai: createPricingModel(PricingType.PER_CHARACTER, 0.015, 1000),
-  openaiHd: createPricingModel(PricingType.PER_CHARACTER, 0.030, 1000),
-  elevenlabs: createPricingModel(PricingType.PER_CHARACTER, 0.30, 1000),
+  openaiHd: createPricingModel(PricingType.PER_CHARACTER, 0.03, 1000),
+  elevenlabs: createPricingModel(PricingType.PER_CHARACTER, 0.3, 1000),
   cartesia: createPricingModel(PricingType.PER_CHARACTER, 0.05, 1000),
   groq: createPricingModel(PricingType.FREE, 0, 1), // Groq is free tier
   browser: createPricingModel(PricingType.FREE, 0, 1),
@@ -99,7 +103,7 @@ export function calculateCost(text: string, pricingModel: PricingModel): number 
  * @param currency - Currency code
  * @returns Formatted cost string
  */
-export function formatCost(cost: number, currency: string = 'USD'): string {
+export function formatCost(cost: number, currency = 'USD'): string {
   if (cost === 0) {
     return 'Free';
   }

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Commercial licensing: https://voxpage.com/commercial
+
 /**
  * Groq TTS Provider
  * Implementation of ITTSProvider for Groq's text-to-speech API
@@ -48,7 +52,9 @@ export class GroqProvider extends BaseTTSProvider {
 
     // Check language support
     if (validated.language && !this.supportsLanguage(validated.language)) {
-      throw new Error(`Groq only supports English. Use OpenAI or ElevenLabs for ${validated.language}`);
+      throw new Error(
+        `Groq only supports English. Use OpenAI or ElevenLabs for ${validated.language}`,
+      );
     }
 
     const voiceId = validated.voice || 'alloy'; // Default voice
@@ -56,7 +62,7 @@ export class GroqProvider extends BaseTTSProvider {
     const response = await fetch('https://api.groq.com/openai/v1/audio/speech', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -77,7 +83,7 @@ export class GroqProvider extends BaseTTSProvider {
     const audioBlob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
 
     // Estimate duration
-    const estimatedDuration = validated.text.length / (150 * 5) * 60;
+    const estimatedDuration = (validated.text.length / (150 * 5)) * 60;
 
     return this.createResponse(audioBlob, estimatedDuration, null);
   }
@@ -91,7 +97,7 @@ export class GroqProvider extends BaseTTSProvider {
       const response = await fetch('https://api.groq.com/openai/v1/models', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
       });
 
