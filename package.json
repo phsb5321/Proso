@@ -2,7 +2,7 @@
   "name": "voxpage",
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@10.14.0",
+  "packageManager": "pnpm@10.27.0",
   "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
   "scripts": {
     "dev": "wxt",
@@ -17,10 +17,19 @@
     "zip:chrome": "wxt zip -b chrome",
     "postinstall": "wxt prepare",
     "test": "pnpm run lint && node --experimental-vm-modules node_modules/.bin/jest",
-    "test:unit": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:unit": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects unit",
+    "test:contract": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects contract",
+    "test:integration": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects integration",
+    "test:security": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects security",
+    "test:regression": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects regression",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
-    "test:visual": "npx playwright test",
-    "test:visual:update": "npx playwright test --update-snapshots",
+    "test:visual": "npx playwright test --project=firefox-visual",
+    "test:visual:update": "npx playwright test --project=firefox-visual --update-snapshots",
+    "test:e2e": "npx playwright test --project=firefox-e2e",
+    "test:e2e:ext": "npx playwright test --project=chromium-extension",
+    "test:e2e:ext:ui": "npx playwright test --project=chromium-extension --ui",
+    "test:e2e:ext:docker": "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:3000/ npx playwright test --project=chromium-extension",
+    "validate:firefox": "web-ext run --source-dir=.output/firefox-mv2",
     "test:all": "pnpm run test && pnpm run test:visual",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -67,6 +76,6 @@
     "lamejs": "^1.2.1",
     "pdfjs-dist": "^5.4.530",
     "tesseract-wasm": "^0.11.0",
-    "zod": "^4.3.4"
+    "zod": "^3.23.8"
   }
 }

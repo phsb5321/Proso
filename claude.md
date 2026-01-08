@@ -115,6 +115,104 @@ Users must configure their own API keys in the extension settings:
 - [ ] Verify highlighting works correctly
 - [ ] Test context menu integration
 
+## E2E Testing (Playwright)
+
+Extension E2E tests use Playwright with Chromium in headless mode. Firefox validation is done manually via web-ext.
+
+### Running E2E Tests
+
+```bash
+# Build extension and run E2E tests
+pnpm build:chrome && pnpm test:e2e:ext
+
+# Run with UI for debugging
+pnpm test:e2e:ext:ui
+
+# Run in Docker (for CI or NixOS)
+./scripts/e2e-docker.sh
+
+# Run Firefox manual validation (after build:firefox)
+pnpm validate:firefox
+```
+
+### Test Structure
+
+```
+tests/e2e/extension/
+├── fixtures/
+│   ├── extension.fixture.ts  # Extension loading, browser context
+│   ├── console.fixture.ts    # Console error capture + allowlist filtering
+│   └── audio.fixture.ts      # TTS API network interception
+├── console-errors.spec.ts    # Console error detection tests (8 tests)
+├── audio-playback.spec.ts    # Audio playback tests (7 tests, 6 skipped*)
+└── stability.spec.ts         # Stability and memory tests (5 tests, 1 skipped*)
+
+* Skipped tests require content script injection on file:// URLs which Chrome blocks.
+```
+
+### Test Results
+
+Current status: **13 passed, 7 skipped** (~37s runtime)
+
+### Fixtures
+
+| Fixture | Purpose |
+|---------|---------|
+| `extension.fixture.ts` | Loads Chrome extension via `launchPersistentContext()`, extracts extension ID |
+| `console.fixture.ts` | Captures console errors/warnings, filters via allowlist, detects CSP violations |
+| `audio.fixture.ts` | Intercepts TTS API calls (OpenAI, ElevenLabs), returns fixture audio |
+
+### NixOS Support
+
+On NixOS, the tests automatically detect and use system Chromium:
+
+```bash
+nix-shell  # Enters dev environment with Chromium
+pnpm build:chrome && pnpm test:e2e:ext
+```
+
+See `docs/e2e-nixos.md` for detailed NixOS instructions.
+
+### Console Error Allowlist
+
+Known benign errors can be allowlisted in `tests/e2e/console-allowlist.json`:
+
+```json
+{
+  "entries": [
+    {
+      "id": "favicon-not-found",
+      "pattern": "favicon\\.ico|Failed to load resource.*404",
+      "reason": "Missing favicon on test pages is expected"
+    }
+  ]
+}
+```
+
+### Key Test Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm test:e2e:ext` | Run extension E2E tests |
+| `pnpm test:e2e:ext:ui` | Run with Playwright UI |
+| `pnpm test:e2e:ext:docker` | Run via Docker |
+| `pnpm test:visual` | Run visual regression tests |
+| `pnpm validate:firefox` | Launch Firefox with extension |
+
+### Artifacts
+
+On test failure, Playwright generates:
+- **Traces**: `test-results/{test-name}/trace.zip` - View with `npx playwright show-trace`
+- **Videos**: `test-results/{test-name}/video.webm` - Playable in browser
+- **HTML Report**: `playwright-report/index.html` - View with `npx playwright show-report`
+
+### CI Integration
+
+E2E tests run in GitHub Actions (`.github/workflows/test.yml`):
+- `extension-e2e-tests` job builds Chrome extension and runs tests
+- Uses `xvfb-run` for headed mode in CI
+- Uploads artifacts on failure
+
 ## Known Issues / TODOs
 - [ ] Add icon PNG generation script
 - [ ] Implement audio preloading for smoother playback

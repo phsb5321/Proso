@@ -1,0 +1,85 @@
+# docker-compose.playwright.yml - Run Playwright E2E tests in Docker
+#
+# Usage:
+#   docker-compose -f docker-compose.playwright.yml up --build
+#   docker-compose -f docker-compose.playwright.yml run --rm e2e-tests
+#
+# This is useful for:
+#   - CI environments without browser dependencies
+#   - NixOS systems where Playwright's browsers don't work
+#   - Reproducible test environments
+
+version: '3.8'
+
+services:
+  e2e-tests:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+        
+        WORKDIR /app
+        
+        # Install pnpm
+        RUN npm install -g pnpm
+        
+        # Copy package files first for better caching
+        COPY package.json pnpm-lock.yaml ./
+        
+        # Install dependencies
+        RUN pnpm install --frozen-lockfile
+        
+        # Copy source code
+        COPY . .
+        
+        # Build the Chrome extension
+        RUN pnpm build:chrome
+        
+        # Run E2E tests
+        CMD ["pnpm", "test:e2e:ext"]
+    
+    # Share test results with host
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+    
+    # Use host networking for simpler setup
+    network_mode: host
+    
+    # Run as non-root for security
+    user: pwuser
+    
+    # Environment variables
+    environment:
+      - CI=true
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+  # Optional: Run visual tests
+  visual-tests:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+        
+        WORKDIR /app
+        
+        RUN npm install -g pnpm
+        
+        COPY package.json pnpm-lock.yaml ./
+        RUN pnpm install --frozen-lockfile
+        
+        COPY . .
+        
+        CMD ["pnpm", "test:visual"]
+    
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+      - ./tests/visual:/app/tests/visual
+    
+    network_mode: host
+    user: pwuser
+    
+    environment:
+      - CI=true
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
