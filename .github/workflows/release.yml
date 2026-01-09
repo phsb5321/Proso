@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: voxpage-${{ matrix.browser }}-${{ needs.validate.outputs.version }}
-          path: .output/voxpage-*-${{ matrix.browser }}.zip
+          path: .output/voxpage-${{ needs.validate.outputs.version }}-${{ matrix.browser }}.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -139,7 +139,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: voxpage-sources-${{ needs.validate.outputs.version }}
-          path: .output/voxpage-*-sources.zip
+          path: .output/voxpage-${{ needs.validate.outputs.version }}-sources.zip
           if-no-files-found: warn
           retention-days: 30
 
