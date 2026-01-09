@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Paragraphs Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    p {
+      margin-bottom: 1em;
+      color: #444;
+    }
+    nav, footer {
+      background: #f5f5f5;
+      padding: 10px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="#">Home</a> |
+      <a href="#">About</a> |
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <main id="content">
+    <article>
+      <h1>Test Article for VoxPage</h1>
+
+      <p>This is the first paragraph of the test article. It contains enough text to be considered meaningful content by the content extraction algorithm. The VoxPage extension should identify this as readable content.</p>
+
+      <p>The second paragraph continues with more information. Text-to-speech systems work best with well-structured content that has clear paragraph breaks. This helps maintain natural reading flow and allows for proper pacing.</p>
+
+      <h2>Section Two</h2>
+
+      <p>Here begins a new section with its own heading. Section headings help organize content and provide natural pause points during audio playback. Users can navigate between sections easily.</p>
+
+      <p>This fourth paragraph discusses the importance of content structure. When paragraphs are clearly defined, the highlighting system can accurately track which text is currently being read aloud to the user.</p>
+
+      <p>The fifth paragraph is shorter but still meaningful.</p>
+
+      <h2>Technical Details</h2>
+
+      <p>Paragraph six covers technical aspects. The content extractor uses multiple heuristics to identify the main content area of a webpage, filtering out navigation, advertisements, and other non-content elements.</p>
+
+      <p>Seventh paragraph: Language detection runs on the extracted text to determine the appropriate voice and pronunciation rules. This enables multilingual support across different websites.</p>
+
+      <p>The eighth paragraph explains caching. Audio generated from text is cached locally to avoid redundant API calls. This improves performance and reduces costs for users with paid TTS providers.</p>
+
+      <p>Paragraph nine discusses the user interface. The floating controller provides playback controls without interfering with the page content. It can be minimized or repositioned as needed.</p>
+
+      <p>The final tenth paragraph concludes our test content. This page serves as a reliable test fixture for verifying that VoxPage correctly extracts, processes, and reads webpage content aloud.</p>
+    </article>
+  </main>
+
+  <aside class="sidebar">
+    <p>This sidebar content should be filtered out by the content extractor.</p>
+  </aside>
+
+  <footer>
+    <p>Footer content is typically excluded from text-to-speech reading.</p>
+  </footer>
+</body>
+</html>
