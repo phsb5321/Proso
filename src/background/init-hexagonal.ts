@@ -19,7 +19,12 @@ import {
   getContainer,
   isContainerInitialized,
 } from '../composition';
-import { type HandlerRegistry, getGlobalRegistry, registerAllHandlers } from '../handlers';
+import {
+  type HandlerRegistry,
+  getGlobalRegistry,
+  registerAllHandlers,
+  setSettingsStore,
+} from '../handlers';
 import {
   type DispatchStats,
   type DispatchSummary,
@@ -84,6 +89,10 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
 
     // Create and initialize the container
     createContainer(config, apiKeys);
+
+    // Wire up the settings store for handlers that need it
+    const container = getContainer();
+    setSettingsStore(container.adapters.settingsStore);
 
     // Register all handlers on the GLOBAL registry
     // This is critical - dispatchToHexagonal() uses getGlobalRegistry()

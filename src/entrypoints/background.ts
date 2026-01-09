@@ -66,8 +66,8 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   // Phase 3: Audio/Provider handlers (T035)
   getVoices: 'audio.getVoices',
   setVoice: 'audio.setVoice',
-  testApiKey: 'audio.validateCredentials',
-  testElevenLabsKey: 'audio.validateCredentials',
+  testApiKey: 'settings.testApiKey',
+  testElevenLabsKey: 'settings.testApiKey',
   'audio.generate': 'audio.generate',
   'provider.select': 'provider.select',
   'provider.getList': 'provider.getList',
@@ -2060,6 +2060,35 @@ export default defineBackground(() => {
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+
+    // Update apiKeys when API key storage changes (fixes runtime key updates)
+    const apiKeyFields = [
+      'elevenlabsApiKey',
+      'openaiApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
+    ] as const;
+    let apiKeysUpdated = false;
+    for (const field of apiKeyFields) {
+      if (changes[field]) {
+        (apiKeys as Record<string, string | undefined>)[field] = changes[field].newValue as
+          | string
+          | undefined;
+        apiKeysUpdated = true;
+        console.log(
+          `[Background] API key updated: ${field}`,
+          changes[field].newValue ? 'set' : 'cleared',
+        );
+      }
+    }
+    if (apiKeysUpdated) {
+      console.log('[Background] API keys state:', {
+        hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
+        hasOpenAIKey: !!apiKeys.openaiApiKey,
+        hasGroqKey: !!apiKeys.groqApiKey,
+        hasCartesiaKey: !!apiKeys.cartesiaApiKey,
+      });
+    }
 
     // Check if queue data changed
     if (changes[QUEUE_STORAGE_KEYS.ITEMS] || changes[QUEUE_STORAGE_KEYS.METADATA]) {
