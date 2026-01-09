@@ -8,6 +8,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { defineBackground } from 'wxt/utils/define-background';
 import {
   ElevenLabsProvider,
   loadElevenLabsApiKey,
@@ -473,7 +474,8 @@ let offscreenDocumentCreated = false;
 async function ensureOffscreenDocument(): Promise<void> {
   // Firefox doesn't support offscreen documents
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof (chrome as any)?.offscreen === 'undefined') {
+  const chromeApi = globalThis.chrome as any;
+  if (typeof chromeApi?.offscreen === 'undefined') {
     console.warn('[Background] Offscreen API not available (Firefox?)');
     throw new Error('Offscreen API not available');
   }
@@ -483,8 +485,7 @@ async function ensureOffscreenDocument(): Promise<void> {
   }
 
   // Check if offscreen document already exists
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const existingContexts = await (chrome as any).runtime.getContexts({
+  const existingContexts = await chromeApi.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT'],
   });
 
@@ -495,12 +496,11 @@ async function ensureOffscreenDocument(): Promise<void> {
   }
 
   // Create offscreen document
-  console.log('[Background] Creating offscreen document for PDF.js...');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (chrome as any).offscreen.createDocument({
+  console.log('[Background] Creating offscreen document for audio playback...');
+  await chromeApi.offscreen.createDocument({
     url: 'offscreen.html',
-    reasons: ['DOM_PARSER'],
-    justification: 'PDF.js requires DOM APIs (DOMMatrix, canvas) for text extraction',
+    reasons: ['AUDIO_PLAYBACK'],
+    justification: 'Audio playback requires DOM APIs not available in service workers',
   });
 
   offscreenDocumentCreated = true;
@@ -517,9 +517,9 @@ async function closeOffscreenDocument(): Promise<void> {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof (chrome as any)?.offscreen !== 'undefined') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (chrome as any).offscreen.closeDocument();
+    const chromeApi = globalThis.chrome as any;
+    if (typeof chromeApi?.offscreen !== 'undefined') {
+      await chromeApi.offscreen.closeDocument();
       offscreenDocumentCreated = false;
       console.log('[Background] Offscreen document closed');
     }
@@ -962,8 +962,8 @@ async function storeToPersistentCache(
 // TTS Playback
 // ============================================
 
-// Current audio element for background playback
-let currentAudio: HTMLAudioElement | null = null;
+// Track if audio is currently playing (offscreen document handles actual playback)
+let audioPlaybackActive = false;
 
 /**
  * Format seconds to MM:SS string
@@ -977,7 +977,7 @@ function formatTime(seconds: number): string {
 
 /**
  * Start word-by-word highlighting based on audio currentTime
- * Uses a polling interval to check the current time and highlight the corresponding word
+ * Uses playbackState.currentTime which is updated by offscreen.audioProgress messages
  */
 function startWordHighlighting(paragraphIndex: number): void {
   // Clear any existing interval
@@ -992,11 +992,11 @@ function startWordHighlighting(paragraphIndex: number): void {
 
   // Poll every 50ms (20Hz) for smooth word highlighting
   wordHighlightInterval = setInterval(() => {
-    if (!currentAudio || playbackState.status !== 'playing') {
+    if (!audioPlaybackActive || playbackState.status !== 'playing') {
       return;
     }
 
-    const currentTimeMs = currentAudio.currentTime * 1000;
+    const currentTimeMs = playbackState.currentTime * 1000;
 
     // Binary search for the current word
     let newWordIndex = -1;
@@ -1071,126 +1071,83 @@ async function updateFooterProgress(): Promise<void> {
 
 /**
  * Play audio in the background script (avoids content script autoplay restrictions)
+ * Uses offscreen document for audio playback in Chrome MV3 (service workers don't have Audio API)
  */
-function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    // Validate audio URL before attempting to play
-    if (!audioUrl || audioUrl.trim() === '') {
-      console.error('[Background] Invalid audio URL: empty or undefined');
-      resolve(false);
-      return;
+async function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
+  // Validate audio URL before attempting to play
+  if (!audioUrl || audioUrl.trim() === '') {
+    console.error('[Background] Invalid audio URL: empty or undefined');
+    return false;
+  }
+
+  // Check if playback was stopped/paused before starting
+  if (playbackState.status !== 'playing') {
+    console.log('[Background] Audio playback cancelled - status is', playbackState.status);
+    return false;
+  }
+
+  // Reset manual stop flag
+  audioStoppedManually = false;
+
+  try {
+    // Ensure offscreen document exists for audio playback
+    await ensureOffscreenDocument();
+
+    // Mark audio as active
+    audioPlaybackActive = true;
+
+    console.log('[Background] Playing audio via offscreen document, speed:', speed);
+
+    // Send audio to offscreen document for playback
+    const result = await browser.runtime.sendMessage({
+      type: 'offscreen.playAudio',
+      audioUrl,
+      speed,
+    });
+
+    // Mark audio as inactive
+    audioPlaybackActive = false;
+
+    if (result && typeof result === 'object' && 'success' in result) {
+      const audioResult = result as { success: boolean; ended: boolean; duration?: number };
+      if (audioResult.success && audioResult.ended) {
+        console.log('[Background] Audio playback ended');
+        return true;
+      }
     }
 
-    // Check if playback was stopped/paused before starting
-    if (playbackState.status !== 'playing') {
-      console.log('[Background] Audio playback cancelled - status is', playbackState.status);
-      resolve(false);
-      return;
+    // If audio didn't end naturally, check if it was manually stopped
+    if (audioStoppedManually) {
+      return false;
     }
 
-    // Reset manual stop flag
-    audioStoppedManually = false;
-
-    // Store resolve callback so we can call it when manually stopped
-    audioResolveCallback = resolve;
-
-    // Stop any existing audio
-    // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.removeAttribute('src');
-      currentAudio.load();
-      currentAudio = null;
-    }
-
-    const audio = new Audio(audioUrl);
-    currentAudio = audio;
-    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
-
-    // Track audio duration when metadata loads
-    audio.onloadedmetadata = () => {
-      // Only set if duration is valid (not Infinity)
-      if (audio.duration && isFinite(audio.duration)) {
-        playbackState.totalTime = audio.duration;
-        console.log('[Background] Audio duration:', audio.duration, 'seconds');
-      } else {
-        console.warn('[Background] Audio duration not available:', audio.duration);
-      }
-    };
-
-    // Update progress as audio plays
-    audio.ontimeupdate = () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        playbackState.currentTime = audio.currentTime;
-        playbackState.totalTime = audio.duration;
-        // Update footer with current time
-        updateFooterProgress();
-      }
-    };
-
-    audio.onended = () => {
-      console.log('[Background] Audio playback ended');
-      currentAudio = null;
-      audioResolveCallback = null;
-      resolve(true);
-    };
-
-    audio.onerror = (event) => {
-      // Ignore errors caused by manual stop
-      if (audioStoppedManually) {
-        return;
-      }
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Audio playback error:', {
-        event,
-        provider: playbackState.provider,
-        paragraphIndex: playbackState.currentParagraph,
-        audioUrl: audioUrl.substring(0, 50),
-      });
-      currentAudio = null;
-      audioResolveCallback = null;
-      resolve(false);
-    };
-
-    console.log('[Background] Playing audio in background, speed:', speed);
-    audio
-      .play()
-      .then(() => {
-        console.log('[Background] Audio play() started successfully');
-      })
-      .catch((err) => {
-        // T031: Add error context (provider, paragraph index)
-        console.error('[Background] Audio play() failed:', {
-          error: err,
-          provider: playbackState.provider,
-          paragraphIndex: playbackState.currentParagraph,
-          audioUrl: audioUrl.substring(0, 50),
-        });
-        currentAudio = null;
-        audioResolveCallback = null;
-        resolve(false);
-      });
-  });
+    console.error('[Background] Audio playback failed:', result);
+    return false;
+  } catch (error) {
+    audioPlaybackActive = false;
+    console.error('[Background] Audio playback error:', error);
+    return false;
+  }
 }
 
 /**
  * Stop current audio playback
  */
-function stopCurrentAudio(): void {
+async function stopCurrentAudio(): Promise<void> {
   // Set flag before stopping to prevent error handler issues
   audioStoppedManually = true;
+  audioPlaybackActive = false;
 
   // Stop word highlighting
   stopWordHighlighting();
   currentWordTimings = [];
 
-  // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.removeAttribute('src');
-    currentAudio.load();
-    currentAudio = null;
-    console.log('[VoxPage:Audio] Audio stopped and cleaned');
+  // Stop audio in offscreen document
+  try {
+    await browser.runtime.sendMessage({ type: 'offscreen.stopAudio' });
+    console.log('[VoxPage:Audio] Audio stopped via offscreen document');
+  } catch (error) {
+    console.warn('[VoxPage:Audio] Failed to stop audio in offscreen:', error);
   }
 
   // T028-T029: Revoke all tracked blob URLs when stopping playback
@@ -1836,8 +1793,11 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'paused';
-    if (currentAudio) {
-      currentAudio.pause();
+    // Pause audio in offscreen document
+    try {
+      await browser.runtime.sendMessage({ type: 'offscreen.pauseAudio' });
+    } catch (error) {
+      console.warn('[Background] Failed to pause audio in offscreen:', error);
     }
     stopWordHighlighting();
     notifyPopup();
@@ -1865,11 +1825,18 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'playing';
-    if (currentAudio) {
-      currentAudio.play();
-      // Resume word highlighting
-      startWordHighlighting(playbackState.currentParagraph);
-    } else {
+    // Resume audio in offscreen document
+    try {
+      const result = await browser.runtime.sendMessage({ type: 'offscreen.resumeAudio' });
+      if (result && (result as { success: boolean }).success) {
+        // Audio resumed, restart word highlighting
+        startWordHighlighting(playbackState.currentParagraph);
+      } else {
+        // Audio was lost, regenerate
+        speakCurrentParagraph();
+      }
+    } catch (error) {
+      console.warn('[Background] Failed to resume audio in offscreen:', error);
       // Audio was lost, regenerate
       speakCurrentParagraph();
     }
@@ -1961,8 +1928,14 @@ const messageHandlers: Record<string, MessageHandler> = {
   updateSettings: async (data) => {
     if (typeof data.speed === 'number') {
       playbackState.speed = data.speed;
-      if (currentAudio) {
-        currentAudio.playbackRate = data.speed;
+      // Update playback speed in offscreen document
+      try {
+        await browser.runtime.sendMessage({
+          type: 'offscreen.setAudioSpeed',
+          speed: data.speed,
+        });
+      } catch (error) {
+        console.warn('[Background] Failed to set audio speed in offscreen:', error);
       }
     }
     if (typeof data.provider === 'string') {
@@ -2305,6 +2278,30 @@ export default defineBackground(() => {
 
       // Skip internal messages like playbackStateUpdate
       if (type === 'playbackStateUpdate') {
+        return;
+      }
+
+      // Handle audio progress updates from offscreen document
+      if (type === 'offscreen.audioProgress') {
+        const { currentTime, duration } = message as { currentTime: number; duration: number };
+        playbackState.currentTime = currentTime;
+        if (duration && !isNaN(duration)) {
+          playbackState.totalTime = duration;
+        }
+        // Update footer progress
+        if (activeTabId) {
+          browser.tabs
+            .sendMessage(activeTabId, {
+              type: 'updateProgress',
+              currentTime: formatTime(currentTime),
+              totalTime: formatTime(playbackState.totalTime),
+              progress:
+                playbackState.totalTime > 0 ? (currentTime / playbackState.totalTime) * 100 : 0,
+            })
+            .catch(() => {
+              // Tab may be closed or content script not ready
+            });
+        }
         return;
       }
 

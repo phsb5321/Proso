@@ -2,7 +2,9 @@
  * VoxPage Offscreen Document Script
  *
  * This script runs in an offscreen document context where DOM APIs are available.
- * Used for running PDF.js which requires window/document.
+ * Used for:
+ * - Running PDF.js which requires window/document
+ * - Playing audio (Chrome MV3 service workers don't have Audio API)
  *
  * @see https://developer.chrome.com/docs/extensions/reference/api/offscreen
  */
@@ -26,7 +28,8 @@ async function initPDFJS(): Promise<void> {
   pdfjsModule = await import('pdfjs-dist');
 
   // Get the URL to the worker file from the extension
-  const workerUrl = browser.runtime.getURL('pdf.worker.min.js');
+  // Use globalThis.chrome for Chrome-specific APIs
+  const workerUrl = globalThis.chrome?.runtime?.getURL?.('pdf.worker.min.js') ?? '';
 
   // Configure the worker source
   pdfjsModule.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -180,8 +183,161 @@ async function extractPDFText(
   }
 }
 
+// ============================================
+// Audio Playback (Chrome MV3 Service Worker Workaround)
+// ============================================
+
+/**
+ * Current audio element for playback.
+ * Service workers don't have access to Audio API, so we play audio here.
+ */
+let currentAudio: HTMLAudioElement | null = null;
+let audioPlaybackResolve: ((result: { success: boolean; ended: boolean }) => void) | null = null;
+
+/**
+ * Play audio from a data URL or blob URL.
+ * Returns when audio ends or is stopped.
+ */
+async function playAudio(
+  audioUrl: string,
+  speed: number,
+): Promise<{ success: boolean; ended: boolean; duration?: number }> {
+  return new Promise((resolve) => {
+    // Stop any existing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.removeAttribute('src');
+      currentAudio.load();
+      currentAudio = null;
+    }
+
+    // Store resolve for external stop
+    audioPlaybackResolve = resolve;
+
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+    audio.onended = () => {
+      console.log('[Offscreen] Audio playback ended naturally');
+      const duration = audio.duration;
+      currentAudio = null;
+      audioPlaybackResolve = null;
+      resolve({ success: true, ended: true, duration });
+    };
+
+    audio.onerror = (event) => {
+      console.error('[Offscreen] Audio playback error:', event);
+      currentAudio = null;
+      audioPlaybackResolve = null;
+      resolve({ success: false, ended: false });
+    };
+
+    console.log('[Offscreen] Playing audio, speed:', speed);
+    audio
+      .play()
+      .then(() => {
+        console.log('[Offscreen] Audio play() started successfully');
+        // Send initial duration update
+        if (audio.duration && isFinite(audio.duration)) {
+          browser.runtime
+            .sendMessage({
+              type: 'offscreen.audioProgress',
+              currentTime: 0,
+              duration: audio.duration,
+            })
+            .catch(() => {
+              // Ignore - background might not be listening
+            });
+        }
+      })
+      .catch((err) => {
+        console.error('[Offscreen] Audio play() failed:', err);
+        currentAudio = null;
+        audioPlaybackResolve = null;
+        resolve({ success: false, ended: false });
+      });
+
+    // Send progress updates
+    audio.ontimeupdate = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        browser.runtime
+          .sendMessage({
+            type: 'offscreen.audioProgress',
+            currentTime: audio.currentTime,
+            duration: audio.duration,
+          })
+          .catch(() => {
+            // Ignore - background might not be listening
+          });
+      }
+    };
+  });
+}
+
+/**
+ * Stop current audio playback.
+ */
+function stopAudio(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.removeAttribute('src');
+    currentAudio.load();
+    currentAudio = null;
+    console.log('[Offscreen] Audio stopped');
+
+    // Resolve pending promise
+    if (audioPlaybackResolve) {
+      audioPlaybackResolve({ success: true, ended: false });
+      audioPlaybackResolve = null;
+    }
+
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Pause current audio playback.
+ */
+function pauseAudio(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    console.log('[Offscreen] Audio paused');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Resume current audio playback.
+ */
+function resumeAudio(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.play().catch((err) => {
+      console.error('[Offscreen] Failed to resume audio:', err);
+    });
+    console.log('[Offscreen] Audio resumed');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Set playback speed.
+ */
+function setAudioSpeed(speed: number): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+    console.log('[Offscreen] Audio speed set to:', speed);
+    return { success: true };
+  }
+  return { success: false };
+}
+
 // Listen for messages from the service worker
 browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // PDF extraction
   if (message.type === 'offscreen.extractPDF') {
     const { url, password } = message;
 
@@ -200,7 +356,48 @@ browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  // Audio playback
+  if (message.type === 'offscreen.playAudio') {
+    const { audioUrl, speed } = message;
+
+    playAudio(audioUrl, speed ?? 1.0)
+      .then((result) => {
+        sendResponse(result);
+      })
+      .catch((error) => {
+        sendResponse({
+          success: false,
+          ended: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      });
+
+    // Return true to indicate async response
+    return true;
+  }
+
+  // Audio control messages (synchronous)
+  if (message.type === 'offscreen.stopAudio') {
+    sendResponse(stopAudio());
+    return true;
+  }
+
+  if (message.type === 'offscreen.pauseAudio') {
+    sendResponse(pauseAudio());
+    return true;
+  }
+
+  if (message.type === 'offscreen.resumeAudio') {
+    sendResponse(resumeAudio());
+    return true;
+  }
+
+  if (message.type === 'offscreen.setAudioSpeed') {
+    sendResponse(setAudioSpeed(message.speed ?? 1.0));
+    return true;
+  }
+
   return undefined;
 });
 
-console.log('[Offscreen] VoxPage offscreen document loaded');
+console.log('[Offscreen] VoxPage offscreen document loaded (with audio support)');
