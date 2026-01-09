@@ -142,10 +142,32 @@ npm run zip:chrome
 ```bash
 npm test                # Run ESLint + unit tests
 npm run test:unit       # Unit tests only (Jest)
+npm run test:integration # Integration tests (Jest)
 npm run test:visual     # Visual regression (Playwright)
+npm run test:e2e        # End-to-end tests (Playwright)
+npm run test:security   # Security tests (Jest)
+npm run test:all        # Run all tests
 npm run lint            # ESLint
 npm run quality         # Full quality checks
 ```
+
+#### Testing on NixOS
+
+If you're running on NixOS, Playwright requires Firefox to be available via `FIREFOX_PATH`:
+
+```bash
+# Set Firefox path for Playwright
+export FIREFOX_PATH=$(which firefox)
+
+# Or use the setup script
+./scripts/nixos-playwright-setup.sh
+
+# Run E2E/visual tests in headed mode (for debugging)
+npm run test:visual -- --headed
+npm run test:e2e -- --headed
+```
+
+The visual and E2E tests require a built extension. Run `npm run build:firefox` first.
 
 ### Project Structure
 

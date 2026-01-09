@@ -148,10 +148,80 @@ docs: update installation instructions
 
 #### Testing
 
-- Write tests for new functionality
-- Ensure existing tests pass
-- Use Jest for unit tests
-- Follow existing test patterns
+VoxPage uses multiple test types to ensure quality:
+
+##### Test Types
+
+| Type | Tool | Command | Purpose |
+|------|------|---------|---------|
+| Unit | Jest | `pnpm run test:unit` | Individual module logic |
+| Integration | Jest | `pnpm run test:integration` | Cross-module flows |
+| Visual | Playwright | `pnpm run test:visual` | UI appearance regression |
+| E2E | Playwright | `pnpm run test:e2e` | Full extension behavior |
+| Security | Jest | `pnpm run test:security` | CSP compliance, build artifacts |
+
+##### Running Tests
+
+```bash
+# Run all tests
+pnpm run test:all
+
+# Run specific test types
+pnpm run test:unit          # Unit tests only
+pnpm run test:integration   # Integration tests only
+pnpm run test:visual        # Visual regression tests
+pnpm run test:e2e           # End-to-end tests
+pnpm run test:security      # Security tests
+
+# Update visual baselines (after intentional UI changes)
+pnpm run test:visual:update
+
+# Run with coverage
+pnpm run test:coverage
+```
+
+##### Testing on NixOS
+
+Playwright requires Firefox to be available via `FIREFOX_PATH`:
+
+```bash
+# Set Firefox path
+export FIREFOX_PATH=$(which firefox)
+
+# Or use the setup script
+./scripts/nixos-playwright-setup.sh
+
+# Run visual/E2E tests in headed mode (for debugging)
+pnpm run test:visual -- --headed
+pnpm run test:e2e -- --headed
+```
+
+Visual and E2E tests require a built extension. Run `pnpm run build:firefox` first.
+
+##### Test Conventions
+
+- **File naming**: `*.test.ts` for unit/integration, `*.e2e.test.ts` for E2E, `*.test.js` for visual
+- **Location**: `tests/unit/`, `tests/integration/`, `tests/e2e/`, `tests/visual/`, `tests/security/`
+- **Data attributes**: Use `data-testid` for element targeting in tests
+- **Mocking**: Use Jest mocks for browser APIs and network requests
+- **Assertions**: Prefer explicit assertions over snapshot tests where possible
+- **Isolation**: Tests should not depend on each other or external state
+
+##### Writing Visual Tests
+
+```javascript
+import { disableAnimations, waitForLayoutStable } from '../helpers/disable-animations.js';
+
+test('component appearance', async ({ page }) => {
+  await page.goto('...');
+  await disableAnimations(page);
+  await waitForLayoutStable(page, '[data-testid="component"]', 100);
+
+  await expect(page).toHaveScreenshot('component.png', {
+    maxDiffPixelRatio: 0.02,
+  });
+});
+```
 
 #### Security
 
@@ -190,17 +260,19 @@ docs: update installation instructions
 ### Running Tests
 
 ```bash
-npm test              # Run all tests
-npm run test:unit     # Unit tests only
-npm run test:coverage # With coverage report
+pnpm run test:all       # Run all tests
+pnpm run test:unit      # Unit tests only
+pnpm run test:coverage  # With coverage report
+pnpm run test:visual    # Visual regression tests
+pnpm run test:e2e       # End-to-end tests
 ```
 
 ### Quality Checks
 
 ```bash
-npm run lint          # ESLint
-npm run lint:fix      # Auto-fix issues
-npm run quality       # Full quality suite
+pnpm run lint          # ESLint
+pnpm run lint:fix      # Auto-fix issues
+pnpm run quality       # Full quality suite (deps + duplication + manifest lint)
 ```
 
 ## Getting Help
