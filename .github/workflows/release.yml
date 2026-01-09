@@ -73,8 +73,13 @@ jobs:
       - name: Run linting
         run: pnpm run lint
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run unit tests
+        run: pnpm run test:unit
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Build for quality check
+        run: pnpm run build:firefox
 
       - name: Run quality checks
         run: pnpm run quality
