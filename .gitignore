@@ -1,8 +1,11 @@
 # AI Development Tools
 CLAUDE.md
-.claude/
 .specify/
 specs/
+
+# Claude Code - track shared config, ignore local settings
+!.claude/
+.claude/settings.local.json
 
 # Dependencies
 node_modules/
