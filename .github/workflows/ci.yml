@@ -32,5 +32,8 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
+      - name: Build Firefox extension
+        run: pnpm run build:firefox
+
       - name: Quality check
         run: pnpm run quality
