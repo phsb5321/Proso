@@ -1335,6 +1335,9 @@ async function speakCurrentParagraph(): Promise<void> {
           paragraphIndex: playbackState.currentParagraph,
         });
 
+        // Mark audio as about to play (before starting highlighting)
+        audioPlaybackActive = true;
+
         // Start word highlighting
         startWordHighlighting(playbackState.currentParagraph);
       }
@@ -2302,6 +2305,19 @@ export default defineBackground(() => {
               // Tab may be closed or content script not ready
             });
         }
+        return;
+      }
+
+      // Skip offscreen command messages - these are meant for the offscreen document
+      // Don't intercept them here, let them pass through to the offscreen listener
+      if (
+        type === 'offscreen.playAudio' ||
+        type === 'offscreen.stopAudio' ||
+        type === 'offscreen.pauseAudio' ||
+        type === 'offscreen.resumeAudio' ||
+        type === 'offscreen.setAudioSpeed' ||
+        type === 'offscreen.extractPDF'
+      ) {
         return;
       }
 
