@@ -7,12 +7,13 @@
  * @module handlers/audio
  */
 
-import { getContainer, isContainerInitialized, } from '../composition';
+import { getContainer, isContainerInitialized } from '../composition';
 import type { AudioError, ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import type { AudioRequest, Voice } from '../ports/audio-generator.port';
 import type { HandlerRegistry } from './registry';
+import { createAudioUrl } from '../utils/audio/audio-url';
 
 /**
  * Audio handler error type.
@@ -152,7 +153,10 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
   /**
    * Validate API credentials for the current provider.
    */
-  registry.register<{ provider?: ProviderId }, Result<ValidateCredentialsResponse, AudioHandlerError>>(
+  registry.register<
+    { provider?: ProviderId },
+    Result<ValidateCredentialsResponse, AudioHandlerError>
+  >(
     'audio.validateCredentials',
     async (params) => {
       if (!isContainerInitialized()) {
@@ -178,9 +182,7 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
 
         return Ok({
           valid,
-          message: valid
-            ? 'API key is valid'
-            : 'API key validation failed',
+          message: valid ? 'API key is valid' : 'API key validation failed',
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -224,8 +226,8 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
           });
         }
 
-        // Convert blob to URL
-        const audioUrl = URL.createObjectURL(result.value.audioBlob);
+        // Convert blob to URL (uses data URL in service worker, blob URL in DOM)
+        const audioUrl = await createAudioUrl(result.value.audioBlob);
 
         return Ok({
           audioUrl,

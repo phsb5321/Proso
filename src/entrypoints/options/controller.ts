@@ -42,7 +42,7 @@ interface OptionsElements {
   openaiKey: HTMLInputElement;
   anthropicKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
-  testElevenlabsKey: HTMLButtonElement;
+  // Note: testElevenlabsKey removed - use provider-card__test-btn instead
   elevenlabsKeyStatus: HTMLElement;
   cartesiaKey: HTMLInputElement;
   groqKey: HTMLInputElement;
@@ -127,7 +127,7 @@ function getElements(): OptionsElements {
     openaiKey: getElement<HTMLInputElement>('openaiKey'),
     anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
-    testElevenlabsKey: getElement<HTMLButtonElement>('testElevenlabsKey'),
+    // Note: testElevenlabsKey removed - use provider-card__test-btn instead
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
     cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
     groqKey: getElement<HTMLInputElement>('groqKey'),
@@ -689,8 +689,10 @@ function setupEventListeners(): void {
     elements.speedValue.textContent = `${value.toFixed(1)}x`;
   });
 
-  // Test ElevenLabs API key button
-  elements.testElevenlabsKey.addEventListener('click', testElevenLabsApiKey);
+  // NOTE: Legacy testElevenLabsApiKey handler removed.
+  // ElevenLabs test button now uses the modern provider card handler
+  // (setupProviderCardEventListeners → handleProviderTest) which is
+  // attached via .provider-card__test-btn[data-provider="elevenlabs"]
 
   // Save button
   elements.saveBtn.addEventListener('click', saveSettings);
@@ -807,63 +809,9 @@ function setupThemeEventListener(): void {
   });
 }
 
-/**
- * Test ElevenLabs API key
- */
-async function testElevenLabsApiKey(): Promise<void> {
-  if (!elements) return;
-
-  // Save the key first to ensure it's in storage
-  const key = elements.elevenlabsKey.value.trim();
-  if (!key) {
-    showApiKeyStatus('elevenlabs', 'No API key entered', 'error');
-    return;
-  }
-
-  // Save to storage first
-  await browser.storage.local.set({ elevenlabsApiKey: key });
-
-  showApiKeyStatus('elevenlabs', 'Testing...', 'loading');
-
-  try {
-    const response = await browser.runtime.sendMessage({
-      type: 'testApiKey',
-      provider: 'elevenlabs',
-    });
-
-    if (response && response.success) {
-      showApiKeyStatus('elevenlabs', response.message || 'Valid!', 'success');
-    } else {
-      showApiKeyStatus('elevenlabs', response?.error || 'Invalid key', 'error');
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Test failed';
-    showApiKeyStatus('elevenlabs', errorMessage, 'error');
-  }
-}
-
-/**
- * Show API key test status (legacy - for elevenlabs only)
- */
-function showApiKeyStatus(
-  provider: string,
-  message: string,
-  type: 'success' | 'error' | 'loading',
-): void {
-  if (!elements) return;
-
-  const statusElement = elements.elevenlabsKeyStatus;
-  statusElement.textContent = message;
-  statusElement.className = `api-key-status api-key-status--${type}`;
-  statusElement.style.display = 'block';
-
-  // Auto-hide success/error messages after 5 seconds
-  if (type !== 'loading') {
-    setTimeout(() => {
-      statusElement.style.display = 'none';
-    }, 5000);
-  }
-}
+// NOTE: Legacy testElevenLabsApiKey and showApiKeyStatus functions removed.
+// ElevenLabs (and all providers) now use the modern handleProviderTest() function
+// which is attached via setupProviderCardEventListeners() to .provider-card__test-btn elements.
 
 // ========================================
 // PROVIDER CARD HANDLERS (027-settings-ux-overhaul T033-T035)

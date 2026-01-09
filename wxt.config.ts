@@ -13,6 +13,7 @@ export default defineConfig({
       "tabs", // Tab management and URL tracking
       "contextMenus", // Right-click menu integration
       "webRequest", // 033-pdf-reading-support: Detect PDF loads via headers
+      "offscreen", // 033-pdf-reading-support: Offscreen document for PDF.js DOM APIs
     ],
     host_permissions: [
       "https://api.openai.com/*",

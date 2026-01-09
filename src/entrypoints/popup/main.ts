@@ -105,6 +105,20 @@ const elements = {
   costEstimate: document.getElementById('cost-estimate') as HTMLSpanElement,
   costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
   costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
+
+  // Collapsible sections (hidden by default in CSS)
+  summarizeSection: document.getElementById('summarize-section') as HTMLElement,
+  ocrSection: document.getElementById('ocr-section') as HTMLElement,
+  exportSection: document.getElementById('export-section') as HTMLElement,
+
+  // Tab navigation
+  tabPlayer: document.getElementById('tab-player') as HTMLButtonElement,
+  tabTools: document.getElementById('tab-tools') as HTMLButtonElement,
+  tabQueue: document.getElementById('tab-queue') as HTMLButtonElement,
+  panelPlayer: document.getElementById('panel-player') as HTMLDivElement,
+  panelTools: document.getElementById('panel-tools') as HTMLDivElement,
+  panelQueue: document.getElementById('panel-queue') as HTMLDivElement,
+  queueTabBadge: document.getElementById('queue-tab-badge') as HTMLSpanElement,
 };
 
 // ============================================
@@ -156,6 +170,10 @@ let queueState: QueueState = {
   metadata: { count: 0, lastModified: 0 },
 };
 let isQueueSidebarOpen = false;
+
+// PDF state (T033: PDF reading support)
+let isPDFPage = false;
+let currentPDFUrl: string | null = null;
 
 // ============================================
 // UI Update Functions
@@ -225,6 +243,117 @@ function updateSpeed(speed: number): void {
  */
 function updateProvider(provider: string): void {
   elements.providerSelect.value = provider;
+}
+
+// ============================================
+// Tab Navigation Functions
+// ============================================
+
+type TabId = 'player' | 'tools' | 'queue';
+
+/**
+ * Switch to a different tab panel
+ */
+function switchTab(tabId: TabId): void {
+  const tabs = [elements.tabPlayer, elements.tabTools, elements.tabQueue];
+  const panels = [elements.panelPlayer, elements.panelTools, elements.panelQueue];
+  const tabMap: Record<TabId, { tab: HTMLButtonElement; panel: HTMLDivElement }> = {
+    player: { tab: elements.tabPlayer, panel: elements.panelPlayer },
+    tools: { tab: elements.tabTools, panel: elements.panelTools },
+    queue: { tab: elements.tabQueue, panel: elements.panelQueue },
+  };
+
+  // Deactivate all tabs and panels
+  tabs.forEach((tab) => {
+    if (tab) {
+      tab.classList.remove('voxpage-popup__tab--active');
+      tab.setAttribute('aria-selected', 'false');
+    }
+  });
+  panels.forEach((panel) => {
+    if (panel) {
+      panel.classList.remove('voxpage-popup__panel--active');
+      panel.hidden = true;
+    }
+  });
+
+  // Activate the selected tab and panel
+  const selected = tabMap[tabId];
+  if (selected.tab) {
+    selected.tab.classList.add('voxpage-popup__tab--active');
+    selected.tab.setAttribute('aria-selected', 'true');
+  }
+  if (selected.panel) {
+    selected.panel.classList.add('voxpage-popup__panel--active');
+    selected.panel.hidden = false;
+  }
+
+  console.log('[Popup] Switched to tab:', tabId);
+}
+
+/**
+ * Handle tab click events
+ */
+function handleTabClick(event: Event): void {
+  const target = event.currentTarget as HTMLButtonElement;
+  const tabId = target.dataset.tab as TabId;
+  if (tabId) {
+    switchTab(tabId);
+  }
+}
+
+/**
+ * Update section visibility based on configured API keys and settings.
+ * In the tabbed layout, tool sections are visible by default.
+ * This function hides sections that require API keys when those keys aren't configured.
+ *
+ * - Summarize section: shown if OpenAI or Anthropic API key is configured
+ * - Export section: shown if a non-browser audio provider API key is configured
+ * - OCR section: always shown (uses Tesseract.js locally)
+ */
+async function updateSectionVisibility(): Promise<void> {
+  try {
+    const result = await browser.storage.local.get([
+      'openaiApiKey',
+      'anthropicApiKey',
+      'elevenlabsApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
+      'provider',
+    ]);
+
+    // Show Summarize section only if AI API key (OpenAI or Anthropic) is configured
+    const hasAIKey = !!(result.openaiApiKey || result.anthropicApiKey);
+    if (elements.summarizeSection) {
+      elements.summarizeSection.hidden = !hasAIKey;
+    }
+
+    // Show Export section only if non-browser audio provider has API key configured
+    const hasAudioApiKey = !!(
+      result.elevenlabsApiKey ||
+      result.openaiApiKey ||
+      result.groqApiKey ||
+      result.cartesiaApiKey
+    );
+    if (elements.exportSection) {
+      elements.exportSection.hidden = !hasAudioApiKey;
+    }
+
+    // OCR section: always show (uses local Tesseract.js, no API key needed)
+    if (elements.ocrSection) {
+      elements.ocrSection.hidden = false;
+    }
+
+    console.log('[Popup] Section visibility updated:', {
+      hasAIKey,
+      hasAudioApiKey,
+      summarize: hasAIKey,
+      export: hasAudioApiKey,
+      ocr: true,
+    });
+  } catch (error) {
+    console.error('[Popup] Failed to update section visibility:', error);
+  }
 }
 
 /**
@@ -297,8 +426,15 @@ async function fetchSettings(): Promise<void> {
 
 /**
  * Handle play/pause button click
+ * Supports both web page and PDF playback (T033: PDF reading support)
  */
 async function handlePlayPause(): Promise<void> {
+  console.log('[Popup] handlePlayPause called, state:', {
+    status: currentState.status,
+    isPDFPage,
+    currentPDFUrl,
+  });
+
   try {
     if (currentState.status === 'playing') {
       await sendMessage('pausePlayback');
@@ -311,8 +447,27 @@ async function handlePlayPause(): Promise<void> {
       updatePlayPauseButton(true);
     } else {
       // Start fresh playback
-      await sendMessage('startPlayback');
-      updateStatus('loading');
+      // T033: Check if we're on a PDF page and use PDF-specific playback
+      if (isPDFPage && currentPDFUrl) {
+        console.log('[Popup] Starting PDF playback for:', currentPDFUrl);
+        updateStatus('loading');
+        const response = await sendMessage<{ success: boolean; error?: string }>(
+          'startPDFPlayback',
+          {
+            url: currentPDFUrl,
+          },
+        );
+        console.log('[Popup] PDF playback response:', response);
+        if (!response?.success) {
+          console.error('[Popup] PDF playback failed:', response?.error);
+          updateStatus('stopped');
+        }
+      } else {
+        // Standard web page playback
+        console.log('[Popup] Starting standard web page playback');
+        await sendMessage('startPlayback');
+        updateStatus('loading');
+      }
     }
   } catch (error) {
     console.error('[Popup] Play/pause error:', error);
@@ -412,7 +567,9 @@ async function handleProgressSeek(event: Event): Promise<void> {
  */
 function handleSettingsClick(): void {
   browser.tabs.create({
-    url: browser.runtime.getURL('settings.html'),
+    url: (browser.runtime as unknown as { getURL: (path: string) => string }).getURL(
+      'settings.html',
+    ),
   });
   window.close();
 }
@@ -807,12 +964,24 @@ async function handleExportCancel(): Promise<void> {
  * Update queue count badge
  */
 function updateQueueBadge(count: number): void {
+  // Update legacy badge (hidden, for compatibility)
   if (count > 0) {
     elements.queueCountBadge.textContent = String(count);
     elements.queueCountBadge.hidden = false;
   } else {
     elements.queueCountBadge.hidden = true;
   }
+
+  // Update tab badge
+  if (elements.queueTabBadge) {
+    if (count > 0) {
+      elements.queueTabBadge.textContent = String(count);
+      elements.queueTabBadge.hidden = false;
+    } else {
+      elements.queueTabBadge.hidden = true;
+    }
+  }
+
   elements.queueCount.textContent = `${count} item${count !== 1 ? 's' : ''}`;
 }
 
@@ -1165,6 +1334,54 @@ async function fetchCostEstimate(): Promise<void> {
 }
 
 // ============================================
+// PDF Detection (T033: PDF reading support)
+// ============================================
+
+/**
+ * Detect if the current tab is viewing a PDF file.
+ * Sets isPDFPage and currentPDFUrl state variables.
+ * Updates status text to indicate PDF is ready.
+ */
+async function detectPDF(): Promise<void> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) {
+      isPDFPage = false;
+      currentPDFUrl = null;
+      return;
+    }
+
+    const url = tab.url.toLowerCase();
+
+    // Check if URL ends with .pdf or contains pdf viewer patterns
+    const isPDF =
+      url.endsWith('.pdf') ||
+      url.includes('.pdf?') ||
+      url.includes('.pdf#') ||
+      // Firefox's built-in PDF viewer
+      (url.includes('pdf') && url.includes('viewer')) ||
+      // Chrome's PDF viewer (pdfjs)
+      url.includes('pdfviewer') ||
+      // Direct blob PDFs
+      (url.startsWith('blob:') && tab.title?.toLowerCase().includes('.pdf'));
+
+    if (isPDF) {
+      isPDFPage = true;
+      currentPDFUrl = tab.url; // Use original URL, not lowercased
+      elements.statusText.textContent = 'PDF Ready';
+      console.log('[Popup] PDF detected:', currentPDFUrl);
+    } else {
+      isPDFPage = false;
+      currentPDFUrl = null;
+    }
+  } catch (error) {
+    console.error('[Popup] PDF detection error:', error);
+    isPDFPage = false;
+    currentPDFUrl = null;
+  }
+}
+
+// ============================================
 // Message Listener (State Updates from Background)
 // ============================================
 
@@ -1227,6 +1444,11 @@ function setupEventListeners(): void {
   elements.toggleQueueBtn.addEventListener('click', toggleQueueSidebar);
   elements.playQueueBtn.addEventListener('click', handlePlayQueue);
   elements.clearQueueBtn.addEventListener('click', handleClearQueue);
+
+  // Tab navigation
+  elements.tabPlayer.addEventListener('click', handleTabClick);
+  elements.tabTools.addEventListener('click', handleTabClick);
+  elements.tabQueue.addEventListener('click', handleTabClick);
 }
 
 /**
@@ -1260,6 +1482,12 @@ async function init(): Promise<void> {
   await fetchSettings();
   await fetchPlaybackState();
   await fetchQueueState();
+
+  // Update section visibility based on configured API keys
+  await updateSectionVisibility();
+
+  // T033: Detect if current tab is a PDF
+  await detectPDF();
 
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {

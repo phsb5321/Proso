@@ -426,6 +426,149 @@ async function sendToContentScript(
 }
 
 // ============================================
+// Audio URL Helpers (Chrome MV3 Service Worker Compatible)
+// ============================================
+
+/**
+ * Convert ArrayBuffer to a data URL.
+ * Service workers don't have access to URL.createObjectURL,
+ * so we use base64 data URLs instead.
+ */
+function arrayBufferToDataUrl(buffer: ArrayBuffer, mimeType: string): string {
+  const uint8Array = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  const base64 = btoa(binary);
+  return `data:${mimeType};base64,${base64}`;
+}
+
+/**
+ * Create an audio URL from ArrayBuffer.
+ * Uses data URL for service worker compatibility.
+ */
+function createAudioUrl(audioData: ArrayBuffer): string {
+  return arrayBufferToDataUrl(audioData, 'audio/mpeg');
+}
+
+// ============================================
+// Offscreen Document (Chrome MV3 PDF.js Support)
+// ============================================
+
+/**
+ * Track if offscreen document has been created.
+ * The offscreen document provides DOM APIs needed by PDF.js.
+ */
+let offscreenDocumentCreated = false;
+
+/**
+ * Ensure offscreen document exists for PDF operations.
+ * Chrome's offscreen API only allows one offscreen document at a time.
+ *
+ * @see https://developer.chrome.com/docs/extensions/reference/api/offscreen
+ */
+async function ensureOffscreenDocument(): Promise<void> {
+  // Firefox doesn't support offscreen documents
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof (chrome as any)?.offscreen === 'undefined') {
+    console.warn('[Background] Offscreen API not available (Firefox?)');
+    throw new Error('Offscreen API not available');
+  }
+
+  if (offscreenDocumentCreated) {
+    return;
+  }
+
+  // Check if offscreen document already exists
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existingContexts = await (chrome as any).runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+  });
+
+  if (existingContexts.length > 0) {
+    offscreenDocumentCreated = true;
+    console.log('[Background] Offscreen document already exists');
+    return;
+  }
+
+  // Create offscreen document
+  console.log('[Background] Creating offscreen document for PDF.js...');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (chrome as any).offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['DOM_PARSER'],
+    justification: 'PDF.js requires DOM APIs (DOMMatrix, canvas) for text extraction',
+  });
+
+  offscreenDocumentCreated = true;
+  console.log('[Background] Offscreen document created');
+}
+
+/**
+ * Close the offscreen document to free resources.
+ */
+async function closeOffscreenDocument(): Promise<void> {
+  if (!offscreenDocumentCreated) {
+    return;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof (chrome as any)?.offscreen !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (chrome as any).offscreen.closeDocument();
+      offscreenDocumentCreated = false;
+      console.log('[Background] Offscreen document closed');
+    }
+  } catch (error) {
+    console.warn('[Background] Failed to close offscreen document:', error);
+  }
+}
+
+/**
+ * Result from PDF text extraction via offscreen document.
+ */
+interface OffscreenPDFResult {
+  success: boolean;
+  paragraphs?: string[];
+  meta?: {
+    title?: string;
+    pageCount?: number;
+    isScanned?: boolean;
+  };
+  error?: string;
+  requiresPassword?: boolean;
+}
+
+/**
+ * Extract PDF text using the offscreen document.
+ * This sends a message to the offscreen document which has DOM access.
+ */
+async function extractPDFViaOffscreen(url: string, password?: string): Promise<OffscreenPDFResult> {
+  try {
+    await ensureOffscreenDocument();
+
+    // Send message to offscreen document
+    const result = await browser.runtime.sendMessage({
+      type: 'offscreen.extractPDF',
+      url,
+      password,
+    });
+
+    return result as OffscreenPDFResult;
+  } catch (error) {
+    console.error('[Background] Offscreen PDF extraction failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// ============================================
 // ElevenLabs TTS
 // ============================================
 
@@ -516,8 +659,8 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
     })) as AudioWithTiming;
 
     // Result is AudioWithTiming with audioData and wordTiming
-    const blob = new Blob([result.audioData], { type: 'audio/mpeg' });
-    const audioUrl = URL.createObjectURL(blob);
+    // Use data URL instead of blob URL for service worker compatibility
+    const audioUrl = createAudioUrl(result.audioData);
 
     // Calculate duration from last word timing
     const duration =
@@ -747,9 +890,8 @@ async function checkPersistentCache(
       entry.compressedSize,
     );
 
-    // Convert ArrayBuffer to blob URL
-    const blob = new Blob([entry.audioData], { type: 'audio/mpeg' });
-    const audioUrl = URL.createObjectURL(blob);
+    // Convert ArrayBuffer to data URL for service worker compatibility
+    const audioUrl = createAudioUrl(entry.audioData);
 
     // Parse word timings from entry
     const wordTimings: WordTiming[] = (entry.wordTimeline ?? []).map((wt: WordTimelineItem) => ({
@@ -1290,8 +1432,9 @@ async function speakCurrentParagraph(): Promise<void> {
         speed: playbackState.speed,
       });
 
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
+      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
+      const audioBuffer = await response.audioData.arrayBuffer();
+      const audioUrl = createAudioUrl(audioBuffer);
 
       if (audioUrl && audioUrl.trim() !== '') {
         // T028-T029: Track blob URL and revoke previous for this paragraph
@@ -1323,8 +1466,9 @@ async function speakCurrentParagraph(): Promise<void> {
         speed: playbackState.speed,
       });
 
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
+      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
+      const audioBuffer = await response.audioData.arrayBuffer();
+      const audioUrl = createAudioUrl(audioBuffer);
 
       if (audioUrl && audioUrl.trim() !== '') {
         // T028-T029: Track blob URL and revoke previous for this paragraph
@@ -1356,8 +1500,9 @@ async function speakCurrentParagraph(): Promise<void> {
         speed: playbackState.speed,
       });
 
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
+      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
+      const audioBuffer = await response.audioData.arrayBuffer();
+      const audioUrl = createAudioUrl(audioBuffer);
 
       if (audioUrl && audioUrl.trim() !== '') {
         // T028-T029: Track blob URL and revoke previous for this paragraph
@@ -1851,6 +1996,166 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     return { success: true };
+  },
+
+  /**
+   * T033: Start PDF playback from popup.
+   * Extracts text from PDF and starts TTS playback.
+   */
+  startPDFPlayback: async (data) => {
+    const url = data.url as string;
+    if (!url) {
+      return { success: false, error: 'No PDF URL provided' };
+    }
+
+    console.log('[Background] Starting PDF playback for:', url);
+
+    try {
+      // Get active tab
+      const tab = await getActiveTab();
+      if (!tab?.id) {
+        return { success: false, error: 'No active tab' };
+      }
+
+      // Store current page URL for cache lookups
+      currentPageUrl = url;
+      activeTabId = tab.id;
+
+      // Set status to loading
+      playbackState.status = 'loading';
+      notifyPopup();
+
+      // Reload API keys and settings
+      const stored = await browser.storage.local.get([
+        'elevenlabsApiKey',
+        'openaiApiKey',
+        'groqApiKey',
+        'cartesiaApiKey',
+        'elevenlabsVoice',
+        'speed',
+        'provider',
+      ]);
+      apiKeys = {
+        elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
+        openaiApiKey: stored.openaiApiKey as string | undefined,
+        groqApiKey: stored.groqApiKey as string | undefined,
+        cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
+      };
+      if (stored.elevenlabsVoice) {
+        playbackState.voice = stored.elevenlabsVoice as string;
+      }
+      if (stored.speed) {
+        playbackState.speed = stored.speed as number;
+      }
+      if (stored.provider) {
+        playbackState.provider = stored.provider as string;
+      }
+
+      // Use hexagonal pdf.play handler to extract PDF text
+      // The handler returns Result<PDFPlayResult, PDFHandlerError>
+      interface PDFPlayResultData {
+        success: boolean;
+        paragraphs?: string[];
+        startIndex?: number;
+        meta?: {
+          title?: string;
+          pageCount?: number;
+        };
+        error?: string;
+        requiresPassword?: boolean;
+      }
+
+      // Use offscreen document to extract PDF text
+      // The offscreen document has DOM access needed by PDF.js
+      console.log('[Background] Extracting PDF via offscreen document...');
+      const pdfResult = await extractPDFViaOffscreen(url);
+
+      // Check if extraction succeeded
+      if (!pdfResult.success || !pdfResult.paragraphs?.length) {
+        const error = pdfResult.error || 'No text content found in PDF';
+        console.error('[Background] PDF extraction failed:', error);
+        playbackState.status = 'stopped';
+        notifyPopup();
+
+        // Handle password-protected PDFs
+        if (pdfResult.requiresPassword) {
+          return { success: false, error: 'PDF requires a password', requiresPassword: true };
+        }
+
+        return { success: false, error };
+      }
+
+      const pdfData: PDFPlayResultData = {
+        success: true,
+        paragraphs: pdfResult.paragraphs,
+        startIndex: 0, // TODO: restore saved position from storage
+        meta: pdfResult.meta,
+      };
+      if (!pdfData.success || !pdfData.paragraphs?.length) {
+        const error = pdfData.error || 'No text content found in PDF';
+        console.error('[Background] PDF has no content:', error);
+        playbackState.status = 'stopped';
+        notifyPopup();
+        return { success: false, error };
+      }
+
+      // Set paragraphs from PDF extraction
+      paragraphs = pdfData.paragraphs;
+      playbackState.totalParagraphs = paragraphs.length;
+      playbackState.currentParagraph = pdfData.startIndex ?? 0;
+      playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
+
+      console.log(
+        '[Background] PDF extracted',
+        paragraphs.length,
+        'paragraphs, starting from',
+        playbackState.currentParagraph,
+      );
+
+      // Clear prefetch cache and stop current audio
+      clearPrefetchCache();
+      stopCurrentAudio();
+
+      // Set status to playing
+      playbackState.status = 'playing';
+      notifyPopup();
+
+      // Show the footer
+      await sendToContentScript(tab.id, {
+        action: 'FOOTER_SHOW',
+        initialState: {
+          isPlaying: true,
+          currentIndex: playbackState.currentParagraph,
+          totalParagraphs: playbackState.totalParagraphs,
+          progress: playbackState.progress,
+          speed: playbackState.speed,
+        },
+      });
+
+      // Update footer state
+      await sendToContentScript(tab.id, {
+        action: 'FOOTER_STATE_UPDATE',
+        status: 'playing',
+        currentParagraph: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: playbackState.progress,
+        speed: playbackState.speed,
+      });
+
+      // Configure prefetch service with new paragraphs
+      configurePrefetchService();
+
+      // Start speaking from the current paragraph
+      speakCurrentParagraph();
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[Background] PDF playback error:', error);
+      playbackState.status = 'stopped';
+      notifyPopup();
+      return { success: false, error: errorMessage };
+    }
   },
 
   /**

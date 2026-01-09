@@ -19,6 +19,7 @@ import type { AudioError, ExtractionMode, PlaybackError, ProviderId } from '../s
 import { playbackError } from '../shared/errors';
 import type { Result } from '../shared/result';
 import { Err, Ok, isErr, isOk } from '../shared/result';
+import { createAudioUrl, revokeAudioUrl } from '../../utils/audio/audio-url';
 import {
   type PlaybackState,
   initialPlaybackState,
@@ -137,11 +138,9 @@ export class PlaybackService {
       this.audioElement.src = '';
     }
 
-    // Revoke object URL
-    if (this.currentAudioUrl) {
-      URL.revokeObjectURL(this.currentAudioUrl);
-      this.currentAudioUrl = null;
-    }
+    // Revoke object URL (no-op for data URLs)
+    revokeAudioUrl(this.currentAudioUrl);
+    this.currentAudioUrl = null;
 
     // Clear highlights and hide footer
     if (this.state.activeTabId !== null) {
@@ -392,10 +391,8 @@ export class PlaybackService {
    * Play audio blob.
    */
   private async playAudio(blob: Blob): Promise<void> {
-    // Clean up previous audio
-    if (this.currentAudioUrl) {
-      URL.revokeObjectURL(this.currentAudioUrl);
-    }
+    // Clean up previous audio (no-op for data URLs)
+    revokeAudioUrl(this.currentAudioUrl);
 
     // Create new audio element if needed
     if (!this.audioElement) {
@@ -403,8 +400,8 @@ export class PlaybackService {
       this.setupAudioEventListeners();
     }
 
-    // Create object URL and play
-    this.currentAudioUrl = URL.createObjectURL(blob);
+    // Create audio URL (uses data URL in service worker, blob URL in DOM)
+    this.currentAudioUrl = await createAudioUrl(blob);
     this.audioElement.src = this.currentAudioUrl;
     this.audioElement.playbackRate = this.state.speed;
 

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>VoxPage Offscreen Document</title>
+  <!-- Chrome-only: exclude from Firefox builds -->
+  <meta name="manifest.include" content="['chrome']" />
+</head>
+<body>
+  <!-- 
+    Offscreen document for running DOM-dependent code (PDF.js).
+    This document is created by the service worker when needed and
+    destroyed when no longer required.
+    
+    @see https://developer.chrome.com/docs/extensions/reference/api/offscreen
+  -->
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
