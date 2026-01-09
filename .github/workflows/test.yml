@@ -169,13 +169,14 @@ jobs:
       - name: Run security tests
         run: pnpm run test:security
 
-      # Verify no console statements in production build
+      # Verify no console statements in production build (exclude vendor files)
       - name: Check production build for console statements
         run: |
-          COUNT=$(grep -r "console\.log\|console\.warn\|console\.error" .output/firefox-mv2/*.js 2>/dev/null | wc -l || echo "0")
+          # Exclude pdf.worker.min.js (third-party library)
+          COUNT=$(grep -r "console\.log\|console\.warn\|console\.error" .output/firefox-mv2/*.js --include="*.js" --exclude="pdf.worker.min.js" 2>/dev/null | wc -l || echo "0")
           if [ "$COUNT" -gt "0" ]; then
             echo "Console statements found in production build"
-            grep -r "console\.log\|console\.warn\|console\.error" .output/firefox-mv2/*.js || true
+            grep -r "console\.log\|console\.warn\|console\.error" .output/firefox-mv2/*.js --exclude="pdf.worker.min.js" || true
             exit 1
           fi
           echo "No console statements found in production build"

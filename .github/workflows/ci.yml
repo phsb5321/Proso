@@ -27,8 +27,10 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
-      - name: Test
-        run: pnpm test
+      - name: Unit Tests
+        run: pnpm run test:unit
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Quality check
         run: pnpm run quality
