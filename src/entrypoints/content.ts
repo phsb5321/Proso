@@ -325,7 +325,15 @@ function injectContentStyles(): void {
       box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
     }
 
-    .voxpage-selectable:hover .voxpage-play-icon {
+    /* T008: Focus-within state for keyboard navigation (035-selection-tts-hardening) */
+    .voxpage-selectable:focus-within {
+      background-color: rgba(13, 148, 136, 0.08) !important;
+      outline: 2px solid rgba(13, 148, 136, 0.5);
+      outline-offset: 2px;
+    }
+
+    .voxpage-selectable:hover .voxpage-play-icon,
+    .voxpage-selectable:focus-within .voxpage-play-icon {
       opacity: 1;
       transform: scale(1);
     }
@@ -385,9 +393,21 @@ function injectContentStyles(): void {
       transform: translateY(-50%) scale(1.1);
     }
 
+    /* T008: Focus state for play icon (035-selection-tts-hardening) */
     .voxpage-play-icon:focus {
+      opacity: 1;
+      background: #14B8A6;
+    }
+
+    .voxpage-play-icon:focus-visible {
+      opacity: 1;
       outline: 2px solid #0D9488;
       outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .voxpage-play-icon:focus:not(:focus-visible) {
+      outline: none;
     }
 
     .voxpage-play-icon--inline {
@@ -423,6 +443,12 @@ function injectContentStyles(): void {
         box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.3);
       }
 
+      /* T008: Focus-within in dark mode */
+      .voxpage-selectable:focus-within {
+        background-color: rgba(20, 184, 166, 0.12) !important;
+        outline-color: rgba(20, 184, 166, 0.6);
+      }
+
       .voxpage-selected {
         background-color: rgba(20, 184, 166, 0.2) !important;
         box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.5) !important;
@@ -434,6 +460,17 @@ function injectContentStyles(): void {
 
       .voxpage-play-icon:hover {
         background: #0D9488;
+      }
+
+      /* T008: Focus states in dark mode */
+      .voxpage-play-icon:focus,
+      .voxpage-play-icon:focus-visible {
+        background: #2DD4BF;
+      }
+
+      .voxpage-play-icon:focus-visible {
+        outline-color: #14B8A6;
+        box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4), 0 2px 4px rgba(0, 0, 0, 0.4);
       }
     }
 
@@ -971,10 +1008,38 @@ export default defineContentScript({
         }
 
         // ====================================================================
+        // Playback Error Notification (T015: 035-selection-tts-hardening)
+        // ====================================================================
+        case "PLAYBACK_ERROR": {
+          const errorMsg = message as LegacyMessage & {
+            message: string;
+            provider?: string;
+          };
+          console.error(`[VoxPage] Playback error (${errorMsg.provider}):`, errorMsg.message);
+
+          // Show error notification in sticky footer if visible, otherwise show alert
+          if (stickyFooter && stickyFooter.isFooterVisible()) {
+            stickyFooter.showError(errorMsg.message);
+          } else {
+            // If footer not visible, show it first, then display error
+            stickyFooter.show();
+            // Small delay to ensure footer is rendered before showing error
+            setTimeout(() => {
+              stickyFooter.showError(errorMsg.message);
+            }, 100);
+          }
+          return Promise.resolve({ success: true });
+        }
+
+        // ====================================================================
         // Paragraph Selection Mode (028-smart-audio-cache)
         // ====================================================================
         case "enableSelectionMode": {
           if (paragraphSelector) {
+            // T034: Ensure styles are injected before UI elements become visible (035-selection-tts-hardening)
+            // This prevents FOUC by guaranteeing CSS is ready before DOM modifications
+            injectContentStyles();
+
             // Get extracted paragraphs and cached indices from message
             const enableMsg = message as LegacyMessage & {
               cachedIndices?: number[];
@@ -1175,9 +1240,12 @@ export default defineContentScript({
 
           return new Promise<{ success: boolean }>((resolve) => {
             // Stop any existing audio
+            // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
             if ((window as any).__voxpageAudio) {
-              (window as any).__voxpageAudio.pause();
-              (window as any).__voxpageAudio.src = "";
+              const existingAudio = (window as any).__voxpageAudio as HTMLAudioElement;
+              existingAudio.pause();
+              existingAudio.removeAttribute("src");
+              existingAudio.load();
               (window as any).__voxpageAudio = null;
             }
 
@@ -1206,9 +1274,12 @@ export default defineContentScript({
         }
 
         case "stopAudio": {
+          // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
           if ((window as any).__voxpageAudio) {
-            (window as any).__voxpageAudio.pause();
-            (window as any).__voxpageAudio.src = "";
+            const audio = (window as any).__voxpageAudio as HTMLAudioElement;
+            audio.pause();
+            audio.removeAttribute("src");
+            audio.load();
             (window as any).__voxpageAudio = null;
             console.log("VoxPage: Audio stopped");
           }
@@ -1267,11 +1338,28 @@ export default defineContentScript({
 
     /**
      * Execute all cleanup callbacks
+     * T023: Enhanced cleanup for blob URLs and audio (035-selection-tts-hardening)
      */
     function executeCleanup(reason: string): void {
       console.log(`VoxPage: Executing cleanup (reason: ${reason})`);
 
-      // Send stop message to background
+      // T023: Stop and cleanup content script audio first
+      if ((window as any).__voxpageAudio) {
+        const audio = (window as any).__voxpageAudio as HTMLAudioElement;
+        audio.pause();
+        // Use proper cleanup to avoid Invalid URI errors
+        audio.removeAttribute("src");
+        audio.load();
+        (window as any).__voxpageAudio = null;
+        console.log("[VoxPage:Cleanup] Content script audio stopped and cleaned");
+      }
+
+      // T023: Stop browser TTS if active
+      if (typeof speechSynthesis !== "undefined") {
+        speechSynthesis.cancel();
+      }
+
+      // Send stop message to background (triggers blob URL cleanup)
       browser.runtime
         .sendMessage({
           action: "stopPlayback",
@@ -1280,6 +1368,11 @@ export default defineContentScript({
         .catch(() => {
           // Ignore errors during unload - background may not be available
         });
+
+      // T023: Reset paragraph selector state
+      if (paragraphSelector) {
+        paragraphSelector.resetPlayingState();
+      }
 
       // Hide floating controller
       if ((window as any).VoxPage?.floatingController) {

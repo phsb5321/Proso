@@ -184,29 +184,126 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
 }
 
 /**
- * Test API key for provider.
- * Note: Full validation requires provider-specific adapters.
- * This handler checks if a key is configured.
+ * API test endpoints for each provider.
+ * Uses minimal API calls to validate credentials.
  */
-async function handleTestApiKey(params: ApiKeyParams): Promise<ApiKeyTestResponse> {
-  const store = getSettingsStore();
+const API_TEST_ENDPOINTS: Record<
+  string,
+  {
+    url: string;
+    method: string;
+    headers: (apiKey: string) => Record<string, string>;
+    body?: unknown;
+  }
+> = {
+  openai: {
+    url: 'https://api.openai.com/v1/models',
+    method: 'GET',
+    headers: (apiKey) => ({
+      Authorization: `Bearer ${apiKey}`,
+    }),
+  },
+  elevenlabs: {
+    url: 'https://api.elevenlabs.io/v1/user',
+    method: 'GET',
+    headers: (apiKey) => ({
+      'xi-api-key': apiKey,
+    }),
+  },
+  cartesia: {
+    url: 'https://api.cartesia.ai/voices',
+    method: 'GET',
+    headers: (apiKey) => ({
+      'X-API-Key': apiKey,
+      'Cartesia-Version': '2024-06-10',
+    }),
+  },
+  groq: {
+    url: 'https://api.groq.com/openai/v1/models',
+    method: 'GET',
+    headers: (apiKey) => ({
+      Authorization: `Bearer ${apiKey}`,
+    }),
+  },
+  anthropic: {
+    url: 'https://api.anthropic.com/v1/messages',
+    method: 'POST',
+    headers: (apiKey) => ({
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    }),
+    body: {
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'Hi' }],
+    },
+  },
+};
 
-  if (!isValidProvider(params.provider)) {
-    return { success: false, error: `Invalid provider: ${params.provider}` };
+/**
+ * Test API key for provider.
+ * Makes actual API calls to validate credentials.
+ */
+async function handleTestApiKey(
+  params: ApiKeyParams & { apiKey?: string; data?: { provider: string; apiKey: string } },
+): Promise<ApiKeyTestResponse> {
+  // Handle both direct params and wrapped data format
+  const provider = params.data?.provider || params.provider;
+  const apiKey = params.data?.apiKey || params.apiKey || params.key;
+
+  // Validate provider - also allow 'anthropic' for summarization
+  const validProviders = ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser', 'anthropic'];
+  if (!validProviders.includes(provider)) {
+    return { success: false, error: `Invalid provider: ${provider}` };
   }
 
-  const key = await store.getApiKey(params.provider);
-
-  if (!key || key.trim().length === 0) {
-    return { success: false, error: 'No API key configured' };
+  // Browser provider doesn't need API key
+  if (provider === 'browser') {
+    return { success: true, message: 'Browser TTS does not require an API key' };
   }
 
-  // For now, just check if key exists
-  // Full validation would require calling provider APIs
-  return {
-    success: true,
-    message: 'API key is configured (full validation requires provider-specific test)',
-  };
+  // If no API key provided, try to get from storage
+  let keyToTest: string | null | undefined = apiKey;
+  if (!keyToTest || keyToTest.trim().length === 0) {
+    const store = getSettingsStore();
+    keyToTest = await store.getApiKey(provider as ProviderId);
+  }
+
+  if (!keyToTest || keyToTest.trim().length === 0) {
+    return { success: false, error: 'No API key provided' };
+  }
+
+  const endpoint = API_TEST_ENDPOINTS[provider];
+  if (!endpoint) {
+    return { success: false, error: `No test endpoint for provider: ${provider}` };
+  }
+
+  try {
+    const response = await fetch(endpoint.url, {
+      method: endpoint.method,
+      headers: endpoint.headers(keyToTest.trim()),
+      body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
+    });
+
+    if (response.ok) {
+      return { success: true, message: 'API key is valid' };
+    }
+
+    // Handle specific error codes
+    if (response.status === 401 || response.status === 403) {
+      return { success: false, error: 'Invalid API key' };
+    }
+
+    if (response.status === 429) {
+      return { success: false, error: 'Rate limited - key may be valid but quota exceeded' };
+    }
+
+    return { success: false, error: `API returned status ${response.status}` };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Network error';
+    return { success: false, error: message };
+  }
 }
 
 // ============================================

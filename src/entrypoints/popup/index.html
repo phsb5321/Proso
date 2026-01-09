@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="voxpage-popup" id="popup">
+  <div class="voxpage-popup" id="popup" data-testid="popup-container">
     <!-- Header -->
     <header class="voxpage-popup__header">
       <div class="voxpage-popup__title">
@@ -19,6 +19,7 @@
         class="voxpage-button voxpage-button--icon voxpage-button--ghost"
         title="Settings"
         aria-label="Open settings"
+        data-testid="popup-settings-btn"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
@@ -28,10 +29,10 @@
     </header>
 
     <!-- Status Section -->
-    <section class="voxpage-popup__status" aria-live="polite">
-      <div class="voxpage-popup__status-indicator" id="status-indicator">
+    <section class="voxpage-popup__status" aria-live="polite" data-testid="popup-status-section">
+      <div class="voxpage-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">
         <span class="voxpage-popup__status-dot" id="status-dot"></span>
-        <span class="voxpage-popup__status-text" id="status-text">Ready</span>
+        <span class="voxpage-popup__status-text" id="status-text" data-testid="popup-status-text">Ready</span>
       </div>
       <div class="voxpage-popup__paragraph" id="paragraph-info">
         <span id="paragraph-current">-</span> / <span id="paragraph-total">-</span>
@@ -59,6 +60,7 @@
         class="voxpage-button voxpage-button--icon voxpage-button--secondary"
         title="Previous paragraph"
         aria-label="Previous paragraph"
+        data-testid="popup-prev-btn"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M19 20L9 12L19 4V20Z"></path>
@@ -71,6 +73,7 @@
         class="voxpage-button voxpage-button--icon voxpage-button--primary voxpage-popup__play-btn"
         title="Play"
         aria-label="Play"
+        data-testid="popup-play-pause-btn"
       >
         <svg id="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5V19L19 12L8 5Z"></path>
@@ -86,6 +89,7 @@
         class="voxpage-button voxpage-button--icon voxpage-button--secondary"
         title="Next paragraph"
         aria-label="Next paragraph"
+        data-testid="popup-next-btn"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M5 4L15 12L5 20V4Z"></path>
@@ -98,6 +102,7 @@
         class="voxpage-button voxpage-button--icon voxpage-button--secondary"
         title="Stop playback"
         aria-label="Stop playback"
+        data-testid="popup-stop-btn"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <rect x="4" y="4" width="16" height="16" rx="2"></rect>
@@ -125,7 +130,7 @@
     <!-- Provider Selection -->
     <section class="voxpage-popup__provider">
       <label for="provider-select" class="voxpage-popup__provider-label">Provider</label>
-      <select id="provider-select" class="voxpage-select">
+      <select id="provider-select" class="voxpage-select" data-testid="popup-provider-select">
         <option value="browser">Browser (Free)</option>
         <option value="openai">OpenAI</option>
         <option value="elevenlabs">ElevenLabs</option>

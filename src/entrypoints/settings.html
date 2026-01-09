@@ -112,9 +112,9 @@
       </ul>
     </nav>
 
-    <main id="main-content" class="main-content">
+    <main id="main-content" class="main-content" data-testid="settings-main">
       <!-- Quick Settings Section (027-settings-ux-overhaul FR-014) -->
-      <section id="quick-settings" class="voxpage-card quick-settings-section" data-section="quick-settings">
+      <section id="quick-settings" class="voxpage-card quick-settings-section" data-section="quick-settings" data-testid="settings-quick-settings-section">
         <h2 class="section-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 3v2M12 19v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M3 12h2M19 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -139,7 +139,7 @@
         <div class="quick-settings-grid">
           <div class="form-group">
             <label for="quickProvider" class="form-label">Provider</label>
-            <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint">
+            <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint" data-testid="settings-provider-select">
               <option value="browser">Browser TTS (Free)</option>
               <option value="groq">Groq (Fast)</option>
               <option value="openai">OpenAI</option>
@@ -151,7 +151,7 @@
 
           <div class="form-group">
             <label for="quickVoice" class="form-label">Voice</label>
-            <select id="quickVoice" class="voxpage-select" aria-describedby="quickVoiceHint">
+            <select id="quickVoice" class="voxpage-select" aria-describedby="quickVoiceHint" data-testid="settings-voice-select">
               <option value="">Default Voice</option>
             </select>
             <p id="quickVoiceHint" class="form-hint">Voice options vary by provider</p>
@@ -160,7 +160,7 @@
           <div class="form-group">
             <label for="quickSpeed" class="form-label">Speed</label>
             <div class="range-wrapper">
-              <input type="range" id="quickSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1" aria-describedby="quickSpeedHint">
+              <input type="range" id="quickSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1" aria-describedby="quickSpeedHint" data-testid="settings-speed-slider">
               <span id="quickSpeedValue" class="range-value">1.0x</span>
             </div>
             <p id="quickSpeedHint" class="form-hint">Adjust playback speed (0.5x - 2.0x)</p>
@@ -169,7 +169,7 @@
       </section>
 
       <!-- API Keys Section (027-settings-ux-overhaul: Provider Cards) -->
-      <section id="api-keys" class="voxpage-card voxpage-accordion" data-section="api-keys">
+      <section id="api-keys" class="voxpage-card voxpage-accordion" data-section="api-keys" data-testid="settings-api-keys-section">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -350,7 +350,7 @@
       </section>
 
       <!-- Appearance Section (018-ui-redesign: Collapsible) -->
-      <section id="appearance" class="voxpage-card voxpage-accordion" data-section="appearance">
+      <section id="appearance" class="voxpage-card voxpage-accordion" data-section="appearance" data-testid="settings-appearance-section">
         <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="appearance-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -383,7 +383,7 @@
 
         <div class="form-group">
           <label class="voxpage-toggle">
-            <input type="checkbox" id="highlightEnabled" class="voxpage-toggle__input" checked>
+            <input type="checkbox" id="highlightEnabled" class="voxpage-toggle__input" checked data-testid="settings-highlight-toggle">
             <span class="voxpage-toggle__switch"></span>
             <span class="voxpage-toggle__text">Highlight text while reading</span>
           </label>
@@ -391,7 +391,7 @@
 
         <div class="form-group">
           <label class="voxpage-toggle">
-            <input type="checkbox" id="autoScroll" class="voxpage-toggle__input" checked>
+            <input type="checkbox" id="autoScroll" class="voxpage-toggle__input" checked data-testid="settings-autoscroll-toggle">
             <span class="voxpage-toggle__switch"></span>
             <span class="voxpage-toggle__text">Auto-scroll to current paragraph</span>
           </label>
@@ -767,7 +767,7 @@
 
       <!-- Save Button -->
       <div class="actions">
-        <button id="saveBtn" class="voxpage-button voxpage-button--primary">
+        <button id="saveBtn" class="voxpage-button voxpage-button--primary" data-testid="settings-save-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>

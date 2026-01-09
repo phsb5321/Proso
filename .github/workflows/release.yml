@@ -4,63 +4,178 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.3)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run quality
+env:
+  NODE_VERSION: '20'
 
-  build:
-    needs: test
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version format: $VERSION"
+            echo "Expected: X.Y.Z or X.Y.Z-prerelease"
+            exit 1
+          fi
+
+  test:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Install web-ext
-        run: npm install -g web-ext
+      - name: Run linting
+        run: pnpm run lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Run quality checks
+        run: pnpm run quality
+
+  build:
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [firefox, chrome]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Update version in manifests
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          ./scripts/version.sh set "$VERSION"
 
       - name: Build extension
-        run: web-ext build --overwrite-dest
+        run: pnpm run build:${{ matrix.browser }}
+        env:
+          NODE_ENV: production
 
-      - name: Upload artifact
+      - name: Create zip artifact
+        run: pnpm run zip:${{ matrix.browser }}
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: extension
-          path: web-ext-artifacts/*.xpi
+          name: voxpage-${{ matrix.browser }}-${{ needs.validate.outputs.version }}
+          path: .output/*.zip
+          retention-days: 30
 
   release:
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact
+      - uses: actions/checkout@v4
+
+      - name: Download Firefox artifact
         uses: actions/download-artifact@v4
         with:
-          name: extension
+          name: voxpage-firefox-${{ needs.validate.outputs.version }}
+          path: artifacts/
 
-      - name: Create Release
+      - name: Download Chrome artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voxpage-chrome-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create tag (if workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.validate.outputs.tag }}" -m "Release ${{ needs.validate.outputs.version }}"
+          git push origin "${{ needs.validate.outputs.tag }}"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: '*.xpi'
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: VoxPage ${{ needs.validate.outputs.version }}
+          files: artifacts/*.zip
           generate_release_notes: true
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Release Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ needs.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.release.result }}" == "success" ]]; then
+            echo "✅ Release created successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Release failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
+          fi

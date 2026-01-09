@@ -19,7 +19,7 @@ import {
   getContainer,
   isContainerInitialized,
 } from '../composition';
-import { type HandlerRegistry, createConfiguredRegistry, getGlobalRegistry } from '../handlers';
+import { type HandlerRegistry, getGlobalRegistry, registerAllHandlers } from '../handlers';
 import {
   type DispatchStats,
   type DispatchSummary,
@@ -85,8 +85,12 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     // Create and initialize the container
     createContainer(config, apiKeys);
 
-    // Create the handler registry with all handlers registered
-    const registry = createConfiguredRegistry();
+    // Register all handlers on the GLOBAL registry
+    // This is critical - dispatchToHexagonal() uses getGlobalRegistry()
+    const registry = getGlobalRegistry();
+
+    // Populate the global registry with all handlers
+    registerAllHandlers(registry);
 
     console.log('[Hexagonal] Container initialized with config:', {
       provider: config.provider,
@@ -99,8 +103,8 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     return registry;
   } catch (error) {
     console.error('[Hexagonal] Failed to initialize container:', error);
-    // Return an empty registry - legacy handlers will continue to work
-    return createConfiguredRegistry();
+    // Return the global registry - it may be empty, but legacy handlers will work
+    return getGlobalRegistry();
   }
 }
 

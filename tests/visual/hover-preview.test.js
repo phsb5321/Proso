@@ -1,10 +1,15 @@
 /**
  * Visual tests for paragraph selection hover preview styling
  * Feature: 011-highlight-playback-fix (T035)
+ *
+ * Updated for 036-testing-strategy:
+ * - Uses disableAnimations helper for deterministic screenshots (T037/T038)
+ * - Replaced waitForTimeout with explicit state waits
  */
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { disableAnimations, waitForLayoutStable } from '../helpers/disable-animations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,9 +17,10 @@ const EXTENSION_PATH = path.resolve(__dirname, '..', '..');
 
 /**
  * Get the content CSS path for the extension
+ * Updated for 026-src-folder-restructure: CSS now in src/styles/
  */
 function getContentCssPath() {
-  return path.join(EXTENSION_PATH, 'styles', 'content.css');
+  return path.join(EXTENSION_PATH, 'src', 'styles', 'content.css');
 }
 
 /**
@@ -60,7 +66,11 @@ async function setupTestPage(page) {
     path: getContentCssPath()
   });
 
-  await page.waitForTimeout(100);
+  // Disable animations for deterministic screenshots
+  await disableAnimations(page);
+
+  // Wait for layout to stabilize
+  await waitForLayoutStable(page, 'body', 50);
   return page;
 }
 
@@ -84,7 +94,8 @@ async function enableSelectionMode(page) {
     });
   });
 
-  await page.waitForTimeout(100);
+  // Wait for DOM to update
+  await waitForLayoutStable(page, 'p', 50);
 }
 
 /**
@@ -102,7 +113,8 @@ async function selectParagraph(page, index) {
     });
   }, index);
 
-  await page.waitForTimeout(100);
+  // Wait for selection styles to apply
+  await waitForLayoutStable(page, 'p.voxpage-selected', 50);
 }
 
 test.describe('Hover Preview Visual Tests (T035)', () => {
@@ -140,7 +152,8 @@ test.describe('Hover Preview Visual Tests (T035)', () => {
 
     // Hover over second paragraph
     await page.hover('#p2');
-    await page.waitForTimeout(200); // Wait for transition
+    // With animations disabled, we just need to wait for hover to apply
+    await waitForLayoutStable(page, '#p2', 50);
 
     await expect(page).toHaveScreenshot('hover-state-light.png', {
       maxDiffPixelRatio: 0.02
@@ -155,7 +168,7 @@ test.describe('Hover Preview Visual Tests (T035)', () => {
 
     // Hover over second paragraph
     await page.hover('#p2');
-    await page.waitForTimeout(200);
+    await waitForLayoutStable(page, '#p2', 50);
 
     await expect(page).toHaveScreenshot('hover-state-dark.png', {
       maxDiffPixelRatio: 0.02
@@ -194,11 +207,11 @@ test.describe('Hover Preview Visual Tests (T035)', () => {
 
     // First hover paragraph to show play icon
     await page.hover('#p2');
-    await page.waitForTimeout(200);
+    await waitForLayoutStable(page, '#p2', 50);
 
     // Then hover play icon specifically
     await page.hover('#p2 .voxpage-play-icon');
-    await page.waitForTimeout(200);
+    await waitForLayoutStable(page, '#p2 .voxpage-play-icon', 50);
 
     await expect(page).toHaveScreenshot('play-icon-hover-light.png', {
       maxDiffPixelRatio: 0.02

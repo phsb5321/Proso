@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../specs/038-browser-e2e-hardening/contracts/console-allowlist.schema.json",
+  "version": "1.0.0",
+  "description": "Console error allowlist for VoxPage E2E tests. Entries here will not cause test failure.",
+  "entries": [
+    {
+      "id": "resize-observer-loop",
+      "pattern": "ResizeObserver loop",
+      "reason": "Benign browser warning that occurs when ResizeObserver callback takes too long. Does not affect functionality.",
+      "addedDate": "2026-01-07"
+    },
+    {
+      "id": "favicon-not-found",
+      "pattern": "favicon\\.ico|Failed to load resource.*404",
+      "reason": "Missing favicon on test pages is expected and does not affect extension functionality.",
+      "addedDate": "2026-01-07"
+    },
+    {
+      "id": "google-analytics-blocked",
+      "pattern": "googletagmanager\\.com|analytics\\.google\\.com",
+      "reason": "Third-party analytics scripts may be blocked by browser settings or content blockers.",
+      "addedDate": "2026-01-07"
+    },
+    {
+      "id": "other-extensions",
+      "pattern": "chrome-extension://(?!EXTENSION_ID)",
+      "source": "chrome-extension://",
+      "reason": "Errors from other installed extensions are not our responsibility.",
+      "addedDate": "2026-01-07"
+    },
+    {
+      "id": "service-worker-unresponsive",
+      "pattern": "Service Worker.*unresponsive",
+      "reason": "Transient service worker timing issue that self-resolves.",
+      "addedDate": "2026-01-07"
+    }
+  ]
+}

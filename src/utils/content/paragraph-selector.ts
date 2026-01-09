@@ -51,6 +51,27 @@ const CACHED_CLASS = 'voxpage-cached';
 const PLAY_ICON_CLASS = 'voxpage-play-icon';
 const DATA_INDEX_ATTR = 'data-voxpage-select-index';
 
+// T019: Click debounce configuration (035-selection-tts-hardening)
+const CLICK_DEBOUNCE_MS = 300;
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * T032/T035 FOUC Fix: Wait for document to be fully loaded before accessing computed styles
+ * This prevents "Layout was forced before the page was fully loaded" warnings
+ */
+function waitForDocumentReady(): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.readyState === 'complete') {
+      resolve();
+    } else {
+      window.addEventListener('load', () => resolve(), { once: true });
+    }
+  });
+}
+
 // ============================================================================
 // ParagraphSelector Class
 // ============================================================================
@@ -62,6 +83,11 @@ export class ParagraphSelector {
   private state: ParagraphSelectionState;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
   private hoverHandler: ((e: MouseEvent) => void) | null = null;
+
+  // T019-T021: Debounce and deduplication state (035-selection-tts-hardening)
+  private lastClickTime = 0;
+  private lastClickedIndex: number | null = null;
+  private currentlyPlayingIndex: number | null = null;
 
   constructor() {
     this.state = {
@@ -93,7 +119,7 @@ export class ParagraphSelector {
    * @param paragraphElements - Array of DOM elements representing paragraphs
    * @param cachedIndices - Array of paragraph indices that are cached
    */
-  enableSelectionMode(paragraphElements: Element[], cachedIndices: number[] = []): void {
+  async enableSelectionMode(paragraphElements: Element[], cachedIndices: number[] = []): Promise<void> {
     if (this.state.isActive) {
       console.log('VoxPage: Selection mode already active');
       return;
@@ -107,24 +133,38 @@ export class ParagraphSelector {
     this.state.cachedIndices = cachedIndices;
     this.state.isActive = true;
 
-    // Add selectable styling and data attributes to each paragraph
-    paragraphElements.forEach((el, index) => {
-      el.classList.add(SELECTABLE_CLASS);
-      (el as HTMLElement).dataset.voxpageSelectIndex = String(index);
+    // T032/T035 FOUC Fix: Wait for document to be fully loaded before accessing computed styles
+    // This prevents "Layout was forced before the page was fully loaded" warnings
+    await waitForDocumentReady();
 
-      // Add cached indicator if this paragraph is cached
-      if (cachedIndices.includes(index)) {
-        el.classList.add(CACHED_CLASS);
-      }
-
-      // Create and add play icon
-      this.addPlayIcon(el as HTMLElement, index);
+    // T032: Batch getComputedStyle() reads to prevent layout thrashing (035-selection-tts-hardening)
+    // First pass: Read all computed styles (batched reads)
+    const marginLeftValues: number[] = [];
+    paragraphElements.forEach((el) => {
+      const computedStyle = window.getComputedStyle(el as HTMLElement);
+      marginLeftValues.push(Number.parseFloat(computedStyle.marginLeft) || 0);
     });
 
-    // Setup event handlers
-    this.setupEventHandlers();
+    // Second pass: Apply all DOM changes using requestAnimationFrame for optimal timing
+    requestAnimationFrame(() => {
+      paragraphElements.forEach((el, index) => {
+        el.classList.add(SELECTABLE_CLASS);
+        (el as HTMLElement).dataset.voxpageSelectIndex = String(index);
 
-    console.log('VoxPage: Selection mode enabled');
+        // Add cached indicator if this paragraph is cached
+        if (cachedIndices.includes(index)) {
+          el.classList.add(CACHED_CLASS);
+        }
+
+        // Create and add play icon with pre-computed margin value
+        this.addPlayIconWithMargin(el as HTMLElement, index, marginLeftValues[index]);
+      });
+
+      // Setup event handlers after DOM is ready
+      this.setupEventHandlers();
+
+      console.log('VoxPage: Selection mode enabled');
+    });
   }
 
   /**
@@ -266,9 +306,14 @@ export class ParagraphSelector {
   // ============================================================================
 
   /**
-   * Add play icon to a paragraph element
+   * Add play icon to a paragraph element with pre-computed margin value
+   * T032: Refactored to accept pre-computed margin to prevent layout thrashing (035-selection-tts-hardening)
+   *
+   * @param el - The paragraph element
+   * @param index - The paragraph index
+   * @param marginLeft - Pre-computed margin left value
    */
-  private addPlayIcon(el: HTMLElement, index: number): void {
+  private addPlayIconWithMargin(el: HTMLElement, index: number, marginLeft: number): void {
     // Check if icon already exists
     if (el.querySelector(`.${PLAY_ICON_CLASS}`)) {
       return;
@@ -276,13 +321,14 @@ export class ParagraphSelector {
 
     const playIcon = document.createElement('button');
     playIcon.className = PLAY_ICON_CLASS;
+
+    // T009: Ensure proper keyboard accessibility (035-selection-tts-hardening)
+    // <button> is inherently focusable, but we add explicit attributes for clarity
+    playIcon.setAttribute('type', 'button'); // Prevent form submission
     playIcon.setAttribute('aria-label', `Play from paragraph ${index + 1}`);
     playIcon.setAttribute('title', 'Start playback from here');
+    playIcon.setAttribute('tabindex', '0'); // Explicit tab order (button default but ensures consistency)
     playIcon.dataset.voxpageIndex = String(index);
-
-    // Determine position based on element's margin
-    const computedStyle = window.getComputedStyle(el);
-    const marginLeft = Number.parseFloat(computedStyle.marginLeft) || 0;
 
     // If margin is less than 50px, use inline positioning
     if (marginLeft < 50) {
@@ -291,6 +337,16 @@ export class ParagraphSelector {
 
     // Insert at the beginning of the element
     el.insertBefore(playIcon, el.firstChild);
+  }
+
+  /**
+   * Add play icon to a paragraph element (computes margin on-the-fly)
+   * Used for single element additions (e.g., refresh)
+   */
+  private addPlayIcon(el: HTMLElement, index: number): void {
+    const computedStyle = window.getComputedStyle(el);
+    const marginLeft = Number.parseFloat(computedStyle.marginLeft) || 0;
+    this.addPlayIconWithMargin(el, index, marginLeft);
   }
 
   /**
@@ -352,8 +408,29 @@ export class ParagraphSelector {
   /**
    * Handle play from a specific paragraph
    * Sends message to background to start playback from this index
+   *
+   * T019-T022: Implements debounce and deduplication (035-selection-tts-hardening)
    */
   private handlePlayFromParagraph(index: number): void {
+    const now = Date.now();
+
+    // T019: Debounce - ignore rapid clicks within 300ms
+    if (now - this.lastClickTime < CLICK_DEBOUNCE_MS) {
+      console.log(`[VoxPage:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`);
+      return;
+    }
+
+    // T021: Deduplication - ignore clicks on paragraph already playing
+    if (this.currentlyPlayingIndex === index) {
+      console.log(`[VoxPage:Selection] Ignored duplicate click on paragraph ${index} (already playing)`);
+      return;
+    }
+
+    // T020: Update debounce tracking
+    this.lastClickTime = now;
+    this.lastClickedIndex = index;
+    this.currentlyPlayingIndex = index;
+
     const text = this.getParagraphText(index);
     const isCached = this.isCached(index);
 
@@ -364,9 +441,12 @@ export class ParagraphSelector {
       isCached,
     };
 
-    console.log(`VoxPage: Starting playback from paragraph ${index}`, {
+    // T022: Debug logging for debounce
+    console.log(`[VoxPage:Selection] Starting playback from paragraph ${index}`, {
       isCached,
       characterCount: text.length,
+      lastClickedIndex: this.lastClickedIndex,
+      timeSinceLastClick: now - (this.lastClickTime - CLICK_DEBOUNCE_MS),
     });
 
     // Send message to background to start playback from this paragraph
@@ -377,6 +457,8 @@ export class ParagraphSelector {
       })
       .catch((err) => {
         console.error('VoxPage: Failed to send PARAGRAPH_CLICKED message:', err);
+        // Reset playing state on error
+        this.currentlyPlayingIndex = null;
       });
 
     // Visually select the paragraph
@@ -385,6 +467,22 @@ export class ParagraphSelector {
     // Disable selection mode as playback will start
     // The background will re-enable it if needed
     this.disableSelectionMode();
+  }
+
+  /**
+   * T021: Reset currently playing index when playback stops
+   * Called by content script when playback stops or changes
+   */
+  resetPlayingState(): void {
+    this.currentlyPlayingIndex = null;
+  }
+
+  /**
+   * T020: Update currently playing index
+   * Called by content script when playback moves to a new paragraph
+   */
+  setPlayingIndex(index: number | null): void {
+    this.currentlyPlayingIndex = index;
   }
 }
 

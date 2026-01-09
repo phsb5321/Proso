@@ -232,6 +232,11 @@ const service = new PlaybackService({
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper) (034-hexagonal-architecture)
 - IndexedDB for audio cache (via idb), browser.storage.local for settings (034-hexagonal-architecture)
 - IndexedDB for audio cache (500MB+), browser.storage.local for settings (034-hexagonal-architecture)
+- TypeScript 5.x with strict mode (strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0, Zod 4.3.4 (035-selection-tts-hardening)
+- browser.storage.local (settings), IndexedDB (audio cache) (035-selection-tts-hardening)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0, Zod 4.3.4 (035-selection-tts-hardening)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + Playwright (browser automation), WXT 0.20.13 (extension build), web-ext (Firefox validation) (038-browser-e2e-hardening)
+- N/A (test infrastructure, no persistent storage) (038-browser-e2e-hardening)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -387,9 +392,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, idb (IndexedDB wrapper)
-- 034-hexagonal-architecture: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), idb (IndexedDB wrapper)
-- 033-pdf-reading-support: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, pdfjs-dist (PDF parsing), tesseract.js (OCR, lazy-loaded), @webext-core/messaging 2.3.0, Zod 4.3.4
+- 038-browser-e2e-hardening: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + Playwright (browser automation), WXT 0.20.13 (extension build), web-ext (Firefox validation)
+- 035-selection-tts-hardening: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0, Zod 4.3.4
+- 035-selection-tts-hardening: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 
 <!-- MANUAL ADDITIONS START -->

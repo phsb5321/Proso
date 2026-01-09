@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text-to-speech - Wikipedia Test Fixture</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #mw-content-text {
+      padding: 20px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .mw-parser-output {
+      line-height: 1.6;
+    }
+    .mw-parser-output p {
+      margin-bottom: 1em;
+    }
+    .infobox {
+      float: right;
+      width: 250px;
+      background: #f8f9fa;
+      border: 1px solid #a2a9b1;
+      padding: 10px;
+      margin: 0 0 10px 10px;
+    }
+    .toc {
+      background: #f8f9fa;
+      border: 1px solid #a2a9b1;
+      padding: 10px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    .navbox {
+      background: #fdfdfd;
+      border: 1px solid #a2a9b1;
+      padding: 10px;
+      margin-top: 20px;
+    }
+    .reference {
+      font-size: 0.85em;
+      vertical-align: super;
+    }
+    h1, h2, h3 {
+      border-bottom: 1px solid #a2a9b1;
+      padding-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="mw-content-text">
+    <div class="mw-parser-output">
+      <h1>Text-to-speech</h1>
+
+      <div class="infobox">
+        <table>
+          <tr><th colspan="2">Text-to-speech</th></tr>
+          <tr><td>Type</td><td>Speech synthesis</td></tr>
+          <tr><td>First developed</td><td>1968</td></tr>
+          <tr><td>Related</td><td>ASR, NLP</td></tr>
+        </table>
+      </div>
+
+      <p><b>Text-to-speech</b> (TTS) is the conversion of written text into spoken voice output. TTS systems are used in applications ranging from accessibility tools to virtual assistants. Modern TTS systems use deep learning to produce natural-sounding speech.</p>
+
+      <div class="toc" id="toc">
+        <div class="toctitle">Contents</div>
+        <ul>
+          <li><a href="#History">1 History</a></li>
+          <li><a href="#Technology">2 Technology</a></li>
+          <li><a href="#Applications">3 Applications</a></li>
+          <li><a href="#See_also">4 See also</a></li>
+        </ul>
+      </div>
+
+      <h2 id="History">History</h2>
+
+      <p>The first computer-based speech synthesis systems were developed in the late 1960s.<span class="reference">[1]</span> Early systems used formant synthesis, which modeled the human vocal tract using mathematical equations. These systems produced robotic-sounding speech but were groundbreaking for their time.</p>
+
+      <p>In the 1980s and 1990s, concatenative synthesis became popular. This approach used recordings of human speech, cut into small units and concatenated to form words and sentences. The quality improved significantly, though the speech could still sound unnatural at unit boundaries.</p>
+
+      <p>The 2010s saw the rise of neural network-based TTS. Systems like WaveNet, developed by DeepMind in 2016, could generate speech that was nearly indistinguishable from human recordings. This represented a major breakthrough in the field.</p>
+
+      <h2 id="Technology">Technology</h2>
+
+      <p>Modern TTS systems typically consist of two main components: a text analysis frontend and an audio synthesis backend. The frontend converts text into linguistic features, while the backend generates the actual audio waveform.</p>
+
+      <p>The text analysis stage handles tasks like text normalization, converting abbreviations and numbers into words, and determining pronunciation. It also assigns prosodic features like stress and intonation patterns to the text.</p>
+
+      <p>Neural TTS models like Tacotron and FastSpeech use attention mechanisms to align text with audio features. These models are trained on large datasets of recorded speech and can capture subtle aspects of human pronunciation and rhythm.</p>
+
+      <p>Vocoder models like WaveNet, WaveGlow, and HiFi-GAN convert the intermediate representations into raw audio. Recent vocoders can generate high-fidelity audio in real-time, making them suitable for interactive applications.</p>
+
+      <h2 id="Applications">Applications</h2>
+
+      <p>Text-to-speech technology has numerous applications across different domains. Accessibility is one of the most important use cases, helping visually impaired users access written content through audio.</p>
+
+      <p>Virtual assistants like Siri, Alexa, and Google Assistant rely heavily on TTS to communicate with users. The naturalness of the voice significantly impacts user experience and engagement with these systems.</p>
+
+      <p>E-learning platforms use TTS to provide audio versions of educational content. This supports different learning styles and makes content accessible to users who prefer listening over reading.</p>
+
+      <p>Navigation systems use TTS to provide turn-by-turn directions. The ability to generate speech dynamically allows these systems to adapt to changing routes and conditions.</p>
+
+      <h2 id="See_also">See also</h2>
+      <ul>
+        <li>Speech recognition</li>
+        <li>Natural language processing</li>
+        <li>Voice cloning</li>
+      </ul>
+
+      <div class="navbox">
+        <p>This navbox content should be filtered out during content extraction. It typically contains navigation links to related articles.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

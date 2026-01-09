@@ -119,7 +119,8 @@
       "legacy/**",
       "dist/**",
       "pnpm-lock.yaml",
-      "package-lock.json"
+      "package-lock.json",
+      "public/**"
     ]
   }
 }
