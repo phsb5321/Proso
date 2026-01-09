@@ -28,7 +28,7 @@ import { GroqProvider } from '../utils/providers/groq';
 import { CartesiaProvider } from '../utils/providers/cartesia';
 
 // Smart Audio Cache (028-smart-audio-cache)
-import { getCacheStore, generateContentHash, generateCacheKey, estimateCost } from '../utils/cache';
+import { getCacheStore, generateContentHash, generateCacheKey } from '../utils/cache';
 import type { CachedAudioEntry, WordTimelineItem } from '../utils/cache';
 
 // Playback Queue and Prefetch Service (028-smart-audio-cache User Story 3)
@@ -319,6 +319,92 @@ let prefetchInProgress = false;
 let currentPageUrl: string | null = null;
 
 // ============================================
+// Blob URL Lifecycle Management (T002: 035-selection-tts-hardening)
+// ============================================
+
+/**
+ * Track active blob URLs by paragraph index to prevent memory leaks.
+ * Key: paragraph index
+ * Value: blob URL (blob:moz-extension://...)
+ *
+ * Lifecycle rules (per research.md R6):
+ * - Revoke previous URL before creating new one for same paragraph
+ * - Revoke all URLs on playback stop or navigation
+ * - Do NOT revoke on 'ended' event (breaks seek/replay)
+ */
+const activeBlobUrls: Map<number, string> = new Map();
+
+/**
+ * Track blob URL for a paragraph. Revokes any existing URL for the same paragraph.
+ * @param paragraphIndex - The paragraph index
+ * @param blobUrl - The blob URL to track
+ */
+function trackBlobUrl(paragraphIndex: number, blobUrl: string): void {
+  // Revoke existing URL for this paragraph if present
+  const existingUrl = activeBlobUrls.get(paragraphIndex);
+  if (existingUrl) {
+    console.log(`[VoxPage:BlobURL] Revoking previous URL for paragraph ${paragraphIndex}`);
+    URL.revokeObjectURL(existingUrl);
+  }
+
+  // Track the new URL
+  activeBlobUrls.set(paragraphIndex, blobUrl);
+  console.log(
+    `[VoxPage:BlobURL] Created: ${blobUrl.substring(0, 30)}... for paragraph ${paragraphIndex}`,
+  );
+}
+
+/**
+ * Revoke a specific blob URL by paragraph index.
+ * @param paragraphIndex - The paragraph index whose URL should be revoked
+ */
+function revokeBlobUrl(paragraphIndex: number): void {
+  const url = activeBlobUrls.get(paragraphIndex);
+  if (url) {
+    console.log(
+      `[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${paragraphIndex}`,
+    );
+    URL.revokeObjectURL(url);
+    activeBlobUrls.delete(paragraphIndex);
+  }
+}
+
+/**
+ * Revoke all tracked blob URLs.
+ * Called on playback stop or tab navigation.
+ */
+function revokeAllBlobUrls(): void {
+  const count = activeBlobUrls.size;
+  if (count === 0) return;
+
+  console.log(`[VoxPage:BlobURL] Revoking all ${count} tracked blob URLs`);
+  for (const [index, url] of activeBlobUrls) {
+    console.log(`[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${index}`);
+    URL.revokeObjectURL(url);
+  }
+  activeBlobUrls.clear();
+}
+
+/**
+ * Clean up blob URLs for paragraphs before the current one.
+ * Called during playback to free memory for already-played paragraphs.
+ * @param currentParagraphIndex - The current paragraph being played
+ */
+function cleanupOldBlobUrls(currentParagraphIndex: number): void {
+  const toRemove: number[] = [];
+  for (const [index] of activeBlobUrls) {
+    if (index < currentParagraphIndex - 1) {
+      // Keep current and previous paragraph URLs for seek/replay
+      toRemove.push(index);
+    }
+  }
+
+  for (const index of toRemove) {
+    revokeBlobUrl(index);
+  }
+}
+
+// ============================================
 // Tab Communication
 // ============================================
 
@@ -453,7 +539,12 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
       duration,
     };
   } catch (error) {
-    console.error('[Background] ElevenLabs generation error:', error);
+    // T031: Add error context (provider, paragraph index)
+    console.error('[Background] ElevenLabs generation error:', {
+      error,
+      provider: 'elevenlabs',
+      paragraphIndex: playbackState.currentParagraph,
+    });
     return null;
   }
 }
@@ -862,9 +953,11 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
     audioResolveCallback = resolve;
 
     // Stop any existing audio
+    // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
     if (currentAudio) {
       currentAudio.pause();
-      currentAudio.src = '';
+      currentAudio.removeAttribute('src');
+      currentAudio.load();
       currentAudio = null;
     }
 
@@ -905,7 +998,13 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
       if (audioStoppedManually) {
         return;
       }
-      console.error('[Background] Audio playback error:', event);
+      // T031: Add error context (provider, paragraph index)
+      console.error('[Background] Audio playback error:', {
+        event,
+        provider: playbackState.provider,
+        paragraphIndex: playbackState.currentParagraph,
+        audioUrl: audioUrl.substring(0, 50),
+      });
       currentAudio = null;
       audioResolveCallback = null;
       resolve(false);
@@ -918,7 +1017,13 @@ function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean
         console.log('[Background] Audio play() started successfully');
       })
       .catch((err) => {
-        console.error('[Background] Audio play() failed:', err);
+        // T031: Add error context (provider, paragraph index)
+        console.error('[Background] Audio play() failed:', {
+          error: err,
+          provider: playbackState.provider,
+          paragraphIndex: playbackState.currentParagraph,
+          audioUrl: audioUrl.substring(0, 50),
+        });
         currentAudio = null;
         audioResolveCallback = null;
         resolve(false);
@@ -937,12 +1042,17 @@ function stopCurrentAudio(): void {
   stopWordHighlighting();
   currentWordTimings = [];
 
+  // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
   if (currentAudio) {
     currentAudio.pause();
-    currentAudio.src = '';
+    currentAudio.removeAttribute('src');
+    currentAudio.load();
     currentAudio = null;
-    console.log('[Background] Audio stopped');
+    console.log('[VoxPage:Audio] Audio stopped and cleaned');
   }
+
+  // T028-T029: Revoke all tracked blob URLs when stopping playback
+  revokeAllBlobUrls();
 
   // Resolve any pending audio Promise so speakCurrentParagraph can check status
   if (audioResolveCallback) {
@@ -985,8 +1095,39 @@ async function speakCurrentParagraph(): Promise<void> {
 
   let success = false;
 
-  // Log the provider being used
-  console.log('[Background] Using provider:', playbackState.provider, '| reason: user selection');
+  // T016: Debug logging for provider selection (035-selection-tts-hardening)
+  console.log('[VoxPage:Provider] Selected:', playbackState.provider);
+  console.log('[VoxPage:Provider] Voice:', playbackState.voice ?? 'default');
+
+  // T013: API key validation before playback attempt (035-selection-tts-hardening)
+  const providerApiKeyMap: Record<string, string | undefined> = {
+    elevenlabs: apiKeys.elevenlabsApiKey,
+    openai: apiKeys.openaiApiKey,
+    groq: apiKeys.groqApiKey,
+    cartesia: apiKeys.cartesiaApiKey,
+    browser: 'browser-native', // Browser TTS doesn't need API key
+  };
+
+  const hasApiKey =
+    playbackState.provider === 'browser' || !!providerApiKeyMap[playbackState.provider];
+
+  // T014: Show error notification if API key missing (035-selection-tts-hardening)
+  if (!hasApiKey) {
+    const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} API key not configured. Please add your API key in the options page.`;
+    console.error(`[VoxPage:Provider] API key missing for ${playbackState.provider}`);
+
+    // Send error notification to content script for display in sticky footer
+    await sendToContentScript(activeTabId, {
+      action: 'PLAYBACK_ERROR',
+      message: errorMessage,
+      provider: playbackState.provider,
+    });
+
+    // Stop playback - do NOT fallback to browser TTS
+    playbackState.status = 'stopped';
+    notifyPopup();
+    return;
+  }
 
   // Provider routing - use the selected provider
   if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
@@ -1108,6 +1249,8 @@ async function speakCurrentParagraph(): Promise<void> {
         console.error('[Background] Empty audio URL in audioResult, skipping playback');
         success = false;
       } else {
+        // T028-T029: Track blob URL and revoke previous for this paragraph
+        trackBlobUrl(playbackState.currentParagraph, audioResult.audioUrl);
         success = await playAudioInBackground(audioResult.audioUrl, playbackState.speed);
       }
 
@@ -1151,6 +1294,8 @@ async function speakCurrentParagraph(): Promise<void> {
       const audioUrl = URL.createObjectURL(response.audioData);
 
       if (audioUrl && audioUrl.trim() !== '') {
+        // T028-T029: Track blob URL and revoke previous for this paragraph
+        trackBlobUrl(playbackState.currentParagraph, audioUrl);
         success = await playAudioInBackground(audioUrl, playbackState.speed);
       }
 
@@ -1158,7 +1303,12 @@ async function speakCurrentParagraph(): Promise<void> {
         console.warn('[Background] OpenAI playback failed');
       }
     } catch (error) {
-      console.error('[Background] OpenAI TTS error:', error);
+      // T031: Add error context (provider, paragraph index)
+      console.error('[Background] OpenAI TTS error:', {
+        error,
+        provider: 'openai',
+        paragraphIndex: playbackState.currentParagraph,
+      });
     }
   } else if (playbackState.provider === 'groq' && apiKeys.groqApiKey) {
     // Groq TTS provider
@@ -1177,6 +1327,8 @@ async function speakCurrentParagraph(): Promise<void> {
       const audioUrl = URL.createObjectURL(response.audioData);
 
       if (audioUrl && audioUrl.trim() !== '') {
+        // T028-T029: Track blob URL and revoke previous for this paragraph
+        trackBlobUrl(playbackState.currentParagraph, audioUrl);
         success = await playAudioInBackground(audioUrl, playbackState.speed);
       }
 
@@ -1184,7 +1336,12 @@ async function speakCurrentParagraph(): Promise<void> {
         console.warn('[Background] Groq playback failed');
       }
     } catch (error) {
-      console.error('[Background] Groq TTS error:', error);
+      // T031: Add error context (provider, paragraph index)
+      console.error('[Background] Groq TTS error:', {
+        error,
+        provider: 'groq',
+        paragraphIndex: playbackState.currentParagraph,
+      });
     }
   } else if (playbackState.provider === 'cartesia' && apiKeys.cartesiaApiKey) {
     // Cartesia TTS provider
@@ -1203,6 +1360,8 @@ async function speakCurrentParagraph(): Promise<void> {
       const audioUrl = URL.createObjectURL(response.audioData);
 
       if (audioUrl && audioUrl.trim() !== '') {
+        // T028-T029: Track blob URL and revoke previous for this paragraph
+        trackBlobUrl(playbackState.currentParagraph, audioUrl);
         success = await playAudioInBackground(audioUrl, playbackState.speed);
       }
 
@@ -1210,7 +1369,12 @@ async function speakCurrentParagraph(): Promise<void> {
         console.warn('[Background] Cartesia playback failed');
       }
     } catch (error) {
-      console.error('[Background] Cartesia TTS error:', error);
+      // T031: Add error context (provider, paragraph index)
+      console.error('[Background] Cartesia TTS error:', {
+        error,
+        provider: 'cartesia',
+        paragraphIndex: playbackState.currentParagraph,
+      });
     }
   } else if (playbackState.provider === 'browser') {
     // Browser TTS explicitly selected
@@ -1224,24 +1388,25 @@ async function speakCurrentParagraph(): Promise<void> {
     success = true; // Browser TTS doesn't return completion status
   }
 
-  // Fallback to browser TTS only if:
-  // 1. No provider succeeded AND
-  // 2. Provider was not explicitly "browser" (already handled above)
+  // T012: Remove silent fallback - show error notification instead (035-selection-tts-hardening)
+  // If provider failed (API error, network issue, etc.), notify user instead of silently falling back
   if (!success && playbackState.provider !== 'browser') {
-    console.warn(
-      '[Background] Provider',
-      playbackState.provider,
-      'failed or not configured, falling back to browser TTS',
-    );
-    // Clear word timings for browser TTS (no word-by-word support)
-    currentWordTimings = [];
+    const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} playback failed. Please check your API key or try again.`;
+    console.error(`[VoxPage:Provider] Playback failed for ${playbackState.provider}`);
 
-    // Fallback to browser TTS (in content script - has different autoplay behavior)
+    // Send error notification to content script for display in sticky footer
     await sendToContentScript(activeTabId, {
-      action: 'speakText',
-      text: text,
-      speed: playbackState.speed,
+      action: 'PLAYBACK_ERROR',
+      message: errorMessage,
+      provider: playbackState.provider,
     });
+
+    // Stop playback - do NOT fallback to browser TTS
+    playbackState.status = 'stopped';
+    await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
+    await sendToContentScript(activeTabId, { action: 'clearHighlight' });
+    notifyPopup();
+    return;
   }
 
   // Check if we're still playing (might have been paused/stopped)
@@ -1409,6 +1574,304 @@ const messageHandlers: Record<string, MessageHandler> = {
     speakCurrentParagraph();
 
     return { success: true, playbackStarted: true };
+  },
+
+  /**
+   * Legacy fallback: Start playback from the beginning.
+   * Used when hexagonal playback.start is unavailable (container not initialized).
+   */
+  startPlayback: async () => {
+    const tab = await getActiveTab();
+    if (!tab?.id) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    // Store current page URL for cache lookups
+    currentPageUrl = tab.url ?? null;
+    activeTabId = tab.id;
+
+    // Set status to loading
+    playbackState.status = 'loading';
+    notifyPopup();
+
+    // Reload API keys and settings
+    const stored = await browser.storage.local.get([
+      'elevenlabsApiKey',
+      'openaiApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
+      'elevenlabsVoice',
+      'speed',
+      'provider',
+    ]);
+    apiKeys = {
+      elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
+      openaiApiKey: stored.openaiApiKey as string | undefined,
+      groqApiKey: stored.groqApiKey as string | undefined,
+      cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
+    };
+    if (stored.elevenlabsVoice) {
+      playbackState.voice = stored.elevenlabsVoice as string;
+    }
+    if (stored.speed) {
+      playbackState.speed = stored.speed as number;
+    }
+    if (stored.provider) {
+      playbackState.provider = stored.provider as string;
+    }
+
+    // Extract text from the page
+    const extractResult = await sendToContentScript(tab.id, {
+      action: 'extractText',
+      mode: 'article',
+    });
+
+    if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
+      const result = extractResult as { paragraphs: string[] };
+      paragraphs = result.paragraphs;
+      playbackState.totalParagraphs = paragraphs.length;
+      console.log('[Background] Extracted', playbackState.totalParagraphs, 'paragraphs');
+    } else {
+      console.error('[Background] Failed to extract text');
+      playbackState.status = 'stopped';
+      notifyPopup();
+      return { success: false, error: 'Failed to extract text' };
+    }
+
+    if (paragraphs.length === 0) {
+      playbackState.status = 'stopped';
+      notifyPopup();
+      return { success: false, error: 'No paragraphs found' };
+    }
+
+    // Clear prefetch cache and stop current audio
+    clearPrefetchCache();
+    stopCurrentAudio();
+
+    // Start from the first paragraph
+    playbackState.currentParagraph = 0;
+    playbackState.progress = 0;
+    playbackState.status = 'playing';
+    notifyPopup();
+
+    // Show the footer
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_SHOW',
+      initialState: {
+        isPlaying: true,
+        currentIndex: 0,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: 0,
+        speed: playbackState.speed,
+      },
+    });
+
+    // Update footer state
+    await sendToContentScript(tab.id, {
+      action: 'FOOTER_STATE_UPDATE',
+      status: 'playing',
+      currentParagraph: 0,
+      totalParagraphs: playbackState.totalParagraphs,
+      progress: 0,
+      speed: playbackState.speed,
+    });
+
+    // Start speaking from the first paragraph
+    speakCurrentParagraph();
+
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Pause playback.
+   */
+  pausePlayback: async () => {
+    if (playbackState.status !== 'playing') {
+      return { success: false, error: 'Not playing' };
+    }
+
+    playbackState.status = 'paused';
+    if (currentAudio) {
+      currentAudio.pause();
+    }
+    stopWordHighlighting();
+    notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        status: 'paused',
+        currentParagraph: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: playbackState.progress,
+        speed: playbackState.speed,
+      });
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Resume playback.
+   */
+  resumePlayback: async () => {
+    if (playbackState.status !== 'paused') {
+      return { success: false, error: 'Not paused' };
+    }
+
+    playbackState.status = 'playing';
+    if (currentAudio) {
+      currentAudio.play();
+      // Resume word highlighting
+      startWordHighlighting(playbackState.currentParagraph);
+    } else {
+      // Audio was lost, regenerate
+      speakCurrentParagraph();
+    }
+    notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, {
+        action: 'FOOTER_STATE_UPDATE',
+        status: 'playing',
+        currentParagraph: playbackState.currentParagraph,
+        totalParagraphs: playbackState.totalParagraphs,
+        progress: playbackState.progress,
+        speed: playbackState.speed,
+      });
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Stop playback.
+   */
+  stopPlayback: async () => {
+    stopCurrentAudio();
+    playbackState.status = 'stopped';
+    playbackState.currentParagraph = 0;
+    playbackState.progress = 0;
+    paragraphs = [];
+    notifyPopup();
+
+    if (activeTabId) {
+      await sendToContentScript(activeTabId, { action: 'FOOTER_HIDE' });
+      await sendToContentScript(activeTabId, { action: 'clearHighlight' });
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Next paragraph.
+   */
+  nextParagraph: async () => {
+    if (playbackState.currentParagraph >= paragraphs.length - 1) {
+      return { success: false, error: 'Already at last paragraph' };
+    }
+
+    stopCurrentAudio();
+    playbackState.currentParagraph++;
+    playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
+    notifyPopup();
+
+    if (playbackState.status === 'playing') {
+      speakCurrentParagraph();
+    }
+
+    return { success: true, currentParagraph: playbackState.currentParagraph };
+  },
+
+  /**
+   * Legacy fallback: Previous paragraph.
+   */
+  previousParagraph: async () => {
+    if (playbackState.currentParagraph <= 0) {
+      return { success: false, error: 'Already at first paragraph' };
+    }
+
+    stopCurrentAudio();
+    playbackState.currentParagraph--;
+    playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
+    notifyPopup();
+
+    if (playbackState.status === 'playing') {
+      speakCurrentParagraph();
+    }
+
+    return { success: true, currentParagraph: playbackState.currentParagraph };
+  },
+
+  /**
+   * Legacy fallback: Get playback state.
+   */
+  getPlaybackState: async () => {
+    return playbackState;
+  },
+
+  /**
+   * Legacy fallback: Update settings.
+   */
+  updateSettings: async (data) => {
+    if (typeof data.speed === 'number') {
+      playbackState.speed = data.speed;
+      if (currentAudio) {
+        currentAudio.playbackRate = data.speed;
+      }
+    }
+    if (typeof data.provider === 'string') {
+      playbackState.provider = data.provider;
+    }
+    if (typeof data.voice === 'string') {
+      playbackState.voice = data.voice;
+    }
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Seek to paragraph.
+   */
+  seekToPosition: async (data) => {
+    const progress = data.progress as number;
+    if (typeof progress !== 'number' || progress < 0 || progress > 100) {
+      return { success: false, error: 'Invalid progress value' };
+    }
+
+    const targetIndex = Math.floor((progress / 100) * paragraphs.length);
+    if (targetIndex >= 0 && targetIndex < paragraphs.length) {
+      stopCurrentAudio();
+      playbackState.currentParagraph = targetIndex;
+      playbackState.progress = progress;
+      notifyPopup();
+
+      if (playbackState.status === 'playing') {
+        speakCurrentParagraph();
+      }
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Legacy fallback: Jump to paragraph.
+   */
+  jumpToParagraph: async (data) => {
+    const index = data.index as number;
+    if (typeof index !== 'number' || index < 0 || index >= paragraphs.length) {
+      return { success: false, error: 'Invalid paragraph index' };
+    }
+
+    stopCurrentAudio();
+    playbackState.currentParagraph = index;
+    playbackState.progress = (index / paragraphs.length) * 100;
+    notifyPopup();
+
+    if (playbackState.status === 'playing') {
+      speakCurrentParagraph();
+    }
+
+    return { success: true };
   },
 
   // Roadmap Feature Handlers - These are domain handlers that haven't been

@@ -96,6 +96,13 @@
   background-color: rgba(13, 148, 136, 0.08) !important;
 }
 
+/* T005: Focus-within state for keyboard navigation (035-selection-tts-hardening) */
+.voxpage-selectable:focus-within {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  outline: 2px solid rgba(13, 148, 136, 0.5) !important;
+  outline-offset: 2px !important;
+}
+
 /* Selected (pre-play) state */
 .voxpage-selected {
   background-color: rgba(13, 148, 136, 0.12) !important;
@@ -126,10 +133,30 @@
   pointer-events: auto !important;
 }
 
-/* Show play icon on paragraph hover */
+/* Show play icon on paragraph hover or focus-within (T005) */
 .voxpage-selectable:hover .voxpage-play-icon,
+.voxpage-selectable:focus-within .voxpage-play-icon,
 .voxpage-selected .voxpage-play-icon {
   opacity: 1 !important;
+}
+
+/* T006: Focus state for play icon button (035-selection-tts-hardening) */
+.voxpage-play-icon:focus {
+  opacity: 1 !important;
+  background: #14b8a6 !important;
+}
+
+/* T007: Focus-visible outline for play icon (035-selection-tts-hardening) */
+.voxpage-play-icon:focus-visible {
+  opacity: 1 !important;
+  outline: 2px solid #0d9488 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Hide default outline on focus (non-visible) */
+.voxpage-play-icon:focus:not(:focus-visible) {
+  outline: none !important;
 }
 
 /* Play icon hover effect */
@@ -186,6 +213,12 @@
     background-color: rgba(20, 184, 166, 0.12) !important;
   }
 
+  /* T005: Focus-within in dark mode */
+  .voxpage-selectable:focus-within {
+    background-color: rgba(20, 184, 166, 0.12) !important;
+    outline-color: rgba(20, 184, 166, 0.6) !important;
+  }
+
   .voxpage-selected {
     background-color: rgba(20, 184, 166, 0.18) !important;
     border-left-color: rgba(20, 184, 166, 0.6) !important;
@@ -198,6 +231,17 @@
 
   .voxpage-play-icon:hover {
     background: #2dd4bf !important;
+  }
+
+  /* T006-T007: Focus states in dark mode */
+  .voxpage-play-icon:focus,
+  .voxpage-play-icon:focus-visible {
+    background: #2dd4bf !important;
+  }
+
+  .voxpage-play-icon:focus-visible {
+    outline-color: #14b8a6 !important;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4), 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 }
 

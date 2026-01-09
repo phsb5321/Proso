@@ -12,7 +12,6 @@ import {
   getContainer,
   isContainerInitialized,
   reconfigureAudioGenerator,
-  getApiKeyForProvider,
 } from '../composition';
 import type { ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';

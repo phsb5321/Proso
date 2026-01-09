@@ -2,7 +2,7 @@
   "name": "voxpage",
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@10.14.0",
+  "packageManager": "pnpm@10.27.0",
   "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
   "scripts": {
     "dev": "wxt",
@@ -16,11 +16,20 @@
     "zip:firefox": "wxt zip -b firefox",
     "zip:chrome": "wxt zip -b chrome",
     "postinstall": "wxt prepare",
-    "test": "pnpm run lint && node --experimental-vm-modules node_modules/.bin/jest",
-    "test:unit": "node --experimental-vm-modules node_modules/.bin/jest",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
-    "test:visual": "npx playwright test",
-    "test:visual:update": "npx playwright test --update-snapshots",
+    "test": "pnpm run lint && NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --selectProjects unit",
+    "test:contract": "NODE_OPTIONS='--experimental-vm-modules' jest --selectProjects contract",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --selectProjects integration",
+    "test:security": "NODE_OPTIONS='--experimental-vm-modules' jest --selectProjects security",
+    "test:regression": "NODE_OPTIONS='--experimental-vm-modules' jest --selectProjects regression",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:visual": "npx playwright test --project=firefox-visual",
+    "test:visual:update": "npx playwright test --project=firefox-visual --update-snapshots",
+    "test:e2e": "npx playwright test --project=firefox-e2e",
+    "test:e2e:ext": "npx playwright test --project=chromium-extension",
+    "test:e2e:ext:ui": "npx playwright test --project=chromium-extension --ui",
+    "test:e2e:ext:docker": "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:3000/ npx playwright test --project=chromium-extension",
+    "validate:firefox": "web-ext run --source-dir=.output/firefox-mv2",
     "test:all": "pnpm run test && pnpm run test:visual",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -31,7 +40,12 @@
     "deps:check": "madge --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
-    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest"
+    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest",
+    "version:show": "./scripts/version.sh",
+    "version:patch": "./scripts/version.sh patch",
+    "version:minor": "./scripts/version.sh minor",
+    "version:major": "./scripts/version.sh major",
+    "prerelease": "pnpm run test && pnpm run quality && pnpm run build:all"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -52,13 +66,7 @@
     "web-ext": "^7.11.0",
     "wxt": "^0.20.13"
   },
-  "keywords": [
-    "firefox",
-    "extension",
-    "tts",
-    "text-to-speech",
-    "accessibility"
-  ],
+  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
   "license": "MIT",
   "dependencies": {
     "@webext-core/messaging": "^2.3.0",
@@ -67,6 +75,6 @@
     "lamejs": "^1.2.1",
     "pdfjs-dist": "^5.4.530",
     "tesseract-wasm": "^0.11.0",
-    "zod": "^4.3.4"
+    "zod": "^3.23.8"
   }
 }

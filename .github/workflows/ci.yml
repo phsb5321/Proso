@@ -14,8 +14,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,8 +27,13 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
-      - name: Test
-        run: pnpm test
+      - name: Unit Tests
+        run: pnpm run test:unit
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Build Firefox extension
+        run: pnpm run build:firefox
 
       - name: Quality check
         run: pnpm run quality

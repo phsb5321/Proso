@@ -7,7 +7,7 @@
  * @module handlers/audio
  */
 
-import { getContainer, isContainerInitialized, reconfigureAudioGenerator } from '../composition';
+import { getContainer, isContainerInitialized, } from '../composition';
 import type { AudioError, ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
