@@ -336,6 +336,17 @@ let currentPageUrl: string | null = null;
 const activeBlobUrls: Map<number, string> = new Map();
 
 /**
+ * Safely revoke an object URL.
+ * Service workers don't have URL.revokeObjectURL, and data URLs don't need revocation.
+ */
+function safeRevokeObjectURL(url: string): void {
+  // Only blob: URLs need revocation, and only if the API is available
+  if (url.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
  * Track blob URL for a paragraph. Revokes any existing URL for the same paragraph.
  * @param paragraphIndex - The paragraph index
  * @param blobUrl - The blob URL to track
@@ -345,7 +356,7 @@ function trackBlobUrl(paragraphIndex: number, blobUrl: string): void {
   const existingUrl = activeBlobUrls.get(paragraphIndex);
   if (existingUrl) {
     console.log(`[VoxPage:BlobURL] Revoking previous URL for paragraph ${paragraphIndex}`);
-    URL.revokeObjectURL(existingUrl);
+    safeRevokeObjectURL(existingUrl);
   }
 
   // Track the new URL
@@ -365,7 +376,7 @@ function revokeBlobUrl(paragraphIndex: number): void {
     console.log(
       `[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${paragraphIndex}`,
     );
-    URL.revokeObjectURL(url);
+    safeRevokeObjectURL(url);
     activeBlobUrls.delete(paragraphIndex);
   }
 }
@@ -381,7 +392,7 @@ function revokeAllBlobUrls(): void {
   console.log(`[VoxPage:BlobURL] Revoking all ${count} tracked blob URLs`);
   for (const [index, url] of activeBlobUrls) {
     console.log(`[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${index}`);
-    URL.revokeObjectURL(url);
+    safeRevokeObjectURL(url);
   }
   activeBlobUrls.clear();
 }
