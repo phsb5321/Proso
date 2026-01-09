@@ -40,7 +40,12 @@
     "deps:check": "madge --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
-    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest"
+    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest",
+    "version:show": "./scripts/version.sh",
+    "version:patch": "./scripts/version.sh patch",
+    "version:minor": "./scripts/version.sh minor",
+    "version:major": "./scripts/version.sh major",
+    "prerelease": "pnpm run test && pnpm run quality && pnpm run build:all"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -61,13 +66,7 @@
     "web-ext": "^7.11.0",
     "wxt": "^0.20.13"
   },
-  "keywords": [
-    "firefox",
-    "extension",
-    "tts",
-    "text-to-speech",
-    "accessibility"
-  ],
+  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
   "license": "MIT",
   "dependencies": {
     "@webext-core/messaging": "^2.3.0",
