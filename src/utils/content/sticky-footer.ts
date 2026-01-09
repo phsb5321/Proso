@@ -146,6 +146,9 @@ const Z_INDEX = 2147483647;
 // Speed options
 const SPEED_OPTIONS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;
 
+// Error notification defaults (T001: 035-selection-tts-hardening)
+const ERROR_DISPLAY_DURATION_MS = 5000;
+
 // ============================================================================
 // SVG Icon Creation
 // ============================================================================
@@ -476,6 +479,45 @@ function getStyles(): string {
     .live-region { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .loading .btn-play-pause svg { animation: pulse 1s ease-in-out infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    /* Error notification styles (T001: 035-selection-tts-hardening) */
+    .error-notification {
+      position: absolute;
+      top: -48px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #dc2626;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+      opacity: 0;
+      transition: opacity 200ms ease-out, transform 200ms ease-out;
+      pointer-events: none;
+      max-width: calc(var(--footer-max-width) - 32px);
+      text-align: center;
+      z-index: calc(var(--footer-z-index) + 1);
+    }
+    .error-notification.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+      pointer-events: auto;
+    }
+    .error-notification-dismiss {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .error-notification-dismiss:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
   `;
 }
 
@@ -509,6 +551,10 @@ export class StickyFooter {
   private _originalBodyPadding: string | null = null;
   private _resizeObserver: ResizeObserver | null = null;
   private _mutationObserver: MutationObserver | null = null;
+
+  // Error notification state (T001: 035-selection-tts-hardening)
+  private _errorElement: HTMLDivElement | null = null;
+  private _errorTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Cached DOM references
   private _footerEl: HTMLDivElement | null = null;
@@ -553,6 +599,7 @@ export class StickyFooter {
     // Footer container
     const footer = document.createElement("div");
     footer.className = "footer";
+    footer.dataset.testid = "sticky-footer";
     if (this.isMinimized) footer.classList.add("minimized");
     if (this.position.x !== "center") footer.classList.add(String(this.position.x));
     if (isLoading) footer.classList.add("loading");
@@ -586,6 +633,7 @@ export class StickyFooter {
       action: "prev",
       icon: "skip-back",
     });
+    prevBtn.dataset.testid = "footer-prev-btn";
     controls.appendChild(prevBtn);
 
     const playPauseBtn = createButton({
@@ -595,6 +643,7 @@ export class StickyFooter {
       action: "playPause",
       icon: isPlaying ? "pause" : "play",
     });
+    playPauseBtn.dataset.testid = "footer-play-pause-btn";
     this._playPauseBtn = playPauseBtn;
     controls.appendChild(playPauseBtn);
 
@@ -604,6 +653,7 @@ export class StickyFooter {
       action: "next",
       icon: "skip-forward",
     });
+    nextBtn.dataset.testid = "footer-next-btn";
     controls.appendChild(nextBtn);
 
     footer.appendChild(controls);
@@ -627,6 +677,7 @@ export class StickyFooter {
     progressBar.setAttribute("aria-valuetext", `${Math.round(progress)}% complete`);
     progressBar.setAttribute("tabindex", "0");
     progressBar.dataset.action = "seek";
+    progressBar.dataset.testid = "footer-progress-bar";
     this._progressBar = progressBar;
 
     const progressFill = document.createElement("div");
@@ -696,6 +747,7 @@ export class StickyFooter {
       action: "close",
       icon: "x",
     });
+    closeBtn.dataset.testid = "footer-close-btn";
     actions.appendChild(closeBtn);
     footer.appendChild(actions);
 
@@ -852,6 +904,91 @@ export class StickyFooter {
    */
   isFooterVisible(): boolean {
     return this.isVisible;
+  }
+
+  // ==========================================================================
+  // Error Notification (T001: 035-selection-tts-hardening)
+  // ==========================================================================
+
+  /**
+   * Show an error notification in the sticky footer
+   * Used to display provider errors, API key issues, etc.
+   *
+   * @param message - Error message to display
+   * @param duration - Auto-dismiss duration in ms (default: 5000). Set to 0 for no auto-dismiss.
+   */
+  showError(message: string, duration: number = ERROR_DISPLAY_DURATION_MS): void {
+    if (!this.shadowRoot || !this._footerEl) {
+      console.error("[VoxPage:StickyFooter] Cannot show error - footer not visible:", message);
+      return;
+    }
+
+    // Clear any existing error timeout
+    if (this._errorTimeout) {
+      clearTimeout(this._errorTimeout);
+      this._errorTimeout = null;
+    }
+
+    // Create error element if it doesn't exist
+    if (!this._errorElement) {
+      this._errorElement = document.createElement("div");
+      this._errorElement.className = "error-notification";
+      this._errorElement.setAttribute("role", "alert");
+      this._errorElement.setAttribute("aria-live", "assertive");
+      this._footerEl.appendChild(this._errorElement);
+    }
+
+    // Clear existing content using safe DOM methods
+    while (this._errorElement.firstChild) {
+      this._errorElement.removeChild(this._errorElement.firstChild);
+    }
+
+    // Add message text using textContent (safe from XSS)
+    const messageSpan = document.createElement("span");
+    messageSpan.textContent = message;
+    this._errorElement.appendChild(messageSpan);
+
+    // Add dismiss button
+    const dismissBtn = document.createElement("button");
+    dismissBtn.className = "error-notification-dismiss";
+    dismissBtn.textContent = "Dismiss";
+    dismissBtn.setAttribute("aria-label", "Dismiss error");
+    dismissBtn.addEventListener("click", () => this.hideError());
+    this._errorElement.appendChild(dismissBtn);
+
+    // Show the notification
+    // Use requestAnimationFrame to ensure CSS transition triggers
+    requestAnimationFrame(() => {
+      if (this._errorElement) {
+        this._errorElement.classList.add("visible");
+      }
+    });
+
+    // Announce to screen readers
+    this._announce(`Error: ${message}`);
+
+    console.log("[VoxPage:StickyFooter] Showing error:", message);
+
+    // Auto-dismiss after duration (if duration > 0)
+    if (duration > 0) {
+      this._errorTimeout = setTimeout(() => {
+        this.hideError();
+      }, duration);
+    }
+  }
+
+  /**
+   * Hide the error notification
+   */
+  hideError(): void {
+    if (this._errorTimeout) {
+      clearTimeout(this._errorTimeout);
+      this._errorTimeout = null;
+    }
+
+    if (this._errorElement) {
+      this._errorElement.classList.remove("visible");
+    }
   }
 
   // ==========================================================================
