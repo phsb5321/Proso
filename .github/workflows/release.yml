@@ -118,11 +118,29 @@ jobs:
       - name: Create zip artifact
         run: pnpm run zip:${{ matrix.browser }}
 
+      - name: List output directory
+        run: |
+          echo "Contents of .output directory:"
+          ls -la .output/
+          echo ""
+          echo "Looking for zip files:"
+          find .output -name "*.zip" -type f
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: voxpage-${{ matrix.browser }}-${{ needs.validate.outputs.version }}
-          path: .output/*.zip
+          path: .output/voxpage-*-${{ matrix.browser }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload sources artifact (Firefox only, for AMO)
+        if: matrix.browser == 'firefox'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voxpage-sources-${{ needs.validate.outputs.version }}
+          path: .output/voxpage-*-sources.zip
+          if-no-files-found: warn
           retention-days: 30
 
   release:
@@ -141,6 +159,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: voxpage-chrome-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
+      - name: Download sources artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voxpage-sources-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: List artifacts
