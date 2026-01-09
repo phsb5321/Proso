@@ -17,7 +17,6 @@ import type {
   CacheStats,
   CleanupResult,
   EvictionResult,
-  WordTimelineItem,
 } from './types';
 
 // ============================================================================

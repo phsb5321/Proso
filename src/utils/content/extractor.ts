@@ -398,6 +398,9 @@ export function findContentParagraphs(container: Element): Element[] {
     "p, h1, h2, h3, h4, h5, h6, blockquote, .wiki-paragraph, article p, .content p",
   );
 
+  // T033: Two-pass approach to batch getComputedStyle() calls (035-selection-tts-hardening)
+  // First pass: Filter candidates without style checks (non-layout operations)
+  const preFilteredCandidates: Element[] = [];
   for (const el of candidates) {
     if (scorer.isInsideUnwantedElement?.(el)) continue;
     const text = el.textContent?.trim() || "";
@@ -414,10 +417,16 @@ export function findContentParagraphs(container: Element): Element[] {
     if (seenTexts.has(normalizedText)) continue;
     seenTexts.add(normalizedText);
 
-    const computedStyle = window.getComputedStyle(el);
-    if (computedStyle.position === "fixed" || computedStyle.position === "sticky") continue;
+    preFilteredCandidates.push(el);
+  }
 
-    paragraphs.push(el);
+  // Second pass: Batch read all computed styles, then filter
+  const styles = preFilteredCandidates.map((el) => window.getComputedStyle(el));
+  for (let i = 0; i < preFilteredCandidates.length; i++) {
+    const position = styles[i].position;
+    if (position !== "fixed" && position !== "sticky") {
+      paragraphs.push(preFilteredCandidates[i]);
+    }
   }
 
   // Content-focused list items
