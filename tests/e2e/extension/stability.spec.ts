@@ -31,6 +31,13 @@ import {
   type ConsoleFixture,
   type AllowlistEntry,
 } from './fixtures/console.fixture';
+import {
+  startHttpServer,
+  stopHttpServer,
+  getFixtureUrl,
+  FixtureUrls,
+  type HttpServerState,
+} from './fixtures/http-server.fixture';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -49,7 +56,15 @@ const extendedTest = test.extend<{
   audioState: AudioFixtureState;
   consoleState: ConsoleFixture;
   allowlist: AllowlistEntry[];
+  httpServer: HttpServerState;
 }>({
+  // HTTP server fixture - starts before tests, stops after
+  httpServer: async ({}, use) => {
+    const server = await startHttpServer();
+    await use(server);
+    await stopHttpServer(server);
+  },
+
   allowlist: async ({}, use) => {
     const allowlistPath = path.join(__dirname, '../console-allowlist.json');
     let allowlist: AllowlistEntry[] = [];
@@ -165,21 +180,22 @@ extendedTest.describe('Extension Stability', () => {
   /**
    * Test: No memory leak indicators during repeated playback cycles
    * 
-   * SKIPPED: Requires content script injection which doesn't work on file:// URLs.
+   * LIMITATION: Audio elements in content script isolated world are not visible
+   * to Playwright page APIs. This test verifies memory stability during repeated clicks.
    */
-  extendedTest.skip('no memory leak indicators during repeated cycles', async ({
+  extendedTest('no memory leak indicators during repeated cycles', async ({
     extensionPage,
-    audioState,
     consoleState,
+    httpServer,
   }) => {
     extendedTest.setTimeout(60000);
 
-    // Use local fixture page for reliable paragraph access
-    await extensionPage.goto('file://' + path.join(__dirname, '../../fixtures/html/simple-paragraphs.html'));
+    // Use local fixture page via HTTP for reliable paragraph access
+    const fixtureUrl = getFixtureUrl(httpServer, FixtureUrls.SIMPLE_PARAGRAPHS);
+    await extensionPage.goto(fixtureUrl);
     await extensionPage.waitForLoadState('domcontentloaded');
 
     // Record initial state
-    const initialAudioCount = await countAudioElements(extensionPage);
     const memoryStart = await getMemoryInfo(extensionPage);
 
     const paragraphs = extensionPage.locator('p');
@@ -197,20 +213,11 @@ extendedTest.describe('Extension Stability', () => {
       const paragraphIndex = cycle % paragraphCount;
       const paragraph = paragraphs.nth(paragraphIndex);
 
-      // Trigger playback
+      // Trigger click
       await paragraph.click();
 
       // Brief wait
       await extensionPage.waitForTimeout(CYCLE_DELAY_MS);
-
-      // Check for stuck state (audio playing > 2x expected duration)
-      const audioState2 = await getAudioState(extensionPage);
-      if (audioState2?.exists && !audioState2.paused) {
-        const maxDuration = 10; // seconds
-        if (audioState2.currentTime > maxDuration) {
-          console.warn(`[Test] Possible stuck state at cycle ${cycle}: currentTime=${audioState2.currentTime}s`);
-        }
-      }
 
       // Log progress every 5 cycles
       if ((cycle + 1) % 5 === 0) {
@@ -220,11 +227,6 @@ extendedTest.describe('Extension Stability', () => {
 
     // Final checks
     await extensionPage.waitForTimeout(500);
-
-    // Check audio element accumulation
-    const finalAudioCount = await countAudioElements(extensionPage);
-    const audioGrowth = finalAudioCount - initialAudioCount;
-    expect(audioGrowth).toBeLessThanOrEqual(MAX_AUDIO_ELEMENTS);
 
     // Check memory growth (Chromium only)
     const memoryEnd = await getMemoryInfo(extensionPage);
@@ -241,7 +243,7 @@ extendedTest.describe('Extension Stability', () => {
     );
     expect(invalidUriErrors.length).toBe(0);
 
-    console.log(`[Test] Stability test complete: ${STABILITY_CYCLES} cycles, audio growth: ${audioGrowth}`);
+    console.log(`[Test] Stability test complete: ${STABILITY_CYCLES} cycles`);
 
     // Clear console state
     consoleState.unexpectedErrors = [];
