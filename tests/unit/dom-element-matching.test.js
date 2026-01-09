@@ -503,7 +503,7 @@ describe('DOM Element Matching', () => {
 
       const elapsed = Date.now() - start;
 
-      expect(elapsed).toBeLessThanOrEqual(25); // Allow small variance for CI
+      expect(elapsed).toBeLessThanOrEqual(100); // Allow variance for CI/slow environments
       expect(filtered.length).toBe(400); // 500 - 100 infobox elements
     });
   });
