@@ -13,6 +13,12 @@ export {
 } from './mock-audio-generator';
 
 export {
+  MockAudioUrlProvider,
+  createMockAudioUrlProvider,
+  type MockAudioUrlProviderConfig,
+} from './mock-audio-url-provider';
+
+export {
   MockCacheStore,
   createMockCacheStore,
   type MockCacheStoreConfig,

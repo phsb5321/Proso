@@ -7,6 +7,7 @@
  * TypeScript conversion from options/options.js
  */
 
+import { browser } from 'wxt/browser';
 import {
   settingsDefaults,
   loggingDefaults,
@@ -901,6 +902,9 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
 
   try {
     const result = await testApiKey(provider, apiKey);
+
+    console.log('[Controller] testApiKey returned:', JSON.stringify(result, null, 2));
+    console.log('[Controller] result.success:', result.success);
 
     if (result.success) {
       // T034: Display success with icon

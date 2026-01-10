@@ -9,6 +9,7 @@
 
 import type { ProviderId } from '../core/shared/errors';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
+import type { IAudioUrlProvider } from '../ports/audio-url.port';
 import type { ICacheStore } from '../ports/cache-store.port';
 import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
@@ -18,6 +19,7 @@ import type { ApiKeys } from './types';
 
 // Audio adapters
 import {
+  AudioUrlAdapter,
   BrowserAudioAdapter,
   CartesiaAudioAdapter,
   ElevenLabsAudioAdapter,
@@ -154,6 +156,15 @@ export function createContentScorerAdapter(): IContentScorer {
  */
 export function createSettingsStoreAdapter(): ISettingsStore {
   return new BrowserSettingsAdapter();
+}
+
+/**
+ * Create an audio URL provider adapter.
+ *
+ * @returns IAudioUrlProvider adapter
+ */
+export function createAudioUrlAdapter(): IAudioUrlProvider {
+  return new AudioUrlAdapter();
 }
 
 /**

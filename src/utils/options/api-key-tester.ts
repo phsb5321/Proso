@@ -10,6 +10,8 @@
  * @description FR-023 - API key validation with feedback
  */
 
+import { browser } from 'wxt/browser';
+
 export interface TestResult {
   success: boolean;
   provider: string;
@@ -35,6 +37,15 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
     });
 
     const latencyMs = Math.round(performance.now() - startTime);
+
+    // Debug: trace the response from the background script
+    console.log('[ApiKeyTester] Response from background:', JSON.stringify(response, null, 2));
+    console.log('[ApiKeyTester] Response type:', typeof response);
+    console.log('[ApiKeyTester] Response.success:', response?.success);
+    console.log(
+      '[ApiKeyTester] Response keys:',
+      response ? Object.keys(response) : 'null/undefined',
+    );
 
     if (response && response.success) {
       return {

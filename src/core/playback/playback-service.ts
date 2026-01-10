@@ -12,6 +12,7 @@ import type {
   AudioResponse,
   IAudioGenerator,
 } from '../../ports/audio-generator.port';
+import type { IAudioUrlProvider } from '../../ports/audio-url.port';
 import type { CacheEntry, CacheKey, ICacheStore } from '../../ports/cache-store.port';
 import type { FooterState, IHighlightSynchronizer } from '../../ports/highlight-sync.port';
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
@@ -19,7 +20,6 @@ import type { AudioError, ExtractionMode, PlaybackError, ProviderId } from '../s
 import { playbackError } from '../shared/errors';
 import type { Result } from '../shared/result';
 import { Err, Ok, isErr, isOk } from '../shared/result';
-import { createAudioUrl, revokeAudioUrl } from '../../utils/audio/audio-url';
 import {
   type PlaybackState,
   initialPlaybackState,
@@ -32,6 +32,7 @@ import {
  */
 export interface PlaybackServiceDependencies {
   readonly audioGenerator: IAudioGenerator;
+  readonly audioUrlProvider: IAudioUrlProvider;
   readonly cacheStore: ICacheStore;
   readonly highlightSync: IHighlightSynchronizer;
   readonly settingsStore: ISettingsStore;
@@ -139,7 +140,7 @@ export class PlaybackService {
     }
 
     // Revoke object URL (no-op for data URLs)
-    revokeAudioUrl(this.currentAudioUrl);
+    this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
     this.currentAudioUrl = null;
 
     // Clear highlights and hide footer
@@ -392,7 +393,7 @@ export class PlaybackService {
    */
   private async playAudio(blob: Blob): Promise<void> {
     // Clean up previous audio (no-op for data URLs)
-    revokeAudioUrl(this.currentAudioUrl);
+    this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
 
     // Create new audio element if needed
     if (!this.audioElement) {
@@ -401,7 +402,7 @@ export class PlaybackService {
     }
 
     // Create audio URL (uses data URL in service worker, blob URL in DOM)
-    this.currentAudioUrl = await createAudioUrl(blob);
+    this.currentAudioUrl = await this.deps.audioUrlProvider.createUrl(blob);
     this.audioElement.src = this.currentAudioUrl;
     this.audioElement.playbackRate = this.state.speed;
 

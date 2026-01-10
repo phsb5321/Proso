@@ -10,6 +10,7 @@ import type { ContentExtractionService } from '../core/content-extraction/extrac
 import type { PlaybackService } from '../core/playback/playback-service';
 import type { ProviderId } from '../core/shared/errors';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
+import type { IAudioUrlProvider } from '../ports/audio-url.port';
 import type { ICacheStore } from '../ports/cache-store.port';
 import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
@@ -39,6 +40,7 @@ export interface ApiKeys {
  */
 export interface PlaybackServiceDependencies {
   readonly audioGenerator: IAudioGenerator;
+  readonly audioUrlProvider: IAudioUrlProvider;
   readonly cacheStore: ICacheStore;
   readonly highlightSync: IHighlightSynchronizer;
   readonly settingsStore: ISettingsStore;
@@ -57,6 +59,7 @@ export interface ContentExtractionServiceDependencies {
  */
 export interface ContainerAdapters {
   readonly audioGenerator: IAudioGenerator;
+  readonly audioUrlProvider: IAudioUrlProvider;
   readonly cacheStore: ICacheStore;
   readonly highlightSync: IHighlightSynchronizer;
   readonly textExtractor: ITextExtractor;

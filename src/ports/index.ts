@@ -16,6 +16,9 @@ export type {
   Voice,
 } from './audio-generator.port';
 
+// Audio URL Provider Port
+export type { IAudioUrlProvider } from './audio-url.port';
+
 // Cache Store Port
 export type {
   ICacheStore,

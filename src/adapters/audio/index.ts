@@ -13,3 +13,4 @@ export { ElevenLabsAudioAdapter } from './elevenlabs-audio.adapter';
 export { GroqAudioAdapter } from './groq-audio.adapter';
 export { CartesiaAudioAdapter } from './cartesia-audio.adapter';
 export { BrowserAudioAdapter } from './browser-audio.adapter';
+export { AudioUrlAdapter } from './audio-url.adapter';

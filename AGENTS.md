@@ -23,7 +23,24 @@ TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionType
 
 ## Recent Changes
 
+- 041-firefox-first-pivot: Firefox-first architecture pivot (Firefox 112+, event pages with DOM access, native Audio API, no service workers)
 - 039-extension-debug-testing: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), Playwright (E2E testing), esbuild (build-time code stripping)
+
+## Firefox-First Guidelines
+
+VoxPage is developed Firefox-first. Key architectural decisions:
+
+1. **Background scripts use event pages** (not service workers) - DOM access available
+2. **Native `Audio` API** in background scripts - no offscreen documents needed
+3. **Native `speechSynthesis`** for Browser TTS - direct API access
+4. **Data URLs for audio** - service worker compatible pattern
+5. **Minimum Firefox version**: 112.0 (see `manifest.json` gecko settings)
+
+### Firefox Manual Validation
+
+Before releases, run the manual validation checklist:
+- Quick checklist: `docs/firefox-manual-validation.md`
+- Comprehensive checklist: `specs/041-firefox-first-pivot/manual-validation.md`
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

@@ -11,10 +11,12 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
 import {
   createMockAudioGenerator,
+  createMockAudioUrlProvider,
   createMockCacheStore,
   createMockHighlightSync,
   createMockSettingsStore,
   type MockAudioGenerator,
+  type MockAudioUrlProvider,
   type MockCacheStore,
   type MockHighlightSync,
   type MockSettingsStore,
@@ -24,6 +26,7 @@ import { isOk, isErr } from '../../../src/core/shared/result';
 describe('PlaybackService', () => {
   let service: PlaybackService;
   let mockAudioGenerator: MockAudioGenerator;
+  let mockAudioUrlProvider: MockAudioUrlProvider;
   let mockCacheStore: MockCacheStore;
   let mockHighlightSync: MockHighlightSync;
   let mockSettingsStore: MockSettingsStore;
@@ -38,12 +41,14 @@ describe('PlaybackService', () => {
 
   beforeEach(() => {
     mockAudioGenerator = createMockAudioGenerator();
+    mockAudioUrlProvider = createMockAudioUrlProvider();
     mockCacheStore = createMockCacheStore();
     mockHighlightSync = createMockHighlightSync({ validTabIds: [testTabId] });
     mockSettingsStore = createMockSettingsStore();
 
     service = new PlaybackService({
       audioGenerator: mockAudioGenerator,
+      audioUrlProvider: mockAudioUrlProvider,
       cacheStore: mockCacheStore,
       highlightSync: mockHighlightSync,
       settingsStore: mockSettingsStore,

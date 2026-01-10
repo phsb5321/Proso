@@ -42,6 +42,9 @@ import {
   logLegacyDispatch,
 } from '../background/init-hexagonal';
 
+// Structured error responses (041-firefox-first-pivot T1.2)
+import { unknownMessageResponse, handlerErrorResponse } from '../utils/messaging/error-response';
+
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
 // ============================================
@@ -146,7 +149,7 @@ interface MigrationFlags {
 }
 
 const MIGRATION_FLAGS: MigrationFlags = {
-  USE_LEGACY_PLAYBACK: false,
+  USE_LEGACY_PLAYBACK: true, // T-FIX: Force legacy until hexagonal PlaybackService is connected to actual playback
   USE_LEGACY_AUDIO: false,
   USE_LEGACY_SETTINGS: false,
   USE_LEGACY_CACHE: false,
@@ -159,6 +162,10 @@ const MIGRATION_FLAGS: MigrationFlags = {
  */
 function shouldUseLegacy(messageType: string): boolean {
   // Map message types to their feature flag domain
+  // FOOTER_ACTION is a playback control, so it uses USE_LEGACY_PLAYBACK
+  if (messageType === 'FOOTER_ACTION') {
+    return MIGRATION_FLAGS.USE_LEGACY_PLAYBACK;
+  }
   if (
     messageType.startsWith('playback.') ||
     [
@@ -294,7 +301,10 @@ const playbackState: PlaybackState = {
 
 // Track if audio was manually stopped (to resolve pending Promises)
 let audioStoppedManually = false;
-let audioResolveCallback: ((value: boolean) => void) | null = null;
+
+// Playback generation ID - prevents stale speakCurrentParagraph calls from advancing
+// Incremented each time a new playback starts, checked before advancing to next paragraph
+let playbackGeneration = 0;
 
 let activeTabId: number | null = null;
 let paragraphs: string[] = [];
@@ -425,6 +435,15 @@ async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
   return tabs[0] || null;
 }
 
+/**
+ * Check if a URL is a file:// PDF URL.
+ * Content scripts cannot run on file:// URLs, so we should suppress connection errors.
+ */
+function isFilePdfUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.startsWith('file://') && url.toLowerCase().endsWith('.pdf');
+}
+
 async function sendToContentScript(
   tabId: number,
   message: Record<string, unknown>,
@@ -432,6 +451,11 @@ async function sendToContentScript(
   try {
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
+    // Suppress errors for file:// PDF URLs - content scripts can't run there
+    if (currentPageUrl && isFilePdfUrl(currentPageUrl)) {
+      // Silently ignore - this is expected for local PDFs
+      return null;
+    }
     console.error('[Background] Failed to send to content script:', error);
     return null;
   }
@@ -467,82 +491,371 @@ function createAudioUrl(audioData: ArrayBuffer): string {
 }
 
 // ============================================
-// Offscreen Document (Chrome MV3 PDF.js Support)
+// Firefox Background Script
 // ============================================
 
 /**
- * Track if offscreen document has been created.
- * The offscreen document provides DOM APIs needed by PDF.js.
+ * VoxPage is Firefox-focused. Firefox background scripts have full DOM access,
+ * which means we can use Audio API, speechSynthesis, and PDF.js directly
+ * without needing Chrome's offscreen document workarounds.
  */
-let offscreenDocumentCreated = false;
+
+// ============================================
+// Native Audio Playback
+// ============================================
 
 /**
- * Ensure offscreen document exists for PDF operations.
- * Chrome's offscreen API only allows one offscreen document at a time.
- *
- * @see https://developer.chrome.com/docs/extensions/reference/api/offscreen
+ * Current audio element for playback.
+ * Firefox background scripts have DOM access, so we can use Audio API directly.
  */
-async function ensureOffscreenDocument(): Promise<void> {
-  // Firefox doesn't support offscreen documents
+let currentAudio: HTMLAudioElement | null = null;
+let audioResolveCallback: ((result: { success: boolean; ended: boolean }) => void) | null = null;
+
+/**
+ * Play audio in background script.
+ */
+async function playAudioNative(
+  audioUrl: string,
+  speed: number,
+): Promise<{ success: boolean; ended: boolean; duration?: number }> {
+  return new Promise((resolve) => {
+    // Stop any existing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.removeAttribute('src');
+      currentAudio.load();
+      currentAudio = null;
+    }
+
+    audioResolveCallback = resolve;
+
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+    audio.onended = () => {
+      console.log('[Background] Audio playback ended naturally');
+      const duration = audio.duration;
+      currentAudio = null;
+      audioResolveCallback = null;
+      resolve({ success: true, ended: true, duration });
+    };
+
+    audio.onerror = (event) => {
+      console.error('[Background] Audio playback error:', event);
+      currentAudio = null;
+      audioResolveCallback = null;
+      resolve({ success: false, ended: false });
+    };
+
+    // Send progress updates
+    audio.ontimeupdate = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        playbackState.currentTime = audio.currentTime;
+        playbackState.totalTime = audio.duration;
+      }
+    };
+
+    console.log('[Background] Playing audio, speed:', speed);
+    audio
+      .play()
+      .then(() => {
+        console.log('[Background] Audio play() started successfully');
+      })
+      .catch((err) => {
+        console.error('[Background] Audio play() failed:', err);
+        currentAudio = null;
+        audioResolveCallback = null;
+        resolve({ success: false, ended: false });
+      });
+  });
+}
+
+/**
+ * Stop audio playback.
+ */
+function stopAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.removeAttribute('src');
+    currentAudio.load();
+    currentAudio = null;
+    console.log('[Background] Audio stopped');
+
+    if (audioResolveCallback) {
+      audioResolveCallback({ success: true, ended: false });
+      audioResolveCallback = null;
+    }
+
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Pause audio playback.
+ */
+function pauseAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    console.log('[Background] Audio paused');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Resume audio playback.
+ */
+function resumeAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.play().catch((err) => {
+      console.error('[Background] Failed to resume audio:', err);
+    });
+    console.log('[Background] Audio resumed');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Set audio playback speed.
+ */
+function setAudioSpeedNative(speed: number): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+    console.log('[Background] Audio speed set to:', speed);
+    return { success: true };
+  }
+  return { success: false };
+}
+
+// ============================================
+// Native Browser TTS (speechSynthesis)
+// ============================================
+
+let currentUtterance: SpeechSynthesisUtterance | null = null;
+let ttsResolveCallback: ((result: { success: boolean; ended: boolean }) => void) | null = null;
+
+/**
+ * Speak with Browser TTS.
+ */
+async function speakWithBrowserTTSNative(
+  text: string,
+  speed: number,
+): Promise<{ success: boolean; ended: boolean }> {
+  return new Promise((resolve) => {
+    if (typeof speechSynthesis === 'undefined') {
+      console.error('[Background] speechSynthesis not available');
+      resolve({ success: false, ended: false });
+      return;
+    }
+
+    speechSynthesis.cancel();
+    ttsResolveCallback = resolve;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    currentUtterance = utterance;
+    utterance.rate = Math.max(0.5, Math.min(2.0, speed));
+
+    utterance.onend = () => {
+      console.log('[Background] Browser TTS ended naturally');
+      currentUtterance = null;
+      ttsResolveCallback = null;
+      resolve({ success: true, ended: true });
+    };
+
+    utterance.onerror = (event) => {
+      console.error('[Background] Browser TTS error:', event.error);
+      currentUtterance = null;
+      ttsResolveCallback = null;
+      resolve({ success: false, ended: false });
+    };
+
+    console.log(
+      '[Background] Speaking with Browser TTS, speed:',
+      speed,
+      'text length:',
+      text.length,
+    );
+    speechSynthesis.speak(utterance);
+  });
+}
+
+function stopBrowserTTSNative(): { success: boolean } {
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.cancel();
+    currentUtterance = null;
+    if (ttsResolveCallback) {
+      ttsResolveCallback({ success: true, ended: false });
+      ttsResolveCallback = null;
+    }
+    console.log('[Background] Browser TTS stopped');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+function pauseBrowserTTSNative(): { success: boolean } {
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.pause();
+    console.log('[Background] Browser TTS paused');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+function resumeBrowserTTSNative(): { success: boolean } {
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.resume();
+    console.log('[Background] Browser TTS resumed');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+// ============================================
+// Native PDF Extraction
+// ============================================
+
+// Cached pdfjs-dist module
+import type * as PDFJSLib from 'pdfjs-dist';
+let pdfjsModule: typeof PDFJSLib | null = null;
+let pdfjsInitialized = false;
+
+/**
+ * Initialize PDF.js in background script.
+ */
+async function initPDFJS(): Promise<void> {
+  if (pdfjsInitialized && pdfjsModule) {
+    return;
+  }
+
+  pdfjsModule = await import('pdfjs-dist');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chromeApi = globalThis.chrome as any;
-  if (typeof chromeApi?.offscreen === 'undefined') {
-    console.warn('[Background] Offscreen API not available (Firefox?)');
-    throw new Error('Offscreen API not available');
-  }
-
-  if (offscreenDocumentCreated) {
-    return;
-  }
-
-  // Check if offscreen document already exists
-  const existingContexts = await chromeApi.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT'],
-  });
-
-  if (existingContexts.length > 0) {
-    offscreenDocumentCreated = true;
-    console.log('[Background] Offscreen document already exists');
-    return;
-  }
-
-  // Create offscreen document
-  console.log('[Background] Creating offscreen document for audio playback...');
-  await chromeApi.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: ['AUDIO_PLAYBACK'],
-    justification: 'Audio playback requires DOM APIs not available in service workers',
-  });
-
-  offscreenDocumentCreated = true;
-  console.log('[Background] Offscreen document created');
+  const workerUrl = chromeApi?.runtime?.getURL?.('pdf.worker.min.js') ?? '';
+  pdfjsModule.GlobalWorkerOptions.workerSrc = workerUrl;
+  pdfjsInitialized = true;
+  console.log('[Background] PDF.js initialized with worker:', workerUrl);
 }
 
 /**
- * Close the offscreen document to free resources.
+ * Extract PDF text natively in background script.
  */
-async function closeOffscreenDocument(): Promise<void> {
-  if (!offscreenDocumentCreated) {
-    return;
-  }
-
+async function extractPDFTextNative(
+  source: string,
+  options: { password?: string } = {},
+): Promise<{
+  success: boolean;
+  paragraphs?: string[];
+  meta?: { title?: string; pageCount?: number; isScanned?: boolean };
+  error?: string;
+  requiresPassword?: boolean;
+}> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chromeApi = globalThis.chrome as any;
-    if (typeof chromeApi?.offscreen !== 'undefined') {
-      await chromeApi.offscreen.closeDocument();
-      offscreenDocumentCreated = false;
-      console.log('[Background] Offscreen document closed');
+    await initPDFJS();
+
+    if (!pdfjsModule) {
+      return { success: false, error: 'PDF.js failed to initialize' };
     }
+
+    const loadingParams: { url: string; password?: string } = { url: source };
+    if (options.password) {
+      loadingParams.password = options.password;
+    }
+
+    const loadingTask = pdfjsModule.getDocument(loadingParams);
+    const pdf = await loadingTask.promise;
+
+    console.log('[Background] PDF loaded, pages:', pdf.numPages);
+
+    const paragraphs: string[] = [];
+    let totalChars = 0;
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+
+      let currentParagraph = '';
+
+      for (const item of textContent.items) {
+        if ('str' in item && typeof item.str === 'string') {
+          const text = item.str;
+          totalChars += text.length;
+
+          if (text.trim()) {
+            currentParagraph += text + ' ';
+          }
+
+          if ('hasEOL' in item && item.hasEOL && currentParagraph.trim()) {
+            const trimmed = currentParagraph.trim();
+            if (trimmed.match(/[.!?]$/)) {
+              paragraphs.push(trimmed);
+              currentParagraph = '';
+            }
+          }
+        }
+      }
+
+      if (currentParagraph.trim()) {
+        paragraphs.push(currentParagraph.trim());
+        currentParagraph = '';
+      }
+
+      page.cleanup();
+    }
+
+    const charsPerPage = totalChars / pdf.numPages;
+    const isScanned = charsPerPage < 100;
+
+    let title: string | undefined;
+    try {
+      const metadata = await pdf.getMetadata();
+      const info = metadata.info as Record<string, unknown> | undefined;
+      title = typeof info?.Title === 'string' ? info.Title : undefined;
+    } catch {
+      // Ignore metadata errors
+    }
+
+    await pdf.cleanup();
+    await pdf.destroy();
+
+    console.log('[Background:Firefox] Extracted', paragraphs.length, 'paragraphs');
+
+    return {
+      success: true,
+      paragraphs,
+      meta: { title, pageCount: pdf.numPages, isScanned },
+    };
   } catch (error) {
-    console.warn('[Background] Failed to close offscreen document:', error);
+    if (error instanceof Error) {
+      if (error.name === 'PasswordException' || error.message.includes('password')) {
+        return {
+          success: false,
+          requiresPassword: true,
+          error: options.password ? 'Incorrect password' : 'PDF requires a password',
+        };
+      }
+
+      if (
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError') ||
+        error.message.includes('CORS')
+      ) {
+        return { success: false, error: `Cannot access PDF: ${error.message}` };
+      }
+    }
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
   }
 }
 
 /**
- * Result from PDF text extraction via offscreen document.
+ * Result from PDF text extraction.
  */
-interface OffscreenPDFResult {
+interface PDFExtractionResult {
   success: boolean;
   paragraphs?: string[];
   meta?: {
@@ -555,28 +868,12 @@ interface OffscreenPDFResult {
 }
 
 /**
- * Extract PDF text using the offscreen document.
- * This sends a message to the offscreen document which has DOM access.
+ * Extract PDF text using native PDF.js.
+ * Firefox background scripts have full DOM access so we can run PDF.js directly.
  */
-async function extractPDFViaOffscreen(url: string, password?: string): Promise<OffscreenPDFResult> {
-  try {
-    await ensureOffscreenDocument();
-
-    // Send message to offscreen document
-    const result = await browser.runtime.sendMessage({
-      type: 'offscreen.extractPDF',
-      url,
-      password,
-    });
-
-    return result as OffscreenPDFResult;
-  } catch (error) {
-    console.error('[Background] Offscreen PDF extraction failed:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+async function extractPDFText(url: string, password?: string): Promise<PDFExtractionResult> {
+  console.log('[Background] Extracting PDF text from:', url);
+  return extractPDFTextNative(url, { password });
 }
 
 // ============================================
@@ -973,7 +1270,7 @@ async function storeToPersistentCache(
 // TTS Playback
 // ============================================
 
-// Track if audio is currently playing (offscreen document handles actual playback)
+// Track if audio is currently playing (native Audio API)
 let audioPlaybackActive = false;
 
 /**
@@ -988,7 +1285,7 @@ function formatTime(seconds: number): string {
 
 /**
  * Start word-by-word highlighting based on audio currentTime
- * Uses playbackState.currentTime which is updated by offscreen.audioProgress messages
+ * Uses playbackState.currentTime which is updated by native audio ontimeupdate
  */
 function startWordHighlighting(paragraphIndex: number): void {
   // Clear any existing interval
@@ -1081,8 +1378,8 @@ async function updateFooterProgress(): Promise<void> {
 }
 
 /**
- * Play audio in the background script (avoids content script autoplay restrictions)
- * Uses offscreen document for audio playback in Chrome MV3 (service workers don't have Audio API)
+ * Play audio in the background script.
+ * Firefox background scripts have full DOM access, so we can use Audio API directly.
  */
 async function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
   // Validate audio URL before attempting to play
@@ -1101,33 +1398,18 @@ async function playAudioInBackground(audioUrl: string, speed: number): Promise<b
   audioStoppedManually = false;
 
   try {
-    // Ensure offscreen document exists for audio playback
-    await ensureOffscreenDocument();
-
-    // Mark audio as active
     audioPlaybackActive = true;
+    console.log('[Background] Playing audio natively, speed:', speed);
 
-    console.log('[Background] Playing audio via offscreen document, speed:', speed);
+    const result = await playAudioNative(audioUrl, speed);
 
-    // Send audio to offscreen document for playback
-    const result = await browser.runtime.sendMessage({
-      type: 'offscreen.playAudio',
-      audioUrl,
-      speed,
-    });
-
-    // Mark audio as inactive
     audioPlaybackActive = false;
 
-    if (result && typeof result === 'object' && 'success' in result) {
-      const audioResult = result as { success: boolean; ended: boolean; duration?: number };
-      if (audioResult.success && audioResult.ended) {
-        console.log('[Background] Audio playback ended');
-        return true;
-      }
+    if (result.success && result.ended) {
+      console.log('[Background] Audio playback ended');
+      return true;
     }
 
-    // If audio didn't end naturally, check if it was manually stopped
     if (audioStoppedManually) {
       return false;
     }
@@ -1153,25 +1435,27 @@ async function stopCurrentAudio(): Promise<void> {
   stopWordHighlighting();
   currentWordTimings = [];
 
-  // Stop audio in offscreen document
-  try {
-    await browser.runtime.sendMessage({ type: 'offscreen.stopAudio' });
-    console.log('[VoxPage:Audio] Audio stopped via offscreen document');
-  } catch (error) {
-    console.warn('[VoxPage:Audio] Failed to stop audio in offscreen:', error);
-  }
+  // Stop audio playback (Firefox native - no offscreen document needed)
+  stopAudioNative();
+  console.log('[VoxPage:Audio] Audio stopped via native API');
+
+  // Also stop Browser TTS
+  stopBrowserTTSNative();
 
   // T028-T029: Revoke all tracked blob URLs when stopping playback
   revokeAllBlobUrls();
 
   // Resolve any pending audio Promise so speakCurrentParagraph can check status
   if (audioResolveCallback) {
-    audioResolveCallback(false);
+    audioResolveCallback({ success: false, ended: false });
     audioResolveCallback = null;
   }
 }
 
 async function speakCurrentParagraph(): Promise<void> {
+  // Capture current generation at start - if it changes during execution, we're stale
+  const myGeneration = playbackGeneration;
+
   if (!activeTabId || playbackState.status !== 'playing') {
     return;
   }
@@ -1208,6 +1492,12 @@ async function speakCurrentParagraph(): Promise<void> {
   // T016: Debug logging for provider selection (035-selection-tts-hardening)
   console.log('[VoxPage:Provider] Selected:', playbackState.provider);
   console.log('[VoxPage:Provider] Voice:', playbackState.voice ?? 'default');
+  console.log('[VoxPage:Provider] API Keys loaded:', {
+    elevenlabs: !!apiKeys.elevenlabsApiKey,
+    openai: !!apiKeys.openaiApiKey,
+    groq: !!apiKeys.groqApiKey,
+    cartesia: !!apiKeys.cartesiaApiKey,
+  });
 
   // T013: API key validation before playback attempt (035-selection-tts-hardening)
   const providerApiKeyMap: Record<string, string | undefined> = {
@@ -1494,14 +1784,28 @@ async function speakCurrentParagraph(): Promise<void> {
     }
   } else if (playbackState.provider === 'browser') {
     // Browser TTS explicitly selected
-    console.log('[Background] Using browser TTS (explicitly selected)');
+    // Firefox background scripts have speechSynthesis available directly
+    console.log('[Background] Using browser TTS natively');
     currentWordTimings = [];
-    await sendToContentScript(activeTabId, {
-      action: 'speakText',
-      text: text,
-      speed: playbackState.speed,
-    });
-    success = true; // Browser TTS doesn't return completion status
+
+    try {
+      const ttsResult = await speakWithBrowserTTSNative(text, playbackState.speed);
+
+      if (ttsResult?.success && ttsResult?.ended) {
+        success = true;
+      } else if (ttsResult?.success && !ttsResult?.ended) {
+        // TTS was interrupted (user stopped/paused) - don't treat as error, just stop
+        console.log('[Background] Browser TTS was interrupted by user action');
+        // Don't advance to next paragraph - just return
+        return;
+      } else {
+        console.warn('[Background] Browser TTS failed');
+        success = false;
+      }
+    } catch (error) {
+      console.error('[Background] Browser TTS error:', error);
+      success = false;
+    }
   }
 
   // T012: Remove silent fallback - show error notification instead (035-selection-tts-hardening)
@@ -1526,7 +1830,8 @@ async function speakCurrentParagraph(): Promise<void> {
   }
 
   // Check if we're still playing (might have been paused/stopped)
-  if (playbackState.status === 'playing') {
+  // Also check generation ID - if a new playback started, this call is stale
+  if (playbackState.status === 'playing' && myGeneration === playbackGeneration) {
     // Advance playback queue (T047)
     playbackQueue.advance();
 
@@ -1546,6 +1851,8 @@ async function speakCurrentParagraph(): Promise<void> {
 
     // Speak next paragraph
     speakCurrentParagraph();
+  } else if (myGeneration !== playbackGeneration) {
+    console.log('[Background] Stale playback call detected (generation mismatch), aborting');
   }
 }
 
@@ -1658,6 +1965,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     clearPrefetchCache();
     stopCurrentAudio();
 
+    // Increment generation to invalidate any stale speakCurrentParagraph calls
+    playbackGeneration++;
+
     // Set the current paragraph to the clicked index
     playbackState.currentParagraph = paragraphIndex;
     playbackState.progress = (paragraphIndex / playbackState.totalParagraphs) * 100;
@@ -1735,6 +2045,11 @@ const messageHandlers: Record<string, MessageHandler> = {
     if (stored.provider) {
       playbackState.provider = stored.provider as string;
     }
+    console.log('[Background] Settings loaded from storage:', {
+      provider: stored.provider ?? '(not set, defaulting to browser)',
+      hasElevenlabsApiKey: !!stored.elevenlabsApiKey,
+      playbackStateProvider: playbackState.provider,
+    });
 
     // Extract text from the page
     const extractResult = await sendToContentScript(tab.id, {
@@ -1763,6 +2078,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     // Clear prefetch cache and stop current audio
     clearPrefetchCache();
     stopCurrentAudio();
+
+    // Increment generation to invalidate any stale speakCurrentParagraph calls
+    playbackGeneration++;
 
     // Start from the first paragraph
     playbackState.currentParagraph = 0;
@@ -1807,12 +2125,10 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'paused';
-    // Pause audio in offscreen document
-    try {
-      await browser.runtime.sendMessage({ type: 'offscreen.pauseAudio' });
-    } catch (error) {
-      console.warn('[Background] Failed to pause audio in offscreen:', error);
-    }
+    // Pause audio playback (Firefox native - no offscreen document needed)
+    pauseAudioNative();
+    // Also pause Browser TTS
+    pauseBrowserTTSNative();
     stopWordHighlighting();
     notifyPopup();
 
@@ -1839,19 +2155,25 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'playing';
-    // Resume audio in offscreen document
-    try {
-      const result = await browser.runtime.sendMessage({ type: 'offscreen.resumeAudio' });
-      if (result && (result as { success: boolean }).success) {
-        // Audio resumed, restart word highlighting
-        startWordHighlighting(playbackState.currentParagraph);
-      } else {
-        // Audio was lost, regenerate
-        speakCurrentParagraph();
+    // Resume audio playback (Firefox native - no offscreen document needed)
+    let audioResumed = false;
+    const result = resumeAudioNative();
+    if (result.success) {
+      // Audio resumed, restart word highlighting
+      startWordHighlighting(playbackState.currentParagraph);
+      audioResumed = true;
+    }
+
+    // Try to resume Browser TTS if audio wasn't resumed
+    if (!audioResumed) {
+      const ttsResult = resumeBrowserTTSNative();
+      if (ttsResult.success) {
+        audioResumed = true;
       }
-    } catch (error) {
-      console.warn('[Background] Failed to resume audio in offscreen:', error);
-      // Audio was lost, regenerate
+    }
+
+    // If neither resumed, regenerate
+    if (!audioResumed) {
       speakCurrentParagraph();
     }
     notifyPopup();
@@ -1940,19 +2262,14 @@ const messageHandlers: Record<string, MessageHandler> = {
    * Legacy fallback: Update settings.
    */
   updateSettings: async (data) => {
+    console.log('[Background] updateSettings called with:', data);
     if (typeof data.speed === 'number') {
       playbackState.speed = data.speed;
-      // Update playback speed in offscreen document
-      try {
-        await browser.runtime.sendMessage({
-          type: 'offscreen.setAudioSpeed',
-          speed: data.speed,
-        });
-      } catch (error) {
-        console.warn('[Background] Failed to set audio speed in offscreen:', error);
-      }
+      // Update playback speed (Firefox native - no offscreen document needed)
+      setAudioSpeedNative(data.speed);
     }
     if (typeof data.provider === 'string') {
+      console.log('[Background] Updating provider to:', data.provider);
       playbackState.provider = data.provider;
     }
     if (typeof data.voice === 'string') {
@@ -1983,6 +2300,33 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     return { success: true };
+  },
+
+  /**
+   * Handle footer action (play, pause, next, prev, stop, etc.).
+   * Maps footer button clicks to legacy playback handlers.
+   */
+  FOOTER_ACTION: async (data) => {
+    const action = data.action as string;
+    console.log('[Background] FOOTER_ACTION received:', action);
+
+    switch (action) {
+      case 'play':
+      case 'resume':
+        return messageHandlers.resumePlayback({});
+      case 'pause':
+        return messageHandlers.pausePlayback({});
+      case 'stop':
+        return messageHandlers.stopPlayback({});
+      case 'next':
+        return messageHandlers.nextParagraph({});
+      case 'prev':
+      case 'previous':
+        return messageHandlers.previousParagraph({});
+      default:
+        console.warn('[Background] Unknown footer action:', action);
+        return { success: false, error: `Unknown action: ${action}` };
+    }
   },
 
   /**
@@ -2037,6 +2381,11 @@ const messageHandlers: Record<string, MessageHandler> = {
       if (stored.provider) {
         playbackState.provider = stored.provider as string;
       }
+      console.log('[Background] PDF playback - Settings from storage:', {
+        provider: stored.provider ?? '(not set)',
+        hasElevenlabsKey: !!stored.elevenlabsApiKey,
+        playbackStateProvider: playbackState.provider,
+      });
 
       // Use hexagonal pdf.play handler to extract PDF text
       // The handler returns Result<PDFPlayResult, PDFHandlerError>
@@ -2052,10 +2401,9 @@ const messageHandlers: Record<string, MessageHandler> = {
         requiresPassword?: boolean;
       }
 
-      // Use offscreen document to extract PDF text
-      // The offscreen document has DOM access needed by PDF.js
-      console.log('[Background] Extracting PDF via offscreen document...');
-      const pdfResult = await extractPDFViaOffscreen(url);
+      // Extract PDF text using native PDF.js (Firefox has DOM access in background)
+      console.log('[Background] Extracting PDF via native PDF.js...');
+      const pdfResult = await extractPDFText(url);
 
       // Check if extraction succeeded
       if (!pdfResult.success || !pdfResult.paragraphs?.length) {
@@ -2102,6 +2450,9 @@ const messageHandlers: Record<string, MessageHandler> = {
       // Clear prefetch cache and stop current audio
       clearPrefetchCache();
       stopCurrentAudio();
+
+      // Increment generation to invalidate any stale speakCurrentParagraph calls
+      playbackGeneration++;
 
       // Set status to playing
       playbackState.status = 'playing';
@@ -2295,49 +2646,16 @@ export default defineBackground(() => {
         return;
       }
 
-      // Handle audio progress updates from offscreen document
-      if (type === 'offscreen.audioProgress') {
-        const { currentTime, duration } = message as { currentTime: number; duration: number };
-        playbackState.currentTime = currentTime;
-        if (duration && !isNaN(duration)) {
-          playbackState.totalTime = duration;
-        }
-        // Update footer progress
-        if (activeTabId) {
-          browser.tabs
-            .sendMessage(activeTabId, {
-              type: 'updateProgress',
-              currentTime: formatTime(currentTime),
-              totalTime: formatTime(playbackState.totalTime),
-              progress:
-                playbackState.totalTime > 0 ? (currentTime / playbackState.totalTime) * 100 : 0,
-            })
-            .catch(() => {
-              // Tab may be closed or content script not ready
-            });
-        }
-        return;
-      }
-
-      // Skip offscreen command messages - these are meant for the offscreen document
-      // Don't intercept them here, let them pass through to the offscreen listener
-      if (
-        type === 'offscreen.playAudio' ||
-        type === 'offscreen.stopAudio' ||
-        type === 'offscreen.pauseAudio' ||
-        type === 'offscreen.resumeAudio' ||
-        type === 'offscreen.setAudioSpeed' ||
-        type === 'offscreen.extractPDF'
-      ) {
-        return;
-      }
-
       console.log('[Background] Received message:', type);
 
       return dispatchMessage(type, data).then((result) => {
         if (result === null) {
           console.warn('[Background] Unknown message type:', type);
-          return { error: 'Unknown message type' };
+          return unknownMessageResponse(type);
+        }
+        // Debug: log what we're returning to the caller
+        if (type === 'settings.testApiKey') {
+          console.log('[Background] Returning testApiKey result:', JSON.stringify(result));
         }
         return result;
       });
@@ -2350,8 +2668,8 @@ export default defineBackground(() => {
 
       return dispatchMessage(action, data).then((result) => {
         if (result === null) {
-          // Acknowledge unknown actions
-          return { received: true };
+          // Return structured error for unknown actions
+          return unknownMessageResponse(action);
         }
         return result;
       });
@@ -2389,6 +2707,27 @@ export default defineBackground(() => {
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+
+    // Update provider when it changes in storage
+    if (changes.provider) {
+      const newProvider = changes.provider.newValue as string;
+      console.log('[Background] Provider updated from storage:', newProvider);
+      playbackState.provider = newProvider;
+    }
+
+    // Update speed when it changes in storage
+    if (changes.speed) {
+      const newSpeed = changes.speed.newValue as number;
+      console.log('[Background] Speed updated from storage:', newSpeed);
+      playbackState.speed = newSpeed;
+    }
+
+    // Update voice when it changes in storage
+    if (changes.voice) {
+      const newVoice = changes.voice.newValue as string | null;
+      console.log('[Background] Voice updated from storage:', newVoice);
+      playbackState.voice = newVoice;
+    }
 
     // Update apiKeys when API key storage changes (fixes runtime key updates)
     const apiKeyFields = [

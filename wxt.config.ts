@@ -1,5 +1,14 @@
 import { defineConfig } from "wxt";
 
+/**
+ * VoxPage - Firefox-focused Text-to-Speech Extension
+ *
+ * This extension is built specifically for Firefox, which provides:
+ * - Background scripts with full DOM access (no service worker limitations)
+ * - Native Audio API and speechSynthesis in background
+ * - PDF.js built-in viewer with highlightable text layer
+ * - No need for Chrome's offscreen document workarounds
+ */
 export default defineConfig({
   srcDir: "src",
   manifest: {
@@ -12,8 +21,7 @@ export default defineConfig({
       "activeTab",
       "tabs", // Tab management and URL tracking
       "contextMenus", // Right-click menu integration
-      "webRequest", // 033-pdf-reading-support: Detect PDF loads via headers
-      "offscreen", // 033-pdf-reading-support: Offscreen document for PDF.js DOM APIs
+      // Note: No "offscreen" permission needed - Firefox background has DOM access
     ],
     host_permissions: [
       "https://api.openai.com/*",
@@ -43,10 +51,10 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "voxpage@example.com",
-        strict_min_version: "100.0",
+        strict_min_version: "109.0", // Firefox 109+ for better extension APIs
       },
     },
-    // 033-pdf-reading-support: Make PDF.js worker accessible for PDF text extraction
+    // Make PDF.js worker accessible for PDF text extraction
     web_accessible_resources: [
       {
         resources: ["pdf.worker.min.js"],
@@ -59,7 +67,8 @@ export default defineConfig({
     // browser.tabs.create() - see popup and background handlers.
   },
 
-  browser: process.env.BROWSER || "firefox",
+  // Firefox-only build
+  browser: "firefox",
 
   // Development server
   dev: {
