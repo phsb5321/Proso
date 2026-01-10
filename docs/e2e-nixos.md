@@ -1,10 +1,12 @@
 # E2E Testing on NixOS
 
-This guide explains how to run VoxPage E2E tests on NixOS systems.
+This guide explains how to run VoxPage E2E and visual tests on NixOS systems.
 
 ## Overview
 
-Playwright's downloaded browsers don't work on NixOS due to dynamic linker incompatibilities. VoxPage E2E tests are configured to automatically detect and use system browsers (Chromium) when available.
+Playwright's downloaded browsers don't work on NixOS due to dynamic linker incompatibilities. VoxPage tests are configured to automatically detect and use system browsers when available.
+
+**VoxPage is Firefox-first**, so Firefox visual tests are our primary testing target. Chromium extension tests serve as a proxy for extension functionality since Playwright doesn't support Firefox extension loading.
 
 ## Quick Start
 
@@ -14,45 +16,141 @@ Playwright's downloaded browsers don't work on NixOS due to dynamic linker incom
 # Enter the development shell
 nix-shell
 
-# Build extension and run E2E tests
-pnpm build:chrome && pnpm test:e2e:ext
+# Run all tests
+pnpm test                          # Unit tests
+pnpm test:visual                   # Firefox visual tests
+pnpm build:firefox && pnpm test:e2e:ext  # Extension E2E tests (Chromium)
 ```
 
 The `shell.nix` file provides:
 - Node.js 20.x
 - pnpm package manager
-- System Chromium and Firefox
+- System Firefox and Chromium
 - All required system libraries for headless browser testing
 
-### Manual Setup
+### Test Types
 
-If you prefer not to use nix-shell:
+| Test Type | Browser | Command | Purpose |
+|-----------|---------|---------|---------|
+| Visual | Firefox | `pnpm test:visual` | Screenshot comparison |
+| E2E Extension | Chromium | `pnpm test:e2e:ext` | Extension functionality |
+| Unit | Node.js | `pnpm test` | Business logic |
 
-1. **Ensure Chromium is installed**:
-   ```bash
-   # In your configuration.nix or home-manager
-   environment.systemPackages = with pkgs; [ chromium ];
-   ```
+## Firefox Visual Tests
 
-2. **Verify Chromium is available**:
-   ```bash
-   which chromium
-   ```
+Visual tests validate CSS styling, highlighting, and PDF rendering by comparing screenshots.
 
-3. **Run E2E tests**:
-   ```bash
-   pnpm build:chrome && pnpm test:e2e:ext
-   ```
+### Running Visual Tests
 
-## How It Works
+```bash
+# Method 1: Using the NixOS setup script (recommended)
+./scripts/nixos-playwright-setup.sh
 
-The extension fixture (`tests/e2e/extension/fixtures/extension.fixture.ts`) automatically:
+# Method 2: Manual setup
+export FIREFOX_PATH=$(which firefox)
+npx playwright test --project=firefox-visual
 
-1. Searches for system Chromium using `which chromium`
-2. Falls back to checking `CHROMIUM_PATH` or `CHROME_PATH` environment variables
-3. Uses the system browser's executable path for Playwright
+# Method 3: From nix-shell
+nix-shell --run "pnpm test:visual"
+```
 
-### Browser Detection Order
+### Visual Test Categories
+
+1. **Hover Preview** (`tests/visual/hover-preview.test.js`)
+   - Paragraph selection styling
+   - Play icon visibility
+   - Light/dark mode support
+
+2. **PDF Highlighting** (`tests/visual/pdf-highlight.test.js`)
+   - Text layer span highlighting
+   - Bounding box fallback
+   - Multi-page navigation
+   - Reduced motion support
+
+3. **Settings Page** (`tests/visual/settings-page.test.js`)
+   - Form styling
+   - Provider selection
+
+4. **Sticky Footer** (`tests/visual/sticky-footer.test.js`)
+   - Playback controls
+   - Progress bar
+
+### Updating Snapshots
+
+When intentionally changing styles, update the baseline snapshots:
+
+```bash
+export FIREFOX_PATH=$(which firefox)
+npx playwright test --project=firefox-visual --update-snapshots
+```
+
+## Chromium Extension Tests
+
+Since Playwright doesn't support Firefox extension loading, we use Chromium for extension E2E tests.
+
+### Running Extension Tests
+
+```bash
+# Build extension first
+pnpm build:firefox
+
+# Run extension tests
+pnpm test:e2e:ext
+```
+
+### Extension Test Categories
+
+1. **Extension Loading** - Verifies extension initializes
+2. **Popup UI** - Tests popup functionality
+3. **Settings Page** - Tests options page
+4. **Content Injection** - Tests content script loading
+5. **Playback Flow** - Tests TTS functionality
+6. **PDF Playback** - Tests PDF detection and handling
+
+## Manual Setup (Without nix-shell)
+
+### Install System Browsers
+
+Add to your `configuration.nix` or home-manager:
+
+```nix
+# System-wide
+environment.systemPackages = with pkgs; [
+  firefox
+  chromium
+];
+
+# Or with home-manager
+home.packages = with pkgs; [
+  firefox
+  chromium
+];
+```
+
+### Verify Installation
+
+```bash
+which firefox      # Should return a path
+which chromium     # Should return a path
+firefox --version  # Firefox 112+ required
+```
+
+### Run Tests
+
+```bash
+# Visual tests
+export FIREFOX_PATH=$(which firefox)
+npx playwright test --project=firefox-visual
+
+# Extension tests
+pnpm build:firefox && npx playwright test --project=chromium-extension
+```
+
+## Browser Detection
+
+### Chromium Detection Order
+
+The extension fixture searches for browsers in this order:
 
 1. `chromium` (NixOS standard)
 2. `chromium-browser` (Debian/Ubuntu)
@@ -61,9 +159,17 @@ The extension fixture (`tests/e2e/extension/fixtures/extension.fixture.ts`) auto
 5. `CHROMIUM_PATH` environment variable
 6. `CHROME_PATH` environment variable
 
+### Firefox Detection
+
+For visual tests, Firefox is detected via:
+
+1. `FIREFOX_PATH` environment variable (recommended)
+2. System `firefox` in PATH
+
 ## Headless Mode
 
-Tests run in Chrome's "new headless" mode (`--headless=new`) which supports extensions. This requires Chrome/Chromium 109+.
+- **Chromium**: Uses "new headless" mode (`--headless=new`) which supports extensions. Requires Chrome/Chromium 109+.
+- **Firefox**: Uses standard headless mode for visual tests.
 
 ## Troubleshooting
 
@@ -72,13 +178,22 @@ Tests run in Chrome's "new headless" mode (`--headless=new`) which supports exte
 If you see this error, Playwright is trying to use its downloaded browser:
 
 ```
-Error: browserType.launchPersistentContext: Executable doesn't exist at /nix/store/.../chrome-linux64/chrome
+Error: browserType.launch: Executable doesn't exist at /nix/store/.../firefox/firefox
 ```
 
-**Solution**: Ensure system Chromium is in your PATH:
-```bash
-which chromium  # Should return a path
-```
+**Solutions**:
+
+1. For Firefox visual tests:
+   ```bash
+   export FIREFOX_PATH=$(which firefox)
+   npx playwright test --project=firefox-visual
+   ```
+
+2. For Chromium extension tests:
+   ```bash
+   # Ensure system chromium is available
+   which chromium
+   ```
 
 ### Content Script Not Injecting
 
@@ -98,10 +213,23 @@ nix-shell  # This sets up LD_LIBRARY_PATH correctly
 
 First run may be slow as the browser initializes. Subsequent runs should be faster.
 
+### Snapshot Mismatch
+
+Visual test failures due to font rendering differences:
+
+1. Run locally to update snapshots
+2. Or configure `maxDiffPixelRatio` in tests:
+   ```javascript
+   await expect(page).toHaveScreenshot('test.png', {
+     maxDiffPixelRatio: 0.02  // Allow 2% difference
+   });
+   ```
+
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
+| `FIREFOX_PATH` | Firefox executable path for visual tests |
 | `CHROMIUM_PATH` | Override Chromium executable path |
 | `CHROME_PATH` | Fallback Chrome executable path |
 | `PLAYWRIGHT_BROWSERS_PATH` | Should be unset on NixOS |
@@ -116,17 +244,22 @@ For CI environments without NixOS, use the Docker fallback:
 
 This runs tests in an Ubuntu-based container with standard Playwright browser installation.
 
-## Visual Tests (Firefox)
+## CI Integration
 
-For Firefox-based visual regression tests:
+The CI workflow (`.github/workflows/ci.yml`) includes:
 
-```bash
-# Using the NixOS setup script
-./scripts/nixos-playwright-setup.sh pnpm test:visual
-```
+1. **visual-tests** job: Runs Firefox visual tests
+   - Installs Firefox via `npx playwright install firefox --with-deps`
+   - Uploads test reports and snapshot diffs as artifacts
 
-Or manually:
-```bash
-export FIREFOX_PATH=$(which firefox)
-pnpm test:visual
-```
+2. **e2e-tests** job: Runs Chromium extension tests
+   - Installs Chromium via `npx playwright install chromium --with-deps`
+   - Tests extension loading and functionality
+
+Both jobs run in parallel after unit tests pass.
+
+## Additional Resources
+
+- [Playwright NixOS Wiki](https://wiki.nixos.org/wiki/Playwright)
+- [VoxPage Firefox Manual Validation](./firefox-manual-validation.md)
+- [Firefox Extension Testing Strategy](./firefox-extension-testing-strategy.md)
