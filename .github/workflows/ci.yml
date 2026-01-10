@@ -35,5 +35,154 @@ jobs:
       - name: Build Firefox extension
         run: pnpm run build:firefox
 
+      # ============================================
+      # Firefox Build Validation (041-firefox-first-pivot T4.1)
+      # ============================================
+
+      - name: Validate Firefox manifest.json
+        run: |
+          echo "Validating Firefox manifest.json..."
+          MANIFEST=".output/firefox-mv2/manifest.json"
+          
+          # Check manifest exists
+          if [ ! -f "$MANIFEST" ]; then
+            echo "ERROR: manifest.json not found at $MANIFEST"
+            exit 1
+          fi
+          
+          # Validate JSON syntax
+          if ! jq empty "$MANIFEST" 2>/dev/null; then
+            echo "ERROR: manifest.json is not valid JSON"
+            exit 1
+          fi
+          
+          # Check required fields
+          echo "Checking required manifest fields..."
+          
+          # Check manifest_version
+          MANIFEST_VERSION=$(jq -r '.manifest_version' "$MANIFEST")
+          if [ "$MANIFEST_VERSION" != "2" ]; then
+            echo "ERROR: manifest_version should be 2 for Firefox MV2, got: $MANIFEST_VERSION"
+            exit 1
+          fi
+          echo "  ✓ manifest_version: $MANIFEST_VERSION"
+          
+          # Check name
+          NAME=$(jq -r '.name' "$MANIFEST")
+          if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+            echo "ERROR: name is required in manifest.json"
+            exit 1
+          fi
+          echo "  ✓ name: $NAME"
+          
+          # Check version
+          VERSION=$(jq -r '.version' "$MANIFEST")
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "ERROR: version is required in manifest.json"
+            exit 1
+          fi
+          echo "  ✓ version: $VERSION"
+          
+          # Check browser_specific_settings.gecko
+          GECKO_ID=$(jq -r '.browser_specific_settings.gecko.id // .applications.gecko.id' "$MANIFEST")
+          if [ -z "$GECKO_ID" ] || [ "$GECKO_ID" = "null" ]; then
+            echo "ERROR: gecko.id is required for Firefox extensions"
+            exit 1
+          fi
+          echo "  ✓ gecko.id: $GECKO_ID"
+          
+          # Check strict_min_version
+          MIN_VERSION=$(jq -r '.browser_specific_settings.gecko.strict_min_version // .applications.gecko.strict_min_version' "$MANIFEST")
+          if [ -z "$MIN_VERSION" ] || [ "$MIN_VERSION" = "null" ]; then
+            echo "WARNING: strict_min_version not set, Firefox may reject the extension"
+          else
+            echo "  ✓ strict_min_version: $MIN_VERSION"
+          fi
+          
+          echo "✓ Manifest validation passed"
+
+      - name: Validate required Firefox files
+        run: |
+          echo "Checking required Firefox extension files..."
+          BUILD_DIR=".output/firefox-mv2"
+          MISSING_FILES=0
+          
+          # Required files for the extension
+          REQUIRED_FILES=(
+            "manifest.json"
+            "background.js"
+            "popup.html"
+            "settings.html"
+          )
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ -f "$BUILD_DIR/$file" ]; then
+              echo "  ✓ $file"
+            else
+              echo "  ✗ $file (MISSING)"
+              MISSING_FILES=$((MISSING_FILES + 1))
+            fi
+          done
+          
+          # Check for icons directory
+          if [ -d "$BUILD_DIR/icons" ]; then
+            ICON_COUNT=$(ls -1 "$BUILD_DIR/icons"/*.png 2>/dev/null | wc -l)
+            echo "  ✓ icons/ ($ICON_COUNT icons)"
+          else
+            echo "  ✗ icons/ (MISSING)"
+            MISSING_FILES=$((MISSING_FILES + 1))
+          fi
+          
+          # Check for content script
+          if ls "$BUILD_DIR"/content*.js 1> /dev/null 2>&1; then
+            echo "  ✓ content script(s)"
+          else
+            echo "  ⚠ No content script found (may be bundled)"
+          fi
+          
+          if [ $MISSING_FILES -gt 0 ]; then
+            echo "ERROR: $MISSING_FILES required file(s) missing"
+            exit 1
+          fi
+          
+          echo "✓ All required files present"
+
+      - name: Check Firefox extension size
+        run: |
+          echo "Checking Firefox extension size..."
+          BUILD_DIR=".output/firefox-mv2"
+          
+          # Calculate total size in bytes
+          TOTAL_SIZE=$(du -sb "$BUILD_DIR" | cut -f1)
+          TOTAL_SIZE_KB=$((TOTAL_SIZE / 1024))
+          TOTAL_SIZE_MB=$((TOTAL_SIZE / 1048576))
+          
+          # Size limit: 5MB (Firefox AMO recommendation)
+          MAX_SIZE_BYTES=5242880
+          
+          echo "  Total size: ${TOTAL_SIZE_MB}MB (${TOTAL_SIZE_KB}KB, $TOTAL_SIZE bytes)"
+          
+          if [ $TOTAL_SIZE -gt $MAX_SIZE_BYTES ]; then
+            echo "ERROR: Extension size (${TOTAL_SIZE_MB}MB) exceeds 5MB limit"
+            echo "Consider:"
+            echo "  - Removing unused dependencies"
+            echo "  - Optimizing assets"
+            echo "  - Using code splitting"
+            exit 1
+          fi
+          
+          # Warning threshold: 4MB
+          WARNING_BYTES=4194304
+          if [ $TOTAL_SIZE -gt $WARNING_BYTES ]; then
+            echo "⚠ WARNING: Extension size approaching 5MB limit"
+          fi
+          
+          # List largest files for visibility
+          echo ""
+          echo "Largest files:"
+          find "$BUILD_DIR" -type f -exec ls -la {} \; | sort -k5 -rn | head -5 | awk '{print "  " $5 " " $NF}'
+          
+          echo "✓ Extension size within limits"
+
       - name: Quality check
         run: pnpm run quality
