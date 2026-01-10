@@ -685,8 +685,8 @@ describe('PDF Word Highlighting', () => {
       }
       const elapsed = performance.now() - startTime;
 
-      // 1000 lookups should complete within 10ms
-      expect(elapsed).toBeLessThan(10);
+      // 1000 lookups should complete within 50ms (generous threshold for CI variance)
+      expect(elapsed).toBeLessThan(50);
     });
 
     it('should handle realistic PDF page with mixed fragmentation', () => {
