@@ -2616,10 +2616,27 @@ export default defineBackground(() => {
     // Check if we have a hexagonal mapping for this message type
     const hexType = LEGACY_TO_HEXAGONAL_MAP[type] ?? type;
 
+    // Debug: Log dispatch decision for queue messages
+    if (type.startsWith('queue.')) {
+      console.log('[Background] dispatchMessage debug:', {
+        type,
+        hexType,
+        shouldUseLegacy: shouldUseLegacy(type),
+        hexagonalInitialized,
+        willUseHex: !shouldUseLegacy(type) && hexagonalInitialized,
+      });
+    }
+
     // Check feature flags - if legacy is forced, skip hex
     if (!shouldUseLegacy(type) && hexagonalInitialized) {
       // Try hexagonal handler first
       const hexResult = await dispatchToHexagonal(hexType, data);
+
+      // Debug: Log hex result for queue messages
+      if (type.startsWith('queue.')) {
+        console.log('[Background] hexResult for', type, ':', hexResult);
+      }
+
       if (hexResult !== null) {
         return hexResult;
       }

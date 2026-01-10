@@ -173,27 +173,94 @@ export async function dispatchToHexagonal<T = unknown>(
   const startTime = Date.now();
 
   if (!registry.has(type)) {
+    // Debug: Log when handler not found
+    if (type.startsWith('queue.')) {
+      console.log(
+        '[Hexagonal] Handler not found for:',
+        type,
+        'Registered handlers:',
+        registry.getHandlerNames().filter((n) => n.startsWith('queue.')),
+      );
+    }
     return null;
   }
 
   const result = await registry.dispatch(type, data);
   const durationMs = Date.now() - startTime;
 
-  // Log dispatch telemetry
-  logDispatch({
-    type,
-    path: 'hex',
-    durationMs,
-    success: result.ok,
-    error: result.ok ? undefined : String(result.error),
-    timestamp: startTime,
-  });
-
+  // Registry dispatch failed (exception in handler)
   if (!result.ok) {
+    logDispatch({
+      type,
+      path: 'hex',
+      durationMs,
+      success: false,
+      error: String(result.error),
+      timestamp: startTime,
+    });
     console.warn('[Hexagonal] Handler error:', result.error);
     return null;
   }
 
+  // Handlers return Result<T, E>, which gets wrapped by registry.dispatch in another Result.
+  // We need to unwrap the inner Result to return the actual value.
+  // Check if result.value is itself a Result (has ok property)
+  const handlerResult = result.value as unknown;
+
+  // Debug: Log what we're receiving for queue.getState
+  if (type === 'queue.getState') {
+    console.log('[Hexagonal] queue.getState raw result.value:', JSON.stringify(handlerResult));
+  }
+
+  if (
+    handlerResult &&
+    typeof handlerResult === 'object' &&
+    'ok' in handlerResult &&
+    typeof (handlerResult as { ok: boolean }).ok === 'boolean'
+  ) {
+    const innerResult = handlerResult as { ok: boolean; value?: unknown; error?: unknown };
+    if (innerResult.ok) {
+      // Inner Result is Ok - log success and return unwrapped value
+      logDispatch({
+        type,
+        path: 'hex',
+        durationMs,
+        success: true,
+        timestamp: startTime,
+      });
+
+      // Debug: Log what we're returning for queue.getState
+      if (type === 'queue.getState') {
+        console.log(
+          '[Hexagonal] queue.getState unwrapped value:',
+          JSON.stringify(innerResult.value),
+        );
+      }
+
+      return innerResult.value as T;
+    } else {
+      // Inner Result is Err - log failure and return null
+      logDispatch({
+        type,
+        path: 'hex',
+        durationMs,
+        success: false,
+        error: String(innerResult.error),
+        timestamp: startTime,
+      });
+      console.warn('[Hexagonal] Handler returned error:', innerResult.error);
+      return null;
+    }
+  }
+
+  // If not a Result, return as-is (for handlers that don't use Result pattern)
+  logDispatch({
+    type,
+    path: 'hex',
+    durationMs,
+    success: true,
+    timestamp: startTime,
+  });
   return result.value as T;
 }
 

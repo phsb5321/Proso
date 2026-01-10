@@ -1073,7 +1073,11 @@ async function fetchQueueState(): Promise<void> {
   try {
     const response = await sendMessage<QueueState>('queue.getState');
     if (response) {
-      queueState = response;
+      // Defensive: ensure items array exists (handles malformed responses)
+      queueState = {
+        items: response.items ?? [],
+        metadata: response.metadata ?? { count: 0, lastModified: 0 },
+      };
       updateQueueBadge(queueState.items.length);
       if (isQueueSidebarOpen) {
         renderQueueItems(queueState.items);
@@ -1093,7 +1097,7 @@ function toggleQueueSidebar(): void {
   elements.toggleQueueBtn.setAttribute('aria-expanded', String(isQueueSidebarOpen));
 
   if (isQueueSidebarOpen) {
-    renderQueueItems(queueState.items);
+    renderQueueItems(queueState.items ?? []);
   }
 }
 
