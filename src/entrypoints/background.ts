@@ -43,7 +43,9 @@ import {
 } from '../background/init-hexagonal';
 
 // Structured error responses (041-firefox-first-pivot T1.2)
-import { unknownMessageResponse, handlerErrorResponse } from '../utils/messaging/error-response';
+import { unknownMessageResponse } from '../utils/messaging/error-response';
+// Unknown message telemetry (041-firefox-first-pivot T1.3)
+import { logUnknownMessage } from '../utils/telemetry';
 
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
@@ -2651,6 +2653,7 @@ export default defineBackground(() => {
       return dispatchMessage(type, data).then((result) => {
         if (result === null) {
           console.warn('[Background] Unknown message type:', type);
+          logUnknownMessage(type);
           return unknownMessageResponse(type);
         }
         // Debug: log what we're returning to the caller
@@ -2669,6 +2672,7 @@ export default defineBackground(() => {
       return dispatchMessage(action, data).then((result) => {
         if (result === null) {
           // Return structured error for unknown actions
+          logUnknownMessage(action);
           return unknownMessageResponse(action);
         }
         return result;

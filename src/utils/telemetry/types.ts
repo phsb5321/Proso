@@ -29,10 +29,14 @@ export interface DispatchStats {
   hexTotal: number;
   /** Total messages dispatched to legacy handlers */
   legacyTotal: number;
+  /** Total unknown messages (not handled by hex or legacy) */
+  unknownTotal: number;
   /** Percentage of messages going to hexagonal (0-100) */
   hexPercentage: number;
   /** Stats by message type */
   byType: Record<string, MessageStats>;
+  /** Unknown message types received */
+  unknownTypes: Record<string, { count: number; lastSeen: number }>;
   /** When stats collection started */
   startTime: number;
   /** When stats were last reset */
@@ -46,7 +50,7 @@ export interface DispatchEvent {
   /** Message type being dispatched */
   type: string;
   /** Which path handled the message */
-  path: 'hex' | 'legacy';
+  path: 'hex' | 'legacy' | 'unknown';
   /** Duration in milliseconds */
   durationMs: number;
   /** Whether the dispatch succeeded */
