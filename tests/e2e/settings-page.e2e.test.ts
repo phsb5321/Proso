@@ -238,22 +238,24 @@ test.describe('Settings Form Controls', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
 
-    const numberInputs = page.locator('input[type="number"], input[type="range"]');
-    const inputCount = await numberInputs.count();
+    // Test number inputs separately from range inputs
+    const numberInputs = page.locator('input[type="number"]');
+    const rangeInputs = page.locator('input[type="range"]');
 
-    console.log(`Found ${inputCount} number/range inputs`);
+    const numberCount = await numberInputs.count();
+    const rangeCount = await rangeInputs.count();
 
-    for (let i = 0; i < inputCount; i++) {
+    console.log(`Found ${numberCount} number inputs, ${rangeCount} range inputs`);
+
+    // Test number inputs with fill()
+    for (let i = 0; i < numberCount; i++) {
       const input = numberInputs.nth(i);
-
-      // Get attributes
       const min = await input.getAttribute('min');
       const max = await input.getAttribute('max');
       const step = await input.getAttribute('step');
 
       console.log(`Number input ${i}: min=${min}, max=${max}, step=${step}`);
 
-      // Try setting a value (middle of range if defined)
       const minVal = parseFloat(min || '0');
       const maxVal = parseFloat(max || '100');
       const midVal = ((minVal + maxVal) / 2).toString();
@@ -261,6 +263,38 @@ test.describe('Settings Form Controls', () => {
       await input.fill(midVal);
       const value = await input.inputValue();
       console.log(`Set value to ${midVal}, got ${value}`);
+    }
+
+    // Test range inputs with evaluate (can't use fill() on range)
+    for (let i = 0; i < rangeCount; i++) {
+      const input = rangeInputs.nth(i);
+      const min = await input.getAttribute('min');
+      const max = await input.getAttribute('max');
+      const step = await input.getAttribute('step');
+
+      console.log(`Range input ${i}: min=${min}, max=${max}, step=${step}`);
+
+      const minVal = parseFloat(min || '0');
+      const maxVal = parseFloat(max || '100');
+      const stepVal = parseFloat(step || '1');
+      // Round target to step to avoid precision issues
+      const midVal = Math.round((minVal + maxVal) / 2 / stepVal) * stepVal;
+
+      // Set value via JavaScript for range inputs
+      await input.evaluate((el, val) => {
+        (el as HTMLInputElement).value = String(val);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }, midVal);
+
+      const value = await input.inputValue();
+      console.log(`Set range to ${midVal}, got ${value}`);
+
+      // Verify value is within valid range and close to target
+      const parsedValue = parseFloat(value);
+      expect(parsedValue).toBeGreaterThanOrEqual(minVal);
+      expect(parsedValue).toBeLessThanOrEqual(maxVal);
+      expect(parsedValue).toBeCloseTo(midVal, 0); // Within 0.5 of target
     }
   });
 });
