@@ -186,3 +186,89 @@ jobs:
 
       - name: Quality check
         run: pnpm run quality
+
+  # ============================================
+  # Firefox Visual Tests (041-firefox-first-pivot T4.2)
+  # ============================================
+  visual-tests:
+    runs-on: ubuntu-latest
+    needs: test # Only run visual tests if unit tests pass
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install firefox --with-deps
+
+      - name: Run Firefox visual tests
+        run: npx playwright test --project=firefox-visual --reporter=list,html
+        continue-on-error: true # Don't fail CI on snapshot differences
+
+      - name: Upload visual test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-visual-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Upload snapshot diffs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: snapshot-diffs
+          path: test-results/**/*-diff.png
+          retention-days: 7
+
+  # ============================================
+  # Extension E2E Tests (Chromium)
+  # ============================================
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: test # Only run E2E tests if unit tests pass
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Firefox extension
+        run: pnpm run build:firefox
+
+      - name: Run extension E2E tests
+        run: npx playwright test --project=chromium-extension --reporter=list,html
+
+      - name: Upload E2E test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
