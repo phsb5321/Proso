@@ -77,11 +77,243 @@ function getTextLayers(pageNumber?: number): Element[] {
 }
 
 /**
- * Normalize text for fuzzy matching
- * Removes extra whitespace and normalizes unicode
+ * Characters to normalize for PDF text matching
+ * Based on PDF.js CHARACTERS_TO_NORMALIZE from pdf_find_controller.js
+ * Maps special Unicode characters to their ASCII equivalents
  */
-function normalizeText(text: string): string {
-  return text.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+const CHARACTERS_TO_NORMALIZE: Record<string, string> = {
+  // Hyphens and dashes
+  '\u2010': '-', // Hyphen
+  '\u2011': '-', // Non-breaking hyphen
+  '\u2012': '-', // Figure dash
+  '\u2013': '-', // En dash
+  '\u2014': '-', // Em dash
+  '\u2015': '-', // Horizontal bar
+  '\u2212': '-', // Minus sign
+
+  // Quotation marks
+  '\u2018': "'", // Left single quotation mark
+  '\u2019': "'", // Right single quotation mark
+  '\u201A': "'", // Single low-9 quotation mark
+  '\u201B': "'", // Single high-reversed-9 quotation mark
+  '\u201C': '"', // Left double quotation mark
+  '\u201D': '"', // Right double quotation mark
+  '\u201E': '"', // Double low-9 quotation mark
+  '\u201F': '"', // Double high-reversed-9 quotation mark
+  '\u00AB': '"', // Left-pointing double angle quotation mark
+  '\u00BB': '"', // Right-pointing double angle quotation mark
+
+  // Spaces
+  '\u00A0': ' ', // Non-breaking space
+  '\u2000': ' ', // En quad
+  '\u2001': ' ', // Em quad
+  '\u2002': ' ', // En space
+  '\u2003': ' ', // Em space
+  '\u2004': ' ', // Three-per-em space
+  '\u2005': ' ', // Four-per-em space
+  '\u2006': ' ', // Six-per-em space
+  '\u2007': ' ', // Figure space
+  '\u2008': ' ', // Punctuation space
+  '\u2009': ' ', // Thin space
+  '\u200A': ' ', // Hair space
+  '\u202F': ' ', // Narrow no-break space
+  '\u205F': ' ', // Medium mathematical space
+  '\u3000': ' ', // Ideographic space
+
+  // Common ligatures (expanded by NFKC, but include for safety)
+  '\uFB00': 'ff', // Latin small ligature ff
+  '\uFB01': 'fi', // Latin small ligature fi
+  '\uFB02': 'fl', // Latin small ligature fl
+  '\uFB03': 'ffi', // Latin small ligature ffi
+  '\uFB04': 'ffl', // Latin small ligature ffl
+  '\uFB05': 'st', // Latin small ligature st
+  '\uFB06': 'st', // Latin small ligature st (long s + t)
+
+  // Ellipsis
+  '\u2026': '...', // Horizontal ellipsis
+
+  // Bullets and special punctuation
+  '\u2022': '-', // Bullet (treat as list marker)
+  '\u2023': '-', // Triangular bullet
+  '\u2043': '-', // Hyphen bullet
+  '\u204C': '-', // Black leftwards bullet
+  '\u204D': '-', // Black rightwards bullet
+  '\u2219': '-', // Bullet operator
+
+  // Fraction slash (NFKC converts vulgar fractions to this form)
+  '\u2044': '/', // Fraction slash (e.g., 1⁄4 → 1/4)
+
+  // Common fractions (for OCR'd documents - keep as fallback)
+  '\u00BC': '1/4', // Vulgar fraction one quarter
+  '\u00BD': '1/2', // Vulgar fraction one half
+  '\u00BE': '3/4', // Vulgar fraction three quarters
+  '\u2153': '1/3', // Vulgar fraction one third
+  '\u2154': '2/3', // Vulgar fraction two thirds
+
+  // Other common substitutions
+  '\u00D7': 'x', // Multiplication sign
+  '\u00F7': '/', // Division sign
+  '\u2032': "'", // Prime (minutes, feet)
+  '\u2033': '"', // Double prime (seconds, inches)
+  '\u2034': "'''", // Triple prime
+  '\u2035': "'", // Reversed prime
+};
+
+/**
+ * Common OCR error patterns - characters that are often confused
+ * Maps potentially misrecognized characters to their common alternatives
+ * Used for fuzzy matching in OCR'd PDFs
+ */
+const OCR_CONFUSABLE_CHARS: Record<string, string[]> = {
+  // Numbers often confused with letters
+  '0': ['O', 'o', 'Q', 'D'],
+  '1': ['l', 'I', 'i', '|', '!'],
+  '2': ['Z', 'z'],
+  '5': ['S', 's'],
+  '6': ['b', 'G'],
+  '8': ['B'],
+  '9': ['g', 'q'],
+
+  // Letters often confused with numbers
+  O: ['0', 'Q', 'D'],
+  o: ['0'],
+  l: ['1', 'I', '|'],
+  I: ['1', 'l', '|'],
+  i: ['1', '!'],
+  S: ['5', '$'],
+  s: ['5'],
+  Z: ['2'],
+  z: ['2'],
+  B: ['8', '3'],
+  b: ['6'],
+  G: ['6'],
+  g: ['9', 'q'],
+  q: ['9', 'g'],
+
+  // Commonly confused letter pairs
+  m: ['rn', 'nn'],
+  rn: ['m'],
+  cl: ['d'],
+  d: ['cl'],
+  vv: ['w'],
+  w: ['vv'],
+};
+
+// Pre-build regex for character normalization (performance optimization)
+const NORMALIZE_REGEX = new RegExp('[' + Object.keys(CHARACTERS_TO_NORMALIZE).join('') + ']', 'g');
+
+/**
+ * Normalize text for PDF matching
+ *
+ * Applies multiple normalization steps:
+ * 1. Unicode NFKC normalization (expands ligatures, normalizes compatibility chars)
+ * 2. Character substitution (quotes, dashes, spaces → ASCII)
+ * 3. Whitespace normalization (collapse multiple spaces)
+ * 4. Case normalization (lowercase)
+ *
+ * @param text - The text to normalize
+ * @returns Normalized text for matching
+ */
+export function normalizeText(text: string): string {
+  // Step 1: Unicode NFKC normalization
+  // This handles most ligatures and compatibility characters
+  let normalized = text.normalize('NFKC');
+
+  // Step 2: Apply character substitutions for remaining special chars
+  normalized = normalized.replace(NORMALIZE_REGEX, (char) => {
+    return CHARACTERS_TO_NORMALIZE[char] || char;
+  });
+
+  // Step 3: Collapse whitespace and trim
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // Step 4: Lowercase for case-insensitive matching
+  return normalized.toLowerCase();
+}
+
+/**
+ * Create an OCR-tolerant pattern from normalized text
+ *
+ * Expands commonly confused characters into character classes for regex matching.
+ * For example: "hello" becomes "h[e3][l1I|][l1I|][o0O]"
+ *
+ * This is expensive, so only use for OCR'd PDFs when exact matching fails.
+ *
+ * @param text - Normalized text to create pattern from
+ * @returns RegExp pattern that tolerates OCR errors
+ */
+export function createOCRTolerantPattern(text: string): RegExp {
+  const chars = text.split('');
+  const patternParts: string[] = [];
+
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
+
+    // Check for multi-character sequences first (rn → m, cl → d, etc.)
+    if (i < chars.length - 1) {
+      const twoChars = char + chars[i + 1];
+      const alternatives = OCR_CONFUSABLE_CHARS[twoChars];
+      if (alternatives) {
+        // Create alternation for the two-character sequence
+        const escaped = escapeRegExp(twoChars);
+        const altEscaped = alternatives.map(escapeRegExp);
+        patternParts.push(`(?:${escaped}|${altEscaped.join('|')})`);
+        i++; // Skip next character
+        continue;
+      }
+    }
+
+    // Single character handling
+    const alternatives = OCR_CONFUSABLE_CHARS[char];
+    if (alternatives) {
+      // Create character class for confusable characters
+      // Filter out multi-character alternatives (they can't be in a char class)
+      const singleCharAlternatives = alternatives.filter((alt) => alt.length === 1);
+      const allChars = [char, ...singleCharAlternatives];
+      // Use escapeCharClass for characters inside []
+      const escaped = allChars.map(escapeCharClass).join('');
+      patternParts.push(`[${escaped}]`);
+    } else if (char === ' ') {
+      // Allow flexible whitespace matching
+      patternParts.push('\\s+');
+    } else {
+      // Regular character
+      patternParts.push(escapeRegExp(char));
+    }
+  }
+
+  return new RegExp(patternParts.join(''), 'i');
+}
+
+/**
+ * Escape special regex characters
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Escape special characters for use inside a regex character class []
+ * Only need to escape: ] \ ^ (at start) - (in middle)
+ */
+function escapeCharClass(char: string): string {
+  return char.replace(/[\]\\^-]/g, '\\$&');
+}
+
+/**
+ * Get the character normalization map (for testing)
+ * Returns a shallow copy to prevent external modification
+ */
+export function getCharacterNormalizationMap(): Readonly<Record<string, string>> {
+  return { ...CHARACTERS_TO_NORMALIZE };
+}
+
+/**
+ * Get the OCR confusable characters map (for testing)
+ * Returns a shallow copy to prevent external modification
+ */
+export function getOCRConfusableChars(): Readonly<Record<string, readonly string[]>> {
+  return { ...OCR_CONFUSABLE_CHARS } as Record<string, readonly string[]>;
 }
 
 /**
