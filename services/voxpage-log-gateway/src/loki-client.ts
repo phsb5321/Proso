@@ -208,8 +208,8 @@ export class LokiClient {
   /**
    * Build headers for Loki requests.
    */
-  private buildHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
