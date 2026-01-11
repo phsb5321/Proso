@@ -4,7 +4,7 @@
  * HTTP transport for sending events to the telemetry gateway.
  * Features:
  * - Exponential backoff with jitter
- * - Circuit breaker pattern
+ * - Circuit breaker pattern with persistence
  * - Gzip compression for large batches
  * - Health tracking
  *
@@ -13,6 +13,20 @@
 
 import type { UsageEvent, ShipperState, ShipperConfig, IngestRequest } from './types';
 import { DEFAULT_SHIPPER_CONFIG } from './types';
+
+/**
+ * Storage key for persisted circuit state.
+ */
+const CIRCUIT_STATE_KEY = 'voxpage_shipper_circuit_state';
+
+/**
+ * Subset of state that persists across restarts.
+ */
+interface PersistedCircuitState {
+  circuitOpen: boolean;
+  consecutiveFailures: number;
+  circuitOpenedAt: number | null;
+}
 
 /**
  * Initial shipper state.
@@ -34,6 +48,7 @@ const INITIAL_STATE: ShipperState = {
 export class UsageShipper {
   private config: ShipperConfig;
   private state: ShipperState = { ...INITIAL_STATE };
+  private initialized = false;
 
   constructor(config: Pick<ShipperConfig, 'gatewayUrl' | 'gatewayToken'> & Partial<ShipperConfig>) {
     this.config = {
@@ -43,12 +58,82 @@ export class UsageShipper {
   }
 
   /**
+   * Initialize the shipper by loading persisted circuit state.
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    await this.loadCircuitState();
+    this.initialized = true;
+  }
+
+  /**
+   * Load circuit breaker state from storage.
+   */
+  private async loadCircuitState(): Promise<void> {
+    try {
+      if (typeof browser !== 'undefined' && browser.storage?.local) {
+        const result = await browser.storage.local.get(CIRCUIT_STATE_KEY);
+        const persisted = result[CIRCUIT_STATE_KEY] as PersistedCircuitState | undefined;
+
+        if (persisted) {
+          this.state = {
+            ...this.state,
+            circuitOpen: persisted.circuitOpen,
+            consecutiveFailures: persisted.consecutiveFailures,
+            circuitOpenedAt: persisted.circuitOpenedAt,
+          };
+
+          // Check if circuit should auto-close based on elapsed time
+          if (this.state.circuitOpen && this.state.circuitOpenedAt) {
+            const elapsed = Date.now() - this.state.circuitOpenedAt;
+            if (elapsed >= this.config.circuitResetMs) {
+              // Circuit has been open long enough, reset it
+              this.state.circuitOpen = false;
+              this.state.consecutiveFailures = 0;
+              this.state.circuitOpenedAt = null;
+              await this.saveCircuitState();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[UsageShipper] Failed to load circuit state:', error);
+    }
+  }
+
+  /**
+   * Save circuit breaker state to storage.
+   */
+  private async saveCircuitState(): Promise<void> {
+    try {
+      if (typeof browser !== 'undefined' && browser.storage?.local) {
+        const persisted: PersistedCircuitState = {
+          circuitOpen: this.state.circuitOpen,
+          consecutiveFailures: this.state.consecutiveFailures,
+          circuitOpenedAt: this.state.circuitOpenedAt,
+        };
+        await browser.storage.local.set({ [CIRCUIT_STATE_KEY]: persisted });
+      }
+    } catch (error) {
+      console.warn('[UsageShipper] Failed to save circuit state:', error);
+    }
+  }
+
+  /**
    * Send a batch of events to the gateway.
    * Returns true if successful, false otherwise.
    */
   async send(events: UsageEvent[]): Promise<boolean> {
     if (events.length === 0) {
       return true;
+    }
+
+    // Ensure initialized
+    if (!this.initialized) {
+      await this.initialize();
     }
 
     // Check circuit breaker
@@ -66,14 +151,14 @@ export class UsageShipper {
         const success = await this.attemptSend(payload);
 
         if (success) {
-          this.onSuccess(events.length);
+          await this.onSuccess(events.length);
           return true;
         }
       } catch (error) {
         const isLastAttempt = attempt === this.config.maxRetries;
 
         if (isLastAttempt) {
-          this.onFailure(events.length, error);
+          await this.onFailure(events.length, error);
           return false;
         }
 
@@ -205,7 +290,9 @@ export class UsageShipper {
   /**
    * Handle successful send.
    */
-  private onSuccess(eventCount: number): void {
+  private async onSuccess(eventCount: number): Promise<void> {
+    const wasCircuitOpen = this.state.circuitOpen;
+
     this.state = {
       ...this.state,
       consecutiveFailures: 0,
@@ -215,16 +302,22 @@ export class UsageShipper {
       lastSuccessAt: Date.now(),
       lastError: null,
     };
+
+    // Persist if circuit state changed
+    if (wasCircuitOpen) {
+      await this.saveCircuitState();
+    }
   }
 
   /**
    * Handle failed send.
    */
-  private onFailure(eventCount: number, error: unknown): void {
+  private async onFailure(eventCount: number, error: unknown): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const consecutiveFailures = this.state.consecutiveFailures + 1;
 
     const shouldOpenCircuit = consecutiveFailures >= this.config.maxConsecutiveFailures;
+    const circuitStateChanged = shouldOpenCircuit && !this.state.circuitOpen;
 
     this.state = {
       ...this.state,
@@ -235,6 +328,11 @@ export class UsageShipper {
       lastFailureAt: Date.now(),
       lastError: errorMessage,
     };
+
+    // Persist circuit state changes
+    if (circuitStateChanged || consecutiveFailures <= this.config.maxConsecutiveFailures) {
+      await this.saveCircuitState();
+    }
   }
 
   /**
@@ -264,10 +362,18 @@ export class UsageShipper {
   }
 
   /**
-   * Reset shipper state.
+   * Reset shipper state and clear persisted circuit state.
    */
-  reset(): void {
+  async reset(): Promise<void> {
     this.state = { ...INITIAL_STATE };
+    await this.saveCircuitState();
+  }
+
+  /**
+   * Check if shipper is initialized.
+   */
+  isInitialized(): boolean {
+    return this.initialized;
   }
 
   /**

@@ -110,6 +110,27 @@ const limiter = rateLimit({
 // Auth Middleware
 // ============================================================================
 
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ * Returns true if strings are equal, false otherwise.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do a dummy comparison to maintain constant time
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ a.charCodeAt(i);
+    }
+    return false;
+  }
+
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Skip auth in development if no token configured
   if (config.isDev && !config.gatewayToken) {
@@ -126,7 +147,7 @@ function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   }
 
   const token = authHeader.slice(7);
-  if (token !== config.gatewayToken) {
+  if (!constantTimeEqual(token, config.gatewayToken)) {
     res.status(401).json({ error: 'unauthorized', message: 'Invalid token' });
     return;
   }

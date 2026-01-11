@@ -160,6 +160,7 @@ export class LokiClient {
       entrypoint: event.entrypoint,
       event_group: event.eventGroup,
       level: event.level,
+      ext_version: event.extVersion,
     };
 
     // Add environment if configured
@@ -190,7 +191,7 @@ export class LokiClient {
    */
   private createLogLine(event: UsageEvent): string {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { eventGroup, level, entrypoint, provider, ...rest } = event;
+    const { eventGroup, level, entrypoint, provider, extVersion, ...rest } = event;
 
     return JSON.stringify(rest);
   }

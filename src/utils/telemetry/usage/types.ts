@@ -89,6 +89,10 @@ export type Environment = (typeof Environment)[keyof typeof Environment];
  * Event names follow dot-notation convention: category.action_detail
  */
 export const UsageEventTypes = {
+  // Extension lifecycle events
+  'extension.installed': true,
+  'extension.updated': true,
+
   // System lifecycle events
   'background.started': true,
   'background.suspended': true,
@@ -97,17 +101,25 @@ export const UsageEventTypes = {
   'popup.closed': true,
   'content.injected': true,
   'content.cleanup': true,
+  'content.unloaded': true, // Alias for content.cleanup
   'settings.opened': true,
   'settings.closed': true,
+  'container.initialized': true,
+  'flags.snapshot': true,
+  'storage.quota_warning': true,
 
   // User interaction events
   'playback.play_clicked': true,
   'playback.pause_clicked': true,
   'playback.stop_clicked': true,
   'playback.skip_clicked': true,
+  'playback.next_clicked': true,
+  'playback.prev_clicked': true,
+  'playback.seek_clicked': true,
   'playback.speed_changed': true,
   'paragraph.clicked': true,
   'paragraph.hover_preview': true,
+  'paragraph.hovered': true, // Alias for paragraph.hover_preview
   'selection.read_requested': true,
 
   // Settings events
@@ -119,6 +131,13 @@ export const UsageEventTypes = {
   'settings.speed_changed': true,
   'settings.pitch_changed': true,
   'settings.reset_clicked': true,
+  'settings.saved': true,
+
+  // Queue events
+  'queue.opened': true,
+  'queue.item_added': true,
+  'queue.item_removed': true,
+  'queue.reordered': true,
 
   // Playback pipeline events
   'playback.start_requested': true,
@@ -142,6 +161,12 @@ export const UsageEventTypes = {
   'audio.playback_started': true,
   'audio.playback_ended': true,
   'audio.playback_error': true,
+  'audio.cache_hit': true,
+  'audio.cache_miss': true,
+
+  // Prefetch events
+  'prefetch.started': true,
+  'prefetch.completed': true,
 
   // Cache events
   'cache.store_started': true,
@@ -159,13 +184,22 @@ export const UsageEventTypes = {
   'pdf.load_failed': true,
   'pdf.text_extracted': true,
   'pdf.text_extraction_failed': true,
+  'pdf.extraction_started': true,
+  'pdf.extraction_completed': true,
   'pdf.page_changed': true,
+  'pdf.blocked_file_scheme': true,
+  'pdf.error_security': true,
+  'pdf.error_fetch': true,
+  'pdf.password_required': true,
+  'pdf.ocr_started': true,
+  'pdf.ocr_completed': true,
 
   // Highlight sync events
   'highlight.sync_started': true,
   'highlight.sync_completed': true,
   'highlight.sync_failed': true,
   'highlight.word_updated': true,
+  'highlight.word_sync': true, // Alias for highlight.word_updated
 
   // Network/API events
   'api.request_started': true,
@@ -178,15 +212,22 @@ export const UsageEventTypes = {
   'shipper.flush_started': true,
   'shipper.flush_completed': true,
   'shipper.flush_failed': true,
+  'shipper.batch_queued': true,
+  'shipper.batch_sent': true,
+  'shipper.batch_failed': true,
   'shipper.circuit_opened': true,
   'shipper.circuit_closed': true,
   'shipper.retry_scheduled': true,
+  'shipper.buffer_depth': true,
   'shipper.buffer_overflow': true,
 
   // Error events
+  'error.uncaught': true, // Alias for error.uncaught_exception
   'error.uncaught_exception': true,
   'error.unhandled_rejection': true,
   'error.handler_exception': true,
+  'error.message_dispatch': true,
+  'error.validation': true,
   'error.tts_generation': true,
   'error.audio_playback': true,
   'error.pdf_processing': true,
