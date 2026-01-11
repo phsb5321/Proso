@@ -611,6 +611,24 @@
         </button>
         <div id="developer-content" class="voxpage-accordion__content" hidden>
         <p class="section-description">
+          Configure developer options and privacy settings.
+        </p>
+
+        <!-- Usage Telemetry Toggle (T018) -->
+        <div class="form-group">
+          <label class="voxpage-toggle">
+            <input type="checkbox" id="telemetryEnabled" class="voxpage-toggle__input" checked>
+            <span class="voxpage-toggle__switch"></span>
+            <span class="voxpage-toggle__text">Allow anonymous usage telemetry</span>
+          </label>
+          <p class="form-hint">Help improve VoxPage by sending anonymous usage data (no personal data or content is collected)</p>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- Remote Logging Section -->
+        <h3 class="subsection-title">Remote Logging</h3>
+        <p class="section-description">
           Configure remote logging to send extension logs to a Loki server for debugging and monitoring.
           This is an opt-in feature for developers.
         </p>

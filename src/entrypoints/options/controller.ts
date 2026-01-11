@@ -19,6 +19,7 @@ import {
   type QueueSettings,
 } from '../utils/config';
 
+import { usageTracker } from '../../utils/telemetry/usage';
 import { toast } from './components/toast';
 import { showConfirmModal } from './components/modal';
 import { testApiKey, saveApiKey } from '../../utils/options/api-key-tester';
@@ -93,6 +94,9 @@ interface OptionsElements {
   clearCompletedQueue: HTMLButtonElement;
   clearAllQueue: HTMLButtonElement;
   queueStatus: HTMLElement;
+
+  // Telemetry elements (T018)
+  telemetryEnabled: HTMLInputElement;
 }
 
 let elements: OptionsElements | null = null;
@@ -172,6 +176,9 @@ function getElements(): OptionsElements {
     clearCompletedQueue: getElement<HTMLButtonElement>('clearCompletedQueue'),
     clearAllQueue: getElement<HTMLButtonElement>('clearAllQueue'),
     queueStatus: getElement<HTMLElement>('queueStatus'),
+
+    // Telemetry elements (T018)
+    telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
   };
 }
 
@@ -181,12 +188,16 @@ function getElements(): OptionsElements {
 export async function initOptionsPage(): Promise<void> {
   elements = getElements();
 
+  // T018: Initialize telemetry for settings page
+  await initTelemetry();
+
   await loadSettings();
   await loadQuickSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
   await loadCacheStats();
   await loadThemePreference();
+  await loadTelemetryConfig();
 
   setupQuickSettingsEventListeners();
   setupEventListeners();
@@ -194,6 +205,7 @@ export async function initOptionsPage(): Promise<void> {
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupCacheEventListeners();
+  setupTelemetryEventListeners();
   setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
@@ -380,6 +392,9 @@ function setupQuickSettingsEventListeners(): void {
 async function saveQuickSetting(key: string, value: string | number): Promise<void> {
   try {
     await browser.storage.local.set({ [key]: value });
+
+    // T018: Track setting changes
+    trackSettingChange('settings.quick_setting_changed', { key, value });
 
     // Also update legacy elements if they exist
     if (elements) {
@@ -900,6 +915,9 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
   button.classList.add('loading');
   showProviderCardStatus(statusEl, 'Testing...', 'loading');
 
+  // T018: Track API key test initiated (not the key itself!)
+  trackSettingChange('settings.api_key_tested', { provider });
+
   try {
     const result = await testApiKey(provider, apiKey);
 
@@ -911,15 +929,33 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
       const latencyInfo = result.latencyMs ? ` (${result.latencyMs}ms)` : '';
       showProviderCardStatus(statusEl, `✓ Valid${latencyInfo}`, 'success');
       toast.success(`${capitalizeProvider(provider)} API key is valid`);
+
+      // T018: Track successful API key test
+      trackSettingChange('settings.api_key_test_success', {
+        provider,
+        latencyMs: result.latencyMs,
+      });
     } else {
       // T034: Display error with icon
       showProviderCardStatus(statusEl, `✗ ${result.message}`, 'error');
       toast.error(result.message);
+
+      // T018: Track failed API key test (not the key, just provider and error type)
+      trackSettingChange('settings.api_key_test_failed', {
+        provider,
+        errorType: 'validation_failed',
+      });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Test failed';
     showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
     toast.error(errorMessage);
+
+    // T018: Track API key test error
+    trackSettingChange('settings.api_key_test_failed', {
+      provider,
+      errorType: 'exception',
+    });
   } finally {
     // Reset button state
     button.disabled = false;
@@ -1026,6 +1062,14 @@ async function saveSettings(): Promise<void> {
       groqApiKey: elements.groqKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: Number.parseFloat(elements.defaultSpeed.value),
+      mode: elements.defaultMode.value,
+      highlightEnabled: elements.highlightEnabled.checked,
+      autoScroll: elements.autoScroll.checked,
+    });
+
+    // T018: Track settings saved event
+    trackSettingChange('settings.saved', {
+      provider: elements.defaultProvider.value,
       mode: elements.defaultMode.value,
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
@@ -1697,6 +1741,123 @@ async function reloadSectionSettings(section: string): Promise<void> {
       await loadCacheStats();
       break;
   }
+}
+
+// ========================================
+// TELEMETRY (043-usage-observability-loki T018)
+// ========================================
+
+/**
+ * Initialize usage tracker for settings page context.
+ * Loads config from storage and tracks settings.opened event.
+ */
+async function initTelemetry(): Promise<void> {
+  try {
+    // Load telemetry config from storage
+    const stored = await browser.storage.local.get([
+      'telemetryEnabled',
+      'telemetryGatewayUrl',
+      'telemetryGatewayToken',
+    ]);
+
+    // Skip if telemetry is disabled
+    if (stored.telemetryEnabled === false) {
+      console.log('[Settings] Telemetry disabled by user');
+      return;
+    }
+
+    // Only initialize if gateway is configured
+    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+    if (!gatewayUrl || !gatewayToken) {
+      console.log('[Settings] Telemetry not configured');
+      return;
+    }
+
+    await usageTracker.initialize({
+      gatewayUrl,
+      gatewayToken,
+      entrypoint: 'options',
+      debugMode: process.env.NODE_ENV !== 'production',
+    });
+
+    // Track settings page opened
+    usageTracker.track('settings.opened', {});
+
+    // Track settings page closed on unload
+    window.addEventListener('beforeunload', () => {
+      usageTracker.track('settings.closed', {});
+      // Best-effort flush
+      usageTracker.destroy();
+    });
+
+    console.log('[Settings] Telemetry initialized');
+  } catch (error) {
+    console.warn('[Settings] Telemetry init failed:', error);
+  }
+}
+
+/**
+ * Track setting change events with debouncing
+ */
+const trackSettingDebounce = new Map<string, number>();
+const SETTING_DEBOUNCE_MS = 300;
+
+function trackSettingChange(eventType: string, data?: Record<string, unknown>): void {
+  const now = Date.now();
+  const lastTrack = trackSettingDebounce.get(eventType) || 0;
+
+  if (now - lastTrack < SETTING_DEBOUNCE_MS) {
+    return; // Skip duplicate rapid changes
+  }
+
+  trackSettingDebounce.set(eventType, now);
+  usageTracker.track(eventType, data);
+}
+
+/**
+ * Load telemetry configuration from storage
+ * T018: Telemetry opt-out toggle
+ */
+async function loadTelemetryConfig(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const result = await browser.storage.local.get('telemetryEnabled');
+
+    // Default to true (opt-in by default)
+    const enabled = result.telemetryEnabled !== false;
+    elements.telemetryEnabled.checked = enabled;
+  } catch (error) {
+    console.error('Error loading telemetry config:', error);
+    // Default to enabled on error
+    elements.telemetryEnabled.checked = true;
+  }
+}
+
+/**
+ * Setup telemetry-specific event listeners
+ * T018: Telemetry opt-out toggle
+ */
+function setupTelemetryEventListeners(): void {
+  if (!elements) return;
+
+  elements.telemetryEnabled.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const enabled = elements.telemetryEnabled.checked;
+    await browser.storage.local.set({ telemetryEnabled: enabled });
+
+    // Track the change (if enabling, track immediately; if disabling, best-effort)
+    if (enabled) {
+      usageTracker.track('settings.telemetry_enabled', {});
+      toast.success('Usage telemetry enabled');
+    } else {
+      usageTracker.track('settings.telemetry_disabled', {});
+      toast.success('Usage telemetry disabled');
+    }
+  });
 }
 
 // ========================================
