@@ -21,8 +21,8 @@ export const settingsDefaults: VoxPageSettings = {
 };
 
 export const loggingDefaults: LoggingConfig = {
-  enabled: false,
-  endpoint: null,
+  enabled: true,
+  endpoint: 'https://voxpage-logs.home301server.com.br',
   authType: 'none',
   logLevel: 'warn',
   batchIntervalMs: 10000,

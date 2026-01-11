@@ -627,157 +627,75 @@
         <hr class="form-divider">
 
         <!-- Remote Logging Section -->
-        <h3 class="subsection-title">Remote Logging</h3>
-        <p class="section-description">
-          Configure remote logging to send extension logs to a Loki server for debugging and monitoring.
-          This is an opt-in feature for developers.
-        </p>
-
         <div class="form-group">
           <label class="voxpage-toggle">
-            <input type="checkbox" id="loggingEnabled" class="voxpage-toggle__input">
+            <input type="checkbox" id="loggingEnabled" class="voxpage-toggle__input" checked>
             <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Enable Remote Logging</span>
+            <span class="voxpage-toggle__text">Send diagnostic logs to help fix issues</span>
           </label>
+          <p class="form-hint">Logs are sent to our secure server and contain no personal data.</p>
         </div>
 
-        <div id="loggingConfigSection" class="logging-config-section" style="display: none;">
-          <div class="form-group">
-            <label for="loggingEndpoint" class="form-label">Loki Endpoint URL</label>
-            <input type="url" id="loggingEndpoint" class="voxpage-input"
-                   placeholder="https://loki.example.com/loki/api/v1/push">
-            <p class="form-hint">Must be HTTPS and end with /loki/api/v1/push</p>
-          </div>
+        <!-- Hidden elements for backwards compatibility with controller -->
+        <input type="hidden" id="loggingEndpoint" value="https://voxpage-logs.home301server.com.br">
+        <input type="hidden" id="loggingAuthType" value="none">
+        <input type="hidden" id="loggingUsername" value="">
+        <input type="hidden" id="loggingPassword" value="">
+        <input type="hidden" id="loggingBearerToken" value="">
+        <input type="hidden" id="loggingCfClientId" value="">
+        <input type="hidden" id="loggingCfClientSecret" value="">
+        <input type="hidden" id="loggingLogLevel" value="warn">
+        <div id="loggingConfigSection" style="display: none;"></div>
+        <div id="basicAuthFields" style="display: none;"></div>
+        <div id="bearerAuthFields" style="display: none;"></div>
+        <div id="cloudflareAuthFields" style="display: none;"></div>
+        <button id="testLoggingConnection" type="button" style="display: none;"></button>
+        <span id="loggingTestStatus" style="display: none;"></span>
 
-          <div class="form-group">
-            <label for="loggingAuthType" class="form-label">Authentication Type</label>
-            <select id="loggingAuthType" class="voxpage-select">
-              <option value="none">No Authentication</option>
-              <option value="basic">Basic Auth (Username/Password)</option>
-              <option value="bearer">Bearer Token</option>
-              <option value="cloudflare">Cloudflare Access</option>
-            </select>
-          </div>
-
-          <!-- Basic Auth fields -->
-          <div id="basicAuthFields" class="auth-fields" style="display: none;">
-            <div class="form-group">
-              <label for="loggingUsername" class="form-label">Username</label>
-              <input type="text" id="loggingUsername" class="voxpage-input" placeholder="Username">
-            </div>
-            <div class="form-group">
-              <label for="loggingPassword" class="form-label">Password</label>
-              <div class="voxpage-input-wrapper">
-                <input type="password" id="loggingPassword" class="voxpage-input" placeholder="Password">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingPassword">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bearer Token field -->
-          <div id="bearerAuthFields" class="auth-fields" style="display: none;">
-            <div class="form-group">
-              <label for="loggingBearerToken" class="form-label">Bearer Token</label>
-              <div class="voxpage-input-wrapper">
-                <input type="password" id="loggingBearerToken" class="voxpage-input" placeholder="Bearer token">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingBearerToken">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cloudflare Access fields -->
-          <div id="cloudflareAuthFields" class="auth-fields" style="display: none;">
-            <div class="form-group">
-              <label for="loggingCfClientId" class="form-label">CF-Access-Client-Id</label>
-              <input type="text" id="loggingCfClientId" class="voxpage-input" placeholder="Client ID">
-            </div>
-            <div class="form-group">
-              <label for="loggingCfClientSecret" class="form-label">CF-Access-Client-Secret</label>
-              <div class="voxpage-input-wrapper">
-                <input type="password" id="loggingCfClientSecret" class="voxpage-input" placeholder="Client Secret">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon toggle-visibility" data-target="loggingCfClientSecret">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <p class="form-hint">
-              Get your service token from <a href="https://one.dash.cloudflare.com/" target="_blank" rel="noopener">Cloudflare Zero Trust Dashboard</a> &rarr; Access &rarr; Service Auth
-            </p>
-          </div>
-
-          <div class="form-group">
-            <label for="loggingLogLevel" class="form-label">Minimum Log Level</label>
-            <select id="loggingLogLevel" class="voxpage-select">
-              <option value="debug">Debug (All logs)</option>
-              <option value="info">Info</option>
-              <option value="warn" selected>Warning (Recommended)</option>
-              <option value="error">Error only</option>
-            </select>
-            <p class="form-hint">Higher levels = less data sent. Use "Debug" for detailed troubleshooting.</p>
-          </div>
-
-          <div class="form-group logging-actions">
-            <button id="testLoggingConnection" class="voxpage-button voxpage-button--secondary">
+        <!-- Log Buffer Section -->
+        <div class="log-viewer-section" style="margin-top: var(--space-4);">
+          <h3 class="log-viewer-title">Log Buffer</h3>
+          <div class="log-viewer-actions">
+            <button id="viewLogsBtn" class="voxpage-button voxpage-button--secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
               </svg>
-              Test Connection
+              View Logs
             </button>
-            <span id="loggingTestStatus" class="logging-test-status"></span>
+            <button id="flushLogsBtn" class="voxpage-button voxpage-button--secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              Flush Now
+            </button>
+            <button id="clearLogsBtn" class="voxpage-button voxpage-button--ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Clear
+            </button>
+            <button id="exportLogsBtn" class="voxpage-button voxpage-button--ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export JSON
+            </button>
+            <button id="copyLogsBtn" class="voxpage-button voxpage-button--ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy Logs
+            </button>
           </div>
-
-          <!-- Log Viewer Section -->
-          <div class="log-viewer-section">
-            <h3 class="log-viewer-title">Log Buffer</h3>
-            <div class="log-viewer-actions">
-              <button id="viewLogsBtn" class="voxpage-button voxpage-button--secondary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                View Logs
-              </button>
-              <button id="flushLogsBtn" class="voxpage-button voxpage-button--secondary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="23 4 23 10 17 10"/>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                </svg>
-                Flush Now
-              </button>
-              <button id="clearLogsBtn" class="voxpage-button voxpage-button--ghost">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                </svg>
-                Clear
-              </button>
-              <button id="exportLogsBtn" class="voxpage-button voxpage-button--ghost">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Export JSON
-              </button>
-            </div>
-            <div id="logViewerStatus" class="log-viewer-status"></div>
-            <div id="logViewerContainer" class="log-viewer-container" style="display: none;">
-              <pre id="logViewerContent" class="log-viewer-content"></pre>
-            </div>
+          <div id="logViewerStatus" class="log-viewer-status"></div>
+          <div id="logViewerContainer" class="log-viewer-container" style="display: none;">
+            <pre id="logViewerContent" class="log-viewer-content"></pre>
           </div>
         </div>
         </div>

@@ -39,6 +39,13 @@ export {
   type ErrorCaptureOptions,
 } from './error-capture';
 
+// Console capture
+export {
+  installConsoleCapture,
+  createInternalLogger,
+  type ConsoleCaptureOptions,
+} from './console-capture';
+
 // Redaction
 export {
   redactSensitiveData,

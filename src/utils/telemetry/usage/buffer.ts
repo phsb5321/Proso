@@ -301,6 +301,49 @@ export class UsageBuffer {
   }
 
   /**
+   * Peek at buffered events without removing them.
+   * Returns up to `count` events, oldest first.
+   */
+  async peek(count: number): Promise<UsageEvent[]> {
+    if (!this.db || !this.initialized) {
+      return [];
+    }
+
+    const events: UsageEvent[] = [];
+
+    try {
+      const tx = this.db.transaction(EVENTS_STORE, 'readonly');
+      const store = tx.objectStore(EVENTS_STORE);
+      const index = store.index('storedAt');
+
+      let remaining = count;
+      const cursorRequest = index.openCursor();
+
+      await new Promise<void>((resolve, reject) => {
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor || remaining <= 0) {
+            resolve();
+            return;
+          }
+
+          const storedEvent = cursor.value as StoredEvent;
+          events.push(storedEvent.event);
+          remaining--;
+
+          cursor.continue();
+        };
+        cursorRequest.onerror = () => reject(cursorRequest.error);
+      });
+
+      return events;
+    } catch (error) {
+      console.error('[UsageBuffer] Failed to peek:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get buffer statistics.
    */
   async getStats(): Promise<BufferStats> {

@@ -843,3 +843,172 @@ export function stopPDFPageObserver(): void {
 export function isPDFPageObserverRunning(): boolean {
   return textLayerObserver !== null;
 }
+
+// ============================================================================
+// PDF Text Extraction from DOM
+// ============================================================================
+
+/**
+ * Result from extracting PDF text from the DOM
+ */
+export interface PDFDOMExtractionResult {
+  success: boolean;
+  paragraphs?: string[];
+  meta?: {
+    pageCount?: number;
+    title?: string;
+  };
+  error?: string;
+}
+
+/**
+ * Extract all text from Firefox's PDF.js viewer DOM.
+ * This extracts text from the rendered .textLayer spans, which is useful when:
+ * 1. The PDF is loaded via file:// URL (cannot be fetched by background script)
+ * 2. We want to extract exactly what the user sees (after PDF.js rendering)
+ *
+ * Note: This only extracts text from **currently rendered** pages.
+ * PDF.js uses virtualization, so only visible pages have their text layer rendered.
+ * For multi-page PDFs, you may need to scroll through or use PDF.js APIs.
+ *
+ * @returns Extraction result with paragraphs and metadata
+ */
+export function extractPDFTextFromDOM(): PDFDOMExtractionResult {
+  // Check if we're in a PDF viewer
+  if (!isPDFTextLayerAvailable()) {
+    return { success: false, error: 'Not a PDF viewer page' };
+  }
+
+  const paragraphs: string[] = [];
+  const textLayers = document.querySelectorAll('.textLayer');
+
+  if (textLayers.length === 0) {
+    return { success: false, error: 'No text layers found - PDF may still be loading' };
+  }
+
+  // Get page count from PDF.js viewer if available
+  let pageCount: number | undefined;
+  const pdfViewer = document.querySelector('#viewer.pdfViewer, .pdfViewer');
+  if (pdfViewer) {
+    const pages = pdfViewer.querySelectorAll('.page[data-page-number]');
+    pageCount = pages.length;
+  }
+
+  // Extract text from each rendered text layer (sorted by page number)
+  const sortedTextLayers = Array.from(textLayers).sort((a, b) => {
+    const pageA = a.closest('.page[data-page-number]');
+    const pageB = b.closest('.page[data-page-number]');
+    const numA = parseInt(pageA?.getAttribute('data-page-number') || '0', 10);
+    const numB = parseInt(pageB?.getAttribute('data-page-number') || '0', 10);
+    return numA - numB;
+  });
+
+  for (const textLayer of sortedTextLayers) {
+    const spans = textLayer.querySelectorAll('span');
+    let currentParagraph = '';
+
+    for (const span of Array.from(spans)) {
+      const text = span.textContent || '';
+      if (!text.trim()) continue;
+
+      // Check for line break indicators
+      // PDF.js typically creates new spans for new lines
+      // We use heuristics to detect paragraph breaks:
+      // 1. Large vertical gap (handled by span positioning)
+      // 2. Text ends with sentence-ending punctuation
+      // 3. Span starts at a new vertical position
+
+      currentParagraph += text + ' ';
+
+      // Check if this looks like end of a paragraph
+      const trimmedParagraph = currentParagraph.trim();
+      if (trimmedParagraph.match(/[.!?]$/) && trimmedParagraph.length > 50) {
+        paragraphs.push(trimmedParagraph);
+        currentParagraph = '';
+      }
+    }
+
+    // Don't forget remaining text
+    if (currentParagraph.trim()) {
+      paragraphs.push(currentParagraph.trim());
+    }
+  }
+
+  // Try to get title from document or PDF.js
+  let title: string | undefined;
+  const titleElement = document.querySelector('title');
+  if (titleElement?.textContent) {
+    // Firefox PDF viewer typically shows: "filename.pdf - Mozilla Firefox"
+    // Or just the filename
+    const titleText = titleElement.textContent;
+    const pdfNameMatch = titleText.match(/^(.+?)(?:\s*-\s*Mozilla Firefox)?$/i);
+    if (pdfNameMatch) {
+      title = pdfNameMatch[1].trim();
+    }
+  }
+
+  if (paragraphs.length === 0) {
+    return {
+      success: false,
+      error: 'No text content found in PDF text layers',
+    };
+  }
+
+  console.log(
+    `[VoxPage:PDF] Extracted ${paragraphs.length} paragraphs from DOM (${textLayers.length} text layers)`,
+  );
+
+  return {
+    success: true,
+    paragraphs,
+    meta: {
+      pageCount,
+      title,
+    },
+  };
+}
+
+/**
+ * Wait for PDF text layers to be rendered, then extract text.
+ * This is useful for PDFs that are still loading.
+ *
+ * @param maxWaitMs - Maximum time to wait for text layers (default 10s)
+ * @returns Extraction result
+ */
+export async function waitAndExtractPDFText(maxWaitMs = 10000): Promise<PDFDOMExtractionResult> {
+  const startTime = Date.now();
+  const checkInterval = 500;
+
+  // First, try immediate extraction
+  const immediateResult = extractPDFTextFromDOM();
+  if (
+    immediateResult.success &&
+    immediateResult.paragraphs &&
+    immediateResult.paragraphs.length > 0
+  ) {
+    return immediateResult;
+  }
+
+  // Wait for text layers to appear
+  return new Promise((resolve) => {
+    const check = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= maxWaitMs) {
+        resolve({
+          success: false,
+          error: `Timeout waiting for PDF text layers after ${maxWaitMs}ms`,
+        });
+        return;
+      }
+
+      const result = extractPDFTextFromDOM();
+      if (result.success && result.paragraphs && result.paragraphs.length > 0) {
+        resolve(result);
+      } else {
+        setTimeout(check, checkInterval);
+      }
+    };
+
+    setTimeout(check, checkInterval);
+  });
+}

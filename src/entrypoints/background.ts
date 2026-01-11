@@ -48,7 +48,7 @@ import { unknownMessageResponse } from '../utils/messaging/error-response';
 import { logUnknownMessage } from '../utils/telemetry';
 
 // Usage observability (043-usage-observability-loki)
-import { usageTracker, installErrorCapture } from '../utils/telemetry/usage';
+import { usageTracker, installErrorCapture, installConsoleCapture } from '../utils/telemetry/usage';
 
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
@@ -2406,9 +2406,175 @@ const messageHandlers: Record<string, MessageHandler> = {
         requiresPassword?: boolean;
       }
 
-      // Extract PDF text using native PDF.js (Firefox has DOM access in background)
-      console.log('[Background] Extracting PDF via native PDF.js...');
-      const pdfResult = await extractPDFText(url);
+      let pdfResult: PDFExtractionResult;
+
+      // Check if this is a file:// URL - these cannot be fetched by PDF.js in background
+      // We need to extract from the content script's DOM instead
+      // Note: Firefox PDF viewer runs at resource://pdf.js/web/viewer.html?file=<encoded-url>
+      const isFileUrl = url.startsWith('file://');
+      const tabUrl = tab.url || '';
+      const isResourcePdfViewer = tabUrl.startsWith('resource://pdf.js/');
+
+      console.log('[Background] PDF URL detection:', {
+        pdfUrl: url,
+        tabUrl: tabUrl,
+        isFileUrl,
+        isResourcePdfViewer,
+      });
+
+      if (isFileUrl || isResourcePdfViewer) {
+        console.log('[Background] Detected local PDF, attempting content script extraction...');
+
+        // Firefox's PDF viewer runs at resource://pdf.js/ which is a privileged URL
+        // Extensions cannot inject scripts there. We need to try a workaround.
+
+        // Try to inject content script - this may fail on resource:// URLs
+        let injectionSucceeded = false;
+        try {
+          // Try MV2 API first (more compatible with Firefox)
+          await browser.tabs.executeScript(tab.id, {
+            file: 'content-scripts/content.js',
+            runAt: 'document_idle',
+          });
+          console.log('[Background] Content script injected via tabs.executeScript');
+          injectionSucceeded = true;
+        } catch (injectErr) {
+          console.warn('[Background] tabs.executeScript failed:', injectErr);
+          // Try scripting API as fallback
+          try {
+            await browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content-scripts/content.js'],
+            });
+            console.log('[Background] Content script injected via scripting.executeScript');
+            injectionSucceeded = true;
+          } catch (scriptingErr) {
+            console.error('[Background] All script injection methods failed:', scriptingErr);
+            // Cannot inject into resource:// URLs - this is a Firefox security restriction
+          }
+        }
+
+        if (!injectionSucceeded) {
+          // Fallback: Try to read the file:// URL directly using fetch
+          // Firefox extensions may have file:// access in certain configurations
+          console.log('[Background] Script injection failed, trying direct file read...');
+
+          try {
+            // Try fetch first (may work in some Firefox configurations)
+            console.log('[Background] Attempting fetch() for file URL...');
+            const response = await fetch(url);
+            if (response.ok) {
+              const arrayBuffer = await response.arrayBuffer();
+              console.log('[Background] File fetch succeeded, size:', arrayBuffer.byteLength);
+
+              // Now extract text using PDF.js with the arrayBuffer
+              await initPDFJS();
+              if (pdfjsModule) {
+                const loadingTask = pdfjsModule.getDocument({ data: arrayBuffer });
+                const pdf = await loadingTask.promise;
+
+                const paragraphs: string[] = [];
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                  const page = await pdf.getPage(pageNum);
+                  const textContent = await page.getTextContent();
+                  let currentParagraph = '';
+
+                  for (const item of textContent.items) {
+                    if ('str' in item && typeof item.str === 'string') {
+                      const text = item.str;
+                      if (text.trim()) {
+                        currentParagraph += text + ' ';
+                      }
+                      if ('hasEOL' in item && item.hasEOL && currentParagraph.trim()) {
+                        const trimmed = currentParagraph.trim();
+                        if (trimmed.match(/[.!?]$/)) {
+                          paragraphs.push(trimmed);
+                          currentParagraph = '';
+                        }
+                      }
+                    }
+                  }
+                  if (currentParagraph.trim()) {
+                    paragraphs.push(currentParagraph.trim());
+                  }
+                  page.cleanup();
+                }
+
+                await pdf.cleanup();
+                await pdf.destroy();
+
+                pdfResult = {
+                  success: true,
+                  paragraphs,
+                  meta: { pageCount: pdf.numPages },
+                };
+                console.log(
+                  '[Background] PDF extracted via fetch+arrayBuffer:',
+                  paragraphs.length,
+                  'paragraphs',
+                );
+              } else {
+                pdfResult = { success: false, error: 'PDF.js not initialized' };
+              }
+            } else {
+              throw new Error(`Fetch failed with status ${response.status}`);
+            }
+          } catch (fetchErr) {
+            console.error('[Background] Direct file fetch failed:', fetchErr);
+            // Last resort: try the original PDF.js URL-based extraction
+            try {
+              pdfResult = await extractPDFText(url);
+              if (!pdfResult.success) {
+                // Provide a helpful error message
+                pdfResult = {
+                  success: false,
+                  error:
+                    'Cannot read local PDF files. Firefox security prevents extensions from accessing file:// URLs in the PDF viewer. Try: (1) Drag and drop the PDF into a browser tab, or (2) Use a local web server to serve the PDF.',
+                };
+              }
+            } catch (extractErr) {
+              pdfResult = {
+                success: false,
+                error:
+                  'Cannot read local PDF files. Firefox security prevents extensions from accessing file:// URLs in the PDF viewer. Try: (1) Drag and drop the PDF into a browser tab, or (2) Use a local web server to serve the PDF.',
+              };
+            }
+          }
+        } else {
+          // Small delay to let the content script initialize
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Send message to content script to extract PDF text from Firefox's PDF.js viewer
+          try {
+            const domResult = (await browser.tabs.sendMessage(tab.id, {
+              action: 'extractPDFFromDOM',
+            })) as PDFExtractionResult;
+
+            if (domResult && domResult.success) {
+              pdfResult = domResult;
+              console.log('[Background] PDF DOM extraction succeeded:', {
+                paragraphCount: domResult.paragraphs?.length || 0,
+              });
+            } else {
+              pdfResult = {
+                success: false,
+                error: domResult?.error || 'Failed to extract PDF from DOM',
+              };
+            }
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            console.error('[Background] Content script PDF extraction failed:', errorMsg);
+            pdfResult = {
+              success: false,
+              error: `Content script extraction failed: ${errorMsg}`,
+            };
+          }
+        }
+      } else {
+        // For http(s):// URLs, use native PDF.js extraction
+        console.log('[Background] Extracting PDF via native PDF.js...');
+        pdfResult = await extractPDFText(url);
+      }
 
       // Check if extraction succeeded
       if (!pdfResult.success || !pdfResult.paragraphs?.length) {
@@ -2522,6 +2688,80 @@ const messageHandlers: Record<string, MessageHandler> = {
     return { success: true };
   },
 
+  /**
+   * Get buffered logs for display in the options page.
+   * Called from options page "View Logs" button.
+   */
+  getLogs: async () => {
+    try {
+      if (!usageTracker.isEnabled() || !usageTracker.isInitialized()) {
+        return { success: false, error: 'Telemetry not initialized' };
+      }
+
+      const events = await usageTracker.getBufferedLogs(100);
+      const stats = await usageTracker.getStats();
+
+      // Transform events to log viewer format
+      const logs = events.map((event) => ({
+        date: event.ts,
+        level:
+          event.event.startsWith('error') || event.event.includes('.error')
+            ? 'error'
+            : event.event.startsWith('console.warn')
+              ? 'warn'
+              : event.event.startsWith('console.debug')
+                ? 'debug'
+                : 'info',
+        component: event.entrypoint || 'unknown',
+        message: event.msg || event.event,
+        metadata: event.data,
+      }));
+
+      return {
+        success: true,
+        logs,
+        status: {
+          bufferCount: stats.buffer.eventCount,
+          bufferBytes: stats.buffer.totalBytes,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Get logs failed:', error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  /**
+   * Flush telemetry logs to the gateway.
+   * Called from options page "Flush Now" button.
+   */
+  flushLogs: async () => {
+    try {
+      if (!usageTracker.isEnabled() || !usageTracker.isInitialized()) {
+        return { success: false, error: 'Telemetry not initialized' };
+      }
+
+      await usageTracker.flush();
+      const stats = await usageTracker.getStats();
+
+      return {
+        success: true,
+        stats: {
+          eventsSent: stats.shipper.totalEventsSent,
+          eventsFailed: stats.shipper.totalEventsFailed,
+          bufferCount: stats.buffer.eventCount,
+          circuitOpen: stats.shipper.circuitOpen,
+          lastError: stats.shipper.lastError,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Flush logs failed:', error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
   // Roadmap Feature Handlers - These are domain handlers that haven't been
   // migrated to hexagonal yet. They use their own modular pattern.
   // Export handlers
@@ -2595,8 +2835,10 @@ export default defineBackground(() => {
 
       // Use default gateway if not configured
       const gatewayUrl =
-        (result.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br';
-      const gatewayToken = (result.telemetryGatewayToken as string) || '';
+        (result.telemetryGatewayUrl as string) ||
+        'https://voxpage-logs.home301server.com.br/ingest';
+      const gatewayToken =
+        (result.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
 
       await usageTracker.initialize({
         gatewayUrl,
@@ -2608,6 +2850,15 @@ export default defineBackground(() => {
 
       // Install global error capture
       installErrorCapture(usageTracker);
+
+      // Install console capture to forward console logs to telemetry
+      installConsoleCapture(usageTracker, {
+        captureLog: true,
+        captureDebug: true,
+        captureInfo: true,
+        captureWarn: true,
+        captureError: true,
+      });
 
       // Track background start event
       usageTracker.track('background.started');

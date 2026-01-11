@@ -73,7 +73,7 @@ function detectEntrypoint(): Entrypoint {
   }
 
   // Check if we're in a background page (Firefox event pages)
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof document !== 'undefined' && window.location?.href) {
     const url = window.location.href;
 
     if (url.includes('background')) {

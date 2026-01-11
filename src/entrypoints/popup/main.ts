@@ -430,6 +430,13 @@ async function fetchSettings(): Promise<void> {
  * Supports both web page and PDF playback (T033: PDF reading support)
  */
 async function handlePlayPause(): Promise<void> {
+  // Immediate tracking to verify button click is received
+  usageTracker.track('popup.play_button_clicked', {
+    status: currentState.status,
+    isPDFPage,
+    hasPDFUrl: !!currentPDFUrl,
+  });
+
   console.log('[Popup] handlePlayPause called, state:', {
     status: currentState.status,
     isPDFPage,
@@ -454,26 +461,48 @@ async function handlePlayPause(): Promise<void> {
       // T033: Check if we're on a PDF page and use PDF-specific playback
       if (isPDFPage && currentPDFUrl) {
         console.log('[Popup] Starting PDF playback for:', currentPDFUrl);
+        usageTracker.track('popup.pdf_playback_starting', {
+          url: currentPDFUrl?.substring(0, 100),
+        });
         updateStatus('loading');
-        const response = await sendMessage<{ success: boolean; error?: string }>(
-          'startPDFPlayback',
-          {
-            url: currentPDFUrl,
-          },
-        );
-        console.log('[Popup] PDF playback response:', response);
-        if (!response?.success) {
-          console.error('[Popup] PDF playback failed:', response?.error);
+
+        try {
+          const response = await sendMessage<{ success: boolean; error?: string }>(
+            'startPDFPlayback',
+            {
+              url: currentPDFUrl,
+            },
+          );
+          console.log('[Popup] PDF playback response:', response);
+          usageTracker.track('popup.pdf_playback_response', {
+            success: response?.success,
+            error: response?.error,
+          });
+          if (!response?.success) {
+            console.error('[Popup] PDF playback failed:', response?.error);
+            usageTracker.track('popup.pdf_playback_failed', { error: response?.error });
+            updateStatus('stopped');
+          }
+        } catch (sendError) {
+          const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
+          usageTracker.track('popup.pdf_playback_send_error', { error: errorMsg });
+          console.error('[Popup] PDF sendMessage error:', sendError);
           updateStatus('stopped');
         }
       } else {
         // Standard web page playback
         console.log('[Popup] Starting standard web page playback');
+        usageTracker.track('popup.web_playback_starting');
         await sendMessage('startPlayback');
         updateStatus('loading');
       }
     }
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    usageTracker.track('popup.play_pause_error', {
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     console.error('[Popup] Play/pause error:', error);
   }
 }
@@ -1370,9 +1399,16 @@ async function fetchCostEstimate(): Promise<void> {
 async function detectPDF(): Promise<void> {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    console.log('[Popup] detectPDF - Tab info:', {
+      hasTab: !!tab,
+      url: tab?.url?.substring(0, 100),
+      title: tab?.title,
+    });
+
     if (!tab?.url) {
       isPDFPage = false;
       currentPDFUrl = null;
+      console.log('[Popup] detectPDF - No tab URL');
       return;
     }
 
@@ -1390,11 +1426,18 @@ async function detectPDF(): Promise<void> {
       // Direct blob PDFs
       (url.startsWith('blob:') && tab.title?.toLowerCase().includes('.pdf'));
 
+    console.log('[Popup] detectPDF - Check result:', {
+      isPDF,
+      endsWithPdf: url.endsWith('.pdf'),
+      includesPdfViewer: url.includes('pdf') && url.includes('viewer'),
+    });
+
     if (isPDF) {
       isPDFPage = true;
       currentPDFUrl = tab.url; // Use original URL, not lowercased
       elements.statusText.textContent = 'PDF Ready';
       console.log('[Popup] PDF detected:', currentPDFUrl);
+      usageTracker.track('popup.pdf_detected', { url: currentPDFUrl?.substring(0, 100) });
     } else {
       isPDFPage = false;
       currentPDFUrl = null;
@@ -1512,13 +1555,10 @@ async function initTelemetry(): Promise<void> {
     }
 
     // Only initialize if gateway is configured
-    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
-    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
-
-    if (!gatewayUrl || !gatewayToken) {
-      console.log('[Popup] Telemetry not configured');
-      return;
-    }
+    const gatewayUrl =
+      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
+    const gatewayToken =
+      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
 
     await usageTracker.initialize({
       gatewayUrl,

@@ -14,7 +14,7 @@ Events follow the pattern: `category.action_detail`
 
 | Group | Description | Labels |
 |-------|-------------|--------|
-| `system` | Extension lifecycle events | `background`, `popup`, `content`, `settings` |
+| `system` | Extension lifecycle events | `background`, `popup`, `content`, `settings`, `console` |
 | `user` | User-initiated actions | `playback`, `paragraph`, `selection` |
 | `playback` | Audio playback pipeline | `tts`, `audio`, `cache`, `highlight` |
 | `pdf` | PDF processing | `pdf` |
@@ -189,6 +189,27 @@ Events follow the pattern: `category.action_detail`
 | `error.pdf_processing` | error | PDF processing error | `message` |
 | `error.cache_operation` | error | Cache operation error | `operation`, `message` |
 | `error.network` | error | Network error | `message` |
+
+## Console Capture Events
+
+These events are automatically captured from `console.*` calls for remote debugging.
+Console capture must be explicitly enabled via `installConsoleCapture()`.
+
+| Event | Level | Description | Data Fields |
+|-------|-------|-------------|-------------|
+| `console.log` | info | console.log() call captured | `message`, `argCount` |
+| `console.debug` | debug | console.debug() call captured | `message`, `argCount` |
+| `console.info` | info | console.info() call captured | `message`, `argCount` |
+| `console.warn` | warn | console.warn() call captured | `message`, `argCount` |
+| `console.error` | error | console.error() call captured | `message`, `argCount` |
+
+### Console Capture Features
+
+- **Rate limiting**: Max 100 messages per minute to prevent log flooding
+- **Truncation**: Messages longer than 2000 characters are truncated
+- **Self-filtering**: VoxPage internal logs (`[VoxPage]` prefix) are not re-captured
+- **Passthrough**: Original console behavior is preserved by default
+- **Structured data**: Object arguments are extracted as structured data
 
 ## Data Field Reference
 

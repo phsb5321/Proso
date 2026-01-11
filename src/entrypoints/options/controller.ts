@@ -83,6 +83,7 @@ interface OptionsElements {
   flushLogsBtn: HTMLButtonElement;
   clearLogsBtn: HTMLButtonElement;
   exportLogsBtn: HTMLButtonElement;
+  copyLogsBtn: HTMLButtonElement;
   logViewerStatus: HTMLElement;
   logViewerContainer: HTMLElement;
   logViewerContent: HTMLElement;
@@ -165,6 +166,7 @@ function getElements(): OptionsElements {
     flushLogsBtn: getElement<HTMLButtonElement>('flushLogsBtn'),
     clearLogsBtn: getElement<HTMLButtonElement>('clearLogsBtn'),
     exportLogsBtn: getElement<HTMLButtonElement>('exportLogsBtn'),
+    copyLogsBtn: getElement<HTMLButtonElement>('copyLogsBtn'),
     logViewerStatus: getElement<HTMLElement>('logViewerStatus'),
     logViewerContainer: getElement<HTMLElement>('logViewerContainer'),
     logViewerContent: getElement<HTMLElement>('logViewerContent'),
@@ -1116,25 +1118,14 @@ async function loadLoggingConfig(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get('loggingConfig');
+    const result = await browser.storage.local.get('voxpage_logging_config');
     const config: LoggingConfig = {
       ...loggingDefaults,
-      ...((result.loggingConfig as Partial<LoggingConfig>) || {}),
+      ...((result.voxpage_logging_config as Partial<LoggingConfig>) || {}),
     };
 
+    // Only the toggle is visible - other settings use defaults
     elements.loggingEnabled.checked = config.enabled;
-    elements.loggingEndpoint.value = config.endpoint || '';
-    elements.loggingAuthType.value = config.authType || 'none';
-    elements.loggingUsername.value = config.username || '';
-    elements.loggingPassword.value = config.password || '';
-    elements.loggingBearerToken.value = config.bearerToken || '';
-    elements.loggingCfClientId.value = config.cfAccessClientId || '';
-    elements.loggingCfClientSecret.value = config.cfAccessClientSecret || '';
-    elements.loggingLogLevel.value = config.logLevel || 'warn';
-
-    // Show/hide config section based on enabled state
-    updateLoggingConfigVisibility();
-    updateAuthFieldsVisibility();
   } catch (error) {
     console.error('Error loading logging config:', error);
   }
@@ -1142,120 +1133,57 @@ async function loadLoggingConfig(): Promise<void> {
 
 /**
  * Setup logging-specific event listeners
+ * Simplified: only toggle and log viewer buttons are active
  */
 function setupLoggingEventListeners(): void {
   if (!elements) return;
 
-  // Toggle logging config section visibility
+  // Auto-save when toggle changes
   elements.loggingEnabled.addEventListener('change', () => {
-    updateLoggingConfigVisibility();
+    if (loggingSaveTimeout) {
+      clearTimeout(loggingSaveTimeout);
+    }
+    loggingSaveTimeout = setTimeout(saveLoggingConfig, 500);
   });
-
-  // Toggle auth fields visibility based on auth type
-  elements.loggingAuthType.addEventListener('change', () => {
-    updateAuthFieldsVisibility();
-  });
-
-  // Test connection button
-  elements.testLoggingConnection.addEventListener('click', testLoggingConnection);
 
   // Log viewer buttons
   elements.viewLogsBtn.addEventListener('click', viewLogs);
   elements.flushLogsBtn.addEventListener('click', flushLogs);
   elements.clearLogsBtn.addEventListener('click', clearLogs);
   elements.exportLogsBtn.addEventListener('click', exportLogs);
-
-  // Auto-save logging config on change
-  const loggingInputs: HTMLElement[] = [
-    elements.loggingEnabled,
-    elements.loggingEndpoint,
-    elements.loggingAuthType,
-    elements.loggingUsername,
-    elements.loggingPassword,
-    elements.loggingBearerToken,
-    elements.loggingCfClientId,
-    elements.loggingCfClientSecret,
-    elements.loggingLogLevel,
-  ];
-
-  loggingInputs.forEach((input) => {
-    input.addEventListener('change', () => {
-      if (loggingSaveTimeout) {
-        clearTimeout(loggingSaveTimeout);
-      }
-      loggingSaveTimeout = setTimeout(saveLoggingConfig, 500);
-    });
-  });
+  elements.copyLogsBtn.addEventListener('click', copyLogs);
 }
 
 /**
  * Update visibility of logging config section
+ * NOTE: Config section is now hidden - using defaults
  */
 function updateLoggingConfigVisibility(): void {
-  if (!elements) return;
-
-  elements.loggingConfigSection.style.display = elements.loggingEnabled.checked ? 'block' : 'none';
+  // No-op: config section removed, using defaults
 }
 
 /**
  * Update visibility of auth fields based on selected auth type
+ * NOTE: Auth fields are now hidden - using defaults
  */
 function updateAuthFieldsVisibility(): void {
-  if (!elements) return;
-
-  const authType = elements.loggingAuthType.value;
-
-  // Hide all auth fields first
-  elements.basicAuthFields.style.display = 'none';
-  elements.bearerAuthFields.style.display = 'none';
-  elements.cloudflareAuthFields.style.display = 'none';
-
-  // Show relevant auth fields
-  switch (authType) {
-    case 'basic':
-      elements.basicAuthFields.style.display = 'block';
-      break;
-    case 'bearer':
-      elements.bearerAuthFields.style.display = 'block';
-      break;
-    case 'cloudflare':
-      elements.cloudflareAuthFields.style.display = 'block';
-      break;
-  }
+  // No-op: auth fields removed, using defaults
 }
 
 /**
  * Save logging configuration to storage
+ * Uses defaults for all settings except enabled toggle
  */
 async function saveLoggingConfig(): Promise<void> {
   if (!elements) return;
 
   try {
     const config: LoggingConfig = {
+      ...loggingDefaults,
       enabled: elements.loggingEnabled.checked,
-      endpoint: elements.loggingEndpoint.value.trim() || null,
-      authType: elements.loggingAuthType.value as LoggingConfig['authType'],
-      username: elements.loggingUsername.value.trim() || null,
-      password: elements.loggingPassword.value || null,
-      bearerToken: elements.loggingBearerToken.value || null,
-      cfAccessClientId: elements.loggingCfClientId.value.trim() || null,
-      cfAccessClientSecret: elements.loggingCfClientSecret.value || null,
-      logLevel: elements.loggingLogLevel.value as LoggingConfig['logLevel'],
-      batchIntervalMs: loggingDefaults.batchIntervalMs,
-      maxBatchSize: loggingDefaults.maxBatchSize,
-      maxBufferBytes: loggingDefaults.maxBufferBytes,
     };
 
-    // Validate endpoint URL if enabled
-    if (config.enabled && config.endpoint) {
-      const validation = validateLoggingEndpoint(config.endpoint);
-      if (!validation.valid) {
-        showLoggingStatus(validation.error || 'Invalid endpoint', 'error');
-        return;
-      }
-    }
-
-    await browser.storage.local.set({ loggingConfig: config });
+    await browser.storage.local.set({ voxpage_logging_config: config });
     showSaveStatus('Settings saved!');
   } catch (error) {
     console.error('Error saving logging config:', error);
@@ -1274,8 +1202,11 @@ function validateLoggingEndpoint(url: string): EndpointValidation {
       return { valid: false, error: 'Endpoint must use HTTPS' };
     }
 
-    if (!parsed.pathname.endsWith('/loki/api/v1/push')) {
-      return { valid: false, error: 'Endpoint must end with /loki/api/v1/push' };
+    // Allow both direct Loki endpoints and VoxPage gateway
+    const validPaths = ['/loki/api/v1/push', '/ingest', ''];
+    const pathValid = validPaths.some((p) => parsed.pathname === p || parsed.pathname.endsWith(p));
+    if (!pathValid && !url.includes('voxpage-logs')) {
+      return { valid: false, error: 'Invalid endpoint path' };
     }
 
     return { valid: true };
@@ -1414,7 +1345,13 @@ async function flushLogs(): Promise<void> {
       // Refresh the view
       await viewLogs();
     } else {
-      updateLogViewerStatus(`Flush failed: ${response?.error || 'Unknown error'}`);
+      // Handle error which could be a string, object, or undefined
+      let errorMsg = 'Unknown error';
+      if (response?.error) {
+        errorMsg =
+          typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+      }
+      updateLogViewerStatus(`Flush failed: ${errorMsg}`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1484,6 +1421,37 @@ async function exportLogs(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     updateLogViewerStatus(`Error: ${errorMessage}`);
+  }
+}
+
+/**
+ * Copy logs to clipboard as formatted text
+ */
+async function copyLogs(): Promise<void> {
+  try {
+    const response = (await browser.runtime.sendMessage({
+      action: 'getLogs',
+    })) as LogViewerResponse;
+
+    if (response && response.logs && response.logs.length > 0) {
+      const { logs } = response;
+
+      // Format logs as readable text
+      const logText = logs
+        .map((log) => {
+          const meta = log.metadata ? ` ${JSON.stringify(log.metadata)}` : '';
+          return `[${log.date}] [${log.level.toUpperCase()}] [${log.component}] ${log.message}${meta}`;
+        })
+        .join('\n');
+
+      await navigator.clipboard.writeText(logText);
+      updateLogViewerStatus(`Copied ${logs.length} logs to clipboard`);
+    } else {
+      updateLogViewerStatus('No logs to copy');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    updateLogViewerStatus(`Error copying logs: ${errorMessage}`);
   }
 }
 
@@ -1767,13 +1735,10 @@ async function initTelemetry(): Promise<void> {
     }
 
     // Only initialize if gateway is configured
-    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
-    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
-
-    if (!gatewayUrl || !gatewayToken) {
-      console.log('[Settings] Telemetry not configured');
-      return;
-    }
+    const gatewayUrl =
+      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
+    const gatewayToken =
+      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
 
     await usageTracker.initialize({
       gatewayUrl,

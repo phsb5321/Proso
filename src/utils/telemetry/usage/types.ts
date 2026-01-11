@@ -233,6 +233,13 @@ export const UsageEventTypes = {
   'error.pdf_processing': true,
   'error.cache_operation': true,
   'error.network': true,
+
+  // Console capture events (for remote debugging)
+  'console.log': true,
+  'console.debug': true,
+  'console.info': true,
+  'console.warn': true,
+  'console.error': true,
 } as const;
 
 export type UsageEventType = keyof typeof UsageEventTypes;
@@ -712,6 +719,7 @@ export function getEventGroup(eventType: string): EventGroup {
     case 'popup':
     case 'content':
     case 'settings':
+    case 'console':
       return EventGroup.SYSTEM;
     case 'playback':
     case 'paragraph':

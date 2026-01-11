@@ -367,6 +367,14 @@ export class UsageTracker {
   }
 
   /**
+   * Peek at buffered logs without removing them.
+   * Returns up to `count` events for display in the UI.
+   */
+  async getBufferedLogs(count = 100): Promise<UsageEvent[]> {
+    return this.buffer.peek(count);
+  }
+
+  /**
    * Start periodic flush interval.
    */
   private startPeriodicFlush(): void {

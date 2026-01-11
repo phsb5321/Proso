@@ -29,6 +29,7 @@ import {
   highlightPDFParagraph,
   clearPDFHighlights,
   scrollToPDFHighlight,
+  waitAndExtractPDFText,
 } from '../utils/content/pdf-highlight';
 import { usageTracker, hashUrlSync } from '../utils/telemetry/usage';
 
@@ -1226,6 +1227,22 @@ export default defineContentScript({
         case 'extractLanguage': {
           sendLanguageDetectionRequest();
           break;
+        }
+
+        // ====================================================================
+        // PDF Text Extraction from DOM (for file:// URLs)
+        // ====================================================================
+        case 'extractPDFFromDOM': {
+          console.log('VoxPage: Extracting PDF text from DOM');
+          // Use the async version that waits for text layers to render
+          return waitAndExtractPDFText(10000).then((result) => {
+            console.log('VoxPage: PDF DOM extraction result:', {
+              success: result.success,
+              paragraphCount: result.paragraphs?.length || 0,
+              error: result.error,
+            });
+            return result;
+          });
         }
 
         // ====================================================================

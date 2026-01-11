@@ -21,13 +21,19 @@ Use the scripts in `scripts/loki/` for common queries:
 
 ### Configuration
 
-Set environment variables for your Loki instance:
+Set environment variables for the production Loki instance:
 
 ```bash
-export LOKI_URL="https://loki.your-domain.com"
-export LOKI_USER="admin"
-export LOKI_PASSWORD="your-password"
+export LOKI_URL="https://loki.home301server.com.br"
 ```
+
+For local development:
+
+```bash
+export LOKI_URL="http://localhost:3100"
+```
+
+See also: `.claude/skills/voxpage-loki-logs.md` for the Claude skill reference.
 
 ## LogQL Query Basics
 
@@ -188,7 +194,7 @@ count(count by (sessionId) ({app="voxpage"} | json))
 
 2. Check gateway health endpoint:
    ```bash
-   curl https://your-gateway.com/health
+   curl https://voxpage-logs.home301server.com.br/health
    ```
 
 3. Look for validation errors:

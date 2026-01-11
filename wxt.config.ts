@@ -21,6 +21,7 @@ export default defineConfig({
       "activeTab",
       "tabs", // Tab management and URL tracking
       "contextMenus", // Right-click menu integration
+      "scripting", // For injecting content scripts into PDF viewer
       // Note: No "offscreen" permission needed - Firefox background has DOM access
     ],
     host_permissions: [
@@ -28,6 +29,7 @@ export default defineConfig({
       "https://api.elevenlabs.io/*",
       "https://api.cartesia.ai/*",
       "https://api.groq.com/*",
+      "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
     ],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
