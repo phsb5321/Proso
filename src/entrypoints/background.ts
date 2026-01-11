@@ -47,6 +47,9 @@ import { unknownMessageResponse } from '../utils/messaging/error-response';
 // Unknown message telemetry (041-firefox-first-pivot T1.3)
 import { logUnknownMessage } from '../utils/telemetry';
 
+// Usage observability (043-usage-observability-loki)
+import { usageTracker, installErrorCapture } from '../utils/telemetry/usage';
+
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
 // ============================================
@@ -2572,6 +2575,49 @@ async function notifyPopup(): Promise<void> {
 
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
+
+  // Initialize usage observability (043-usage-observability-loki)
+  // Gateway URL and token are loaded from storage or environment
+  const initUsageTracker = async () => {
+    try {
+      // Get telemetry config from storage (set via options page)
+      const result = await browser.storage.local.get([
+        'telemetryEnabled',
+        'telemetryGatewayUrl',
+        'telemetryGatewayToken',
+      ]);
+
+      // Only initialize if telemetry is enabled
+      if (result.telemetryEnabled === false) {
+        console.log('[Background] Usage telemetry disabled by user');
+        return;
+      }
+
+      // Use default gateway if not configured
+      const gatewayUrl =
+        (result.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br';
+      const gatewayToken = (result.telemetryGatewayToken as string) || '';
+
+      await usageTracker.initialize({
+        gatewayUrl,
+        gatewayToken,
+        entrypoint: 'background',
+        enabled: true,
+        debugMode: process.env.NODE_ENV !== 'production',
+      });
+
+      // Install global error capture
+      installErrorCapture(usageTracker);
+
+      // Track background start event
+      usageTracker.track('background.started');
+
+      console.log('[Background] Usage telemetry initialized');
+    } catch (error) {
+      console.warn('[Background] Failed to initialize usage telemetry:', error);
+    }
+  };
+  initUsageTracker();
 
   // Initialize hexagonal architecture (034-hexagonal-architecture)
   initHexagonalArchitecture()
