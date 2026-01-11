@@ -12,6 +12,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { usageTracker } from '../../utils/telemetry/usage';
 
 // ============================================
 // Types
@@ -437,16 +438,19 @@ async function handlePlayPause(): Promise<void> {
 
   try {
     if (currentState.status === 'playing') {
+      trackClick('playback.pause_clicked');
       await sendMessage('pausePlayback');
       updateStatus('paused');
       updatePlayPauseButton(false);
     } else if (currentState.status === 'paused') {
       // Resume from paused state
+      trackClick('playback.play_clicked', { resumed: true });
       await sendMessage('resumePlayback');
       updateStatus('playing');
       updatePlayPauseButton(true);
     } else {
       // Start fresh playback
+      trackClick('playback.play_clicked', { isPDF: isPDFPage });
       // T033: Check if we're on a PDF page and use PDF-specific playback
       if (isPDFPage && currentPDFUrl) {
         console.log('[Popup] Starting PDF playback for:', currentPDFUrl);
@@ -478,6 +482,7 @@ async function handlePlayPause(): Promise<void> {
  * Handle previous paragraph button click
  */
 async function handlePrev(): Promise<void> {
+  trackClick('playback.skip_clicked', { direction: 'previous' });
   try {
     await sendMessage('previousParagraph');
   } catch (error) {
@@ -489,6 +494,7 @@ async function handlePrev(): Promise<void> {
  * Handle next paragraph button click
  */
 async function handleNext(): Promise<void> {
+  trackClick('playback.skip_clicked', { direction: 'next' });
   try {
     await sendMessage('nextParagraph');
   } catch (error) {
@@ -500,6 +506,7 @@ async function handleNext(): Promise<void> {
  * Handle stop button click
  */
 async function handleStop(): Promise<void> {
+  trackClick('playback.stop_clicked');
   try {
     await sendMessage('stopPlayback');
     updateStatus('stopped');
@@ -519,6 +526,9 @@ async function handleSpeedChange(event: Event): Promise<void> {
   updateSpeed(speed);
   currentState.speed = speed;
 
+  // Track speed change (use regular track, not debounced - slider fires on release)
+  usageTracker.track('playback.speed_changed', { speed });
+
   try {
     await browser.storage.local.set({ speed });
     await sendMessage('updateSettings', { speed });
@@ -535,6 +545,12 @@ async function handleProviderChange(event: Event): Promise<void> {
   const provider = target.value;
 
   currentState.provider = provider;
+
+  // Track provider change
+  usageTracker.track('settings.provider_changed', {
+    provider,
+    source: 'popup',
+  });
 
   try {
     await browser.storage.local.set({ provider });
@@ -1105,6 +1121,7 @@ function toggleQueueSidebar(): void {
  * Handle add to queue button click
  */
 async function handleAddToQueue(): Promise<void> {
+  trackClick('queue.item_added', { source: 'popup' });
   try {
     elements.addToQueueBtn.disabled = true;
     elements.addQueueBtnText.textContent = 'Adding...';
@@ -1167,6 +1184,7 @@ async function handleAddToQueue(): Promise<void> {
  * Handle remove from queue
  */
 async function handleRemoveFromQueue(id: string): Promise<void> {
+  trackClick('queue.item_removed', { source: 'popup' });
   try {
     await sendMessage('queue.remove', { id });
     await fetchQueueState();
@@ -1179,6 +1197,7 @@ async function handleRemoveFromQueue(id: string): Promise<void> {
  * Handle play queue item
  */
 async function handlePlayQueueItem(id: string): Promise<void> {
+  trackClick('queue.item_played', { source: 'popup' });
   try {
     await sendMessage('queue.play', { startFromId: id });
   } catch (error) {
@@ -1190,6 +1209,7 @@ async function handlePlayQueueItem(id: string): Promise<void> {
  * Handle play queue button click
  */
 async function handlePlayQueue(): Promise<void> {
+  trackClick('queue.play_all', { source: 'popup' });
   try {
     await sendMessage('queue.play', {});
   } catch (error) {
@@ -1201,6 +1221,7 @@ async function handlePlayQueue(): Promise<void> {
  * Handle clear queue button click
  */
 async function handleClearQueue(): Promise<void> {
+  trackClick('queue.cleared', { source: 'popup' });
   try {
     await sendMessage('queue.clear', { filter: 'completed' });
     await fetchQueueState();
@@ -1467,11 +1488,92 @@ async function displayVersion(): Promise<void> {
   }
 }
 
+// ============================================
+// Telemetry (T016: Popup Telemetry)
+// ============================================
+
+/**
+ * Initialize usage tracker for popup context.
+ * Loads config from storage and tracks popup.opened event.
+ */
+async function initTelemetry(): Promise<void> {
+  try {
+    // Load telemetry config from storage
+    const stored = await browser.storage.local.get([
+      'telemetryEnabled',
+      'telemetryGatewayUrl',
+      'telemetryGatewayToken',
+    ]);
+
+    // Skip if telemetry is disabled
+    if (stored.telemetryEnabled === false) {
+      console.log('[Popup] Telemetry disabled by user');
+      return;
+    }
+
+    // Only initialize if gateway is configured
+    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+    if (!gatewayUrl || !gatewayToken) {
+      console.log('[Popup] Telemetry not configured');
+      return;
+    }
+
+    await usageTracker.initialize({
+      gatewayUrl,
+      gatewayToken,
+      entrypoint: 'popup',
+      debugMode: process.env.NODE_ENV !== 'production',
+    });
+
+    // Track popup opened
+    usageTracker.track('popup.opened', {
+      provider: currentState.provider,
+    });
+
+    // Track popup closed on unload
+    window.addEventListener('beforeunload', () => {
+      usageTracker.track('popup.closed', {
+        provider: currentState.provider,
+      });
+      // Best-effort flush
+      usageTracker.destroy();
+    });
+
+    console.log('[Popup] Telemetry initialized');
+  } catch (error) {
+    console.warn('[Popup] Telemetry init failed:', error);
+  }
+}
+
+/**
+ * Track a user interaction event.
+ * Debounces rapid clicks to prevent duplicate events.
+ */
+const trackClickDebounce = new Map<string, number>();
+const CLICK_DEBOUNCE_MS = 300;
+
+function trackClick(eventType: string, data?: Record<string, unknown>): void {
+  const now = Date.now();
+  const lastClick = trackClickDebounce.get(eventType) || 0;
+
+  if (now - lastClick < CLICK_DEBOUNCE_MS) {
+    return; // Skip duplicate rapid click
+  }
+
+  trackClickDebounce.set(eventType, now);
+  usageTracker.track(eventType, data);
+}
+
 /**
  * Main initialization
  */
 async function init(): Promise<void> {
   console.log('[Popup] Initializing...');
+
+  // T016: Initialize usage tracker for popup telemetry
+  await initTelemetry();
 
   // Set up event listeners
   setupEventListeners();
