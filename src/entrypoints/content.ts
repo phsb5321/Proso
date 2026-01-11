@@ -30,6 +30,7 @@ import {
   clearPDFHighlights,
   scrollToPDFHighlight,
 } from '../utils/content/pdf-highlight';
+import { usageTracker, hashUrlSync } from '../utils/telemetry/usage';
 
 // ============================================================================
 // OCR Region Selection
@@ -670,6 +671,9 @@ export default defineContentScript({
         hasParagraphSelector: !!paragraphSelector,
         hasParagraphIndicator: !!paragraphIndicator,
       });
+
+      // T017: Initialize telemetry for content script
+      initContentTelemetry();
     } catch (error) {
       console.error('VoxPage: Failed to initialize modules:', error);
       return;
@@ -693,6 +697,9 @@ export default defineContentScript({
      * Jump to a clicked paragraph (only during active playback)
      */
     function jumpToClickedParagraph(index: number): void {
+      // T017: Track paragraph click
+      trackParagraphClick(index);
+
       browser.runtime
         .sendMessage({
           action: 'jumpToParagraph',
@@ -848,6 +855,74 @@ export default defineContentScript({
         .catch((err) => {
           console.error('VoxPage: Failed to send language detection:', err);
         });
+    }
+
+    // ========================================================================
+    // Telemetry (T017: Content Script Telemetry)
+    // ========================================================================
+
+    /**
+     * Initialize usage tracker for content script context.
+     * Loads config from storage and tracks content.injected event.
+     */
+    async function initContentTelemetry(): Promise<void> {
+      try {
+        // Load telemetry config from storage
+        const stored = await browser.storage.local.get([
+          'telemetryEnabled',
+          'telemetryGatewayUrl',
+          'telemetryGatewayToken',
+        ]);
+
+        // Skip if telemetry is disabled
+        if (stored.telemetryEnabled === false) {
+          return;
+        }
+
+        // Only initialize if gateway is configured
+        const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+        const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+        if (!gatewayUrl || !gatewayToken) {
+          return;
+        }
+
+        await usageTracker.initialize({
+          gatewayUrl,
+          gatewayToken,
+          entrypoint: 'content',
+          debugMode: false, // Keep content script quiet
+        });
+
+        // Track content script injection with privacy-safe URL hash
+        const urlHash = hashUrlSync(window.location.href);
+        const isPDF = isPDFTextLayerAvailable();
+
+        usageTracker.track('content.injected', {
+          urlHash,
+          isPDF,
+        });
+
+        // Track content unload
+        window.addEventListener('beforeunload', () => {
+          usageTracker.track('content.cleanup', { urlHash });
+        });
+      } catch (error) {
+        // Silently fail - telemetry should never break the extension
+        console.debug('[VoxPage] Telemetry init failed:', error);
+      }
+    }
+
+    /**
+     * Track paragraph click events.
+     * Called when user clicks on a paragraph during playback.
+     */
+    function trackParagraphClick(index: number): void {
+      if (!usageTracker.isEnabled()) return;
+      usageTracker.track('paragraph.clicked', {
+        paragraphIndex: index,
+        urlHash: hashUrlSync(window.location.href),
+      });
     }
 
     // ========================================================================
