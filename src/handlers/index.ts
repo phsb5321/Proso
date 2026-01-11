@@ -17,6 +17,15 @@ export {
   type HandlerError,
 } from './registry';
 
+// Instrumented registry exports (T015: telemetry)
+export {
+  InstrumentedRegistry,
+  createInstrumentedRegistry,
+  getGlobalInstrumentedRegistry,
+  resetGlobalInstrumentedRegistry,
+  wrapWithInstrumentation,
+} from './instrumented-registry';
+
 // Playback handler exports
 export {
   registerPlaybackHandlers,
@@ -162,6 +171,10 @@ import { registerProviderHandlers as regProvider } from './provider.handlers';
 import { registerQueueHandlers as regQueue } from './queue.handlers';
 import { registerSettingsHandlers as regSettings } from './settings.handlers';
 import { type HandlerRegistry as Registry, createHandlerRegistry as createReg } from './registry';
+import {
+  type InstrumentedRegistry as InstrReg,
+  createInstrumentedRegistry as createInstrReg,
+} from './instrumented-registry';
 
 /**
  * Register all handlers on the given registry.
@@ -190,5 +203,26 @@ export function registerAllHandlers(registry: Registry): void {
 export function createConfiguredRegistry(): Registry {
   const registry = createReg();
   registerAllHandlers(registry);
+  return registry;
+}
+
+/**
+ * Create a fully configured instrumented registry with telemetry.
+ * Use this in production to automatically track handler timing and errors.
+ *
+ * @param options - Configuration options
+ * @param options.enableInstrumentation - Whether to enable telemetry (default: true)
+ * @returns Configured instrumented registry
+ */
+export function createInstrumentedConfiguredRegistry(options?: {
+  enableInstrumentation?: boolean;
+}): InstrReg {
+  const registry = createInstrReg();
+  registerAllHandlers(registry);
+
+  if (options?.enableInstrumentation === false) {
+    registry.setInstrumentationEnabled(false);
+  }
+
   return registry;
 }

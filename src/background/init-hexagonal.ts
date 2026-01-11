@@ -21,7 +21,7 @@ import {
 } from '../composition';
 import {
   type HandlerRegistry,
-  getGlobalRegistry,
+  getGlobalInstrumentedRegistry,
   registerAllHandlers,
   setSettingsStore,
 } from '../handlers';
@@ -77,7 +77,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   // Skip if already initialized
   if (isContainerInitialized()) {
     console.log('[Hexagonal] Container already initialized');
-    return getGlobalRegistry();
+    return getGlobalInstrumentedRegistry();
   }
 
   console.log('[Hexagonal] Initializing composition container...');
@@ -95,8 +95,8 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     setSettingsStore(container.adapters.settingsStore);
 
     // Register all handlers on the GLOBAL registry
-    // This is critical - dispatchToHexagonal() uses getGlobalRegistry()
-    const registry = getGlobalRegistry();
+    // This is critical - dispatchToHexagonal() uses getGlobalInstrumentedRegistry()
+    const registry = getGlobalInstrumentedRegistry();
 
     // Populate the global registry with all handlers
     registerAllHandlers(registry);
@@ -113,7 +113,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   } catch (error) {
     console.error('[Hexagonal] Failed to initialize container:', error);
     // Return the global registry - it may be empty, but legacy handlers will work
-    return getGlobalRegistry();
+    return getGlobalInstrumentedRegistry();
   }
 }
 
@@ -136,7 +136,7 @@ export function getContainerStatus(): {
   }
 
   const container = getContainer();
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
 
   const adapters = Object.entries(container.adapters)
     .filter(([, v]) => v !== null)
@@ -169,7 +169,7 @@ export async function dispatchToHexagonal<T = unknown>(
   type: string,
   data: unknown,
 ): Promise<T | null> {
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
   const startTime = Date.now();
 
   if (!registry.has(type)) {
@@ -306,7 +306,7 @@ export function getHexagonalDispatchStats(): DispatchStats {
  * @returns Dispatch summary with migration status
  */
 export function getHexagonalDispatchSummary(legacyHandlerNames: string[] = []): DispatchSummary {
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
   return getDispatchSummary(registry.getHandlerNames(), legacyHandlerNames);
 }
 

@@ -113,7 +113,8 @@ const limiter = rateLimit({
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Skip auth in development if no token configured
   if (config.isDev && !config.gatewayToken) {
-    return next();
+    next();
+    return;
   }
 
   const authHeader = req.headers.authorization;
