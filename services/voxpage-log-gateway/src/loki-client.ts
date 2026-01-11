@@ -37,6 +37,8 @@ interface LokiClientConfig {
   lokiUser?: string;
   lokiPassword?: string;
   timeoutMs?: number;
+  /** Deployment environment (dev/staging/prod) - used as Loki label */
+  environment?: 'dev' | 'staging' | 'prod';
 }
 
 export interface LokiPushResult {
@@ -50,8 +52,10 @@ export interface LokiPushResult {
 // ============================================================================
 
 export class LokiClient {
-  private readonly config: Required<Omit<LokiClientConfig, 'lokiUser' | 'lokiPassword'>> &
-    Pick<LokiClientConfig, 'lokiUser' | 'lokiPassword'>;
+  private readonly config: Required<
+    Omit<LokiClientConfig, 'lokiUser' | 'lokiPassword' | 'environment'>
+  > &
+    Pick<LokiClientConfig, 'lokiUser' | 'lokiPassword' | 'environment'>;
 
   constructor(config: LokiClientConfig) {
     this.config = {
@@ -157,6 +161,11 @@ export class LokiClient {
       event_group: event.eventGroup,
       level: event.level,
     };
+
+    // Add environment if configured
+    if (this.config.environment) {
+      labels.env = this.config.environment;
+    }
 
     // Add provider if present (also low cardinality)
     if (event.provider) {

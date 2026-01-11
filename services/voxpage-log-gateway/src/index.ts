@@ -41,6 +41,10 @@ const config = {
   lokiUrl: process.env.LOKI_URL || 'http://loki.web.1:3100',
   lokiUser: process.env.LOKI_USER,
   lokiPassword: process.env.LOKI_PASSWORD,
+  environment: (process.env.NODE_ENV === 'production' ? 'prod' : 'dev') as
+    | 'dev'
+    | 'staging'
+    | 'prod',
   rateLimitRpm: parseInt(process.env.RATE_LIMIT_RPM || '60', 10),
   isDev: process.env.NODE_ENV !== 'production',
 };
@@ -62,6 +66,7 @@ const lokiClient = new LokiClient({
   lokiUrl: config.lokiUrl,
   lokiUser: config.lokiUser,
   lokiPassword: config.lokiPassword,
+  environment: config.environment,
 });
 
 // ============================================================================
