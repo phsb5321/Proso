@@ -3,8 +3,9 @@
 Auto-generated from all feature plans. Last updated: 2026-01-09
 
 ## Active Technologies
-
-- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), Playwright (E2E testing), esbuild (build-time code stripping) (039-extension-debug-testing)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), Zod (schema validation), PDF.js (bundled with Firefox) (041-firefox-first-pivot)
+- IndexedDB (audio cache), browser.storage.local (settings), browser.storage.session (transient state) (041-firefox-first-pivot)
+- Playwright (E2E testing), esbuild (build-time code stripping) (039-extension-debug-testing)
 
 ## Project Structure
 
@@ -22,9 +23,8 @@ npm test && npm run lint
 TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes): Follow standard conventions
 
 ## Recent Changes
-
 - 041-firefox-first-pivot: Firefox-first architecture pivot (Firefox 112+, event pages with DOM access, native Audio API, no service workers)
-- 039-extension-debug-testing: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), Playwright (E2E testing), esbuild (build-time code stripping)
+- 039-extension-debug-testing: Added Playwright (E2E testing), esbuild (build-time code stripping)
 
 ## Firefox-First Guidelines
 
