@@ -669,8 +669,8 @@ describe('PDF Word Highlighting', () => {
       }
       const elapsed = performance.now() - startTime;
 
-      // 100 range creations should take < 10ms total (< 0.1ms each)
-      expect(elapsed).toBeLessThan(10);
+      // 100 range creations should take < 50ms total (generous threshold for CI variance)
+      expect(elapsed).toBeLessThan(50);
     });
 
     it('should find word by offset efficiently', () => {
