@@ -23,8 +23,10 @@ function createEmptyStats(): DispatchStats {
   return {
     hexTotal: 0,
     legacyTotal: 0,
+    unknownTotal: 0,
     hexPercentage: 0,
     byType: {},
+    unknownTypes: {},
     startTime: now,
     lastReset: now,
   };
@@ -45,6 +47,22 @@ function updatePercentage(): void {
  */
 export function logDispatch(event: DispatchEvent): void {
   const { type, path, timestamp } = event;
+
+  // Handle unknown messages separately
+  if (path === 'unknown') {
+    stats.unknownTotal++;
+    if (!stats.unknownTypes[type]) {
+      stats.unknownTypes[type] = { count: 0, lastSeen: 0 };
+    }
+    stats.unknownTypes[type].count++;
+    stats.unknownTypes[type].lastSeen = timestamp;
+
+    // Log unknown messages in dev mode
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`\x1b[31m✗ [Dispatch] ${type} → unknown (${event.durationMs}ms)\x1b[0m`);
+    }
+    return;
+  }
 
   // Initialize stats for this message type if needed
   if (!stats.byType[type]) {
@@ -168,6 +186,38 @@ export function getPendingMigrations(): string[] {
   return Object.entries(stats.byType)
     .filter(([, s]) => s.legacyCount > 0)
     .map(([type]) => type);
+}
+
+/**
+ * Log an unknown message type.
+ * Convenience function for tracking messages with no handler.
+ *
+ * @param type - The unknown message type
+ */
+export function logUnknownMessage(type: string): void {
+  logDispatch({
+    type,
+    path: 'unknown',
+    durationMs: 0,
+    success: false,
+    error: 'No handler found',
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * Get unknown message statistics.
+ *
+ * @returns Unknown message stats including count and types
+ */
+export function getUnknownMessageStats(): {
+  total: number;
+  types: Record<string, { count: number; lastSeen: number }>;
+} {
+  return {
+    total: stats.unknownTotal,
+    types: { ...stats.unknownTypes },
+  };
 }
 
 /**

@@ -21,8 +21,9 @@ export type ExtractionMode = 'selection' | 'article' | 'full';
 
 /**
  * Provider ID type
+ * Post-045: Only ElevenLabs is supported
  */
-export type ProviderId = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'browser';
+export type ProviderId = 'elevenlabs';
 
 /**
  * Log level type
@@ -66,8 +67,9 @@ export type SettingsSectionType =
 
 /**
  * API provider type for testing (027-settings-ux-overhaul)
+ * Post-045: Only ElevenLabs for TTS, anthropic for AI summaries
  */
-export type ApiProviderType = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'anthropic';
+export type ApiProviderType = 'elevenlabs' | 'anthropic';
 
 /**
  * Footer action type
@@ -394,6 +396,115 @@ export interface VoxPageProtocol {
     };
   };
 
+  // ========== Highlight Persistence Messages (045-pdf-removal-page-reader) ==========
+
+  /**
+   * Create a new highlight from text selection
+   */
+  'highlight.create': {
+    request: {
+      url: string;
+      exact: string;
+      prefix?: string;
+      suffix?: string;
+      color?: 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+      note?: string;
+    };
+    response: {
+      success: boolean;
+      id?: string;
+      error?: string;
+    };
+  };
+
+  /**
+   * Get highlight by ID
+   */
+  'highlight.get': {
+    request: {
+      id: string;
+    };
+    response: {
+      success: boolean;
+      highlight?: {
+        id: string;
+        url: string;
+        exact: string;
+        prefix?: string;
+        suffix?: string;
+        color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+        note?: string;
+        orphaned: boolean;
+        created: string;
+        modified?: string;
+      };
+      error?: string;
+    };
+  };
+
+  /**
+   * List highlights for a URL
+   */
+  'highlight.list': {
+    request: {
+      url: string;
+    };
+    response: {
+      success: boolean;
+      highlights: Array<{
+        id: string;
+        url: string;
+        exact: string;
+        color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+        orphaned: boolean;
+        created: string;
+      }>;
+      error?: string;
+    };
+  };
+
+  /**
+   * Update highlight (color or note)
+   */
+  'highlight.update': {
+    request: {
+      id: string;
+      color?: 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+      note?: string;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  /**
+   * Delete a highlight
+   */
+  'highlight.delete': {
+    request: {
+      id: string;
+    };
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  /**
+   * Delete all highlights for a URL
+   */
+  'highlight.deleteByUrl': {
+    request: {
+      url: string;
+    };
+    response: {
+      success: boolean;
+      deletedCount: number;
+      error?: string;
+    };
+  };
+
   // ========== Language Detection Messages ==========
   'language.detect': {
     request: {
@@ -680,82 +791,6 @@ export interface VoxPageProtocol {
       available: boolean;
       hasApiKey: boolean;
       model?: string;
-      error?: string;
-    };
-  };
-
-  // ========== OCR Messages (023-feature-roadmap) ==========
-  'ocr.captureAndRead': {
-    request: {
-      tabId?: number;
-      region?: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      };
-      languages: string[];
-    };
-    response: {
-      success: boolean;
-      text: string;
-      confidence: number;
-      lines: Array<{
-        text: string;
-        words: Array<{
-          text: string;
-          confidence: number;
-          bbox: { x0: number; y0: number; x1: number; y1: number };
-        }>;
-      }>;
-      processingTimeMs: number;
-      detectedLanguage?: string;
-      error?: string;
-    };
-  };
-
-  'ocr.processImage': {
-    request: {
-      imageData: string;
-      format: 'png' | 'jpeg' | 'webp';
-      languages: string[];
-    };
-    response: {
-      success: boolean;
-      text: string;
-      confidence: number;
-      lines: Array<{
-        text: string;
-        words: Array<{
-          text: string;
-          confidence: number;
-          bbox: { x0: number; y0: number; x1: number; y1: number };
-        }>;
-      }>;
-      processingTimeMs: number;
-      error?: string;
-    };
-  };
-
-  'ocr.readExtractedText': {
-    request: {
-      text: string;
-      provider: ProviderId;
-      voice?: string;
-      speed?: number;
-    };
-    response: {
-      success: boolean;
-      error?: string;
-    };
-  };
-
-  'ocr.selectRegion': {
-    request: {
-      tabId: number;
-    };
-    response: {
-      success: boolean;
       error?: string;
     };
   };
@@ -1212,6 +1247,159 @@ export interface VoxPageProtocol {
       success: boolean;
       section: string;
       resetKeys: string[];
+    };
+  };
+
+  // ========== Reader Messages (045-pdf-removal-page-reader) ==========
+
+  /**
+   * Extract article from current page using Readability
+   */
+  'reader.extractArticle': {
+    request: {
+      url: string;
+      includeImages?: boolean;
+      minParagraphLength?: number;
+    };
+    response: {
+      success: boolean;
+      article?: {
+        url: string;
+        title: string;
+        byline?: string;
+        siteName?: string;
+        content: string;
+        paragraphs: Array<{
+          index: number;
+          text: string;
+          startOffset: number;
+          endOffset: number;
+        }>;
+        length: number;
+        excerpt?: string;
+        lang?: string;
+        extractedAt: string;
+      };
+      error?: string;
+    };
+  };
+
+  /**
+   * Get paragraphs for current article
+   */
+  'reader.getParagraphs': {
+    request: void;
+    response: {
+      success: boolean;
+      paragraphs: Array<{
+        index: number;
+        text: string;
+      }>;
+      totalCount: number;
+    };
+  };
+
+  /**
+   * Check if current page is article-like
+   */
+  'reader.isArticlePage': {
+    request: void;
+    response: {
+      isArticle: boolean;
+      confidence: number;
+    };
+  };
+
+  // ========== Audio Player Messages (045-pdf-removal-page-reader) ==========
+
+  /**
+   * Load audio for playback
+   */
+  'audioPlayer.load': {
+    request: {
+      audioData: ArrayBuffer;
+      paragraphIndex: number;
+    };
+    response: {
+      success: boolean;
+      durationMs?: number;
+      error?: string;
+    };
+  };
+
+  /**
+   * Start/resume playback
+   */
+  'audioPlayer.play': {
+    request: void;
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  /**
+   * Pause playback
+   */
+  'audioPlayer.pause': {
+    request: void;
+    response: {
+      success: boolean;
+      positionMs: number;
+      error?: string;
+    };
+  };
+
+  /**
+   * Stop playback and unload audio
+   */
+  'audioPlayer.stop': {
+    request: void;
+    response: {
+      success: boolean;
+      error?: string;
+    };
+  };
+
+  /**
+   * Seek to position
+   */
+  'audioPlayer.seek': {
+    request: {
+      positionMs: number;
+    };
+    response: {
+      success: boolean;
+      positionMs: number;
+      error?: string;
+    };
+  };
+
+  /**
+   * Set playback speed
+   */
+  'audioPlayer.setSpeed': {
+    request: {
+      speed: number;
+    };
+    response: {
+      success: boolean;
+      speed: number;
+      error?: string;
+    };
+  };
+
+  /**
+   * Get current playback state
+   */
+  'audioPlayer.getState': {
+    request: void;
+    response: {
+      status: PlaybackStatus;
+      positionMs: number;
+      durationMs: number;
+      speed: number;
+      paragraphIndex: number;
     };
   };
 }

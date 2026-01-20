@@ -16,11 +16,7 @@ import { settingsStore } from '../../utils/config/store';
  * API key storage keys for each provider.
  */
 const API_KEY_STORAGE: Record<ProviderId, string> = {
-  openai: 'openaiApiKey',
   elevenlabs: 'elevenlabsApiKey',
-  cartesia: 'cartesiaApiKey',
-  groq: 'groqApiKey',
-  browser: '', // Browser TTS doesn't need API key
 };
 
 /**

@@ -231,9 +231,14 @@ jobs:
         run: pnpm run build:firefox
 
       # Run E2E tests with xvfb (headed mode required for extensions)
+      # Loki credentials are provided as secrets for telemetry integration tests
       - name: Run E2E tests
         run: xvfb-run --auto-servernum -- pnpm run test:e2e
         continue-on-error: true  # E2E tests may be skipped if not implemented
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
 
       # Upload artifacts on failure
       - name: Upload E2E test results
@@ -292,9 +297,14 @@ jobs:
         run: pnpm run build:chrome
 
       # Run extension E2E tests with xvfb (headed mode required)
+      # Loki credentials are provided as secrets for telemetry integration tests
       - name: Run Extension E2E tests
         run: xvfb-run --auto-servernum -- pnpm run test:e2e:ext
         timeout-minutes: 10
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
 
       # Upload artifacts on failure
       - name: Upload Playwright report

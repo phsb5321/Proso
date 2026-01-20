@@ -19,7 +19,7 @@ import { Err, Ok, isErr } from '../shared/result';
  * Services depend only on port interfaces, never on adapters directly.
  */
 export interface ContentExtractionServiceDependencies {
-  /** Text extractor port (e.g., Readability, PDF) */
+  /** Text extractor port (e.g., Readability) */
   textExtractor: ITextExtractor;
   /** Content scorer port (e.g., Trafilatura-inspired scorer) */
   contentScorer: IContentScorer;

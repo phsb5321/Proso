@@ -57,9 +57,10 @@ export type LanguageMetadata = z.infer<typeof languageMetadataSchema>;
 
 /**
  * Provider language support mapping
+ * Post-045: Only ElevenLabs is supported
  */
 export const providerLanguageSupportSchema = z.object({
-  provider: z.enum(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']),
+  provider: z.enum(['elevenlabs']),
   supportedLanguages: z.array(z.string()), // Array of ISO 639-1 codes
   autoDetect: z.boolean(), // Provider supports auto language detection
 });

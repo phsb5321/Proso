@@ -17,13 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 6;
-
-/**
- * Valid Groq Orpheus voice IDs (as of Jan 2025)
- * PlayAI voices are deprecated
- */
-const VALID_GROQ_VOICES = ['hannah', 'diana', 'autumn', 'troy', 'austin', 'daniel'] as const;
+export const CURRENT_CONFIG_VERSION = 5;
 
 /**
  * Storage object with migration flags
@@ -132,47 +126,6 @@ export const migrations: Migration[] = [
     },
   },
   {
-    version: 4,
-    key: 'voice',
-    description: 'Clear deprecated Groq PlayAI voices, use Orpheus voices',
-    /**
-     * Clear Groq voice if it's a deprecated PlayAI voice
-     * PlayAI was deprecated Dec 2025, replaced by Orpheus
-     */
-    migrate: async (stored, save) => {
-      // Only check if current provider is Groq
-      if (stored.provider !== 'groq') {
-        return stored;
-      }
-
-      const currentVoice = stored.voice;
-
-      // If no voice set, nothing to migrate
-      if (!currentVoice) {
-        return stored;
-      }
-
-      // Check if voice is a valid Orpheus voice
-      if (VALID_GROQ_VOICES.includes(currentVoice as (typeof VALID_GROQ_VOICES)[number])) {
-        return stored;
-      }
-
-      // Check if it's an old PlayAI voice or any invalid voice
-      const isPlayAI = currentVoice.includes('-PlayAI') || currentVoice.includes('PlayAI');
-      const reason = isPlayAI ? 'deprecated PlayAI voice' : 'invalid voice';
-
-      console.log(`VoxPage: Clearing ${reason} "${currentVoice}", will use default`);
-
-      // Clear the voice to use provider default
-      const updated = {
-        ...stored,
-        voice: null,
-      };
-      await save({ voice: null });
-      return updated;
-    },
-  },
-  {
     version: 5,
     key: 'themeMode',
     description:
@@ -202,45 +155,6 @@ export const migrations: Migration[] = [
       if (Object.keys(updates).length > 0) {
         await save(updates);
         console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
-        return { ...stored, ...updates };
-      }
-
-      return stored;
-    },
-  },
-  {
-    version: 6,
-    key: 'pdfSettings',
-    description: 'Add PDF reading support settings (033-pdf-reading-support)',
-    /**
-     * Add PDF settings and history with defaults
-     * No data loss risk - only adds new storage keys
-     */
-    migrate: async (stored, save) => {
-      const updates: Record<string, unknown> = {};
-
-      // Add pdfSettings if not present
-      if ((stored as Record<string, unknown>).pdfSettings === undefined) {
-        updates.pdfSettings = {
-          ocrEnabled: true,
-          autoDetectScanned: true,
-          headerFooterSkip: true,
-          columnDetectionEnabled: true,
-          prefetchPages: 3,
-        };
-      }
-
-      // Add pdfHistory if not present
-      if ((stored as Record<string, unknown>).pdfHistory === undefined) {
-        updates.pdfHistory = {
-          items: [],
-          maxItems: 100,
-        };
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await save(updates);
-        console.log('VoxPage: Added PDF reading support settings:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 

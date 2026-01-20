@@ -7,11 +7,17 @@
  * @module handlers/debug
  */
 
-import { getContainerStatus, getHexagonalDispatchStats, getHexagonalDispatchSummary, resetHexagonalDispatchStats } from '../background/init-hexagonal';
+import {
+  getContainerStatus,
+  getHexagonalDispatchStats,
+  getHexagonalDispatchSummary,
+  resetHexagonalDispatchStats,
+} from '../background/init-hexagonal';
 import { isPlaybackServiceAvailable, isContentExtractionServiceAvailable } from '../composition';
 import type { Result } from '../core/shared/result';
 import { Ok } from '../core/shared/result';
 import type { DispatchStats, DispatchSummary } from '../utils/telemetry';
+import { getUnknownMessageStats } from '../utils/telemetry';
 import type { HandlerRegistry } from './registry';
 
 /**
@@ -67,10 +73,7 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
   /**
    * Get dispatch summary with migration analysis.
    */
-  registry.register<
-    { legacyHandlers?: string[] },
-    Result<DispatchSummary, DebugHandlerError>
-  >(
+  registry.register<{ legacyHandlers?: string[] }, Result<DispatchSummary, DebugHandlerError>>(
     'hexagonal.getDispatchSummary',
     async (params) => {
       return Ok(getHexagonalDispatchSummary(params?.legacyHandlers ?? []));
@@ -88,5 +91,23 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
       return Ok({ success: true });
     },
     'Reset dispatch statistics',
+  );
+
+  /**
+   * Get unknown message statistics (T1.3).
+   * Returns count and details of unhandled message types.
+   */
+  registry.register<
+    void,
+    Result<
+      { total: number; types: Record<string, { count: number; lastSeen: number }> },
+      DebugHandlerError
+    >
+  >(
+    'hexagonal.getUnknownMessages',
+    async () => {
+      return Ok(getUnknownMessageStats());
+    },
+    'Get unknown message statistics',
   );
 }

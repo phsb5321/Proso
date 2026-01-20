@@ -23,11 +23,8 @@ describe('Cost Estimator', () => {
 
   describe('PROVIDER_PRICING', () => {
     it('should have pricing for all major providers', () => {
-      expect(PROVIDER_PRICING).toHaveProperty('openai');
+      // Post-045: Only ElevenLabs is supported
       expect(PROVIDER_PRICING).toHaveProperty('elevenlabs');
-      expect(PROVIDER_PRICING).toHaveProperty('groq');
-      expect(PROVIDER_PRICING).toHaveProperty('cartesia');
-      expect(PROVIDER_PRICING).toHaveProperty('browser');
     });
 
     it('should have required properties for each provider', () => {
@@ -45,31 +42,32 @@ describe('Cost Estimator', () => {
       });
     });
 
-    it('should have browser TTS as free', () => {
-      expect(PROVIDER_PRICING.browser.pricePerKiloChar).toBe(0);
-    });
-
-    it('should have groq as free (free tier)', () => {
-      expect(PROVIDER_PRICING.groq.pricePerKiloChar).toBe(0);
+    it('should have ElevenLabs pricing configured', () => {
+      // Post-045: ElevenLabs is the only supported provider
+      expect(PROVIDER_PRICING.elevenlabs.pricePerKiloChar).toBe(0.18);
+      expect(PROVIDER_PRICING.elevenlabs.name).toBe('ElevenLabs');
     });
   });
 
   describe('getProviderPricing', () => {
     it('should return pricing for known providers', () => {
-      const openaiPricing = getProviderPricing('openai');
-      expect(openaiPricing.pricePerKiloChar).toBe(0.015);
-      expect(openaiPricing.name).toBe('OpenAI TTS');
+      // Post-045: Only ElevenLabs is supported
+      const elevenlabsPricing = getProviderPricing('elevenlabs');
+      expect(elevenlabsPricing.pricePerKiloChar).toBe(0.18);
+      expect(elevenlabsPricing.name).toBe('ElevenLabs');
     });
 
-    it('should return browser pricing for unknown providers', () => {
+    it('should return elevenlabs pricing for unknown providers', () => {
+      // Post-045: Falls back to elevenlabs (the only supported provider)
       const unknownPricing = getProviderPricing('unknown-provider');
-      expect(unknownPricing.pricePerKiloChar).toBe(0);
-      expect(unknownPricing.name).toBe('Browser TTS');
+      expect(unknownPricing.pricePerKiloChar).toBe(0.18);
+      expect(unknownPricing.name).toBe('ElevenLabs');
     });
 
     it('should handle empty provider string', () => {
+      // Post-045: Falls back to elevenlabs
       const emptyPricing = getProviderPricing('');
-      expect(emptyPricing.pricePerKiloChar).toBe(0);
+      expect(emptyPricing.pricePerKiloChar).toBe(0.18);
     });
   });
 
@@ -78,44 +76,39 @@ describe('Cost Estimator', () => {
   // ============================================================================
 
   describe('calculateTextCost', () => {
-    it('should calculate cost for OpenAI correctly', () => {
-      // 1000 characters at $0.015 per 1K chars = $0.015
-      const cost = calculateTextCost('a'.repeat(1000), 'openai');
-      expect(cost).toBeCloseTo(0.015, 5);
-    });
-
     it('should calculate cost for ElevenLabs correctly', () => {
+      // Post-045: Only ElevenLabs is supported
       // 1000 characters at $0.18 per 1K chars = $0.18
       const cost = calculateTextCost('a'.repeat(1000), 'elevenlabs');
       expect(cost).toBeCloseTo(0.18, 5);
     });
 
-    it('should return 0 for free providers', () => {
-      const browserCost = calculateTextCost('a'.repeat(1000), 'browser');
-      expect(browserCost).toBe(0);
-
-      const groqCost = calculateTextCost('a'.repeat(1000), 'groq');
-      expect(groqCost).toBe(0);
-    });
-
     it('should calculate proportionally for different text lengths', () => {
-      const cost500 = calculateTextCost('a'.repeat(500), 'openai');
-      const cost1000 = calculateTextCost('a'.repeat(1000), 'openai');
-      const cost2000 = calculateTextCost('a'.repeat(2000), 'openai');
+      // Post-045: Only ElevenLabs is supported
+      const cost500 = calculateTextCost('a'.repeat(500), 'elevenlabs');
+      const cost1000 = calculateTextCost('a'.repeat(1000), 'elevenlabs');
+      const cost2000 = calculateTextCost('a'.repeat(2000), 'elevenlabs');
 
       expect(cost500).toBeCloseTo(cost1000 / 2, 5);
       expect(cost2000).toBeCloseTo(cost1000 * 2, 5);
     });
 
     it('should handle empty text', () => {
-      const cost = calculateTextCost('', 'openai');
+      const cost = calculateTextCost('', 'elevenlabs');
       expect(cost).toBe(0);
     });
 
     it('should handle very long text', () => {
-      // 1 million characters
-      const cost = calculateTextCost('a'.repeat(1000000), 'openai');
-      expect(cost).toBeCloseTo(15, 2); // $15 for 1M chars at $0.015/1K
+      // Post-045: Only ElevenLabs is supported
+      // 1 million characters at $0.18 per 1K chars = $180
+      const cost = calculateTextCost('a'.repeat(1000000), 'elevenlabs');
+      expect(cost).toBeCloseTo(180, 2);
+    });
+
+    it('should use elevenlabs pricing for unknown providers', () => {
+      // Post-045: Unknown providers fall back to elevenlabs
+      const cost = calculateTextCost('a'.repeat(1000), 'unknown');
+      expect(cost).toBeCloseTo(0.18, 5);
     });
   });
 
@@ -187,67 +180,48 @@ describe('Cost Estimator', () => {
 
   describe('recordCacheHit', () => {
     it('should record a single cache hit', () => {
+      // Post-045: Only ElevenLabs is supported
       const initial = createCumulativeSavings();
-      const updated = recordCacheHit(initial, 'openai', 1000);
+      const updated = recordCacheHit(initial, 'elevenlabs', 1000);
 
       expect(updated.totalCacheHits).toBe(1);
       expect(updated.totalCharactersSaved).toBe(1000);
-      expect(updated.estimatedSavings).toBeCloseTo(0.015, 5);
-      expect(updated.byProvider.openai.hits).toBe(1);
-      expect(updated.byProvider.openai.savings).toBeCloseTo(0.015, 5);
+      expect(updated.estimatedSavings).toBeCloseTo(0.18, 5);
+      expect(updated.byProvider.elevenlabs.hits).toBe(1);
+      expect(updated.byProvider.elevenlabs.savings).toBeCloseTo(0.18, 5);
     });
 
     it('should accumulate multiple cache hits', () => {
+      // Post-045: Only ElevenLabs is supported
       let savings = createCumulativeSavings();
-      savings = recordCacheHit(savings, 'openai', 1000);
-      savings = recordCacheHit(savings, 'openai', 2000);
-      savings = recordCacheHit(savings, 'openai', 500);
+      savings = recordCacheHit(savings, 'elevenlabs', 1000);
+      savings = recordCacheHit(savings, 'elevenlabs', 2000);
+      savings = recordCacheHit(savings, 'elevenlabs', 500);
 
       expect(savings.totalCacheHits).toBe(3);
       expect(savings.totalCharactersSaved).toBe(3500);
-      expect(savings.estimatedSavings).toBeCloseTo(0.0525, 5); // 3500 chars * $0.015/1K
-      expect(savings.byProvider.openai.hits).toBe(3);
-    });
-
-    it('should track multiple providers separately', () => {
-      let savings = createCumulativeSavings();
-      savings = recordCacheHit(savings, 'openai', 1000);
-      savings = recordCacheHit(savings, 'elevenlabs', 1000);
-      savings = recordCacheHit(savings, 'openai', 500);
-
-      expect(savings.totalCacheHits).toBe(3);
-      expect(savings.byProvider.openai.hits).toBe(2);
-      expect(savings.byProvider.elevenlabs.hits).toBe(1);
-      expect(savings.byProvider.openai.savings).toBeCloseTo(0.0225, 5); // 1500 * $0.015/1K
-      expect(savings.byProvider.elevenlabs.savings).toBeCloseTo(0.18, 5); // 1000 * $0.18/1K
-    });
-
-    it('should handle free providers (no savings)', () => {
-      let savings = createCumulativeSavings();
-      savings = recordCacheHit(savings, 'browser', 10000);
-
-      expect(savings.totalCacheHits).toBe(1);
-      expect(savings.totalCharactersSaved).toBe(10000);
-      expect(savings.estimatedSavings).toBe(0);
-      expect(savings.byProvider.browser.savings).toBe(0);
+      expect(savings.estimatedSavings).toBeCloseTo(0.63, 5); // 3500 chars * $0.18/1K
+      expect(savings.byProvider.elevenlabs.hits).toBe(3);
     });
 
     it('should not mutate original savings object', () => {
+      // Post-045: Only ElevenLabs is supported
       const original = createCumulativeSavings();
-      const updated = recordCacheHit(original, 'openai', 1000);
+      const updated = recordCacheHit(original, 'elevenlabs', 1000);
 
       expect(original.totalCacheHits).toBe(0);
       expect(original.totalCharactersSaved).toBe(0);
       expect(updated.totalCacheHits).toBe(1);
     });
 
-    it('should handle unknown providers gracefully', () => {
+    it('should handle unknown providers with elevenlabs pricing', () => {
+      // Post-045: Unknown providers fall back to elevenlabs pricing
       let savings = createCumulativeSavings();
       savings = recordCacheHit(savings, 'unknown-provider', 1000);
 
       expect(savings.totalCacheHits).toBe(1);
       expect(savings.byProvider['unknown-provider'].hits).toBe(1);
-      expect(savings.byProvider['unknown-provider'].savings).toBe(0); // Falls back to browser (free)
+      expect(savings.byProvider['unknown-provider'].savings).toBeCloseTo(0.18, 5);
     });
   });
 
@@ -257,14 +231,16 @@ describe('Cost Estimator', () => {
 
   describe('edge cases', () => {
     it('should handle negative character counts gracefully', () => {
+      // Post-045: Only ElevenLabs is supported
       const savings = createCumulativeSavings();
       // This shouldn't happen in practice, but testing defensive behavior
-      const updated = recordCacheHit(savings, 'openai', -100);
+      const updated = recordCacheHit(savings, 'elevenlabs', -100);
 
       expect(updated.totalCharactersSaved).toBe(-100);
     });
 
     it('should handle very large character counts', () => {
+      // Post-045: Only ElevenLabs is supported
       const savings = createCumulativeSavings();
       const updated = recordCacheHit(savings, 'elevenlabs', 10000000); // 10M chars
 
@@ -273,15 +249,16 @@ describe('Cost Estimator', () => {
     });
 
     it('should handle floating point precision in cost calculations', () => {
+      // Post-045: Only ElevenLabs is supported
       // Test that we don't accumulate floating point errors
       let savings = createCumulativeSavings();
 
       for (let i = 0; i < 100; i++) {
-        savings = recordCacheHit(savings, 'openai', 1000);
+        savings = recordCacheHit(savings, 'elevenlabs', 1000);
       }
 
-      // 100 * 1000 chars * $0.015/1K = $1.50
-      expect(savings.estimatedSavings).toBeCloseTo(1.50, 2);
+      // 100 * 1000 chars * $0.18/1K = $18.00
+      expect(savings.estimatedSavings).toBeCloseTo(18.00, 2);
     });
   });
 });

@@ -10,7 +10,7 @@
 /**
  * Provider identifier type (matches existing schema).
  */
-export type ProviderId = 'openai' | 'elevenlabs' | 'cartesia' | 'groq' | 'browser';
+export type ProviderId = 'elevenlabs';
 
 /**
  * Text extraction mode (matches existing schema).

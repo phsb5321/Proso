@@ -62,8 +62,9 @@ export function runSettingsStoreContractTests(
       });
 
       it('should return valid provider value', async () => {
+        // Post-045: Only ElevenLabs is supported
         const settings = await adapter.getSettings();
-        expect(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']).toContain(settings.provider);
+        expect(['elevenlabs']).toContain(settings.provider);
       });
 
       it('should return valid speed range', async () => {
@@ -112,52 +113,30 @@ export function runSettingsStoreContractTests(
     });
 
     describe('getApiKey()', () => {
-      it('should return null for browser provider', async () => {
-        const key = await adapter.getApiKey('browser');
-        expect(key).toBeNull();
-      });
-
-      it('should return null or string for other providers', async () => {
-        const providers = ['openai', 'elevenlabs', 'cartesia', 'groq'] as const;
-
-        for (const provider of providers) {
-          const key = await adapter.getApiKey(provider);
-          expect(key === null || typeof key === 'string').toBe(true);
-        }
+      it('should return null or string for elevenlabs provider', async () => {
+        // Post-045: Only ElevenLabs is supported
+        const key = await adapter.getApiKey('elevenlabs');
+        expect(key === null || typeof key === 'string').toBe(true);
       });
     });
 
     describe('setApiKey()', () => {
-      it('should set and retrieve API key for openai', async () => {
-        const testKey = 'sk-test-key-12345';
-        await adapter.setApiKey('openai', testKey);
-
-        const retrievedKey = await adapter.getApiKey('openai');
-        expect(retrievedKey).toBe(testKey);
-      });
-
       it('should set and retrieve API key for elevenlabs', async () => {
-        const testKey = 'el-test-key-12345';
+        // Post-045: Only ElevenLabs is supported
+        const testKey = 'el-test-key-12345678901234567890';
         await adapter.setApiKey('elevenlabs', testKey);
 
         const retrievedKey = await adapter.getApiKey('elevenlabs');
         expect(retrievedKey).toBe(testKey);
       });
 
-      it('should handle setting key for browser provider (no-op)', async () => {
-        // Should not throw
-        await adapter.setApiKey('browser', 'ignored-key');
-
-        const key = await adapter.getApiKey('browser');
-        expect(key).toBeNull();
-      });
-
       it('should overwrite existing API key', async () => {
-        await adapter.setApiKey('openai', 'first-key');
-        await adapter.setApiKey('openai', 'second-key');
+        // Post-045: Only ElevenLabs is supported
+        await adapter.setApiKey('elevenlabs', 'first-key-12345678901234567890');
+        await adapter.setApiKey('elevenlabs', 'second-key-1234567890123456789');
 
-        const key = await adapter.getApiKey('openai');
-        expect(key).toBe('second-key');
+        const key = await adapter.getApiKey('elevenlabs');
+        expect(key).toBe('second-key-1234567890123456789');
       });
     });
 

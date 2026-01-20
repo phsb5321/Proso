@@ -12,6 +12,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { usageTracker } from '../../utils/telemetry/usage';
 
 // ============================================
 // Types
@@ -73,15 +74,6 @@ const elements = {
   exportProgressText: document.getElementById('export-progress-text') as HTMLSpanElement,
   exportCancelBtn: document.getElementById('export-cancel-btn') as HTMLButtonElement,
 
-  // OCR
-  ocrBtn: document.getElementById('ocr-btn') as HTMLButtonElement,
-  ocrBtnText: document.getElementById('ocr-btn-text') as HTMLSpanElement,
-  ocrResult: document.getElementById('ocr-result') as HTMLDivElement,
-  ocrConfidence: document.getElementById('ocr-confidence') as HTMLSpanElement,
-  ocrText: document.getElementById('ocr-text') as HTMLParagraphElement,
-  readOcrBtn: document.getElementById('read-ocr-btn') as HTMLButtonElement,
-  closeOcrBtn: document.getElementById('close-ocr-btn') as HTMLButtonElement,
-
   // Footer
   settingsBtn: document.getElementById('settings-btn') as HTMLButtonElement,
   helpLink: document.getElementById('help-link') as HTMLAnchorElement,
@@ -105,6 +97,28 @@ const elements = {
   costEstimate: document.getElementById('cost-estimate') as HTMLSpanElement,
   costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
   costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
+
+  // Collapsible sections (hidden by default in CSS)
+  summarizeSection: document.getElementById('summarize-section') as HTMLElement,
+  exportSection: document.getElementById('export-section') as HTMLElement,
+
+  // Highlight section (T093-T095)
+  highlightsSection: document.getElementById('highlights-section') as HTMLElement,
+  highlightCount: document.getElementById('highlight-count') as HTMLSpanElement,
+  highlightSelection: document.getElementById('highlight-selection') as HTMLDivElement,
+  selectionPreview: document.getElementById('selection-preview') as HTMLSpanElement,
+  colorPicker: document.getElementById('color-picker') as HTMLDivElement,
+  createHighlightBtn: document.getElementById('create-highlight-btn') as HTMLButtonElement,
+  noSelectionMsg: document.getElementById('no-selection-msg') as HTMLParagraphElement,
+
+  // Tab navigation
+  tabPlayer: document.getElementById('tab-player') as HTMLButtonElement,
+  tabTools: document.getElementById('tab-tools') as HTMLButtonElement,
+  tabQueue: document.getElementById('tab-queue') as HTMLButtonElement,
+  panelPlayer: document.getElementById('panel-player') as HTMLDivElement,
+  panelTools: document.getElementById('panel-tools') as HTMLDivElement,
+  panelQueue: document.getElementById('panel-queue') as HTMLDivElement,
+  queueTabBadge: document.getElementById('queue-tab-badge') as HTMLSpanElement,
 };
 
 // ============================================
@@ -127,8 +141,10 @@ let exportPollingInterval: ReturnType<typeof setInterval> | null = null;
 // Summarize state
 let currentSummaryBullets: Array<{ text: string }> = [];
 
-// OCR state
-let currentOcrText = '';
+// Highlight state (T093-T095)
+type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+let selectedHighlightColor: HighlightColor = 'yellow';
+let currentSelectionExact: string | null = null;
 
 // Queue state
 interface QueueItem {
@@ -227,6 +243,103 @@ function updateProvider(provider: string): void {
   elements.providerSelect.value = provider;
 }
 
+// ============================================
+// Tab Navigation Functions
+// ============================================
+
+type TabId = 'player' | 'tools' | 'queue';
+
+/**
+ * Switch to a different tab panel
+ */
+function switchTab(tabId: TabId): void {
+  const tabs = [elements.tabPlayer, elements.tabTools, elements.tabQueue];
+  const panels = [elements.panelPlayer, elements.panelTools, elements.panelQueue];
+  const tabMap: Record<TabId, { tab: HTMLButtonElement; panel: HTMLDivElement }> = {
+    player: { tab: elements.tabPlayer, panel: elements.panelPlayer },
+    tools: { tab: elements.tabTools, panel: elements.panelTools },
+    queue: { tab: elements.tabQueue, panel: elements.panelQueue },
+  };
+
+  // Deactivate all tabs and panels
+  tabs.forEach((tab) => {
+    if (tab) {
+      tab.classList.remove('voxpage-popup__tab--active');
+      tab.setAttribute('aria-selected', 'false');
+    }
+  });
+  panels.forEach((panel) => {
+    if (panel) {
+      panel.classList.remove('voxpage-popup__panel--active');
+      panel.hidden = true;
+    }
+  });
+
+  // Activate the selected tab and panel
+  const selected = tabMap[tabId];
+  if (selected.tab) {
+    selected.tab.classList.add('voxpage-popup__tab--active');
+    selected.tab.setAttribute('aria-selected', 'true');
+  }
+  if (selected.panel) {
+    selected.panel.classList.add('voxpage-popup__panel--active');
+    selected.panel.hidden = false;
+  }
+
+  console.log('[Popup] Switched to tab:', tabId);
+}
+
+/**
+ * Handle tab click events
+ */
+function handleTabClick(event: Event): void {
+  const target = event.currentTarget as HTMLButtonElement;
+  const tabId = target.dataset.tab as TabId;
+  if (tabId) {
+    switchTab(tabId);
+  }
+}
+
+/**
+ * Update section visibility based on configured API keys and settings.
+ * In the tabbed layout, tool sections are visible by default.
+ * This function hides sections that require API keys when those keys aren't configured.
+ *
+ * - Summarize section: shown if OpenAI or Anthropic API key is configured
+ * - Export section: shown if ElevenLabs API key is configured
+ */
+async function updateSectionVisibility(): Promise<void> {
+  try {
+    const result = await browser.storage.local.get([
+      'openaiApiKey',
+      'anthropicApiKey',
+      'elevenlabsApiKey',
+      'provider',
+    ]);
+
+    // Show Summarize section only if AI API key (OpenAI or Anthropic) is configured
+    const hasAIKey = !!(result.openaiApiKey || result.anthropicApiKey);
+    if (elements.summarizeSection) {
+      elements.summarizeSection.hidden = !hasAIKey;
+    }
+
+    // Show Export section only if ElevenLabs audio provider has API key configured
+    const hasAudioApiKey = !!result.elevenlabsApiKey;
+    if (elements.exportSection) {
+      elements.exportSection.hidden = !hasAudioApiKey;
+    }
+
+    console.log('[Popup] Section visibility updated:', {
+      hasAIKey,
+      hasAudioApiKey,
+      summarize: hasAIKey,
+      export: hasAudioApiKey,
+    });
+  } catch (error) {
+    console.error('[Popup] Failed to update section visibility:', error);
+  }
+}
+
 /**
  * Apply full state update to UI
  */
@@ -299,22 +412,40 @@ async function fetchSettings(): Promise<void> {
  * Handle play/pause button click
  */
 async function handlePlayPause(): Promise<void> {
+  usageTracker.track('popup.play_button_clicked', {
+    status: currentState.status,
+  });
+
+  console.log('[Popup] handlePlayPause called, state:', {
+    status: currentState.status,
+  });
+
   try {
     if (currentState.status === 'playing') {
+      trackClick('playback.pause_clicked');
       await sendMessage('pausePlayback');
       updateStatus('paused');
       updatePlayPauseButton(false);
     } else if (currentState.status === 'paused') {
       // Resume from paused state
+      trackClick('playback.play_clicked', { resumed: true });
       await sendMessage('resumePlayback');
       updateStatus('playing');
       updatePlayPauseButton(true);
     } else {
       // Start fresh playback
+      trackClick('playback.play_clicked');
+      console.log('[Popup] Starting web page playback');
+      usageTracker.track('popup.web_playback_starting');
       await sendMessage('startPlayback');
       updateStatus('loading');
     }
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    usageTracker.track('popup.play_pause_error', {
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     console.error('[Popup] Play/pause error:', error);
   }
 }
@@ -323,6 +454,7 @@ async function handlePlayPause(): Promise<void> {
  * Handle previous paragraph button click
  */
 async function handlePrev(): Promise<void> {
+  trackClick('playback.skip_clicked', { direction: 'previous' });
   try {
     await sendMessage('previousParagraph');
   } catch (error) {
@@ -334,6 +466,7 @@ async function handlePrev(): Promise<void> {
  * Handle next paragraph button click
  */
 async function handleNext(): Promise<void> {
+  trackClick('playback.skip_clicked', { direction: 'next' });
   try {
     await sendMessage('nextParagraph');
   } catch (error) {
@@ -345,6 +478,7 @@ async function handleNext(): Promise<void> {
  * Handle stop button click
  */
 async function handleStop(): Promise<void> {
+  trackClick('playback.stop_clicked');
   try {
     await sendMessage('stopPlayback');
     updateStatus('stopped');
@@ -364,6 +498,9 @@ async function handleSpeedChange(event: Event): Promise<void> {
   updateSpeed(speed);
   currentState.speed = speed;
 
+  // Track speed change (use regular track, not debounced - slider fires on release)
+  usageTracker.track('playback.speed_changed', { speed });
+
   try {
     await browser.storage.local.set({ speed });
     await sendMessage('updateSettings', { speed });
@@ -380,6 +517,12 @@ async function handleProviderChange(event: Event): Promise<void> {
   const provider = target.value;
 
   currentState.provider = provider;
+
+  // Track provider change
+  usageTracker.track('settings.provider_changed', {
+    provider,
+    source: 'popup',
+  });
 
   try {
     await browser.storage.local.set({ provider });
@@ -412,7 +555,9 @@ async function handleProgressSeek(event: Event): Promise<void> {
  */
 function handleSettingsClick(): void {
   browser.tabs.create({
-    url: browser.runtime.getURL('settings.html'),
+    url: (browser.runtime as unknown as { getURL: (path: string) => string }).getURL(
+      'settings.html',
+    ),
   });
   window.close();
 }
@@ -496,7 +641,7 @@ async function handleSummarizeClick(): Promise<void> {
       text: contentResponse.text,
       title: contentResponse.title,
       url: contentResponse.url,
-      provider: 'openai', // Default to OpenAI for now
+      provider: 'elevenlabs', // Default to ElevenLabs for summarization TTS
       bulletCount: 5,
     });
 
@@ -538,96 +683,6 @@ async function handleReadSummaryClick(): Promise<void> {
  */
 function handleCloseSummaryClick(): void {
   hideSummaryDisplay();
-}
-
-// ============================================
-// OCR Functions
-// ============================================
-
-/**
- * Show OCR result display
- */
-function showOcrResult(text: string, confidence: number): void {
-  currentOcrText = text;
-  elements.ocrText.textContent = text;
-  elements.ocrConfidence.textContent = `${Math.round(confidence)}% confidence`;
-  elements.ocrBtn.hidden = true;
-  elements.ocrResult.hidden = false;
-}
-
-/**
- * Hide OCR result display
- */
-function hideOcrResult(): void {
-  elements.ocrBtn.hidden = false;
-  elements.ocrResult.hidden = true;
-  elements.ocrBtnText.textContent = 'Read Image';
-  elements.ocrBtn.disabled = false;
-  elements.ocrBtn.classList.remove('voxpage-popup__ocr-btn--loading');
-  currentOcrText = '';
-}
-
-/**
- * Handle OCR button click - capture screenshot and extract text
- */
-async function handleOcrClick(): Promise<void> {
-  try {
-    elements.ocrBtn.disabled = true;
-    elements.ocrBtn.classList.add('voxpage-popup__ocr-btn--loading');
-    elements.ocrBtnText.textContent = 'Capturing...';
-
-    // Request screenshot capture and OCR from background
-    const response = await sendMessage<{
-      success: boolean;
-      text: string;
-      confidence: number;
-      error?: string;
-    }>('ocr.captureAndRead', {
-      languages: ['eng'],
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || 'OCR failed');
-    }
-
-    if (!response.text || response.text.trim().length === 0) {
-      throw new Error('No text found in image');
-    }
-
-    showOcrResult(response.text, response.confidence);
-  } catch (error) {
-    console.error('[Popup] OCR error:', error);
-    elements.ocrBtnText.textContent = error instanceof Error ? error.message : 'OCR failed';
-    elements.ocrBtn.classList.remove('voxpage-popup__ocr-btn--loading');
-    setTimeout(() => {
-      elements.ocrBtnText.textContent = 'Read Image';
-      elements.ocrBtn.disabled = false;
-    }, 2000);
-  }
-}
-
-/**
- * Handle read OCR text button click
- */
-async function handleReadOcrClick(): Promise<void> {
-  if (!currentOcrText) return;
-
-  try {
-    await sendMessage('ocr.readExtractedText', {
-      text: currentOcrText,
-      provider: currentState.provider,
-      speed: currentState.speed,
-    });
-  } catch (error) {
-    console.error('[Popup] Read OCR error:', error);
-  }
-}
-
-/**
- * Handle close OCR result button click
- */
-function handleCloseOcrClick(): void {
-  hideOcrResult();
 }
 
 // ============================================
@@ -807,12 +862,24 @@ async function handleExportCancel(): Promise<void> {
  * Update queue count badge
  */
 function updateQueueBadge(count: number): void {
+  // Update legacy badge (hidden, for compatibility)
   if (count > 0) {
     elements.queueCountBadge.textContent = String(count);
     elements.queueCountBadge.hidden = false;
   } else {
     elements.queueCountBadge.hidden = true;
   }
+
+  // Update tab badge
+  if (elements.queueTabBadge) {
+    if (count > 0) {
+      elements.queueTabBadge.textContent = String(count);
+      elements.queueTabBadge.hidden = false;
+    } else {
+      elements.queueTabBadge.hidden = true;
+    }
+  }
+
   elements.queueCount.textContent = `${count} item${count !== 1 ? 's' : ''}`;
 }
 
@@ -904,7 +971,11 @@ async function fetchQueueState(): Promise<void> {
   try {
     const response = await sendMessage<QueueState>('queue.getState');
     if (response) {
-      queueState = response;
+      // Defensive: ensure items array exists (handles malformed responses)
+      queueState = {
+        items: response.items ?? [],
+        metadata: response.metadata ?? { count: 0, lastModified: 0 },
+      };
       updateQueueBadge(queueState.items.length);
       if (isQueueSidebarOpen) {
         renderQueueItems(queueState.items);
@@ -924,7 +995,7 @@ function toggleQueueSidebar(): void {
   elements.toggleQueueBtn.setAttribute('aria-expanded', String(isQueueSidebarOpen));
 
   if (isQueueSidebarOpen) {
-    renderQueueItems(queueState.items);
+    renderQueueItems(queueState.items ?? []);
   }
 }
 
@@ -932,6 +1003,7 @@ function toggleQueueSidebar(): void {
  * Handle add to queue button click
  */
 async function handleAddToQueue(): Promise<void> {
+  trackClick('queue.item_added', { source: 'popup' });
   try {
     elements.addToQueueBtn.disabled = true;
     elements.addQueueBtnText.textContent = 'Adding...';
@@ -994,6 +1066,7 @@ async function handleAddToQueue(): Promise<void> {
  * Handle remove from queue
  */
 async function handleRemoveFromQueue(id: string): Promise<void> {
+  trackClick('queue.item_removed', { source: 'popup' });
   try {
     await sendMessage('queue.remove', { id });
     await fetchQueueState();
@@ -1006,6 +1079,7 @@ async function handleRemoveFromQueue(id: string): Promise<void> {
  * Handle play queue item
  */
 async function handlePlayQueueItem(id: string): Promise<void> {
+  trackClick('queue.item_played', { source: 'popup' });
   try {
     await sendMessage('queue.play', { startFromId: id });
   } catch (error) {
@@ -1017,6 +1091,7 @@ async function handlePlayQueueItem(id: string): Promise<void> {
  * Handle play queue button click
  */
 async function handlePlayQueue(): Promise<void> {
+  trackClick('queue.play_all', { source: 'popup' });
   try {
     await sendMessage('queue.play', {});
   } catch (error) {
@@ -1028,6 +1103,7 @@ async function handlePlayQueue(): Promise<void> {
  * Handle clear queue button click
  */
 async function handleClearQueue(): Promise<void> {
+  trackClick('queue.cleared', { source: 'popup' });
   try {
     await sendMessage('queue.clear', { filter: 'completed' });
     await fetchQueueState();
@@ -1213,11 +1289,6 @@ function setupEventListeners(): void {
   elements.readSummaryBtn.addEventListener('click', handleReadSummaryClick);
   elements.closeSummaryBtn.addEventListener('click', handleCloseSummaryClick);
 
-  // OCR controls
-  elements.ocrBtn.addEventListener('click', handleOcrClick);
-  elements.readOcrBtn.addEventListener('click', handleReadOcrClick);
-  elements.closeOcrBtn.addEventListener('click', handleCloseOcrClick);
-
   // Export controls
   elements.exportBtn.addEventListener('click', handleExportClick);
   elements.exportCancelBtn.addEventListener('click', handleExportCancel);
@@ -1227,6 +1298,14 @@ function setupEventListeners(): void {
   elements.toggleQueueBtn.addEventListener('click', toggleQueueSidebar);
   elements.playQueueBtn.addEventListener('click', handlePlayQueue);
   elements.clearQueueBtn.addEventListener('click', handleClearQueue);
+
+  // Tab navigation
+  elements.tabPlayer.addEventListener('click', handleTabClick);
+  elements.tabTools.addEventListener('click', handleTabClick);
+  elements.tabQueue.addEventListener('click', handleTabClick);
+
+  // Highlight controls (T093-T095)
+  setupHighlightListeners();
 }
 
 /**
@@ -1241,11 +1320,257 @@ async function displayVersion(): Promise<void> {
   }
 }
 
+// ============================================
+// Telemetry (T016: Popup Telemetry)
+// ============================================
+
+/**
+ * Initialize usage tracker for popup context.
+ * Loads config from storage and tracks popup.opened event.
+ */
+async function initTelemetry(): Promise<void> {
+  try {
+    // Load telemetry config from storage
+    const stored = await browser.storage.local.get([
+      'telemetryEnabled',
+      'telemetryGatewayUrl',
+      'telemetryGatewayToken',
+    ]);
+
+    // Skip if telemetry is disabled
+    if (stored.telemetryEnabled === false) {
+      console.log('[Popup] Telemetry disabled by user');
+      return;
+    }
+
+    // Only initialize if gateway is configured
+    const gatewayUrl =
+      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
+    const gatewayToken =
+      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+
+    await usageTracker.initialize({
+      gatewayUrl,
+      gatewayToken,
+      entrypoint: 'popup',
+      debugMode: process.env.NODE_ENV !== 'production',
+    });
+
+    // Track popup opened
+    usageTracker.track('popup.opened', {
+      provider: currentState.provider,
+    });
+
+    // Track popup closed on unload
+    window.addEventListener('beforeunload', () => {
+      usageTracker.track('popup.closed', {
+        provider: currentState.provider,
+      });
+      // Best-effort flush
+      usageTracker.destroy();
+    });
+
+    console.log('[Popup] Telemetry initialized');
+  } catch (error) {
+    console.warn('[Popup] Telemetry init failed:', error);
+  }
+}
+
+/**
+ * Track a user interaction event.
+ * Debounces rapid clicks to prevent duplicate events.
+ */
+const trackClickDebounce = new Map<string, number>();
+const CLICK_DEBOUNCE_MS = 300;
+
+function trackClick(eventType: string, data?: Record<string, unknown>): void {
+  const now = Date.now();
+  const lastClick = trackClickDebounce.get(eventType) || 0;
+
+  if (now - lastClick < CLICK_DEBOUNCE_MS) {
+    return; // Skip duplicate rapid click
+  }
+
+  trackClickDebounce.set(eventType, now);
+  usageTracker.track(eventType, data);
+}
+
+// ============================================
+// Highlights (T093-T095)
+// ============================================
+
+/**
+ * Setup highlight event listeners.
+ */
+function setupHighlightListeners(): void {
+  // Color picker buttons
+  if (elements.colorPicker) {
+    elements.colorPicker.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-color]');
+      if (btn) {
+        const color = btn.getAttribute('data-color') as HighlightColor;
+        selectHighlightColor(color);
+      }
+    });
+  }
+
+  // Create highlight button
+  if (elements.createHighlightBtn) {
+    elements.createHighlightBtn.addEventListener('click', handleCreateHighlight);
+  }
+}
+
+/**
+ * Initialize highlight section - fetch count and check for selection.
+ */
+async function initHighlights(): Promise<void> {
+  // Fetch highlight count for current page
+  await fetchHighlightCount();
+
+  // Check if there's a current selection in the content script
+  await checkForSelection();
+}
+
+/**
+ * Fetch highlight count for current page.
+ */
+async function fetchHighlightCount(): Promise<void> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.url) return;
+
+    const response = (await browser.runtime.sendMessage({
+      type: 'highlight.list',
+      url: tab.url,
+    })) as { success: boolean; highlights: unknown[] };
+
+    if (response.success && elements.highlightCount) {
+      elements.highlightCount.textContent = String(response.highlights.length);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to fetch highlight count:', error);
+  }
+}
+
+/**
+ * Check if content script has active text selection.
+ */
+async function checkForSelection(): Promise<void> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) return;
+
+    const response = (await browser.tabs.sendMessage(tab.id, {
+      action: 'highlight.getSelection',
+    })) as { success: boolean; selector: { exact: string } | null };
+
+    if (response.success && response.selector) {
+      showSelectionUI(response.selector.exact);
+    } else {
+      hideSelectionUI();
+    }
+  } catch (error) {
+    // Content script may not be injected - ignore
+    hideSelectionUI();
+  }
+}
+
+/**
+ * Show the selection UI with preview text.
+ */
+function showSelectionUI(exactText: string): void {
+  currentSelectionExact = exactText;
+
+  if (elements.highlightSelection) {
+    elements.highlightSelection.hidden = false;
+  }
+  if (elements.noSelectionMsg) {
+    elements.noSelectionMsg.hidden = true;
+  }
+  if (elements.selectionPreview) {
+    // Truncate preview to 50 chars
+    const preview = exactText.length > 50 ? exactText.slice(0, 50) + '...' : exactText;
+    elements.selectionPreview.textContent = preview;
+  }
+}
+
+/**
+ * Hide the selection UI.
+ */
+function hideSelectionUI(): void {
+  currentSelectionExact = null;
+
+  if (elements.highlightSelection) {
+    elements.highlightSelection.hidden = true;
+  }
+  if (elements.noSelectionMsg) {
+    elements.noSelectionMsg.hidden = false;
+  }
+}
+
+/**
+ * Select a highlight color.
+ */
+function selectHighlightColor(color: HighlightColor): void {
+  selectedHighlightColor = color;
+
+  // Update UI to show selected color
+  if (elements.colorPicker) {
+    const buttons = elements.colorPicker.querySelectorAll('[data-color]');
+    buttons.forEach((btn) => {
+      const isSelected = btn.getAttribute('data-color') === color;
+      btn.classList.toggle('active', isSelected);
+      btn.setAttribute('aria-pressed', String(isSelected));
+    });
+  }
+}
+
+/**
+ * Handle create highlight button click.
+ */
+async function handleCreateHighlight(): Promise<void> {
+  if (!currentSelectionExact) {
+    console.warn('[Popup] No selection to highlight');
+    return;
+  }
+
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) return;
+
+    // Tell content script to create the highlight
+    const response = (await browser.tabs.sendMessage(tab.id, {
+      action: 'highlight.create',
+      color: selectedHighlightColor,
+    })) as { success: boolean; id?: string; error?: string };
+
+    if (response.success) {
+      console.log('[Popup] Highlight created:', response.id);
+      // Update highlight count
+      await fetchHighlightCount();
+      // Hide selection UI
+      hideSelectionUI();
+      // Track event
+      trackClick('highlight.created', { color: selectedHighlightColor });
+    } else {
+      console.error('[Popup] Failed to create highlight:', response.error);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to create highlight:', error);
+  }
+}
+
 /**
  * Main initialization
  */
 async function init(): Promise<void> {
   console.log('[Popup] Initializing...');
+
+  // T016: Initialize usage tracker for popup telemetry
+  await initTelemetry();
 
   // Set up event listeners
   setupEventListeners();
@@ -1261,9 +1586,17 @@ async function init(): Promise<void> {
   await fetchPlaybackState();
   await fetchQueueState();
 
+  // Update section visibility based on configured API keys
+  await updateSectionVisibility();
+
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {
     console.error('[Popup] Cost estimate fetch failed:', err);
+  });
+
+  // Initialize highlights (T093-T095)
+  initHighlights().catch((err) => {
+    console.error('[Popup] Highlights init failed:', err);
   });
 
   console.log('[Popup] Initialized');

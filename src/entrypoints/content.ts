@@ -13,233 +13,24 @@
  * @module entrypoints/content
  */
 
-import { browser } from "wxt/browser";
-import * as extractor from "../utils/content/extractor";
-import { HighlightManager, type WordTiming } from "../utils/content/highlight";
+import { browser } from 'wxt/browser';
+import * as extractor from '../utils/content/extractor';
+import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import {
   StickyFooter,
   type StorageState,
   type PlaybackState,
   type PlaybackStatus,
-} from "../utils/content/sticky-footer";
-import { ParagraphSelector } from "../utils/content/paragraph-selector";
-import { ParagraphIndicator, type ParagraphStatus } from "../utils/content/paragraph-indicator";
-
-// ============================================================================
-// OCR Region Selection
-// ============================================================================
-
-/**
- * Region coordinates for OCR processing
- */
-interface RegionRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * RegionSelector class for OCR region selection overlay
- * Allows users to click and drag to select a screen region
- */
-class RegionSelector {
-  private overlay: HTMLDivElement | null = null;
-  private selection: HTMLDivElement | null = null;
-  private isSelecting = false;
-  private startX = 0;
-  private startY = 0;
-  private onComplete: ((region: RegionRect | null) => void) | null = null;
-
-  /**
-   * Show the region selection overlay
-   * @param callback Called when selection is complete or cancelled
-   */
-  show(callback: (region: RegionRect | null) => void): void {
-    this.onComplete = callback;
-    this.createOverlay();
-  }
-
-  /**
-   * Hide and remove the overlay
-   */
-  hide(): void {
-    if (this.overlay && this.overlay.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
-    }
-    this.overlay = null;
-    this.selection = null;
-    this.isSelecting = false;
-  }
-
-  /**
-   * Create the overlay elements
-   */
-  private createOverlay(): void {
-    // Remove existing overlay if any
-    this.hide();
-
-    // Create overlay container
-    this.overlay = document.createElement("div");
-    this.overlay.id = "voxpage-region-overlay";
-    this.overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.3);
-      cursor: crosshair;
-      z-index: 2147483647;
-      user-select: none;
-    `;
-
-    // Create instruction text
-    const instructions = document.createElement("div");
-    instructions.style.cssText = `
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-      pointer-events: none;
-    `;
-    instructions.textContent = "Click and drag to select region. Press Escape to cancel.";
-    this.overlay.appendChild(instructions);
-
-    // Create selection box (hidden initially)
-    this.selection = document.createElement("div");
-    this.selection.id = "voxpage-region-selection";
-    this.selection.style.cssText = `
-      position: absolute;
-      border: 2px solid #0D9488;
-      background: rgba(13, 148, 136, 0.2);
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
-      display: none;
-      pointer-events: none;
-    `;
-    this.overlay.appendChild(this.selection);
-
-    // Event handlers
-    this.overlay.addEventListener("mousedown", this.handleMouseDown);
-    this.overlay.addEventListener("mousemove", this.handleMouseMove);
-    this.overlay.addEventListener("mouseup", this.handleMouseUp);
-    document.addEventListener("keydown", this.handleKeyDown);
-
-    // Add to DOM
-    document.body.appendChild(this.overlay);
-  }
-
-  /**
-   * Handle mouse down - start selection
-   */
-  private handleMouseDown = (e: MouseEvent): void => {
-    if (e.button !== 0) return; // Left click only
-
-    this.isSelecting = true;
-    this.startX = e.clientX;
-    this.startY = e.clientY;
-
-    if (this.selection) {
-      this.selection.style.left = `${e.clientX}px`;
-      this.selection.style.top = `${e.clientY}px`;
-      this.selection.style.width = "0";
-      this.selection.style.height = "0";
-      this.selection.style.display = "block";
-    }
-  };
-
-  /**
-   * Handle mouse move - update selection box
-   */
-  private handleMouseMove = (e: MouseEvent): void => {
-    if (!this.isSelecting || !this.selection) return;
-
-    const currentX = e.clientX;
-    const currentY = e.clientY;
-
-    const left = Math.min(this.startX, currentX);
-    const top = Math.min(this.startY, currentY);
-    const width = Math.abs(currentX - this.startX);
-    const height = Math.abs(currentY - this.startY);
-
-    this.selection.style.left = `${left}px`;
-    this.selection.style.top = `${top}px`;
-    this.selection.style.width = `${width}px`;
-    this.selection.style.height = `${height}px`;
-  };
-
-  /**
-   * Handle mouse up - complete selection
-   */
-  private handleMouseUp = (e: MouseEvent): void => {
-    if (!this.isSelecting) return;
-    this.isSelecting = false;
-
-    const currentX = e.clientX;
-    const currentY = e.clientY;
-
-    const left = Math.min(this.startX, currentX);
-    const top = Math.min(this.startY, currentY);
-    const width = Math.abs(currentX - this.startX);
-    const height = Math.abs(currentY - this.startY);
-
-    // Remove event listeners
-    document.removeEventListener("keydown", this.handleKeyDown);
-
-    // Complete selection if region is meaningful (at least 10x10 pixels)
-    if (width >= 10 && height >= 10) {
-      const region: RegionRect = {
-        x: Math.round(left * window.devicePixelRatio),
-        y: Math.round(top * window.devicePixelRatio),
-        width: Math.round(width * window.devicePixelRatio),
-        height: Math.round(height * window.devicePixelRatio),
-      };
-
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(region);
-      }
-    } else {
-      // Selection too small, treat as cancelled
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(null);
-      }
-    }
-  };
-
-  /**
-   * Handle escape key - cancel selection
-   */
-  private handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === "Escape") {
-      document.removeEventListener("keydown", this.handleKeyDown);
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(null);
-      }
-    }
-  };
-}
-
-// Singleton instance
-let regionSelector: RegionSelector | null = null;
-
-/**
- * Get or create region selector instance
- */
-function getRegionSelector(): RegionSelector {
-  if (!regionSelector) {
-    regionSelector = new RegionSelector();
-  }
-  return regionSelector;
-}
+} from '../utils/content/sticky-footer';
+import { ParagraphSelector } from '../utils/content/paragraph-selector';
+import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
+import { usageTracker, hashUrlSync } from '../utils/telemetry/usage';
+import {
+  type PersistentHighlightManager,
+  createPersistentHighlightManager,
+} from '../utils/content/persistent-highlight';
+import type { TextQuoteSelector } from '../core/highlight';
+import type { HighlightColor } from '../utils/schemas/highlight.schema';
 
 // ============================================================================
 // CSS Injection
@@ -250,12 +41,12 @@ function getRegionSelector(): RegionSelector {
  * Required because WXT css[] property doesn't work reliably for all setups
  */
 function injectContentStyles(): void {
-  if (document.getElementById("voxpage-content-styles")) {
+  if (document.getElementById('voxpage-content-styles')) {
     return; // Already injected
   }
 
-  const style = document.createElement("style");
-  style.id = "voxpage-content-styles";
+  const style = document.createElement('style');
+  style.id = 'voxpage-content-styles';
   style.textContent = `
     /* VoxPage Highlight Styles */
     .voxpage-highlight {
@@ -483,7 +274,7 @@ function injectContentStyles(): void {
   `;
 
   document.head.appendChild(style);
-  console.log("VoxPage: Content styles injected");
+  console.log('VoxPage: Content styles injected');
 }
 
 // ============================================================================
@@ -502,7 +293,7 @@ interface LegacyMessage {
  * Playback state update message
  */
 interface PlaybackStateMessage extends LegacyMessage {
-  action: "updatePlaybackState";
+  action: 'updatePlaybackState';
   isPlaying: boolean;
   progress?: number;
   timeRemaining?: number;
@@ -512,7 +303,7 @@ interface PlaybackStateMessage extends LegacyMessage {
  * Footer state update message
  */
 interface FooterStateMessage extends LegacyMessage {
-  action: "FOOTER_STATE_UPDATE";
+  action: 'FOOTER_STATE_UPDATE';
   status?: string;
   progress?: number;
   currentTime?: string;
@@ -526,15 +317,15 @@ interface FooterStateMessage extends LegacyMessage {
  * Text extraction message
  */
 interface ExtractTextMessage extends LegacyMessage {
-  action: "extractText";
-  mode: "selection" | "article" | "full";
+  action: 'extractText';
+  mode: 'selection' | 'article' | 'full';
 }
 
 /**
  * Highlight message
  */
 interface HighlightMessage extends LegacyMessage {
-  action: "highlight";
+  action: 'highlight';
   index: number;
   text: string;
   timestamp: number;
@@ -544,7 +335,7 @@ interface HighlightMessage extends LegacyMessage {
  * Word timeline message
  */
 interface WordTimelineMessage extends LegacyMessage {
-  action: "setWordTimeline";
+  action: 'setWordTimeline';
   wordTimeline: Array<{
     word: string;
     charOffset?: number;
@@ -559,7 +350,7 @@ interface WordTimelineMessage extends LegacyMessage {
  * Word highlight message
  */
 interface WordHighlightMessage extends LegacyMessage {
-  action: "highlightWord";
+  action: 'highlightWord';
   paragraphIndex: number;
   wordIndex: number;
   timestamp: number;
@@ -569,7 +360,7 @@ interface WordHighlightMessage extends LegacyMessage {
  * Footer show message
  */
 interface FooterShowMessage extends LegacyMessage {
-  action: "FOOTER_SHOW";
+  action: 'FOOTER_SHOW';
   initialState?: {
     isPlaying?: boolean;
     currentIndex?: number;
@@ -583,9 +374,9 @@ interface FooterShowMessage extends LegacyMessage {
  * Footer position message
  */
 interface FooterPositionMessage extends LegacyMessage {
-  action: "showFloatingController";
+  action: 'showFloatingController';
   position?: {
-    x: "left" | "center" | "right" | number;
+    x: 'left' | 'center' | 'right' | number;
     yOffset: number;
   };
 }
@@ -595,12 +386,12 @@ interface FooterPositionMessage extends LegacyMessage {
 // ============================================================================
 
 export default defineContentScript({
-  matches: ["<all_urls>"],
-  runAt: "document_idle",
-  cssInjectionMode: "ui",
+  matches: ['<all_urls>'],
+  runAt: 'document_idle',
+  cssInjectionMode: 'ui',
 
   main() {
-    console.log("VoxPage: Content script starting (WXT TypeScript)");
+    console.log('VoxPage: Content script starting (WXT TypeScript)');
 
     // Inject highlight CSS into page
     injectContentStyles();
@@ -613,10 +404,11 @@ export default defineContentScript({
     let stickyFooter: StickyFooter | null = null;
     let paragraphSelector: ParagraphSelector | null = null;
     let paragraphIndicator: ParagraphIndicator | null = null;
+    let persistentHighlightManager: PersistentHighlightManager | null = null;
 
     // Prevent re-initialization
     if ((window as any).VoxPage?._contentInitialized) {
-      console.log("VoxPage: Content script already initialized, skipping");
+      console.log('VoxPage: Content script already initialized, skipping');
       return;
     }
 
@@ -630,20 +422,29 @@ export default defineContentScript({
       stickyFooter = new StickyFooter();
       paragraphSelector = new ParagraphSelector();
       paragraphIndicator = new ParagraphIndicator();
+      persistentHighlightManager = createPersistentHighlightManager();
 
-      // Expose paragraph selector on namespace for legacy code
+      // Expose modules on namespace for legacy code
       (window as any).VoxPage.paragraphSelector = paragraphSelector;
       (window as any).VoxPage.paragraphIndicator = paragraphIndicator;
+      (window as any).VoxPage.persistentHighlightManager = persistentHighlightManager;
 
-      console.log("VoxPage: Modules initialized successfully", {
+      console.log('VoxPage: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
         hasHighlightManager: !!highlightManager,
         hasStickyFooter: !!stickyFooter,
         hasParagraphSelector: !!paragraphSelector,
         hasParagraphIndicator: !!paragraphIndicator,
+        hasPersistentHighlightManager: !!persistentHighlightManager,
       });
+
+      // Setup persistent highlight callbacks (T087-T092)
+      setupPersistentHighlightCallbacks(persistentHighlightManager);
+
+      // T017: Initialize telemetry for content script
+      initContentTelemetry();
     } catch (error) {
-      console.error("VoxPage: Failed to initialize modules:", error);
+      console.error('VoxPage: Failed to initialize modules:', error);
       return;
     }
 
@@ -655,23 +456,26 @@ export default defineContentScript({
      * Format time remaining in seconds to MM:SS format
      */
     function formatTimeRemaining(seconds: number | undefined): string {
-      if (!seconds || seconds < 0) return "0:00";
+      if (!seconds || seconds < 0) return '0:00';
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, "0")}`;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
     /**
      * Jump to a clicked paragraph (only during active playback)
      */
     function jumpToClickedParagraph(index: number): void {
+      // T017: Track paragraph click
+      trackParagraphClick(index);
+
       browser.runtime
         .sendMessage({
-          action: "jumpToParagraph",
+          action: 'jumpToParagraph',
           index: index,
         })
         .catch((err) => {
-          console.error("VoxPage: Failed to jump to paragraph:", err);
+          console.error('VoxPage: Failed to jump to paragraph:', err);
         });
     }
 
@@ -682,20 +486,20 @@ export default defineContentScript({
      * - Neither: paragraph clicks are ignored to prevent accidental triggers
      */
     function setupParagraphClickHandlers(): void {
-      document.addEventListener("click", (event: MouseEvent) => {
+      document.addEventListener('click', (event: MouseEvent) => {
         if (!highlightManager) return;
 
         const target = event.target as HTMLElement;
 
         // Ignore clicks on play icons (they have their own handlers)
-        if (target.closest(".voxpage-play-icon")) {
+        if (target.closest('.voxpage-play-icon')) {
           return;
         }
 
         // Check if we clicked on a selectable paragraph (selection mode)
-        const selectableEl = target.closest(".voxpage-selectable") as HTMLElement;
+        const selectableEl = target.closest('.voxpage-selectable') as HTMLElement;
         if (selectableEl && (window as any).VoxPage?.paragraphSelector?.isActive?.()) {
-          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || "", 10);
+          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
           if (!isNaN(index)) {
             // Selection mode: just select visually, don't play
             (window as any).VoxPage.paragraphSelector?.selectParagraph?.(index);
@@ -704,9 +508,9 @@ export default defineContentScript({
         }
 
         // Check if we clicked on an active highlight (during playback)
-        const highlightedEl = target.closest(".voxpage-highlight") as HTMLElement;
+        const highlightedEl = target.closest('.voxpage-highlight') as HTMLElement;
         if (highlightedEl) {
-          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || "", 10);
+          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || '', 10);
           if (!isNaN(index)) {
             // During playback: jump to the clicked paragraph
             jumpToClickedParagraph(index);
@@ -714,21 +518,23 @@ export default defineContentScript({
           return;
         }
 
-        // Check if clicking on an extracted paragraph during active playback
+        // Check if clicking on an extracted paragraph
         const extractedParagraphs = extractor.getExtractedParagraphs();
         const highlightElements = highlightManager.getHighlightElements();
 
-        // Only allow paragraph jumping if playback is active (highlights exist)
-        if (highlightElements.length > 0) {
+        // T046: Allow clicking paragraphs even before playback starts
+        // If content has been extracted, allow starting playback from clicked paragraph
+        if (extractedParagraphs.length > 0) {
           const clickedParagraph = extractedParagraphs.findIndex(
             (el) => el.contains(target) || el === target,
           );
 
           if (clickedParagraph !== -1) {
+            // During active playback (highlights exist) OR starting fresh playback
             jumpToClickedParagraph(clickedParagraph);
           }
         }
-        // If no playback active and not in selection mode, clicks are ignored
+        // If no content extracted, clicks are ignored
       });
     }
 
@@ -750,7 +556,7 @@ export default defineContentScript({
         'meta[http-equiv="content-language"], meta[name="language"]',
       );
       for (let i = 0; i < metaElements.length; i++) {
-        const content = metaElements[i].getAttribute("content");
+        const content = metaElements[i].getAttribute('content');
         if (content) {
           metaLang = content;
           break;
@@ -775,21 +581,21 @@ export default defineContentScript({
      */
     function extractTextSample(): string {
       const contentSelectors = [
-        "article",
-        "main",
-        "#content",
+        'article',
+        'main',
+        '#content',
         '[role="main"]',
-        ".content",
-        "#mw-content-text", // Wikipedia
+        '.content',
+        '#mw-content-text', // Wikipedia
       ];
 
-      let textSample = "";
+      let textSample = '';
 
       // Try to extract from main content areas first
       for (const selector of contentSelectors) {
         const container = document.querySelector(selector);
         if (container) {
-          textSample = container.textContent?.trim() || "";
+          textSample = container.textContent?.trim() || '';
           if (textSample.length > 500) {
             break;
           }
@@ -798,7 +604,7 @@ export default defineContentScript({
 
       // Fallback to body if no good content found
       if (textSample.length < 100) {
-        textSample = document.body.textContent?.trim() || "";
+        textSample = document.body.textContent?.trim() || '';
       }
 
       // Limit to 1000 characters for efficiency
@@ -812,29 +618,257 @@ export default defineContentScript({
       const langData = extractPageLanguage();
       browser.runtime
         .sendMessage({
-          action: "languageDetected",
+          action: 'languageDetected',
           metadata: langData.metadata,
           textSample: langData.textSample,
           url: langData.url,
         })
         .catch((err) => {
-          console.error("VoxPage: Failed to send language detection:", err);
+          console.error('VoxPage: Failed to send language detection:', err);
         });
+    }
+
+    // ========================================================================
+    // Persistent Highlights (T087-T092: 045-pdf-removal-page-reader Phase 4)
+    // ========================================================================
+
+    /**
+     * Setup callbacks for persistent highlight manager.
+     * Handles selection changes and highlight actions (delete, note, color change).
+     */
+    function setupPersistentHighlightCallbacks(manager: PersistentHighlightManager): void {
+      // Track current selection for highlight creation
+      let currentSelection: TextQuoteSelector | null = null;
+
+      // Selection change callback - notify background when text is selected
+      manager.onSelectionChange((selector) => {
+        currentSelection = selector;
+        // Send selection state to background for potential highlight creation
+        if (selector) {
+          browser.runtime
+            .sendMessage({
+              type: 'highlight.selectionChanged',
+              hasSelection: true,
+              exact: selector.exact,
+            })
+            .catch(() => {
+              // Ignore errors - background may not be listening
+            });
+        }
+      });
+
+      // Highlight action callback - handle context menu actions
+      manager.onHighlightAction((action, highlightId, data) => {
+        switch (action) {
+          case 'delete':
+            // Delete highlight from storage
+            browser.runtime
+              .sendMessage({
+                type: 'highlight.delete',
+                id: highlightId,
+              })
+              .then((response: { success: boolean }) => {
+                if (response.success) {
+                  manager.removeHighlight(highlightId);
+                  console.log('VoxPage: Highlight deleted:', highlightId);
+                }
+              })
+              .catch((err) => {
+                console.error('VoxPage: Failed to delete highlight:', err);
+              });
+            break;
+
+          case 'note': {
+            // Prompt user for note (simple implementation)
+            const note = prompt('Add a note to this highlight:');
+            if (note !== null) {
+              browser.runtime
+                .sendMessage({
+                  type: 'highlight.update',
+                  id: highlightId,
+                  note: note,
+                })
+                .catch((err) => {
+                  console.error('VoxPage: Failed to add note:', err);
+                });
+            }
+            break;
+          }
+
+          case 'changeColor': {
+            const color = data as HighlightColor;
+            browser.runtime
+              .sendMessage({
+                type: 'highlight.update',
+                id: highlightId,
+                color: color,
+              })
+              .then((response: { success: boolean }) => {
+                if (response.success) {
+                  manager.updateHighlightColor(highlightId, color);
+                  console.log('VoxPage: Highlight color changed:', highlightId, color);
+                }
+              })
+              .catch((err) => {
+                console.error('VoxPage: Failed to change color:', err);
+              });
+            break;
+          }
+        }
+      });
+
+      // Expose function to get current selection
+      (window as any).VoxPage.getCurrentSelection = () => currentSelection;
+    }
+
+    /**
+     * Load and render highlights for the current page.
+     * Called on page load to restore saved highlights.
+     */
+    async function loadPageHighlights(): Promise<void> {
+      if (!persistentHighlightManager) return;
+
+      try {
+        const url = window.location.href;
+        const response = (await browser.runtime.sendMessage({
+          type: 'highlight.list',
+          url: url,
+        })) as {
+          success: boolean;
+          highlights: Array<{
+            id: string;
+            exact: string;
+            prefix?: string;
+            suffix?: string;
+            color: HighlightColor;
+            orphaned: boolean;
+          }>;
+        };
+
+        if (!response.success || !response.highlights.length) {
+          return;
+        }
+
+        console.log(`VoxPage: Loading ${response.highlights.length} highlights for page`);
+
+        // Convert to format expected by reanchorHighlights
+        const highlightsToRender = response.highlights.map((h) => ({
+          id: h.id,
+          selector: {
+            type: 'TextQuoteSelector' as const,
+            exact: h.exact,
+            prefix: h.prefix,
+            suffix: h.suffix,
+          },
+          color: h.color,
+          hasNote: false, // TODO: Include note info in response
+        }));
+
+        // Render highlights and track orphans
+        const orphanStatus = await persistentHighlightManager.reanchorHighlights(highlightsToRender);
+
+        // Report orphaned highlights to background for status update
+        const orphanedIds = Array.from(orphanStatus.entries())
+          .filter(([_, isOrphaned]) => isOrphaned)
+          .map(([id]) => id);
+
+        if (orphanedIds.length > 0) {
+          console.warn(`VoxPage: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
+          // Notify background about orphaned highlights
+          browser.runtime
+            .sendMessage({
+              type: 'highlight.reportOrphans',
+              highlightIds: orphanedIds,
+              url: url,
+            })
+            .catch(() => {
+              // Ignore - background may not handle this message
+            });
+        }
+      } catch (error) {
+        console.error('VoxPage: Failed to load page highlights:', error);
+      }
+    }
+
+    // ========================================================================
+    // Telemetry (T017: Content Script Telemetry)
+    // ========================================================================
+
+    /**
+     * Initialize usage tracker for content script context.
+     * Loads config from storage and tracks content.injected event.
+     */
+    async function initContentTelemetry(): Promise<void> {
+      try {
+        // Load telemetry config from storage
+        const stored = await browser.storage.local.get([
+          'telemetryEnabled',
+          'telemetryGatewayUrl',
+          'telemetryGatewayToken',
+        ]);
+
+        // Skip if telemetry is disabled
+        if (stored.telemetryEnabled === false) {
+          return;
+        }
+
+        // Only initialize if gateway is configured
+        const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+        const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+        if (!gatewayUrl || !gatewayToken) {
+          return;
+        }
+
+        await usageTracker.initialize({
+          gatewayUrl,
+          gatewayToken,
+          entrypoint: 'content',
+          debugMode: false, // Keep content script quiet
+        });
+
+        // Track content script injection with privacy-safe URL hash
+        const urlHash = hashUrlSync(window.location.href);
+
+        usageTracker.track('content.injected', {
+          urlHash,
+        });
+
+        // Track content unload
+        window.addEventListener('beforeunload', () => {
+          usageTracker.track('content.cleanup', { urlHash });
+        });
+      } catch (error) {
+        // Silently fail - telemetry should never break the extension
+        console.debug('[VoxPage] Telemetry init failed:', error);
+      }
+    }
+
+    /**
+     * Track paragraph click events.
+     * Called when user clicks on a paragraph during playback.
+     */
+    function trackParagraphClick(index: number): void {
+      if (!usageTracker.isEnabled()) return;
+      usageTracker.track('paragraph.clicked', {
+        paragraphIndex: index,
+        urlHash: hashUrlSync(window.location.href),
+      });
     }
 
     // ========================================================================
     // Message Listener
     // ========================================================================
 
-    console.log("VoxPage: Setting up message listener");
+    console.log('VoxPage: Setting up message listener');
 
     browser.runtime.onMessage.addListener((message: LegacyMessage & { type?: string }) => {
       // Support both 'action' (legacy) and 'type' (new protocol) fields
       const messageKey = message.action || message.type;
-      console.log("VoxPage: Received message:", messageKey);
+      console.log('VoxPage: Received message:', messageKey);
 
       if (!highlightManager || !stickyFooter) {
-        console.warn("VoxPage: Modules not initialized, ignoring message");
+        console.warn('VoxPage: Modules not initialized, ignoring message');
         return;
       }
 
@@ -842,10 +876,19 @@ export default defineContentScript({
         // ====================================================================
         // Content Extraction
         // ====================================================================
-        case "extractText": {
+        case 'extractText': {
           const msg = message as ExtractTextMessage;
           const text = extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators
+          if (paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
           // Return the result directly so background can await it
           return Promise.resolve({
             text: text,
@@ -854,12 +897,108 @@ export default defineContentScript({
           });
         }
 
+        // T046: Handle getParagraphs from popup
+        case 'getParagraphs': {
+          // Extract content if not already extracted
+          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          if (needsExtraction) {
+            extractor.extractText('article');
+          }
+          const paragraphTexts = extractor.getParagraphTexts();
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators (only on fresh extraction)
+          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
+          return Promise.resolve({
+            paragraphs: paragraphTexts.map((text, index) => ({
+              index,
+              text,
+            })),
+          });
+        }
+
+        // T046: Handle getArticleText from popup
+        case 'getArticleText': {
+          // Extract content if not already extracted
+          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          if (needsExtraction) {
+            extractor.extractText('article');
+          }
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators (only on fresh extraction)
+          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
+          const fullText = extractor.getParagraphTexts().join('\n\n');
+          return Promise.resolve({
+            text: fullText,
+            title: document.title,
+            url: window.location.href,
+          });
+        }
+
+        // ====================================================================
+        // Article Extraction (045-pdf-removal-page-reader)
+        // ====================================================================
+        case 'EXTRACT_ARTICLE':
+        case 'reader.extractArticle': {
+          // Send full document HTML to background for Readability extraction
+          // This allows the background to use the Reader handlers
+          const html = document.documentElement.outerHTML;
+          const url = window.location.href;
+
+          // Forward to background's reader.extractArticle handler
+          return browser.runtime
+            .sendMessage({
+              type: 'reader.extractArticle',
+              html,
+              url,
+            })
+            .then((result) => {
+              // Return the result from the background handler
+              return result;
+            })
+            .catch((error) => {
+              console.error('VoxPage: Article extraction failed:', error);
+              return {
+                success: false,
+                error: error.message || 'Article extraction failed',
+              };
+            });
+        }
+
+        case 'reader.isArticlePage': {
+          // Check if current page is likely an article
+          const html = document.documentElement.outerHTML;
+
+          return browser.runtime
+            .sendMessage({
+              type: 'reader.isArticlePage',
+              html,
+            })
+            .then((result) => result)
+            .catch((error) => {
+              console.error('VoxPage: Article check failed:', error);
+              return { success: false, isArticle: false };
+            });
+        }
+
         // ====================================================================
         // Highlighting
         // ====================================================================
-        case "highlight": {
+        case 'highlight': {
           const msg = message as HighlightMessage;
-          // Pass DOM elements and text lookup function for reliable highlighting
+
+          // Standard web page highlighting
           const extractedParagraphs = extractor.getExtractedParagraphs();
           highlightManager.highlightParagraph(
             msg.index,
@@ -871,12 +1010,12 @@ export default defineContentScript({
           break;
         }
 
-        case "clearHighlight": {
+        case 'clearHighlight': {
           highlightManager.clearHighlights();
           break;
         }
 
-        case "setWordTimeline": {
+        case 'setWordTimeline': {
           const msg = message as WordTimelineMessage;
           // Convert message format to HighlightManager WordTiming format
           // charOffset and charLength come from ElevenLabs API word alignment
@@ -887,32 +1026,32 @@ export default defineContentScript({
             startTimeMs: item.startMs,
             endTimeMs: item.endMs,
           }));
-          console.log("VoxPage: Setting word timeline with", convertedTimeline.length, "words");
+          console.log('VoxPage: Setting word timeline with', convertedTimeline.length, 'words');
           highlightManager.setWordTimeline(convertedTimeline, msg.paragraphIndex);
           break;
         }
 
-        case "highlightWord": {
+        case 'highlightWord': {
           const msg = message as WordHighlightMessage;
           highlightManager.highlightWord(msg.paragraphIndex, msg.wordIndex, msg.timestamp);
           break;
         }
 
-        case "jumpToWord": {
+        case 'jumpToWord': {
           // Type guard to narrow message to expected shape
-          if ("paragraphIndex" in message && "wordIndex" in message) {
+          if ('paragraphIndex' in message && 'wordIndex' in message) {
             const { paragraphIndex, wordIndex } = message as LegacyMessage & {
               paragraphIndex: number;
               wordIndex: number;
             };
             browser.runtime
               .sendMessage({
-                action: "jumpToWord",
+                action: 'jumpToWord',
                 paragraphIndex,
                 wordIndex,
               })
               .catch((err) => {
-                console.error("VoxPage: Failed to jump to word:", err);
+                console.error('VoxPage: Failed to jump to word:', err);
               });
           }
           break;
@@ -921,36 +1060,36 @@ export default defineContentScript({
         // ====================================================================
         // Floating Controller (Legacy - TODO: Remove after sticky footer migration)
         // ====================================================================
-        case "showFloatingController": {
+        case 'showFloatingController': {
           const msg = message as FooterPositionMessage;
           if ((window as any).VoxPage?.floatingController) {
             (window as any).VoxPage.floatingController.show(msg.position);
             (window as any).VoxPage.floatingController.onAction((action: string, data: unknown) => {
               browser.runtime
                 .sendMessage({
-                  action: "controllerAction",
+                  action: 'controllerAction',
                   controllerAction: action,
                   ...((data as object) || {}),
                 })
                 .catch((err) => {
-                  console.error("VoxPage: Failed to send controller action:", err);
+                  console.error('VoxPage: Failed to send controller action:', err);
                 });
             });
           }
           break;
         }
 
-        case "hideFloatingController": {
+        case 'hideFloatingController': {
           if ((window as any).VoxPage?.floatingController) {
             (window as any).VoxPage.floatingController.hide();
           }
           break;
         }
 
-        case "updatePlaybackState": {
+        case 'updatePlaybackState': {
           const msg = message as PlaybackStateMessage;
           if ((window as any).VoxPage?.floatingController) {
-            const status = msg.isPlaying ? "playing" : "paused";
+            const status = msg.isPlaying ? 'playing' : 'paused';
             const timeRemaining = formatTimeRemaining(msg.timeRemaining);
             (window as any).VoxPage.floatingController.updateState({
               status: status,
@@ -964,31 +1103,31 @@ export default defineContentScript({
         // ====================================================================
         // Sticky Footer
         // ====================================================================
-        case "FOOTER_SHOW": {
+        case 'FOOTER_SHOW': {
           const msg = message as FooterShowMessage;
           // Convert legacy initialState to StorageState format
           const storageState: Partial<StorageState> = {
             isMinimized: false,
-            position: { x: "center", yOffset: 0 },
+            position: { x: 'center', yOffset: 0 },
           };
           stickyFooter.show(storageState);
           break;
         }
 
-        case "FOOTER_HIDE": {
+        case 'FOOTER_HIDE': {
           stickyFooter.hide();
           break;
         }
 
-        case "FOOTER_STATE_UPDATE": {
+        case 'FOOTER_STATE_UPDATE': {
           const msg = message as FooterStateMessage;
           // Convert status string to PlaybackStatus type
-          const status = (msg.status || "stopped") as PlaybackStatus;
+          const status = (msg.status || 'stopped') as PlaybackStatus;
           const playbackState: Partial<PlaybackState> = {
             status,
             progress: msg.progress ?? 0,
-            currentTime: msg.currentTime ?? "0:00",
-            totalTime: msg.totalTime ?? "0:00",
+            currentTime: msg.currentTime ?? '0:00',
+            totalTime: msg.totalTime ?? '0:00',
             currentParagraph: msg.currentParagraph ?? 0,
             totalParagraphs: msg.totalParagraphs ?? 0,
             speed: msg.speed ?? 1.0,
@@ -997,7 +1136,7 @@ export default defineContentScript({
           break;
         }
 
-        case "TOGGLE_FOOTER_SETTINGS": {
+        case 'TOGGLE_FOOTER_SETTINGS': {
           // If footer is visible, do nothing (settings are part of the footer)
           // If footer is hidden, show it
           if (!stickyFooter.isFooterVisible()) {
@@ -1010,7 +1149,7 @@ export default defineContentScript({
         // ====================================================================
         // Playback Error Notification (T015: 035-selection-tts-hardening)
         // ====================================================================
-        case "PLAYBACK_ERROR": {
+        case 'PLAYBACK_ERROR': {
           const errorMsg = message as LegacyMessage & {
             message: string;
             provider?: string;
@@ -1034,7 +1173,7 @@ export default defineContentScript({
         // ====================================================================
         // Paragraph Selection Mode (028-smart-audio-cache)
         // ====================================================================
-        case "enableSelectionMode": {
+        case 'enableSelectionMode': {
           if (paragraphSelector) {
             // T034: Ensure styles are injected before UI elements become visible (035-selection-tts-hardening)
             // This prevents FOUC by guaranteeing CSS is ready before DOM modifications
@@ -1053,8 +1192,8 @@ export default defineContentScript({
             if (paragraphIndicator) {
               extractedParagraphs.forEach((el, index) => {
                 const status: ParagraphStatus = cachedIndices.includes(index)
-                  ? "cached"
-                  : "pending";
+                  ? 'cached'
+                  : 'pending';
                 paragraphIndicator.addIndicator(el, index, status);
               });
             }
@@ -1062,7 +1201,7 @@ export default defineContentScript({
           break;
         }
 
-        case "disableSelectionMode": {
+        case 'disableSelectionMode': {
           if (paragraphSelector) {
             paragraphSelector.disableSelectionMode();
           }
@@ -1072,14 +1211,14 @@ export default defineContentScript({
           break;
         }
 
-        case "refreshSelection": {
+        case 'refreshSelection': {
           if (paragraphSelector) {
             paragraphSelector.refresh();
           }
           break;
         }
 
-        case "updateCachedParagraphs": {
+        case 'updateCachedParagraphs': {
           // Update cache status indicators when cache changes
           const updateMsg = message as LegacyMessage & {
             cachedIndices: number[];
@@ -1093,7 +1232,7 @@ export default defineContentScript({
           break;
         }
 
-        case "setIndicatorStatus": {
+        case 'setIndicatorStatus': {
           // Set status for a specific paragraph
           const statusMsg = message as LegacyMessage & {
             paragraphIndex: number;
@@ -1108,80 +1247,151 @@ export default defineContentScript({
         // ====================================================================
         // Language Detection
         // ====================================================================
-        case "extractLanguage": {
+        case 'extractLanguage': {
           sendLanguageDetectionRequest();
           break;
         }
 
         // ====================================================================
-        // OCR Region Selection
+        // Persistent Highlights (T087-T092: 045-pdf-removal-page-reader)
         // ====================================================================
-        case "ocr.enableRegionSelection": {
-          console.log("VoxPage: Enabling OCR region selection");
-          const selector = getRegionSelector();
-          selector.show(async (region) => {
-            if (region) {
-              console.log("VoxPage: Region selected:", region);
-              // Send region to background for capture and OCR
-              try {
-                const response = await browser.runtime.sendMessage({
-                  type: "ocr.captureAndRead",
-                  request: {
-                    tabId: 0, // Will be set by background
-                    region: region,
-                    languages: ["eng"],
-                  },
-                });
-                console.log("VoxPage: OCR response:", response);
-                // Send result back to popup
-                if (response) {
-                  browser.runtime
-                    .sendMessage({
-                      action: "ocr.regionResult",
-                      ...response,
-                    })
-                    .catch(() => {
-                      // Popup may be closed
-                    });
-                }
-              } catch (err) {
-                console.error("VoxPage: OCR capture failed:", err);
+        case 'highlight.create': {
+          // Create a highlight from current selection
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false, error: 'Manager not initialized' });
+          }
+
+          const createMsg = message as LegacyMessage & {
+            color?: HighlightColor;
+          };
+
+          const selector = persistentHighlightManager.getCurrentSelection();
+          if (!selector) {
+            return Promise.resolve({ success: false, error: 'No text selected' });
+          }
+
+          // Send to background to create and store
+          return browser.runtime
+            .sendMessage({
+              type: 'highlight.create',
+              url: window.location.href,
+              exact: selector.exact,
+              prefix: selector.prefix,
+              suffix: selector.suffix,
+              color: createMsg.color ?? 'yellow',
+            })
+            .then((response: { success: boolean; id?: string }) => {
+              if (response.success && response.id) {
+                // Render the new highlight
+                persistentHighlightManager!.renderHighlight(
+                  response.id,
+                  selector,
+                  createMsg.color ?? 'yellow',
+                  false,
+                );
+                // Clear selection after creating highlight
+                persistentHighlightManager!.clearSelection();
               }
-            } else {
-              console.log("VoxPage: Region selection cancelled");
-              // Notify popup that selection was cancelled
-              browser.runtime
-                .sendMessage({
-                  action: "ocr.regionResult",
-                  success: false,
-                  error: "Selection cancelled",
-                })
-                .catch(() => {
-                  // Popup may be closed
-                });
-            }
-          });
+              return response;
+            });
+        }
+
+        case 'highlight.render': {
+          // Render a single highlight (e.g., after creation from popup)
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const renderMsg = message as LegacyMessage & {
+            id: string;
+            exact: string;
+            prefix?: string;
+            suffix?: string;
+            color: HighlightColor;
+            hasNote: boolean;
+          };
+
+          const success = persistentHighlightManager.renderHighlight(
+            renderMsg.id,
+            {
+              type: 'TextQuoteSelector',
+              exact: renderMsg.exact,
+              prefix: renderMsg.prefix,
+              suffix: renderMsg.suffix,
+            },
+            renderMsg.color,
+            renderMsg.hasNote,
+          );
+
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.remove': {
+          // Remove a rendered highlight from DOM
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const removeMsg = message as LegacyMessage & { id: string };
+          const success = persistentHighlightManager.removeHighlight(removeMsg.id);
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.updateColor': {
+          // Update highlight color in DOM
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const colorMsg = message as LegacyMessage & {
+            id: string;
+            color: HighlightColor;
+          };
+          const success = persistentHighlightManager.updateHighlightColor(
+            colorMsg.id,
+            colorMsg.color,
+          );
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.clearAll': {
+          // Clear all rendered highlights
+          if (persistentHighlightManager) {
+            persistentHighlightManager.clearAllHighlights();
+          }
           return Promise.resolve({ success: true });
         }
 
-        case "ocr.cancelRegionSelection": {
-          console.log("VoxPage: Cancelling OCR region selection");
-          const selector = getRegionSelector();
-          selector.hide();
+        case 'highlight.getSelection': {
+          // Get current text selection as TextQuoteSelector
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false, selector: null });
+          }
+
+          const selector = persistentHighlightManager.getCurrentSelection();
+          return Promise.resolve({
+            success: !!selector,
+            selector: selector,
+          });
+        }
+
+        case 'highlight.reload': {
+          // Reload all highlights for the current page
+          loadPageHighlights();
           return Promise.resolve({ success: true });
         }
 
         // ====================================================================
         // Browser TTS (Web Speech API)
         // ====================================================================
-        case "speakText": {
+        case 'speakText': {
           const msg = message as { action: string; text: string; speed?: number };
           const text = msg.text;
           const speed = msg.speed ?? 1.0;
 
           return new Promise<{ success: boolean }>((resolve) => {
-            if (typeof speechSynthesis === "undefined") {
-              console.error("VoxPage: Web Speech API not available");
+            if (typeof speechSynthesis === 'undefined') {
+              console.error('VoxPage: Web Speech API not available');
               resolve({ success: false });
               return;
             }
@@ -1194,32 +1404,32 @@ export default defineContentScript({
 
             // Try to use a good voice
             const voices = speechSynthesis.getVoices();
-            const englishVoice = voices.find((v) => v.lang.startsWith("en") && v.localService);
+            const englishVoice = voices.find((v) => v.lang.startsWith('en') && v.localService);
             if (englishVoice) {
               utterance.voice = englishVoice;
             }
 
             utterance.onend = () => {
-              console.log("VoxPage: Speech ended");
+              console.log('VoxPage: Speech ended');
               resolve({ success: true });
             };
 
             utterance.onerror = (event) => {
-              if (event.error !== "canceled") {
-                console.error("VoxPage: Speech error:", event.error);
+              if (event.error !== 'canceled') {
+                console.error('VoxPage: Speech error:', event.error);
               }
               resolve({ success: false });
             };
 
-            console.log("VoxPage: Speaking text of length", text.length);
+            console.log('VoxPage: Speaking text of length', text.length);
             speechSynthesis.speak(utterance);
           });
         }
 
-        case "stopSpeech": {
-          if (typeof speechSynthesis !== "undefined") {
+        case 'stopSpeech': {
+          if (typeof speechSynthesis !== 'undefined') {
             speechSynthesis.cancel();
-            console.log("VoxPage: Speech cancelled");
+            console.log('VoxPage: Speech cancelled');
           }
           return Promise.resolve({ success: true });
         }
@@ -1227,14 +1437,14 @@ export default defineContentScript({
         // ====================================================================
         // Audio Playback (for ElevenLabs and other API providers)
         // ====================================================================
-        case "playAudio": {
+        case 'playAudio': {
           const msg = message as { action: string; audioUrl: string; speed?: number };
           const audioUrl = msg.audioUrl;
           const speed = msg.speed ?? 1.0;
 
           // Validate audio URL before attempting to play
-          if (!audioUrl || audioUrl.trim() === "") {
-            console.error("VoxPage: Invalid audio URL: empty or undefined");
+          if (!audioUrl || audioUrl.trim() === '') {
+            console.error('VoxPage: Invalid audio URL: empty or undefined');
             return Promise.resolve({ success: false });
           }
 
@@ -1244,7 +1454,7 @@ export default defineContentScript({
             if ((window as any).__voxpageAudio) {
               const existingAudio = (window as any).__voxpageAudio as HTMLAudioElement;
               existingAudio.pause();
-              existingAudio.removeAttribute("src");
+              existingAudio.removeAttribute('src');
               existingAudio.load();
               (window as any).__voxpageAudio = null;
             }
@@ -1254,34 +1464,34 @@ export default defineContentScript({
             audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
 
             audio.onended = () => {
-              console.log("VoxPage: Audio playback ended");
+              console.log('VoxPage: Audio playback ended');
               (window as any).__voxpageAudio = null;
               resolve({ success: true });
             };
 
             audio.onerror = (event) => {
-              console.error("VoxPage: Audio playback error:", event);
+              console.error('VoxPage: Audio playback error:', event);
               (window as any).__voxpageAudio = null;
               resolve({ success: false });
             };
 
-            console.log("VoxPage: Playing audio, speed:", speed);
+            console.log('VoxPage: Playing audio, speed:', speed);
             audio.play().catch((err) => {
-              console.error("VoxPage: Audio play() failed:", err);
+              console.error('VoxPage: Audio play() failed:', err);
               resolve({ success: false });
             });
           });
         }
 
-        case "stopAudio": {
+        case 'stopAudio': {
           // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
           if ((window as any).__voxpageAudio) {
             const audio = (window as any).__voxpageAudio as HTMLAudioElement;
             audio.pause();
-            audio.removeAttribute("src");
+            audio.removeAttribute('src');
             audio.load();
             (window as any).__voxpageAudio = null;
-            console.log("VoxPage: Audio stopped");
+            console.log('VoxPage: Audio stopped');
           }
           return Promise.resolve({ success: true });
         }
@@ -1289,14 +1499,14 @@ export default defineContentScript({
         // ====================================================================
         // Queue Notifications (T075 - cross-tab sync)
         // ====================================================================
-        case "queue.updated": {
+        case 'queue.updated': {
           // Queue state changed - content script doesn't need to act on this
           // (popup handles queue UI updates via its own message listener)
           return Promise.resolve({ success: true });
         }
 
         default:
-          console.warn("VoxPage: Unknown message action:", message.action);
+          console.warn('VoxPage: Unknown message action:', message.action);
       }
     });
 
@@ -1313,7 +1523,7 @@ export default defineContentScript({
      */
     let scrollListenerDebounce: number | null = null;
     window.addEventListener(
-      "scroll",
+      'scroll',
       () => {
         // Debounce scroll events to avoid excessive calls
         if (scrollListenerDebounce) {
@@ -1348,21 +1558,21 @@ export default defineContentScript({
         const audio = (window as any).__voxpageAudio as HTMLAudioElement;
         audio.pause();
         // Use proper cleanup to avoid Invalid URI errors
-        audio.removeAttribute("src");
+        audio.removeAttribute('src');
         audio.load();
         (window as any).__voxpageAudio = null;
-        console.log("[VoxPage:Cleanup] Content script audio stopped and cleaned");
+        console.log('[VoxPage:Cleanup] Content script audio stopped and cleaned');
       }
 
       // T023: Stop browser TTS if active
-      if (typeof speechSynthesis !== "undefined") {
+      if (typeof speechSynthesis !== 'undefined') {
         speechSynthesis.cancel();
       }
 
       // Send stop message to background (triggers blob URL cleanup)
       browser.runtime
         .sendMessage({
-          action: "stopPlayback",
+          action: 'stopPlayback',
           reason: reason,
         })
         .catch(() => {
@@ -1394,7 +1604,7 @@ export default defineContentScript({
         try {
           cb(reason);
         } catch (e) {
-          console.warn("VoxPage: Cleanup callback failed:", e);
+          console.warn('VoxPage: Cleanup callback failed:', e);
         }
       });
     }
@@ -1403,7 +1613,7 @@ export default defineContentScript({
      * Register a cleanup callback
      */
     function registerCleanupCallback(callback: (reason: string) => void): void {
-      if (typeof callback === "function") {
+      if (typeof callback === 'function') {
         cleanupCallbacks.push(callback);
       }
     }
@@ -1415,29 +1625,29 @@ export default defineContentScript({
      * Handle pagehide event (primary navigation handler)
      * Implements FR-011: Stop audio on page navigation
      */
-    window.addEventListener("pagehide", () => {
-      executeCleanup("navigation");
+    window.addEventListener('pagehide', () => {
+      executeCleanup('navigation');
     });
 
     /**
      * Handle beforeunload event (backup for reload detection)
      * Implements FR-012: Stop audio on page reload
      */
-    window.addEventListener("beforeunload", () => {
-      executeCleanup("beforeunload");
+    window.addEventListener('beforeunload', () => {
+      executeCleanup('beforeunload');
     });
 
     /**
      * Handle page visibility changes - notify background for resync
      * Implements FR-005: Resync within 500ms when tab becomes visible
      */
-    document.addEventListener("visibilitychange", () => {
+    document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         const resyncStart = performance.now();
         browser.runtime
           .sendMessage({
-            action: "requestResync",
-            reason: "tab-visible",
+            action: 'requestResync',
+            reason: 'tab-visible',
             timestamp: Date.now(),
           })
           .then(() => {
@@ -1511,17 +1721,24 @@ export default defineContentScript({
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         sendLanguageDetectionRequest();
-        console.log("VoxPage: Sent initial language detection request");
+        console.log('VoxPage: Sent initial language detection request');
       }, 100);
     }
 
     // Send language detection on load
-    if (document.readyState === "complete") {
+    if (document.readyState === 'complete') {
       sendInitialLanguageDetection();
     } else {
-      window.addEventListener("load", sendInitialLanguageDetection, { once: true });
+      window.addEventListener('load', sendInitialLanguageDetection, { once: true });
     }
 
-    console.log("VoxPage content script fully loaded and message listener registered");
+    // Load persistent highlights on page load (T090)
+    if (document.readyState === 'complete') {
+      loadPageHighlights();
+    } else {
+      window.addEventListener('load', () => loadPageHighlights(), { once: true });
+    }
+
+    console.log('VoxPage content script fully loaded and message listener registered');
   },
 });

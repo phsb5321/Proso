@@ -1,6 +1,7 @@
 /**
  * Provider Routing Unit Tests (035-selection-tts-hardening)
  * Tests for provider selection, API key validation, and error handling
+ * Post-045: Only ElevenLabs provider is supported
  *
  * @module tests/unit/providers/routing
  */
@@ -9,6 +10,7 @@ import type { ProviderId } from '../../../src/core/shared/errors';
 
 /**
  * Mock provider metadata matching real implementation in provider.handlers.ts
+ * Post-045: Only ElevenLabs is supported
  */
 interface ProviderMetadata {
   id: ProviderId;
@@ -18,19 +20,16 @@ interface ProviderMetadata {
 }
 
 const PROVIDERS: ProviderMetadata[] = [
-  { id: 'openai', name: 'OpenAI TTS', requiresApiKey: true, supportedLanguages: [] },
   { id: 'elevenlabs', name: 'ElevenLabs', requiresApiKey: true, supportedLanguages: [] },
-  { id: 'groq', name: 'Groq', requiresApiKey: true, supportedLanguages: ['en'] },
-  { id: 'cartesia', name: 'Cartesia', requiresApiKey: true, supportedLanguages: ['en'] },
-  { id: 'browser', name: 'Browser TTS', requiresApiKey: false, supportedLanguages: [] },
 ];
 
 /**
  * Provider Router - Simulates the routing logic in provider.handlers.ts
+ * Post-045: Only ElevenLabs provider is supported
  */
 class ProviderRouter {
   private apiKeys: Map<ProviderId, string | null> = new Map();
-  private selectedProvider: ProviderId = 'browser';
+  private selectedProvider: ProviderId = 'elevenlabs';
   private errorHandler: ((error: ProviderRouterError) => void) | null = null;
 
   constructor() {
@@ -62,7 +61,7 @@ class ProviderRouter {
 
   /**
    * Select a provider for TTS generation
-   * Does NOT automatically fallback to browser on error
+   * Post-045: Only ElevenLabs is supported, so this always validates ElevenLabs
    */
   selectProvider(provider: ProviderId): { success: boolean; error?: string } {
     const metadata = PROVIDERS.find((p) => p.id === provider);
@@ -108,7 +107,7 @@ class ProviderRouter {
    * Generate audio with the selected provider
    * Returns error result instead of fallback on API error
    */
-  async generateAudio(text: string): Promise<{ success: boolean; error?: string }> {
+  async generateAudio(_text: string): Promise<{ success: boolean; error?: string }> {
     const metadata = PROVIDERS.find((p) => p.id === this.selectedProvider);
 
     if (!metadata) {
@@ -127,7 +126,6 @@ class ProviderRouter {
         this.errorHandler(error);
       }
 
-      // Explicitly DO NOT fallback to browser TTS
       return { success: false, error: error.message };
     }
 
@@ -147,7 +145,7 @@ interface ProviderRouterError {
 
 /**
  * API Key Validator - Validates API key formats for each provider
- * Based on real patterns from provider implementations
+ * Post-045: Only ElevenLabs validation is used in production
  */
 class ApiKeyValidator {
   /**
@@ -159,43 +157,6 @@ class ApiKeyValidator {
     const trimmed = key.trim();
     // ElevenLabs keys: 32 alphanumeric characters
     return /^[a-zA-Z0-9]{32}$/.test(trimmed);
-  }
-
-  /**
-   * Validate OpenAI API key format
-   * OpenAI keys start with 'sk-' and are 48-56 characters total
-   */
-  static validateOpenAI(key: string): boolean {
-    if (!key || typeof key !== 'string') return false;
-    const trimmed = key.trim();
-    // OpenAI keys: start with 'sk-' followed by 40+ alphanumeric chars
-    // Also support project keys: 'sk-proj-...'
-    return /^sk-(proj-)?[a-zA-Z0-9_-]{40,128}$/.test(trimmed);
-  }
-
-  /**
-   * Validate Groq API key format
-   * Groq keys start with 'gsk_' and are ~56 characters
-   */
-  static validateGroq(key: string): boolean {
-    if (!key || typeof key !== 'string') return false;
-    const trimmed = key.trim();
-    // Groq keys: start with 'gsk_' followed by ~52 chars
-    return /^gsk_[a-zA-Z0-9]{50,60}$/.test(trimmed);
-  }
-
-  /**
-   * Validate Cartesia API key format
-   * Cartesia keys are UUID-like with prefix
-   */
-  static validateCartesia(key: string): boolean {
-    if (!key || typeof key !== 'string') return false;
-    const trimmed = key.trim();
-    // Cartesia keys: UUID format or sk_ prefix
-    return (
-      /^sk_[a-zA-Z0-9]{32,64}$/.test(trimmed) ||
-      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(trimmed)
-    );
   }
 
   /**
@@ -262,57 +223,55 @@ describe('Provider Routing', () => {
       router.onError((err) => notifier.sendToContentScript(err));
     });
 
-    it('should route to selected provider when API key present', () => {
-      // Configure OpenAI with valid API key
-      router.setApiKey('openai', 'sk-proj-testkey12345678901234567890123456789012');
+    it('should route to ElevenLabs when API key present', () => {
+      // Post-045: Only ElevenLabs is supported
+      // Configure ElevenLabs with valid API key
+      router.setApiKey('elevenlabs', 'abcdef1234567890abcdef1234567890');
 
-      // Select OpenAI provider
-      const result = router.selectProvider('openai');
+      // Select ElevenLabs provider
+      const result = router.selectProvider('elevenlabs');
 
       expect(result.success).toBe(true);
-      expect(router.getSelectedProvider()).toBe('openai');
+      expect(router.getSelectedProvider()).toBe('elevenlabs');
       expect(notifier.getSentErrors()).toHaveLength(0);
     });
 
-    it('should show error when selected provider has no API key', () => {
-      // OpenAI requires API key but none is set
-      const result = router.selectProvider('openai');
+    it('should show error when ElevenLabs has no API key', () => {
+      // ElevenLabs requires API key but none is set
+      const result = router.selectProvider('elevenlabs');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('API key');
       expect(notifier.getSentErrors()).toHaveLength(1);
       expect(notifier.getSentErrors()[0].type).toBe('api_key_missing');
-      expect(notifier.getSentErrors()[0].provider).toBe('openai');
+      expect(notifier.getSentErrors()[0].provider).toBe('elevenlabs');
     });
 
-    it('should NOT fallback to browser TTS on API error', async () => {
-      // Start with browser TTS
-      router.selectProvider('browser');
-      expect(router.getSelectedProvider()).toBe('browser');
-
-      // Switch to OpenAI without API key
-      router.setApiKey('openai', 'sk-proj-testkey12345678901234567890123456789012');
-      router.selectProvider('openai');
+    it('should fail to generate audio when API key is revoked', async () => {
+      // Configure ElevenLabs with valid API key
+      router.setApiKey('elevenlabs', 'abcdef1234567890abcdef1234567890');
+      router.selectProvider('elevenlabs');
 
       // Clear the API key to simulate key revocation
-      router.setApiKey('openai', null);
+      router.setApiKey('elevenlabs', null);
 
-      // Try to generate - should fail, NOT fallback to browser
+      // Try to generate - should fail
       const result = await router.generateAudio('test text');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('API key');
-      // Provider should still be OpenAI, not browser
-      expect(router.getSelectedProvider()).toBe('openai');
+      // Provider should still be ElevenLabs
+      expect(router.getSelectedProvider()).toBe('elevenlabs');
     });
 
-    it('should use browser TTS only when explicitly selected', () => {
-      // Browser TTS doesn't require API key
-      const result = router.selectProvider('browser');
+    it('should generate audio successfully with valid API key', async () => {
+      // Post-045: Only ElevenLabs is supported
+      router.setApiKey('elevenlabs', 'abcdef1234567890abcdef1234567890');
+      router.selectProvider('elevenlabs');
+
+      const result = await router.generateAudio('test text');
 
       expect(result.success).toBe(true);
-      expect(router.getSelectedProvider()).toBe('browser');
-      expect(notifier.getSentErrors()).toHaveLength(0);
     });
   });
 
@@ -332,75 +291,25 @@ describe('Provider Routing', () => {
       expect(ApiKeyValidator.validateElevenLabs('abcdef-1234567890-abcdef123456')).toBe(false);
     });
 
-    it('should validate OpenAI API key format', () => {
-      // Valid: starts with sk- and has 40+ chars after
-      expect(
-        ApiKeyValidator.validateOpenAI('sk-abcdef1234567890abcdef1234567890abcdef12'),
-      ).toBe(true);
-
-      // Valid: project key format
-      expect(
-        ApiKeyValidator.validateOpenAI('sk-proj-abcdef1234567890abcdef1234567890abcdef12'),
-      ).toBe(true);
-
-      // Invalid: doesn't start with sk-
-      expect(
-        ApiKeyValidator.validateOpenAI('pk-abcdef1234567890abcdef1234567890abcdef12'),
-      ).toBe(false);
-
-      // Invalid: too short
-      expect(ApiKeyValidator.validateOpenAI('sk-short')).toBe(false);
-    });
-
-    it('should validate Groq API key format', () => {
-      // Valid: starts with gsk_ and has 50-60 chars after
-      expect(
-        ApiKeyValidator.validateGroq(
-          'gsk_abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        ),
-      ).toBe(true);
-
-      // Invalid: doesn't start with gsk_
-      expect(
-        ApiKeyValidator.validateGroq(
-          'sk_abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        ),
-      ).toBe(false);
-
-      // Invalid: too short
-      expect(ApiKeyValidator.validateGroq('gsk_tooshort')).toBe(false);
-    });
-
-    it('should validate Cartesia API key format', () => {
-      // Valid: sk_ prefix format
-      expect(
-        ApiKeyValidator.validateCartesia('sk_abcdef1234567890abcdef1234567890'),
-      ).toBe(true);
-
-      // Valid: UUID format
-      expect(
-        ApiKeyValidator.validateCartesia('a0e99841-438c-4a64-b679-ae501e7d6091'),
-      ).toBe(true);
-
-      // Invalid: wrong format
-      expect(ApiKeyValidator.validateCartesia('invalid-key')).toBe(false);
-    });
-
     it('should return false for empty/missing keys', () => {
-      // All validators should return false for empty/null/undefined
+      // ElevenLabs validator should return false for empty/null/undefined
       expect(ApiKeyValidator.validateElevenLabs('')).toBe(false);
-      expect(ApiKeyValidator.validateOpenAI('')).toBe(false);
-      expect(ApiKeyValidator.validateGroq('')).toBe(false);
-      expect(ApiKeyValidator.validateCartesia('')).toBe(false);
 
       // @ts-expect-error - testing null input
       expect(ApiKeyValidator.validateElevenLabs(null)).toBe(false);
       // @ts-expect-error - testing undefined input
-      expect(ApiKeyValidator.validateOpenAI(undefined)).toBe(false);
+      expect(ApiKeyValidator.validateElevenLabs(undefined)).toBe(false);
 
       // Whitespace-only should also fail
-      expect(ApiKeyValidator.validateGroq('   ')).toBe(false);
-      expect(ApiKeyValidator.validateCartesia('\t\n')).toBe(false);
+      expect(ApiKeyValidator.validateElevenLabs('   ')).toBe(false);
+      expect(ApiKeyValidator.validateElevenLabs('\t\n')).toBe(false);
+    });
+
+    it('should validate generic API key format', () => {
+      // Generic validation just checks non-empty
+      expect(ApiKeyValidator.validateGeneric('anyvalue')).toBe(true);
+      expect(ApiKeyValidator.validateGeneric('')).toBe(false);
+      expect(ApiKeyValidator.validateGeneric('   ')).toBe(false);
     });
   });
 
@@ -428,31 +337,26 @@ describe('Provider Routing', () => {
     });
 
     it('should include provider name in error message', () => {
-      // Try selecting different providers without keys
-      router.selectProvider('openai');
-      router.selectProvider('groq');
+      // Post-045: Only ElevenLabs is supported
+      router.selectProvider('elevenlabs');
 
       const errors = notifier.getSentErrors();
-      expect(errors).toHaveLength(2);
+      expect(errors).toHaveLength(1);
 
-      // First error should mention OpenAI
-      expect(errors[0].message).toContain('OpenAI');
-      expect(errors[0].provider).toBe('openai');
-
-      // Second error should mention Groq
-      expect(errors[1].message).toContain('Groq');
-      expect(errors[1].provider).toBe('groq');
+      // Error should mention ElevenLabs
+      expect(errors[0].message).toContain('ElevenLabs');
+      expect(errors[0].provider).toBe('elevenlabs');
     });
 
     it('should log error context for debugging', () => {
       // Trigger an error
-      router.selectProvider('cartesia');
+      router.selectProvider('elevenlabs');
 
       const logs = notifier.getLoggedContexts();
       expect(logs).toHaveLength(1);
 
       // Should have error and context
-      expect(logs[0].error.provider).toBe('cartesia');
+      expect(logs[0].error.provider).toBe('elevenlabs');
       expect(logs[0].context).toBeDefined();
       expect(logs[0].context).toHaveProperty('timestamp');
       expect(logs[0].context).toHaveProperty('attempt');

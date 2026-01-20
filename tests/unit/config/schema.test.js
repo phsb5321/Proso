@@ -17,9 +17,10 @@ import { defaults } from '../../../src/utils/config/defaults';
 describe('Configuration Schema (TypeScript/Zod)', () => {
   describe('settingsSchema.parse', () => {
     test('validates complete valid settings', () => {
+      // Post-045: Only ElevenLabs is supported
       const settings = {
         mode: 'article',
-        provider: 'browser',
+        provider: 'elevenlabs',
         voice: null,
         speed: 1.0,
         showCostEstimate: true,
@@ -36,7 +37,8 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
     test('applies defaults for missing keys', () => {
       const result = settingsSchema.parse({});
       expect(result.mode).toBe('article');
-      expect(result.provider).toBe('browser');
+      // Post-045: Default provider is elevenlabs
+      expect(result.provider).toBe('elevenlabs');
       expect(result.speed).toBe(1.0);
     });
 
@@ -53,15 +55,15 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
     });
 
     test('validates valid providers', () => {
-      expect(settingsSchema.parse({ provider: 'openai' }).provider).toBe('openai');
+      // Post-045: Only ElevenLabs is supported
       expect(settingsSchema.parse({ provider: 'elevenlabs' }).provider).toBe('elevenlabs');
-      expect(settingsSchema.parse({ provider: 'cartesia' }).provider).toBe('cartesia');
-      expect(settingsSchema.parse({ provider: 'groq' }).provider).toBe('groq');
-      expect(settingsSchema.parse({ provider: 'browser' }).provider).toBe('browser');
     });
 
     test('throws for invalid providers', () => {
+      // Post-045: All providers except elevenlabs are invalid
       expect(() => settingsSchema.parse({ provider: 'google' })).toThrow();
+      expect(() => settingsSchema.parse({ provider: 'openai' })).toThrow();
+      expect(() => settingsSchema.parse({ provider: 'browser' })).toThrow();
       expect(() => settingsSchema.parse({ provider: '' })).toThrow();
     });
 
@@ -117,12 +119,9 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
 
   describe('PROVIDERS constant', () => {
     test('contains all TTS providers', () => {
-      expect(PROVIDERS).toContain('openai');
+      // Post-045: Only ElevenLabs is supported
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toContain('groq');
-      expect(PROVIDERS).toContain('browser');
-      expect(PROVIDERS).toHaveLength(5);
+      expect(PROVIDERS).toHaveLength(1);
     });
 
     test('default provider is in PROVIDERS', () => {
@@ -133,7 +132,8 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
   describe('defaults object', () => {
     test('returns default for known keys', () => {
       expect(defaults.mode).toBe('article');
-      expect(defaults.provider).toBe('browser');
+      // Post-045: Default provider is elevenlabs
+      expect(defaults.provider).toBe('elevenlabs');
       expect(defaults.speed).toBe(1.0);
       expect(defaults.voice).toBeNull();
     });

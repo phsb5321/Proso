@@ -61,11 +61,7 @@ export function createPricingModel(
  * Pre-defined pricing models for known providers
  */
 export const ProviderPricing = Object.freeze({
-  openai: createPricingModel(PricingType.PER_CHARACTER, 0.015, 1000),
-  openaiHd: createPricingModel(PricingType.PER_CHARACTER, 0.03, 1000),
   elevenlabs: createPricingModel(PricingType.PER_CHARACTER, 0.3, 1000),
-  cartesia: createPricingModel(PricingType.PER_CHARACTER, 0.05, 1000),
-  groq: createPricingModel(PricingType.FREE, 0, 1), // Groq is free tier
   browser: createPricingModel(PricingType.FREE, 0, 1),
 });
 

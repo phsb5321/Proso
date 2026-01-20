@@ -24,7 +24,7 @@ export const playbackStatusSchema = z.enum([
 
 export const extractionModeSchema = z.enum(['selection', 'article', 'full']);
 
-export const providerIdSchema = z.enum(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']);
+export const providerIdSchema = z.enum(['elevenlabs']);
 
 export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 

@@ -452,3 +452,151 @@ describe('ParagraphSelector', () => {
     });
   });
 });
+
+// ============================================================================
+// Bug Bounty Sprint Tests (046-bug-bounty-sprint)
+// ============================================================================
+
+describe('Bug 2: Section Selection (US2)', () => {
+  let selector: MockParagraphSelector;
+
+  beforeEach(() => {
+    selector = new MockParagraphSelector();
+  });
+
+  describe('Click sends correct index to background (T019)', () => {
+    it('should accept click with correct index when mode is active', () => {
+      selector.enableSelectionMode(10);
+
+      // Click on paragraph 5
+      const accepted = selector.handleClick(5, 1000);
+
+      expect(accepted).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(5);
+      expect(selector.getPlayingIndex()).toBe(5);
+    });
+
+    it('should handle clicking on first paragraph (index 0)', () => {
+      selector.enableSelectionMode(10);
+
+      const accepted = selector.handleClick(0, 1000);
+
+      expect(accepted).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(0);
+    });
+
+    it('should handle clicking on last paragraph (index 9 for count 10)', () => {
+      selector.enableSelectionMode(10);
+
+      const accepted = selector.handleClick(9, 1000);
+
+      expect(accepted).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(9);
+    });
+  });
+
+  describe('Handler waits for extraction before enabling (T022)', () => {
+    it('should not allow selection before enableSelectionMode called', () => {
+      // Mode not enabled
+      expect(selector.isActive()).toBe(false);
+
+      // Try to select
+      const result = selector.selectParagraph(5);
+
+      expect(result).toBe(false);
+      expect(selector.getSelectedIndex()).toBe(null);
+    });
+
+    it('should allow selection after enableSelectionMode called', () => {
+      // Enable mode
+      selector.enableSelectionMode(10);
+      expect(selector.isActive()).toBe(true);
+
+      // Now selection should work
+      const result = selector.selectParagraph(5);
+
+      expect(result).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(5);
+    });
+  });
+
+  describe('Debounce ignores rapid second click (T019)', () => {
+    it('should ignore second click within 300ms', () => {
+      selector.enableSelectionMode(10);
+
+      // First click
+      selector.handleClick(5, 1000);
+
+      // Second click 100ms later - should be ignored
+      const accepted = selector.handleClick(7, 1100);
+
+      expect(accepted).toBe(false);
+      expect(selector.getSelectedIndex()).toBe(5); // Still first selection
+    });
+
+    it('should accept click after 300ms debounce period', () => {
+      selector.enableSelectionMode(10);
+
+      // First click
+      selector.handleClick(5, 1000);
+
+      // Second click 400ms later - should be accepted
+      const accepted = selector.handleClick(7, 1400);
+
+      expect(accepted).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(7);
+    });
+  });
+
+  describe('Selection state updates correctly (T024)', () => {
+    it('should update selectedIndex when paragraph selected', () => {
+      selector.enableSelectionMode(10);
+
+      selector.selectParagraph(3);
+      expect(selector.getSelectedIndex()).toBe(3);
+
+      selector.selectParagraph(7);
+      expect(selector.getSelectedIndex()).toBe(7);
+    });
+
+    it('should report correct isActive status', () => {
+      expect(selector.isActive()).toBe(false);
+
+      selector.enableSelectionMode(10);
+      expect(selector.isActive()).toBe(true);
+
+      selector.disableSelectionMode();
+      expect(selector.isActive()).toBe(false);
+    });
+  });
+
+  describe('DOM mutation resilience (FR-008, T024a)', () => {
+    it('should validate index bounds before processing', () => {
+      selector.enableSelectionMode(10);
+
+      // Valid indices
+      expect(selector.selectParagraph(0)).toBe(true);
+      expect(selector.selectParagraph(9)).toBe(true);
+
+      // Invalid indices
+      expect(selector.selectParagraph(-1)).toBe(false);
+      expect(selector.selectParagraph(10)).toBe(false);
+      expect(selector.selectParagraph(100)).toBe(false);
+    });
+
+    it('should handle re-enabling with different paragraph count', () => {
+      // First extraction: 10 paragraphs
+      selector.enableSelectionMode(10);
+      selector.selectParagraph(5);
+      expect(selector.getSelectedIndex()).toBe(5);
+
+      // Disable (simulating re-extraction)
+      selector.disableSelectionMode();
+
+      // Re-enable with different count
+      selector.enableSelectionMode(15);
+      expect(selector.isActive()).toBe(true);
+      expect(selector.getSelectedIndex()).toBe(null); // Reset on disable
+    });
+  });
+});

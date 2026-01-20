@@ -223,11 +223,19 @@ test.describe('Language Detection Patterns', () => {
 
     await page.goto(`file://${SIMPLE_PAGE_PATH}`);
 
-    // Check lang attribute
+    // Check lang attribute on html element
     const htmlLang = await page.locator('html').getAttribute('lang');
-    const metaLang = await page.locator('meta[http-equiv="content-language"]').getAttribute('content');
+
+    // Check meta content-language (may not exist in all pages)
+    const metaLangElement = page.locator('meta[http-equiv="content-language"]');
+    const metaLangCount = await metaLangElement.count();
+    const metaLang = metaLangCount > 0 ? await metaLangElement.getAttribute('content') : null;
 
     console.log(`HTML lang: ${htmlLang}, Meta lang: ${metaLang}`);
+
+    // At least one language detection method should work
+    const hasLanguage = htmlLang !== null || metaLang !== null;
+    expect(hasLanguage).toBe(true);
   });
 
   test('can sample text for language detection', async ({ page }) => {

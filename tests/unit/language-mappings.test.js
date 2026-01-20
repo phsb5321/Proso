@@ -1,6 +1,7 @@
 /**
- * Unit tests for background/language-mappings.js
+ * Unit tests for utils/language/mappings.ts
  * Tests BCP 47 parsing and provider code mapping (T018)
+ * Post-045: Only ElevenLabs provider is supported
  */
 
 import { describe, test, expect } from '@jest/globals';
@@ -37,29 +38,28 @@ describe('Language Mappings', () => {
       });
     });
 
-    test('all entries have provider mappings', () => {
+    test('all entries have elevenlabs provider mapping', () => {
+      // Post-045: Only ElevenLabs is supported
       Object.values(LANGUAGE_MAPPINGS).forEach(mapping => {
         expect(mapping.providers).toHaveProperty('elevenlabs');
-        expect(mapping.providers).toHaveProperty('openai');
-        expect(mapping.providers).toHaveProperty('browser');
-        expect(mapping.providers).toHaveProperty('groq');
-        expect(mapping.providers).toHaveProperty('cartesia');
       });
     });
 
-    test('Groq and Cartesia are null for non-English languages', () => {
-      Object.entries(LANGUAGE_MAPPINGS)
-        .filter(([code]) => code !== 'en')
-        .forEach(([code, mapping]) => {
-          expect(mapping.providers.groq).toBeNull();
-          expect(mapping.providers.cartesia).toBeNull();
-        });
+    test('ElevenLabs supports multiple languages', () => {
+      // Post-045: ElevenLabs supports all mapped languages
+      expect(LANGUAGE_MAPPINGS.es.providers.elevenlabs).toBe('es');
+      expect(LANGUAGE_MAPPINGS.fr.providers.elevenlabs).toBe('fr');
+      expect(LANGUAGE_MAPPINGS.de.providers.elevenlabs).toBe('de');
+      expect(LANGUAGE_MAPPINGS.ja.providers.elevenlabs).toBe('ja');
     });
 
-    test('Groq and Cartesia support English', () => {
+    test('English uses null for elevenlabs (default)', () => {
       const enMapping = LANGUAGE_MAPPINGS.en;
-      expect(enMapping.providers.groq).toBe('en');
-      expect(enMapping.providers.cartesia).toBe('en');
+      expect(enMapping.providers.elevenlabs).toBeNull();
+    });
+
+    test('Chinese uses zh-cn for elevenlabs', () => {
+      expect(LANGUAGE_MAPPINGS.zh.providers.elevenlabs).toBe('zh-cn');
     });
   });
 
@@ -93,14 +93,14 @@ describe('Language Mappings', () => {
       expect(code).toBe('zh-cn');
     });
 
-    test('returns null for OpenAI (auto-detect)', () => {
-      const code = getProviderLanguageCode('de', 'openai');
+    test('returns null for English on ElevenLabs (uses default)', () => {
+      const code = getProviderLanguageCode('en', 'elevenlabs');
       expect(code).toBeNull();
     });
 
-    test('returns Browser TTS lang for Spanish', () => {
-      const code = getProviderLanguageCode('es', 'browser');
-      expect(code).toBe('es-ES');
+    test('returns null for unknown language', () => {
+      const code = getProviderLanguageCode('xyz', 'elevenlabs');
+      expect(code).toBeNull();
     });
   });
 
@@ -118,62 +118,45 @@ describe('Language Mappings', () => {
   });
 
   describe('providerSupportsLanguage', () => {
-    test('OpenAI supports all languages (auto-detect)', () => {
-      expect(providerSupportsLanguage('openai', 'es')).toBe(true);
-      expect(providerSupportsLanguage('openai', 'zh')).toBe(true);
-      expect(providerSupportsLanguage('openai', 'ja')).toBe(true);
-      expect(providerSupportsLanguage('openai', 'ar')).toBe(true);
-    });
-
     test('ElevenLabs supports mapped languages', () => {
+      // Post-045: Only ElevenLabs is supported
       expect(providerSupportsLanguage('elevenlabs', 'es')).toBe(true);
       expect(providerSupportsLanguage('elevenlabs', 'fr')).toBe(true);
       expect(providerSupportsLanguage('elevenlabs', 'ja')).toBe(true);
+      expect(providerSupportsLanguage('elevenlabs', 'en')).toBe(true);
     });
 
-    test('Browser TTS supports mapped languages', () => {
-      expect(providerSupportsLanguage('browser', 'es')).toBe(true);
-      expect(providerSupportsLanguage('browser', 'de')).toBe(true);
-    });
-
-    test('Groq only supports English', () => {
-      expect(providerSupportsLanguage('groq', 'en')).toBe(true);
-      expect(providerSupportsLanguage('groq', 'es')).toBe(false);
-      expect(providerSupportsLanguage('groq', 'fr')).toBe(false);
-    });
-
-    test('Cartesia only supports English', () => {
-      expect(providerSupportsLanguage('cartesia', 'en')).toBe(true);
-      expect(providerSupportsLanguage('cartesia', 'de')).toBe(false);
-      expect(providerSupportsLanguage('cartesia', 'ja')).toBe(false);
+    test('ElevenLabs returns false for unsupported languages', () => {
+      expect(providerSupportsLanguage('elevenlabs', 'xyz')).toBe(false);
+      expect(providerSupportsLanguage('elevenlabs', 'klingon')).toBe(false);
     });
   });
 
   describe('getProvidersForLanguage', () => {
-    test('returns all providers for English', () => {
+    test('returns elevenlabs for English', () => {
+      // Post-045: Only ElevenLabs is supported
       const providers = getProvidersForLanguage('en');
-      expect(providers).toContain('openai');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).toContain('groq');
-      expect(providers).toContain('cartesia');
+      expect(providers).toHaveLength(1);
     });
 
-    test('returns multilingual providers for Spanish', () => {
+    test('returns elevenlabs for Spanish', () => {
+      // Post-045: Only ElevenLabs is supported
       const providers = getProvidersForLanguage('es');
-      expect(providers).toContain('openai');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).not.toContain('groq');
-      expect(providers).not.toContain('cartesia');
+      expect(providers).toHaveLength(1);
     });
 
-    test('returns multilingual providers for Japanese', () => {
+    test('returns elevenlabs for Japanese', () => {
+      // Post-045: Only ElevenLabs is supported
       const providers = getProvidersForLanguage('ja');
-      expect(providers).toContain('openai');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).not.toContain('groq');
+      expect(providers).toHaveLength(1);
+    });
+
+    test('returns empty array for unsupported language', () => {
+      const providers = getProvidersForLanguage('xyz');
+      expect(providers).toEqual([]);
     });
   });
 
@@ -196,15 +179,8 @@ describe('Language Mappings', () => {
   });
 
   // T035: Tests for getVoicesForLanguage (019-multilingual-tts)
+  // Post-045: Only ElevenLabs provider, simplified voice filtering
   describe('getVoicesForLanguage', () => {
-    const mockVoices = [
-      { id: 'en-voice-1', name: 'English Voice 1', lang: 'en-US' },
-      { id: 'en-voice-2', name: 'English Voice 2', lang: 'en-GB' },
-      { id: 'es-voice', name: 'Spanish Voice', lang: 'es-ES' },
-      { id: 'fr-voice', name: 'French Voice', lang: 'fr-FR' },
-      { id: 'ja-voice', name: 'Japanese Voice', lang: 'ja-JP' }
-    ];
-
     const mockApiVoices = [
       { id: 'alloy', name: 'Alloy' },
       { id: 'echo', name: 'Echo' },
@@ -212,80 +188,25 @@ describe('Language Mappings', () => {
     ];
 
     test('returns empty array for null/empty voices', () => {
-      expect(getVoicesForLanguage(null, 'en', 'browser')).toEqual([]);
-      expect(getVoicesForLanguage([], 'en', 'browser')).toEqual([]);
+      expect(getVoicesForLanguage(null, 'en', 'elevenlabs')).toEqual([]);
+      expect(getVoicesForLanguage([], 'en', 'elevenlabs')).toEqual([]);
     });
 
     test('returns all voices when languageCode is null', () => {
-      const result = getVoicesForLanguage(mockVoices, null, 'browser');
-      expect(result).toEqual(mockVoices);
-    });
-
-    test('OpenAI returns all voices for any language (auto-detect)', () => {
-      expect(getVoicesForLanguage(mockApiVoices, 'es', 'openai')).toEqual(mockApiVoices);
-      expect(getVoicesForLanguage(mockApiVoices, 'ja', 'openai')).toEqual(mockApiVoices);
-      expect(getVoicesForLanguage(mockApiVoices, 'zh', 'openai')).toEqual(mockApiVoices);
-    });
-
-    test('Groq returns all voices for English', () => {
-      expect(getVoicesForLanguage(mockApiVoices, 'en', 'groq')).toEqual(mockApiVoices);
-    });
-
-    test('Groq returns empty for non-English', () => {
-      expect(getVoicesForLanguage(mockApiVoices, 'es', 'groq')).toEqual([]);
-      expect(getVoicesForLanguage(mockApiVoices, 'ja', 'groq')).toEqual([]);
-    });
-
-    test('Cartesia returns all voices for English', () => {
-      expect(getVoicesForLanguage(mockApiVoices, 'en', 'cartesia')).toEqual(mockApiVoices);
-    });
-
-    test('Cartesia returns empty for non-English', () => {
-      expect(getVoicesForLanguage(mockApiVoices, 'de', 'cartesia')).toEqual([]);
+      const result = getVoicesForLanguage(mockApiVoices, null, 'elevenlabs');
+      expect(result).toEqual(mockApiVoices);
     });
 
     test('ElevenLabs returns all voices for supported languages', () => {
+      // Post-045: ElevenLabs supports all mapped languages
       expect(getVoicesForLanguage(mockApiVoices, 'es', 'elevenlabs')).toEqual(mockApiVoices);
       expect(getVoicesForLanguage(mockApiVoices, 'ja', 'elevenlabs')).toEqual(mockApiVoices);
       expect(getVoicesForLanguage(mockApiVoices, 'zh', 'elevenlabs')).toEqual(mockApiVoices);
+      expect(getVoicesForLanguage(mockApiVoices, 'en', 'elevenlabs')).toEqual(mockApiVoices);
     });
 
     test('ElevenLabs returns empty for unsupported languages', () => {
       expect(getVoicesForLanguage(mockApiVoices, 'xyz', 'elevenlabs')).toEqual([]);
-    });
-
-    test('Browser TTS filters by voice.lang', () => {
-      const result = getVoicesForLanguage(mockVoices, 'en', 'browser');
-      expect(result.length).toBe(2);
-      expect(result[0].id).toBe('en-voice-1');
-      expect(result[1].id).toBe('en-voice-2');
-    });
-
-    test('Browser TTS filters for Spanish', () => {
-      const result = getVoicesForLanguage(mockVoices, 'es', 'browser');
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('es-voice');
-    });
-
-    test('Browser TTS filters for Japanese', () => {
-      const result = getVoicesForLanguage(mockVoices, 'ja', 'browser');
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('ja-voice');
-    });
-
-    test('Browser TTS returns empty when no matching voices', () => {
-      const result = getVoicesForLanguage(mockVoices, 'zh', 'browser');
-      expect(result).toEqual([]);
-    });
-
-    test('Browser TTS matches description fallback', () => {
-      const voicesWithDesc = [
-        { id: 'voice1', name: 'Voice 1', description: 'es-ES' },
-        { id: 'voice2', name: 'Voice 2', description: 'en-US' }
-      ];
-      const result = getVoicesForLanguage(voicesWithDesc, 'es', 'browser');
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe('voice1');
     });
   });
 });
