@@ -7,17 +7,36 @@
  * TypeScript conversion from options/options.js
  */
 
+import { browser } from 'wxt/browser';
 import {
-  settingsDefaults,
-  loggingDefaults,
-  uiDefaults,
+  defaults as settingsDefaults,
   queueDefaults,
-  type LoggingConfig,
-  type LogViewerResponse,
-  type EndpointValidation,
   type QueueSettings,
-} from '../utils/config';
+} from '../../utils/config';
 
+// UI defaults (inline since they're simple)
+const uiDefaults = {
+  highlightEnabled: true,
+  autoScroll: true,
+};
+
+// Logging defaults for options page
+const loggingDefaults = {
+  enabled: false,
+  endpoint: '',
+  authType: 'none' as const,
+  basicUsername: '',
+  basicPassword: '',
+  bearerToken: '',
+  logLevel: 'warn' as const,
+};
+
+// Type definitions
+type LoggingConfig = typeof loggingDefaults;
+type LogViewerResponse = { logs: Array<{ timestamp: number; level: string; message: string }>; total: number };
+type EndpointValidation = { isValid: boolean; error?: string };
+
+import { usageTracker } from '../../utils/telemetry/usage';
 import { toast } from './components/toast';
 import { showConfirmModal } from './components/modal';
 import { testApiKey, saveApiKey } from '../../utils/options/api-key-tester';
@@ -39,13 +58,9 @@ interface OptionsElements {
   quickSpeedValue: HTMLElement;
 
   // API Key inputs
-  openaiKey: HTMLInputElement;
   anthropicKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
-  testElevenlabsKey: HTMLButtonElement;
   elevenlabsKeyStatus: HTMLElement;
-  cartesiaKey: HTMLInputElement;
-  groqKey: HTMLInputElement;
 
   // Settings inputs (legacy, kept for backwards compatibility)
   defaultProvider: HTMLSelectElement;
@@ -81,6 +96,7 @@ interface OptionsElements {
   flushLogsBtn: HTMLButtonElement;
   clearLogsBtn: HTMLButtonElement;
   exportLogsBtn: HTMLButtonElement;
+  copyLogsBtn: HTMLButtonElement;
   logViewerStatus: HTMLElement;
   logViewerContainer: HTMLElement;
   logViewerContent: HTMLElement;
@@ -92,6 +108,9 @@ interface OptionsElements {
   clearCompletedQueue: HTMLButtonElement;
   clearAllQueue: HTMLButtonElement;
   queueStatus: HTMLElement;
+
+  // Telemetry elements (T018)
+  telemetryEnabled: HTMLInputElement;
 }
 
 let elements: OptionsElements | null = null;
@@ -124,13 +143,9 @@ function getElements(): OptionsElements {
     quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
 
     // API Key inputs
-    openaiKey: getElement<HTMLInputElement>('openaiKey'),
     anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
-    testElevenlabsKey: getElement<HTMLButtonElement>('testElevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
-    cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
-    groqKey: getElement<HTMLInputElement>('groqKey'),
 
     // Legacy settings inputs (kept for backwards compatibility)
     defaultProvider: getElement<HTMLSelectElement>('defaultProvider'),
@@ -160,6 +175,7 @@ function getElements(): OptionsElements {
     flushLogsBtn: getElement<HTMLButtonElement>('flushLogsBtn'),
     clearLogsBtn: getElement<HTMLButtonElement>('clearLogsBtn'),
     exportLogsBtn: getElement<HTMLButtonElement>('exportLogsBtn'),
+    copyLogsBtn: getElement<HTMLButtonElement>('copyLogsBtn'),
     logViewerStatus: getElement<HTMLElement>('logViewerStatus'),
     logViewerContainer: getElement<HTMLElement>('logViewerContainer'),
     logViewerContent: getElement<HTMLElement>('logViewerContent'),
@@ -171,6 +187,9 @@ function getElements(): OptionsElements {
     clearCompletedQueue: getElement<HTMLButtonElement>('clearCompletedQueue'),
     clearAllQueue: getElement<HTMLButtonElement>('clearAllQueue'),
     queueStatus: getElement<HTMLElement>('queueStatus'),
+
+    // Telemetry elements (T018)
+    telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
   };
 }
 
@@ -180,12 +199,16 @@ function getElements(): OptionsElements {
 export async function initOptionsPage(): Promise<void> {
   elements = getElements();
 
+  // T018: Initialize telemetry for settings page
+  await initTelemetry();
+
   await loadSettings();
   await loadQuickSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
   await loadCacheStats();
   await loadThemePreference();
+  await loadTelemetryConfig();
 
   setupQuickSettingsEventListeners();
   setupEventListeners();
@@ -193,6 +216,7 @@ export async function initOptionsPage(): Promise<void> {
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupCacheEventListeners();
+  setupTelemetryEventListeners();
   setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
@@ -209,21 +233,9 @@ export async function initOptionsPage(): Promise<void> {
  * T021: Voice options filtered by provider
  */
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  browser: [], // Populated dynamically from browser's speech synthesis
-  groq: [{ value: 'default', label: 'Default' }],
-  openai: [
-    { value: 'alloy', label: 'Alloy' },
-    { value: 'echo', label: 'Echo' },
-    { value: 'fable', label: 'Fable' },
-    { value: 'onyx', label: 'Onyx' },
-    { value: 'nova', label: 'Nova' },
-    { value: 'shimmer', label: 'Shimmer' },
-  ],
   elevenlabs: [
     { value: 'default', label: 'Default Voice' },
-    // Additional voices fetched from API when key is configured
   ],
-  cartesia: [{ value: 'default', label: 'Default Voice' }],
 };
 
 /**
@@ -277,33 +289,7 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
   voiceSelect.appendChild(defaultOption);
 
   // Get voices for provider
-  let voices = PROVIDER_VOICES[provider] || [];
-
-  // For browser TTS, get available system voices
-  if (provider === 'browser' && 'speechSynthesis' in window) {
-    const getVoices = (): SpeechSynthesisVoice[] => {
-      return window.speechSynthesis.getVoices();
-    };
-
-    let systemVoices = getVoices();
-
-    // Voices may not be loaded yet
-    if (systemVoices.length === 0) {
-      await new Promise<void>((resolve) => {
-        window.speechSynthesis.onvoiceschanged = () => {
-          systemVoices = getVoices();
-          resolve();
-        };
-        // Timeout fallback
-        setTimeout(resolve, 1000);
-      });
-    }
-
-    voices = systemVoices.map((v) => ({
-      value: v.name,
-      label: `${v.name} (${v.lang})`,
-    }));
-  }
+  const voices = PROVIDER_VOICES[provider] || [];
 
   // Add voice options
   voices.forEach((voice) => {
@@ -379,6 +365,9 @@ function setupQuickSettingsEventListeners(): void {
 async function saveQuickSetting(key: string, value: string | number): Promise<void> {
   try {
     await browser.storage.local.set({ [key]: value });
+
+    // T018: Track setting changes
+    trackSettingChange('settings.quick_setting_changed', { key, value });
 
     // Also update legacy elements if they exist
     if (elements) {
@@ -603,11 +592,8 @@ async function loadSettings(): Promise<void> {
   try {
     // Load all settings from storage
     const result = await browser.storage.local.get([
-      'openaiApiKey',
       'anthropic:apiKey',
       'elevenlabsApiKey',
-      'cartesiaApiKey',
-      'groqApiKey',
       'provider',
       'speed',
       'mode',
@@ -617,11 +603,8 @@ async function loadSettings(): Promise<void> {
     ]);
 
     // API keys (no defaults, empty if not set)
-    elements.openaiKey.value = (result.openaiApiKey as string | undefined) || '';
     elements.anthropicKey.value = (result['anthropic:apiKey'] as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
-    elements.cartesiaKey.value = (result.cartesiaApiKey as string | undefined) || '';
-    elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
 
     // Settings with defaults
     elements.defaultProvider.value =
@@ -689,19 +672,18 @@ function setupEventListeners(): void {
     elements.speedValue.textContent = `${value.toFixed(1)}x`;
   });
 
-  // Test ElevenLabs API key button
-  elements.testElevenlabsKey.addEventListener('click', testElevenLabsApiKey);
+  // NOTE: Legacy testElevenLabsApiKey handler removed.
+  // ElevenLabs test button now uses the modern provider card handler
+  // (setupProviderCardEventListeners → handleProviderTest) which is
+  // attached via .provider-card__test-btn[data-provider="elevenlabs"]
 
   // Save button
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Auto-save on input change (with debounce)
   const autoSaveInputs: HTMLElement[] = [
-    elements.openaiKey,
     elements.anthropicKey,
     elements.elevenlabsKey,
-    elements.cartesiaKey,
-    elements.groqKey,
     elements.defaultProvider,
     elements.defaultSpeed,
     elements.defaultMode,
@@ -807,63 +789,9 @@ function setupThemeEventListener(): void {
   });
 }
 
-/**
- * Test ElevenLabs API key
- */
-async function testElevenLabsApiKey(): Promise<void> {
-  if (!elements) return;
-
-  // Save the key first to ensure it's in storage
-  const key = elements.elevenlabsKey.value.trim();
-  if (!key) {
-    showApiKeyStatus('elevenlabs', 'No API key entered', 'error');
-    return;
-  }
-
-  // Save to storage first
-  await browser.storage.local.set({ elevenlabsApiKey: key });
-
-  showApiKeyStatus('elevenlabs', 'Testing...', 'loading');
-
-  try {
-    const response = await browser.runtime.sendMessage({
-      type: 'testApiKey',
-      provider: 'elevenlabs',
-    });
-
-    if (response && response.success) {
-      showApiKeyStatus('elevenlabs', response.message || 'Valid!', 'success');
-    } else {
-      showApiKeyStatus('elevenlabs', response?.error || 'Invalid key', 'error');
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Test failed';
-    showApiKeyStatus('elevenlabs', errorMessage, 'error');
-  }
-}
-
-/**
- * Show API key test status (legacy - for elevenlabs only)
- */
-function showApiKeyStatus(
-  provider: string,
-  message: string,
-  type: 'success' | 'error' | 'loading',
-): void {
-  if (!elements) return;
-
-  const statusElement = elements.elevenlabsKeyStatus;
-  statusElement.textContent = message;
-  statusElement.className = `api-key-status api-key-status--${type}`;
-  statusElement.style.display = 'block';
-
-  // Auto-hide success/error messages after 5 seconds
-  if (type !== 'loading') {
-    setTimeout(() => {
-      statusElement.style.display = 'none';
-    }, 5000);
-  }
-}
+// NOTE: Legacy testElevenLabsApiKey and showApiKeyStatus functions removed.
+// ElevenLabs (and all providers) now use the modern handleProviderTest() function
+// which is attached via setupProviderCardEventListeners() to .provider-card__test-btn elements.
 
 // ========================================
 // PROVIDER CARD HANDLERS (027-settings-ux-overhaul T033-T035)
@@ -873,10 +801,7 @@ function showApiKeyStatus(
  * Storage key mapping for each provider's API key
  */
 const PROVIDER_INPUT_IDS: Record<string, string> = {
-  openai: 'openaiKey',
   elevenlabs: 'elevenlabsKey',
-  groq: 'groqKey',
-  cartesia: 'cartesiaKey',
   anthropic: 'anthropicKey',
 };
 
@@ -951,23 +876,47 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
   button.classList.add('loading');
   showProviderCardStatus(statusEl, 'Testing...', 'loading');
 
+  // T018: Track API key test initiated (not the key itself!)
+  trackSettingChange('settings.api_key_tested', { provider });
+
   try {
     const result = await testApiKey(provider, apiKey);
+
+    console.log('[Controller] testApiKey returned:', JSON.stringify(result, null, 2));
+    console.log('[Controller] result.success:', result.success);
 
     if (result.success) {
       // T034: Display success with icon
       const latencyInfo = result.latencyMs ? ` (${result.latencyMs}ms)` : '';
       showProviderCardStatus(statusEl, `✓ Valid${latencyInfo}`, 'success');
       toast.success(`${capitalizeProvider(provider)} API key is valid`);
+
+      // T018: Track successful API key test
+      trackSettingChange('settings.api_key_test_success', {
+        provider,
+        latencyMs: result.latencyMs,
+      });
     } else {
       // T034: Display error with icon
       showProviderCardStatus(statusEl, `✗ ${result.message}`, 'error');
       toast.error(result.message);
+
+      // T018: Track failed API key test (not the key, just provider and error type)
+      trackSettingChange('settings.api_key_test_failed', {
+        provider,
+        errorType: 'validation_failed',
+      });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Test failed';
     showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
     toast.error(errorMessage);
+
+    // T018: Track API key test error
+    trackSettingChange('settings.api_key_test_failed', {
+      provider,
+      errorType: 'exception',
+    });
   } finally {
     // Reset button state
     button.disabled = false;
@@ -1050,10 +999,7 @@ function showProviderCardStatus(
  */
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
-    openai: 'OpenAI',
     elevenlabs: 'ElevenLabs',
-    groq: 'Groq',
-    cartesia: 'Cartesia',
     anthropic: 'Anthropic',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
@@ -1067,13 +1013,18 @@ async function saveSettings(): Promise<void> {
 
   try {
     await browser.storage.local.set({
-      openaiApiKey: elements.openaiKey.value.trim(),
       'anthropic:apiKey': elements.anthropicKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
-      cartesiaApiKey: elements.cartesiaKey.value.trim(),
-      groqApiKey: elements.groqKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: Number.parseFloat(elements.defaultSpeed.value),
+      mode: elements.defaultMode.value,
+      highlightEnabled: elements.highlightEnabled.checked,
+      autoScroll: elements.autoScroll.checked,
+    });
+
+    // T018: Track settings saved event
+    trackSettingChange('settings.saved', {
+      provider: elements.defaultProvider.value,
       mode: elements.defaultMode.value,
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
@@ -1120,25 +1071,14 @@ async function loadLoggingConfig(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get('loggingConfig');
+    const result = await browser.storage.local.get('voxpage_logging_config');
     const config: LoggingConfig = {
       ...loggingDefaults,
-      ...((result.loggingConfig as Partial<LoggingConfig>) || {}),
+      ...((result.voxpage_logging_config as Partial<LoggingConfig>) || {}),
     };
 
+    // Only the toggle is visible - other settings use defaults
     elements.loggingEnabled.checked = config.enabled;
-    elements.loggingEndpoint.value = config.endpoint || '';
-    elements.loggingAuthType.value = config.authType || 'none';
-    elements.loggingUsername.value = config.username || '';
-    elements.loggingPassword.value = config.password || '';
-    elements.loggingBearerToken.value = config.bearerToken || '';
-    elements.loggingCfClientId.value = config.cfAccessClientId || '';
-    elements.loggingCfClientSecret.value = config.cfAccessClientSecret || '';
-    elements.loggingLogLevel.value = config.logLevel || 'warn';
-
-    // Show/hide config section based on enabled state
-    updateLoggingConfigVisibility();
-    updateAuthFieldsVisibility();
   } catch (error) {
     console.error('Error loading logging config:', error);
   }
@@ -1146,120 +1086,57 @@ async function loadLoggingConfig(): Promise<void> {
 
 /**
  * Setup logging-specific event listeners
+ * Simplified: only toggle and log viewer buttons are active
  */
 function setupLoggingEventListeners(): void {
   if (!elements) return;
 
-  // Toggle logging config section visibility
+  // Auto-save when toggle changes
   elements.loggingEnabled.addEventListener('change', () => {
-    updateLoggingConfigVisibility();
+    if (loggingSaveTimeout) {
+      clearTimeout(loggingSaveTimeout);
+    }
+    loggingSaveTimeout = setTimeout(saveLoggingConfig, 500);
   });
-
-  // Toggle auth fields visibility based on auth type
-  elements.loggingAuthType.addEventListener('change', () => {
-    updateAuthFieldsVisibility();
-  });
-
-  // Test connection button
-  elements.testLoggingConnection.addEventListener('click', testLoggingConnection);
 
   // Log viewer buttons
   elements.viewLogsBtn.addEventListener('click', viewLogs);
   elements.flushLogsBtn.addEventListener('click', flushLogs);
   elements.clearLogsBtn.addEventListener('click', clearLogs);
   elements.exportLogsBtn.addEventListener('click', exportLogs);
-
-  // Auto-save logging config on change
-  const loggingInputs: HTMLElement[] = [
-    elements.loggingEnabled,
-    elements.loggingEndpoint,
-    elements.loggingAuthType,
-    elements.loggingUsername,
-    elements.loggingPassword,
-    elements.loggingBearerToken,
-    elements.loggingCfClientId,
-    elements.loggingCfClientSecret,
-    elements.loggingLogLevel,
-  ];
-
-  loggingInputs.forEach((input) => {
-    input.addEventListener('change', () => {
-      if (loggingSaveTimeout) {
-        clearTimeout(loggingSaveTimeout);
-      }
-      loggingSaveTimeout = setTimeout(saveLoggingConfig, 500);
-    });
-  });
+  elements.copyLogsBtn.addEventListener('click', copyLogs);
 }
 
 /**
  * Update visibility of logging config section
+ * NOTE: Config section is now hidden - using defaults
  */
 function updateLoggingConfigVisibility(): void {
-  if (!elements) return;
-
-  elements.loggingConfigSection.style.display = elements.loggingEnabled.checked ? 'block' : 'none';
+  // No-op: config section removed, using defaults
 }
 
 /**
  * Update visibility of auth fields based on selected auth type
+ * NOTE: Auth fields are now hidden - using defaults
  */
 function updateAuthFieldsVisibility(): void {
-  if (!elements) return;
-
-  const authType = elements.loggingAuthType.value;
-
-  // Hide all auth fields first
-  elements.basicAuthFields.style.display = 'none';
-  elements.bearerAuthFields.style.display = 'none';
-  elements.cloudflareAuthFields.style.display = 'none';
-
-  // Show relevant auth fields
-  switch (authType) {
-    case 'basic':
-      elements.basicAuthFields.style.display = 'block';
-      break;
-    case 'bearer':
-      elements.bearerAuthFields.style.display = 'block';
-      break;
-    case 'cloudflare':
-      elements.cloudflareAuthFields.style.display = 'block';
-      break;
-  }
+  // No-op: auth fields removed, using defaults
 }
 
 /**
  * Save logging configuration to storage
+ * Uses defaults for all settings except enabled toggle
  */
 async function saveLoggingConfig(): Promise<void> {
   if (!elements) return;
 
   try {
     const config: LoggingConfig = {
+      ...loggingDefaults,
       enabled: elements.loggingEnabled.checked,
-      endpoint: elements.loggingEndpoint.value.trim() || null,
-      authType: elements.loggingAuthType.value as LoggingConfig['authType'],
-      username: elements.loggingUsername.value.trim() || null,
-      password: elements.loggingPassword.value || null,
-      bearerToken: elements.loggingBearerToken.value || null,
-      cfAccessClientId: elements.loggingCfClientId.value.trim() || null,
-      cfAccessClientSecret: elements.loggingCfClientSecret.value || null,
-      logLevel: elements.loggingLogLevel.value as LoggingConfig['logLevel'],
-      batchIntervalMs: loggingDefaults.batchIntervalMs,
-      maxBatchSize: loggingDefaults.maxBatchSize,
-      maxBufferBytes: loggingDefaults.maxBufferBytes,
     };
 
-    // Validate endpoint URL if enabled
-    if (config.enabled && config.endpoint) {
-      const validation = validateLoggingEndpoint(config.endpoint);
-      if (!validation.valid) {
-        showLoggingStatus(validation.error || 'Invalid endpoint', 'error');
-        return;
-      }
-    }
-
-    await browser.storage.local.set({ loggingConfig: config });
+    await browser.storage.local.set({ voxpage_logging_config: config });
     showSaveStatus('Settings saved!');
   } catch (error) {
     console.error('Error saving logging config:', error);
@@ -1278,8 +1155,11 @@ function validateLoggingEndpoint(url: string): EndpointValidation {
       return { valid: false, error: 'Endpoint must use HTTPS' };
     }
 
-    if (!parsed.pathname.endsWith('/loki/api/v1/push')) {
-      return { valid: false, error: 'Endpoint must end with /loki/api/v1/push' };
+    // Allow both direct Loki endpoints and VoxPage gateway
+    const validPaths = ['/loki/api/v1/push', '/ingest', ''];
+    const pathValid = validPaths.some((p) => parsed.pathname === p || parsed.pathname.endsWith(p));
+    if (!pathValid && !url.includes('voxpage-logs')) {
+      return { valid: false, error: 'Invalid endpoint path' };
     }
 
     return { valid: true };
@@ -1418,7 +1298,13 @@ async function flushLogs(): Promise<void> {
       // Refresh the view
       await viewLogs();
     } else {
-      updateLogViewerStatus(`Flush failed: ${response?.error || 'Unknown error'}`);
+      // Handle error which could be a string, object, or undefined
+      let errorMsg = 'Unknown error';
+      if (response?.error) {
+        errorMsg =
+          typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+      }
+      updateLogViewerStatus(`Flush failed: ${errorMsg}`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1488,6 +1374,37 @@ async function exportLogs(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     updateLogViewerStatus(`Error: ${errorMessage}`);
+  }
+}
+
+/**
+ * Copy logs to clipboard as formatted text
+ */
+async function copyLogs(): Promise<void> {
+  try {
+    const response = (await browser.runtime.sendMessage({
+      action: 'getLogs',
+    })) as LogViewerResponse;
+
+    if (response && response.logs && response.logs.length > 0) {
+      const { logs } = response;
+
+      // Format logs as readable text
+      const logText = logs
+        .map((log) => {
+          const meta = log.metadata ? ` ${JSON.stringify(log.metadata)}` : '';
+          return `[${log.date}] [${log.level.toUpperCase()}] [${log.component}] ${log.message}${meta}`;
+        })
+        .join('\n');
+
+      await navigator.clipboard.writeText(logText);
+      updateLogViewerStatus(`Copied ${logs.length} logs to clipboard`);
+    } else {
+      updateLogViewerStatus('No logs to copy');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    updateLogViewerStatus(`Error copying logs: ${errorMessage}`);
   }
 }
 
@@ -1745,6 +1662,120 @@ async function reloadSectionSettings(section: string): Promise<void> {
       await loadCacheStats();
       break;
   }
+}
+
+// ========================================
+// TELEMETRY (043-usage-observability-loki T018)
+// ========================================
+
+/**
+ * Initialize usage tracker for settings page context.
+ * Loads config from storage and tracks settings.opened event.
+ */
+async function initTelemetry(): Promise<void> {
+  try {
+    // Load telemetry config from storage
+    const stored = await browser.storage.local.get([
+      'telemetryEnabled',
+      'telemetryGatewayUrl',
+      'telemetryGatewayToken',
+    ]);
+
+    // Skip if telemetry is disabled
+    if (stored.telemetryEnabled === false) {
+      console.log('[Settings] Telemetry disabled by user');
+      return;
+    }
+
+    // Only initialize if gateway is configured
+    const gatewayUrl =
+      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
+    const gatewayToken =
+      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+
+    await usageTracker.initialize({
+      gatewayUrl,
+      gatewayToken,
+      entrypoint: 'options',
+      debugMode: process.env.NODE_ENV !== 'production',
+    });
+
+    // Track settings page opened
+    usageTracker.track('settings.opened', {});
+
+    // Track settings page closed on unload
+    window.addEventListener('beforeunload', () => {
+      usageTracker.track('settings.closed', {});
+      // Best-effort flush
+      usageTracker.destroy();
+    });
+
+    console.log('[Settings] Telemetry initialized');
+  } catch (error) {
+    console.warn('[Settings] Telemetry init failed:', error);
+  }
+}
+
+/**
+ * Track setting change events with debouncing
+ */
+const trackSettingDebounce = new Map<string, number>();
+const SETTING_DEBOUNCE_MS = 300;
+
+function trackSettingChange(eventType: string, data?: Record<string, unknown>): void {
+  const now = Date.now();
+  const lastTrack = trackSettingDebounce.get(eventType) || 0;
+
+  if (now - lastTrack < SETTING_DEBOUNCE_MS) {
+    return; // Skip duplicate rapid changes
+  }
+
+  trackSettingDebounce.set(eventType, now);
+  usageTracker.track(eventType, data);
+}
+
+/**
+ * Load telemetry configuration from storage
+ * T018: Telemetry opt-out toggle
+ */
+async function loadTelemetryConfig(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const result = await browser.storage.local.get('telemetryEnabled');
+
+    // Default to true (opt-in by default)
+    const enabled = result.telemetryEnabled !== false;
+    elements.telemetryEnabled.checked = enabled;
+  } catch (error) {
+    console.error('Error loading telemetry config:', error);
+    // Default to enabled on error
+    elements.telemetryEnabled.checked = true;
+  }
+}
+
+/**
+ * Setup telemetry-specific event listeners
+ * T018: Telemetry opt-out toggle
+ */
+function setupTelemetryEventListeners(): void {
+  if (!elements) return;
+
+  elements.telemetryEnabled.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const enabled = elements.telemetryEnabled.checked;
+    await browser.storage.local.set({ telemetryEnabled: enabled });
+
+    // Track the change (if enabling, track immediately; if disabling, best-effort)
+    if (enabled) {
+      usageTracker.track('settings.telemetry_enabled', {});
+      toast.success('Usage telemetry enabled');
+    } else {
+      usageTracker.track('settings.telemetry_disabled', {});
+      toast.success('Usage telemetry disabled');
+    }
+  });
 }
 
 // ========================================

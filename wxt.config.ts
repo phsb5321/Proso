@@ -1,5 +1,14 @@
 import { defineConfig } from "wxt";
 
+/**
+ * VoxPage - Text-to-Speech Extension for Web Pages
+ *
+ * Chrome MV3-first architecture with Firefox compatibility:
+ * - Service worker background (MV3) with Firefox event page fallback
+ * - Article extraction via Mozilla Readability
+ * - ElevenLabs HTTP streaming TTS API
+ * - Word-level text highlighting via CSS Custom Highlight API
+ */
 export default defineConfig({
   srcDir: "src",
   manifest: {
@@ -12,13 +21,11 @@ export default defineConfig({
       "activeTab",
       "tabs", // Tab management and URL tracking
       "contextMenus", // Right-click menu integration
-      "webRequest", // 033-pdf-reading-support: Detect PDF loads via headers
+      "scripting", // For programmatic content script injection
     ],
     host_permissions: [
-      "https://api.openai.com/*",
-      "https://api.elevenlabs.io/*",
-      "https://api.cartesia.ai/*",
-      "https://api.groq.com/*",
+      "https://api.elevenlabs.io/*", // ElevenLabs TTS API
+      "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
     ],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
@@ -42,23 +49,17 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "voxpage@example.com",
-        strict_min_version: "100.0",
+        strict_min_version: "109.0", // Firefox 109+ for better extension APIs
       },
     },
-    // 033-pdf-reading-support: Make PDF.js worker accessible for PDF text extraction
-    web_accessible_resources: [
-      {
-        resources: ["pdf.worker.min.js"],
-        matches: ["<all_urls>"],
-      },
-    ],
     // NOTE: We intentionally DO NOT use options_ui here.
     // Firefox embeds options_ui pages inside about:addons which looks ugly.
     // Instead, we open our options page in a dedicated browser tab via
     // browser.tabs.create() - see popup and background handlers.
   },
 
-  browser: process.env.BROWSER || "firefox",
+  // Firefox-only build
+  browser: "firefox",
 
   // Development server
   dev: {

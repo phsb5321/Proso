@@ -14,7 +14,7 @@ import { normalizeLanguageCode } from './codes';
 /**
  * Provider ID type
  */
-export type ProviderId = 'openai' | 'elevenlabs' | 'browser' | 'groq' | 'cartesia';
+export type ProviderId = 'elevenlabs';
 
 /**
  * Language mapping entry with provider-specific codes
@@ -23,10 +23,6 @@ export interface LanguageMapping {
   bcp47: string;
   providers: {
     elevenlabs: string | null; // null = use default/English
-    openai: string | null; // null = auto-detect
-    browser: string; // BCP-47 for Browser TTS
-    groq: string | null; // null = unsupported (English only)
-    cartesia: string | null; // null = unsupported (English only)
   };
   displayName: string;
   iso639_1: string;
@@ -49,181 +45,181 @@ export interface Voice {
 export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = Object.freeze({
   en: {
     bcp47: 'en',
-    providers: { elevenlabs: null, openai: null, browser: 'en-US', groq: 'en', cartesia: 'en' },
+    providers: { elevenlabs: null },
     displayName: 'English',
     iso639_1: 'en',
   },
   es: {
     bcp47: 'es',
-    providers: { elevenlabs: 'es', openai: null, browser: 'es-ES', groq: null, cartesia: null },
+    providers: { elevenlabs: 'es' },
     displayName: 'Spanish',
     iso639_1: 'es',
   },
   fr: {
     bcp47: 'fr',
-    providers: { elevenlabs: 'fr', openai: null, browser: 'fr-FR', groq: null, cartesia: null },
+    providers: { elevenlabs: 'fr' },
     displayName: 'French',
     iso639_1: 'fr',
   },
   de: {
     bcp47: 'de',
-    providers: { elevenlabs: 'de', openai: null, browser: 'de-DE', groq: null, cartesia: null },
+    providers: { elevenlabs: 'de' },
     displayName: 'German',
     iso639_1: 'de',
   },
   it: {
     bcp47: 'it',
-    providers: { elevenlabs: 'it', openai: null, browser: 'it-IT', groq: null, cartesia: null },
+    providers: { elevenlabs: 'it' },
     displayName: 'Italian',
     iso639_1: 'it',
   },
   pt: {
     bcp47: 'pt',
-    providers: { elevenlabs: 'pt', openai: null, browser: 'pt-PT', groq: null, cartesia: null },
+    providers: { elevenlabs: 'pt' },
     displayName: 'Portuguese',
     iso639_1: 'pt',
   },
   pl: {
     bcp47: 'pl',
-    providers: { elevenlabs: 'pl', openai: null, browser: 'pl-PL', groq: null, cartesia: null },
+    providers: { elevenlabs: 'pl' },
     displayName: 'Polish',
     iso639_1: 'pl',
   },
   tr: {
     bcp47: 'tr',
-    providers: { elevenlabs: 'tr', openai: null, browser: 'tr-TR', groq: null, cartesia: null },
+    providers: { elevenlabs: 'tr' },
     displayName: 'Turkish',
     iso639_1: 'tr',
   },
   ru: {
     bcp47: 'ru',
-    providers: { elevenlabs: 'ru', openai: null, browser: 'ru-RU', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ru' },
     displayName: 'Russian',
     iso639_1: 'ru',
   },
   nl: {
     bcp47: 'nl',
-    providers: { elevenlabs: 'nl', openai: null, browser: 'nl-NL', groq: null, cartesia: null },
+    providers: { elevenlabs: 'nl' },
     displayName: 'Dutch',
     iso639_1: 'nl',
   },
   cs: {
     bcp47: 'cs',
-    providers: { elevenlabs: 'cs', openai: null, browser: 'cs-CZ', groq: null, cartesia: null },
+    providers: { elevenlabs: 'cs' },
     displayName: 'Czech',
     iso639_1: 'cs',
   },
   ar: {
     bcp47: 'ar',
-    providers: { elevenlabs: 'ar', openai: null, browser: 'ar-SA', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ar' },
     displayName: 'Arabic',
     iso639_1: 'ar',
   },
   zh: {
     bcp47: 'zh',
-    providers: { elevenlabs: 'zh-cn', openai: null, browser: 'zh-CN', groq: null, cartesia: null },
+    providers: { elevenlabs: 'zh-cn' },
     displayName: 'Chinese',
     iso639_1: 'zh',
   },
   hu: {
     bcp47: 'hu',
-    providers: { elevenlabs: 'hu', openai: null, browser: 'hu-HU', groq: null, cartesia: null },
+    providers: { elevenlabs: 'hu' },
     displayName: 'Hungarian',
     iso639_1: 'hu',
   },
   ko: {
     bcp47: 'ko',
-    providers: { elevenlabs: 'ko', openai: null, browser: 'ko-KR', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ko' },
     displayName: 'Korean',
     iso639_1: 'ko',
   },
   ja: {
     bcp47: 'ja',
-    providers: { elevenlabs: 'ja', openai: null, browser: 'ja-JP', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ja' },
     displayName: 'Japanese',
     iso639_1: 'ja',
   },
   hi: {
     bcp47: 'hi',
-    providers: { elevenlabs: 'hi', openai: null, browser: 'hi-IN', groq: null, cartesia: null },
+    providers: { elevenlabs: 'hi' },
     displayName: 'Hindi',
     iso639_1: 'hi',
   },
   sv: {
     bcp47: 'sv',
-    providers: { elevenlabs: 'sv', openai: null, browser: 'sv-SE', groq: null, cartesia: null },
+    providers: { elevenlabs: 'sv' },
     displayName: 'Swedish',
     iso639_1: 'sv',
   },
   id: {
     bcp47: 'id',
-    providers: { elevenlabs: 'id', openai: null, browser: 'id-ID', groq: null, cartesia: null },
+    providers: { elevenlabs: 'id' },
     displayName: 'Indonesian',
     iso639_1: 'id',
   },
   uk: {
     bcp47: 'uk',
-    providers: { elevenlabs: 'uk', openai: null, browser: 'uk-UA', groq: null, cartesia: null },
+    providers: { elevenlabs: 'uk' },
     displayName: 'Ukrainian',
     iso639_1: 'uk',
   },
   el: {
     bcp47: 'el',
-    providers: { elevenlabs: 'el', openai: null, browser: 'el-GR', groq: null, cartesia: null },
+    providers: { elevenlabs: 'el' },
     displayName: 'Greek',
     iso639_1: 'el',
   },
   fi: {
     bcp47: 'fi',
-    providers: { elevenlabs: 'fi', openai: null, browser: 'fi-FI', groq: null, cartesia: null },
+    providers: { elevenlabs: 'fi' },
     displayName: 'Finnish',
     iso639_1: 'fi',
   },
   ro: {
     bcp47: 'ro',
-    providers: { elevenlabs: 'ro', openai: null, browser: 'ro-RO', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ro' },
     displayName: 'Romanian',
     iso639_1: 'ro',
   },
   da: {
     bcp47: 'da',
-    providers: { elevenlabs: 'da', openai: null, browser: 'da-DK', groq: null, cartesia: null },
+    providers: { elevenlabs: 'da' },
     displayName: 'Danish',
     iso639_1: 'da',
   },
   bg: {
     bcp47: 'bg',
-    providers: { elevenlabs: 'bg', openai: null, browser: 'bg-BG', groq: null, cartesia: null },
+    providers: { elevenlabs: 'bg' },
     displayName: 'Bulgarian',
     iso639_1: 'bg',
   },
   ms: {
     bcp47: 'ms',
-    providers: { elevenlabs: 'ms', openai: null, browser: 'ms-MY', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ms' },
     displayName: 'Malay',
     iso639_1: 'ms',
   },
   sk: {
     bcp47: 'sk',
-    providers: { elevenlabs: 'sk', openai: null, browser: 'sk-SK', groq: null, cartesia: null },
+    providers: { elevenlabs: 'sk' },
     displayName: 'Slovak',
     iso639_1: 'sk',
   },
   hr: {
     bcp47: 'hr',
-    providers: { elevenlabs: 'hr', openai: null, browser: 'hr-HR', groq: null, cartesia: null },
+    providers: { elevenlabs: 'hr' },
     displayName: 'Croatian',
     iso639_1: 'hr',
   },
   ta: {
     bcp47: 'ta',
-    providers: { elevenlabs: 'ta', openai: null, browser: 'ta-IN', groq: null, cartesia: null },
+    providers: { elevenlabs: 'ta' },
     displayName: 'Tamil',
     iso639_1: 'ta',
   },
   fil: {
     bcp47: 'fil',
-    providers: { elevenlabs: 'fil', openai: null, browser: 'fil-PH', groq: null, cartesia: null },
+    providers: { elevenlabs: 'fil' },
     displayName: 'Filipino',
     iso639_1: 'fil',
   },
@@ -274,27 +270,11 @@ export function getLanguageDisplayName(code: string): string {
  * @param languageCode - Language code to check
  * @returns True if provider supports the language
  */
-export function providerSupportsLanguage(providerId: ProviderId, languageCode: string): boolean {
-  // OpenAI auto-detects all languages
-  if (providerId === 'openai') return true;
-
-  // Groq and Cartesia only support English
-  if (providerId === 'groq' || providerId === 'cartesia') {
-    const primary = normalizeLanguageCode(languageCode);
-    return primary === 'en';
-  }
-
-  // ElevenLabs and Browser check the mapping
+export function providerSupportsLanguage(_providerId: ProviderId, languageCode: string): boolean {
   const mapping = getLanguageMapping(languageCode);
   if (!mapping) return false;
 
-  // Browser TTS dynamically supports languages based on system voices
-  if (providerId === 'browser') return true;
-
-  // ElevenLabs multilingual model supports all mapped languages
-  if (providerId === 'elevenlabs') return true;
-
-  return false;
+  return true;
 }
 
 /**
@@ -304,7 +284,7 @@ export function providerSupportsLanguage(providerId: ProviderId, languageCode: s
  * @returns Array of provider IDs
  */
 export function getProvidersForLanguage(languageCode: string): ProviderId[] {
-  const providers: ProviderId[] = ['openai', 'elevenlabs', 'browser', 'groq', 'cartesia'];
+  const providers: ProviderId[] = ['elevenlabs'];
   return providers.filter((providerId) => providerSupportsLanguage(providerId, languageCode));
 }
 
@@ -332,7 +312,7 @@ export function getAllLanguages(): Array<{ code: string; displayName: string }> 
 export function getVoicesForLanguage(
   voices: Voice[],
   languageCode: string,
-  providerId: ProviderId,
+  _providerId: ProviderId,
 ): Voice[] {
   if (!voices || !Array.isArray(voices) || voices.length === 0) {
     return [];
@@ -342,41 +322,6 @@ export function getVoicesForLanguage(
     return voices;
   }
 
-  const targetPrimary = normalizeLanguageCode(languageCode);
-
-  // OpenAI: auto-detect, all voices support all languages
-  if (providerId === 'openai') {
-    return voices;
-  }
-
-  // Groq/Cartesia: English only
-  if (providerId === 'groq' || providerId === 'cartesia') {
-    return targetPrimary === 'en' ? voices : [];
-  }
-
-  // ElevenLabs: Multilingual model supports all mapped languages
-  if (providerId === 'elevenlabs') {
-    const mapping = getLanguageMapping(languageCode);
-    return mapping ? voices : [];
-  }
-
-  // Browser TTS: Filter by voice.lang or description
-  if (providerId === 'browser') {
-    return voices.filter((voice) => {
-      // Check voice.lang (Browser TTS native property)
-      if (voice.lang) {
-        const voicePrimary = normalizeLanguageCode(voice.lang);
-        return voicePrimary === targetPrimary;
-      }
-      // Check description for language code
-      if (voice.description) {
-        const descPrimary = normalizeLanguageCode(voice.description);
-        return descPrimary === targetPrimary;
-      }
-      return false;
-    });
-  }
-
-  // Unknown provider - return all voices
-  return voices;
+  const mapping = getLanguageMapping(languageCode);
+  return mapping ? voices : [];
 }

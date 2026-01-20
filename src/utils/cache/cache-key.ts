@@ -13,7 +13,7 @@
 
 /**
  * Cache key format: normalizedUrl:paragraphIndex:provider:voice:contentHash
- * Example: "example.com/article:3:openai:alloy:a1b2c3d4e5f6g7h8"
+ * Example: "example.com/article:3:elevenlabs:rachel:a1b2c3d4e5f6g7h8"
  */
 
 /**

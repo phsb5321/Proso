@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tricky Headings Test Fixtures</title>
+</head>
+<body>
+  <!--
+    Test fixtures for heading extraction order validation.
+    Each pattern tests a different edge case in heading order preservation.
+  -->
+
+  <!-- Pattern 1: Simple sequence (H1, H2, P, H2, P) -->
+  <article id="pattern-simple">
+    <h1>Main Title</h1>
+    <h2>Section One</h2>
+    <p>This is the first paragraph under section one.</p>
+    <h2>Section Two</h2>
+    <p>This is the first paragraph under section two.</p>
+  </article>
+
+  <!-- Pattern 2: Nested headings (H2, H3, H3, P, H2) -->
+  <article id="pattern-nested">
+    <h2>Parent Section</h2>
+    <h3>Child Section A</h3>
+    <h3>Child Section B</h3>
+    <p>Content under child sections.</p>
+    <h2>Another Parent Section</h2>
+  </article>
+
+  <!-- Pattern 3: Missing levels (H1, H3, P, H4) - skipped H2 -->
+  <article id="pattern-missing-levels">
+    <h1>Document Title</h1>
+    <h3>Subsection (skipped H2)</h3>
+    <p>This paragraph comes after a skipped heading level.</p>
+    <h4>Deep Subsection (skipped H2 and H3)</h4>
+  </article>
+
+  <!-- Pattern 4: ARIA headings (role="heading" aria-level="2") -->
+  <article id="pattern-aria-headings">
+    <h1>Standard H1</h1>
+    <div role="heading" aria-level="2">ARIA Level 2 Heading</div>
+    <p>Paragraph after ARIA heading.</p>
+    <div role="heading" aria-level="3">ARIA Level 3 Heading</div>
+    <p>Another paragraph.</p>
+  </article>
+
+  <!-- Pattern 5: Styled non-semantic headings (large bold text in div) -->
+  <article id="pattern-styled-non-semantic">
+    <h1>Real H1 Heading</h1>
+    <div class="looks-like-heading" style="font-size: 24px; font-weight: bold;">
+      This looks like a heading but is just a styled div
+    </div>
+    <p>Paragraph after fake heading.</p>
+    <h2>Real H2 Heading</h2>
+    <p>Paragraph after real heading.</p>
+  </article>
+
+  <!-- Pattern 6: Complex real-world wiki structure -->
+  <article id="pattern-wiki-complex">
+    <h1>Wiki Article Title</h1>
+    <p>Introduction paragraph.</p>
+    <h2>Background</h2>
+    <p>Background information.</p>
+    <h3>Historical Context</h3>
+    <p>Historical details.</p>
+    <h3>Current Status</h3>
+    <p>Current status information.</p>
+    <h2>Technical Details</h2>
+    <p>Technical overview.</p>
+    <h3>Implementation</h3>
+    <h4>Frontend</h4>
+    <p>Frontend details.</p>
+    <h4>Backend</h4>
+    <p>Backend details.</p>
+    <h3>Performance</h3>
+    <p>Performance metrics.</p>
+    <h2>Conclusion</h2>
+    <p>Concluding remarks.</p>
+  </article>
+
+  <!-- Pattern 7: Same-level siblings (multiple H2s) -->
+  <article id="pattern-same-level-siblings">
+    <h1>Title</h1>
+    <h2>First H2</h2>
+    <p>Content 1.</p>
+    <h2>Second H2</h2>
+    <p>Content 2.</p>
+    <h2>Third H2</h2>
+    <p>Content 3.</p>
+    <h2>Fourth H2</h2>
+    <p>Content 4.</p>
+    <h2>Fifth H2</h2>
+    <p>Content 5.</p>
+  </article>
+</body>
+</html>

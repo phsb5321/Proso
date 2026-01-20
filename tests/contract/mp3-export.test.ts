@@ -73,7 +73,7 @@ describe('MP3 Export Message Contract', () => {
           { index: 0, text: 'First paragraph' },
           { index: 1, text: 'Second paragraph' },
         ],
-        provider: 'openai',
+        provider: 'elevenlabs',
         voice: 'alloy',
         speed: 1.0,
         quality: '192',
@@ -94,7 +94,7 @@ describe('MP3 Export Message Contract', () => {
           { index: 0, text: 'First paragraph' },
           { index: 1, text: 'Second paragraph' },
         ],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '128',
       };
@@ -111,7 +111,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'export-123',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -123,7 +123,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: `export-unique-${Date.now()}`,
         paragraphs: [{ index: 0, text: 'Test paragraph' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -141,7 +141,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId,
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -175,7 +175,7 @@ describe('MP3 Export Message Contract', () => {
       await handleExportStart({
         jobId,
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -218,7 +218,7 @@ describe('MP3 Export Message Contract', () => {
           { index: 0, text: 'First' },
           { index: 1, text: 'Second' },
         ],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -237,7 +237,7 @@ describe('MP3 Export Message Contract', () => {
       await handleExportStart({
         jobId,
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -257,7 +257,7 @@ describe('MP3 Export Message Contract', () => {
           { index: 0, text: 'First' },
           { index: 1, text: 'Second' },
         ],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -287,7 +287,7 @@ describe('MP3 Export Message Contract', () => {
           { index: 1, text: 'Second' },
           { index: 2, text: 'Third' },
         ],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -339,7 +339,7 @@ describe('MP3 Export Message Contract', () => {
       await handleExportStart({
         jobId,
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       });
@@ -424,7 +424,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'quality-128',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '128',
       };
@@ -436,7 +436,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'quality-192',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -448,7 +448,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'quality-256',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '256',
       };
@@ -462,7 +462,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'speed-test',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.5,
         quality: '192',
       };
@@ -474,7 +474,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'speed-range',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -489,7 +489,7 @@ describe('MP3 Export Message Contract', () => {
       const request: VoxPageProtocol['export.start']['request'] = {
         jobId: 'provider-test',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'openai',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };
@@ -501,7 +501,7 @@ describe('MP3 Export Message Contract', () => {
       const requestWithVoice: VoxPageProtocol['export.start']['request'] = {
         jobId: 'voice-test-1',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'openai',
+        provider: 'elevenlabs',
         voice: 'alloy',
         speed: 1.0,
         quality: '192',
@@ -510,7 +510,7 @@ describe('MP3 Export Message Contract', () => {
       const requestWithoutVoice: VoxPageProtocol['export.start']['request'] = {
         jobId: 'voice-test-2',
         paragraphs: [{ index: 0, text: 'Test' }],
-        provider: 'browser',
+        provider: 'elevenlabs',
         speed: 1.0,
         quality: '192',
       };

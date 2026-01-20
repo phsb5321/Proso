@@ -1,15 +1,17 @@
 /**
  * Audio Adapters
  *
- * Barrel export for all audio generator adapters.
- * Each adapter implements the IAudioGenerator port interface.
+ * Barrel export for all audio adapters.
+ * IAudioGenerator adapters for TTS generation.
+ * IAudioPlayer adapters for playback.
  *
  * @module adapters/audio
  */
 
-// Adapters
-export { OpenAIAudioAdapter } from './openai-audio.adapter';
+// TTS Generator Adapters (IAudioGenerator)
 export { ElevenLabsAudioAdapter } from './elevenlabs-audio.adapter';
-export { GroqAudioAdapter } from './groq-audio.adapter';
-export { CartesiaAudioAdapter } from './cartesia-audio.adapter';
-export { BrowserAudioAdapter } from './browser-audio.adapter';
+export { AudioUrlAdapter } from './audio-url.adapter';
+
+// Playback Adapters (IAudioPlayer)
+export { OffscreenAudioAdapter } from './offscreen.adapter';
+export { DirectAudioAdapter } from './direct.adapter';

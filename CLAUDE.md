@@ -237,6 +237,12 @@ const service = new PlaybackService({
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0, Zod 4.3.4 (035-selection-tts-hardening)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + Playwright (browser automation), WXT 0.20.13 (extension build), web-ext (Firefox validation) (038-browser-e2e-hardening)
 - N/A (test infrastructure, no persistent storage) (038-browser-e2e-hardening)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x, @webext-core/messaging 2.3.0, Zod 3.x, idb (IndexedDB wrapper), @mozilla/readability (045-pdf-removal-page-reader)
+- IndexedDB (highlights, audio cache), browser.storage.local (settings) (045-pdf-removal-page-reader)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), @mozilla/readability (content extraction) (046-bug-bounty-sprint)
+- IndexedDB (audio cache), browser.storage.local (settings) (046-bug-bounty-sprint)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, Dexie 4.2.1 (047-architecture-ui-polish)
+- IndexedDB (audio cache via Dexie), browser.storage.local (settings) (047-architecture-ui-polish)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -392,9 +398,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 038-browser-e2e-hardening: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + Playwright (browser automation), WXT 0.20.13 (extension build), web-ext (Firefox validation)
-- 035-selection-tts-hardening: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), @webext-core/messaging 2.3.0, Zod 4.3.4
-- 035-selection-tts-hardening: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+- 047-architecture-ui-polish: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, Dexie 4.2.1
+- 046-bug-bounty-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), @mozilla/readability (content extraction)
+- 045-pdf-removal-page-reader: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x, @webext-core/messaging 2.3.0, Zod 3.x, idb (IndexedDB wrapper), @mozilla/readability
 
 
 <!-- MANUAL ADDITIONS START -->

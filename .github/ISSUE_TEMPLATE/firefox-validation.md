@@ -8,6 +8,10 @@ assignees: ''
 
 ## Firefox Manual Validation Checklist
 
+> **Full checklist**: See [specs/041-firefox-first-pivot/manual-validation.md](../../specs/041-firefox-first-pivot/manual-validation.md) for comprehensive 80+ item validation.
+> 
+> **Quick checklist**: See [docs/firefox-manual-validation.md](../../docs/firefox-manual-validation.md) for abbreviated testing.
+
 **Firefox Version**: 
 **VoxPage Version**: 
 **Date**: 

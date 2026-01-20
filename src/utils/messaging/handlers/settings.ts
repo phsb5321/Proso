@@ -95,33 +95,11 @@ const API_TEST_ENDPOINTS: Record<
     body?: unknown;
   }
 > = {
-  openai: {
-    url: 'https://api.openai.com/v1/models',
-    method: 'GET',
-    headers: (apiKey) => ({
-      Authorization: `Bearer ${apiKey}`,
-    }),
-  },
   elevenlabs: {
     url: 'https://api.elevenlabs.io/v1/user',
     method: 'GET',
     headers: (apiKey) => ({
       'xi-api-key': apiKey,
-    }),
-  },
-  cartesia: {
-    url: 'https://api.cartesia.ai/voices',
-    method: 'GET',
-    headers: (apiKey) => ({
-      'X-API-Key': apiKey,
-      'Cartesia-Version': '2024-06-10',
-    }),
-  },
-  groq: {
-    url: 'https://api.groq.com/openai/v1/models',
-    method: 'GET',
-    headers: (apiKey) => ({
-      Authorization: `Bearer ${apiKey}`,
     }),
   },
   anthropic: {

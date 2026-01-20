@@ -9,6 +9,7 @@
 
 import type { ProviderId } from '../core/shared/errors';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
+import type { IAudioUrlProvider } from '../ports/audio-url.port';
 import type { ICacheStore } from '../ports/cache-store.port';
 import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
@@ -17,13 +18,7 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
-import {
-  BrowserAudioAdapter,
-  CartesiaAudioAdapter,
-  ElevenLabsAudioAdapter,
-  GroqAudioAdapter,
-  OpenAIAudioAdapter,
-} from '../adapters/audio';
+import { AudioUrlAdapter, ElevenLabsAudioAdapter } from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -51,32 +46,11 @@ export function createAudioGeneratorAdapter(
   apiKey: string | null,
 ): IAudioGenerator {
   switch (provider) {
-    case 'openai':
-      if (!apiKey) {
-        throw new Error('OpenAI API key is required');
-      }
-      return new OpenAIAudioAdapter(apiKey);
-
     case 'elevenlabs':
       if (!apiKey) {
         throw new Error('ElevenLabs API key is required');
       }
       return new ElevenLabsAudioAdapter(apiKey);
-
-    case 'groq':
-      if (!apiKey) {
-        throw new Error('Groq API key is required');
-      }
-      return new GroqAudioAdapter(apiKey);
-
-    case 'cartesia':
-      if (!apiKey) {
-        throw new Error('Cartesia API key is required');
-      }
-      return new CartesiaAudioAdapter(apiKey);
-
-    case 'browser':
-      return new BrowserAudioAdapter();
 
     default:
       throw new Error(`Unknown audio provider: ${provider as string}`);
@@ -157,6 +131,15 @@ export function createSettingsStoreAdapter(): ISettingsStore {
 }
 
 /**
+ * Create an audio URL provider adapter.
+ *
+ * @returns IAudioUrlProvider adapter
+ */
+export function createAudioUrlAdapter(): IAudioUrlProvider {
+  return new AudioUrlAdapter();
+}
+
+/**
  * Get API key from keys object based on provider.
  *
  * @param keys - API keys object
@@ -165,16 +148,8 @@ export function createSettingsStoreAdapter(): ISettingsStore {
  */
 export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): string | null {
   switch (provider) {
-    case 'openai':
-      return keys.openai;
     case 'elevenlabs':
       return keys.elevenlabs;
-    case 'cartesia':
-      return keys.cartesia;
-    case 'groq':
-      return keys.groq;
-    case 'browser':
-      return null;
     default:
       return null;
   }

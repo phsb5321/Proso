@@ -45,7 +45,7 @@ export class ElevenLabsAudioAdapter implements IAudioGenerator {
   async generateAudio(request: AudioRequest): Promise<Result<AudioResponse, AudioError>> {
     try {
       if (!this.provider.hasApiKey()) {
-        return Err(audioError.invalidCredentials(this.providerId));
+        return Err(audioError.invalidCredentials());
       }
 
       // Check language support

@@ -12,6 +12,7 @@
 import type { VoxPageProtocol, ExportJobStatus } from '../protocol';
 import { Mp3Encoder, type EncodingResult } from '../../audio/mp3-encoder';
 import { ROADMAP_STORAGE_KEYS } from '../../config/schema';
+import { createAudioUrl, revokeAudioUrl } from '../../audio/audio-url';
 
 /**
  * Export job state
@@ -95,10 +96,8 @@ export async function handleExportCancel(
     job.encoder.cancel();
   }
 
-  // Clean up
-  if (job.blobUrl) {
-    URL.revokeObjectURL(job.blobUrl);
-  }
+  // Clean up (no-op for data URLs)
+  revokeAudioUrl(job.blobUrl ?? null);
 
   activeJobs.delete(jobId);
 
@@ -232,7 +231,7 @@ async function processExportJob(
   // Encode to MP3
   if (job.encoder && audioBlobs.length > 0) {
     job.result = await job.encoder.encodeArticle(audioBlobs);
-    job.blobUrl = URL.createObjectURL(job.result.blob);
+    job.blobUrl = await createAudioUrl(job.result.blob);
   }
 
   job.status = 'complete';
@@ -269,9 +268,8 @@ async function saveExportHistory(job: ExportJob, filename: string): Promise<void
 export function cleanupCompletedJobs(): void {
   for (const [jobId, job] of activeJobs) {
     if (job.status === 'complete' || job.status === 'error') {
-      if (job.blobUrl) {
-        URL.revokeObjectURL(job.blobUrl);
-      }
+      // Clean up URL (no-op for data URLs)
+      revokeAudioUrl(job.blobUrl ?? null);
       activeJobs.delete(jobId);
     }
   }

@@ -8,3 +8,4 @@
 
 export { ReadabilityExtractorAdapter } from './readability-extractor.adapter';
 export { TrafilaturaScorerAdapter } from './trafilatura-scorer.adapter';
+export { ReadabilityAdapter } from './readability.adapter';

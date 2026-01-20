@@ -16,6 +16,9 @@ export type {
   Voice,
 } from './audio-generator.port';
 
+// Audio URL Provider Port
+export type { IAudioUrlProvider } from './audio-url.port';
+
 // Cache Store Port
 export type {
   ICacheStore,
@@ -49,3 +52,26 @@ export type {
   ISettingsStore,
   Settings,
 } from './settings-store.port';
+
+// Reader Port (045-pdf-removal-page-reader)
+export type {
+  IReader,
+  ReaderError,
+  ExtractionOptions,
+} from './reader.port';
+
+// Highlight Repository Port (045-pdf-removal-page-reader)
+export type {
+  IHighlightRepository,
+  HighlightRepositoryError,
+  HighlightQuery,
+  HighlightUpdate,
+} from './highlight-repository.port';
+
+// Audio Player Port (045-pdf-removal-page-reader)
+export type {
+  IAudioPlayer,
+  AudioPlayerError,
+  PlaybackEvent,
+  PlaybackEventListener,
+} from './audio-player.port';

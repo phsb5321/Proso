@@ -18,6 +18,7 @@ import {
   getProviderPricing,
 } from '../../cache';
 import type { CacheStats, CostEstimate } from '../../cache/types';
+import { createAudioUrl } from '../../audio/audio-url';
 
 // ============================================================================
 // Cache Management Handlers
@@ -130,10 +131,10 @@ export async function handleCacheGet(data: {
     return { success: false };
   }
 
-  // Create blob URL for audio playback
+  // Create audio URL for playback (uses data URL in service worker, blob URL in DOM)
   const codec = entry.codec ?? 'mp3';
   const blob = new Blob([entry.audioData], { type: `audio/${codec}` });
-  const audioUrl = URL.createObjectURL(blob);
+  const audioUrl = await createAudioUrl(blob, `audio/${codec}`);
 
   return {
     success: true,

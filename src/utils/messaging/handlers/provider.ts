@@ -42,10 +42,7 @@ export async function handleProviderGetList(): Promise<
 
   return {
     providers: [
-      { id: 'openai', name: 'OpenAI TTS', requiresApiKey: true, supportsWordTiming: false },
       { id: 'elevenlabs', name: 'ElevenLabs', requiresApiKey: true, supportsWordTiming: true },
-      { id: 'cartesia', name: 'Cartesia', requiresApiKey: true, supportsWordTiming: false },
-      { id: 'groq', name: 'Groq TTS', requiresApiKey: true, supportsWordTiming: false },
       { id: 'browser', name: 'Browser TTS', requiresApiKey: false, supportsWordTiming: false },
     ],
   };

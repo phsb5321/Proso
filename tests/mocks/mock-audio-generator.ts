@@ -56,7 +56,7 @@ export class MockAudioGenerator implements IAudioGenerator {
   public validateCredentialsCalls: number = 0;
 
   constructor(config: MockAudioGeneratorConfig = {}) {
-    this.providerId = config.providerId ?? 'browser';
+    this.providerId = config.providerId ?? 'elevenlabs';
     this.supportsWordTiming = config.supportsWordTiming ?? false;
     this.supportedLanguages = config.supportedLanguages ?? [];
     this.latencyMs = config.latencyMs ?? 0;

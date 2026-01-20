@@ -2,6 +2,8 @@
 
 This guide covers manual testing of VoxPage in Firefox. Since Playwright doesn't support Firefox extension loading, Firefox validation is done manually using `web-ext`.
 
+> **See also**: For comprehensive validation (80+ items), see [`specs/041-firefox-first-pivot/manual-validation.md`](../specs/041-firefox-first-pivot/manual-validation.md)
+
 ## Prerequisites
 
 - Firefox Developer Edition or standard Firefox (latest stable)

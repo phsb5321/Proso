@@ -19,7 +19,12 @@ import {
   getContainer,
   isContainerInitialized,
 } from '../composition';
-import { type HandlerRegistry, getGlobalRegistry, registerAllHandlers } from '../handlers';
+import {
+  type HandlerRegistry,
+  getGlobalInstrumentedRegistry,
+  registerAllHandlers,
+  setSettingsStore,
+} from '../handlers';
 import {
   type DispatchStats,
   type DispatchSummary,
@@ -33,18 +38,10 @@ import {
  * Load API keys from browser storage.
  */
 async function loadApiKeys(): Promise<ApiKeys> {
-  const stored = await browser.storage.local.get([
-    'elevenlabsApiKey',
-    'openaiApiKey',
-    'groqApiKey',
-    'cartesiaApiKey',
-  ]);
+  const stored = await browser.storage.local.get(['elevenlabsApiKey']);
 
   return {
     elevenlabs: (stored.elevenlabsApiKey as string) || null,
-    openai: (stored.openaiApiKey as string) || null,
-    groq: (stored.groqApiKey as string) || null,
-    cartesia: (stored.cartesiaApiKey as string) || null,
   };
 }
 
@@ -72,7 +69,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   // Skip if already initialized
   if (isContainerInitialized()) {
     console.log('[Hexagonal] Container already initialized');
-    return getGlobalRegistry();
+    return getGlobalInstrumentedRegistry();
   }
 
   console.log('[Hexagonal] Initializing composition container...');
@@ -85,9 +82,13 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     // Create and initialize the container
     createContainer(config, apiKeys);
 
+    // Wire up the settings store for handlers that need it
+    const container = getContainer();
+    setSettingsStore(container.adapters.settingsStore);
+
     // Register all handlers on the GLOBAL registry
-    // This is critical - dispatchToHexagonal() uses getGlobalRegistry()
-    const registry = getGlobalRegistry();
+    // This is critical - dispatchToHexagonal() uses getGlobalInstrumentedRegistry()
+    const registry = getGlobalInstrumentedRegistry();
 
     // Populate the global registry with all handlers
     registerAllHandlers(registry);
@@ -96,7 +97,6 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
       provider: config.provider,
       cacheType: config.cacheType,
       hasElevenLabsKey: !!apiKeys.elevenlabs,
-      hasOpenAIKey: !!apiKeys.openai,
       registeredHandlers: registry.getHandlerNames().length,
     });
 
@@ -104,7 +104,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   } catch (error) {
     console.error('[Hexagonal] Failed to initialize container:', error);
     // Return the global registry - it may be empty, but legacy handlers will work
-    return getGlobalRegistry();
+    return getGlobalInstrumentedRegistry();
   }
 }
 
@@ -127,7 +127,7 @@ export function getContainerStatus(): {
   }
 
   const container = getContainer();
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
 
   const adapters = Object.entries(container.adapters)
     .filter(([, v]) => v !== null)
@@ -160,31 +160,98 @@ export async function dispatchToHexagonal<T = unknown>(
   type: string,
   data: unknown,
 ): Promise<T | null> {
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
   const startTime = Date.now();
 
   if (!registry.has(type)) {
+    // Debug: Log when handler not found
+    if (type.startsWith('queue.')) {
+      console.log(
+        '[Hexagonal] Handler not found for:',
+        type,
+        'Registered handlers:',
+        registry.getHandlerNames().filter((n) => n.startsWith('queue.')),
+      );
+    }
     return null;
   }
 
   const result = await registry.dispatch(type, data);
   const durationMs = Date.now() - startTime;
 
-  // Log dispatch telemetry
-  logDispatch({
-    type,
-    path: 'hex',
-    durationMs,
-    success: result.ok,
-    error: result.ok ? undefined : String(result.error),
-    timestamp: startTime,
-  });
-
+  // Registry dispatch failed (exception in handler)
   if (!result.ok) {
+    logDispatch({
+      type,
+      path: 'hex',
+      durationMs,
+      success: false,
+      error: String(result.error),
+      timestamp: startTime,
+    });
     console.warn('[Hexagonal] Handler error:', result.error);
     return null;
   }
 
+  // Handlers return Result<T, E>, which gets wrapped by registry.dispatch in another Result.
+  // We need to unwrap the inner Result to return the actual value.
+  // Check if result.value is itself a Result (has ok property)
+  const handlerResult = result.value as unknown;
+
+  // Debug: Log what we're receiving for queue.getState
+  if (type === 'queue.getState') {
+    console.log('[Hexagonal] queue.getState raw result.value:', JSON.stringify(handlerResult));
+  }
+
+  if (
+    handlerResult &&
+    typeof handlerResult === 'object' &&
+    'ok' in handlerResult &&
+    typeof (handlerResult as { ok: boolean }).ok === 'boolean'
+  ) {
+    const innerResult = handlerResult as { ok: boolean; value?: unknown; error?: unknown };
+    if (innerResult.ok) {
+      // Inner Result is Ok - log success and return unwrapped value
+      logDispatch({
+        type,
+        path: 'hex',
+        durationMs,
+        success: true,
+        timestamp: startTime,
+      });
+
+      // Debug: Log what we're returning for queue.getState
+      if (type === 'queue.getState') {
+        console.log(
+          '[Hexagonal] queue.getState unwrapped value:',
+          JSON.stringify(innerResult.value),
+        );
+      }
+
+      return innerResult.value as T;
+    } else {
+      // Inner Result is Err - log failure and return null
+      logDispatch({
+        type,
+        path: 'hex',
+        durationMs,
+        success: false,
+        error: String(innerResult.error),
+        timestamp: startTime,
+      });
+      console.warn('[Hexagonal] Handler returned error:', innerResult.error);
+      return null;
+    }
+  }
+
+  // If not a Result, return as-is (for handlers that don't use Result pattern)
+  logDispatch({
+    type,
+    path: 'hex',
+    durationMs,
+    success: true,
+    timestamp: startTime,
+  });
   return result.value as T;
 }
 
@@ -230,7 +297,7 @@ export function getHexagonalDispatchStats(): DispatchStats {
  * @returns Dispatch summary with migration status
  */
 export function getHexagonalDispatchSummary(legacyHandlerNames: string[] = []): DispatchSummary {
-  const registry = getGlobalRegistry();
+  const registry = getGlobalInstrumentedRegistry();
   return getDispatchSummary(registry.getHandlerNames(), legacyHandlerNames);
 }
 

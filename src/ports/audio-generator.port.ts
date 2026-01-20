@@ -2,7 +2,7 @@
  * Audio Generator Port Interface
  *
  * Defines the contract for TTS audio generation.
- * Adapters: OpenAI, ElevenLabs, Groq, Cartesia, Browser TTS
+ * Adapter: ElevenLabs
  *
  * @module ports/audio-generator
  */
@@ -51,12 +51,8 @@ export interface Voice {
 /**
  * Port interface for TTS audio generation.
  *
- * Implementations:
- * - OpenAIAudioAdapter - OpenAI TTS API
+ * Implementation:
  * - ElevenLabsAudioAdapter - ElevenLabs API
- * - GroqAudioAdapter - Groq API
- * - CartesiaAudioAdapter - Cartesia API
- * - BrowserAudioAdapter - Web Speech API
  */
 export interface IAudioGenerator {
   /**

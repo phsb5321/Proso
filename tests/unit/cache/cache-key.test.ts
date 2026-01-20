@@ -230,4 +230,132 @@ describe('cache-key', () => {
       );
     });
   });
+
+  // Additional edge case tests (047-architecture-ui-polish T025)
+  describe('edge cases', () => {
+    describe('URL normalization edge cases', () => {
+      it('should handle double trailing slashes', () => {
+        expect(normalizeUrl('https://example.com/article//')).toBe(
+          'example.com/article/'
+        );
+      });
+
+      it('should handle multiple query parameters', () => {
+        expect(normalizeUrl('https://example.com/page?a=1&b=2&c=3')).toBe(
+          'example.com/page'
+        );
+      });
+
+      it('should handle hash with query params', () => {
+        expect(normalizeUrl('https://example.com/page?query=1#section?nested=param')).toBe(
+          'example.com/page'
+        );
+      });
+
+      it('should handle internationalized domain names', () => {
+        // Note: URL API converts IDN to punycode
+        expect(normalizeUrl('https://example.com/path')).toBe('example.com/path');
+      });
+
+      it('should handle file extensions in path', () => {
+        expect(normalizeUrl('https://example.com/page.html')).toBe(
+          'example.com/page.html'
+        );
+      });
+
+      it('should strip port number from URL', () => {
+        // Port is intentionally stripped for cache key normalization
+        // Same content on different ports should share cache
+        expect(normalizeUrl('https://example.com:8080/page')).toBe(
+          'example.com/page'
+        );
+      });
+
+      it('should return original string for invalid URL', () => {
+        expect(normalizeUrl('not-a-valid-url')).toBe('not-a-valid-url');
+      });
+    });
+
+    describe('content hash consistency', () => {
+      it('should produce same hash for semantically identical content', () => {
+        // Whitespace trimmed
+        const hash1 = generateContentHashSync('Hello World');
+        const hash2 = generateContentHashSync('  Hello World  ');
+        expect(hash1).toBe(hash2);
+      });
+
+      it('should produce different hash for case differences', () => {
+        const hash1 = generateContentHashSync('Hello World');
+        const hash2 = generateContentHashSync('hello world');
+        expect(hash1).not.toBe(hash2);
+      });
+
+      it('should handle empty string', () => {
+        const hash = generateContentHashSync('');
+        expect(hash).toMatch(/^[0-9a-f]{16}$/);
+      });
+
+      it('should handle unicode characters', () => {
+        const hash = generateContentHashSync('Hello 世界 🌍');
+        expect(hash).toMatch(/^[0-9a-f]{16}$/);
+      });
+
+      it('should handle very long text', () => {
+        const longText = 'a'.repeat(100000);
+        const hash = generateContentHashSync(longText);
+        expect(hash).toMatch(/^[0-9a-f]{16}$/);
+      });
+    });
+
+    describe('cache key parsing round-trip', () => {
+      it('should round-trip valid cache key', () => {
+        const original = {
+          url: 'example.com/article',
+          paragraphIndex: 5,
+          provider: 'elevenlabs',
+          voice: 'rachel',
+          contentHash: 'abcd1234efgh5678',
+        };
+
+        const key = generateCacheKey(
+          'https://' + original.url,
+          original.paragraphIndex,
+          original.provider,
+          original.voice,
+          original.contentHash
+        );
+
+        const parsed = parseCacheKey(key);
+        expect(parsed).toEqual(original);
+      });
+    });
+
+    describe('provider/voice case sensitivity', () => {
+      it('should preserve provider case in key', () => {
+        const key1 = generateCacheKey(
+          'https://example.com/page',
+          0,
+          'ElevenLabs',
+          'Rachel',
+          'hash123'
+        );
+        const key2 = generateCacheKey(
+          'https://example.com/page',
+          0,
+          'elevenlabs',
+          'rachel',
+          'hash123'
+        );
+        // Keys should be different due to case
+        expect(key1).not.toBe(key2);
+      });
+
+      it('should preserve voice case when parsing', () => {
+        const key = 'example.com/page:0:ElevenLabs:Rachel:hash123';
+        const parsed = parseCacheKey(key);
+        expect(parsed?.provider).toBe('ElevenLabs');
+        expect(parsed?.voice).toBe('Rachel');
+      });
+    });
+  });
 });

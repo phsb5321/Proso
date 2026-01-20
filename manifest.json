@@ -14,7 +14,14 @@
     "128": "icons/icon-128.png"
   },
 
-  "permissions": ["activeTab", "storage", "contextMenus", "scripting"],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "unlimitedStorage",
+    "contextMenus",
+    "scripting",
+    "alarms"
+  ],
 
   "host_permissions": [
     "<all_urls>",

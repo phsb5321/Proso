@@ -2,9 +2,11 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![CI](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml)
-[![Firefox 109+](https://img.shields.io/badge/Firefox-109%2B-orange.svg)](https://www.mozilla.org/firefox/)
+[![Firefox 112+](https://img.shields.io/badge/Firefox-112%2B-orange.svg)](https://www.mozilla.org/firefox/)
 
 **Transform any webpage into an immersive audio experience**
+
+> **Firefox-First**: VoxPage is developed and optimized for Firefox. We leverage Firefox's native extension capabilities including event pages with DOM access, native `Audio` API in background scripts, and `speechSynthesis` for Browser TTS.
 
 VoxPage is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with natural, expressive voices. Choose from premium AI voices (OpenAI, ElevenLabs) or use your browser's built-in speech synthesis.
 
@@ -106,9 +108,9 @@ VoxPage uses **WXT** (Web Extension Tools) with TypeScript for a modern developm
 
 ### Prerequisites
 
-- Firefox 100+ or Chrome 88+
+- Firefox 112+ (primary target)
 - Node.js 20.x
-- npm
+- pnpm (preferred) or npm
 
 ### Setup
 

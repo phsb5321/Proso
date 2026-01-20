@@ -12,10 +12,11 @@ import type { ProviderId } from '../../src/core/shared/errors';
 
 /**
  * Default settings for mock store.
+ * Post-045: Only ElevenLabs provider is supported.
  */
 const DEFAULT_SETTINGS: Settings = {
   mode: 'article',
-  provider: 'browser',
+  provider: 'elevenlabs',
   voice: null,
   speed: 1.0,
   showCostEstimate: true,
@@ -101,22 +102,12 @@ export class MockSettingsStore implements ISettingsStore {
     this.getApiKeyCalls.push(provider);
     await this.simulateLatency();
 
-    // Browser TTS doesn't need API key - per contract spec
-    if (provider === 'browser') {
-      return null;
-    }
-
     return this.apiKeys.get(provider) ?? null;
   }
 
   async setApiKey(provider: ProviderId, key: string): Promise<void> {
     this.setApiKeyCalls.push({ provider, key });
     await this.simulateLatency();
-
-    // Browser TTS doesn't need API key - per contract spec (no-op)
-    if (provider === 'browser') {
-      return;
-    }
 
     this.apiKeys.set(provider, key);
   }

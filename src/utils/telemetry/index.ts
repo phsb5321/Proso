@@ -11,9 +11,11 @@ export {
   getDispatchSummary,
   getMessageStats,
   getTrackedMessageTypes,
+  getUnknownMessageStats,
   isFullyMigrated,
   getPendingMigrations,
   logDispatch,
+  logUnknownMessage,
   resetDispatchStats,
 } from './dispatch-logger';
 

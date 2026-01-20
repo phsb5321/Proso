@@ -13,6 +13,7 @@ import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
 import {
   createAudioGeneratorAdapter,
+  createAudioUrlAdapter,
   createCacheStoreAdapter,
   createContentScorerAdapter,
   createHighlightSyncAdapter,
@@ -39,6 +40,9 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
 
   // Audio generator is fully implemented
   const audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey);
+
+  // Audio URL provider (no fallback needed - always works)
+  const audioUrlProvider = createAudioUrlAdapter();
 
   // Create content adapters (always available)
   const textExtractor = createTextExtractorAdapter();
@@ -74,6 +78,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
 
   return {
     audioGenerator,
+    audioUrlProvider,
     cacheStore,
     highlightSync,
     textExtractor,
@@ -93,6 +98,7 @@ function createServices(adapters: ContainerAdapters): ContainerServices {
   // All required adapters are guaranteed to exist (see createAdapters)
   const playback = new PlaybackService({
     audioGenerator: adapters.audioGenerator,
+    audioUrlProvider: adapters.audioUrlProvider,
     cacheStore: adapters.cacheStore,
     highlightSync: adapters.highlightSync,
     settingsStore: adapters.settingsStore,

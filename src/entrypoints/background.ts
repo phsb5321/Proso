@@ -8,6 +8,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { defineBackground } from 'wxt/utils/define-background';
 import {
   ElevenLabsProvider,
   loadElevenLabsApiKey,
@@ -18,14 +19,8 @@ import {
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
 import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
-import { ocrHandlers } from '../utils/messaging/handlers/ocr';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
-
-// TTS Providers (multi-provider support)
-import { OpenAIProvider } from '../utils/providers/openai';
-import { GroqProvider } from '../utils/providers/groq';
-import { CartesiaProvider } from '../utils/providers/cartesia';
 
 // Smart Audio Cache (028-smart-audio-cache)
 import { getCacheStore, generateContentHash, generateCacheKey } from '../utils/cache';
@@ -40,6 +35,14 @@ import {
   dispatchToHexagonal,
   logLegacyDispatch,
 } from '../background/init-hexagonal';
+
+// Structured error responses (041-firefox-first-pivot T1.2)
+import { unknownMessageResponse } from '../utils/messaging/error-response';
+// Unknown message telemetry (041-firefox-first-pivot T1.3)
+import { logUnknownMessage } from '../utils/telemetry';
+
+// Usage observability (043-usage-observability-loki)
+import { usageTracker, installErrorCapture, installConsoleCapture } from '../utils/telemetry/usage';
 
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
@@ -66,8 +69,8 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   // Phase 3: Audio/Provider handlers (T035)
   getVoices: 'audio.getVoices',
   setVoice: 'audio.setVoice',
-  testApiKey: 'audio.validateCredentials',
-  testElevenLabsKey: 'audio.validateCredentials',
+  testApiKey: 'settings.testApiKey',
+  testElevenLabsKey: 'settings.testApiKey',
   'audio.generate': 'audio.generate',
   'provider.select': 'provider.select',
   'provider.getList': 'provider.getList',
@@ -101,17 +104,6 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   'prefetch.getStatus': 'prefetch.getStatus',
   'prefetch.clearBuffer': 'prefetch.clearBuffer',
 
-  // Phase 6: PDF handlers (T066)
-  'pdf.detected': 'pdf.detected',
-  'pdf.extract': 'pdf.extract',
-  'pdf.ocr': 'pdf.ocr',
-  'pdf.getState': 'pdf.getState',
-  'pdf.saveState': 'pdf.saveState',
-  'pdf.play': 'pdf.play',
-  'pdf.seek': 'pdf.seek',
-  'pdf.highlight': 'pdf.highlight',
-  'pdf.scrollToPage': 'pdf.scrollToPage',
-
   // Phase 6: Queue handlers (T066)
   'queue.add': 'queue.add',
   'queue.remove': 'queue.remove',
@@ -128,6 +120,14 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   // Debug handlers
   'hexagonal.getStatus': 'hexagonal.getStatus',
   'hexagonal.getDispatchStats': 'hexagonal.getDispatchStats',
+
+  // Phase 3: Reader handlers (045-pdf-removal-page-reader)
+  'reader.extractArticle': 'reader.extractArticle',
+  'reader.getParagraphs': 'reader.getParagraphs',
+  'reader.getParagraph': 'reader.getParagraph',
+  'reader.getArticleInfo': 'reader.getArticleInfo',
+  'reader.clearArticle': 'reader.clearArticle',
+  'reader.isArticlePage': 'reader.isArticlePage',
 };
 
 /**
@@ -140,16 +140,14 @@ interface MigrationFlags {
   USE_LEGACY_AUDIO: boolean;
   USE_LEGACY_SETTINGS: boolean;
   USE_LEGACY_CACHE: boolean;
-  USE_LEGACY_PDF: boolean;
   USE_LEGACY_QUEUE: boolean;
 }
 
 const MIGRATION_FLAGS: MigrationFlags = {
-  USE_LEGACY_PLAYBACK: false,
+  USE_LEGACY_PLAYBACK: true, // T-FIX: Force legacy until hexagonal PlaybackService is connected to actual playback
   USE_LEGACY_AUDIO: false,
   USE_LEGACY_SETTINGS: false,
   USE_LEGACY_CACHE: false,
-  USE_LEGACY_PDF: false,
   USE_LEGACY_QUEUE: false,
 };
 
@@ -158,6 +156,10 @@ const MIGRATION_FLAGS: MigrationFlags = {
  */
 function shouldUseLegacy(messageType: string): boolean {
   // Map message types to their feature flag domain
+  // FOOTER_ACTION is a playback control, so it uses USE_LEGACY_PLAYBACK
+  if (messageType === 'FOOTER_ACTION') {
+    return MIGRATION_FLAGS.USE_LEGACY_PLAYBACK;
+  }
   if (
     messageType.startsWith('playback.') ||
     [
@@ -204,9 +206,6 @@ function shouldUseLegacy(messageType: string): boolean {
   ) {
     return MIGRATION_FLAGS.USE_LEGACY_CACHE;
   }
-  if (messageType.startsWith('pdf.')) {
-    return MIGRATION_FLAGS.USE_LEGACY_PDF;
-  }
   if (messageType.startsWith('queue.')) {
     return MIGRATION_FLAGS.USE_LEGACY_QUEUE;
   }
@@ -223,7 +222,6 @@ async function loadMigrationFlags(): Promise<void> {
       'USE_LEGACY_AUDIO',
       'USE_LEGACY_SETTINGS',
       'USE_LEGACY_CACHE',
-      'USE_LEGACY_PDF',
       'USE_LEGACY_QUEUE',
     ]);
 
@@ -238,9 +236,6 @@ async function loadMigrationFlags(): Promise<void> {
     }
     if (typeof stored.USE_LEGACY_CACHE === 'boolean') {
       MIGRATION_FLAGS.USE_LEGACY_CACHE = stored.USE_LEGACY_CACHE;
-    }
-    if (typeof stored.USE_LEGACY_PDF === 'boolean') {
-      MIGRATION_FLAGS.USE_LEGACY_PDF = stored.USE_LEGACY_PDF;
     }
     if (typeof stored.USE_LEGACY_QUEUE === 'boolean') {
       MIGRATION_FLAGS.USE_LEGACY_QUEUE = stored.USE_LEGACY_QUEUE;
@@ -274,9 +269,6 @@ interface PlaybackState {
 
 interface ApiKeys {
   elevenlabsApiKey?: string;
-  openaiApiKey?: string;
-  groqApiKey?: string;
-  cartesiaApiKey?: string;
 }
 
 const playbackState: PlaybackState = {
@@ -293,7 +285,10 @@ const playbackState: PlaybackState = {
 
 // Track if audio was manually stopped (to resolve pending Promises)
 let audioStoppedManually = false;
-let audioResolveCallback: ((value: boolean) => void) | null = null;
+
+// Playback generation ID - prevents stale speakCurrentParagraph calls from advancing
+// Incremented each time a new playback starts, checked before advancing to next paragraph
+let playbackGeneration = 0;
 
 let activeTabId: number | null = null;
 let paragraphs: string[] = [];
@@ -308,6 +303,7 @@ let wordHighlightInterval: ReturnType<typeof setInterval> | null = null;
 // Audio prefetch cache - stores pre-generated audio for upcoming paragraphs
 interface PrefetchedAudio {
   audioUrl: string;
+  audioData: ArrayBuffer; // T046: Store raw audio data for persistent cache storage
   wordTimings: WordTiming[];
   paragraphIndex: number;
 }
@@ -335,6 +331,17 @@ let currentPageUrl: string | null = null;
 const activeBlobUrls: Map<number, string> = new Map();
 
 /**
+ * Safely revoke an object URL.
+ * Service workers don't have URL.revokeObjectURL, and data URLs don't need revocation.
+ */
+function safeRevokeObjectURL(url: string): void {
+  // Only blob: URLs need revocation, and only if the API is available
+  if (url.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
  * Track blob URL for a paragraph. Revokes any existing URL for the same paragraph.
  * @param paragraphIndex - The paragraph index
  * @param blobUrl - The blob URL to track
@@ -344,7 +351,7 @@ function trackBlobUrl(paragraphIndex: number, blobUrl: string): void {
   const existingUrl = activeBlobUrls.get(paragraphIndex);
   if (existingUrl) {
     console.log(`[VoxPage:BlobURL] Revoking previous URL for paragraph ${paragraphIndex}`);
-    URL.revokeObjectURL(existingUrl);
+    safeRevokeObjectURL(existingUrl);
   }
 
   // Track the new URL
@@ -364,7 +371,7 @@ function revokeBlobUrl(paragraphIndex: number): void {
     console.log(
       `[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${paragraphIndex}`,
     );
-    URL.revokeObjectURL(url);
+    safeRevokeObjectURL(url);
     activeBlobUrls.delete(paragraphIndex);
   }
 }
@@ -380,7 +387,7 @@ function revokeAllBlobUrls(): void {
   console.log(`[VoxPage:BlobURL] Revoking all ${count} tracked blob URLs`);
   for (const [index, url] of activeBlobUrls) {
     console.log(`[VoxPage:BlobURL] Revoked: ${url.substring(0, 30)}... for paragraph ${index}`);
-    URL.revokeObjectURL(url);
+    safeRevokeObjectURL(url);
   }
   activeBlobUrls.clear();
 }
@@ -423,6 +430,189 @@ async function sendToContentScript(
     console.error('[Background] Failed to send to content script:', error);
     return null;
   }
+}
+
+// ============================================
+// Audio URL Helpers (Chrome MV3 Service Worker Compatible)
+// ============================================
+
+/**
+ * Convert ArrayBuffer to a data URL.
+ * Service workers don't have access to URL.createObjectURL,
+ * so we use base64 data URLs instead.
+ */
+function arrayBufferToDataUrl(buffer: ArrayBuffer, mimeType: string): string {
+  const uint8Array = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  const base64 = btoa(binary);
+  return `data:${mimeType};base64,${base64}`;
+}
+
+/**
+ * Create an audio URL from ArrayBuffer.
+ * Uses data URL for service worker compatibility.
+ */
+function createAudioUrl(audioData: ArrayBuffer): string {
+  return arrayBufferToDataUrl(audioData, 'audio/mpeg');
+}
+
+// ============================================
+// Firefox Background Script
+// ============================================
+
+/**
+ * VoxPage is Firefox-focused. Firefox background scripts have full DOM access,
+ * which means we can use Audio API and speechSynthesis directly
+ * without needing Chrome's offscreen document workarounds.
+ */
+
+// ============================================
+// Native Audio Playback
+// ============================================
+
+/**
+ * Current audio element for playback.
+ * Firefox background scripts have DOM access, so we can use Audio API directly.
+ */
+let currentAudio: HTMLAudioElement | null = null;
+let audioResolveCallback: ((result: { success: boolean; ended: boolean }) => void) | null = null;
+
+/**
+ * Play audio in background script.
+ */
+async function playAudioNative(
+  audioUrl: string,
+  speed: number,
+): Promise<{ success: boolean; ended: boolean; duration?: number }> {
+  return new Promise((resolve) => {
+    // Stop any existing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.removeAttribute('src');
+      currentAudio.load();
+      currentAudio = null;
+    }
+
+    audioResolveCallback = resolve;
+
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+
+    audio.onended = () => {
+      console.log('[Background] Audio playback ended naturally');
+      const duration = audio.duration;
+      currentAudio = null;
+      audioResolveCallback = null;
+      resolve({ success: true, ended: true, duration });
+    };
+
+    audio.onerror = (event) => {
+      console.error('[Background] Audio playback error:', event);
+      currentAudio = null;
+      audioResolveCallback = null;
+      resolve({ success: false, ended: false });
+    };
+
+    // T046: Capture duration as soon as metadata is available
+    audio.onloadedmetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        console.log('[Background] Audio metadata loaded, duration:', audio.duration);
+        playbackState.totalTime = audio.duration;
+        // Send initial duration to footer
+        updateFooterProgress().catch(() => {});
+      }
+    };
+
+    // Send progress updates
+    audio.ontimeupdate = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        playbackState.currentTime = audio.currentTime;
+        playbackState.totalTime = audio.duration;
+        // FIX: Bug 046 - Send footer state update on every timeupdate for timer sync
+        updateFooterProgress().catch(() => {
+          // Ignore errors - tab might be closed
+        });
+      }
+    };
+
+    console.log('[Background] Playing audio, speed:', speed);
+    audio
+      .play()
+      .then(() => {
+        console.log('[Background] Audio play() started successfully');
+      })
+      .catch((err) => {
+        console.error('[Background] Audio play() failed:', err);
+        currentAudio = null;
+        audioResolveCallback = null;
+        resolve({ success: false, ended: false });
+      });
+  });
+}
+
+/**
+ * Stop audio playback.
+ */
+function stopAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.removeAttribute('src');
+    currentAudio.load();
+    currentAudio = null;
+    console.log('[Background] Audio stopped');
+
+    if (audioResolveCallback) {
+      audioResolveCallback({ success: true, ended: false });
+      audioResolveCallback = null;
+    }
+
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Pause audio playback.
+ */
+function pauseAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.pause();
+    console.log('[Background] Audio paused');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Resume audio playback.
+ */
+function resumeAudioNative(): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.play().catch((err) => {
+      console.error('[Background] Failed to resume audio:', err);
+    });
+    console.log('[Background] Audio resumed');
+    return { success: true };
+  }
+  return { success: false };
+}
+
+/**
+ * Set audio playback speed.
+ */
+function setAudioSpeedNative(speed: number): { success: boolean } {
+  if (currentAudio) {
+    currentAudio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+    console.log('[Background] Audio speed set to:', speed);
+    return { success: true };
+  }
+  return { success: false };
 }
 
 // ============================================
@@ -476,6 +666,27 @@ interface ElevenLabsAudioResult {
   duration: number;
 }
 
+/**
+ * T046: Get resolved voice ID for cache key consistency
+ * Returns playbackState.voice if set, otherwise the ElevenLabs provider's default voice ID
+ * This ensures cache keys match between audio generation and cache lookup/storage
+ */
+async function getResolvedVoiceId(): Promise<string> {
+  if (playbackState.voice) {
+    return playbackState.voice;
+  }
+
+  // Get default voice from provider
+  const provider = await initElevenLabsProvider();
+  if (provider) {
+    const defaultVoice = provider.getDefaultVoice();
+    return defaultVoice.id;
+  }
+
+  // Fallback if provider unavailable
+  return 'default';
+}
+
 async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioResult | null> {
   // Initialize/refresh provider with latest key
   const provider = await initElevenLabsProvider();
@@ -516,8 +727,8 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
     })) as AudioWithTiming;
 
     // Result is AudioWithTiming with audioData and wordTiming
-    const blob = new Blob([result.audioData], { type: 'audio/mpeg' });
-    const audioUrl = URL.createObjectURL(blob);
+    // Use data URL instead of blob URL for service worker compatibility
+    const audioUrl = createAudioUrl(result.audioData);
 
     // Calculate duration from last word timing
     const duration =
@@ -567,6 +778,7 @@ function configurePrefetchService(): void {
 
     return {
       audioUrl: result.audioUrl,
+      audioData: result.audioData, // T046: Include raw data for persistent cache
       wordTimings: result.wordTimings,
     };
   };
@@ -575,7 +787,7 @@ function configurePrefetchService(): void {
   const cacheChecker = async (index: number): Promise<boolean> => {
     if (!currentPageUrl) return false;
     const cacheStore = getCacheStore();
-    const voiceId = playbackState.voice ?? 'default';
+    const voiceId = await getResolvedVoiceId(); // T046: Use consistent voice resolution
     const text = paragraphs[index];
     if (!text) return false;
 
@@ -666,6 +878,7 @@ async function prefetchUpcomingAudio(): Promise<void> {
     if (audioResult && playbackState.status === 'playing') {
       audioPrefetchCache.set(i, {
         audioUrl: audioResult.audioUrl,
+        audioData: audioResult.audioData, // T046: Store raw data for persistent cache
         wordTimings: audioResult.wordTimings,
         paragraphIndex: i,
       });
@@ -747,9 +960,8 @@ async function checkPersistentCache(
       entry.compressedSize,
     );
 
-    // Convert ArrayBuffer to blob URL
-    const blob = new Blob([entry.audioData], { type: 'audio/mpeg' });
-    const audioUrl = URL.createObjectURL(blob);
+    // Convert ArrayBuffer to data URL for service worker compatibility
+    const audioUrl = createAudioUrl(entry.audioData);
 
     // Parse word timings from entry
     const wordTimings: WordTiming[] = (entry.wordTimeline ?? []).map((wt: WordTimelineItem) => ({
@@ -820,14 +1032,15 @@ async function storeToPersistentCache(
 // TTS Playback
 // ============================================
 
-// Current audio element for background playback
-let currentAudio: HTMLAudioElement | null = null;
+// Track if audio is currently playing (native Audio API)
+let audioPlaybackActive = false;
 
 /**
  * Format seconds to MM:SS string
+ * Bug 046: Added explicit negative number handling
  */
 function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -835,7 +1048,7 @@ function formatTime(seconds: number): string {
 
 /**
  * Start word-by-word highlighting based on audio currentTime
- * Uses a polling interval to check the current time and highlight the corresponding word
+ * Uses playbackState.currentTime which is updated by native audio ontimeupdate
  */
 function startWordHighlighting(paragraphIndex: number): void {
   // Clear any existing interval
@@ -850,11 +1063,11 @@ function startWordHighlighting(paragraphIndex: number): void {
 
   // Poll every 50ms (20Hz) for smooth word highlighting
   wordHighlightInterval = setInterval(() => {
-    if (!currentAudio || playbackState.status !== 'playing') {
+    if (!audioPlaybackActive || playbackState.status !== 'playing') {
       return;
     }
 
-    const currentTimeMs = currentAudio.currentTime * 1000;
+    const currentTimeMs = playbackState.currentTime * 1000;
 
     // Binary search for the current word
     let newWordIndex = -1;
@@ -928,140 +1141,81 @@ async function updateFooterProgress(): Promise<void> {
 }
 
 /**
- * Play audio in the background script (avoids content script autoplay restrictions)
+ * Play audio in the background script.
+ * Firefox background scripts have full DOM access, so we can use Audio API directly.
  */
-function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    // Validate audio URL before attempting to play
-    if (!audioUrl || audioUrl.trim() === '') {
-      console.error('[Background] Invalid audio URL: empty or undefined');
-      resolve(false);
-      return;
-    }
+async function playAudioInBackground(audioUrl: string, speed: number): Promise<boolean> {
+  // Validate audio URL before attempting to play
+  if (!audioUrl || audioUrl.trim() === '') {
+    console.error('[Background] Invalid audio URL: empty or undefined');
+    return false;
+  }
 
-    // Check if playback was stopped/paused before starting
-    if (playbackState.status !== 'playing') {
-      console.log('[Background] Audio playback cancelled - status is', playbackState.status);
-      resolve(false);
-      return;
-    }
+  // Check if playback was stopped/paused before starting
+  if (playbackState.status !== 'playing') {
+    console.log('[Background] Audio playback cancelled - status is', playbackState.status);
+    return false;
+  }
 
-    // Reset manual stop flag
-    audioStoppedManually = false;
+  // Reset manual stop flag
+  audioStoppedManually = false;
 
-    // Store resolve callback so we can call it when manually stopped
-    audioResolveCallback = resolve;
+  try {
+    audioPlaybackActive = true;
+    console.log('[Background] Playing audio natively, speed:', speed);
 
-    // Stop any existing audio
-    // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.removeAttribute('src');
-      currentAudio.load();
-      currentAudio = null;
-    }
+    const result = await playAudioNative(audioUrl, speed);
 
-    const audio = new Audio(audioUrl);
-    currentAudio = audio;
-    audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
+    audioPlaybackActive = false;
 
-    // Track audio duration when metadata loads
-    audio.onloadedmetadata = () => {
-      // Only set if duration is valid (not Infinity)
-      if (audio.duration && isFinite(audio.duration)) {
-        playbackState.totalTime = audio.duration;
-        console.log('[Background] Audio duration:', audio.duration, 'seconds');
-      } else {
-        console.warn('[Background] Audio duration not available:', audio.duration);
-      }
-    };
-
-    // Update progress as audio plays
-    audio.ontimeupdate = () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        playbackState.currentTime = audio.currentTime;
-        playbackState.totalTime = audio.duration;
-        // Update footer with current time
-        updateFooterProgress();
-      }
-    };
-
-    audio.onended = () => {
+    if (result.success && result.ended) {
       console.log('[Background] Audio playback ended');
-      currentAudio = null;
-      audioResolveCallback = null;
-      resolve(true);
-    };
+      return true;
+    }
 
-    audio.onerror = (event) => {
-      // Ignore errors caused by manual stop
-      if (audioStoppedManually) {
-        return;
-      }
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Audio playback error:', {
-        event,
-        provider: playbackState.provider,
-        paragraphIndex: playbackState.currentParagraph,
-        audioUrl: audioUrl.substring(0, 50),
-      });
-      currentAudio = null;
-      audioResolveCallback = null;
-      resolve(false);
-    };
+    if (audioStoppedManually) {
+      return false;
+    }
 
-    console.log('[Background] Playing audio in background, speed:', speed);
-    audio
-      .play()
-      .then(() => {
-        console.log('[Background] Audio play() started successfully');
-      })
-      .catch((err) => {
-        // T031: Add error context (provider, paragraph index)
-        console.error('[Background] Audio play() failed:', {
-          error: err,
-          provider: playbackState.provider,
-          paragraphIndex: playbackState.currentParagraph,
-          audioUrl: audioUrl.substring(0, 50),
-        });
-        currentAudio = null;
-        audioResolveCallback = null;
-        resolve(false);
-      });
-  });
+    console.error('[Background] Audio playback failed:', result);
+    return false;
+  } catch (error) {
+    audioPlaybackActive = false;
+    console.error('[Background] Audio playback error:', error);
+    return false;
+  }
 }
 
 /**
  * Stop current audio playback
  */
-function stopCurrentAudio(): void {
+async function stopCurrentAudio(): Promise<void> {
   // Set flag before stopping to prevent error handler issues
   audioStoppedManually = true;
+  audioPlaybackActive = false;
 
   // Stop word highlighting
   stopWordHighlighting();
   currentWordTimings = [];
 
-  // T026: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.removeAttribute('src');
-    currentAudio.load();
-    currentAudio = null;
-    console.log('[VoxPage:Audio] Audio stopped and cleaned');
-  }
+  // Stop audio playback (Firefox native - no offscreen document needed)
+  stopAudioNative();
+  console.log('[VoxPage:Audio] Audio stopped via native API');
 
   // T028-T029: Revoke all tracked blob URLs when stopping playback
   revokeAllBlobUrls();
 
   // Resolve any pending audio Promise so speakCurrentParagraph can check status
   if (audioResolveCallback) {
-    audioResolveCallback(false);
+    audioResolveCallback({ success: false, ended: false });
     audioResolveCallback = null;
   }
 }
 
 async function speakCurrentParagraph(): Promise<void> {
+  // Capture current generation at start - if it changes during execution, we're stale
+  const myGeneration = playbackGeneration;
+
   if (!activeTabId || playbackState.status !== 'playing') {
     return;
   }
@@ -1098,18 +1252,16 @@ async function speakCurrentParagraph(): Promise<void> {
   // T016: Debug logging for provider selection (035-selection-tts-hardening)
   console.log('[VoxPage:Provider] Selected:', playbackState.provider);
   console.log('[VoxPage:Provider] Voice:', playbackState.voice ?? 'default');
+  console.log('[VoxPage:Provider] API Keys loaded:', {
+    elevenlabs: !!apiKeys.elevenlabsApiKey,
+  });
 
   // T013: API key validation before playback attempt (035-selection-tts-hardening)
   const providerApiKeyMap: Record<string, string | undefined> = {
     elevenlabs: apiKeys.elevenlabsApiKey,
-    openai: apiKeys.openaiApiKey,
-    groq: apiKeys.groqApiKey,
-    cartesia: apiKeys.cartesiaApiKey,
-    browser: 'browser-native', // Browser TTS doesn't need API key
   };
 
-  const hasApiKey =
-    playbackState.provider === 'browser' || !!providerApiKeyMap[playbackState.provider];
+  const hasApiKey = !!providerApiKeyMap[playbackState.provider];
 
   // T014: Show error notification if API key missing (035-selection-tts-hardening)
   if (!hasApiKey) {
@@ -1136,7 +1288,7 @@ async function speakCurrentParagraph(): Promise<void> {
     let generatedAudioData: ArrayBuffer | null = null;
 
     // T023: First, check persistent cache for this paragraph
-    const voiceId = playbackState.voice ?? 'default';
+    const voiceId = await getResolvedVoiceId(); // T046: Use consistent voice resolution
     if (currentPageUrl) {
       const cached = await checkPersistentCache(
         currentPageUrl,
@@ -1167,6 +1319,11 @@ async function speakCurrentParagraph(): Promise<void> {
           audioUrl: prefetchedModular.audioUrl,
           wordTimings: prefetchedModular.wordTimings,
         };
+        // T046: Mark modular prefetch for persistent cache storage
+        if (prefetchedModular.audioData) {
+          shouldStoreToCache = true;
+          generatedAudioData = prefetchedModular.audioData;
+        }
       }
     }
 
@@ -1182,6 +1339,9 @@ async function speakCurrentParagraph(): Promise<void> {
           audioUrl: prefetched.audioUrl,
           wordTimings: prefetched.wordTimings,
         };
+        // T046: Mark prefetched audio for persistent cache storage
+        shouldStoreToCache = true;
+        generatedAudioData = prefetched.audioData;
         // Remove from cache since we're using it
         audioPrefetchCache.delete(playbackState.currentParagraph);
       }
@@ -1236,6 +1396,9 @@ async function speakCurrentParagraph(): Promise<void> {
           paragraphIndex: playbackState.currentParagraph,
         });
 
+        // Mark audio as about to play (before starting highlighting)
+        audioPlaybackActive = true;
+
         // Start word highlighting
         startWordHighlighting(playbackState.currentParagraph);
       }
@@ -1275,122 +1438,13 @@ async function speakCurrentParagraph(): Promise<void> {
       // Clean up old cache entries
       cleanupPrefetchCache();
     } else {
-      console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
+      console.warn('[Background] ElevenLabs failed');
     }
-  } else if (playbackState.provider === 'openai' && apiKeys.openaiApiKey) {
-    // OpenAI TTS provider
-    console.log('[Background] Generating audio with OpenAI');
-    try {
-      const openaiProvider = new OpenAIProvider();
-      openaiProvider.setApiKey(apiKeys.openaiApiKey);
-
-      const response = await openaiProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] OpenAI playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] OpenAI TTS error:', {
-        error,
-        provider: 'openai',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'groq' && apiKeys.groqApiKey) {
-    // Groq TTS provider
-    console.log('[Background] Generating audio with Groq');
-    try {
-      const groqProvider = new GroqProvider();
-      groqProvider.setApiKey(apiKeys.groqApiKey);
-
-      const response = await groqProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] Groq playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Groq TTS error:', {
-        error,
-        provider: 'groq',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'cartesia' && apiKeys.cartesiaApiKey) {
-    // Cartesia TTS provider
-    console.log('[Background] Generating audio with Cartesia');
-    try {
-      const cartesiaProvider = new CartesiaProvider();
-      cartesiaProvider.setApiKey(apiKeys.cartesiaApiKey);
-
-      const response = await cartesiaProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to URL
-      const audioUrl = URL.createObjectURL(response.audioData);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] Cartesia playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Cartesia TTS error:', {
-        error,
-        provider: 'cartesia',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'browser') {
-    // Browser TTS explicitly selected
-    console.log('[Background] Using browser TTS (explicitly selected)');
-    currentWordTimings = [];
-    await sendToContentScript(activeTabId, {
-      action: 'speakText',
-      text: text,
-      speed: playbackState.speed,
-    });
-    success = true; // Browser TTS doesn't return completion status
   }
 
   // T012: Remove silent fallback - show error notification instead (035-selection-tts-hardening)
   // If provider failed (API error, network issue, etc.), notify user instead of silently falling back
-  if (!success && playbackState.provider !== 'browser') {
+  if (!success) {
     const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} playback failed. Please check your API key or try again.`;
     console.error(`[VoxPage:Provider] Playback failed for ${playbackState.provider}`);
 
@@ -1410,7 +1464,8 @@ async function speakCurrentParagraph(): Promise<void> {
   }
 
   // Check if we're still playing (might have been paused/stopped)
-  if (playbackState.status === 'playing') {
+  // Also check generation ID - if a new playback started, this call is stale
+  if (playbackState.status === 'playing' && myGeneration === playbackGeneration) {
     // Advance playback queue (T047)
     playbackQueue.advance();
 
@@ -1419,17 +1474,13 @@ async function speakCurrentParagraph(): Promise<void> {
     playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
     notifyPopup();
 
-    // Update footer
-    await sendToContentScript(activeTabId, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: playbackState.currentParagraph,
-      totalParagraphs: paragraphs.length,
-      progress: playbackState.progress,
-    });
+    // Update footer - use updateFooterProgress for consistent time updates
+    await updateFooterProgress();
 
     // Speak next paragraph
     speakCurrentParagraph();
+  } else if (myGeneration !== playbackGeneration) {
+    console.log('[Background] Stale playback call detected (generation mismatch), aborting');
   }
 }
 
@@ -1485,18 +1536,12 @@ const messageHandlers: Record<string, MessageHandler> = {
       // Reload API keys and settings
       const stored = await browser.storage.local.get([
         'elevenlabsApiKey',
-        'openaiApiKey',
-        'groqApiKey',
-        'cartesiaApiKey',
         'elevenlabsVoice',
         'speed',
         'provider',
       ]);
       apiKeys = {
         elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-        openaiApiKey: stored.openaiApiKey as string | undefined,
-        groqApiKey: stored.groqApiKey as string | undefined,
-        cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
       };
       if (stored.elevenlabsVoice) {
         playbackState.voice = stored.elevenlabsVoice as string;
@@ -1542,6 +1587,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     clearPrefetchCache();
     stopCurrentAudio();
 
+    // Increment generation to invalidate any stale speakCurrentParagraph calls
+    playbackGeneration++;
+
     // Set the current paragraph to the clicked index
     playbackState.currentParagraph = paragraphIndex;
     playbackState.progress = (paragraphIndex / playbackState.totalParagraphs) * 100;
@@ -1560,15 +1608,8 @@ const messageHandlers: Record<string, MessageHandler> = {
       },
     });
 
-    // Update footer state
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: playbackState.currentParagraph,
-      totalParagraphs: playbackState.totalParagraphs,
-      progress: playbackState.progress,
-      speed: playbackState.speed,
-    });
+    // Update footer state - use updateFooterProgress for consistent time updates
+    await updateFooterProgress();
 
     // Start speaking from the clicked paragraph
     speakCurrentParagraph();
@@ -1597,18 +1638,12 @@ const messageHandlers: Record<string, MessageHandler> = {
     // Reload API keys and settings
     const stored = await browser.storage.local.get([
       'elevenlabsApiKey',
-      'openaiApiKey',
-      'groqApiKey',
-      'cartesiaApiKey',
       'elevenlabsVoice',
       'speed',
       'provider',
     ]);
     apiKeys = {
       elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-      openaiApiKey: stored.openaiApiKey as string | undefined,
-      groqApiKey: stored.groqApiKey as string | undefined,
-      cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
     };
     if (stored.elevenlabsVoice) {
       playbackState.voice = stored.elevenlabsVoice as string;
@@ -1619,6 +1654,11 @@ const messageHandlers: Record<string, MessageHandler> = {
     if (stored.provider) {
       playbackState.provider = stored.provider as string;
     }
+    console.log('[Background] Settings loaded from storage:', {
+      provider: stored.provider ?? '(not set, defaulting to browser)',
+      hasElevenlabsApiKey: !!stored.elevenlabsApiKey,
+      playbackStateProvider: playbackState.provider,
+    });
 
     // Extract text from the page
     const extractResult = await sendToContentScript(tab.id, {
@@ -1648,6 +1688,9 @@ const messageHandlers: Record<string, MessageHandler> = {
     clearPrefetchCache();
     stopCurrentAudio();
 
+    // Increment generation to invalidate any stale speakCurrentParagraph calls
+    playbackGeneration++;
+
     // Start from the first paragraph
     playbackState.currentParagraph = 0;
     playbackState.progress = 0;
@@ -1666,15 +1709,8 @@ const messageHandlers: Record<string, MessageHandler> = {
       },
     });
 
-    // Update footer state
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: 0,
-      totalParagraphs: playbackState.totalParagraphs,
-      progress: 0,
-      speed: playbackState.speed,
-    });
+    // Update footer state - use updateFooterProgress for consistent 1-indexed display
+    await updateFooterProgress();
 
     // Start speaking from the first paragraph
     speakCurrentParagraph();
@@ -1691,21 +1727,14 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'paused';
-    if (currentAudio) {
-      currentAudio.pause();
-    }
+    // Pause audio playback (Firefox native - no offscreen document needed)
+    pauseAudioNative();
     stopWordHighlighting();
     notifyPopup();
 
     if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'paused',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-        speed: playbackState.speed,
-      });
+      // Use updateFooterProgress for consistent time updates
+      await updateFooterProgress();
     }
 
     return { success: true };
@@ -1720,25 +1749,20 @@ const messageHandlers: Record<string, MessageHandler> = {
     }
 
     playbackState.status = 'playing';
-    if (currentAudio) {
-      currentAudio.play();
-      // Resume word highlighting
+    // Resume audio playback (Firefox native - no offscreen document needed)
+    const result = resumeAudioNative();
+    if (result.success) {
+      // Audio resumed, restart word highlighting
       startWordHighlighting(playbackState.currentParagraph);
     } else {
-      // Audio was lost, regenerate
+      // If audio wasn't resumed, regenerate
       speakCurrentParagraph();
     }
     notifyPopup();
 
     if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'playing',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-        speed: playbackState.speed,
-      });
+      // Use updateFooterProgress for consistent time updates
+      await updateFooterProgress();
     }
 
     return { success: true };
@@ -1814,13 +1838,14 @@ const messageHandlers: Record<string, MessageHandler> = {
    * Legacy fallback: Update settings.
    */
   updateSettings: async (data) => {
+    console.log('[Background] updateSettings called with:', data);
     if (typeof data.speed === 'number') {
       playbackState.speed = data.speed;
-      if (currentAudio) {
-        currentAudio.playbackRate = data.speed;
-      }
+      // Update playback speed (Firefox native - no offscreen document needed)
+      setAudioSpeedNative(data.speed);
     }
     if (typeof data.provider === 'string') {
+      console.log('[Background] Updating provider to:', data.provider);
       playbackState.provider = data.provider;
     }
     if (typeof data.voice === 'string') {
@@ -1854,6 +1879,33 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   /**
+   * Handle footer action (play, pause, next, prev, stop, etc.).
+   * Maps footer button clicks to legacy playback handlers.
+   */
+  FOOTER_ACTION: async (data) => {
+    const action = data.action as string;
+    console.log('[Background] FOOTER_ACTION received:', action);
+
+    switch (action) {
+      case 'play':
+      case 'resume':
+        return messageHandlers.resumePlayback({});
+      case 'pause':
+        return messageHandlers.pausePlayback({});
+      case 'stop':
+        return messageHandlers.stopPlayback({});
+      case 'next':
+        return messageHandlers.nextParagraph({});
+      case 'prev':
+      case 'previous':
+        return messageHandlers.previousParagraph({});
+      default:
+        console.warn('[Background] Unknown footer action:', action);
+        return { success: false, error: `Unknown action: ${action}` };
+    }
+  },
+
+  /**
    * Legacy fallback: Jump to paragraph.
    */
   jumpToParagraph: async (data) => {
@@ -1874,6 +1926,80 @@ const messageHandlers: Record<string, MessageHandler> = {
     return { success: true };
   },
 
+  /**
+   * Get buffered logs for display in the options page.
+   * Called from options page "View Logs" button.
+   */
+  getLogs: async () => {
+    try {
+      if (!usageTracker.isEnabled() || !usageTracker.isInitialized()) {
+        return { success: false, error: 'Telemetry not initialized' };
+      }
+
+      const events = await usageTracker.getBufferedLogs(100);
+      const stats = await usageTracker.getStats();
+
+      // Transform events to log viewer format
+      const logs = events.map((event) => ({
+        date: event.ts,
+        level:
+          event.event.startsWith('error') || event.event.includes('.error')
+            ? 'error'
+            : event.event.startsWith('console.warn')
+              ? 'warn'
+              : event.event.startsWith('console.debug')
+                ? 'debug'
+                : 'info',
+        component: event.entrypoint || 'unknown',
+        message: event.msg || event.event,
+        metadata: event.data,
+      }));
+
+      return {
+        success: true,
+        logs,
+        status: {
+          bufferCount: stats.buffer.eventCount,
+          bufferBytes: stats.buffer.totalBytes,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Get logs failed:', error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  /**
+   * Flush telemetry logs to the gateway.
+   * Called from options page "Flush Now" button.
+   */
+  flushLogs: async () => {
+    try {
+      if (!usageTracker.isEnabled() || !usageTracker.isInitialized()) {
+        return { success: false, error: 'Telemetry not initialized' };
+      }
+
+      await usageTracker.flush();
+      const stats = await usageTracker.getStats();
+
+      return {
+        success: true,
+        stats: {
+          eventsSent: stats.shipper.totalEventsSent,
+          eventsFailed: stats.shipper.totalEventsFailed,
+          bufferCount: stats.buffer.eventCount,
+          circuitOpen: stats.shipper.circuitOpen,
+          lastError: stats.shipper.lastError,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Flush logs failed:', error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
   // Roadmap Feature Handlers - These are domain handlers that haven't been
   // migrated to hexagonal yet. They use their own modular pattern.
   // Export handlers
@@ -1886,13 +2012,6 @@ const messageHandlers: Record<string, MessageHandler> = {
   // Summarize handlers
   ...Object.fromEntries(
     Object.entries(summarizeHandlers).map(([key, handler]) => [
-      key,
-      async (data: Record<string, unknown>) => handler(data as never),
-    ]),
-  ),
-  // OCR handlers
-  ...Object.fromEntries(
-    Object.entries(ocrHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
     ]),
@@ -1927,6 +2046,60 @@ async function notifyPopup(): Promise<void> {
 
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
+
+  // Initialize usage observability (043-usage-observability-loki)
+  // Gateway URL and token are loaded from storage or environment
+  const initUsageTracker = async () => {
+    try {
+      // Get telemetry config from storage (set via options page)
+      const result = await browser.storage.local.get([
+        'telemetryEnabled',
+        'telemetryGatewayUrl',
+        'telemetryGatewayToken',
+      ]);
+
+      // Only initialize if telemetry is enabled
+      if (result.telemetryEnabled === false) {
+        console.log('[Background] Usage telemetry disabled by user');
+        return;
+      }
+
+      // Use default gateway if not configured
+      const gatewayUrl =
+        (result.telemetryGatewayUrl as string) ||
+        'https://voxpage-logs.home301server.com.br/ingest';
+      const gatewayToken =
+        (result.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+
+      await usageTracker.initialize({
+        gatewayUrl,
+        gatewayToken,
+        entrypoint: 'background',
+        enabled: true,
+        debugMode: process.env.NODE_ENV !== 'production',
+      });
+
+      // Install global error capture
+      installErrorCapture(usageTracker);
+
+      // Install console capture to forward console logs to telemetry
+      installConsoleCapture(usageTracker, {
+        captureLog: true,
+        captureDebug: true,
+        captureInfo: true,
+        captureWarn: true,
+        captureError: true,
+      });
+
+      // Track background start event
+      usageTracker.track('background.started');
+
+      console.log('[Background] Usage telemetry initialized');
+    } catch (error) {
+      console.warn('[Background] Failed to initialize usage telemetry:', error);
+    }
+  };
+  initUsageTracker();
 
   // Initialize hexagonal architecture (034-hexagonal-architecture)
   initHexagonalArchitecture()
@@ -1971,10 +2144,27 @@ export default defineBackground(() => {
     // Check if we have a hexagonal mapping for this message type
     const hexType = LEGACY_TO_HEXAGONAL_MAP[type] ?? type;
 
+    // Debug: Log dispatch decision for queue messages
+    if (type.startsWith('queue.')) {
+      console.log('[Background] dispatchMessage debug:', {
+        type,
+        hexType,
+        shouldUseLegacy: shouldUseLegacy(type),
+        hexagonalInitialized,
+        willUseHex: !shouldUseLegacy(type) && hexagonalInitialized,
+      });
+    }
+
     // Check feature flags - if legacy is forced, skip hex
     if (!shouldUseLegacy(type) && hexagonalInitialized) {
       // Try hexagonal handler first
       const hexResult = await dispatchToHexagonal(hexType, data);
+
+      // Debug: Log hex result for queue messages
+      if (type.startsWith('queue.')) {
+        console.log('[Background] hexResult for', type, ':', hexResult);
+      }
+
       if (hexResult !== null) {
         return hexResult;
       }
@@ -2008,7 +2198,12 @@ export default defineBackground(() => {
       return dispatchMessage(type, data).then((result) => {
         if (result === null) {
           console.warn('[Background] Unknown message type:', type);
-          return { error: 'Unknown message type' };
+          logUnknownMessage(type);
+          return unknownMessageResponse(type);
+        }
+        // Debug: log what we're returning to the caller
+        if (type === 'settings.testApiKey') {
+          console.log('[Background] Returning testApiKey result:', JSON.stringify(result));
         }
         return result;
       });
@@ -2021,8 +2216,9 @@ export default defineBackground(() => {
 
       return dispatchMessage(action, data).then((result) => {
         if (result === null) {
-          // Acknowledge unknown actions
-          return { received: true };
+          // Return structured error for unknown actions
+          logUnknownMessage(action);
+          return unknownMessageResponse(action);
         }
         return result;
       });
@@ -2034,7 +2230,7 @@ export default defineBackground(() => {
 
   // Initialize settings from storage
   browser.storage.local
-    .get(['speed', 'provider', 'elevenlabsApiKey', 'openaiApiKey', 'groqApiKey', 'cartesiaApiKey'])
+    .get(['speed', 'provider', 'elevenlabsApiKey'])
     .then((result) => {
       if (typeof result.speed === 'number') {
         playbackState.speed = result.speed;
@@ -2044,9 +2240,6 @@ export default defineBackground(() => {
       }
       apiKeys = {
         elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
-        openaiApiKey: result.openaiApiKey as string | undefined,
-        groqApiKey: result.groqApiKey as string | undefined,
-        cartesiaApiKey: result.cartesiaApiKey as string | undefined,
       };
       console.log('[Background] Settings loaded:', {
         speed: playbackState.speed,
@@ -2060,6 +2253,39 @@ export default defineBackground(() => {
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+
+    // Update provider when it changes in storage
+    if (changes.provider) {
+      const newProvider = changes.provider.newValue as string;
+      console.log('[Background] Provider updated from storage:', newProvider);
+      playbackState.provider = newProvider;
+    }
+
+    // Update speed when it changes in storage
+    if (changes.speed) {
+      const newSpeed = changes.speed.newValue as number;
+      console.log('[Background] Speed updated from storage:', newSpeed);
+      playbackState.speed = newSpeed;
+    }
+
+    // Update voice when it changes in storage
+    if (changes.voice) {
+      const newVoice = changes.voice.newValue as string | null;
+      console.log('[Background] Voice updated from storage:', newVoice);
+      playbackState.voice = newVoice;
+    }
+
+    // Update apiKeys when API key storage changes (fixes runtime key updates)
+    if (changes.elevenlabsApiKey) {
+      apiKeys.elevenlabsApiKey = changes.elevenlabsApiKey.newValue as string | undefined;
+      console.log(
+        '[Background] API key updated: elevenlabsApiKey',
+        changes.elevenlabsApiKey.newValue ? 'set' : 'cleared',
+      );
+      console.log('[Background] API keys state:', {
+        hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
+      });
+    }
 
     // Check if queue data changed
     if (changes[QUEUE_STORAGE_KEYS.ITEMS] || changes[QUEUE_STORAGE_KEYS.METADATA]) {
