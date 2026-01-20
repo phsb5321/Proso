@@ -22,8 +22,9 @@ import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema'
  */
 export const defaults: Readonly<Settings> = Object.freeze({
   mode: 'article' as Mode,
-  provider: 'browser' as Provider,
+  provider: 'elevenlabs' as Provider,
   voice: null,
+  voiceId: 'EXAVITQu4vr4xnSDxMaL', // Rachel voice (045-pdf-removal-page-reader)
   speed: 1.0,
   showCostEstimate: true,
   cacheEnabled: true,
@@ -34,6 +35,10 @@ export const defaults: Readonly<Settings> = Object.freeze({
   themeMode: 'system' as ThemeMode,
   highlightEnabled: true,
   autoScroll: true,
+  // 045-pdf-removal-page-reader
+  defaultHighlightColor: 'yellow' as const,
+  maxCacheSizeMb: 500,
+  telemetryEnabled: false,
 });
 
 /**
@@ -42,11 +47,7 @@ export const defaults: Readonly<Settings> = Object.freeze({
  * null means use the first available voice from the provider
  */
 export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.freeze({
-  openai: 'alloy',
   elevenlabs: null,
-  cartesia: null,
-  groq: 'hannah',
-  browser: null,
 });
 
 /**
@@ -74,7 +75,6 @@ export const footerStateDefaults: Readonly<FooterState> = Object.freeze({
 import type {
   QueueSettings,
   ExportSettings,
-  OCRSettings,
   AISettings,
   AIProvider,
   ExportQuality,
@@ -96,15 +96,6 @@ export const queueDefaults: Readonly<QueueSettings> = Object.freeze({
 export const exportDefaults: Readonly<ExportSettings> = Object.freeze({
   defaultQuality: '192' as ExportQuality,
   includeMetadata: true,
-});
-
-/**
- * OCR settings defaults
- */
-export const ocrDefaults: Readonly<OCRSettings> = Object.freeze({
-  defaultLanguages: ['eng'],
-  autoDetect: true,
-  showConfidence: false,
 });
 
 /**
@@ -162,40 +153,3 @@ export const cacheConstraints = Object.freeze({
   prefetchAhead: { min: 1, max: 10 },
 });
 
-// ========== PDF Settings Defaults (033-pdf-reading-support) ==========
-
-import type { PDFSettings, PDFHistory } from '../pdf/types';
-
-/**
- * PDF reading settings defaults
- * Controls text extraction, OCR, and reading behavior
- */
-export const pdfDefaults: Readonly<PDFSettings> = Object.freeze({
-  /** Enable OCR for scanned PDFs */
-  ocrEnabled: true,
-  /** Automatically detect scanned PDFs and offer OCR option */
-  autoDetectScanned: true,
-  /** Skip headers and footers during continuous reading */
-  headerFooterSkip: true,
-  /** Enable multi-column layout detection */
-  columnDetectionEnabled: true,
-  /** Number of pages to prefetch during extraction */
-  prefetchPages: 3,
-});
-
-/**
- * PDF history defaults
- * LRU history of recently read PDFs
- */
-export const pdfHistoryDefaults: Readonly<PDFHistory> = Object.freeze({
-  items: [],
-  maxItems: 100,
-});
-
-/**
- * PDF constraints for validation
- */
-export const pdfConstraints = Object.freeze({
-  prefetchPages: { min: 1, max: 10 },
-  maxHistoryItems: { min: 10, max: 500 },
-});

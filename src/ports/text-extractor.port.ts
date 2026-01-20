@@ -2,7 +2,7 @@
  * Text Extractor Port Interface
  *
  * Defines the contract for text extraction strategies.
- * Adapters: Readability (HTML), PDF (future)
+ * Adapters: Readability (HTML)
  *
  * @module ports/text-extractor
  */
@@ -36,7 +36,6 @@ export interface ExtractedContent {
  *
  * Implementations:
  * - ReadabilityExtractorAdapter - Mozilla Readability
- * - PDFExtractorAdapter - pdfjs-dist (future)
  */
 export interface ITextExtractor {
   /**

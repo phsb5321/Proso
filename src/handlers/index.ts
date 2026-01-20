@@ -119,22 +119,6 @@ export {
   type PrefetchClearBufferParams,
 } from './prefetch.handlers';
 
-// PDF handler exports (T060/T063)
-export {
-  registerPDFHandlers,
-  type PDFHandlerError,
-  type PDFExtractParams,
-  type PDFExtractResult,
-  type PDFParagraphInfo,
-  type PDFGetStateParams,
-  type PDFSaveStateParams,
-  type PDFPlayParams,
-  type PDFPlayResult,
-  type PDFSeekParams,
-  type PDFHighlightParams,
-  type PDFScrollToPageParams,
-} from './pdf.handlers';
-
 // Queue handler exports (T061/T064)
 export {
   registerQueueHandlers,
@@ -158,18 +142,40 @@ export {
   type QueueStateResponse,
 } from './queue.handlers';
 
+// Reader handler exports (045-pdf-removal-page-reader)
+export {
+  registerReaderHandlers,
+  clearArticleCache,
+  getCachedArticle,
+  onTabRemoved as onReaderTabRemoved,
+} from './reader.handlers';
+
+// Highlight handler exports (045-pdf-removal-page-reader Phase 4)
+export {
+  registerHighlightHandlers,
+  setHighlightRepository,
+  type HighlightHandlerError,
+  type HighlightCreateResponse,
+  type HighlightGetResponse,
+  type HighlightListResponse,
+  type HighlightUpdateResponse,
+  type HighlightDeleteResponse,
+  type HighlightDeleteByUrlResponse,
+} from './highlight.handlers';
+
 // Import handler registration functions
 import { registerAudioHandlers as regAudio } from './audio.handlers';
 import { registerCacheHandlers as regCache } from './cache.handlers';
 import { registerContentHandlers as regContent } from './content.handlers';
 import { registerDebugHandlers as regDebug } from './debug.handlers';
 import { registerFooterHandlers as regFooter } from './footer.handlers';
-import { registerPDFHandlers as regPDF } from './pdf.handlers';
 import { registerPlaybackHandlers as regPlayback } from './playback.handlers';
 import { registerPrefetchHandlers as regPrefetch } from './prefetch.handlers';
 import { registerProviderHandlers as regProvider } from './provider.handlers';
 import { registerQueueHandlers as regQueue } from './queue.handlers';
+import { registerReaderHandlers as regReader } from './reader.handlers';
 import { registerSettingsHandlers as regSettings } from './settings.handlers';
+import { registerHighlightHandlers as regHighlight } from './highlight.handlers';
 import { type HandlerRegistry as Registry, createHandlerRegistry as createReg } from './registry';
 import {
   type InstrumentedRegistry as InstrReg,
@@ -191,8 +197,9 @@ export function registerAllHandlers(registry: Registry): void {
   regSettings(registry); // T041/T043
   regFooter(registry); // T042/T044
   regPrefetch(registry); // T052/T053
-  regPDF(registry); // T060/T063
   regQueue(registry); // T061/T064
+  regReader(registry); // 045-pdf-removal-page-reader
+  regHighlight(registry); // 045-pdf-removal-page-reader Phase 4
 }
 
 /**

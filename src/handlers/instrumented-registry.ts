@@ -35,7 +35,6 @@ function getEventPrefix(handlerName: string): string {
     playback: 'playback',
     cache: 'cache',
     settings: 'settings',
-    pdf: 'pdf',
     content: 'content',
     audio: 'audio',
     provider: 'provider',

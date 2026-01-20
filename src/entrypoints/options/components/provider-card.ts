@@ -32,15 +32,6 @@ export interface ProviderCardState {
  * Provider configurations with branding
  */
 export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
-  openai: {
-    id: 'openai',
-    name: 'OpenAI',
-    description: 'High-quality voices with natural speech patterns',
-    keyPlaceholder: 'sk-...',
-    docsUrl: 'https://platform.openai.com/api-keys',
-    brandColor: '#10a37f',
-    testSupported: true,
-  },
   elevenlabs: {
     id: 'elevenlabs',
     name: 'ElevenLabs',
@@ -48,24 +39,6 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     keyPlaceholder: 'xi-...',
     docsUrl: 'https://elevenlabs.io/api',
     brandColor: '#5e5ce6',
-    testSupported: true,
-  },
-  cartesia: {
-    id: 'cartesia',
-    name: 'Cartesia',
-    description: 'Fast, low-latency voice synthesis',
-    keyPlaceholder: 'sk-...',
-    docsUrl: 'https://cartesia.ai/docs',
-    brandColor: '#ff6b35',
-    testSupported: true,
-  },
-  groq: {
-    id: 'groq',
-    name: 'Groq',
-    description: 'Ultra-fast inference with LPU technology',
-    keyPlaceholder: 'gsk_...',
-    docsUrl: 'https://console.groq.com/keys',
-    brandColor: '#f55036',
     testSupported: true,
   },
   anthropic: {

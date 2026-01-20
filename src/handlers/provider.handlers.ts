@@ -69,47 +69,19 @@ export interface LanguageValidationResponse {
  * Matches existing VoxPage providers.
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
-  openai: {
-    name: 'OpenAI TTS',
-    description: 'High-quality voices with fast generation',
-    supportsWordTiming: false,
-    requiresApiKey: true,
-    supportedLanguages: [], // Supports all languages
-  },
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
     supportsWordTiming: true,
     requiresApiKey: true,
-    supportedLanguages: [], // Supports many languages
-  },
-  groq: {
-    name: 'Groq',
-    description: 'Fast inference with Whisper timing',
-    supportsWordTiming: true, // Via Whisper
-    requiresApiKey: true,
-    supportedLanguages: ['en'], // English only
-  },
-  cartesia: {
-    name: 'Cartesia',
-    description: 'Low-latency streaming audio',
-    supportsWordTiming: false,
-    requiresApiKey: true,
-    supportedLanguages: ['en'], // English only
-  },
-  browser: {
-    name: 'Browser TTS',
-    description: 'Free built-in speech synthesis',
-    supportsWordTiming: false,
-    requiresApiKey: false,
-    supportedLanguages: [], // Depends on system
+    supportedLanguages: [],
   },
 };
 
 /**
  * Providers that support all languages (empty array means all).
  */
-const MULTILINGUAL_PROVIDERS: ProviderId[] = ['openai', 'elevenlabs', 'browser'];
+const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs'];
 
 /**
  * Register provider message handlers on the registry.
@@ -167,7 +139,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      const validProviders: ProviderId[] = ['openai', 'elevenlabs', 'groq', 'cartesia', 'browser'];
+      const validProviders: ProviderId[] = ['elevenlabs'];
       if (!params.provider || !validProviders.includes(params.provider)) {
         return Err({
           type: 'invalid_params',

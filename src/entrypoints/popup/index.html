@@ -309,6 +309,48 @@
           </div>
         </section>
 
+        <!-- Highlights Section (T093-T095) -->
+        <section class="voxpage-popup__tool-section" id="highlights-section">
+          <h3 class="voxpage-popup__tool-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+            Highlights
+          </h3>
+          <div class="voxpage-popup__highlight-info" id="highlight-info">
+            <span class="voxpage-popup__highlight-count">
+              <span id="highlight-count">0</span> highlights on this page
+            </span>
+          </div>
+          <!-- Selection indicator (shows when text selected) -->
+          <div class="voxpage-popup__highlight-selection" id="highlight-selection" hidden>
+            <p class="voxpage-popup__highlight-selection-text">
+              <strong>Selected:</strong> "<span id="selection-preview"></span>"
+            </p>
+            <div class="voxpage-popup__highlight-actions">
+              <div class="voxpage-popup__color-picker" id="color-picker">
+                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--yellow" data-color="yellow" title="Yellow" aria-label="Yellow highlight"></button>
+                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--green" data-color="green" title="Green" aria-label="Green highlight"></button>
+                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--blue" data-color="blue" title="Blue" aria-label="Blue highlight"></button>
+                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--pink" data-color="pink" title="Pink" aria-label="Pink highlight"></button>
+                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--purple" data-color="purple" title="Purple" aria-label="Purple highlight"></button>
+              </div>
+              <button
+                id="create-highlight-btn"
+                class="voxpage-button voxpage-button--primary voxpage-popup__tool-btn"
+                title="Create highlight from selection"
+                aria-label="Create highlight"
+              >
+                Highlight
+              </button>
+            </div>
+          </div>
+          <!-- No selection message -->
+          <p class="voxpage-popup__tool-desc" id="no-selection-msg">Select text on the page to create a highlight</p>
+        </section>
+
         <!-- Export Section -->
         <section class="voxpage-popup__tool-section" id="export-section">
           <h3 class="voxpage-popup__tool-title">

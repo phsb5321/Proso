@@ -49,6 +49,8 @@ export interface PrefetchedAudio {
   index: number;
   /** Audio blob URL for playback */
   audioUrl: string;
+  /** Raw audio data for persistent cache storage (T046) */
+  audioData?: ArrayBuffer;
   /** Word timing data for sync highlighting */
   wordTimings: WordTiming[];
   /** When this was prefetched (for cleanup) */
@@ -89,7 +91,7 @@ export interface PrefetchStatus {
 export type AudioGenerator = (
   text: string,
   index: number,
-) => Promise<{ audioUrl: string; wordTimings: WordTiming[] } | null>;
+) => Promise<{ audioUrl: string; audioData?: ArrayBuffer; wordTimings: WordTiming[] } | null>;
 
 /**
  * Cache checker function signature (injected dependency)
@@ -493,6 +495,7 @@ export class PrefetchService {
       const prefetchedAudio: PrefetchedAudio = {
         index: task.index,
         audioUrl: result.audioUrl,
+        audioData: result.audioData, // T046: Store raw data for persistent cache
         wordTimings: result.wordTimings,
         prefetchedAt: Date.now(),
       };

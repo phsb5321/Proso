@@ -5,3 +5,7 @@
  */
 
 export { BrowserSettingsAdapter } from './browser-settings.adapter';
+export {
+  HighlightIndexedDBAdapter,
+  createHighlightRepository,
+} from './highlight-indexeddb.adapter';

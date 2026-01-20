@@ -53,7 +53,6 @@ export {
   redactStackTrace,
   hashUrl,
   hashUrlSync,
-  extractUrlScheme,
   sanitizeEventData,
 } from './redaction';
 

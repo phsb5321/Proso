@@ -2,7 +2,7 @@
   "name": "voxpage",
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "pnpm@10.28.0",
   "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
   "scripts": {
     "dev": "wxt",
@@ -66,15 +66,19 @@
     "web-ext": "^7.11.0",
     "wxt": "^0.20.13"
   },
-  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
+  "keywords": [
+    "firefox",
+    "extension",
+    "tts",
+    "text-to-speech",
+    "accessibility"
+  ],
   "license": "MIT",
   "dependencies": {
     "@webext-core/messaging": "^2.3.0",
     "dexie": "^4.2.1",
     "franc-min": "^6.2.0",
     "lamejs": "^1.2.1",
-    "pdfjs-dist": "^5.4.530",
-    "tesseract-wasm": "^0.11.0",
     "zod": "^3.23.8"
   }
 }

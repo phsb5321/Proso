@@ -38,18 +38,10 @@ import {
  * Load API keys from browser storage.
  */
 async function loadApiKeys(): Promise<ApiKeys> {
-  const stored = await browser.storage.local.get([
-    'elevenlabsApiKey',
-    'openaiApiKey',
-    'groqApiKey',
-    'cartesiaApiKey',
-  ]);
+  const stored = await browser.storage.local.get(['elevenlabsApiKey']);
 
   return {
     elevenlabs: (stored.elevenlabsApiKey as string) || null,
-    openai: (stored.openaiApiKey as string) || null,
-    groq: (stored.groqApiKey as string) || null,
-    cartesia: (stored.cartesiaApiKey as string) || null,
   };
 }
 
@@ -105,7 +97,6 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
       provider: config.provider,
       cacheType: config.cacheType,
       hasElevenLabsKey: !!apiKeys.elevenlabs,
-      hasOpenAIKey: !!apiKeys.openai,
       registeredHandlers: registry.getHandlerNames().length,
     });
 

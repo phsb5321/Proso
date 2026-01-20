@@ -1,13 +1,13 @@
 import { defineConfig } from "wxt";
 
 /**
- * VoxPage - Firefox-focused Text-to-Speech Extension
+ * VoxPage - Text-to-Speech Extension for Web Pages
  *
- * This extension is built specifically for Firefox, which provides:
- * - Background scripts with full DOM access (no service worker limitations)
- * - Native Audio API and speechSynthesis in background
- * - PDF.js built-in viewer with highlightable text layer
- * - No need for Chrome's offscreen document workarounds
+ * Chrome MV3-first architecture with Firefox compatibility:
+ * - Service worker background (MV3) with Firefox event page fallback
+ * - Article extraction via Mozilla Readability
+ * - ElevenLabs HTTP streaming TTS API
+ * - Word-level text highlighting via CSS Custom Highlight API
  */
 export default defineConfig({
   srcDir: "src",
@@ -21,14 +21,10 @@ export default defineConfig({
       "activeTab",
       "tabs", // Tab management and URL tracking
       "contextMenus", // Right-click menu integration
-      "scripting", // For injecting content scripts into PDF viewer
-      // Note: No "offscreen" permission needed - Firefox background has DOM access
+      "scripting", // For programmatic content script injection
     ],
     host_permissions: [
-      "https://api.openai.com/*",
-      "https://api.elevenlabs.io/*",
-      "https://api.cartesia.ai/*",
-      "https://api.groq.com/*",
+      "https://api.elevenlabs.io/*", // ElevenLabs TTS API
       "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
     ],
     content_security_policy: {
@@ -56,13 +52,6 @@ export default defineConfig({
         strict_min_version: "109.0", // Firefox 109+ for better extension APIs
       },
     },
-    // Make PDF.js worker accessible for PDF text extraction
-    web_accessible_resources: [
-      {
-        resources: ["pdf.worker.min.js"],
-        matches: ["<all_urls>"],
-      },
-    ],
     // NOTE: We intentionally DO NOT use options_ui here.
     // Firefox embeds options_ui pages inside about:addons which looks ugly.
     // Instead, we open our options page in a dedicated browser tab via

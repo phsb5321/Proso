@@ -29,10 +29,7 @@ export interface AppConfig {
  * API keys for providers (retrieved from settings store).
  */
 export interface ApiKeys {
-  readonly openai: string | null;
   readonly elevenlabs: string | null;
-  readonly cartesia: string | null;
-  readonly groq: string | null;
 }
 
 /**

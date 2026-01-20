@@ -21,7 +21,6 @@ export const EventGroup = {
   USER: 'user',
   SYSTEM: 'system',
   PLAYBACK: 'playback',
-  PDF: 'pdf',
   NETWORK: 'network',
   SHIPPER: 'shipper',
   ERROR: 'error',
@@ -60,11 +59,7 @@ export type Entrypoint = (typeof Entrypoint)[keyof typeof Entrypoint];
  * Used as Loki labels (low cardinality).
  */
 export const Provider = {
-  BROWSER: 'browser',
   ELEVENLABS: 'elevenlabs',
-  OPENAI: 'openai',
-  GROQ: 'groq',
-  CARTESIA: 'cartesia',
 } as const;
 
 export type Provider = (typeof Provider)[keyof typeof Provider];
@@ -177,23 +172,6 @@ export const UsageEventTypes = {
   'cache.cleanup_started': true,
   'cache.cleanup_completed': true,
 
-  // PDF events
-  'pdf.detected': true,
-  'pdf.load_started': true,
-  'pdf.load_completed': true,
-  'pdf.load_failed': true,
-  'pdf.text_extracted': true,
-  'pdf.text_extraction_failed': true,
-  'pdf.extraction_started': true,
-  'pdf.extraction_completed': true,
-  'pdf.page_changed': true,
-  'pdf.blocked_file_scheme': true,
-  'pdf.error_security': true,
-  'pdf.error_fetch': true,
-  'pdf.password_required': true,
-  'pdf.ocr_started': true,
-  'pdf.ocr_completed': true,
-
   // Highlight sync events
   'highlight.sync_started': true,
   'highlight.sync_completed': true,
@@ -230,7 +208,6 @@ export const UsageEventTypes = {
   'error.validation': true,
   'error.tts_generation': true,
   'error.audio_playback': true,
-  'error.pdf_processing': true,
   'error.cache_operation': true,
   'error.network': true,
 
@@ -292,9 +269,6 @@ export interface UsageEvent {
   /** SHA-256 hash of current page URL (privacy-preserving) */
   urlHash?: string;
 
-  /** For PDF pages, the URL scheme */
-  pdfScheme?: 'http' | 'https' | 'file';
-
   /** Event-specific structured data */
   data?: Record<string, unknown>;
 }
@@ -307,7 +281,6 @@ export const EventGroupSchema = z.enum([
   'user',
   'system',
   'playback',
-  'pdf',
   'network',
   'shipper',
   'error',
@@ -317,7 +290,7 @@ export const LogLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 
 export const EntrypointSchema = z.enum(['background', 'popup', 'options', 'content']);
 
-export const ProviderSchema = z.enum(['browser', 'elevenlabs', 'openai', 'groq', 'cartesia']);
+export const ProviderSchema = z.enum(['elevenlabs']);
 
 export const EnvironmentSchema = z.enum(['dev', 'staging', 'prod']);
 
@@ -335,7 +308,6 @@ export const UsageEventSchema = z.object({
   provider: ProviderSchema.optional(),
   flags: z.record(z.boolean()).optional(),
   urlHash: z.string().optional(),
-  pdfScheme: z.enum(['http', 'https', 'file']).optional(),
   data: z.record(z.unknown()).optional(),
 });
 
@@ -730,8 +702,6 @@ export function getEventGroup(eventType: string): EventGroup {
     case 'cache':
     case 'highlight':
       return EventGroup.PLAYBACK;
-    case 'pdf':
-      return EventGroup.PDF;
     case 'api':
       return EventGroup.NETWORK;
     case 'shipper':

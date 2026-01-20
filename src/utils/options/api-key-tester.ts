@@ -98,10 +98,7 @@ export async function testAllApiKeys(
  * Storage key mappings for each provider
  */
 export const API_KEY_STORAGE_KEYS: Record<string, string> = {
-  openai: 'openaiApiKey',
   elevenlabs: 'elevenlabsApiKey',
-  cartesia: 'cartesiaApiKey',
-  groq: 'groqApiKey',
   anthropic: 'anthropic:apiKey',
 };
 

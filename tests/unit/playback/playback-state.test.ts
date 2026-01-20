@@ -25,7 +25,7 @@ describe('PlaybackState', () => {
       expect(initialPlaybackState.paragraphs).toEqual([]);
       expect(initialPlaybackState.progress).toBe(0);
       expect(initialPlaybackState.speed).toBe(1.0);
-      expect(initialPlaybackState.provider).toBe('browser');
+      expect(initialPlaybackState.provider).toBe('elevenlabs');
       expect(initialPlaybackState.voice).toBeNull();
       expect(initialPlaybackState.mode).toBe('article');
       expect(initialPlaybackState.activeTabId).toBeNull();
@@ -58,13 +58,13 @@ describe('PlaybackState', () => {
 
     it('should preserve unmodified fields', () => {
       const modifiedState = updatePlaybackState(initialPlaybackState, {
-        provider: 'openai',
+        provider: 'elevenlabs',
       });
 
       expect(modifiedState.status).toBe('idle');
       expect(modifiedState.progress).toBe(0);
       expect(modifiedState.mode).toBe('article');
-      expect(modifiedState.provider).toBe('openai');
+      expect(modifiedState.provider).toBe('elevenlabs');
     });
 
     it('should handle empty updates', () => {
@@ -159,7 +159,7 @@ describe('PlaybackState', () => {
           totalParagraphs: 2,
           currentParagraphIndex: 1,
           speed: 1.5,
-          provider: 'openai',
+          provider: 'elevenlabs',
         };
 
         const newState = playbackStateTransitions.startPlaying(loadingState);
@@ -167,7 +167,7 @@ describe('PlaybackState', () => {
         expect(newState.paragraphs).toEqual(['Para 1', 'Para 2']);
         expect(newState.currentParagraphIndex).toBe(1);
         expect(newState.speed).toBe(1.5);
-        expect(newState.provider).toBe('openai');
+        expect(newState.provider).toBe('elevenlabs');
       });
     });
 
@@ -487,14 +487,14 @@ describe('PlaybackState', () => {
           ...initialPlaybackState,
           status: 'playing',
         };
-        const error = playbackError.audioGeneration('openai', 'API timeout');
+        const error = playbackError.audioGeneration('elevenlabs', 'API timeout');
 
         const newState = playbackStateTransitions.setError(state, error);
 
         expect(newState.status).toBe('error');
         expect(newState.error).toEqual({
           type: 'audio_generation',
-          provider: 'openai',
+          provider: 'elevenlabs',
           message: 'API timeout',
         });
       });
@@ -549,7 +549,7 @@ describe('PlaybackState', () => {
         // Verify specific fields
         expect(resetState.status).toBe('idle');
         expect(resetState.paragraphs).toEqual([]);
-        expect(resetState.provider).toBe('browser');
+        expect(resetState.provider).toBe('elevenlabs');
       });
 
       it('should always return same initial state shape', () => {
@@ -581,7 +581,7 @@ describe('PlaybackState', () => {
       const resetState = playbackStateTransitions.reset();
 
       expect(resetState.status).toBe('idle');
-      expect(resetState.provider).toBe('browser');
+      expect(resetState.provider).toBe('elevenlabs');
     });
     });
 
@@ -600,10 +600,10 @@ describe('PlaybackState', () => {
         const state = initialPlaybackState;
 
         const newState = playbackStateTransitions.updateSettings(state, {
-          provider: 'openai',
+          provider: 'elevenlabs',
         });
 
-        expect(newState.provider).toBe('openai');
+        expect(newState.provider).toBe('elevenlabs');
       });
 
       it('should update voice', () => {
@@ -646,7 +646,7 @@ describe('PlaybackState', () => {
         const state: PlaybackState = {
           ...initialPlaybackState,
           speed: 1.5,
-          provider: 'openai',
+          provider: 'elevenlabs',
           voice: 'alloy',
         };
 
@@ -655,7 +655,7 @@ describe('PlaybackState', () => {
         });
 
         expect(newState.speed).toBe(2.0);
-        expect(newState.provider).toBe('openai'); // Preserved
+        expect(newState.provider).toBe('elevenlabs'); // Preserved
         expect(newState.voice).toBe('alloy'); // Preserved
       });
 
@@ -676,13 +676,13 @@ describe('PlaybackState', () => {
         const state: PlaybackState = {
           ...initialPlaybackState,
           speed: 1.5,
-          provider: 'openai',
+          provider: 'elevenlabs',
         };
 
         const newState = playbackStateTransitions.updateSettings(state, {});
 
         expect(newState.speed).toBe(1.5);
-        expect(newState.provider).toBe('openai');
+        expect(newState.provider).toBe('elevenlabs');
       });
     });
   });
@@ -956,7 +956,7 @@ describe('PlaybackState', () => {
       // Error occurs
       state = playbackStateTransitions.setError(
         state,
-        playbackError.audioGeneration('openai', 'Rate limited'),
+        playbackError.audioGeneration('elevenlabs', 'Rate limited'),
       );
       expect(state.status).toBe('error');
       expect(state.error?.type).toBe('audio_generation');

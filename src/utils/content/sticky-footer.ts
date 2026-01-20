@@ -60,10 +60,6 @@ export const playbackStateSchema = z.object({
   currentParagraph: z.number().int().nonnegative(),
   totalParagraphs: z.number().int().nonnegative(),
   speed: z.number().min(0.5).max(2.0),
-  // PDF-specific fields (T025: 033-pdf-reading-support)
-  isPDF: z.boolean().optional(),
-  currentPage: z.number().int().positive().optional(),
-  totalPages: z.number().int().positive().optional(),
 });
 
 /**
@@ -564,6 +560,7 @@ export class StickyFooter {
   private _paragraphIndicator: HTMLSpanElement | null = null;
   private _liveRegion: HTMLDivElement | null = null;
   private _playPauseBtn: HTMLButtonElement | null = null;
+  private _speedBtn: HTMLButtonElement | null = null; // T046: Store speed button for updates
   private _speedDropdown: HTMLDivElement | null = null;
 
   // Bound event handlers
@@ -705,6 +702,7 @@ export class StickyFooter {
       action: "toggleSpeed",
       text: `${speed}x`,
     });
+    this._speedBtn = speedBtn; // T046: Store reference for updates
     speedControl.appendChild(speedBtn);
 
     const speedDropdown = document.createElement("div");
@@ -727,7 +725,7 @@ export class StickyFooter {
     speedControl.appendChild(speedDropdown);
     footer.appendChild(speedControl);
 
-    // Paragraph indicator (with PDF page support - T025)
+    // Paragraph indicator
     const indicator = document.createElement("span");
     indicator.className = "paragraph-indicator";
     indicator.setAttribute("aria-label", "Current position");
@@ -878,9 +876,15 @@ export class StickyFooter {
         );
       }
 
-      // Update paragraph indicator (with PDF page support - T025)
+      // Update paragraph indicator
       if (this._paragraphIndicator && this.playbackState.totalParagraphs > 0) {
         this._paragraphIndicator.textContent = this._formatPositionIndicator();
+      }
+
+      // T046: Update speed button display
+      if (this._speedBtn && state.speed !== undefined) {
+        this._speedBtn.textContent = `${this.playbackState.speed}x`;
+        this._speedBtn.setAttribute("aria-label", `Playback speed ${this.playbackState.speed}x`);
       }
 
       // Update play/pause button if status changed
@@ -889,7 +893,7 @@ export class StickyFooter {
         this._announce(this.playbackState.status === "playing" ? "Playing" : "Paused");
       }
 
-      // Announce paragraph/page change (with PDF support - T025)
+      // Announce paragraph change
       if (
         previousParagraph !== this.playbackState.currentParagraph &&
         this.playbackState.totalParagraphs > 0
@@ -1085,21 +1089,15 @@ export class StickyFooter {
   }
 
   // ==========================================================================
-  // PDF Position Display Helpers (T025: 033-pdf-reading-support)
+  // Position Display Helpers
   // ==========================================================================
 
   /**
    * Format position indicator text for display.
-   * Shows "Page X of Y" for PDFs, or "X/Y" for regular content.
+   * Shows "X/Y" format for paragraph position.
    */
   private _formatPositionIndicator(): string {
-    const { isPDF, currentPage, totalPages, currentParagraph, totalParagraphs } =
-      this.playbackState;
-
-    if (isPDF && currentPage && totalPages) {
-      return `Page ${currentPage} of ${totalPages}`;
-    }
-
+    const { currentParagraph, totalParagraphs } = this.playbackState;
     return `${currentParagraph}/${totalParagraphs}`;
   }
 
@@ -1108,13 +1106,7 @@ export class StickyFooter {
    * Provides more descriptive text for accessibility.
    */
   private _formatPositionAnnouncement(): string {
-    const { isPDF, currentPage, totalPages, currentParagraph, totalParagraphs } =
-      this.playbackState;
-
-    if (isPDF && currentPage && totalPages) {
-      return `Page ${currentPage} of ${totalPages}, paragraph ${currentParagraph} of ${totalParagraphs}`;
-    }
-
+    const { currentParagraph, totalParagraphs } = this.playbackState;
     return `Paragraph ${currentParagraph} of ${totalParagraphs}`;
   }
 

@@ -24,230 +24,13 @@ import {
 } from '../utils/content/sticky-footer';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
-import {
-  isPDFTextLayerAvailable,
-  highlightPDFParagraph,
-  clearPDFHighlights,
-  scrollToPDFHighlight,
-  waitAndExtractPDFText,
-} from '../utils/content/pdf-highlight';
 import { usageTracker, hashUrlSync } from '../utils/telemetry/usage';
-
-// ============================================================================
-// OCR Region Selection
-// ============================================================================
-
-/**
- * Region coordinates for OCR processing
- */
-interface RegionRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * RegionSelector class for OCR region selection overlay
- * Allows users to click and drag to select a screen region
- */
-class RegionSelector {
-  private overlay: HTMLDivElement | null = null;
-  private selection: HTMLDivElement | null = null;
-  private isSelecting = false;
-  private startX = 0;
-  private startY = 0;
-  private onComplete: ((region: RegionRect | null) => void) | null = null;
-
-  /**
-   * Show the region selection overlay
-   * @param callback Called when selection is complete or cancelled
-   */
-  show(callback: (region: RegionRect | null) => void): void {
-    this.onComplete = callback;
-    this.createOverlay();
-  }
-
-  /**
-   * Hide and remove the overlay
-   */
-  hide(): void {
-    if (this.overlay && this.overlay.parentNode) {
-      this.overlay.parentNode.removeChild(this.overlay);
-    }
-    this.overlay = null;
-    this.selection = null;
-    this.isSelecting = false;
-  }
-
-  /**
-   * Create the overlay elements
-   */
-  private createOverlay(): void {
-    // Remove existing overlay if any
-    this.hide();
-
-    // Create overlay container
-    this.overlay = document.createElement('div');
-    this.overlay.id = 'voxpage-region-overlay';
-    this.overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.3);
-      cursor: crosshair;
-      z-index: 2147483647;
-      user-select: none;
-    `;
-
-    // Create instruction text
-    const instructions = document.createElement('div');
-    instructions.style.cssText = `
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 14px;
-      pointer-events: none;
-    `;
-    instructions.textContent = 'Click and drag to select region. Press Escape to cancel.';
-    this.overlay.appendChild(instructions);
-
-    // Create selection box (hidden initially)
-    this.selection = document.createElement('div');
-    this.selection.id = 'voxpage-region-selection';
-    this.selection.style.cssText = `
-      position: absolute;
-      border: 2px solid #0D9488;
-      background: rgba(13, 148, 136, 0.2);
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
-      display: none;
-      pointer-events: none;
-    `;
-    this.overlay.appendChild(this.selection);
-
-    // Event handlers
-    this.overlay.addEventListener('mousedown', this.handleMouseDown);
-    this.overlay.addEventListener('mousemove', this.handleMouseMove);
-    this.overlay.addEventListener('mouseup', this.handleMouseUp);
-    document.addEventListener('keydown', this.handleKeyDown);
-
-    // Add to DOM
-    document.body.appendChild(this.overlay);
-  }
-
-  /**
-   * Handle mouse down - start selection
-   */
-  private handleMouseDown = (e: MouseEvent): void => {
-    if (e.button !== 0) return; // Left click only
-
-    this.isSelecting = true;
-    this.startX = e.clientX;
-    this.startY = e.clientY;
-
-    if (this.selection) {
-      this.selection.style.left = `${e.clientX}px`;
-      this.selection.style.top = `${e.clientY}px`;
-      this.selection.style.width = '0';
-      this.selection.style.height = '0';
-      this.selection.style.display = 'block';
-    }
-  };
-
-  /**
-   * Handle mouse move - update selection box
-   */
-  private handleMouseMove = (e: MouseEvent): void => {
-    if (!this.isSelecting || !this.selection) return;
-
-    const currentX = e.clientX;
-    const currentY = e.clientY;
-
-    const left = Math.min(this.startX, currentX);
-    const top = Math.min(this.startY, currentY);
-    const width = Math.abs(currentX - this.startX);
-    const height = Math.abs(currentY - this.startY);
-
-    this.selection.style.left = `${left}px`;
-    this.selection.style.top = `${top}px`;
-    this.selection.style.width = `${width}px`;
-    this.selection.style.height = `${height}px`;
-  };
-
-  /**
-   * Handle mouse up - complete selection
-   */
-  private handleMouseUp = (e: MouseEvent): void => {
-    if (!this.isSelecting) return;
-    this.isSelecting = false;
-
-    const currentX = e.clientX;
-    const currentY = e.clientY;
-
-    const left = Math.min(this.startX, currentX);
-    const top = Math.min(this.startY, currentY);
-    const width = Math.abs(currentX - this.startX);
-    const height = Math.abs(currentY - this.startY);
-
-    // Remove event listeners
-    document.removeEventListener('keydown', this.handleKeyDown);
-
-    // Complete selection if region is meaningful (at least 10x10 pixels)
-    if (width >= 10 && height >= 10) {
-      const region: RegionRect = {
-        x: Math.round(left * window.devicePixelRatio),
-        y: Math.round(top * window.devicePixelRatio),
-        width: Math.round(width * window.devicePixelRatio),
-        height: Math.round(height * window.devicePixelRatio),
-      };
-
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(region);
-      }
-    } else {
-      // Selection too small, treat as cancelled
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(null);
-      }
-    }
-  };
-
-  /**
-   * Handle escape key - cancel selection
-   */
-  private handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') {
-      document.removeEventListener('keydown', this.handleKeyDown);
-      this.hide();
-      if (this.onComplete) {
-        this.onComplete(null);
-      }
-    }
-  };
-}
-
-// Singleton instance
-let regionSelector: RegionSelector | null = null;
-
-/**
- * Get or create region selector instance
- */
-function getRegionSelector(): RegionSelector {
-  if (!regionSelector) {
-    regionSelector = new RegionSelector();
-  }
-  return regionSelector;
-}
+import {
+  type PersistentHighlightManager,
+  createPersistentHighlightManager,
+} from '../utils/content/persistent-highlight';
+import type { TextQuoteSelector } from '../core/highlight';
+import type { HighlightColor } from '../utils/schemas/highlight.schema';
 
 // ============================================================================
 // CSS Injection
@@ -317,28 +100,6 @@ function injectContentStyles(): void {
     @media (prefers-color-scheme: dark) {
       ::highlight(voxpage-word) {
         background-color: rgba(20, 184, 166, 0.5);
-      }
-    }
-
-    /* PDF Text Layer Highlighting (Firefox PDF.js viewer) */
-    .textLayer .voxpage-highlight,
-    .textLayer .voxpage-pdf-highlight {
-      /* PDF spans are inline, so use inline-appropriate styles */
-      background: rgba(13, 148, 136, 0.35) !important;
-      border-left: none !important;
-      padding-left: 0 !important;
-      margin-left: 0 !important;
-      border-radius: 2px !important;
-      box-shadow: none !important;
-      /* Ensure visibility over PDF canvas */
-      position: relative;
-      z-index: 10;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .textLayer .voxpage-highlight,
-      .textLayer .voxpage-pdf-highlight {
-        background: rgba(20, 184, 166, 0.45) !important;
       }
     }
 
@@ -643,6 +404,7 @@ export default defineContentScript({
     let stickyFooter: StickyFooter | null = null;
     let paragraphSelector: ParagraphSelector | null = null;
     let paragraphIndicator: ParagraphIndicator | null = null;
+    let persistentHighlightManager: PersistentHighlightManager | null = null;
 
     // Prevent re-initialization
     if ((window as any).VoxPage?._contentInitialized) {
@@ -660,10 +422,12 @@ export default defineContentScript({
       stickyFooter = new StickyFooter();
       paragraphSelector = new ParagraphSelector();
       paragraphIndicator = new ParagraphIndicator();
+      persistentHighlightManager = createPersistentHighlightManager();
 
-      // Expose paragraph selector on namespace for legacy code
+      // Expose modules on namespace for legacy code
       (window as any).VoxPage.paragraphSelector = paragraphSelector;
       (window as any).VoxPage.paragraphIndicator = paragraphIndicator;
+      (window as any).VoxPage.persistentHighlightManager = persistentHighlightManager;
 
       console.log('VoxPage: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
@@ -671,7 +435,11 @@ export default defineContentScript({
         hasStickyFooter: !!stickyFooter,
         hasParagraphSelector: !!paragraphSelector,
         hasParagraphIndicator: !!paragraphIndicator,
+        hasPersistentHighlightManager: !!persistentHighlightManager,
       });
+
+      // Setup persistent highlight callbacks (T087-T092)
+      setupPersistentHighlightCallbacks(persistentHighlightManager);
 
       // T017: Initialize telemetry for content script
       initContentTelemetry();
@@ -750,21 +518,23 @@ export default defineContentScript({
           return;
         }
 
-        // Check if clicking on an extracted paragraph during active playback
+        // Check if clicking on an extracted paragraph
         const extractedParagraphs = extractor.getExtractedParagraphs();
         const highlightElements = highlightManager.getHighlightElements();
 
-        // Only allow paragraph jumping if playback is active (highlights exist)
-        if (highlightElements.length > 0) {
+        // T046: Allow clicking paragraphs even before playback starts
+        // If content has been extracted, allow starting playback from clicked paragraph
+        if (extractedParagraphs.length > 0) {
           const clickedParagraph = extractedParagraphs.findIndex(
             (el) => el.contains(target) || el === target,
           );
 
           if (clickedParagraph !== -1) {
+            // During active playback (highlights exist) OR starting fresh playback
             jumpToClickedParagraph(clickedParagraph);
           }
         }
-        // If no playback active and not in selection mode, clicks are ignored
+        // If no content extracted, clicks are ignored
       });
     }
 
@@ -859,6 +629,168 @@ export default defineContentScript({
     }
 
     // ========================================================================
+    // Persistent Highlights (T087-T092: 045-pdf-removal-page-reader Phase 4)
+    // ========================================================================
+
+    /**
+     * Setup callbacks for persistent highlight manager.
+     * Handles selection changes and highlight actions (delete, note, color change).
+     */
+    function setupPersistentHighlightCallbacks(manager: PersistentHighlightManager): void {
+      // Track current selection for highlight creation
+      let currentSelection: TextQuoteSelector | null = null;
+
+      // Selection change callback - notify background when text is selected
+      manager.onSelectionChange((selector) => {
+        currentSelection = selector;
+        // Send selection state to background for potential highlight creation
+        if (selector) {
+          browser.runtime
+            .sendMessage({
+              type: 'highlight.selectionChanged',
+              hasSelection: true,
+              exact: selector.exact,
+            })
+            .catch(() => {
+              // Ignore errors - background may not be listening
+            });
+        }
+      });
+
+      // Highlight action callback - handle context menu actions
+      manager.onHighlightAction((action, highlightId, data) => {
+        switch (action) {
+          case 'delete':
+            // Delete highlight from storage
+            browser.runtime
+              .sendMessage({
+                type: 'highlight.delete',
+                id: highlightId,
+              })
+              .then((response: { success: boolean }) => {
+                if (response.success) {
+                  manager.removeHighlight(highlightId);
+                  console.log('VoxPage: Highlight deleted:', highlightId);
+                }
+              })
+              .catch((err) => {
+                console.error('VoxPage: Failed to delete highlight:', err);
+              });
+            break;
+
+          case 'note': {
+            // Prompt user for note (simple implementation)
+            const note = prompt('Add a note to this highlight:');
+            if (note !== null) {
+              browser.runtime
+                .sendMessage({
+                  type: 'highlight.update',
+                  id: highlightId,
+                  note: note,
+                })
+                .catch((err) => {
+                  console.error('VoxPage: Failed to add note:', err);
+                });
+            }
+            break;
+          }
+
+          case 'changeColor': {
+            const color = data as HighlightColor;
+            browser.runtime
+              .sendMessage({
+                type: 'highlight.update',
+                id: highlightId,
+                color: color,
+              })
+              .then((response: { success: boolean }) => {
+                if (response.success) {
+                  manager.updateHighlightColor(highlightId, color);
+                  console.log('VoxPage: Highlight color changed:', highlightId, color);
+                }
+              })
+              .catch((err) => {
+                console.error('VoxPage: Failed to change color:', err);
+              });
+            break;
+          }
+        }
+      });
+
+      // Expose function to get current selection
+      (window as any).VoxPage.getCurrentSelection = () => currentSelection;
+    }
+
+    /**
+     * Load and render highlights for the current page.
+     * Called on page load to restore saved highlights.
+     */
+    async function loadPageHighlights(): Promise<void> {
+      if (!persistentHighlightManager) return;
+
+      try {
+        const url = window.location.href;
+        const response = (await browser.runtime.sendMessage({
+          type: 'highlight.list',
+          url: url,
+        })) as {
+          success: boolean;
+          highlights: Array<{
+            id: string;
+            exact: string;
+            prefix?: string;
+            suffix?: string;
+            color: HighlightColor;
+            orphaned: boolean;
+          }>;
+        };
+
+        if (!response.success || !response.highlights.length) {
+          return;
+        }
+
+        console.log(`VoxPage: Loading ${response.highlights.length} highlights for page`);
+
+        // Convert to format expected by reanchorHighlights
+        const highlightsToRender = response.highlights.map((h) => ({
+          id: h.id,
+          selector: {
+            type: 'TextQuoteSelector' as const,
+            exact: h.exact,
+            prefix: h.prefix,
+            suffix: h.suffix,
+          },
+          color: h.color,
+          hasNote: false, // TODO: Include note info in response
+        }));
+
+        // Render highlights and track orphans
+        const orphanStatus = await persistentHighlightManager.reanchorHighlights(highlightsToRender);
+
+        // Report orphaned highlights to background for status update
+        const orphanedIds = Array.from(orphanStatus.entries())
+          .filter(([_, isOrphaned]) => isOrphaned)
+          .map(([id]) => id);
+
+        if (orphanedIds.length > 0) {
+          console.warn(`VoxPage: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
+          // Notify background about orphaned highlights
+          browser.runtime
+            .sendMessage({
+              type: 'highlight.reportOrphans',
+              highlightIds: orphanedIds,
+              url: url,
+            })
+            .catch(() => {
+              // Ignore - background may not handle this message
+            });
+        }
+      } catch (error) {
+        console.error('VoxPage: Failed to load page highlights:', error);
+      }
+    }
+
+    // ========================================================================
     // Telemetry (T017: Content Script Telemetry)
     // ========================================================================
 
@@ -897,11 +829,9 @@ export default defineContentScript({
 
         // Track content script injection with privacy-safe URL hash
         const urlHash = hashUrlSync(window.location.href);
-        const isPDF = isPDFTextLayerAvailable();
 
         usageTracker.track('content.injected', {
           urlHash,
-          isPDF,
         });
 
         // Track content unload
@@ -950,6 +880,15 @@ export default defineContentScript({
           const msg = message as ExtractTextMessage;
           const text = extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators
+          if (paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
           // Return the result directly so background can await it
           return Promise.resolve({
             text: text,
@@ -958,37 +897,121 @@ export default defineContentScript({
           });
         }
 
+        // T046: Handle getParagraphs from popup
+        case 'getParagraphs': {
+          // Extract content if not already extracted
+          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          if (needsExtraction) {
+            extractor.extractText('article');
+          }
+          const paragraphTexts = extractor.getParagraphTexts();
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators (only on fresh extraction)
+          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
+          return Promise.resolve({
+            paragraphs: paragraphTexts.map((text, index) => ({
+              index,
+              text,
+            })),
+          });
+        }
+
+        // T046: Handle getArticleText from popup
+        case 'getArticleText': {
+          // Extract content if not already extracted
+          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          if (needsExtraction) {
+            extractor.extractText('article');
+          }
+          const paragraphElements = extractor.getExtractedParagraphs();
+
+          // T046: Enable selection mode for hover indicators (only on fresh extraction)
+          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
+            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
+              console.warn('VoxPage: Failed to enable selection mode:', err);
+            });
+          }
+
+          const fullText = extractor.getParagraphTexts().join('\n\n');
+          return Promise.resolve({
+            text: fullText,
+            title: document.title,
+            url: window.location.href,
+          });
+        }
+
+        // ====================================================================
+        // Article Extraction (045-pdf-removal-page-reader)
+        // ====================================================================
+        case 'EXTRACT_ARTICLE':
+        case 'reader.extractArticle': {
+          // Send full document HTML to background for Readability extraction
+          // This allows the background to use the Reader handlers
+          const html = document.documentElement.outerHTML;
+          const url = window.location.href;
+
+          // Forward to background's reader.extractArticle handler
+          return browser.runtime
+            .sendMessage({
+              type: 'reader.extractArticle',
+              html,
+              url,
+            })
+            .then((result) => {
+              // Return the result from the background handler
+              return result;
+            })
+            .catch((error) => {
+              console.error('VoxPage: Article extraction failed:', error);
+              return {
+                success: false,
+                error: error.message || 'Article extraction failed',
+              };
+            });
+        }
+
+        case 'reader.isArticlePage': {
+          // Check if current page is likely an article
+          const html = document.documentElement.outerHTML;
+
+          return browser.runtime
+            .sendMessage({
+              type: 'reader.isArticlePage',
+              html,
+            })
+            .then((result) => result)
+            .catch((error) => {
+              console.error('VoxPage: Article check failed:', error);
+              return { success: false, isArticle: false };
+            });
+        }
+
         // ====================================================================
         // Highlighting
         // ====================================================================
         case 'highlight': {
           const msg = message as HighlightMessage;
 
-          // Check if we're in a PDF viewer with text layer (Firefox PDF.js)
-          if (isPDFTextLayerAvailable() && msg.text) {
-            console.log('[VoxPage:PDF] Using PDF text layer highlighting');
-            const highlightedElement = highlightPDFParagraph(msg.text, msg.index);
-            if (highlightedElement) {
-              scrollToPDFHighlight();
-            }
-          } else {
-            // Standard web page highlighting
-            const extractedParagraphs = extractor.getExtractedParagraphs();
-            highlightManager.highlightParagraph(
-              msg.index,
-              msg.text,
-              msg.timestamp,
-              extractedParagraphs,
-              extractor.findElementByText,
-            );
-          }
+          // Standard web page highlighting
+          const extractedParagraphs = extractor.getExtractedParagraphs();
+          highlightManager.highlightParagraph(
+            msg.index,
+            msg.text,
+            msg.timestamp,
+            extractedParagraphs,
+            extractor.findElementByText,
+          );
           break;
         }
 
         case 'clearHighlight': {
-          // Clear both regular and PDF highlights
           highlightManager.clearHighlights();
-          clearPDFHighlights();
           break;
         }
 
@@ -1230,76 +1253,131 @@ export default defineContentScript({
         }
 
         // ====================================================================
-        // PDF Text Extraction from DOM (for file:// URLs)
+        // Persistent Highlights (T087-T092: 045-pdf-removal-page-reader)
         // ====================================================================
-        case 'extractPDFFromDOM': {
-          console.log('VoxPage: Extracting PDF text from DOM');
-          // Use the async version that waits for text layers to render
-          return waitAndExtractPDFText(10000).then((result) => {
-            console.log('VoxPage: PDF DOM extraction result:', {
-              success: result.success,
-              paragraphCount: result.paragraphs?.length || 0,
-              error: result.error,
+        case 'highlight.create': {
+          // Create a highlight from current selection
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false, error: 'Manager not initialized' });
+          }
+
+          const createMsg = message as LegacyMessage & {
+            color?: HighlightColor;
+          };
+
+          const selector = persistentHighlightManager.getCurrentSelection();
+          if (!selector) {
+            return Promise.resolve({ success: false, error: 'No text selected' });
+          }
+
+          // Send to background to create and store
+          return browser.runtime
+            .sendMessage({
+              type: 'highlight.create',
+              url: window.location.href,
+              exact: selector.exact,
+              prefix: selector.prefix,
+              suffix: selector.suffix,
+              color: createMsg.color ?? 'yellow',
+            })
+            .then((response: { success: boolean; id?: string }) => {
+              if (response.success && response.id) {
+                // Render the new highlight
+                persistentHighlightManager!.renderHighlight(
+                  response.id,
+                  selector,
+                  createMsg.color ?? 'yellow',
+                  false,
+                );
+                // Clear selection after creating highlight
+                persistentHighlightManager!.clearSelection();
+              }
+              return response;
             });
-            return result;
-          });
         }
 
-        // ====================================================================
-        // OCR Region Selection
-        // ====================================================================
-        case 'ocr.enableRegionSelection': {
-          console.log('VoxPage: Enabling OCR region selection');
-          const selector = getRegionSelector();
-          selector.show(async (region) => {
-            if (region) {
-              console.log('VoxPage: Region selected:', region);
-              // Send region to background for capture and OCR
-              try {
-                const response = await browser.runtime.sendMessage({
-                  type: 'ocr.captureAndRead',
-                  request: {
-                    tabId: 0, // Will be set by background
-                    region: region,
-                    languages: ['eng'],
-                  },
-                });
-                console.log('VoxPage: OCR response:', response);
-                // Send result back to popup
-                if (response) {
-                  browser.runtime
-                    .sendMessage({
-                      action: 'ocr.regionResult',
-                      ...response,
-                    })
-                    .catch(() => {
-                      // Popup may be closed
-                    });
-                }
-              } catch (err) {
-                console.error('VoxPage: OCR capture failed:', err);
-              }
-            } else {
-              console.log('VoxPage: Region selection cancelled');
-              // Notify popup that selection was cancelled
-              browser.runtime
-                .sendMessage({
-                  action: 'ocr.regionResult',
-                  success: false,
-                  error: 'Selection cancelled',
-                })
-                .catch(() => {
-                  // Popup may be closed
-                });
-            }
-          });
+        case 'highlight.render': {
+          // Render a single highlight (e.g., after creation from popup)
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const renderMsg = message as LegacyMessage & {
+            id: string;
+            exact: string;
+            prefix?: string;
+            suffix?: string;
+            color: HighlightColor;
+            hasNote: boolean;
+          };
+
+          const success = persistentHighlightManager.renderHighlight(
+            renderMsg.id,
+            {
+              type: 'TextQuoteSelector',
+              exact: renderMsg.exact,
+              prefix: renderMsg.prefix,
+              suffix: renderMsg.suffix,
+            },
+            renderMsg.color,
+            renderMsg.hasNote,
+          );
+
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.remove': {
+          // Remove a rendered highlight from DOM
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const removeMsg = message as LegacyMessage & { id: string };
+          const success = persistentHighlightManager.removeHighlight(removeMsg.id);
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.updateColor': {
+          // Update highlight color in DOM
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false });
+          }
+
+          const colorMsg = message as LegacyMessage & {
+            id: string;
+            color: HighlightColor;
+          };
+          const success = persistentHighlightManager.updateHighlightColor(
+            colorMsg.id,
+            colorMsg.color,
+          );
+          return Promise.resolve({ success });
+        }
+
+        case 'highlight.clearAll': {
+          // Clear all rendered highlights
+          if (persistentHighlightManager) {
+            persistentHighlightManager.clearAllHighlights();
+          }
           return Promise.resolve({ success: true });
         }
 
-        case 'ocr.cancelRegionSelection': {
-          console.log('VoxPage: Cancelling OCR region selection');
-          const selector = getRegionSelector();
-          selector.hide();
+        case 'highlight.getSelection': {
+          // Get current text selection as TextQuoteSelector
+          if (!persistentHighlightManager) {
+            return Promise.resolve({ success: false, selector: null });
+          }
+
+          const selector = persistentHighlightManager.getCurrentSelection();
+          return Promise.resolve({
+            success: !!selector,
+            selector: selector,
+          });
+        }
+
+        case 'highlight.reload': {
+          // Reload all highlights for the current page
+          loadPageHighlights();
           return Promise.resolve({ success: true });
         }
 
@@ -1652,6 +1730,13 @@ export default defineContentScript({
       sendInitialLanguageDetection();
     } else {
       window.addEventListener('load', sendInitialLanguageDetection, { once: true });
+    }
+
+    // Load persistent highlights on page load (T090)
+    if (document.readyState === 'complete') {
+      loadPageHighlights();
+    } else {
+      window.addEventListener('load', () => loadPageHighlights(), { once: true });
     }
 
     console.log('VoxPage content script fully loaded and message listener registered');

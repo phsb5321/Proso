@@ -111,9 +111,11 @@ function getSettingsStore(): ISettingsStore {
 
 /**
  * Validate provider ID.
+ * Only 'elevenlabs' is valid for TTS (other TTS providers removed).
+ * 'anthropic' is valid for AI summarization features.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser'].includes(provider);
+  return ['elevenlabs', 'anthropic'].includes(provider);
 }
 
 // ============================================
@@ -197,33 +199,11 @@ const API_TEST_ENDPOINTS: Record<
     body?: unknown;
   }
 > = {
-  openai: {
-    url: 'https://api.openai.com/v1/models',
-    method: 'GET',
-    headers: (apiKey) => ({
-      Authorization: `Bearer ${apiKey}`,
-    }),
-  },
   elevenlabs: {
     url: 'https://api.elevenlabs.io/v1/user',
     method: 'GET',
     headers: (apiKey) => ({
       'xi-api-key': apiKey,
-    }),
-  },
-  cartesia: {
-    url: 'https://api.cartesia.ai/voices',
-    method: 'GET',
-    headers: (apiKey) => ({
-      'X-API-Key': apiKey,
-      'Cartesia-Version': '2024-06-10',
-    }),
-  },
-  groq: {
-    url: 'https://api.groq.com/openai/v1/models',
-    method: 'GET',
-    headers: (apiKey) => ({
-      Authorization: `Bearer ${apiKey}`,
     }),
   },
   anthropic: {
@@ -269,16 +249,11 @@ async function handleTestApiKey(
     apiKey?.length,
   );
 
-  // Validate provider - also allow 'anthropic' for summarization
-  const validProviders = ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser', 'anthropic'];
+  // Validate provider - 'elevenlabs' for TTS, 'anthropic' for AI summarization
+  const validProviders = ['elevenlabs', 'anthropic'];
   if (!validProviders.includes(provider)) {
     console.error('[Settings] Invalid provider:', provider);
     return { success: false, error: `Invalid provider: ${provider}` };
-  }
-
-  // Browser provider doesn't need API key
-  if (provider === 'browser') {
-    return { success: true, message: 'Browser TTS does not require an API key' };
   }
 
   // If no API key provided, try to get from storage
@@ -296,10 +271,7 @@ async function handleTestApiKey(
         '[Settings] Settings store not available, falling back to direct storage access',
       );
       const storageKeyMap: Record<string, string> = {
-        openai: 'openaiApiKey',
         elevenlabs: 'elevenlabsApiKey',
-        cartesia: 'cartesiaApiKey',
-        groq: 'groqApiKey',
         anthropic: 'anthropic:apiKey',
       };
       const storageKey = storageKeyMap[provider];

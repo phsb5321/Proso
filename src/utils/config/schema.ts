@@ -19,8 +19,9 @@ export const MODES = ['selection', 'article', 'full'] as const;
 
 /**
  * Valid TTS provider values
+ * Post-045: Only ElevenLabs is supported
  */
-export const PROVIDERS = ['openai', 'elevenlabs', 'cartesia', 'groq', 'browser'] as const;
+export const PROVIDERS = ['elevenlabs'] as const;
 
 /**
  * Valid language detection sources
@@ -31,6 +32,11 @@ export const DETECTION_SOURCES = ['metadata', 'text', 'user'] as const;
  * Valid theme mode values (027-settings-ux-overhaul)
  */
 export const THEME_MODES = ['light', 'dark', 'system'] as const;
+
+/**
+ * Valid highlight color presets (045-pdf-removal-page-reader)
+ */
+export const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
 
 /**
  * Footer position schema
@@ -56,11 +62,14 @@ export const settingsSchema = z.object({
   // Text extraction mode
   mode: z.enum(MODES).default('article'),
 
-  // TTS provider
-  provider: z.enum(PROVIDERS).default('browser'),
+  // TTS provider (post-045: only elevenlabs)
+  provider: z.enum(PROVIDERS).default('elevenlabs'),
 
-  // Selected voice ID (provider-specific, null means use provider default)
+  // Selected voice ID (ElevenLabs voice ID, null means use default 'Rachel')
   voice: z.string().nullable().default(null),
+
+  // ElevenLabs voice ID (045-pdf-removal-page-reader)
+  voiceId: z.string().default('EXAVITQu4vr4xnSDxMaL'), // Rachel voice
 
   // Playback speed multiplier: 0.5 - 2.0
   speed: z.number().min(0.5).max(2.0).default(1.0),
@@ -91,6 +100,15 @@ export const settingsSchema = z.object({
 
   // Enable auto-scroll to follow playback (027-settings-ux-overhaul)
   autoScroll: z.boolean().default(true),
+
+  // Default highlight color (045-pdf-removal-page-reader)
+  defaultHighlightColor: z.enum(HIGHLIGHT_COLORS).default('yellow'),
+
+  // Maximum cache size in MB (045-pdf-removal-page-reader)
+  maxCacheSizeMb: z.number().int().min(50).max(1000).default(500),
+
+  // Telemetry enabled (045-pdf-removal-page-reader)
+  telemetryEnabled: z.boolean().default(false),
 });
 
 /**
@@ -126,6 +144,7 @@ export type Mode = (typeof MODES)[number];
 export type Provider = (typeof PROVIDERS)[number];
 export type DetectionSource = (typeof DETECTION_SOURCES)[number];
 export type ThemeMode = (typeof THEME_MODES)[number];
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
 
 // ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
 
@@ -172,15 +191,6 @@ export const exportSettingsSchema = z.object({
 });
 
 /**
- * OCR settings schema
- */
-export const ocrSettingsSchema = z.object({
-  defaultLanguages: z.array(z.string()).default(['eng']),
-  autoDetect: z.boolean().default(true),
-  showConfidence: z.boolean().default(false),
-});
-
-/**
  * AI summarization settings schema
  */
 export const aiSettingsSchema = z.object({
@@ -206,13 +216,8 @@ export const ROADMAP_STORAGE_KEYS = {
   // AI Summarization
   SUMMARY_CACHE: 'summary:cache',
   AI_SETTINGS: 'ai:settings',
-
-  // OCR
-  OCR_LANGUAGE_PACKS: 'ocr:languagePacks',
-  OCR_SETTINGS: 'ocr:settings',
 } as const;
 
 export type QueueSettings = z.infer<typeof queueSettingsSchema>;
 export type ExportSettings = z.infer<typeof exportSettingsSchema>;
-export type OCRSettings = z.infer<typeof ocrSettingsSchema>;
 export type AISettings = z.infer<typeof aiSettingsSchema>;

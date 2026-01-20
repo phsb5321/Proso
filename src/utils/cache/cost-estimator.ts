@@ -20,25 +20,9 @@ import { generateCacheKey, generateContentHash } from './cache-key';
  * Prices in USD as of 2025
  */
 export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: string }> = {
-  openai: {
-    pricePerKiloChar: 0.015, // $0.015 per 1K chars
-    name: 'OpenAI TTS',
-  },
   elevenlabs: {
     pricePerKiloChar: 0.18, // $0.18 per 1K chars (depends on tier)
     name: 'ElevenLabs',
-  },
-  groq: {
-    pricePerKiloChar: 0.0, // Free tier available, then varies
-    name: 'Groq',
-  },
-  cartesia: {
-    pricePerKiloChar: 0.05, // Estimated
-    name: 'Cartesia',
-  },
-  browser: {
-    pricePerKiloChar: 0.0, // Free
-    name: 'Browser TTS',
   },
 };
 
@@ -46,7 +30,7 @@ export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: 
  * Get pricing for a provider
  */
 export function getProviderPricing(provider: string): { pricePerKiloChar: number; name: string } {
-  return PROVIDER_PRICING[provider] || PROVIDER_PRICING['browser'];
+  return PROVIDER_PRICING[provider] || PROVIDER_PRICING['elevenlabs'];
 }
 
 /**

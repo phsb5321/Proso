@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxPage Audio Playback</title>
+</head>
+<body>
+  <!--
+    Chrome MV3 Offscreen Document for Audio Playback
+
+    This document handles audio playback in Chrome MV3 where the service worker
+    cannot play audio directly. The background script communicates with this
+    document via chrome.runtime messaging.
+  -->
+  <audio id="audio-player" preload="auto"></audio>
+  <script src="./offscreen/main.ts" type="module"></script>
+</body>
+</html>

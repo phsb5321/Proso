@@ -15,9 +15,6 @@
 const SENSITIVE_KEYS = new Set([
   // VoxPage API keys
   'elevenlabsApiKey',
-  'openaiApiKey',
-  'groqApiKey',
-  'cartesiaApiKey',
   // Generic sensitive keys
   'apiKey',
   'api_key',
@@ -211,21 +208,6 @@ export function redactError(error: Error): Record<string, string | undefined> {
     message: redactApiKeyPatterns(error.message),
     stack: error.stack ? redactStackTrace(error.stack) : undefined,
   };
-}
-
-/**
- * Extract URL scheme (http, https, file) for PDF pages.
- */
-export function extractUrlScheme(url: string): 'http' | 'https' | 'file' | undefined {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:') return 'http';
-    if (parsed.protocol === 'https:') return 'https';
-    if (parsed.protocol === 'file:') return 'file';
-    return undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**

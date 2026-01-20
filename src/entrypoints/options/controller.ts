@@ -9,15 +9,32 @@
 
 import { browser } from 'wxt/browser';
 import {
-  settingsDefaults,
-  loggingDefaults,
-  uiDefaults,
+  defaults as settingsDefaults,
   queueDefaults,
-  type LoggingConfig,
-  type LogViewerResponse,
-  type EndpointValidation,
   type QueueSettings,
-} from '../utils/config';
+} from '../../utils/config';
+
+// UI defaults (inline since they're simple)
+const uiDefaults = {
+  highlightEnabled: true,
+  autoScroll: true,
+};
+
+// Logging defaults for options page
+const loggingDefaults = {
+  enabled: false,
+  endpoint: '',
+  authType: 'none' as const,
+  basicUsername: '',
+  basicPassword: '',
+  bearerToken: '',
+  logLevel: 'warn' as const,
+};
+
+// Type definitions
+type LoggingConfig = typeof loggingDefaults;
+type LogViewerResponse = { logs: Array<{ timestamp: number; level: string; message: string }>; total: number };
+type EndpointValidation = { isValid: boolean; error?: string };
 
 import { usageTracker } from '../../utils/telemetry/usage';
 import { toast } from './components/toast';
@@ -41,13 +58,9 @@ interface OptionsElements {
   quickSpeedValue: HTMLElement;
 
   // API Key inputs
-  openaiKey: HTMLInputElement;
   anthropicKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
-  // Note: testElevenlabsKey removed - use provider-card__test-btn instead
   elevenlabsKeyStatus: HTMLElement;
-  cartesiaKey: HTMLInputElement;
-  groqKey: HTMLInputElement;
 
   // Settings inputs (legacy, kept for backwards compatibility)
   defaultProvider: HTMLSelectElement;
@@ -130,13 +143,9 @@ function getElements(): OptionsElements {
     quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
 
     // API Key inputs
-    openaiKey: getElement<HTMLInputElement>('openaiKey'),
     anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
-    // Note: testElevenlabsKey removed - use provider-card__test-btn instead
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
-    cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
-    groqKey: getElement<HTMLInputElement>('groqKey'),
 
     // Legacy settings inputs (kept for backwards compatibility)
     defaultProvider: getElement<HTMLSelectElement>('defaultProvider'),
@@ -224,21 +233,9 @@ export async function initOptionsPage(): Promise<void> {
  * T021: Voice options filtered by provider
  */
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  browser: [], // Populated dynamically from browser's speech synthesis
-  groq: [{ value: 'default', label: 'Default' }],
-  openai: [
-    { value: 'alloy', label: 'Alloy' },
-    { value: 'echo', label: 'Echo' },
-    { value: 'fable', label: 'Fable' },
-    { value: 'onyx', label: 'Onyx' },
-    { value: 'nova', label: 'Nova' },
-    { value: 'shimmer', label: 'Shimmer' },
-  ],
   elevenlabs: [
     { value: 'default', label: 'Default Voice' },
-    // Additional voices fetched from API when key is configured
   ],
-  cartesia: [{ value: 'default', label: 'Default Voice' }],
 };
 
 /**
@@ -292,33 +289,7 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
   voiceSelect.appendChild(defaultOption);
 
   // Get voices for provider
-  let voices = PROVIDER_VOICES[provider] || [];
-
-  // For browser TTS, get available system voices
-  if (provider === 'browser' && 'speechSynthesis' in window) {
-    const getVoices = (): SpeechSynthesisVoice[] => {
-      return window.speechSynthesis.getVoices();
-    };
-
-    let systemVoices = getVoices();
-
-    // Voices may not be loaded yet
-    if (systemVoices.length === 0) {
-      await new Promise<void>((resolve) => {
-        window.speechSynthesis.onvoiceschanged = () => {
-          systemVoices = getVoices();
-          resolve();
-        };
-        // Timeout fallback
-        setTimeout(resolve, 1000);
-      });
-    }
-
-    voices = systemVoices.map((v) => ({
-      value: v.name,
-      label: `${v.name} (${v.lang})`,
-    }));
-  }
+  const voices = PROVIDER_VOICES[provider] || [];
 
   // Add voice options
   voices.forEach((voice) => {
@@ -621,11 +592,8 @@ async function loadSettings(): Promise<void> {
   try {
     // Load all settings from storage
     const result = await browser.storage.local.get([
-      'openaiApiKey',
       'anthropic:apiKey',
       'elevenlabsApiKey',
-      'cartesiaApiKey',
-      'groqApiKey',
       'provider',
       'speed',
       'mode',
@@ -635,11 +603,8 @@ async function loadSettings(): Promise<void> {
     ]);
 
     // API keys (no defaults, empty if not set)
-    elements.openaiKey.value = (result.openaiApiKey as string | undefined) || '';
     elements.anthropicKey.value = (result['anthropic:apiKey'] as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
-    elements.cartesiaKey.value = (result.cartesiaApiKey as string | undefined) || '';
-    elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
 
     // Settings with defaults
     elements.defaultProvider.value =
@@ -717,11 +682,8 @@ function setupEventListeners(): void {
 
   // Auto-save on input change (with debounce)
   const autoSaveInputs: HTMLElement[] = [
-    elements.openaiKey,
     elements.anthropicKey,
     elements.elevenlabsKey,
-    elements.cartesiaKey,
-    elements.groqKey,
     elements.defaultProvider,
     elements.defaultSpeed,
     elements.defaultMode,
@@ -839,10 +801,7 @@ function setupThemeEventListener(): void {
  * Storage key mapping for each provider's API key
  */
 const PROVIDER_INPUT_IDS: Record<string, string> = {
-  openai: 'openaiKey',
   elevenlabs: 'elevenlabsKey',
-  groq: 'groqKey',
-  cartesia: 'cartesiaKey',
   anthropic: 'anthropicKey',
 };
 
@@ -1040,10 +999,7 @@ function showProviderCardStatus(
  */
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
-    openai: 'OpenAI',
     elevenlabs: 'ElevenLabs',
-    groq: 'Groq',
-    cartesia: 'Cartesia',
     anthropic: 'Anthropic',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
@@ -1057,11 +1013,8 @@ async function saveSettings(): Promise<void> {
 
   try {
     await browser.storage.local.set({
-      openaiApiKey: elements.openaiKey.value.trim(),
       'anthropic:apiKey': elements.anthropicKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
-      cartesiaApiKey: elements.cartesiaKey.value.trim(),
-      groqApiKey: elements.groqKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: Number.parseFloat(elements.defaultSpeed.value),
       mode: elements.defaultMode.value,

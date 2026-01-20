@@ -89,10 +89,7 @@ export function estimateCost(
   // Provider pricing per 1000 characters (approximate)
   const pricing: Record<string, number> = {
     elevenlabs: 0.3, // $0.30 per 1000 chars
-    openai: 0.015, // $0.015 per 1000 chars
     browser: 0, // Free
-    groq: 0, // Free tier
-    cartesia: 0.1, // $0.10 per 1000 chars (estimate)
   };
 
   const pricePerKiloChar = pricing[provider] ?? 0;

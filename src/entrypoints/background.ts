@@ -19,14 +19,8 @@ import {
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
 import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
-import { ocrHandlers } from '../utils/messaging/handlers/ocr';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
-
-// TTS Providers (multi-provider support)
-import { OpenAIProvider } from '../utils/providers/openai';
-import { GroqProvider } from '../utils/providers/groq';
-import { CartesiaProvider } from '../utils/providers/cartesia';
 
 // Smart Audio Cache (028-smart-audio-cache)
 import { getCacheStore, generateContentHash, generateCacheKey } from '../utils/cache';
@@ -110,17 +104,6 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   'prefetch.getStatus': 'prefetch.getStatus',
   'prefetch.clearBuffer': 'prefetch.clearBuffer',
 
-  // Phase 6: PDF handlers (T066)
-  'pdf.detected': 'pdf.detected',
-  'pdf.extract': 'pdf.extract',
-  'pdf.ocr': 'pdf.ocr',
-  'pdf.getState': 'pdf.getState',
-  'pdf.saveState': 'pdf.saveState',
-  'pdf.play': 'pdf.play',
-  'pdf.seek': 'pdf.seek',
-  'pdf.highlight': 'pdf.highlight',
-  'pdf.scrollToPage': 'pdf.scrollToPage',
-
   // Phase 6: Queue handlers (T066)
   'queue.add': 'queue.add',
   'queue.remove': 'queue.remove',
@@ -137,6 +120,14 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   // Debug handlers
   'hexagonal.getStatus': 'hexagonal.getStatus',
   'hexagonal.getDispatchStats': 'hexagonal.getDispatchStats',
+
+  // Phase 3: Reader handlers (045-pdf-removal-page-reader)
+  'reader.extractArticle': 'reader.extractArticle',
+  'reader.getParagraphs': 'reader.getParagraphs',
+  'reader.getParagraph': 'reader.getParagraph',
+  'reader.getArticleInfo': 'reader.getArticleInfo',
+  'reader.clearArticle': 'reader.clearArticle',
+  'reader.isArticlePage': 'reader.isArticlePage',
 };
 
 /**
@@ -149,7 +140,6 @@ interface MigrationFlags {
   USE_LEGACY_AUDIO: boolean;
   USE_LEGACY_SETTINGS: boolean;
   USE_LEGACY_CACHE: boolean;
-  USE_LEGACY_PDF: boolean;
   USE_LEGACY_QUEUE: boolean;
 }
 
@@ -158,7 +148,6 @@ const MIGRATION_FLAGS: MigrationFlags = {
   USE_LEGACY_AUDIO: false,
   USE_LEGACY_SETTINGS: false,
   USE_LEGACY_CACHE: false,
-  USE_LEGACY_PDF: false,
   USE_LEGACY_QUEUE: false,
 };
 
@@ -217,9 +206,6 @@ function shouldUseLegacy(messageType: string): boolean {
   ) {
     return MIGRATION_FLAGS.USE_LEGACY_CACHE;
   }
-  if (messageType.startsWith('pdf.')) {
-    return MIGRATION_FLAGS.USE_LEGACY_PDF;
-  }
   if (messageType.startsWith('queue.')) {
     return MIGRATION_FLAGS.USE_LEGACY_QUEUE;
   }
@@ -236,7 +222,6 @@ async function loadMigrationFlags(): Promise<void> {
       'USE_LEGACY_AUDIO',
       'USE_LEGACY_SETTINGS',
       'USE_LEGACY_CACHE',
-      'USE_LEGACY_PDF',
       'USE_LEGACY_QUEUE',
     ]);
 
@@ -251,9 +236,6 @@ async function loadMigrationFlags(): Promise<void> {
     }
     if (typeof stored.USE_LEGACY_CACHE === 'boolean') {
       MIGRATION_FLAGS.USE_LEGACY_CACHE = stored.USE_LEGACY_CACHE;
-    }
-    if (typeof stored.USE_LEGACY_PDF === 'boolean') {
-      MIGRATION_FLAGS.USE_LEGACY_PDF = stored.USE_LEGACY_PDF;
     }
     if (typeof stored.USE_LEGACY_QUEUE === 'boolean') {
       MIGRATION_FLAGS.USE_LEGACY_QUEUE = stored.USE_LEGACY_QUEUE;
@@ -287,9 +269,6 @@ interface PlaybackState {
 
 interface ApiKeys {
   elevenlabsApiKey?: string;
-  openaiApiKey?: string;
-  groqApiKey?: string;
-  cartesiaApiKey?: string;
 }
 
 const playbackState: PlaybackState = {
@@ -324,6 +303,7 @@ let wordHighlightInterval: ReturnType<typeof setInterval> | null = null;
 // Audio prefetch cache - stores pre-generated audio for upcoming paragraphs
 interface PrefetchedAudio {
   audioUrl: string;
+  audioData: ArrayBuffer; // T046: Store raw audio data for persistent cache storage
   wordTimings: WordTiming[];
   paragraphIndex: number;
 }
@@ -440,15 +420,6 @@ async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
   return tabs[0] || null;
 }
 
-/**
- * Check if a URL is a file:// PDF URL.
- * Content scripts cannot run on file:// URLs, so we should suppress connection errors.
- */
-function isFilePdfUrl(url: string | null | undefined): boolean {
-  if (!url) return false;
-  return url.startsWith('file://') && url.toLowerCase().endsWith('.pdf');
-}
-
 async function sendToContentScript(
   tabId: number,
   message: Record<string, unknown>,
@@ -456,11 +427,6 @@ async function sendToContentScript(
   try {
     return await browser.tabs.sendMessage(tabId, message);
   } catch (error) {
-    // Suppress errors for file:// PDF URLs - content scripts can't run there
-    if (currentPageUrl && isFilePdfUrl(currentPageUrl)) {
-      // Silently ignore - this is expected for local PDFs
-      return null;
-    }
     console.error('[Background] Failed to send to content script:', error);
     return null;
   }
@@ -501,7 +467,7 @@ function createAudioUrl(audioData: ArrayBuffer): string {
 
 /**
  * VoxPage is Firefox-focused. Firefox background scripts have full DOM access,
- * which means we can use Audio API, speechSynthesis, and PDF.js directly
+ * which means we can use Audio API and speechSynthesis directly
  * without needing Chrome's offscreen document workarounds.
  */
 
@@ -553,11 +519,25 @@ async function playAudioNative(
       resolve({ success: false, ended: false });
     };
 
+    // T046: Capture duration as soon as metadata is available
+    audio.onloadedmetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        console.log('[Background] Audio metadata loaded, duration:', audio.duration);
+        playbackState.totalTime = audio.duration;
+        // Send initial duration to footer
+        updateFooterProgress().catch(() => {});
+      }
+    };
+
     // Send progress updates
     audio.ontimeupdate = () => {
       if (audio.duration && isFinite(audio.duration)) {
         playbackState.currentTime = audio.currentTime;
         playbackState.totalTime = audio.duration;
+        // FIX: Bug 046 - Send footer state update on every timeupdate for timer sync
+        updateFooterProgress().catch(() => {
+          // Ignore errors - tab might be closed
+        });
       }
     };
 
@@ -636,252 +616,6 @@ function setAudioSpeedNative(speed: number): { success: boolean } {
 }
 
 // ============================================
-// Native Browser TTS (speechSynthesis)
-// ============================================
-
-let currentUtterance: SpeechSynthesisUtterance | null = null;
-let ttsResolveCallback: ((result: { success: boolean; ended: boolean }) => void) | null = null;
-
-/**
- * Speak with Browser TTS.
- */
-async function speakWithBrowserTTSNative(
-  text: string,
-  speed: number,
-): Promise<{ success: boolean; ended: boolean }> {
-  return new Promise((resolve) => {
-    if (typeof speechSynthesis === 'undefined') {
-      console.error('[Background] speechSynthesis not available');
-      resolve({ success: false, ended: false });
-      return;
-    }
-
-    speechSynthesis.cancel();
-    ttsResolveCallback = resolve;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    currentUtterance = utterance;
-    utterance.rate = Math.max(0.5, Math.min(2.0, speed));
-
-    utterance.onend = () => {
-      console.log('[Background] Browser TTS ended naturally');
-      currentUtterance = null;
-      ttsResolveCallback = null;
-      resolve({ success: true, ended: true });
-    };
-
-    utterance.onerror = (event) => {
-      console.error('[Background] Browser TTS error:', event.error);
-      currentUtterance = null;
-      ttsResolveCallback = null;
-      resolve({ success: false, ended: false });
-    };
-
-    console.log(
-      '[Background] Speaking with Browser TTS, speed:',
-      speed,
-      'text length:',
-      text.length,
-    );
-    speechSynthesis.speak(utterance);
-  });
-}
-
-function stopBrowserTTSNative(): { success: boolean } {
-  if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.cancel();
-    currentUtterance = null;
-    if (ttsResolveCallback) {
-      ttsResolveCallback({ success: true, ended: false });
-      ttsResolveCallback = null;
-    }
-    console.log('[Background] Browser TTS stopped');
-    return { success: true };
-  }
-  return { success: false };
-}
-
-function pauseBrowserTTSNative(): { success: boolean } {
-  if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.pause();
-    console.log('[Background] Browser TTS paused');
-    return { success: true };
-  }
-  return { success: false };
-}
-
-function resumeBrowserTTSNative(): { success: boolean } {
-  if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.resume();
-    console.log('[Background] Browser TTS resumed');
-    return { success: true };
-  }
-  return { success: false };
-}
-
-// ============================================
-// Native PDF Extraction
-// ============================================
-
-// Cached pdfjs-dist module
-import type * as PDFJSLib from 'pdfjs-dist';
-let pdfjsModule: typeof PDFJSLib | null = null;
-let pdfjsInitialized = false;
-
-/**
- * Initialize PDF.js in background script.
- */
-async function initPDFJS(): Promise<void> {
-  if (pdfjsInitialized && pdfjsModule) {
-    return;
-  }
-
-  pdfjsModule = await import('pdfjs-dist');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chromeApi = globalThis.chrome as any;
-  const workerUrl = chromeApi?.runtime?.getURL?.('pdf.worker.min.js') ?? '';
-  pdfjsModule.GlobalWorkerOptions.workerSrc = workerUrl;
-  pdfjsInitialized = true;
-  console.log('[Background] PDF.js initialized with worker:', workerUrl);
-}
-
-/**
- * Extract PDF text natively in background script.
- */
-async function extractPDFTextNative(
-  source: string,
-  options: { password?: string } = {},
-): Promise<{
-  success: boolean;
-  paragraphs?: string[];
-  meta?: { title?: string; pageCount?: number; isScanned?: boolean };
-  error?: string;
-  requiresPassword?: boolean;
-}> {
-  try {
-    await initPDFJS();
-
-    if (!pdfjsModule) {
-      return { success: false, error: 'PDF.js failed to initialize' };
-    }
-
-    const loadingParams: { url: string; password?: string } = { url: source };
-    if (options.password) {
-      loadingParams.password = options.password;
-    }
-
-    const loadingTask = pdfjsModule.getDocument(loadingParams);
-    const pdf = await loadingTask.promise;
-
-    console.log('[Background] PDF loaded, pages:', pdf.numPages);
-
-    const paragraphs: string[] = [];
-    let totalChars = 0;
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-
-      let currentParagraph = '';
-
-      for (const item of textContent.items) {
-        if ('str' in item && typeof item.str === 'string') {
-          const text = item.str;
-          totalChars += text.length;
-
-          if (text.trim()) {
-            currentParagraph += text + ' ';
-          }
-
-          if ('hasEOL' in item && item.hasEOL && currentParagraph.trim()) {
-            const trimmed = currentParagraph.trim();
-            if (trimmed.match(/[.!?]$/)) {
-              paragraphs.push(trimmed);
-              currentParagraph = '';
-            }
-          }
-        }
-      }
-
-      if (currentParagraph.trim()) {
-        paragraphs.push(currentParagraph.trim());
-        currentParagraph = '';
-      }
-
-      page.cleanup();
-    }
-
-    const charsPerPage = totalChars / pdf.numPages;
-    const isScanned = charsPerPage < 100;
-
-    let title: string | undefined;
-    try {
-      const metadata = await pdf.getMetadata();
-      const info = metadata.info as Record<string, unknown> | undefined;
-      title = typeof info?.Title === 'string' ? info.Title : undefined;
-    } catch {
-      // Ignore metadata errors
-    }
-
-    await pdf.cleanup();
-    await pdf.destroy();
-
-    console.log('[Background:Firefox] Extracted', paragraphs.length, 'paragraphs');
-
-    return {
-      success: true,
-      paragraphs,
-      meta: { title, pageCount: pdf.numPages, isScanned },
-    };
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === 'PasswordException' || error.message.includes('password')) {
-        return {
-          success: false,
-          requiresPassword: true,
-          error: options.password ? 'Incorrect password' : 'PDF requires a password',
-        };
-      }
-
-      if (
-        error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('CORS')
-      ) {
-        return { success: false, error: `Cannot access PDF: ${error.message}` };
-      }
-    }
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
-  }
-}
-
-/**
- * Result from PDF text extraction.
- */
-interface PDFExtractionResult {
-  success: boolean;
-  paragraphs?: string[];
-  meta?: {
-    title?: string;
-    pageCount?: number;
-    isScanned?: boolean;
-  };
-  error?: string;
-  requiresPassword?: boolean;
-}
-
-/**
- * Extract PDF text using native PDF.js.
- * Firefox background scripts have full DOM access so we can run PDF.js directly.
- */
-async function extractPDFText(url: string, password?: string): Promise<PDFExtractionResult> {
-  console.log('[Background] Extracting PDF text from:', url);
-  return extractPDFTextNative(url, { password });
-}
-
-// ============================================
 // ElevenLabs TTS
 // ============================================
 
@@ -930,6 +664,27 @@ interface ElevenLabsAudioResult {
   audioData: ArrayBuffer; // Raw audio data for caching
   wordTimings: WordTiming[];
   duration: number;
+}
+
+/**
+ * T046: Get resolved voice ID for cache key consistency
+ * Returns playbackState.voice if set, otherwise the ElevenLabs provider's default voice ID
+ * This ensures cache keys match between audio generation and cache lookup/storage
+ */
+async function getResolvedVoiceId(): Promise<string> {
+  if (playbackState.voice) {
+    return playbackState.voice;
+  }
+
+  // Get default voice from provider
+  const provider = await initElevenLabsProvider();
+  if (provider) {
+    const defaultVoice = provider.getDefaultVoice();
+    return defaultVoice.id;
+  }
+
+  // Fallback if provider unavailable
+  return 'default';
 }
 
 async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioResult | null> {
@@ -1023,6 +778,7 @@ function configurePrefetchService(): void {
 
     return {
       audioUrl: result.audioUrl,
+      audioData: result.audioData, // T046: Include raw data for persistent cache
       wordTimings: result.wordTimings,
     };
   };
@@ -1031,7 +787,7 @@ function configurePrefetchService(): void {
   const cacheChecker = async (index: number): Promise<boolean> => {
     if (!currentPageUrl) return false;
     const cacheStore = getCacheStore();
-    const voiceId = playbackState.voice ?? 'default';
+    const voiceId = await getResolvedVoiceId(); // T046: Use consistent voice resolution
     const text = paragraphs[index];
     if (!text) return false;
 
@@ -1122,6 +878,7 @@ async function prefetchUpcomingAudio(): Promise<void> {
     if (audioResult && playbackState.status === 'playing') {
       audioPrefetchCache.set(i, {
         audioUrl: audioResult.audioUrl,
+        audioData: audioResult.audioData, // T046: Store raw data for persistent cache
         wordTimings: audioResult.wordTimings,
         paragraphIndex: i,
       });
@@ -1280,9 +1037,10 @@ let audioPlaybackActive = false;
 
 /**
  * Format seconds to MM:SS string
+ * Bug 046: Added explicit negative number handling
  */
 function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -1444,9 +1202,6 @@ async function stopCurrentAudio(): Promise<void> {
   stopAudioNative();
   console.log('[VoxPage:Audio] Audio stopped via native API');
 
-  // Also stop Browser TTS
-  stopBrowserTTSNative();
-
   // T028-T029: Revoke all tracked blob URLs when stopping playback
   revokeAllBlobUrls();
 
@@ -1499,22 +1254,14 @@ async function speakCurrentParagraph(): Promise<void> {
   console.log('[VoxPage:Provider] Voice:', playbackState.voice ?? 'default');
   console.log('[VoxPage:Provider] API Keys loaded:', {
     elevenlabs: !!apiKeys.elevenlabsApiKey,
-    openai: !!apiKeys.openaiApiKey,
-    groq: !!apiKeys.groqApiKey,
-    cartesia: !!apiKeys.cartesiaApiKey,
   });
 
   // T013: API key validation before playback attempt (035-selection-tts-hardening)
   const providerApiKeyMap: Record<string, string | undefined> = {
     elevenlabs: apiKeys.elevenlabsApiKey,
-    openai: apiKeys.openaiApiKey,
-    groq: apiKeys.groqApiKey,
-    cartesia: apiKeys.cartesiaApiKey,
-    browser: 'browser-native', // Browser TTS doesn't need API key
   };
 
-  const hasApiKey =
-    playbackState.provider === 'browser' || !!providerApiKeyMap[playbackState.provider];
+  const hasApiKey = !!providerApiKeyMap[playbackState.provider];
 
   // T014: Show error notification if API key missing (035-selection-tts-hardening)
   if (!hasApiKey) {
@@ -1541,7 +1288,7 @@ async function speakCurrentParagraph(): Promise<void> {
     let generatedAudioData: ArrayBuffer | null = null;
 
     // T023: First, check persistent cache for this paragraph
-    const voiceId = playbackState.voice ?? 'default';
+    const voiceId = await getResolvedVoiceId(); // T046: Use consistent voice resolution
     if (currentPageUrl) {
       const cached = await checkPersistentCache(
         currentPageUrl,
@@ -1572,6 +1319,11 @@ async function speakCurrentParagraph(): Promise<void> {
           audioUrl: prefetchedModular.audioUrl,
           wordTimings: prefetchedModular.wordTimings,
         };
+        // T046: Mark modular prefetch for persistent cache storage
+        if (prefetchedModular.audioData) {
+          shouldStoreToCache = true;
+          generatedAudioData = prefetchedModular.audioData;
+        }
       }
     }
 
@@ -1587,6 +1339,9 @@ async function speakCurrentParagraph(): Promise<void> {
           audioUrl: prefetched.audioUrl,
           wordTimings: prefetched.wordTimings,
         };
+        // T046: Mark prefetched audio for persistent cache storage
+        shouldStoreToCache = true;
+        generatedAudioData = prefetched.audioData;
         // Remove from cache since we're using it
         audioPrefetchCache.delete(playbackState.currentParagraph);
       }
@@ -1683,139 +1438,13 @@ async function speakCurrentParagraph(): Promise<void> {
       // Clean up old cache entries
       cleanupPrefetchCache();
     } else {
-      console.warn('[Background] ElevenLabs failed, falling back to browser TTS');
-    }
-  } else if (playbackState.provider === 'openai' && apiKeys.openaiApiKey) {
-    // OpenAI TTS provider
-    console.log('[Background] Generating audio with OpenAI');
-    try {
-      const openaiProvider = new OpenAIProvider();
-      openaiProvider.setApiKey(apiKeys.openaiApiKey);
-
-      const response = await openaiProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
-      const audioBuffer = await response.audioData.arrayBuffer();
-      const audioUrl = createAudioUrl(audioBuffer);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] OpenAI playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] OpenAI TTS error:', {
-        error,
-        provider: 'openai',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'groq' && apiKeys.groqApiKey) {
-    // Groq TTS provider
-    console.log('[Background] Generating audio with Groq');
-    try {
-      const groqProvider = new GroqProvider();
-      groqProvider.setApiKey(apiKeys.groqApiKey);
-
-      const response = await groqProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
-      const audioBuffer = await response.audioData.arrayBuffer();
-      const audioUrl = createAudioUrl(audioBuffer);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] Groq playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Groq TTS error:', {
-        error,
-        provider: 'groq',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'cartesia' && apiKeys.cartesiaApiKey) {
-    // Cartesia TTS provider
-    console.log('[Background] Generating audio with Cartesia');
-    try {
-      const cartesiaProvider = new CartesiaProvider();
-      cartesiaProvider.setApiKey(apiKeys.cartesiaApiKey);
-
-      const response = await cartesiaProvider.generateAudio({
-        text,
-        voice: playbackState.voice,
-        speed: playbackState.speed,
-      });
-
-      // Convert Blob to ArrayBuffer, then to data URL for service worker compatibility
-      const audioBuffer = await response.audioData.arrayBuffer();
-      const audioUrl = createAudioUrl(audioBuffer);
-
-      if (audioUrl && audioUrl.trim() !== '') {
-        // T028-T029: Track blob URL and revoke previous for this paragraph
-        trackBlobUrl(playbackState.currentParagraph, audioUrl);
-        success = await playAudioInBackground(audioUrl, playbackState.speed);
-      }
-
-      if (!success) {
-        console.warn('[Background] Cartesia playback failed');
-      }
-    } catch (error) {
-      // T031: Add error context (provider, paragraph index)
-      console.error('[Background] Cartesia TTS error:', {
-        error,
-        provider: 'cartesia',
-        paragraphIndex: playbackState.currentParagraph,
-      });
-    }
-  } else if (playbackState.provider === 'browser') {
-    // Browser TTS explicitly selected
-    // Firefox background scripts have speechSynthesis available directly
-    console.log('[Background] Using browser TTS natively');
-    currentWordTimings = [];
-
-    try {
-      const ttsResult = await speakWithBrowserTTSNative(text, playbackState.speed);
-
-      if (ttsResult?.success && ttsResult?.ended) {
-        success = true;
-      } else if (ttsResult?.success && !ttsResult?.ended) {
-        // TTS was interrupted (user stopped/paused) - don't treat as error, just stop
-        console.log('[Background] Browser TTS was interrupted by user action');
-        // Don't advance to next paragraph - just return
-        return;
-      } else {
-        console.warn('[Background] Browser TTS failed');
-        success = false;
-      }
-    } catch (error) {
-      console.error('[Background] Browser TTS error:', error);
-      success = false;
+      console.warn('[Background] ElevenLabs failed');
     }
   }
 
   // T012: Remove silent fallback - show error notification instead (035-selection-tts-hardening)
   // If provider failed (API error, network issue, etc.), notify user instead of silently falling back
-  if (!success && playbackState.provider !== 'browser') {
+  if (!success) {
     const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} playback failed. Please check your API key or try again.`;
     console.error(`[VoxPage:Provider] Playback failed for ${playbackState.provider}`);
 
@@ -1845,14 +1474,8 @@ async function speakCurrentParagraph(): Promise<void> {
     playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
     notifyPopup();
 
-    // Update footer
-    await sendToContentScript(activeTabId, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: playbackState.currentParagraph,
-      totalParagraphs: paragraphs.length,
-      progress: playbackState.progress,
-    });
+    // Update footer - use updateFooterProgress for consistent time updates
+    await updateFooterProgress();
 
     // Speak next paragraph
     speakCurrentParagraph();
@@ -1913,18 +1536,12 @@ const messageHandlers: Record<string, MessageHandler> = {
       // Reload API keys and settings
       const stored = await browser.storage.local.get([
         'elevenlabsApiKey',
-        'openaiApiKey',
-        'groqApiKey',
-        'cartesiaApiKey',
         'elevenlabsVoice',
         'speed',
         'provider',
       ]);
       apiKeys = {
         elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-        openaiApiKey: stored.openaiApiKey as string | undefined,
-        groqApiKey: stored.groqApiKey as string | undefined,
-        cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
       };
       if (stored.elevenlabsVoice) {
         playbackState.voice = stored.elevenlabsVoice as string;
@@ -1991,15 +1608,8 @@ const messageHandlers: Record<string, MessageHandler> = {
       },
     });
 
-    // Update footer state
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: playbackState.currentParagraph,
-      totalParagraphs: playbackState.totalParagraphs,
-      progress: playbackState.progress,
-      speed: playbackState.speed,
-    });
+    // Update footer state - use updateFooterProgress for consistent time updates
+    await updateFooterProgress();
 
     // Start speaking from the clicked paragraph
     speakCurrentParagraph();
@@ -2028,18 +1638,12 @@ const messageHandlers: Record<string, MessageHandler> = {
     // Reload API keys and settings
     const stored = await browser.storage.local.get([
       'elevenlabsApiKey',
-      'openaiApiKey',
-      'groqApiKey',
-      'cartesiaApiKey',
       'elevenlabsVoice',
       'speed',
       'provider',
     ]);
     apiKeys = {
       elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-      openaiApiKey: stored.openaiApiKey as string | undefined,
-      groqApiKey: stored.groqApiKey as string | undefined,
-      cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
     };
     if (stored.elevenlabsVoice) {
       playbackState.voice = stored.elevenlabsVoice as string;
@@ -2105,15 +1709,8 @@ const messageHandlers: Record<string, MessageHandler> = {
       },
     });
 
-    // Update footer state
-    await sendToContentScript(tab.id, {
-      action: 'FOOTER_STATE_UPDATE',
-      status: 'playing',
-      currentParagraph: 0,
-      totalParagraphs: playbackState.totalParagraphs,
-      progress: 0,
-      speed: playbackState.speed,
-    });
+    // Update footer state - use updateFooterProgress for consistent 1-indexed display
+    await updateFooterProgress();
 
     // Start speaking from the first paragraph
     speakCurrentParagraph();
@@ -2132,20 +1729,12 @@ const messageHandlers: Record<string, MessageHandler> = {
     playbackState.status = 'paused';
     // Pause audio playback (Firefox native - no offscreen document needed)
     pauseAudioNative();
-    // Also pause Browser TTS
-    pauseBrowserTTSNative();
     stopWordHighlighting();
     notifyPopup();
 
     if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'paused',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-        speed: playbackState.speed,
-      });
+      // Use updateFooterProgress for consistent time updates
+      await updateFooterProgress();
     }
 
     return { success: true };
@@ -2161,37 +1750,19 @@ const messageHandlers: Record<string, MessageHandler> = {
 
     playbackState.status = 'playing';
     // Resume audio playback (Firefox native - no offscreen document needed)
-    let audioResumed = false;
     const result = resumeAudioNative();
     if (result.success) {
       // Audio resumed, restart word highlighting
       startWordHighlighting(playbackState.currentParagraph);
-      audioResumed = true;
-    }
-
-    // Try to resume Browser TTS if audio wasn't resumed
-    if (!audioResumed) {
-      const ttsResult = resumeBrowserTTSNative();
-      if (ttsResult.success) {
-        audioResumed = true;
-      }
-    }
-
-    // If neither resumed, regenerate
-    if (!audioResumed) {
+    } else {
+      // If audio wasn't resumed, regenerate
       speakCurrentParagraph();
     }
     notifyPopup();
 
     if (activeTabId) {
-      await sendToContentScript(activeTabId, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'playing',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-        speed: playbackState.speed,
-      });
+      // Use updateFooterProgress for consistent time updates
+      await updateFooterProgress();
     }
 
     return { success: true };
@@ -2335,339 +1906,6 @@ const messageHandlers: Record<string, MessageHandler> = {
   },
 
   /**
-   * T033: Start PDF playback from popup.
-   * Extracts text from PDF and starts TTS playback.
-   */
-  startPDFPlayback: async (data) => {
-    const url = data.url as string;
-    if (!url) {
-      return { success: false, error: 'No PDF URL provided' };
-    }
-
-    console.log('[Background] Starting PDF playback for:', url);
-
-    try {
-      // Get active tab
-      const tab = await getActiveTab();
-      if (!tab?.id) {
-        return { success: false, error: 'No active tab' };
-      }
-
-      // Store current page URL for cache lookups
-      currentPageUrl = url;
-      activeTabId = tab.id;
-
-      // Set status to loading
-      playbackState.status = 'loading';
-      notifyPopup();
-
-      // Reload API keys and settings
-      const stored = await browser.storage.local.get([
-        'elevenlabsApiKey',
-        'openaiApiKey',
-        'groqApiKey',
-        'cartesiaApiKey',
-        'elevenlabsVoice',
-        'speed',
-        'provider',
-      ]);
-      apiKeys = {
-        elevenlabsApiKey: stored.elevenlabsApiKey as string | undefined,
-        openaiApiKey: stored.openaiApiKey as string | undefined,
-        groqApiKey: stored.groqApiKey as string | undefined,
-        cartesiaApiKey: stored.cartesiaApiKey as string | undefined,
-      };
-      if (stored.elevenlabsVoice) {
-        playbackState.voice = stored.elevenlabsVoice as string;
-      }
-      if (stored.speed) {
-        playbackState.speed = stored.speed as number;
-      }
-      if (stored.provider) {
-        playbackState.provider = stored.provider as string;
-      }
-      console.log('[Background] PDF playback - Settings from storage:', {
-        provider: stored.provider ?? '(not set)',
-        hasElevenlabsKey: !!stored.elevenlabsApiKey,
-        playbackStateProvider: playbackState.provider,
-      });
-
-      // Use hexagonal pdf.play handler to extract PDF text
-      // The handler returns Result<PDFPlayResult, PDFHandlerError>
-      interface PDFPlayResultData {
-        success: boolean;
-        paragraphs?: string[];
-        startIndex?: number;
-        meta?: {
-          title?: string;
-          pageCount?: number;
-        };
-        error?: string;
-        requiresPassword?: boolean;
-      }
-
-      let pdfResult: PDFExtractionResult;
-
-      // Check if this is a file:// URL - these cannot be fetched by PDF.js in background
-      // We need to extract from the content script's DOM instead
-      // Note: Firefox PDF viewer runs at resource://pdf.js/web/viewer.html?file=<encoded-url>
-      const isFileUrl = url.startsWith('file://');
-      const tabUrl = tab.url || '';
-      const isResourcePdfViewer = tabUrl.startsWith('resource://pdf.js/');
-
-      console.log('[Background] PDF URL detection:', {
-        pdfUrl: url,
-        tabUrl: tabUrl,
-        isFileUrl,
-        isResourcePdfViewer,
-      });
-
-      if (isFileUrl || isResourcePdfViewer) {
-        console.log('[Background] Detected local PDF, attempting content script extraction...');
-
-        // Firefox's PDF viewer runs at resource://pdf.js/ which is a privileged URL
-        // Extensions cannot inject scripts there. We need to try a workaround.
-
-        // Try to inject content script - this may fail on resource:// URLs
-        let injectionSucceeded = false;
-        try {
-          // Try MV2 API first (more compatible with Firefox)
-          await browser.tabs.executeScript(tab.id, {
-            file: 'content-scripts/content.js',
-            runAt: 'document_idle',
-          });
-          console.log('[Background] Content script injected via tabs.executeScript');
-          injectionSucceeded = true;
-        } catch (injectErr) {
-          console.warn('[Background] tabs.executeScript failed:', injectErr);
-          // Try scripting API as fallback
-          try {
-            await browser.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['content-scripts/content.js'],
-            });
-            console.log('[Background] Content script injected via scripting.executeScript');
-            injectionSucceeded = true;
-          } catch (scriptingErr) {
-            console.error('[Background] All script injection methods failed:', scriptingErr);
-            // Cannot inject into resource:// URLs - this is a Firefox security restriction
-          }
-        }
-
-        if (!injectionSucceeded) {
-          // Fallback: Try to read the file:// URL directly using fetch
-          // Firefox extensions may have file:// access in certain configurations
-          console.log('[Background] Script injection failed, trying direct file read...');
-
-          try {
-            // Try fetch first (may work in some Firefox configurations)
-            console.log('[Background] Attempting fetch() for file URL...');
-            const response = await fetch(url);
-            if (response.ok) {
-              const arrayBuffer = await response.arrayBuffer();
-              console.log('[Background] File fetch succeeded, size:', arrayBuffer.byteLength);
-
-              // Now extract text using PDF.js with the arrayBuffer
-              await initPDFJS();
-              if (pdfjsModule) {
-                const loadingTask = pdfjsModule.getDocument({ data: arrayBuffer });
-                const pdf = await loadingTask.promise;
-
-                const paragraphs: string[] = [];
-                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                  const page = await pdf.getPage(pageNum);
-                  const textContent = await page.getTextContent();
-                  let currentParagraph = '';
-
-                  for (const item of textContent.items) {
-                    if ('str' in item && typeof item.str === 'string') {
-                      const text = item.str;
-                      if (text.trim()) {
-                        currentParagraph += text + ' ';
-                      }
-                      if ('hasEOL' in item && item.hasEOL && currentParagraph.trim()) {
-                        const trimmed = currentParagraph.trim();
-                        if (trimmed.match(/[.!?]$/)) {
-                          paragraphs.push(trimmed);
-                          currentParagraph = '';
-                        }
-                      }
-                    }
-                  }
-                  if (currentParagraph.trim()) {
-                    paragraphs.push(currentParagraph.trim());
-                  }
-                  page.cleanup();
-                }
-
-                await pdf.cleanup();
-                await pdf.destroy();
-
-                pdfResult = {
-                  success: true,
-                  paragraphs,
-                  meta: { pageCount: pdf.numPages },
-                };
-                console.log(
-                  '[Background] PDF extracted via fetch+arrayBuffer:',
-                  paragraphs.length,
-                  'paragraphs',
-                );
-              } else {
-                pdfResult = { success: false, error: 'PDF.js not initialized' };
-              }
-            } else {
-              throw new Error(`Fetch failed with status ${response.status}`);
-            }
-          } catch (fetchErr) {
-            console.error('[Background] Direct file fetch failed:', fetchErr);
-            // Last resort: try the original PDF.js URL-based extraction
-            try {
-              pdfResult = await extractPDFText(url);
-              if (!pdfResult.success) {
-                // Provide a helpful error message
-                pdfResult = {
-                  success: false,
-                  error:
-                    'Cannot read local PDF files. Firefox security prevents extensions from accessing file:// URLs in the PDF viewer. Try: (1) Drag and drop the PDF into a browser tab, or (2) Use a local web server to serve the PDF.',
-                };
-              }
-            } catch (extractErr) {
-              pdfResult = {
-                success: false,
-                error:
-                  'Cannot read local PDF files. Firefox security prevents extensions from accessing file:// URLs in the PDF viewer. Try: (1) Drag and drop the PDF into a browser tab, or (2) Use a local web server to serve the PDF.',
-              };
-            }
-          }
-        } else {
-          // Small delay to let the content script initialize
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Send message to content script to extract PDF text from Firefox's PDF.js viewer
-          try {
-            const domResult = (await browser.tabs.sendMessage(tab.id, {
-              action: 'extractPDFFromDOM',
-            })) as PDFExtractionResult;
-
-            if (domResult && domResult.success) {
-              pdfResult = domResult;
-              console.log('[Background] PDF DOM extraction succeeded:', {
-                paragraphCount: domResult.paragraphs?.length || 0,
-              });
-            } else {
-              pdfResult = {
-                success: false,
-                error: domResult?.error || 'Failed to extract PDF from DOM',
-              };
-            }
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-            console.error('[Background] Content script PDF extraction failed:', errorMsg);
-            pdfResult = {
-              success: false,
-              error: `Content script extraction failed: ${errorMsg}`,
-            };
-          }
-        }
-      } else {
-        // For http(s):// URLs, use native PDF.js extraction
-        console.log('[Background] Extracting PDF via native PDF.js...');
-        pdfResult = await extractPDFText(url);
-      }
-
-      // Check if extraction succeeded
-      if (!pdfResult.success || !pdfResult.paragraphs?.length) {
-        const error = pdfResult.error || 'No text content found in PDF';
-        console.error('[Background] PDF extraction failed:', error);
-        playbackState.status = 'stopped';
-        notifyPopup();
-
-        // Handle password-protected PDFs
-        if (pdfResult.requiresPassword) {
-          return { success: false, error: 'PDF requires a password', requiresPassword: true };
-        }
-
-        return { success: false, error };
-      }
-
-      const pdfData: PDFPlayResultData = {
-        success: true,
-        paragraphs: pdfResult.paragraphs,
-        startIndex: 0, // TODO: restore saved position from storage
-        meta: pdfResult.meta,
-      };
-      if (!pdfData.success || !pdfData.paragraphs?.length) {
-        const error = pdfData.error || 'No text content found in PDF';
-        console.error('[Background] PDF has no content:', error);
-        playbackState.status = 'stopped';
-        notifyPopup();
-        return { success: false, error };
-      }
-
-      // Set paragraphs from PDF extraction
-      paragraphs = pdfData.paragraphs;
-      playbackState.totalParagraphs = paragraphs.length;
-      playbackState.currentParagraph = pdfData.startIndex ?? 0;
-      playbackState.progress = (playbackState.currentParagraph / paragraphs.length) * 100;
-
-      console.log(
-        '[Background] PDF extracted',
-        paragraphs.length,
-        'paragraphs, starting from',
-        playbackState.currentParagraph,
-      );
-
-      // Clear prefetch cache and stop current audio
-      clearPrefetchCache();
-      stopCurrentAudio();
-
-      // Increment generation to invalidate any stale speakCurrentParagraph calls
-      playbackGeneration++;
-
-      // Set status to playing
-      playbackState.status = 'playing';
-      notifyPopup();
-
-      // Show the footer
-      await sendToContentScript(tab.id, {
-        action: 'FOOTER_SHOW',
-        initialState: {
-          isPlaying: true,
-          currentIndex: playbackState.currentParagraph,
-          totalParagraphs: playbackState.totalParagraphs,
-          progress: playbackState.progress,
-          speed: playbackState.speed,
-        },
-      });
-
-      // Update footer state
-      await sendToContentScript(tab.id, {
-        action: 'FOOTER_STATE_UPDATE',
-        status: 'playing',
-        currentParagraph: playbackState.currentParagraph,
-        totalParagraphs: playbackState.totalParagraphs,
-        progress: playbackState.progress,
-        speed: playbackState.speed,
-      });
-
-      // Configure prefetch service with new paragraphs
-      configurePrefetchService();
-
-      // Start speaking from the current paragraph
-      speakCurrentParagraph();
-
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Background] PDF playback error:', error);
-      playbackState.status = 'stopped';
-      notifyPopup();
-      return { success: false, error: errorMessage };
-    }
-  },
-
-  /**
    * Legacy fallback: Jump to paragraph.
    */
   jumpToParagraph: async (data) => {
@@ -2774,13 +2012,6 @@ const messageHandlers: Record<string, MessageHandler> = {
   // Summarize handlers
   ...Object.fromEntries(
     Object.entries(summarizeHandlers).map(([key, handler]) => [
-      key,
-      async (data: Record<string, unknown>) => handler(data as never),
-    ]),
-  ),
-  // OCR handlers
-  ...Object.fromEntries(
-    Object.entries(ocrHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
     ]),
@@ -2999,7 +2230,7 @@ export default defineBackground(() => {
 
   // Initialize settings from storage
   browser.storage.local
-    .get(['speed', 'provider', 'elevenlabsApiKey', 'openaiApiKey', 'groqApiKey', 'cartesiaApiKey'])
+    .get(['speed', 'provider', 'elevenlabsApiKey'])
     .then((result) => {
       if (typeof result.speed === 'number') {
         playbackState.speed = result.speed;
@@ -3009,9 +2240,6 @@ export default defineBackground(() => {
       }
       apiKeys = {
         elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
-        openaiApiKey: result.openaiApiKey as string | undefined,
-        groqApiKey: result.groqApiKey as string | undefined,
-        cartesiaApiKey: result.cartesiaApiKey as string | undefined,
       };
       console.log('[Background] Settings loaded:', {
         speed: playbackState.speed,
@@ -3048,31 +2276,14 @@ export default defineBackground(() => {
     }
 
     // Update apiKeys when API key storage changes (fixes runtime key updates)
-    const apiKeyFields = [
-      'elevenlabsApiKey',
-      'openaiApiKey',
-      'groqApiKey',
-      'cartesiaApiKey',
-    ] as const;
-    let apiKeysUpdated = false;
-    for (const field of apiKeyFields) {
-      if (changes[field]) {
-        (apiKeys as Record<string, string | undefined>)[field] = changes[field].newValue as
-          | string
-          | undefined;
-        apiKeysUpdated = true;
-        console.log(
-          `[Background] API key updated: ${field}`,
-          changes[field].newValue ? 'set' : 'cleared',
-        );
-      }
-    }
-    if (apiKeysUpdated) {
+    if (changes.elevenlabsApiKey) {
+      apiKeys.elevenlabsApiKey = changes.elevenlabsApiKey.newValue as string | undefined;
+      console.log(
+        '[Background] API key updated: elevenlabsApiKey',
+        changes.elevenlabsApiKey.newValue ? 'set' : 'cleared',
+      );
       console.log('[Background] API keys state:', {
         hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
-        hasOpenAIKey: !!apiKeys.openaiApiKey,
-        hasGroqKey: !!apiKeys.groqApiKey,
-        hasCartesiaKey: !!apiKeys.cartesiaApiKey,
       });
     }
 

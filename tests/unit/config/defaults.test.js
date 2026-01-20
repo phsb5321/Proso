@@ -39,8 +39,9 @@ describe('Configuration Defaults', () => {
       expect(defaults.mode).toBe('article');
     });
 
-    test('provider defaults to browser', () => {
-      expect(defaults.provider).toBe('browser');
+    test('provider defaults to elevenlabs', () => {
+      // Post-045: Only ElevenLabs is supported
+      expect(defaults.provider).toBe('elevenlabs');
     });
 
     test('voice defaults to null', () => {
@@ -97,12 +98,9 @@ describe('Configuration Defaults', () => {
     });
 
     test('contains all TTS providers', () => {
-      expect(PROVIDERS).toContain('openai');
+      // Post-045: Only ElevenLabs is supported
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toContain('groq');
-      expect(PROVIDERS).toContain('browser');
-      expect(PROVIDERS).toHaveLength(5);
+      expect(PROVIDERS).toHaveLength(1);
     });
 
     test('default provider is in PROVIDERS', () => {
@@ -142,20 +140,16 @@ describe('Configuration Defaults', () => {
     });
 
     test('default voices are null or valid strings', () => {
-      // Some providers have specific default voices (openai: 'alloy', groq: 'hannah')
-      // Others use null to indicate "use provider's first available voice"
+      // Post-045: Only ElevenLabs is supported
+      // null means "use provider's first available voice"
       Object.entries(defaultVoices).forEach(([provider, voice]) => {
         if (voice !== null) {
           expect(typeof voice).toBe('string');
           expect(voice.length).toBeGreaterThan(0);
         }
       });
-      // Verify specific known defaults
-      expect(defaultVoices.openai).toBe('alloy');
-      expect(defaultVoices.groq).toBe('hannah');
+      // Verify ElevenLabs default
       expect(defaultVoices.elevenlabs).toBeNull();
-      expect(defaultVoices.cartesia).toBeNull();
-      expect(defaultVoices.browser).toBeNull();
     });
   });
 });

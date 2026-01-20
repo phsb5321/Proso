@@ -42,7 +42,7 @@ export const initialPlaybackState: PlaybackState = {
   paragraphs: [],
   progress: 0,
   speed: 1.0,
-  provider: 'browser',
+  provider: 'elevenlabs', // Post-045: Only ElevenLabs is supported
   voice: null,
   mode: 'article',
   activeTabId: null,

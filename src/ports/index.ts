@@ -52,3 +52,26 @@ export type {
   ISettingsStore,
   Settings,
 } from './settings-store.port';
+
+// Reader Port (045-pdf-removal-page-reader)
+export type {
+  IReader,
+  ReaderError,
+  ExtractionOptions,
+} from './reader.port';
+
+// Highlight Repository Port (045-pdf-removal-page-reader)
+export type {
+  IHighlightRepository,
+  HighlightRepositoryError,
+  HighlightQuery,
+  HighlightUpdate,
+} from './highlight-repository.port';
+
+// Audio Player Port (045-pdf-removal-page-reader)
+export type {
+  IAudioPlayer,
+  AudioPlayerError,
+  PlaybackEvent,
+  PlaybackEventListener,
+} from './audio-player.port';

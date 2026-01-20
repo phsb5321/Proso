@@ -74,15 +74,6 @@ const elements = {
   exportProgressText: document.getElementById('export-progress-text') as HTMLSpanElement,
   exportCancelBtn: document.getElementById('export-cancel-btn') as HTMLButtonElement,
 
-  // OCR
-  ocrBtn: document.getElementById('ocr-btn') as HTMLButtonElement,
-  ocrBtnText: document.getElementById('ocr-btn-text') as HTMLSpanElement,
-  ocrResult: document.getElementById('ocr-result') as HTMLDivElement,
-  ocrConfidence: document.getElementById('ocr-confidence') as HTMLSpanElement,
-  ocrText: document.getElementById('ocr-text') as HTMLParagraphElement,
-  readOcrBtn: document.getElementById('read-ocr-btn') as HTMLButtonElement,
-  closeOcrBtn: document.getElementById('close-ocr-btn') as HTMLButtonElement,
-
   // Footer
   settingsBtn: document.getElementById('settings-btn') as HTMLButtonElement,
   helpLink: document.getElementById('help-link') as HTMLAnchorElement,
@@ -109,8 +100,16 @@ const elements = {
 
   // Collapsible sections (hidden by default in CSS)
   summarizeSection: document.getElementById('summarize-section') as HTMLElement,
-  ocrSection: document.getElementById('ocr-section') as HTMLElement,
   exportSection: document.getElementById('export-section') as HTMLElement,
+
+  // Highlight section (T093-T095)
+  highlightsSection: document.getElementById('highlights-section') as HTMLElement,
+  highlightCount: document.getElementById('highlight-count') as HTMLSpanElement,
+  highlightSelection: document.getElementById('highlight-selection') as HTMLDivElement,
+  selectionPreview: document.getElementById('selection-preview') as HTMLSpanElement,
+  colorPicker: document.getElementById('color-picker') as HTMLDivElement,
+  createHighlightBtn: document.getElementById('create-highlight-btn') as HTMLButtonElement,
+  noSelectionMsg: document.getElementById('no-selection-msg') as HTMLParagraphElement,
 
   // Tab navigation
   tabPlayer: document.getElementById('tab-player') as HTMLButtonElement,
@@ -142,8 +141,10 @@ let exportPollingInterval: ReturnType<typeof setInterval> | null = null;
 // Summarize state
 let currentSummaryBullets: Array<{ text: string }> = [];
 
-// OCR state
-let currentOcrText = '';
+// Highlight state (T093-T095)
+type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
+let selectedHighlightColor: HighlightColor = 'yellow';
+let currentSelectionExact: string | null = null;
 
 // Queue state
 interface QueueItem {
@@ -171,10 +172,6 @@ let queueState: QueueState = {
   metadata: { count: 0, lastModified: 0 },
 };
 let isQueueSidebarOpen = false;
-
-// PDF state (T033: PDF reading support)
-let isPDFPage = false;
-let currentPDFUrl: string | null = null;
 
 // ============================================
 // UI Update Functions
@@ -309,8 +306,7 @@ function handleTabClick(event: Event): void {
  * This function hides sections that require API keys when those keys aren't configured.
  *
  * - Summarize section: shown if OpenAI or Anthropic API key is configured
- * - Export section: shown if a non-browser audio provider API key is configured
- * - OCR section: always shown (uses Tesseract.js locally)
+ * - Export section: shown if ElevenLabs API key is configured
  */
 async function updateSectionVisibility(): Promise<void> {
   try {
@@ -318,8 +314,6 @@ async function updateSectionVisibility(): Promise<void> {
       'openaiApiKey',
       'anthropicApiKey',
       'elevenlabsApiKey',
-      'groqApiKey',
-      'cartesiaApiKey',
       'provider',
     ]);
 
@@ -329,20 +323,10 @@ async function updateSectionVisibility(): Promise<void> {
       elements.summarizeSection.hidden = !hasAIKey;
     }
 
-    // Show Export section only if non-browser audio provider has API key configured
-    const hasAudioApiKey = !!(
-      result.elevenlabsApiKey ||
-      result.openaiApiKey ||
-      result.groqApiKey ||
-      result.cartesiaApiKey
-    );
+    // Show Export section only if ElevenLabs audio provider has API key configured
+    const hasAudioApiKey = !!result.elevenlabsApiKey;
     if (elements.exportSection) {
       elements.exportSection.hidden = !hasAudioApiKey;
-    }
-
-    // OCR section: always show (uses local Tesseract.js, no API key needed)
-    if (elements.ocrSection) {
-      elements.ocrSection.hidden = false;
     }
 
     console.log('[Popup] Section visibility updated:', {
@@ -350,7 +334,6 @@ async function updateSectionVisibility(): Promise<void> {
       hasAudioApiKey,
       summarize: hasAIKey,
       export: hasAudioApiKey,
-      ocr: true,
     });
   } catch (error) {
     console.error('[Popup] Failed to update section visibility:', error);
@@ -427,20 +410,14 @@ async function fetchSettings(): Promise<void> {
 
 /**
  * Handle play/pause button click
- * Supports both web page and PDF playback (T033: PDF reading support)
  */
 async function handlePlayPause(): Promise<void> {
-  // Immediate tracking to verify button click is received
   usageTracker.track('popup.play_button_clicked', {
     status: currentState.status,
-    isPDFPage,
-    hasPDFUrl: !!currentPDFUrl,
   });
 
   console.log('[Popup] handlePlayPause called, state:', {
     status: currentState.status,
-    isPDFPage,
-    currentPDFUrl,
   });
 
   try {
@@ -457,45 +434,11 @@ async function handlePlayPause(): Promise<void> {
       updatePlayPauseButton(true);
     } else {
       // Start fresh playback
-      trackClick('playback.play_clicked', { isPDF: isPDFPage });
-      // T033: Check if we're on a PDF page and use PDF-specific playback
-      if (isPDFPage && currentPDFUrl) {
-        console.log('[Popup] Starting PDF playback for:', currentPDFUrl);
-        usageTracker.track('popup.pdf_playback_starting', {
-          url: currentPDFUrl?.substring(0, 100),
-        });
-        updateStatus('loading');
-
-        try {
-          const response = await sendMessage<{ success: boolean; error?: string }>(
-            'startPDFPlayback',
-            {
-              url: currentPDFUrl,
-            },
-          );
-          console.log('[Popup] PDF playback response:', response);
-          usageTracker.track('popup.pdf_playback_response', {
-            success: response?.success,
-            error: response?.error,
-          });
-          if (!response?.success) {
-            console.error('[Popup] PDF playback failed:', response?.error);
-            usageTracker.track('popup.pdf_playback_failed', { error: response?.error });
-            updateStatus('stopped');
-          }
-        } catch (sendError) {
-          const errorMsg = sendError instanceof Error ? sendError.message : String(sendError);
-          usageTracker.track('popup.pdf_playback_send_error', { error: errorMsg });
-          console.error('[Popup] PDF sendMessage error:', sendError);
-          updateStatus('stopped');
-        }
-      } else {
-        // Standard web page playback
-        console.log('[Popup] Starting standard web page playback');
-        usageTracker.track('popup.web_playback_starting');
-        await sendMessage('startPlayback');
-        updateStatus('loading');
-      }
+      trackClick('playback.play_clicked');
+      console.log('[Popup] Starting web page playback');
+      usageTracker.track('popup.web_playback_starting');
+      await sendMessage('startPlayback');
+      updateStatus('loading');
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -698,7 +641,7 @@ async function handleSummarizeClick(): Promise<void> {
       text: contentResponse.text,
       title: contentResponse.title,
       url: contentResponse.url,
-      provider: 'openai', // Default to OpenAI for now
+      provider: 'elevenlabs', // Default to ElevenLabs for summarization TTS
       bulletCount: 5,
     });
 
@@ -740,96 +683,6 @@ async function handleReadSummaryClick(): Promise<void> {
  */
 function handleCloseSummaryClick(): void {
   hideSummaryDisplay();
-}
-
-// ============================================
-// OCR Functions
-// ============================================
-
-/**
- * Show OCR result display
- */
-function showOcrResult(text: string, confidence: number): void {
-  currentOcrText = text;
-  elements.ocrText.textContent = text;
-  elements.ocrConfidence.textContent = `${Math.round(confidence)}% confidence`;
-  elements.ocrBtn.hidden = true;
-  elements.ocrResult.hidden = false;
-}
-
-/**
- * Hide OCR result display
- */
-function hideOcrResult(): void {
-  elements.ocrBtn.hidden = false;
-  elements.ocrResult.hidden = true;
-  elements.ocrBtnText.textContent = 'Read Image';
-  elements.ocrBtn.disabled = false;
-  elements.ocrBtn.classList.remove('voxpage-popup__ocr-btn--loading');
-  currentOcrText = '';
-}
-
-/**
- * Handle OCR button click - capture screenshot and extract text
- */
-async function handleOcrClick(): Promise<void> {
-  try {
-    elements.ocrBtn.disabled = true;
-    elements.ocrBtn.classList.add('voxpage-popup__ocr-btn--loading');
-    elements.ocrBtnText.textContent = 'Capturing...';
-
-    // Request screenshot capture and OCR from background
-    const response = await sendMessage<{
-      success: boolean;
-      text: string;
-      confidence: number;
-      error?: string;
-    }>('ocr.captureAndRead', {
-      languages: ['eng'],
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || 'OCR failed');
-    }
-
-    if (!response.text || response.text.trim().length === 0) {
-      throw new Error('No text found in image');
-    }
-
-    showOcrResult(response.text, response.confidence);
-  } catch (error) {
-    console.error('[Popup] OCR error:', error);
-    elements.ocrBtnText.textContent = error instanceof Error ? error.message : 'OCR failed';
-    elements.ocrBtn.classList.remove('voxpage-popup__ocr-btn--loading');
-    setTimeout(() => {
-      elements.ocrBtnText.textContent = 'Read Image';
-      elements.ocrBtn.disabled = false;
-    }, 2000);
-  }
-}
-
-/**
- * Handle read OCR text button click
- */
-async function handleReadOcrClick(): Promise<void> {
-  if (!currentOcrText) return;
-
-  try {
-    await sendMessage('ocr.readExtractedText', {
-      text: currentOcrText,
-      provider: currentState.provider,
-      speed: currentState.speed,
-    });
-  } catch (error) {
-    console.error('[Popup] Read OCR error:', error);
-  }
-}
-
-/**
- * Handle close OCR result button click
- */
-function handleCloseOcrClick(): void {
-  hideOcrResult();
 }
 
 // ============================================
@@ -1388,68 +1241,6 @@ async function fetchCostEstimate(): Promise<void> {
 }
 
 // ============================================
-// PDF Detection (T033: PDF reading support)
-// ============================================
-
-/**
- * Detect if the current tab is viewing a PDF file.
- * Sets isPDFPage and currentPDFUrl state variables.
- * Updates status text to indicate PDF is ready.
- */
-async function detectPDF(): Promise<void> {
-  try {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    console.log('[Popup] detectPDF - Tab info:', {
-      hasTab: !!tab,
-      url: tab?.url?.substring(0, 100),
-      title: tab?.title,
-    });
-
-    if (!tab?.url) {
-      isPDFPage = false;
-      currentPDFUrl = null;
-      console.log('[Popup] detectPDF - No tab URL');
-      return;
-    }
-
-    const url = tab.url.toLowerCase();
-
-    // Check if URL ends with .pdf or contains pdf viewer patterns
-    const isPDF =
-      url.endsWith('.pdf') ||
-      url.includes('.pdf?') ||
-      url.includes('.pdf#') ||
-      // Firefox's built-in PDF viewer
-      (url.includes('pdf') && url.includes('viewer')) ||
-      // Chrome's PDF viewer (pdfjs)
-      url.includes('pdfviewer') ||
-      // Direct blob PDFs
-      (url.startsWith('blob:') && tab.title?.toLowerCase().includes('.pdf'));
-
-    console.log('[Popup] detectPDF - Check result:', {
-      isPDF,
-      endsWithPdf: url.endsWith('.pdf'),
-      includesPdfViewer: url.includes('pdf') && url.includes('viewer'),
-    });
-
-    if (isPDF) {
-      isPDFPage = true;
-      currentPDFUrl = tab.url; // Use original URL, not lowercased
-      elements.statusText.textContent = 'PDF Ready';
-      console.log('[Popup] PDF detected:', currentPDFUrl);
-      usageTracker.track('popup.pdf_detected', { url: currentPDFUrl?.substring(0, 100) });
-    } else {
-      isPDFPage = false;
-      currentPDFUrl = null;
-    }
-  } catch (error) {
-    console.error('[Popup] PDF detection error:', error);
-    isPDFPage = false;
-    currentPDFUrl = null;
-  }
-}
-
-// ============================================
 // Message Listener (State Updates from Background)
 // ============================================
 
@@ -1498,11 +1289,6 @@ function setupEventListeners(): void {
   elements.readSummaryBtn.addEventListener('click', handleReadSummaryClick);
   elements.closeSummaryBtn.addEventListener('click', handleCloseSummaryClick);
 
-  // OCR controls
-  elements.ocrBtn.addEventListener('click', handleOcrClick);
-  elements.readOcrBtn.addEventListener('click', handleReadOcrClick);
-  elements.closeOcrBtn.addEventListener('click', handleCloseOcrClick);
-
   // Export controls
   elements.exportBtn.addEventListener('click', handleExportClick);
   elements.exportCancelBtn.addEventListener('click', handleExportCancel);
@@ -1517,6 +1303,9 @@ function setupEventListeners(): void {
   elements.tabPlayer.addEventListener('click', handleTabClick);
   elements.tabTools.addEventListener('click', handleTabClick);
   elements.tabQueue.addEventListener('click', handleTabClick);
+
+  // Highlight controls (T093-T095)
+  setupHighlightListeners();
 }
 
 /**
@@ -1606,6 +1395,174 @@ function trackClick(eventType: string, data?: Record<string, unknown>): void {
   usageTracker.track(eventType, data);
 }
 
+// ============================================
+// Highlights (T093-T095)
+// ============================================
+
+/**
+ * Setup highlight event listeners.
+ */
+function setupHighlightListeners(): void {
+  // Color picker buttons
+  if (elements.colorPicker) {
+    elements.colorPicker.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-color]');
+      if (btn) {
+        const color = btn.getAttribute('data-color') as HighlightColor;
+        selectHighlightColor(color);
+      }
+    });
+  }
+
+  // Create highlight button
+  if (elements.createHighlightBtn) {
+    elements.createHighlightBtn.addEventListener('click', handleCreateHighlight);
+  }
+}
+
+/**
+ * Initialize highlight section - fetch count and check for selection.
+ */
+async function initHighlights(): Promise<void> {
+  // Fetch highlight count for current page
+  await fetchHighlightCount();
+
+  // Check if there's a current selection in the content script
+  await checkForSelection();
+}
+
+/**
+ * Fetch highlight count for current page.
+ */
+async function fetchHighlightCount(): Promise<void> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.url) return;
+
+    const response = (await browser.runtime.sendMessage({
+      type: 'highlight.list',
+      url: tab.url,
+    })) as { success: boolean; highlights: unknown[] };
+
+    if (response.success && elements.highlightCount) {
+      elements.highlightCount.textContent = String(response.highlights.length);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to fetch highlight count:', error);
+  }
+}
+
+/**
+ * Check if content script has active text selection.
+ */
+async function checkForSelection(): Promise<void> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) return;
+
+    const response = (await browser.tabs.sendMessage(tab.id, {
+      action: 'highlight.getSelection',
+    })) as { success: boolean; selector: { exact: string } | null };
+
+    if (response.success && response.selector) {
+      showSelectionUI(response.selector.exact);
+    } else {
+      hideSelectionUI();
+    }
+  } catch (error) {
+    // Content script may not be injected - ignore
+    hideSelectionUI();
+  }
+}
+
+/**
+ * Show the selection UI with preview text.
+ */
+function showSelectionUI(exactText: string): void {
+  currentSelectionExact = exactText;
+
+  if (elements.highlightSelection) {
+    elements.highlightSelection.hidden = false;
+  }
+  if (elements.noSelectionMsg) {
+    elements.noSelectionMsg.hidden = true;
+  }
+  if (elements.selectionPreview) {
+    // Truncate preview to 50 chars
+    const preview = exactText.length > 50 ? exactText.slice(0, 50) + '...' : exactText;
+    elements.selectionPreview.textContent = preview;
+  }
+}
+
+/**
+ * Hide the selection UI.
+ */
+function hideSelectionUI(): void {
+  currentSelectionExact = null;
+
+  if (elements.highlightSelection) {
+    elements.highlightSelection.hidden = true;
+  }
+  if (elements.noSelectionMsg) {
+    elements.noSelectionMsg.hidden = false;
+  }
+}
+
+/**
+ * Select a highlight color.
+ */
+function selectHighlightColor(color: HighlightColor): void {
+  selectedHighlightColor = color;
+
+  // Update UI to show selected color
+  if (elements.colorPicker) {
+    const buttons = elements.colorPicker.querySelectorAll('[data-color]');
+    buttons.forEach((btn) => {
+      const isSelected = btn.getAttribute('data-color') === color;
+      btn.classList.toggle('active', isSelected);
+      btn.setAttribute('aria-pressed', String(isSelected));
+    });
+  }
+}
+
+/**
+ * Handle create highlight button click.
+ */
+async function handleCreateHighlight(): Promise<void> {
+  if (!currentSelectionExact) {
+    console.warn('[Popup] No selection to highlight');
+    return;
+  }
+
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (!tab?.id) return;
+
+    // Tell content script to create the highlight
+    const response = (await browser.tabs.sendMessage(tab.id, {
+      action: 'highlight.create',
+      color: selectedHighlightColor,
+    })) as { success: boolean; id?: string; error?: string };
+
+    if (response.success) {
+      console.log('[Popup] Highlight created:', response.id);
+      // Update highlight count
+      await fetchHighlightCount();
+      // Hide selection UI
+      hideSelectionUI();
+      // Track event
+      trackClick('highlight.created', { color: selectedHighlightColor });
+    } else {
+      console.error('[Popup] Failed to create highlight:', response.error);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to create highlight:', error);
+  }
+}
+
 /**
  * Main initialization
  */
@@ -1632,12 +1589,14 @@ async function init(): Promise<void> {
   // Update section visibility based on configured API keys
   await updateSectionVisibility();
 
-  // T033: Detect if current tab is a PDF
-  await detectPDF();
-
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {
     console.error('[Popup] Cost estimate fetch failed:', err);
+  });
+
+  // Initialize highlights (T093-T095)
+  initHighlights().catch((err) => {
+    console.error('[Popup] Highlights init failed:', err);
   });
 
   console.log('[Popup] Initialized');

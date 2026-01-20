@@ -339,6 +339,16 @@
   --footer-pill-width: 160px;
   --footer-max-width: 600px;
   --footer-z-index: 2147483647;
+
+  /* Footer control tokens (047-architecture-ui-polish) */
+  --footer-button-size: 40px;
+  --footer-button-size-sm: 32px;
+  --footer-button-size-lg: 48px;
+  --footer-progress-height: 6px;
+  --footer-control-gap: 12px;
+  --footer-title-max-width: 200px;
+  --footer-border-radius: 12px;
+  --footer-border-radius-minimized: 24px;
 }
 
 /* ========================================

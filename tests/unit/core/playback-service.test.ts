@@ -115,7 +115,7 @@ describe('PlaybackService', () => {
       const cacheKey = {
         urlHash: expect.any(String),
         paragraphIndex: 0,
-        provider: 'browser',
+        provider: 'elevenlabs',
         voice: 'default',
         contentHash: expect.any(String),
       };
@@ -126,7 +126,7 @@ describe('PlaybackService', () => {
           key: {
             urlHash: 'test',
             paragraphIndex: 0,
-            provider: 'browser',
+            provider: 'elevenlabs',
             voice: 'default',
             contentHash: 'test',
           },
@@ -367,9 +367,9 @@ describe('PlaybackService', () => {
 
   describe('setProvider()', () => {
     it('should update provider in state', async () => {
-      await service.setProvider('openai');
+      await service.setProvider('elevenlabs');
 
-      expect(service.getState().provider).toBe('openai');
+      expect(service.getState().provider).toBe('elevenlabs');
     });
   });
 
@@ -400,13 +400,13 @@ describe('PlaybackService', () => {
       service.subscribeToSettings();
 
       mockSettingsStore.setSettings({
-        provider: 'openai',
+        provider: 'elevenlabs',
         speed: 1.5,
         voice: 'echo',
       });
 
       const state = service.getState();
-      expect(state.provider).toBe('openai');
+      expect(state.provider).toBe('elevenlabs');
       expect(state.speed).toBe(1.5);
       expect(state.voice).toBe('echo');
     });
