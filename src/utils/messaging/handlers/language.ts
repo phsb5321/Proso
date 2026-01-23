@@ -5,6 +5,7 @@
 /**
  * Language Message Handlers
  * Handles language detection and override messages
+ * 048-multilingual-tts-pillar: Implemented handlers with delegation to detector.ts
  *
  * @module utils/messaging/handlers/language
  */
@@ -20,56 +21,76 @@ import {
   languageGetStateParamsSchema,
   languageSetOverrideParamsSchema,
 } from '../schemas';
+import {
+  detectLanguage,
+  getLanguageState,
+  setLanguageOverride,
+  clearLanguageOverride,
+  storeDetectedLanguage,
+} from '../../language/detector';
+import type { HandlerRegistry } from '../../../handlers/registry';
 
 /**
  * Detect language handler
+ * Delegates to detectLanguage() from detector.ts
  */
 export async function handleLanguageDetect(
   params: LanguageDetectParams,
 ): Promise<VoxPageProtocol['language.detect']['response']> {
   const validated = languageDetectParamsSchema.parse(params);
 
-  // TODO Phase 4: Delegate to detectLanguage()
+  const detected = await detectLanguage({
+    metadata: validated.metadata ?? null,
+    textSample: validated.textSample ?? '',
+    url: validated.url,
+  });
+
+  // Store the detected language for future reference
+  await storeDetectedLanguage(detected);
 
   return {
-    code: 'en',
-    confidence: 0.95,
-    source: 'metadata',
-    isReliable: true,
+    code: detected.primaryCode,
+    confidence: detected.confidence,
+    source: detected.source,
+    isReliable: detected.isReliable,
   };
 }
 
 /**
  * Get language state handler
+ * Delegates to getLanguageState() from detector.ts
  */
 export async function handleLanguageGetState(
   params: LanguageGetStateParams,
 ): Promise<VoxPageProtocol['language.getState']['response']> {
   const validated = languageGetStateParamsSchema.parse(params);
 
-  // TODO Phase 4: Delegate to getLanguageState()
+  const state = await getLanguageState(validated.tabId);
 
   return {
-    detected: {
-      code: 'en',
-      confidence: 0.95,
-      source: 'metadata',
-    },
-    override: null,
-    effective: 'en',
-    autoDetect: true,
+    detected: state.detected
+      ? {
+          code: state.detected.primaryCode,
+          confidence: state.detected.confidence,
+          source: state.detected.source,
+        }
+      : null,
+    override: state.override,
+    effective: state.effective,
+    autoDetect: state.autoDetect,
   };
 }
 
 /**
  * Set language override handler
+ * Delegates to setLanguageOverride() from detector.ts
  */
 export async function handleLanguageSetOverride(
   params: LanguageSetOverrideParams,
 ): Promise<VoxPageProtocol['language.setOverride']['response']> {
   const validated = languageSetOverrideParamsSchema.parse(params);
 
-  // TODO Phase 4: Delegate to setLanguageOverride()
+  await setLanguageOverride(validated.languageCode);
 
   return {
     success: true,
@@ -79,13 +100,46 @@ export async function handleLanguageSetOverride(
 
 /**
  * Clear language override handler
+ * Delegates to clearLanguageOverride() from detector.ts
  */
 export async function handleLanguageClearOverride(): Promise<
   VoxPageProtocol['language.clearOverride']['response']
 > {
-  // TODO Phase 4: Delegate to clearLanguageOverride()
+  await clearLanguageOverride();
 
   return {
     success: true,
   };
+}
+
+/**
+ * Register all language handlers on the given registry
+ * 048-multilingual-tts-pillar: Handler registration function
+ */
+export function registerLanguageHandlers(registry: HandlerRegistry): void {
+  registry.register(
+    'language.detect',
+    handleLanguageDetect,
+    'Detect page language from metadata and text content',
+  );
+
+  registry.register(
+    'language.getState',
+    handleLanguageGetState,
+    'Get current language state for a tab',
+  );
+
+  registry.register(
+    'language.setOverride',
+    handleLanguageSetOverride,
+    'Set manual language override',
+  );
+
+  registry.register(
+    'language.clearOverride',
+    handleLanguageClearOverride,
+    'Clear language override and return to auto-detect',
+  );
+
+  console.log('VoxPage: Language handlers registered');
 }

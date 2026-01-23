@@ -6,60 +6,81 @@ import { defineConfig } from "wxt";
  * Chrome MV3-first architecture with Firefox compatibility:
  * - Service worker background (MV3) with Firefox event page fallback
  * - Article extraction via Mozilla Readability
- * - ElevenLabs HTTP streaming TTS API
+ * - Groq TTS API (primary, affordable with PlayAI voices)
+ * - ElevenLabs TTS API (high-quality multilingual)
  * - Word-level text highlighting via CSS Custom Highlight API
  */
 export default defineConfig({
   srcDir: "src",
-  manifest: {
-    name: "VoxPage",
-    description: "Text-to-speech for web pages with word-level highlighting",
-    version: "1.0.0",
-    permissions: [
-      "storage",
-      "unlimitedStorage", // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
-      "activeTab",
-      "tabs", // Tab management and URL tracking
-      "contextMenus", // Right-click menu integration
-      "scripting", // For programmatic content script injection
-    ],
-    host_permissions: [
-      "https://api.elevenlabs.io/*", // ElevenLabs TTS API
-      "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
-    ],
-    content_security_policy: {
-      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-    },
-    icons: {
-      16: "icons/icon-16.png",
-      32: "icons/icon-32.png",
-      48: "icons/icon-48.png",
-      96: "icons/icon-96.png",
-      128: "icons/icon-128.png",
-    },
-    // T132-T141: Popup UI - toolbar action with popup
-    action: {
-      default_popup: "popup/index.html",
-      default_title: "VoxPage - Text to Speech",
-      default_icon: {
+  manifest: (env) => {
+    // In dev mode, we need to allow loading CSS from localhost for Vite HMR
+    const isDev = env.mode === 'development';
+    const csp = isDev
+      ? "script-src 'self' 'wasm-unsafe-eval' http://localhost:*; style-src 'self' 'unsafe-inline' http://localhost:*; object-src 'self';"
+      : "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self';";
+
+    return {
+      name: "VoxPage",
+      description: "Text-to-speech for web pages with word-level highlighting",
+      version: "1.0.0",
+      permissions: [
+        "storage",
+        "unlimitedStorage", // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
+        "activeTab",
+        "tabs", // Tab management and URL tracking
+        "contextMenus", // Right-click menu integration
+        "scripting", // For programmatic content script injection
+      ],
+      host_permissions: [
+        "https://api.groq.com/*", // Groq TTS API (primary)
+        "https://api.elevenlabs.io/*", // ElevenLabs TTS API
+        "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
+      ],
+      content_security_policy: {
+        extension_pages: csp,
+      },
+      icons: {
         16: "icons/icon-16.png",
         32: "icons/icon-32.png",
+        48: "icons/icon-48.png",
+        96: "icons/icon-96.png",
+        128: "icons/icon-128.png",
       },
-    },
-    browser_specific_settings: {
-      gecko: {
-        id: "voxpage@example.com",
-        strict_min_version: "109.0", // Firefox 109+ for better extension APIs
+      // T132-T141: Popup UI - toolbar action with popup
+      action: {
+        default_popup: "popup/index.html",
+        default_title: "VoxPage - Text to Speech",
+        default_icon: {
+          16: "icons/icon-16.png",
+          32: "icons/icon-32.png",
+        },
       },
-    },
-    // NOTE: We intentionally DO NOT use options_ui here.
-    // Firefox embeds options_ui pages inside about:addons which looks ugly.
-    // Instead, we open our options page in a dedicated browser tab via
-    // browser.tabs.create() - see popup and background handlers.
+      browser_specific_settings: {
+        gecko: {
+          id: "voxpage@example.com",
+          strict_min_version: "109.0", // Firefox 109+ for better extension APIs
+        },
+      },
+      // NOTE: We intentionally DO NOT use options_ui here.
+      // Firefox embeds options_ui pages inside about:addons which looks ugly.
+      // Instead, we open our options page in a dedicated browser tab via
+      // browser.tabs.create() - see popup and background handlers.
+    };
   },
 
   // Firefox-only build
   browser: "firefox",
+
+  // NixOS: Firefox binary path (not in standard PATH)
+  // Use dedicated dev profile to enable keepProfileChanges
+  webExt: {
+    binaries: {
+      firefox: "/run/current-system/sw/bin/firefox-nightly",
+    },
+    startUrls: ["about:debugging#/runtime/this-firefox"],
+    firefoxProfile: "/home/notroot/.mozilla/firefox/voxpage-dev",
+    keepProfileChanges: true,
+  },
 
   // Development server
   dev: {

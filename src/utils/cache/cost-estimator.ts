@@ -18,38 +18,66 @@ import { generateCacheKey, generateContentHash } from './cache-key';
 /**
  * Provider pricing configuration (per 1000 characters)
  * Prices in USD as of 2025
+ * 050-groq-tts-provider (T045): Added Groq pricing
  */
 export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: string }> = {
+  groq: {
+    pricePerKiloChar: 0.05, // $0.05 per 1K chars ($50/1M) - PlayAI model default
+    name: 'Groq',
+  },
+  'groq-orpheus': {
+    pricePerKiloChar: 0.022, // $0.022 per 1K chars ($22/1M) - Orpheus model
+    name: 'Groq Orpheus',
+  },
   elevenlabs: {
     pricePerKiloChar: 0.18, // $0.18 per 1K chars (depends on tier)
     name: 'ElevenLabs',
+  },
+  browser: {
+    pricePerKiloChar: 0, // Free - uses system voices
+    name: 'Browser TTS',
   },
 };
 
 /**
  * Get pricing for a provider
+ * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
+ *
+ * @param provider - Provider ID (e.g., 'groq', 'elevenlabs', 'browser')
+ * @param model - Optional model ID for model-specific pricing (e.g., 'distil-whisper-large-v3-en' for Orpheus)
  */
-export function getProviderPricing(provider: string): { pricePerKiloChar: number; name: string } {
+export function getProviderPricing(
+  provider: string,
+  model?: string,
+): { pricePerKiloChar: number; name: string } {
+  // 050-groq-tts-provider (T046): Use model-specific pricing for Groq
+  if (provider === 'groq' && model === 'distil-whisper-large-v3-en') {
+    return PROVIDER_PRICING['groq-orpheus'];
+  }
   return PROVIDER_PRICING[provider] || PROVIDER_PRICING['elevenlabs'];
 }
 
 /**
  * Calculate cost for text based on character count
+ * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
-export function calculateTextCost(text: string, provider: string): number {
-  const pricing = getProviderPricing(provider);
+export function calculateTextCost(text: string, provider: string, model?: string): number {
+  const pricing = getProviderPricing(provider, model);
   const charCount = text.length;
   return (charCount / 1000) * pricing.pricePerKiloChar;
 }
 
 /**
  * Cost estimation options
+ * 050-groq-tts-provider (T046): Added model for Groq model-specific pricing
  */
 export interface CostEstimateOptions {
   url: string;
   paragraphs: string[];
   provider: string;
   voice: string;
+  /** Optional model ID for model-specific pricing (e.g., Groq Orpheus) */
+  model?: string;
   startParagraph?: number;
   endParagraph?: number;
 }
@@ -61,11 +89,12 @@ export interface CostEstimateOptions {
  * @returns Cost estimate with per-paragraph breakdown
  */
 export async function estimateCost(options: CostEstimateOptions): Promise<CostEstimate> {
-  const { url, paragraphs, provider, voice, startParagraph = 0, endParagraph } = options;
+  const { url, paragraphs, provider, voice, model, startParagraph = 0, endParagraph } = options;
 
   const end = endParagraph ?? paragraphs.length;
   const selectedParagraphs = paragraphs.slice(startParagraph, end);
-  const pricing = getProviderPricing(provider);
+  // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
+  const pricing = getProviderPricing(provider, model);
   const store = getCacheStore();
 
   const paragraphCosts: ParagraphCost[] = [];
@@ -152,12 +181,14 @@ export function formatSavings(savings: number, percentage: number): string {
 
 /**
  * Get paragraph cache status for a URL
+ * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export async function getParagraphCacheStatus(
   url: string,
   paragraphs: string[],
   provider: string,
   voice: string,
+  model?: string,
 ): Promise<{
   paragraphs: Array<{ index: number; isCached: boolean; estimatedCost: number }>;
   totalCachedCount: number;
@@ -165,7 +196,7 @@ export async function getParagraphCacheStatus(
   totalSavings: number;
 }> {
   const store = getCacheStore();
-  const pricing = getProviderPricing(provider);
+  const pricing = getProviderPricing(provider, model);
 
   const paragraphStatus: Array<{ index: number; isCached: boolean; estimatedCost: number }> = [];
   let totalCachedCount = 0;
@@ -227,13 +258,15 @@ export function createCumulativeSavings(): CumulativeSavings {
 
 /**
  * Update cumulative savings after a cache hit
+ * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export function recordCacheHit(
   savings: CumulativeSavings,
   provider: string,
   characters: number,
+  model?: string,
 ): CumulativeSavings {
-  const pricing = getProviderPricing(provider);
+  const pricing = getProviderPricing(provider, model);
   const savedAmount = (characters / 1000) * pricing.pricePerKiloChar;
 
   const providerStats = savings.byProvider[provider] || { hits: 0, savings: 0 };

@@ -471,6 +471,42 @@ function getStyles(): string {
     .footer.minimized .controls { justify-content: center; flex: 1; }
     .actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .paragraph-indicator { font-size: 11px; color: var(--footer-text-muted); white-space: nowrap; }
+    /* Language badge styles (048-multilingual-tts-pillar: T048, T049) */
+    .language-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: background-color 200ms ease-out;
+    }
+    .language-badge[hidden] { display: none; }
+    .language-badge--high { background: var(--footer-accent); color: white; }
+    .language-badge--low { background: #fbbf24; color: #1a1a2e; }
+    .language-badge--override { background: #6366f1; color: white; }
+    .language-badge--override::before { content: "✏"; font-size: 8px; margin-right: 2px; }
+    .footer.minimized .language-badge { display: none; }
+    /* Provider indicator styles (049-tts-provider-consolidation: T028a) */
+    .provider-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--footer-text-muted);
+    }
+    .provider-indicator[hidden] { display: none; }
+    .provider-indicator--groq { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+    .provider-indicator--elevenlabs { background: rgba(13, 148, 136, 0.2); color: var(--footer-accent); }
+    .provider-indicator--browser { background: rgba(148, 163, 184, 0.2); color: var(--footer-text-muted); }
+    .footer.minimized .provider-indicator { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .live-region { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .loading .btn-play-pause svg { animation: pulse 1s ease-in-out infinite; }
@@ -562,6 +598,29 @@ export class StickyFooter {
   private _playPauseBtn: HTMLButtonElement | null = null;
   private _speedBtn: HTMLButtonElement | null = null; // T046: Store speed button for updates
   private _speedDropdown: HTMLDivElement | null = null;
+  private _languageBadge: HTMLSpanElement | null = null; // T048: Language indicator
+  private _providerIndicator: HTMLSpanElement | null = null; // T028a: Provider indicator
+
+  // Provider state (049-tts-provider-consolidation: T028a)
+  // 050-groq-tts-provider: Added 'groq' option
+  private _providerState: {
+    id: 'groq' | 'elevenlabs' | 'browser';
+    name: string;
+  } = {
+    id: 'browser',
+    name: 'Browser',
+  };
+
+  // Language state (048-multilingual-tts-pillar: T048)
+  private _languageState: {
+    code: string | null;
+    confidence: number;
+    isOverride: boolean;
+  } = {
+    code: null,
+    confidence: 1.0,
+    isOverride: false,
+  };
 
   // Bound event handlers
   private readonly _onDragStart: (e: MouseEvent | TouchEvent) => void;
@@ -734,6 +793,40 @@ export class StickyFooter {
     }
     this._paragraphIndicator = indicator;
     footer.appendChild(indicator);
+
+    // Provider indicator (049-tts-provider-consolidation: T028a)
+    const providerIndicator = document.createElement("span");
+    providerIndicator.className = `provider-indicator provider-indicator--${this._providerState.id}`;
+    providerIndicator.setAttribute("aria-label", "Current TTS provider");
+    // Show language code + provider name (e.g., "EN • ElevenLabs")
+    const langCode = this._languageState.code ? this._languageState.code.toUpperCase() : 'EN';
+    providerIndicator.textContent = `${langCode} • ${this._providerState.name}`;
+    providerIndicator.title = `Provider: ${this._providerState.name}`;
+    this._providerIndicator = providerIndicator;
+    footer.appendChild(providerIndicator);
+
+    // Language badge (048-multilingual-tts-pillar: T048) - kept for backward compatibility
+    const languageBadge = document.createElement("span");
+    languageBadge.className = "language-badge";
+    languageBadge.setAttribute("aria-label", "Detected language");
+    // Hide language badge when provider indicator is shown (it now contains language info)
+    languageBadge.hidden = true;
+    if (this._languageState.code) {
+      languageBadge.textContent = this._languageState.code.toUpperCase();
+      // Add confidence state class
+      if (this._languageState.isOverride) {
+        languageBadge.classList.add("language-badge--override");
+        languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (manual)`;
+      } else if (this._languageState.confidence < 0.9) {
+        languageBadge.classList.add("language-badge--low");
+        languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (${Math.round(this._languageState.confidence * 100)}% confidence)`;
+      } else {
+        languageBadge.classList.add("language-badge--high");
+        languageBadge.title = `Language: ${this._languageState.code.toUpperCase()}`;
+      }
+    }
+    this._languageBadge = languageBadge;
+    footer.appendChild(languageBadge);
 
     // Actions
     const actions = document.createElement("div");
@@ -908,6 +1001,94 @@ export class StickyFooter {
    */
   isFooterVisible(): boolean {
     return this.isVisible;
+  }
+
+  /**
+   * Update language state and badge (048-multilingual-tts-pillar: T048)
+   */
+  updateLanguage(language: {
+    code: string | null;
+    confidence?: number;
+    isOverride?: boolean;
+  }): void {
+    this._languageState = {
+      code: language.code,
+      confidence: language.confidence ?? 1.0,
+      isOverride: language.isOverride ?? false,
+    };
+
+    // Update provider indicator with new language code (T028a)
+    this._updateProviderIndicator();
+
+    // Update badge if visible (kept for backward compatibility)
+    if (this._languageBadge && this.shadowRoot) {
+      // Remove old state classes
+      this._languageBadge.classList.remove(
+        "language-badge--high",
+        "language-badge--low",
+        "language-badge--override",
+      );
+
+      if (this._languageState.code) {
+        this._languageBadge.textContent = this._languageState.code.toUpperCase();
+        // Keep hidden - provider indicator now shows this info
+
+        if (this._languageState.isOverride) {
+          this._languageBadge.classList.add("language-badge--override");
+          this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (manual)`;
+        } else if (this._languageState.confidence < 0.9) {
+          this._languageBadge.classList.add("language-badge--low");
+          this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (${Math.round(this._languageState.confidence * 100)}% confidence)`;
+        } else {
+          this._languageBadge.classList.add("language-badge--high");
+          this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()}`;
+        }
+      }
+    }
+  }
+
+  /**
+   * Update provider state and indicator (049-tts-provider-consolidation: T028a)
+   * Shows which TTS provider is currently being used
+   * 050-groq-tts-provider: Added 'groq' provider support
+   */
+  updateProvider(provider: {
+    id: 'groq' | 'elevenlabs' | 'browser';
+    name?: string;
+  }): void {
+    const providerNames: Record<string, string> = {
+      groq: 'Groq',
+      elevenlabs: 'ElevenLabs',
+      browser: 'Browser',
+    };
+
+    this._providerState = {
+      id: provider.id,
+      name: provider.name ?? providerNames[provider.id] ?? provider.id,
+    };
+
+    this._updateProviderIndicator();
+  }
+
+  /**
+   * Update the provider indicator element (049-tts-provider-consolidation: T028a)
+   * 050-groq-tts-provider: Added 'groq' provider class
+   */
+  private _updateProviderIndicator(): void {
+    if (!this._providerIndicator || !this.shadowRoot) return;
+
+    // Update class for styling
+    this._providerIndicator.classList.remove(
+      "provider-indicator--groq",
+      "provider-indicator--elevenlabs",
+      "provider-indicator--browser",
+    );
+    this._providerIndicator.classList.add(`provider-indicator--${this._providerState.id}`);
+
+    // Update text: "LANG • Provider"
+    const langCode = this._languageState.code ? this._languageState.code.toUpperCase() : 'EN';
+    this._providerIndicator.textContent = `${langCode} • ${this._providerState.name}`;
+    this._providerIndicator.title = `Provider: ${this._providerState.name}`;
   }
 
   // ==========================================================================

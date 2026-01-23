@@ -613,12 +613,13 @@ export default defineContentScript({
 
     /**
      * Send language detection request to background
+     * 048-multilingual-tts-pillar: Unified message format
      */
     function sendLanguageDetectionRequest(): void {
       const langData = extractPageLanguage();
       browser.runtime
         .sendMessage({
-          action: 'languageDetected',
+          type: 'language.detect',
           metadata: langData.metadata,
           textSample: langData.textSample,
           url: langData.url,

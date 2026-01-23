@@ -8,8 +8,14 @@
  * Generates unique cache keys from URL, paragraph, provider, voice, and content hash.
  * Uses Web Crypto API for SHA-256 hashing.
  *
+ * 049-tts-provider-consolidation:
+ * - T033: Cache key includes provider for isolation (verified)
+ * - T035: parseCacheKey validates provider against allowed list
+ *
  * @module utils/cache/cache-key
  */
+
+import { PROVIDERS } from '../config/schema';
 
 /**
  * Cache key format: normalizedUrl:paragraphIndex:provider:voice:contentHash
@@ -129,7 +135,18 @@ export async function generateCacheKeyFromText(
 }
 
 /**
+ * Valid providers for cache key validation (049-tts-provider-consolidation: T035)
+ * Includes 'openai' for backward compatibility with legacy cache entries
+ */
+const VALID_CACHE_PROVIDERS = [...PROVIDERS, 'openai'] as const;
+
+/**
  * Parse cache key back into components
+ *
+ * 049-tts-provider-consolidation (T035):
+ * - Validates provider against allowed list
+ * - Accepts 'openai' for backward compatibility (legacy entries)
+ * - New entries should only use 'elevenlabs' or 'browser'
  *
  * @param key - Cache key string
  * @returns Parsed components or null if invalid
@@ -140,6 +157,7 @@ export function parseCacheKey(key: string): {
   provider: string;
   voice: string;
   contentHash: string;
+  isLegacyProvider: boolean;
 } | null {
   const parts = key.split(':');
 
@@ -153,12 +171,19 @@ export function parseCacheKey(key: string): {
   if (isNaN(paragraphIndex) || paragraphIndex < 0) return null;
   if (!url || !provider || !voice) return null;
 
+  // Validate provider against allowed list (T035)
+  if (!VALID_CACHE_PROVIDERS.includes(provider as typeof VALID_CACHE_PROVIDERS[number])) {
+    return null;
+  }
+
   return {
     url,
     paragraphIndex,
     provider,
     voice,
     contentHash: hashParts.join(':'),
+    // Flag legacy entries for potential migration/cleanup
+    isLegacyProvider: provider === 'openai',
   };
 }
 
@@ -202,4 +227,43 @@ export function isSameContent(key1: string, key2: string): boolean {
  */
 export function getUrlPattern(url: string): string {
   return `${normalizeUrl(url)}:`;
+}
+
+/**
+ * Check if a cache key belongs to a legacy (removed) provider
+ * Used for cache migration/cleanup (049-tts-provider-consolidation: T034)
+ *
+ * @param key - Cache key string
+ * @returns True if the key is for a legacy provider (e.g., 'openai')
+ */
+export function isLegacyProviderKey(key: string): boolean {
+  const parsed = parseCacheKey(key);
+  return parsed !== null && parsed.isLegacyProvider;
+}
+
+/**
+ * Filter cache keys to only include valid (non-legacy) providers
+ * Used during cache migration to identify entries to remove
+ * (049-tts-provider-consolidation: T034)
+ *
+ * @param keys - Array of cache key strings
+ * @returns Object with valid and legacy key arrays
+ */
+export function filterCacheKeysByProvider(keys: string[]): {
+  valid: string[];
+  legacy: string[];
+} {
+  const valid: string[] = [];
+  const legacy: string[] = [];
+
+  for (const key of keys) {
+    if (isLegacyProviderKey(key)) {
+      legacy.push(key);
+    } else if (parseCacheKey(key) !== null) {
+      valid.push(key);
+    }
+    // Invalid keys are silently ignored
+  }
+
+  return { valid, legacy };
 }

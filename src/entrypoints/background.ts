@@ -98,6 +98,13 @@ const LEGACY_TO_HEXAGONAL_MAP: Record<string, string> = {
   'cache.clear': 'cache.clear',
   'cache.check': 'cache.check',
   'cache.get': 'cache.get',
+
+  // 048-multilingual-tts-pillar: Language handlers
+  languageDetected: 'language.detect',
+  'language.detect': 'language.detect',
+  'language.getState': 'language.getState',
+  'language.setOverride': 'language.setOverride',
+  'language.clearOverride': 'language.clearOverride',
   'cache.evict': 'cache.evict',
   'prefetch.start': 'prefetch.start',
   'prefetch.stop': 'prefetch.stop',
@@ -668,10 +675,52 @@ interface ElevenLabsAudioResult {
 
 /**
  * T046: Get resolved voice ID for cache key consistency
- * Returns playbackState.voice if set, otherwise the ElevenLabs provider's default voice ID
+ * T057: Check language-specific voice preferences (US5)
+ * Priority:
+ * 1. Language-specific voice preference (if set for current language)
+ * 2. playbackState.voice (user's global voice selection)
+ * 3. Provider's default voice
  * This ensures cache keys match between audio generation and cache lookup/storage
  */
 async function getResolvedVoiceId(): Promise<string> {
+  // T057: Check for language-specific voice preference
+  try {
+    const result = await browser.storage.local.get(['languagePreference', 'detectedLanguage']);
+
+    const langPref = result.languagePreference as
+      | {
+          currentOverride?: string | null;
+          voicePreferences?: Record<string, string>;
+        }
+      | undefined;
+
+    const detected = result.detectedLanguage as
+      | {
+          primaryCode?: string;
+        }
+      | undefined;
+
+    // Determine effective language
+    const effectiveLanguage = langPref?.currentOverride || detected?.primaryCode || 'en';
+
+    // Check for language-specific voice preference
+    const voicePreferences = langPref?.voicePreferences || {};
+    const languageVoice = voicePreferences[effectiveLanguage];
+
+    if (languageVoice) {
+      console.log(
+        '[Background] Using language-specific voice for',
+        effectiveLanguage,
+        ':',
+        languageVoice,
+      );
+      return languageVoice;
+    }
+  } catch (error) {
+    console.warn('[Background] Error checking voice preferences:', error);
+  }
+
+  // Fall back to global voice setting
   if (playbackState.voice) {
     return playbackState.voice;
   }
@@ -701,19 +750,12 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
       text.length,
     );
 
-    // Get voice - use saved preference or default
-    let voiceId = playbackState.voice;
-    let voiceName = 'Unknown';
-
-    if (!voiceId) {
-      const defaultVoice = provider.getDefaultVoice();
-      voiceId = defaultVoice.id;
-      voiceName = defaultVoice.name;
-    } else {
-      const voices = provider.getVoices();
-      const voice = voices.find((v) => v.id === voiceId);
-      voiceName = voice?.name || 'Custom';
-    }
+    // T057: Get voice using language-aware resolution
+    // Priority: language-specific preference > global voice > provider default
+    const voiceId = await getResolvedVoiceId();
+    const voices = provider.getVoices();
+    const voice = voices.find((v) => v.id === voiceId);
+    const voiceName = voice?.name || 'Custom';
 
     console.log('[Background] Using voice:', voiceName, voiceId);
 
@@ -2193,7 +2235,11 @@ export default defineBackground(() => {
         return;
       }
 
-      console.log('[Background] Received message:', type);
+      // Skip logging high-frequency messages to reduce console noise
+      const quietMessages = ['highlight.list', 'playbackStateUpdate'];
+      if (!quietMessages.includes(type)) {
+        console.log('[Background] Received message:', type);
+      }
 
       return dispatchMessage(type, data).then((result) => {
         if (result === null) {
@@ -2229,24 +2275,22 @@ export default defineBackground(() => {
   });
 
   // Initialize settings from storage
-  browser.storage.local
-    .get(['speed', 'provider', 'elevenlabsApiKey'])
-    .then((result) => {
-      if (typeof result.speed === 'number') {
-        playbackState.speed = result.speed;
-      }
-      if (typeof result.provider === 'string') {
-        playbackState.provider = result.provider;
-      }
-      apiKeys = {
-        elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
-      };
-      console.log('[Background] Settings loaded:', {
-        speed: playbackState.speed,
-        provider: playbackState.provider,
-        hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
-      });
+  browser.storage.local.get(['speed', 'provider', 'elevenlabsApiKey']).then((result) => {
+    if (typeof result.speed === 'number') {
+      playbackState.speed = result.speed;
+    }
+    if (typeof result.provider === 'string') {
+      playbackState.provider = result.provider;
+    }
+    apiKeys = {
+      elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
+    };
+    console.log('[Background] Settings loaded:', {
+      speed: playbackState.speed,
+      provider: playbackState.provider,
+      hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
     });
+  });
 
   console.log('VoxPage: Message handlers registered');
 
@@ -2368,4 +2412,18 @@ export default defineBackground(() => {
     initialDelay: `${INITIAL_CLEANUP_DELAY_MS / 1000}s`,
     periodicInterval: `${PERIODIC_CLEANUP_INTERVAL_MS / 1000 / 60}min`,
   });
+
+  // ============================================
+  // Language Navigation Listener (048-multilingual-tts-pillar T036/T037)
+  // ============================================
+
+  // Import and setup language navigation listener for cross-domain override clearing
+  import('../utils/language/detector')
+    .then(({ setupNavigationListener }) => {
+      setupNavigationListener();
+      console.log('[Background] Language navigation listener initialized');
+    })
+    .catch((error) => {
+      console.error('[Background] Failed to setup language navigation listener:', error);
+    });
 });

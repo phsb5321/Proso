@@ -124,14 +124,17 @@ function extractTextSample(): string {
 
 /**
  * Send extracted language info to background for detection
+ * 048-multilingual-tts-pillar: Unified message format (no payload wrapper)
  */
 export async function sendLanguageDetectionRequest(): Promise<void> {
   const languageInfo = extractPageLanguage();
 
   try {
     await browser.runtime.sendMessage({
-      type: 'languageDetected',
-      payload: languageInfo,
+      type: 'language.detect',
+      metadata: languageInfo.metadata,
+      textSample: languageInfo.textSample,
+      url: languageInfo.url,
     });
   } catch (error) {
     console.warn('VoxPage: Failed to send language detection request:', error);

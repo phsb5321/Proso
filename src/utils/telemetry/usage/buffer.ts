@@ -168,7 +168,7 @@ export class UsageBuffer {
    */
   async add(event: UsageEvent): Promise<boolean> {
     if (!this.db || !this.initialized) {
-      console.warn('[UsageBuffer] Not initialized');
+      // Silently drop events during startup - this is expected
       return false;
     }
 
