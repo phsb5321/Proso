@@ -163,6 +163,9 @@ export {
   type HighlightDeleteByUrlResponse,
 } from './highlight.handlers';
 
+// Language handler exports (048-multilingual-tts-pillar)
+export { registerLanguageHandlers } from '../utils/messaging/handlers/language';
+
 // Import handler registration functions
 import { registerAudioHandlers as regAudio } from './audio.handlers';
 import { registerCacheHandlers as regCache } from './cache.handlers';
@@ -176,6 +179,7 @@ import { registerQueueHandlers as regQueue } from './queue.handlers';
 import { registerReaderHandlers as regReader } from './reader.handlers';
 import { registerSettingsHandlers as regSettings } from './settings.handlers';
 import { registerHighlightHandlers as regHighlight } from './highlight.handlers';
+import { registerLanguageHandlers as regLanguage } from '../utils/messaging/handlers/language';
 import { type HandlerRegistry as Registry, createHandlerRegistry as createReg } from './registry';
 import {
   type InstrumentedRegistry as InstrReg,
@@ -200,6 +204,7 @@ export function registerAllHandlers(registry: Registry): void {
   regQueue(registry); // T061/T064
   regReader(registry); // 045-pdf-removal-page-reader
   regHighlight(registry); // 045-pdf-removal-page-reader Phase 4
+  regLanguage(registry); // 048-multilingual-tts-pillar
 }
 
 /**

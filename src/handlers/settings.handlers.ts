@@ -63,6 +63,15 @@ export interface ApiKeyTestResponse {
   message?: string;
 }
 
+/**
+ * Response for settings.setProviderOverride handler (049-tts-provider-consolidation: T037).
+ * 050-groq-tts-provider: Added 'groq' option.
+ */
+export interface ProviderOverrideResponse {
+  success: true;
+  providerOverride: 'groq' | 'elevenlabs' | 'browser' | null;
+}
+
 // ============================================
 // Handler Parameters
 // ============================================
@@ -83,6 +92,15 @@ interface UpdateSettingsParams {
 interface ApiKeyParams {
   provider: string;
   key?: string;
+}
+
+/**
+ * Parameters for setProviderOverride handler (049-tts-provider-consolidation: T037)
+ * 050-groq-tts-provider: Added 'groq' option.
+ */
+interface ProviderOverrideParams {
+  /** Provider to force, or null for automatic routing */
+  provider: 'groq' | 'elevenlabs' | 'browser' | null;
 }
 
 // ============================================
@@ -111,11 +129,21 @@ function getSettingsStore(): ISettingsStore {
 
 /**
  * Validate provider ID.
- * Only 'elevenlabs' is valid for TTS (other TTS providers removed).
+ * 049-tts-provider-consolidation: 'elevenlabs' and 'browser' are valid for TTS.
  * 'anthropic' is valid for AI summarization features.
+ * 050-groq-tts-provider: Added 'groq' for Groq TTS.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['elevenlabs', 'anthropic'].includes(provider);
+  return ['groq', 'elevenlabs', 'browser', 'anthropic'].includes(provider);
+}
+
+/**
+ * Validate TTS provider ID specifically.
+ * 049-tts-provider-consolidation: Only 'elevenlabs' and 'browser' for TTS.
+ * 050-groq-tts-provider: Added 'groq' for Groq TTS.
+ */
+function isValidTtsProvider(provider: string): provider is 'groq' | 'elevenlabs' | 'browser' {
+  return ['groq', 'elevenlabs', 'browser'].includes(provider);
 }
 
 // ============================================
@@ -189,6 +217,7 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
 /**
  * API test endpoints for each provider.
  * Uses minimal API calls to validate credentials.
+ * 050-groq-tts-provider: Added groq endpoint.
  */
 const API_TEST_ENDPOINTS: Record<
   string,
@@ -199,6 +228,20 @@ const API_TEST_ENDPOINTS: Record<
     body?: unknown;
   }
 > = {
+  groq: {
+    url: 'https://api.groq.com/openai/v1/audio/speech',
+    method: 'POST',
+    headers: (apiKey) => ({
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    }),
+    body: {
+      model: 'playai-tts',
+      input: 'test',
+      voice: 'Fritz-PlayAI',
+      response_format: 'mp3',
+    },
+  },
   elevenlabs: {
     url: 'https://api.elevenlabs.io/v1/user',
     method: 'GET',
@@ -221,6 +264,33 @@ const API_TEST_ENDPOINTS: Record<
     },
   },
 };
+
+/**
+ * Set or clear provider override (049-tts-provider-consolidation: T037).
+ * When set, forces the specified provider regardless of automatic routing.
+ * When null, enables automatic routing based on API key availability.
+ */
+async function handleSetProviderOverride(
+  params: ProviderOverrideParams,
+): Promise<ProviderOverrideResponse> {
+  const store = getSettingsStore();
+
+  // Validate provider if not null
+  if (params.provider !== null && !isValidTtsProvider(params.provider)) {
+    throw new Error(
+      `Invalid TTS provider: ${params.provider}. Must be 'elevenlabs', 'browser', or null.`,
+    );
+  }
+
+  await store.updateSettings({ providerOverride: params.provider });
+
+  console.log('[Settings] Provider override set to:', params.provider);
+
+  return {
+    success: true,
+    providerOverride: params.provider,
+  };
+}
 
 /**
  * Test API key for provider.
@@ -249,8 +319,9 @@ async function handleTestApiKey(
     apiKey?.length,
   );
 
-  // Validate provider - 'elevenlabs' for TTS, 'anthropic' for AI summarization
-  const validProviders = ['elevenlabs', 'anthropic'];
+  // Validate provider - 'groq'/'elevenlabs' for TTS, 'anthropic' for AI summarization
+  // 050-groq-tts-provider: Added 'groq'
+  const validProviders = ['groq', 'elevenlabs', 'anthropic'];
   if (!validProviders.includes(provider)) {
     console.error('[Settings] Invalid provider:', provider);
     return { success: false, error: `Invalid provider: ${provider}` };
@@ -270,7 +341,9 @@ async function handleTestApiKey(
       console.warn(
         '[Settings] Settings store not available, falling back to direct storage access',
       );
+      // 050-groq-tts-provider: Added groq storage key
       const storageKeyMap: Record<string, string> = {
+        groq: 'groqApiKey',
         elevenlabs: 'elevenlabsApiKey',
         anthropic: 'anthropic:apiKey',
       };
@@ -372,4 +445,10 @@ export function registerSettingsHandlers(registry: HandlerRegistry): void {
   registry.register('settings.getApiKey', handleGetApiKey, 'Check if API key exists');
   registry.register('settings.setApiKey', handleSetApiKey, 'Set API key for provider');
   registry.register('settings.testApiKey', handleTestApiKey, 'Test API key validation');
+  // 049-tts-provider-consolidation: T037
+  registry.register(
+    'settings.setProviderOverride',
+    handleSetProviderOverride,
+    'Set or clear provider override',
+  );
 }

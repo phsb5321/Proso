@@ -18,7 +18,15 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
-import { AudioUrlAdapter, ElevenLabsAudioAdapter } from '../adapters/audio';
+// 049-tts-provider-consolidation: Removed OpenAIAudioAdapter
+// 050-groq-tts-provider: Added GroqAudioAdapter
+import {
+  AudioUrlAdapter,
+  ElevenLabsAudioAdapter,
+  BrowserAudioAdapter,
+  GroqAudioAdapter,
+} from '../adapters/audio';
+import type { GroqModel } from '../utils/config/schema';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -33,10 +41,18 @@ import { BrowserSettingsAdapter } from '../adapters/storage';
 import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapters/content';
 
 /**
+ * Options for creating audio generator adapters
+ */
+export interface AudioGeneratorOptions {
+  readonly groqModel?: GroqModel;
+}
+
+/**
  * Create an audio generator adapter based on provider.
  *
  * @param provider - Provider to create adapter for
  * @param apiKey - API key for the provider (null for browser)
+ * @param options - Additional options (e.g., groqModel)
  * @returns IAudioGenerator adapter
  *
  * @throws Error if provider is unknown or API key is missing (for non-browser providers)
@@ -44,13 +60,26 @@ import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapte
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
   apiKey: string | null,
+  options?: AudioGeneratorOptions,
 ): IAudioGenerator {
+  // 049-tts-provider-consolidation: Removed 'openai' case
+  // 050-groq-tts-provider: Added 'groq' case
   switch (provider) {
+    case 'groq':
+      if (!apiKey) {
+        throw new Error('Groq API key is required');
+      }
+      return new GroqAudioAdapter(apiKey, options?.groqModel);
+
     case 'elevenlabs':
       if (!apiKey) {
         throw new Error('ElevenLabs API key is required');
       }
       return new ElevenLabsAudioAdapter(apiKey);
+
+    case 'browser':
+      // Browser TTS doesn't require API key
+      return new BrowserAudioAdapter();
 
     default:
       throw new Error(`Unknown audio provider: ${provider as string}`);
@@ -146,10 +175,19 @@ export function createAudioUrlAdapter(): IAudioUrlProvider {
  * @param provider - Provider to get key for
  * @returns API key or null
  */
+/**
+ * Get API key from keys object based on provider.
+ * 049-tts-provider-consolidation: Removed 'openai' case
+ * 050-groq-tts-provider: Added 'groq' case
+ */
 export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): string | null {
   switch (provider) {
+    case 'groq':
+      return keys.groq;
     case 'elevenlabs':
       return keys.elevenlabs;
+    case 'browser':
+      return null; // Browser TTS doesn't require API key
     default:
       return null;
   }

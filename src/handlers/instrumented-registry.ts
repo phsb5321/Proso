@@ -48,6 +48,18 @@ function getEventPrefix(handlerName: string): string {
 }
 
 /**
+ * High-frequency handlers that should skip detailed telemetry instrumentation.
+ * These are called frequently during normal operation and would create excessive noise.
+ * We still track errors for these handlers.
+ */
+const QUIET_HANDLERS = new Set([
+  'highlight.list', // Called on every page load for all tabs
+  'playbackStateUpdate', // Internal state sync
+  'footer.sync', // Frequent footer state sync
+  'content.getSelection', // Selection polling
+]);
+
+/**
  * InstrumentedRegistry
  *
  * Extends HandlerRegistry with automatic telemetry for all dispatched handlers.
@@ -88,6 +100,12 @@ export class InstrumentedRegistry extends HandlerRegistry {
     // Skip instrumentation if disabled or tracker not initialized
     if (!this.instrumentationEnabled || !usageTracker.isEnabled()) {
       return super.dispatch<TParams, TResponse>(name, params);
+    }
+
+    // Skip detailed telemetry for high-frequency handlers (still track errors)
+    const isQuietHandler = QUIET_HANDLERS.has(name);
+    if (isQuietHandler) {
+      return this.dispatchQuiet<TParams, TResponse>(name, params);
     }
 
     const actionId = generateActionId();
@@ -156,6 +174,50 @@ export class InstrumentedRegistry extends HandlerRegistry {
       );
 
       // Re-throw to preserve existing behavior
+      throw error;
+    }
+  }
+
+  /**
+   * Dispatch a quiet handler with minimal telemetry.
+   * Only tracks errors, skips start/completion events to reduce noise.
+   */
+  private async dispatchQuiet<TParams = unknown, TResponse = unknown>(
+    name: string,
+    params: TParams,
+  ): Promise<Result<TResponse, HandlerError>> {
+    try {
+      const result = await super.dispatch<TParams, TResponse>(name, params);
+
+      // Only track errors for quiet handlers
+      if (!result.ok) {
+        usageTracker.track(
+          'error.handler_exception',
+          {
+            handler: name,
+            errorType: result.error.type,
+            errorMessage: 'message' in result.error ? result.error.message : undefined,
+            quiet: true,
+          },
+          'error',
+        );
+      }
+
+      return result;
+    } catch (error) {
+      // Track unexpected exceptions even for quiet handlers
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      usageTracker.track(
+        'error.handler_exception',
+        {
+          handler: name,
+          errorMessage,
+          quiet: true,
+        },
+        'error',
+      );
+
       throw error;
     }
   }

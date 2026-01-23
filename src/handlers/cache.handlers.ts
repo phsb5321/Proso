@@ -70,12 +70,15 @@ export interface GetCachedParagraphsParams {
 
 /**
  * Parameters for cost.estimate handler.
+ * 050-groq-tts-provider (T046): Added model for Groq model-specific pricing
  */
 export interface CostEstimateParams {
   url: string;
   paragraphs: string[];
   provider?: string;
   voice?: string;
+  /** Optional model ID for model-specific pricing (e.g., Groq Orpheus) */
+  model?: string;
   startParagraph?: number;
   endParagraph?: number;
 }
@@ -360,6 +363,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
 
   /**
    * Estimate TTS cost for paragraphs with cache awareness.
+   * 050-groq-tts-provider (T046): Added model support for Groq model-specific pricing
    */
   registry.register<CostEstimateParams, Result<CostEstimateResponse, CacheHandlerError>>(
     'cost.estimate',
@@ -374,6 +378,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
       const paragraphs = params.paragraphs || [];
       const provider = params.provider || 'browser';
       const voice = params.voice || '';
+      const model = params.model; // 050-groq-tts-provider (T046)
       const startParagraph = params.startParagraph ?? 0;
       const endParagraph = params.endParagraph ?? paragraphs.length;
 
@@ -395,7 +400,8 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
 
       try {
         const cacheStore = getCacheStore();
-        const pricing = getProviderPricing(provider);
+        // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
+        const pricing = getProviderPricing(provider, model);
         const relevantParagraphs = paragraphs.slice(startParagraph, endParagraph);
 
         // Get cached paragraph indices

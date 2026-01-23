@@ -11,6 +11,8 @@ import type { ExtractionMode, ProviderId } from '../core/shared/errors';
 
 /**
  * Application settings (matches existing config schema).
+ * 049-tts-provider-consolidation: Added providerOverride
+ * 050-groq-tts-provider: Added groqModel, groqVoice
  */
 export interface Settings {
   mode: ExtractionMode;
@@ -21,6 +23,9 @@ export interface Settings {
   cacheEnabled: boolean;
   maxCacheSize: number;
   wordSyncEnabled: boolean;
+  providerOverride: ProviderId | null;
+  groqModel: 'playai-tts' | 'distil-whisper-large-v3-en';
+  groqVoice: string | null;
 }
 
 /**

@@ -16,6 +16,7 @@ import {
 import type { ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
+import { TtsRoutingPolicy, type RoutingDecision } from '../core/tts/routing-policy';
 import type { HandlerRegistry } from './registry';
 
 /**
@@ -66,22 +67,43 @@ export interface LanguageValidationResponse {
 
 /**
  * Static provider metadata.
- * Matches existing VoxPage providers.
+ * 049-tts-provider-consolidation: Removed OpenAI, kept ElevenLabs and Browser
+ * 050-groq-tts-provider: Added Groq provider
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
+  groq: {
+    name: 'Groq',
+    description: 'Fast, affordable TTS with PlayAI and Orpheus models',
+    supportsWordTiming: false,
+    requiresApiKey: true,
+    supportedLanguages: ['en'], // English only
+  },
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
     supportsWordTiming: true,
     requiresApiKey: true,
-    supportedLanguages: [],
+    supportedLanguages: [
+      'en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl',
+      'cs', 'ar', 'zh', 'hu', 'ko', 'ja', 'hi', 'sv', 'id', 'fil',
+      'uk', 'el', 'fi', 'ro', 'da', 'bg', 'ms', 'sk', 'hr', 'ta',
+    ], // 30 languages (ElevenLabs Turbo v2.5)
+  },
+  browser: {
+    name: 'Browser TTS',
+    description: 'Free offline TTS using system voices',
+    supportsWordTiming: false,
+    requiresApiKey: false,
+    supportedLanguages: [], // Dynamic - depends on user system
   },
 };
 
 /**
  * Providers that support all languages (empty array means all).
+ * 049-tts-provider-consolidation: Removed OpenAI
+ * 050-groq-tts-provider: Note - Groq only supports English
  */
-const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs'];
+const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser'];
 
 /**
  * Register provider message handlers on the registry.
@@ -139,7 +161,9 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      const validProviders: ProviderId[] = ['elevenlabs'];
+      // 049-tts-provider-consolidation: Only elevenlabs and browser are valid
+      // 050-groq-tts-provider: Added groq
+      const validProviders: ProviderId[] = ['groq', 'elevenlabs', 'browser'];
       if (!params.provider || !validProviders.includes(params.provider)) {
         return Err({
           type: 'invalid_params',
@@ -242,5 +266,48 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
       }
     },
     'Validate language support for provider',
+  );
+
+  /**
+   * Resolve provider for a given language using routing policy.
+   * 049-tts-provider-consolidation: New handler for automatic routing
+   * 050-groq-tts-provider (T042): Added hasGroqKey to routing context
+   */
+  registry.register<
+    { languageCode: string },
+    Result<RoutingDecision, ProviderHandlerError>
+  >(
+    'provider.resolveForLanguage',
+    async (params) => {
+      if (!params.languageCode || typeof params.languageCode !== 'string') {
+        return Err({
+          type: 'invalid_params',
+          message: 'languageCode is required and must be a string (BCP-47 code)',
+        });
+      }
+
+      try {
+        // Get API key availability for all providers (050-groq-tts-provider T042)
+        const stored = await browser.storage.local.get(['groqApiKey', 'elevenlabsApiKey', 'providerOverride']);
+        const hasGroqKey = Boolean(stored.groqApiKey);
+        const hasElevenLabsKey = Boolean(stored.elevenlabsApiKey);
+        const userOverride = (stored.providerOverride as ProviderId) || null;
+
+        // Use routing policy to resolve provider
+        const routingPolicy = new TtsRoutingPolicy();
+        const decision = routingPolicy.resolveProvider({
+          languageCode: params.languageCode,
+          hasGroqKey,
+          hasElevenLabsKey,
+          userOverride,
+        });
+
+        return Ok(decision);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err({ type: 'operation_failed', message });
+      }
+    },
+    'Resolve provider for language using routing policy',
   );
 }

@@ -6,10 +6,14 @@
  * IAudioPlayer adapters for playback.
  *
  * @module adapters/audio
+ * 049-tts-provider-consolidation: Removed OpenAIAudioAdapter
+ * 050-groq-tts-provider: Added GroqAudioAdapter
  */
 
 // TTS Generator Adapters (IAudioGenerator)
 export { ElevenLabsAudioAdapter } from './elevenlabs-audio.adapter';
+export { BrowserAudioAdapter } from './browser-audio.adapter';
+export { GroqAudioAdapter } from './groq-audio.adapter';
 export { AudioUrlAdapter } from './audio-url.adapter';
 
 // Playback Adapters (IAudioPlayer)
