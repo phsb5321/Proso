@@ -1,15 +1,16 @@
 # VoxPage - AI-Powered Page Reader
 
 ## Project Overview
-VoxPage is a Firefox extension that transforms web pages into immersive audio experiences using AI-powered text-to-speech technology. It supports multiple TTS providers (OpenAI, ElevenLabs, and browser native) with a sleek, modern interface.
+VoxPage is a Firefox extension that transforms web pages into immersive audio experiences using AI-powered text-to-speech technology. It supports multiple TTS providers (Groq, ElevenLabs, and browser native) with a sleek, modern interface.
 
 ## Tech Stack
 - **Platform**: Firefox WebExtension (Manifest V3)
-- **Language**: JavaScript (ES6+)
+- **Language**: TypeScript (ES6+)
+- **Build**: WXT 0.20.13
 - **TTS Providers**:
-  - OpenAI TTS API (tts-1-hd model)
-  - ElevenLabs API (eleven_multilingual_v2 model)
-  - Browser native SpeechSynthesis API
+  - Groq TTS API (PlayAI voices - fast, affordable)
+  - ElevenLabs API (eleven_multilingual_v2 model - high quality)
+  - Browser native SpeechSynthesis API (free, offline)
 
 ## Project Structure
 ```
@@ -35,7 +36,7 @@ VoxPage/
 ```
 
 ## Key Features
-1. **Multi-Provider TTS**: OpenAI, ElevenLabs, and browser native voices
+1. **Multi-Provider TTS**: Groq, ElevenLabs, and browser native voices
 2. **Smart Text Extraction**: Full page, article-only, or selection modes
 3. **Real-time Highlighting**: Visual feedback showing current reading position
 4. **Playback Controls**: Play, pause, skip, speed adjustment
@@ -62,7 +63,7 @@ cd VoxPage && zip -r ../voxpage.xpi *
 
 ## API Configuration
 Users must configure their own API keys in the extension settings:
-- **OpenAI**: Get from https://platform.openai.com/api-keys
+- **Groq**: Get from https://console.groq.com/keys
 - **ElevenLabs**: Get from https://elevenlabs.io/app/settings/api-keys
 
 ## Architecture Notes
@@ -104,7 +105,7 @@ Users must configure their own API keys in the extension settings:
 - Page highlight styles in `styles/content.css`
 
 ## Testing Checklist
-- [ ] Test with OpenAI API key
+- [ ] Test with Groq API key
 - [ ] Test with ElevenLabs API key
 - [ ] Test browser native TTS
 - [ ] Test on various websites (news, blogs, docs)
@@ -160,7 +161,7 @@ Current status: **13 passed, 7 skipped** (~37s runtime)
 |---------|---------|
 | `extension.fixture.ts` | Loads Chrome extension via `launchPersistentContext()`, extracts extension ID |
 | `console.fixture.ts` | Captures console errors/warnings, filters via allowlist, detects CSP violations |
-| `audio.fixture.ts` | Intercepts TTS API calls (OpenAI, ElevenLabs), returns fixture audio |
+| `audio.fixture.ts` | Intercepts TTS API calls (Groq, ElevenLabs), returns fixture audio |
 
 ### NixOS Support
 
@@ -225,5 +226,5 @@ E2E tests run in GitHub Actions (`.github/workflows/test.yml`):
 ## Resources
 - [Firefox Extension Workshop](https://extensionworkshop.com/)
 - [MDN WebExtensions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions)
-- [OpenAI TTS API](https://platform.openai.com/docs/guides/text-to-speech)
+- [Groq TTS API](https://console.groq.com/docs/speech)
 - [ElevenLabs API](https://elevenlabs.io/docs)
