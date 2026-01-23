@@ -19,9 +19,15 @@ export const MODES = ['selection', 'article', 'full'] as const;
 
 /**
  * Valid TTS provider values
- * Post-045: Only ElevenLabs is supported
+ * 049-tts-provider-consolidation: Removed OpenAI, kept ElevenLabs and Browser TTS
+ * 050-groq-tts-provider: Added Groq TTS
  */
-export const PROVIDERS = ['elevenlabs'] as const;
+export const PROVIDERS = ['groq', 'elevenlabs', 'browser'] as const;
+
+/**
+ * Valid Groq TTS model values (050-groq-tts-provider)
+ */
+export const GROQ_MODELS = ['playai-tts', 'distil-whisper-large-v3-en'] as const;
 
 /**
  * Valid language detection sources
@@ -62,8 +68,8 @@ export const settingsSchema = z.object({
   // Text extraction mode
   mode: z.enum(MODES).default('article'),
 
-  // TTS provider (post-045: only elevenlabs)
-  provider: z.enum(PROVIDERS).default('elevenlabs'),
+  // TTS provider (050-groq-tts-provider: Groq is the default)
+  provider: z.enum(PROVIDERS).default('groq'),
 
   // Selected voice ID (ElevenLabs voice ID, null means use default 'Rachel')
   voice: z.string().nullable().default(null),
@@ -109,6 +115,15 @@ export const settingsSchema = z.object({
 
   // Telemetry enabled (045-pdf-removal-page-reader)
   telemetryEnabled: z.boolean().default(false),
+
+  // Provider override (049-tts-provider-consolidation: T036)
+  // null = automatic routing based on API key availability
+  // 'elevenlabs' or 'browser' = force specific provider
+  providerOverride: z.enum(PROVIDERS).nullable().default(null),
+
+  // Groq TTS settings (050-groq-tts-provider)
+  groqModel: z.enum(GROQ_MODELS).default('playai-tts'),
+  groqVoice: z.string().nullable().default(null),
 });
 
 /**
@@ -145,6 +160,7 @@ export type Provider = (typeof PROVIDERS)[number];
 export type DetectionSource = (typeof DETECTION_SOURCES)[number];
 export type ThemeMode = (typeof THEME_MODES)[number];
 export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
+export type GroqModel = (typeof GROQ_MODELS)[number];
 
 // ========== Roadmap Feature Schemas (023-feature-roadmap) ==========
 

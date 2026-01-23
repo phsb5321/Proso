@@ -11,7 +11,7 @@
  * No hardcoded default values should exist elsewhere in the codebase.
  */
 
-import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema';
+import type { Settings, FooterState, Mode, Provider, ThemeMode, GroqModel } from './schema';
 
 /**
  * Default configuration values
@@ -22,9 +22,9 @@ import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema'
  */
 export const defaults: Readonly<Settings> = Object.freeze({
   mode: 'article' as Mode,
-  provider: 'elevenlabs' as Provider,
+  provider: 'groq' as Provider, // 050-groq-tts-provider: Groq is the default TTS provider
   voice: null,
-  voiceId: 'EXAVITQu4vr4xnSDxMaL', // Rachel voice (045-pdf-removal-page-reader)
+  voiceId: 'EXAVITQu4vr4xnSDxMaL', // Rachel voice (045-pdf-removal-page-reader, kept for backward compatibility)
   speed: 1.0,
   showCostEstimate: true,
   cacheEnabled: true,
@@ -39,15 +39,40 @@ export const defaults: Readonly<Settings> = Object.freeze({
   defaultHighlightColor: 'yellow' as const,
   maxCacheSizeMb: 500,
   telemetryEnabled: false,
+  // 049-tts-provider-consolidation
+  providerOverride: null,
+  // 050-groq-tts-provider
+  groqModel: 'playai-tts' as GroqModel,
+  groqVoice: null,
 });
 
 /**
  * Default voice settings per provider
  * Separate from main defaults as these are provider-specific
  * null means use the first available voice from the provider
+ * 049-tts-provider-consolidation: Removed openai
+ * 050-groq-tts-provider: Added groq
  */
 export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.freeze({
+  groq: null,
   elevenlabs: null,
+  browser: null,
+});
+
+/**
+ * Provider override setting (049-tts-provider-consolidation)
+ * null = automatic routing based on API key availability
+ * 'elevenlabs' or 'browser' = force specific provider
+ */
+export const providerOverrideDefault: Provider | null = null;
+
+/**
+ * Language settings defaults (048-multilingual-tts-pillar)
+ */
+export const languageDefaults = Object.freeze({
+  languageAutoDetect: true,
+  languageDefault: 'en',
+  showLanguageBadge: true,
 });
 
 /**

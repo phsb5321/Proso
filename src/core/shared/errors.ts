@@ -9,8 +9,19 @@
 
 /**
  * Provider identifier type (matches existing schema).
+ * 049-tts-provider-consolidation: Removed 'openai', kept 'elevenlabs' and 'browser'
+ * 050-groq-tts-provider: Added 'groq' for Groq TTS
  */
-export type ProviderId = 'elevenlabs';
+export type ProviderId = 'groq' | 'elevenlabs' | 'browser';
+
+/**
+ * Language handler errors (048-multilingual-tts-pillar).
+ */
+export type LanguageHandlerError =
+  | { type: 'detection_failed'; message: string }
+  | { type: 'storage_error'; message: string }
+  | { type: 'invalid_params'; message: string }
+  | { type: 'tab_not_found'; tabId: number };
 
 /**
  * Text extraction mode (matches existing schema).
@@ -48,14 +59,16 @@ export type CacheError =
 
 /**
  * Audio generation errors.
+ * 050-groq-tts-provider: Extended error types for better error handling in fallback logic
  */
 export type AudioError =
   | { type: 'network'; message: string }
   | { type: 'rate_limit'; retryAfterMs: number }
-  | { type: 'invalid_credentials' }
-  | { type: 'unsupported_language'; language: string }
+  | { type: 'invalid_credentials'; provider?: ProviderId }
+  | { type: 'unsupported_language'; language: string; provider?: ProviderId }
   | { type: 'text_too_long'; maxLength: number }
-  | { type: 'provider_error'; code: string; message: string };
+  | { type: 'provider_error'; code: string; message: string }
+  | { type: 'audio_decode_error'; message: string };
 
 /**
  * Highlight synchronization errors.

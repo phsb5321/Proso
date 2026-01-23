@@ -24,7 +24,9 @@ export const playbackStatusSchema = z.enum([
 
 export const extractionModeSchema = z.enum(['selection', 'article', 'full']);
 
-export const providerIdSchema = z.enum(['elevenlabs']);
+// 049-tts-provider-consolidation: Removed 'openai'
+// 050-groq-tts-provider: Added 'groq' for Groq TTS
+export const providerIdSchema = z.enum(['groq', 'elevenlabs', 'browser']);
 
 export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 
@@ -202,7 +204,7 @@ export const highlightStateResponseSchema = z.object({
 // ========== Language Message Schemas ==========
 
 export const languageDetectParamsSchema = z.object({
-  metadata: z.string().optional(),
+  metadata: z.string().nullable().optional(),
   textSample: z.string().optional(),
   url: z.string().url(),
 });
@@ -286,6 +288,33 @@ export const footerActionParamsSchema = z.object({
   action: footerActionSchema,
   value: z.number().optional(), // For seek and speed actions
 });
+
+// ========== Provider Fallback Notification Schemas (049-tts-provider-consolidation: T031) ==========
+
+/**
+ * Notification type for provider fallback events.
+ * Emitted when the primary provider (ElevenLabs) fails and Browser TTS is used instead.
+ */
+export const fallbackReasonSchema = z.enum([
+  'rate_limited', // ElevenLabs rate limit hit
+  'api_error', // ElevenLabs API returned an error
+  'network_error', // Network request failed
+  'invalid_credentials', // API key invalid or missing
+  'timeout', // Request timed out
+]);
+
+export const fallbackOccurredNotificationSchema = z.object({
+  type: z.literal('FALLBACK_OCCURRED'),
+  fromProvider: providerIdSchema,
+  toProvider: providerIdSchema,
+  reason: fallbackReasonSchema,
+  message: z.string(),
+  retryable: z.boolean(),
+  retryAfterMs: z.number().nonnegative().optional(),
+});
+
+export type FallbackReason = z.infer<typeof fallbackReasonSchema>;
+export type FallbackOccurredNotification = z.infer<typeof fallbackOccurredNotificationSchema>;
 
 // ========== Logging Message Schemas ==========
 

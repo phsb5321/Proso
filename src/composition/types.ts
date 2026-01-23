@@ -27,9 +27,13 @@ export interface AppConfig {
 
 /**
  * API keys for providers (retrieved from settings store).
+ * 049-tts-provider-consolidation: Removed openai (browser has no API key)
+ * 050-groq-tts-provider: Added groq
  */
 export interface ApiKeys {
+  readonly groq: string | null;
   readonly elevenlabs: string | null;
+  readonly browser: null; // Browser TTS has no API key
 }
 
 /**

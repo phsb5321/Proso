@@ -36,6 +36,8 @@ export {
   constraints,
   footerStateDefaults,
   queueDefaults,
+  languageDefaults,
+  providerOverrideDefault,
 } from './defaults';
 
 // Export store

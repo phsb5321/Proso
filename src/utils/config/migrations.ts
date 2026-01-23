@@ -11,13 +11,15 @@
  * Migrations respect explicit user choices (FR-010a/b).
  */
 
-import { defaults } from './defaults';
+import { defaults, languageDefaults } from './defaults';
 
 /**
  * Current configuration version
  * Increment when adding new migrations
+ * 049-tts-provider-consolidation: Bumped to 7 for OpenAI removal
+ * 050-groq-tts-provider: Bumped to 8 for Groq TTS addition
  */
-export const CURRENT_CONFIG_VERSION = 5;
+export const CURRENT_CONFIG_VERSION = 8;
 
 /**
  * Storage object with migration flags
@@ -32,6 +34,23 @@ interface StoredSettings extends Record<string, unknown> {
   themeMode?: string;
   highlightEnabled?: boolean;
   autoScroll?: boolean;
+  // Language settings (048-multilingual-tts-pillar)
+  languageAutoDetect?: boolean;
+  languageDefault?: string;
+  showLanguageBadge?: boolean;
+  languagePreference?: {
+    autoDetect?: boolean;
+    currentOverride?: string | null;
+    voicePreferences?: Record<string, string>;
+  };
+  // 049-tts-provider-consolidation: Legacy fields to remove
+  openaiApiKey?: string;
+  defaultVoices?: Record<string, string | null>;
+  providerOverride?: string | null;
+  // 050-groq-tts-provider: New Groq settings
+  groqModel?: string;
+  groqVoice?: string | null;
+  elevenlabsApiKey?: string;
 }
 
 /**
@@ -155,6 +174,155 @@ export const migrations: Migration[] = [
       if (Object.keys(updates).length > 0) {
         await save(updates);
         console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 6,
+    key: 'languagePreference',
+    description: 'Add language settings with voice preferences (048-multilingual-tts-pillar US5)',
+    /**
+     * Add language settings fields with sensible defaults
+     * No data loss risk - only adds new fields if not present
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add languageAutoDetect if not present
+      if (stored.languageAutoDetect === undefined) {
+        updates.languageAutoDetect = languageDefaults.languageAutoDetect; // true
+      }
+
+      // Add languageDefault if not present
+      if (stored.languageDefault === undefined) {
+        updates.languageDefault = languageDefaults.languageDefault; // 'en'
+      }
+
+      // Add showLanguageBadge if not present
+      if (stored.showLanguageBadge === undefined) {
+        updates.showLanguageBadge = languageDefaults.showLanguageBadge; // true
+      }
+
+      // Add languagePreference object if not present
+      if (stored.languagePreference === undefined) {
+        updates.languagePreference = {
+          autoDetect: languageDefaults.languageAutoDetect,
+          currentOverride: null,
+          voicePreferences: {},
+        };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added language settings fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 7,
+    key: 'provider',
+    description: 'Remove OpenAI provider, migrate to ElevenLabs/Browser TTS (049-tts-provider-consolidation)',
+    /**
+     * 049-tts-provider-consolidation migration (T041-T044):
+     * - T042: If user had OpenAI selected and has ElevenLabs key → elevenlabs, else → browser
+     * - T043: Delete openaiApiKey from storage
+     * - T044: Remove defaultVoices.openai
+     *
+     * This migration handles users who were using OpenAI as their provider.
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+      const keysToRemove: string[] = [];
+
+      // T042: Migrate provider selection
+      if (stored.provider === 'openai') {
+        // Check if user has ElevenLabs API key configured
+        // Note: We can't access browser.storage.local directly here,
+        // so we rely on the elevenlabsApiKey being present in stored
+        const hasElevenLabsKey = Boolean(stored.elevenlabsApiKey);
+
+        if (hasElevenLabsKey) {
+          updates.provider = 'elevenlabs';
+          console.log('VoxPage: Migrated provider from openai to elevenlabs');
+        } else {
+          updates.provider = 'browser';
+          console.log('VoxPage: Migrated provider from openai to browser (no ElevenLabs key)');
+        }
+      }
+
+      // T043: Mark openaiApiKey for removal
+      if (stored.openaiApiKey !== undefined) {
+        keysToRemove.push('openaiApiKey');
+        console.log('VoxPage: Marking openaiApiKey for removal');
+      }
+
+      // T044: Clean up defaultVoices if it has openai
+      if (stored.defaultVoices && typeof stored.defaultVoices === 'object') {
+        const cleanedVoices = { ...stored.defaultVoices };
+        if ('openai' in cleanedVoices) {
+          (cleanedVoices as Record<string, unknown>).openai = undefined;
+          updates.defaultVoices = cleanedVoices;
+          console.log('VoxPage: Removed openai from defaultVoices');
+        }
+      }
+
+      // Add providerOverride field if not present (defaults to null = automatic)
+      if (stored.providerOverride === undefined) {
+        updates.providerOverride = null;
+      }
+
+      // Save updates
+      if (Object.keys(updates).length > 0 || keysToRemove.length > 0) {
+        await save(updates);
+
+        // Note: Actual key removal happens via browser.storage.local.remove()
+        // which should be called by the store after this migration
+        if (keysToRemove.length > 0) {
+          console.log('VoxPage: Keys to remove:', keysToRemove);
+          // Store keys to remove for the store to handle
+          (updates as Record<string, unknown>)._keysToRemove = keysToRemove;
+        }
+
+        console.log('VoxPage: Applied TTS provider consolidation migration');
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 8,
+    key: 'groqSettings',
+    description: 'Add Groq TTS provider settings (050-groq-tts-provider)',
+    /**
+     * 050-groq-tts-provider migration:
+     * - Add groqModel setting (default: 'playai-tts')
+     * - Add groqVoice setting (default: null = use model default)
+     *
+     * Non-destructive migration - only adds new fields if not present
+     */
+    migrate: async (stored, save) => {
+      const updates: Record<string, unknown> = {};
+
+      // Add groqModel if not present (default: playai-tts)
+      if (stored.groqModel === undefined) {
+        updates.groqModel = 'playai-tts';
+      }
+
+      // Add groqVoice if not present (default: null = use model default)
+      if (stored.groqVoice === undefined) {
+        updates.groqVoice = null;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Added Groq TTS settings:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 
