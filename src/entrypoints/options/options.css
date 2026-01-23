@@ -444,6 +444,156 @@ kbd {
 }
 
 /* ========================================
+   LANGUAGE SETTINGS SECTION (048-multilingual-tts-pillar US5)
+   ======================================== */
+
+.voice-preferences-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.voice-preferences-empty {
+  padding: var(--spacing-lg);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.voice-preferences-empty p {
+  margin: 0;
+}
+
+.voice-preference-row {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: var(--spacing-md);
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 600px) {
+  .voice-preference-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+}
+
+.voice-preference-row__language {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.voice-preference-row__language-code {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: var(--spacing-xs);
+}
+
+.voice-preference-row__voice-select {
+  width: 100%;
+}
+
+.voice-preference-row__remove-btn {
+  padding: var(--spacing-xs);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.voice-preference-row__remove-btn:hover {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.voice-preference-row__remove-btn:focus-visible {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.voice-preference-row__remove-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* Add Language Voice button */
+#addVoicePreferenceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+#addVoicePreferenceBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+#addVoicePreferenceBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Add language modal */
+.add-language-modal .language-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--spacing-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.language-select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  font-size: var(--font-size-sm);
+}
+
+.language-select-option:hover {
+  border-color: var(--color-accent-primary);
+  background: var(--color-accent-bg);
+}
+
+.language-select-option:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+.language-select-option--selected {
+  border-color: var(--color-accent-primary);
+  background: var(--color-accent-bg);
+}
+
+.language-select-option--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.language-select-option__code {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ========================================
    READING QUEUE SECTION (T078)
    ======================================== */
 

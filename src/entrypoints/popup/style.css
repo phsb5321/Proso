@@ -552,6 +552,101 @@ body {
 }
 
 /* ========================================
+   LANGUAGE SELECTION (048-multilingual-tts-pillar)
+   ======================================== */
+
+.voxpage-popup__language {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__language-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  font-size: var(--font-size-sm, 12px);
+  color: var(--color-text-secondary, #b8c5d6);
+}
+
+.voxpage-popup__language-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  background: var(--color-accent-primary, #0d9488);
+  border-radius: var(--radius-xs, 2px);
+  font-size: var(--font-size-xs, 10px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.voxpage-popup__language-badge[hidden] {
+  display: none;
+}
+
+/* Language Badge Confidence States (048-multilingual-tts-pillar: T047, T050, T051) */
+.voxpage-popup__language-badge--high {
+  background: var(--color-accent-primary, #0d9488);
+}
+
+.voxpage-popup__language-badge--low {
+  background: var(--color-warning-bg, #fbbf24);
+  color: var(--color-bg-primary, #1a1a2e);
+}
+
+.voxpage-popup__language-badge--override {
+  background: var(--color-accent-secondary, #6366f1);
+  position: relative;
+}
+
+.voxpage-popup__language-badge--override::before {
+  content: "✏";
+  font-size: 8px;
+  margin-right: 2px;
+}
+
+/* Language Compatibility Warning (048-multilingual-tts-pillar: T041-T044) */
+.voxpage-popup__language-warning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+  padding: var(--spacing-sm, 8px);
+  margin-top: var(--spacing-xs, 4px);
+  background: var(--color-warning-bg, rgba(251, 191, 36, 0.1));
+  border: 1px solid var(--color-warning-border, rgba(251, 191, 36, 0.3));
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--font-size-sm, 12px);
+}
+
+.voxpage-popup__language-warning[hidden] {
+  display: none;
+}
+
+.voxpage-popup__language-warning-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm, 8px);
+  color: var(--color-warning-text, #fbbf24);
+}
+
+.voxpage-popup__language-warning-content svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.voxpage-popup__language-warning-actions {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+  margin-top: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__language-warning-actions .voxpage-button--small {
+  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  font-size: var(--font-size-xs, 10px);
+}
+
+/* ========================================
    COST ESTIMATE SECTION (028-smart-audio-cache)
    ======================================== */
 

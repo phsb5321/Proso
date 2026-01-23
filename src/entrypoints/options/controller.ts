@@ -8,11 +8,8 @@
  */
 
 import { browser } from 'wxt/browser';
-import {
-  defaults as settingsDefaults,
-  queueDefaults,
-  type QueueSettings,
-} from '../../utils/config';
+import { defaults as settingsDefaults, queueDefaults, languageDefaults } from '../../utils/config';
+import type { QueueSettings } from '../../utils/config/schema';
 
 // UI defaults (inline since they're simple)
 const uiDefaults = {
@@ -33,7 +30,22 @@ const loggingDefaults = {
 
 // Type definitions
 type LoggingConfig = typeof loggingDefaults;
-type LogViewerResponse = { logs: Array<{ timestamp: number; level: string; message: string }>; total: number };
+type LogEntry = {
+  timestamp: number;
+  date: string;
+  level: string;
+  message: string;
+  component: string;
+  metadata?: Record<string, unknown>;
+};
+type LogViewerResponse = {
+  logs: LogEntry[];
+  total: number;
+  status: {
+    bufferBytes: number;
+    [key: string]: unknown;
+  };
+};
 type EndpointValidation = { isValid: boolean; error?: string };
 
 import { usageTracker } from '../../utils/telemetry/usage';
@@ -58,7 +70,8 @@ interface OptionsElements {
   quickSpeedValue: HTMLElement;
 
   // API Key inputs
-  anthropicKey: HTMLInputElement;
+  // 050-groq-tts-provider: groqKey is primary TTS
+  groqKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
   elevenlabsKeyStatus: HTMLElement;
 
@@ -111,6 +124,19 @@ interface OptionsElements {
 
   // Telemetry elements (T018)
   telemetryEnabled: HTMLInputElement;
+
+  // Language settings elements (048-multilingual-tts-pillar US5)
+  languageAutoDetect: HTMLInputElement;
+  defaultLanguage: HTMLSelectElement;
+  showLanguageBadge: HTMLInputElement;
+  voicePreferencesGrid: HTMLElement;
+  addVoicePreferenceBtn: HTMLButtonElement;
+
+  // Groq model/voice settings (050-groq-tts-provider T033-T034)
+  groqModel: HTMLSelectElement;
+  groqVoice: HTMLSelectElement;
+  groqModelGroup: HTMLElement;
+  groqVoiceGroup: HTMLElement;
 }
 
 let elements: OptionsElements | null = null;
@@ -143,7 +169,8 @@ function getElements(): OptionsElements {
     quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
 
     // API Key inputs
-    anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
+    // 050-groq-tts-provider: groqKey is primary TTS
+    groqKey: getElement<HTMLInputElement>('groqKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
 
@@ -190,6 +217,19 @@ function getElements(): OptionsElements {
 
     // Telemetry elements (T018)
     telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
+
+    // Language settings elements (048-multilingual-tts-pillar US5)
+    languageAutoDetect: getElement<HTMLInputElement>('languageAutoDetect'),
+    defaultLanguage: getElement<HTMLSelectElement>('defaultLanguage'),
+    showLanguageBadge: getElement<HTMLInputElement>('showLanguageBadge'),
+    voicePreferencesGrid: getElement<HTMLElement>('voicePreferencesGrid'),
+    addVoicePreferenceBtn: getElement<HTMLButtonElement>('addVoicePreferenceBtn'),
+
+    // Groq model/voice settings (050-groq-tts-provider T033-T034)
+    groqModel: getElement<HTMLSelectElement>('groqModel'),
+    groqVoice: getElement<HTMLSelectElement>('groqVoice'),
+    groqModelGroup: getElement<HTMLElement>('groqModelGroup'),
+    groqVoiceGroup: getElement<HTMLElement>('groqVoiceGroup'),
   };
 }
 
@@ -209,6 +249,7 @@ export async function initOptionsPage(): Promise<void> {
   await loadCacheStats();
   await loadThemePreference();
   await loadTelemetryConfig();
+  await loadLanguageSettings();
 
   setupQuickSettingsEventListeners();
   setupEventListeners();
@@ -217,6 +258,7 @@ export async function initOptionsPage(): Promise<void> {
   setupQueueEventListeners();
   setupCacheEventListeners();
   setupTelemetryEventListeners();
+  setupLanguageEventListeners();
   setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
@@ -231,22 +273,91 @@ export async function initOptionsPage(): Promise<void> {
 /**
  * Voice configurations by provider
  * T021: Voice options filtered by provider
+ * 050-groq-tts-provider: Added Groq voices, split by model
  */
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  elevenlabs: [
-    { value: 'default', label: 'Default Voice' },
+  groq: [
+    // Default to PlayAI voices (most common model)
+    { value: 'Fritz-PlayAI', label: 'Fritz (Male)' },
+    { value: 'Troy-PlayAI', label: 'Troy (Male)' },
+    { value: 'Hannah-PlayAI', label: 'Hannah (Female)' },
+    { value: 'Austin-PlayAI', label: 'Austin (Male)' },
+    { value: 'Arista-PlayAI', label: 'Arista (Female)' },
+    { value: 'Atlas-PlayAI', label: 'Atlas (Male)' },
+    { value: 'Basil-PlayAI', label: 'Basil (Male)' },
+    { value: 'Briggs-PlayAI', label: 'Briggs (Male)' },
+    { value: 'Deedee-PlayAI', label: 'Deedee (Female)' },
+    { value: 'Duke-PlayAI', label: 'Duke (Male)' },
+    { value: 'Harper-PlayAI', label: 'Harper (Female)' },
+    { value: 'Haven-PlayAI', label: 'Haven (Female)' },
+    { value: 'Hera-PlayAI', label: 'Hera (Female)' },
+    { value: 'Luna-PlayAI', label: 'Luna (Female)' },
+    { value: 'Maisie-PlayAI', label: 'Maisie (Female)' },
+    { value: 'Nia-PlayAI', label: 'Nia (Female)' },
+    { value: 'Nolan-PlayAI', label: 'Nolan (Male)' },
+    { value: 'Quinn-PlayAI', label: 'Quinn (Female)' },
+    { value: 'Thunder-PlayAI', label: 'Thunder (Male)' },
+    { value: 'Tyson-PlayAI', label: 'Tyson (Male)' },
+  ],
+  elevenlabs: [{ value: 'default', label: 'Default Voice' }],
+};
+
+/**
+ * Groq model-specific voice configurations (050-groq-tts-provider T034)
+ * Voices are filtered based on selected Groq model
+ */
+const GROQ_MODEL_VOICES: Record<string, Array<{ value: string; label: string }>> = {
+  'playai-tts': [
+    { value: 'Fritz-PlayAI', label: 'Fritz (Male)' },
+    { value: 'Troy-PlayAI', label: 'Troy (Male)' },
+    { value: 'Hannah-PlayAI', label: 'Hannah (Female)' },
+    { value: 'Austin-PlayAI', label: 'Austin (Male)' },
+    { value: 'Arista-PlayAI', label: 'Arista (Female)' },
+    { value: 'Atlas-PlayAI', label: 'Atlas (Male)' },
+    { value: 'Basil-PlayAI', label: 'Basil (Male)' },
+    { value: 'Briggs-PlayAI', label: 'Briggs (Male)' },
+    { value: 'Deedee-PlayAI', label: 'Deedee (Female)' },
+    { value: 'Duke-PlayAI', label: 'Duke (Male)' },
+    { value: 'Harper-PlayAI', label: 'Harper (Female)' },
+    { value: 'Haven-PlayAI', label: 'Haven (Female)' },
+    { value: 'Hera-PlayAI', label: 'Hera (Female)' },
+    { value: 'Luna-PlayAI', label: 'Luna (Female)' },
+    { value: 'Maisie-PlayAI', label: 'Maisie (Female)' },
+    { value: 'Nia-PlayAI', label: 'Nia (Female)' },
+    { value: 'Nolan-PlayAI', label: 'Nolan (Male)' },
+    { value: 'Quinn-PlayAI', label: 'Quinn (Female)' },
+    { value: 'Thunder-PlayAI', label: 'Thunder (Male)' },
+    { value: 'Tyson-PlayAI', label: 'Tyson (Male)' },
+  ],
+  'distil-whisper-large-v3-en': [
+    // Orpheus voices
+    { value: 'tara', label: 'Tara (Female)' },
+    { value: 'leah', label: 'Leah (Female)' },
+    { value: 'jess', label: 'Jess (Female)' },
+    { value: 'leo', label: 'Leo (Male)' },
+    { value: 'dan', label: 'Dan (Male)' },
+    { value: 'mia', label: 'Mia (Female)' },
+    { value: 'zac', label: 'Zac (Male)' },
+    { value: 'zoe', label: 'Zoe (Female)' },
   ],
 };
 
 /**
  * Load Quick Settings from storage
  * T020: Provider dropdown, T021: Voice dropdown, T022: Speed slider
+ * 050-groq-tts-provider: Added groqModel and groqVoice loading
  */
 async function loadQuickSettings(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get(['provider', 'voice', 'speed']);
+    const result = await browser.storage.local.get([
+      'provider',
+      'voice',
+      'speed',
+      'groqModel',
+      'groqVoice',
+    ]);
 
     // Provider dropdown
     const provider = (result.provider as string) || settingsDefaults.provider;
@@ -263,6 +374,20 @@ async function loadQuickSettings(): Promise<void> {
     const speed = (result.speed as number) || settingsDefaults.speed;
     elements.quickSpeed.value = String(speed);
     elements.quickSpeedValue.textContent = `${speed.toFixed(1)}x`;
+
+    // 050-groq-tts-provider: Load Groq model/voice settings
+    const groqModel = (result.groqModel as string) || settingsDefaults.groqModel;
+    elements.groqModel.value = groqModel;
+
+    // Update Groq voice dropdown based on model
+    await updateGroqVoiceDropdown(groqModel);
+    const groqVoice = (result.groqVoice as string) || '';
+    if (groqVoice) {
+      elements.groqVoice.value = groqVoice;
+    }
+
+    // Show/hide Groq model/voice fields based on provider (T039)
+    updateGroqSettingsVisibility(provider);
   } catch (error) {
     console.error('Error loading Quick Settings:', error);
   }
@@ -301,13 +426,59 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
 }
 
 /**
+ * Update Groq voice dropdown based on selected model (050-groq-tts-provider T035)
+ * Filters voice options based on whether PlayAI or Orpheus model is selected
+ */
+async function updateGroqVoiceDropdown(model: string): Promise<void> {
+  if (!elements) return;
+
+  const voiceSelect = elements.groqVoice;
+
+  // Clear existing options using safe DOM method
+  while (voiceSelect.firstChild) {
+    voiceSelect.removeChild(voiceSelect.firstChild);
+  }
+
+  // Add default option
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Default Voice';
+  voiceSelect.appendChild(defaultOption);
+
+  // Get voices for the specific Groq model
+  const voices = GROQ_MODEL_VOICES[model] || GROQ_MODEL_VOICES['playai-tts'];
+
+  // Add voice options
+  voices.forEach((voice) => {
+    const option = document.createElement('option');
+    option.value = voice.value;
+    option.textContent = voice.label;
+    voiceSelect.appendChild(option);
+  });
+}
+
+/**
+ * Show/hide Groq model/voice settings based on provider (050-groq-tts-provider T039)
+ * Only shows Groq-specific settings when Groq is selected as provider
+ */
+function updateGroqSettingsVisibility(provider: string): void {
+  if (!elements) return;
+
+  const isGroq = provider === 'groq';
+  elements.groqModelGroup.style.display = isGroq ? 'block' : 'none';
+  elements.groqVoiceGroup.style.display = isGroq ? 'block' : 'none';
+}
+
+/**
  * Setup Quick Settings event listeners
  * T020: Provider auto-save, T022-T023: Speed slider with debounce, T024: Toast notifications
+ * 050-groq-tts-provider: Added Groq model/voice handlers
  */
 function setupQuickSettingsEventListeners(): void {
   if (!elements) return;
 
   // T020: Provider dropdown with auto-save
+  // T058: Handle provider change for incompatible voice preferences
   elements.quickProvider.addEventListener('change', async () => {
     if (!elements) return;
 
@@ -318,6 +489,16 @@ function setupQuickSettingsEventListeners(): void {
 
     // Auto-save provider
     await saveQuickSetting('provider', provider);
+
+    // T058: Check and reset incompatible voice preferences
+    await resetIncompatibleVoicePreferences(provider);
+
+    // Reload language settings to reflect changes
+    await loadLanguageSettings();
+
+    // 050-groq-tts-provider (T039): Update Groq settings visibility
+    updateGroqSettingsVisibility(provider);
+
     toast.success('Provider updated');
   });
 
@@ -355,6 +536,35 @@ function setupQuickSettingsEventListeners(): void {
       await saveQuickSetting('speed', speed);
       toast.success('Speed updated');
     }, 300);
+  });
+
+  // 050-groq-tts-provider (T035): Groq model change handler
+  elements.groqModel.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const model = elements.groqModel.value;
+
+    // Update Groq voice dropdown for new model
+    await updateGroqVoiceDropdown(model);
+
+    // T036: Reset voice to null when model changes (avoid incompatible voice)
+    elements.groqVoice.value = '';
+    await browser.storage.local.set({ groqVoice: null });
+
+    // Save model
+    await browser.storage.local.set({ groqModel: model });
+
+    toast.success(`Groq model updated to ${model === 'playai-tts' ? 'PlayAI Dialog' : 'Orpheus'}`);
+  });
+
+  // 050-groq-tts-provider: Groq voice change handler
+  elements.groqVoice.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const voice = elements.groqVoice.value;
+    await browser.storage.local.set({ groqVoice: voice || null });
+
+    toast.success(voice ? 'Groq voice updated' : 'Using default Groq voice');
   });
 }
 
@@ -591,8 +801,9 @@ async function loadSettings(): Promise<void> {
 
   try {
     // Load all settings from storage
+    // 050-groq-tts-provider: groqApiKey instead of anthropic:apiKey
     const result = await browser.storage.local.get([
-      'anthropic:apiKey',
+      'groqApiKey',
       'elevenlabsApiKey',
       'provider',
       'speed',
@@ -603,7 +814,8 @@ async function loadSettings(): Promise<void> {
     ]);
 
     // API keys (no defaults, empty if not set)
-    elements.anthropicKey.value = (result['anthropic:apiKey'] as string | undefined) || '';
+    // 050-groq-tts-provider: groqKey is primary TTS
+    elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
 
     // Settings with defaults
@@ -681,8 +893,9 @@ function setupEventListeners(): void {
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Auto-save on input change (with debounce)
+  // 050-groq-tts-provider: groqKey instead of anthropicKey
   const autoSaveInputs: HTMLElement[] = [
-    elements.anthropicKey,
+    elements.groqKey,
     elements.elevenlabsKey,
     elements.defaultProvider,
     elements.defaultSpeed,
@@ -799,10 +1012,12 @@ function setupThemeEventListener(): void {
 
 /**
  * Storage key mapping for each provider's API key
+ * 050-groq-tts-provider: Added groq
  */
+// 050-groq-tts-provider: Groq and ElevenLabs are the only TTS providers
 const PROVIDER_INPUT_IDS: Record<string, string> = {
+  groq: 'groqKey',
   elevenlabs: 'elevenlabsKey',
-  anthropic: 'anthropicKey',
 };
 
 /**
@@ -996,9 +1211,11 @@ function showProviderCardStatus(
 
 /**
  * Capitalize provider name for display
+ * 050-groq-tts-provider: Added groq
  */
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
+    groq: 'Groq',
     elevenlabs: 'ElevenLabs',
     anthropic: 'Anthropic',
   };
@@ -1012,8 +1229,9 @@ async function saveSettings(): Promise<void> {
   if (!elements) return;
 
   try {
+    // 050-groq-tts-provider: Save groqApiKey (not anthropic:apiKey)
     await browser.storage.local.set({
-      'anthropic:apiKey': elements.anthropicKey.value.trim(),
+      groqApiKey: elements.groqKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: Number.parseFloat(elements.defaultSpeed.value),
@@ -1152,19 +1370,19 @@ function validateLoggingEndpoint(url: string): EndpointValidation {
     const parsed = new URL(url);
 
     if (parsed.protocol !== 'https:') {
-      return { valid: false, error: 'Endpoint must use HTTPS' };
+      return { isValid: false, error: 'Endpoint must use HTTPS' };
     }
 
     // Allow both direct Loki endpoints and VoxPage gateway
     const validPaths = ['/loki/api/v1/push', '/ingest', ''];
     const pathValid = validPaths.some((p) => parsed.pathname === p || parsed.pathname.endsWith(p));
     if (!pathValid && !url.includes('voxpage-logs')) {
-      return { valid: false, error: 'Invalid endpoint path' };
+      return { isValid: false, error: 'Invalid endpoint path' };
     }
 
-    return { valid: true };
+    return { isValid: true };
   } catch {
-    return { valid: false, error: 'Invalid URL format' };
+    return { isValid: false, error: 'Invalid URL format' };
   }
 }
 
@@ -1193,7 +1411,7 @@ async function testLoggingConnection(): Promise<void> {
   }
 
   const validation = validateLoggingEndpoint(config.endpoint);
-  if (!validation.valid) {
+  if (!validation.isValid) {
     showLoggingStatus(validation.error || 'Invalid endpoint', 'error');
     return;
   }
@@ -1582,6 +1800,7 @@ function showQueueStatus(message: string, type: 'success' | 'error' | 'loading')
 const SECTION_DISPLAY_NAMES: Record<string, string> = {
   'quick-settings': 'Quick Settings',
   appearance: 'Appearance',
+  language: 'Language',
   'reading-queue': 'Reading Queue',
   developer: 'Developer Settings',
 };
@@ -1651,6 +1870,9 @@ async function reloadSectionSettings(section: string): Promise<void> {
     case 'appearance':
       await loadSettings();
       await loadThemePreference();
+      break;
+    case 'language':
+      await loadLanguageSettings();
       break;
     case 'reading-queue':
       await loadQueueConfig();
@@ -1907,4 +2129,521 @@ function setupCacheEventListeners(): void {
       void loadCacheStats();
     });
   }
+}
+
+// ========================================
+// LANGUAGE SETTINGS (048-multilingual-tts-pillar US5)
+// ========================================
+
+/**
+ * Language display names for voice preference grid
+ */
+const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  pl: 'Polish',
+  tr: 'Turkish',
+  ru: 'Russian',
+  nl: 'Dutch',
+  cs: 'Czech',
+  ar: 'Arabic',
+  zh: 'Chinese',
+  hu: 'Hungarian',
+  ko: 'Korean',
+  ja: 'Japanese',
+  hi: 'Hindi',
+  sv: 'Swedish',
+  id: 'Indonesian',
+  uk: 'Ukrainian',
+  el: 'Greek',
+  fi: 'Finnish',
+  ro: 'Romanian',
+  da: 'Danish',
+  bg: 'Bulgarian',
+  ms: 'Malay',
+  sk: 'Slovak',
+  hr: 'Croatian',
+  ta: 'Tamil',
+  fil: 'Filipino',
+};
+
+/**
+ * Load language settings from storage
+ * T052: Load language settings section
+ */
+async function loadLanguageSettings(): Promise<void> {
+  if (!elements) return;
+
+  try {
+    const result = await browser.storage.local.get([
+      'languageAutoDetect',
+      'languageDefault',
+      'showLanguageBadge',
+      'languagePreference',
+      'provider',
+    ]);
+
+    // Auto-detect toggle
+    const autoDetect = result.languageAutoDetect !== false; // Default true
+    elements.languageAutoDetect.checked = autoDetect;
+
+    // Default language dropdown
+    const defaultLang = (result.languageDefault as string) || languageDefaults.languageDefault;
+    elements.defaultLanguage.value = defaultLang;
+
+    // Show/hide default language based on auto-detect
+    updateDefaultLanguageVisibility(autoDetect);
+
+    // Show language badge toggle
+    const showBadge = result.showLanguageBadge !== false; // Default true
+    elements.showLanguageBadge.checked = showBadge;
+
+    // Load voice preferences grid
+    const provider = (result.provider as string) || settingsDefaults.provider;
+    const langPref = result.languagePreference as
+      | { voicePreferences?: Record<string, string> }
+      | undefined;
+    const voicePreferences = langPref?.voicePreferences || {};
+    await renderVoicePreferencesGrid(provider, voicePreferences);
+  } catch (error) {
+    console.error('Error loading language settings:', error);
+  }
+}
+
+/**
+ * Show/hide default language dropdown based on auto-detect toggle
+ */
+function updateDefaultLanguageVisibility(autoDetect: boolean): void {
+  const defaultLanguageGroup = document.getElementById('defaultLanguageGroup');
+  if (defaultLanguageGroup) {
+    defaultLanguageGroup.style.display = autoDetect ? 'none' : 'block';
+  }
+}
+
+/**
+ * Render voice preferences grid
+ * T053: Voice preference grid component
+ */
+async function renderVoicePreferencesGrid(
+  provider: string,
+  voicePreferences: Record<string, string>,
+): Promise<void> {
+  if (!elements) return;
+
+  const grid = elements.voicePreferencesGrid;
+  const addBtn = elements.addVoicePreferenceBtn;
+
+  // Clear existing content using safe DOM methods
+  while (grid.firstChild) {
+    grid.removeChild(grid.firstChild);
+  }
+
+  // Check if provider supports multiple voices
+  const providerVoices = await getProviderVoices(provider);
+
+  if (!providerVoices || providerVoices.length === 0) {
+    // Show empty state
+    const emptyState = document.createElement('div');
+    emptyState.className = 'voice-preferences-empty';
+    const emptyText = document.createElement('p');
+    emptyText.textContent = 'Select a TTS provider to configure voice preferences.';
+    emptyState.appendChild(emptyText);
+    grid.appendChild(emptyState);
+    addBtn.disabled = true;
+    return;
+  }
+
+  addBtn.disabled = false;
+
+  // Render existing preferences
+  const entries = Object.entries(voicePreferences);
+
+  if (entries.length === 0) {
+    // Show empty state with helpful text
+    const emptyState = document.createElement('div');
+    emptyState.className = 'voice-preferences-empty';
+    const emptyText = document.createElement('p');
+    emptyText.textContent =
+      'No voice preferences set. Click "Add Language Voice" to set a preferred voice for a language.';
+    emptyState.appendChild(emptyText);
+    grid.appendChild(emptyState);
+    return;
+  }
+
+  for (const [langCode, voiceId] of entries) {
+    const row = createVoicePreferenceRow(langCode, voiceId, providerVoices);
+    grid.appendChild(row);
+  }
+}
+
+/**
+ * Create SVG X icon for remove button using safe DOM methods
+ */
+function createRemoveIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line1.setAttribute('x1', '18');
+  line1.setAttribute('y1', '6');
+  line1.setAttribute('x2', '6');
+  line1.setAttribute('y2', '18');
+  svg.appendChild(line1);
+
+  const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line2.setAttribute('x1', '6');
+  line2.setAttribute('y1', '6');
+  line2.setAttribute('x2', '18');
+  line2.setAttribute('y2', '18');
+  svg.appendChild(line2);
+
+  return svg;
+}
+
+/**
+ * Create a voice preference row element
+ */
+function createVoicePreferenceRow(
+  langCode: string,
+  voiceId: string,
+  voices: Array<{ value: string; label: string }>,
+): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'voice-preference-row';
+  row.dataset.language = langCode;
+
+  // Language label
+  const langLabel = document.createElement('div');
+  langLabel.className = 'voice-preference-row__language';
+  langLabel.textContent = LANGUAGE_DISPLAY_NAMES[langCode] || langCode;
+  const langCodeSpan = document.createElement('span');
+  langCodeSpan.className = 'voice-preference-row__language-code';
+  langCodeSpan.textContent = ` (${langCode})`;
+  langLabel.appendChild(langCodeSpan);
+  row.appendChild(langLabel);
+
+  // Voice dropdown
+  const voiceSelect = document.createElement('select');
+  voiceSelect.className = 'voxpage-select voice-preference-row__voice-select';
+  voiceSelect.dataset.language = langCode;
+
+  // Add default option
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Provider Default';
+  voiceSelect.appendChild(defaultOption);
+
+  // Add voice options
+  for (const voice of voices) {
+    const option = document.createElement('option');
+    option.value = voice.value;
+    option.textContent = voice.label;
+    if (voice.value === voiceId) {
+      option.selected = true;
+    }
+    voiceSelect.appendChild(option);
+  }
+
+  voiceSelect.addEventListener('change', () => {
+    void saveVoicePreference(langCode, voiceSelect.value);
+  });
+
+  row.appendChild(voiceSelect);
+
+  // Remove button
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'voice-preference-row__remove-btn';
+  removeBtn.setAttribute(
+    'aria-label',
+    `Remove ${LANGUAGE_DISPLAY_NAMES[langCode] || langCode} voice preference`,
+  );
+  removeBtn.appendChild(createRemoveIcon());
+  removeBtn.addEventListener('click', () => {
+    void removeVoicePreference(langCode);
+  });
+  row.appendChild(removeBtn);
+
+  return row;
+}
+
+/**
+ * Get voices for current provider
+ */
+async function getProviderVoices(
+  provider: string,
+): Promise<Array<{ value: string; label: string }>> {
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: 'provider.getVoices',
+      provider,
+    });
+
+    if (response?.success && Array.isArray(response.voices)) {
+      return response.voices.map((v: { id: string; name: string }) => ({
+        value: v.id,
+        label: v.name,
+      }));
+    }
+  } catch (error) {
+    console.error('Error fetching provider voices:', error);
+  }
+
+  // Fallback for providers that don't support voice listing
+  return PROVIDER_VOICES[provider] || [];
+}
+
+/**
+ * Reset voice preferences that are incompatible with the new provider
+ * T058: Handle provider change for incompatible preferences
+ * Clears all voice preferences since voice IDs are provider-specific
+ */
+async function resetIncompatibleVoicePreferences(newProvider: string): Promise<void> {
+  try {
+    const result = await browser.storage.local.get('languagePreference');
+    const langPref =
+      (result.languagePreference as { voicePreferences?: Record<string, string> }) || {};
+    const voicePreferences = langPref.voicePreferences || {};
+
+    // If there are voice preferences, warn the user and clear them
+    const preferenceCount = Object.keys(voicePreferences).length;
+    if (preferenceCount > 0) {
+      // Clear all voice preferences since they're provider-specific
+      await browser.storage.local.set({
+        languagePreference: {
+          ...langPref,
+          voicePreferences: {},
+        },
+      });
+
+      toast.info(
+        `Cleared ${preferenceCount} voice preference${preferenceCount > 1 ? 's' : ''} (voice IDs are provider-specific)`,
+      );
+      console.log(
+        '[Settings] Cleared voice preferences on provider change to',
+        newProvider,
+        'from',
+        voicePreferences,
+      );
+    }
+  } catch (error) {
+    console.error('Error resetting voice preferences:', error);
+  }
+}
+
+/**
+ * Save a voice preference for a language
+ * T056: Implement voice preference save/load
+ */
+async function saveVoicePreference(langCode: string, voiceId: string): Promise<void> {
+  try {
+    const result = await browser.storage.local.get('languagePreference');
+    const langPref =
+      (result.languagePreference as { voicePreferences?: Record<string, string> }) || {};
+    const voicePreferences = langPref.voicePreferences || {};
+
+    if (voiceId) {
+      voicePreferences[langCode] = voiceId;
+    } else {
+      delete voicePreferences[langCode];
+    }
+
+    await browser.storage.local.set({
+      languagePreference: {
+        ...langPref,
+        voicePreferences,
+      },
+    });
+
+    toast.success(`Voice preference saved for ${LANGUAGE_DISPLAY_NAMES[langCode] || langCode}`);
+  } catch (error) {
+    console.error('Error saving voice preference:', error);
+    toast.error('Failed to save voice preference');
+  }
+}
+
+/**
+ * Remove a voice preference
+ */
+async function removeVoicePreference(langCode: string): Promise<void> {
+  try {
+    const result = await browser.storage.local.get('languagePreference');
+    const langPref =
+      (result.languagePreference as { voicePreferences?: Record<string, string> }) || {};
+    const voicePreferences = { ...langPref.voicePreferences };
+
+    delete voicePreferences[langCode];
+
+    await browser.storage.local.set({
+      languagePreference: {
+        ...langPref,
+        voicePreferences,
+      },
+    });
+
+    // Re-render grid
+    const provider = await browser.storage.local.get('provider');
+    await renderVoicePreferencesGrid(
+      (provider.provider as string) || settingsDefaults.provider,
+      voicePreferences,
+    );
+
+    toast.success(`Removed voice preference for ${LANGUAGE_DISPLAY_NAMES[langCode] || langCode}`);
+  } catch (error) {
+    console.error('Error removing voice preference:', error);
+    toast.error('Failed to remove voice preference');
+  }
+}
+
+/**
+ * Show add language modal
+ * T053: Voice preference grid component
+ */
+async function showAddLanguageModal(): Promise<void> {
+  if (!elements) return;
+
+  // Get current preferences to filter out already-configured languages
+  const result = await browser.storage.local.get(['languagePreference', 'provider']);
+  const langPref = result.languagePreference as
+    | { voicePreferences?: Record<string, string> }
+    | undefined;
+  const voicePreferences = langPref?.voicePreferences || {};
+  const provider = (result.provider as string) || settingsDefaults.provider;
+
+  // Get available languages (those not already configured)
+  const configuredLanguages = new Set(Object.keys(voicePreferences));
+  const availableLanguages = Object.entries(LANGUAGE_DISPLAY_NAMES).filter(
+    ([code]) => !configuredLanguages.has(code),
+  );
+
+  if (availableLanguages.length === 0) {
+    toast.info('All languages have been configured');
+    return;
+  }
+
+  // Create modal with language selection
+  const confirmed = await showConfirmModal({
+    title: 'Add Language Voice',
+    message: 'Select a language to set a preferred voice:',
+    confirmText: 'Add',
+    cancelText: 'Cancel',
+    customContent: createLanguageSelectGrid(availableLanguages),
+    onConfirm: async () => {
+      const selected = document.querySelector(
+        '.language-select-option--selected',
+      ) as HTMLElement | null;
+      if (!selected?.dataset.language) {
+        throw new Error('Please select a language');
+      }
+      const langCode = selected.dataset.language;
+
+      // Get provider voices to set initial preference
+      const voices = await getProviderVoices(provider);
+      const defaultVoice = voices.length > 0 ? voices[0].value : '';
+
+      // Save the new preference
+      await saveVoicePreference(langCode, defaultVoice);
+
+      // Re-render grid
+      const updatedPref = await browser.storage.local.get('languagePreference');
+      const updatedVoicePrefs =
+        (updatedPref.languagePreference as { voicePreferences?: Record<string, string> })
+          ?.voicePreferences || {};
+      await renderVoicePreferencesGrid(provider, updatedVoicePrefs);
+    },
+  });
+
+  if (!confirmed) {
+    // User cancelled
+  }
+}
+
+/**
+ * Create language select grid for modal
+ */
+function createLanguageSelectGrid(languages: Array<[string, string]>): HTMLElement {
+  const container = document.createElement('div');
+  container.className = 'language-select-grid';
+
+  for (const [code, name] of languages) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'language-select-option';
+    option.dataset.language = code;
+    option.textContent = name;
+
+    const codeSpan = document.createElement('span');
+    codeSpan.className = 'language-select-option__code';
+    codeSpan.textContent = ` ${code}`;
+    option.appendChild(codeSpan);
+
+    option.addEventListener('click', () => {
+      // Deselect others
+      container.querySelectorAll('.language-select-option').forEach((btn) => {
+        btn.classList.remove('language-select-option--selected');
+      });
+      option.classList.add('language-select-option--selected');
+    });
+
+    container.appendChild(option);
+  }
+
+  return container;
+}
+
+/**
+ * Setup language settings event listeners
+ * T052: Language settings section
+ */
+function setupLanguageEventListeners(): void {
+  if (!elements) return;
+
+  // Auto-detect toggle
+  elements.languageAutoDetect.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const autoDetect = elements.languageAutoDetect.checked;
+    await browser.storage.local.set({ languageAutoDetect: autoDetect });
+    updateDefaultLanguageVisibility(autoDetect);
+
+    toast.success(
+      autoDetect ? 'Language auto-detection enabled' : 'Language auto-detection disabled',
+    );
+    trackSettingChange('settings.language_autodetect', { enabled: autoDetect });
+  });
+
+  // Default language dropdown
+  elements.defaultLanguage.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const defaultLang = elements.defaultLanguage.value;
+    await browser.storage.local.set({ languageDefault: defaultLang });
+
+    toast.success(`Default language set to ${LANGUAGE_DISPLAY_NAMES[defaultLang] || defaultLang}`);
+    trackSettingChange('settings.language_default', { language: defaultLang });
+  });
+
+  // Show language badge toggle
+  elements.showLanguageBadge.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const showBadge = elements.showLanguageBadge.checked;
+    await browser.storage.local.set({ showLanguageBadge: showBadge });
+
+    toast.success(showBadge ? 'Language badge enabled' : 'Language badge hidden');
+    trackSettingChange('settings.language_badge', { visible: showBadge });
+  });
+
+  // Add voice preference button
+  elements.addVoicePreferenceBtn.addEventListener('click', () => {
+    void showAddLanguageModal();
+  });
 }

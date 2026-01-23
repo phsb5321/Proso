@@ -71,6 +71,15 @@
           </a>
         </li>
         <li>
+          <a href="#language" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span>Language</span>
+          </a>
+        </li>
+        <li>
           <a href="#cache" class="sidebar-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -137,16 +146,46 @@
         </div>
 
         <div class="quick-settings-grid">
+          <!-- TTS Providers: Groq (primary), ElevenLabs (high-quality), Browser (fallback) -->
           <div class="form-group">
             <label for="quickProvider" class="form-label">Provider</label>
             <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint" data-testid="settings-provider-select">
+              <option value="groq">Groq (Fast & Affordable)</option>
+              <option value="elevenlabs">ElevenLabs (High Quality)</option>
               <option value="browser">Browser TTS (Free)</option>
-              <option value="groq">Groq (Fast)</option>
-              <option value="openai">OpenAI</option>
-              <option value="elevenlabs">ElevenLabs</option>
-              <option value="cartesia">Cartesia</option>
             </select>
-            <p id="quickProviderHint" class="form-hint">Select your preferred text-to-speech provider</p>
+            <p id="quickProviderHint" class="form-hint">Groq and ElevenLabs require an API key. Browser TTS is free and works offline.</p>
+          </div>
+
+          <!-- 050-groq-tts-provider: Provider mode with Groq as primary -->
+          <div class="form-group">
+            <label for="providerOverride" class="form-label">Provider Mode</label>
+            <select id="providerOverride" class="voxpage-select" aria-describedby="providerOverrideHint" data-testid="settings-provider-override-select">
+              <option value="">Automatic (Recommended)</option>
+              <option value="groq">Always use Groq</option>
+              <option value="elevenlabs">Always use ElevenLabs</option>
+              <option value="browser">Always use Browser TTS</option>
+            </select>
+            <p id="providerOverrideHint" class="form-hint">Automatic mode uses Groq if available, otherwise Browser TTS.</p>
+          </div>
+
+          <!-- 050-groq-tts-provider: Groq Model Selector (T033) -->
+          <div class="form-group" id="groqModelGroup" data-provider-group="groq">
+            <label for="groqModel" class="form-label">Groq Model</label>
+            <select id="groqModel" class="voxpage-select" aria-describedby="groqModelHint" data-testid="settings-groq-model-select">
+              <option value="playai-tts">PlayAI Dialog ($50/1M chars)</option>
+              <option value="distil-whisper-large-v3-en">Orpheus ($22/1M chars)</option>
+            </select>
+            <p id="groqModelHint" class="form-hint">PlayAI has more voices. Orpheus is faster and cheaper.</p>
+          </div>
+
+          <!-- 050-groq-tts-provider: Groq Voice Selector (T034) -->
+          <div class="form-group" id="groqVoiceGroup" data-provider-group="groq">
+            <label for="groqVoice" class="form-label">Groq Voice</label>
+            <select id="groqVoice" class="voxpage-select" aria-describedby="groqVoiceHint" data-testid="settings-groq-voice-select">
+              <option value="">Default Voice</option>
+            </select>
+            <p id="groqVoiceHint" class="form-hint">Voice options vary by selected model</p>
           </div>
 
           <div class="form-group">
@@ -186,16 +225,17 @@
             Configure your API keys to enable AI-powered text-to-speech. Your keys are stored locally and never sent anywhere except to the respective API providers.
           </p>
 
+          <!-- 050-groq-tts-provider: Groq is now the primary TTS provider -->
           <div class="provider-cards-grid">
-            <!-- OpenAI Provider Card -->
-            <div class="provider-card" data-provider="openai" style="--provider-color: #10a37f;">
+            <!-- Groq Provider Card (050-groq-tts-provider) - PRIMARY -->
+            <div class="provider-card" data-provider="groq" style="--provider-color: #f55036;">
               <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--openai">OpenAI</span>
+                <span class="voxpage-badge voxpage-badge--groq">Groq</span>
               </div>
-              <p class="provider-card__description">High-quality voices with natural speech patterns</p>
+              <p class="provider-card__description">Fast, affordable TTS with PlayAI and Distil Whisper models</p>
               <div class="provider-card__input-wrapper">
-                <input type="password" id="openaiKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="openaiKey" aria-label="Toggle API key visibility">
+                <input type="password" id="groqKey" class="voxpage-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">
                   <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -203,21 +243,21 @@
                 </button>
               </div>
               <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="openai">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="openai">Save</button>
+                <button type="button" id="testGroqKey" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="groq">Test</button>
+                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="groq">Save</button>
               </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="openai"></div>
-              <a class="provider-card__docs-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+              <div id="groqKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="groq"></div>
+              <a class="provider-card__docs-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
             </div>
 
-            <!-- ElevenLabs Provider Card -->
-            <div class="provider-card" data-provider="elevenlabs" style="--provider-color: #5e5ce6;">
+            <!-- ElevenLabs Provider Card - High Quality Multilingual TTS -->
+            <div class="provider-card" data-provider="elevenlabs" style="--provider-color: #000000;">
               <div class="provider-card__header">
                 <span class="voxpage-badge voxpage-badge--elevenlabs">ElevenLabs</span>
               </div>
-              <p class="provider-card__description">Premium voice cloning and multilingual support</p>
+              <p class="provider-card__description">High-quality multilingual TTS with natural-sounding voices</p>
               <div class="provider-card__input-wrapper">
-                <input type="password" id="elevenlabsKey" class="voxpage-input provider-card__input" placeholder="xi-..." autocomplete="off" spellcheck="false">
+                <input type="password" id="elevenlabsKey" class="voxpage-input provider-card__input" placeholder="xi_..." autocomplete="off" spellcheck="false">
                 <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="elevenlabsKey" aria-label="Toggle API key visibility">
                   <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -233,73 +273,21 @@
               <a class="provider-card__docs-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
             </div>
 
-            <!-- Groq Provider Card -->
-            <div class="provider-card" data-provider="groq" style="--provider-color: #f55036;">
+            <!-- Browser TTS Info Card (no API key needed) -->
+            <div class="provider-card" data-provider="browser" style="--provider-color: #6b7280;">
               <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--groq">Groq</span>
+                <span class="voxpage-badge voxpage-badge--browser">Browser TTS</span>
               </div>
-              <p class="provider-card__description">Ultra-fast inference with LPU technology</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="groqKey" class="voxpage-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
+              <p class="provider-card__description">Free offline TTS using system voices. No API key required.</p>
+              <div class="provider-card__status provider-card__status--success" role="status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Always available
               </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="groq">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="groq">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="groq"></div>
-              <a class="provider-card__docs-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
             </div>
 
-            <!-- Cartesia Provider Card -->
-            <div class="provider-card" data-provider="cartesia" style="--provider-color: #ff6b35;">
-              <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--cartesia">Cartesia</span>
-              </div>
-              <p class="provider-card__description">Fast, low-latency voice synthesis</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="cartesiaKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="cartesiaKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="cartesia">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="cartesia">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="cartesia"></div>
-              <a class="provider-card__docs-link" href="https://play.cartesia.ai/settings" target="_blank" rel="noopener noreferrer">Get API Key</a>
-            </div>
-
-            <!-- Anthropic Provider Card -->
-            <div class="provider-card" data-provider="anthropic" style="--provider-color: #cc785c;">
-              <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--anthropic">Anthropic</span>
-              </div>
-              <p class="provider-card__description">AI assistant for content summarization</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="anthropicKey" class="voxpage-input provider-card__input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="anthropicKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="anthropic">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="anthropic"></div>
-              <a class="provider-card__docs-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
-            </div>
+            <!-- TTS Providers: Groq (primary), ElevenLabs (high-quality), Browser (fallback) -->
           </div>
         </div>
       </section>
@@ -319,13 +307,12 @@
           </svg>
         </button>
         <div id="defaults-content" class="voxpage-accordion__content">
+        <!-- Providers: Groq (primary), ElevenLabs (high-quality), Browser TTS (fallback) -->
         <div class="form-group">
           <label for="defaultProvider" class="form-label">Default Provider</label>
           <select id="defaultProvider" class="voxpage-select">
-            <option value="groq">Groq (Fast & Cheap)</option>
-            <option value="openai">OpenAI TTS</option>
-            <option value="elevenlabs">ElevenLabs</option>
-            <option value="cartesia">Cartesia</option>
+            <option value="groq">Groq (Fast & Affordable)</option>
+            <option value="elevenlabs">ElevenLabs (High Quality)</option>
             <option value="browser">Browser TTS (Free)</option>
           </select>
         </div>
@@ -405,6 +392,116 @@
           </label>
           <p class="form-hint">Display estimated API costs and cache savings when using paid TTS providers</p>
         </div>
+        </div>
+      </section>
+
+      <!-- Language Settings Section (048-multilingual-tts-pillar US5) -->
+      <section id="language" class="voxpage-card voxpage-accordion" data-section="language">
+        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="language-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            Language
+          </h2>
+          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="language-content" class="voxpage-accordion__content" hidden>
+          <div class="section-actions">
+            <button type="button" class="voxpage-button voxpage-button--ghost section-reset-btn" data-section="language" aria-label="Reset Language settings to defaults">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Reset to Defaults
+            </button>
+          </div>
+
+          <p class="section-description">
+            Configure language detection and set preferred voices for different languages.
+          </p>
+
+          <!-- Auto-detect Toggle (T054) -->
+          <div class="form-group">
+            <label class="voxpage-toggle">
+              <input type="checkbox" id="languageAutoDetect" class="voxpage-toggle__input" checked data-testid="settings-language-autodetect-toggle">
+              <span class="voxpage-toggle__switch"></span>
+              <span class="voxpage-toggle__text">Automatically detect page language</span>
+            </label>
+            <p class="form-hint">When enabled, VoxPage detects the language of web pages and selects appropriate voices automatically.</p>
+          </div>
+
+          <!-- Default Language (when auto-detect is off) -->
+          <div class="form-group" id="defaultLanguageGroup">
+            <label for="defaultLanguage" class="form-label">Default Language</label>
+            <select id="defaultLanguage" class="voxpage-select" data-testid="settings-default-language">
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+              <option value="pt">Portuguese</option>
+              <option value="pl">Polish</option>
+              <option value="tr">Turkish</option>
+              <option value="ru">Russian</option>
+              <option value="nl">Dutch</option>
+              <option value="cs">Czech</option>
+              <option value="ar">Arabic</option>
+              <option value="zh">Chinese</option>
+              <option value="hu">Hungarian</option>
+              <option value="ko">Korean</option>
+              <option value="ja">Japanese</option>
+              <option value="hi">Hindi</option>
+              <option value="sv">Swedish</option>
+              <option value="id">Indonesian</option>
+              <option value="uk">Ukrainian</option>
+              <option value="el">Greek</option>
+              <option value="fi">Finnish</option>
+              <option value="ro">Romanian</option>
+              <option value="da">Danish</option>
+              <option value="bg">Bulgarian</option>
+              <option value="ms">Malay</option>
+              <option value="sk">Slovak</option>
+              <option value="hr">Croatian</option>
+              <option value="ta">Tamil</option>
+              <option value="fil">Filipino</option>
+            </select>
+            <p class="form-hint">Used when auto-detection is disabled or when detection fails.</p>
+          </div>
+
+          <!-- Show Language Badge Toggle -->
+          <div class="form-group">
+            <label class="voxpage-toggle">
+              <input type="checkbox" id="showLanguageBadge" class="voxpage-toggle__input" checked data-testid="settings-language-badge-toggle">
+              <span class="voxpage-toggle__switch"></span>
+              <span class="voxpage-toggle__text">Show language badge in footer</span>
+            </label>
+            <p class="form-hint">Display the detected language code in the sticky footer player.</p>
+          </div>
+
+          <!-- Voice Preferences Grid (T053) -->
+          <div class="form-group">
+            <h3 class="form-label">Voice Preferences by Language</h3>
+            <p class="form-hint">Set preferred voices for specific languages. When a page is detected in that language, VoxPage will use your preferred voice.</p>
+
+            <div id="voicePreferencesGrid" class="voice-preferences-grid">
+              <!-- Grid populated dynamically by controller -->
+              <div class="voice-preferences-empty">
+                <p>Select a TTS provider to configure voice preferences.</p>
+              </div>
+            </div>
+
+            <button type="button" id="addVoicePreferenceBtn" class="voxpage-button voxpage-button--secondary" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Language Voice
+            </button>
+          </div>
         </div>
       </section>
 

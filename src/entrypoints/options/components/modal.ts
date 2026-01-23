@@ -16,6 +16,7 @@ export interface ModalOptions {
   confirmText?: string;
   cancelText?: string;
   confirmVariant?: 'primary' | 'danger';
+  customContent?: HTMLElement;
   onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
 }
@@ -35,6 +36,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
       confirmText = 'Confirm',
       cancelText = 'Cancel',
       confirmVariant = 'primary',
+      customContent,
       onConfirm,
       onCancel,
     } = options;
@@ -75,6 +77,11 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
     messageEl.textContent = message;
 
     body.appendChild(messageEl);
+
+    // Add custom content if provided
+    if (customContent) {
+      body.appendChild(customContent);
+    }
 
     // Create modal footer with buttons
     const footer = document.createElement('div');

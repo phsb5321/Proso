@@ -11,6 +11,9 @@
  * @see T132-T141 Phase 7 (US5) Popup UI Implementation
  */
 
+// Import CSS directly - Vite will handle this for both dev and prod
+import './style.css';
+
 import { browser } from 'wxt/browser';
 import { usageTracker } from '../../utils/telemetry/usage';
 
@@ -94,9 +97,26 @@ const elements = {
 
   // Cost display
   costSection: document.getElementById('cost-section') as HTMLElement,
+  costProviderRow: document.getElementById('cost-provider-row') as HTMLDivElement, // 050-groq-tts-provider (T048)
+  costProvider: document.getElementById('cost-provider') as HTMLSpanElement, // 050-groq-tts-provider (T048)
   costEstimate: document.getElementById('cost-estimate') as HTMLSpanElement,
   costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
   costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
+
+  // Language selection (048-multilingual-tts-pillar: T032-T035)
+  languageSelect: document.getElementById('language-select') as HTMLSelectElement,
+  languageBadge: document.getElementById('language-badge') as HTMLSpanElement,
+
+  // Language compatibility warning (048-multilingual-tts-pillar: T041-T044)
+  languageWarning: document.getElementById('language-warning') as HTMLDivElement,
+  languageWarningText: document.getElementById('language-warning-text') as HTMLSpanElement,
+  languageWarningSwitchBtn: document.getElementById(
+    'language-warning-switch-btn',
+  ) as HTMLButtonElement,
+  suggestedProviderName: document.getElementById('suggested-provider-name') as HTMLSpanElement,
+  languageWarningDismissBtn: document.getElementById(
+    'language-warning-dismiss-btn',
+  ) as HTMLButtonElement,
 
   // Collapsible sections (hidden by default in CSS)
   summarizeSection: document.getElementById('summarize-section') as HTMLElement,
@@ -145,6 +165,36 @@ let currentSummaryBullets: Array<{ text: string }> = [];
 type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
 let selectedHighlightColor: HighlightColor = 'yellow';
 let currentSelectionExact: string | null = null;
+
+// Language state (048-multilingual-tts-pillar: T032-T038)
+interface LanguageState {
+  detected: {
+    code: string;
+    confidence: number;
+    source: 'metadata' | 'text' | 'fallback';
+  } | null;
+  override: string | null;
+  effective: string;
+  autoDetect: boolean;
+}
+
+let languageState: LanguageState = {
+  detected: null,
+  override: null,
+  effective: 'en',
+  autoDetect: true,
+};
+
+// Provider compatibility state (048-multilingual-tts-pillar: T041-T044)
+interface ProviderCompatibility {
+  supported: boolean;
+  provider: string;
+  language: string;
+  suggestedProviders?: string[];
+}
+
+let compatibilityWarningDismissed = false;
+let suggestedProvider: string | null = null;
 
 // Queue state
 interface QueueItem {
@@ -241,6 +291,41 @@ function updateSpeed(speed: number): void {
  */
 function updateProvider(provider: string): void {
   elements.providerSelect.value = provider;
+}
+
+/**
+ * Update provider mode indicator (049-tts-provider-consolidation: T040)
+ * Shows "Manual" badge when provider override is active
+ */
+function updateProviderModeIndicator(isManual: boolean): void {
+  const label =
+    document.querySelector('[for="provider-select"]') ||
+    document.querySelector('.voxpage-popup__provider-label');
+  if (!label) return;
+
+  // Remove existing badge if any
+  const existingBadge = label.querySelector('.provider-mode-badge');
+  if (existingBadge) {
+    existingBadge.remove();
+  }
+
+  // Add "Manual" badge if override is active
+  if (isManual) {
+    const badge = document.createElement('span');
+    badge.className = 'provider-mode-badge';
+    badge.textContent = 'Manual';
+    badge.style.cssText = `
+      font-size: 10px;
+      padding: 2px 6px;
+      margin-left: 6px;
+      background: #6366f1;
+      color: white;
+      border-radius: 4px;
+      font-weight: 500;
+      vertical-align: middle;
+    `;
+    label.appendChild(badge);
+  }
 }
 
 // ============================================
@@ -390,7 +475,8 @@ async function fetchPlaybackState(): Promise<void> {
  */
 async function fetchSettings(): Promise<void> {
   try {
-    const result = await browser.storage.local.get(['speed', 'provider']);
+    // 049-tts-provider-consolidation: Also fetch providerOverride for T040
+    const result = await browser.storage.local.get(['speed', 'provider', 'providerOverride']);
     if (typeof result.speed === 'number') {
       updateSpeed(result.speed);
       currentState.speed = result.speed;
@@ -399,6 +485,9 @@ async function fetchSettings(): Promise<void> {
       updateProvider(result.provider);
       currentState.provider = result.provider;
     }
+    // T040: Show "Manual" badge if provider override is active
+    const hasOverride = result.providerOverride !== null && result.providerOverride !== undefined;
+    updateProviderModeIndicator(hasOverride);
   } catch (error) {
     console.error('[Popup] Failed to fetch settings:', error);
   }
@@ -527,9 +616,338 @@ async function handleProviderChange(event: Event): Promise<void> {
   try {
     await browser.storage.local.set({ provider });
     await sendMessage('updateSettings', { provider });
+
+    // Check provider compatibility with current language (T040)
+    await checkProviderCompatibility();
   } catch (error) {
     console.error('[Popup] Provider change error:', error);
   }
+}
+
+// ============================================
+// Language Override Functions (048-multilingual-tts-pillar: T032-T038)
+// ============================================
+
+/**
+ * Update language dropdown to reflect current state
+ * T047, T050, T051: Badge shows confidence states and override indicator
+ */
+function updateLanguageUI(): void {
+  if (!elements.languageSelect) return;
+
+  // Set dropdown value based on override or auto
+  if (languageState.override) {
+    elements.languageSelect.value = languageState.override;
+  } else {
+    elements.languageSelect.value = 'auto';
+  }
+
+  // Update badge with detected language and confidence state
+  if (elements.languageBadge) {
+    // Remove all state classes first
+    elements.languageBadge.classList.remove(
+      'voxpage-popup__language-badge--high',
+      'voxpage-popup__language-badge--low',
+      'voxpage-popup__language-badge--override',
+    );
+
+    if (languageState.override) {
+      // T051: Show override state with edit icon
+      elements.languageBadge.textContent = languageState.override.toUpperCase();
+      elements.languageBadge.title = `Manual override: ${languageState.override}`;
+      elements.languageBadge.classList.add('voxpage-popup__language-badge--override');
+      elements.languageBadge.hidden = false;
+    } else if (languageState.detected) {
+      // Show detected language with confidence state
+      elements.languageBadge.textContent = languageState.detected.code.toUpperCase();
+      const confidence = languageState.detected.confidence;
+      const confidencePercent = Math.round(confidence * 100);
+
+      // T050: Show warning state when detection confidence is low (<90%)
+      if (confidence < 0.9) {
+        elements.languageBadge.classList.add('voxpage-popup__language-badge--low');
+        elements.languageBadge.title = `Detected: ${languageState.detected.code} (${confidencePercent}% confidence - low)`;
+      } else {
+        elements.languageBadge.classList.add('voxpage-popup__language-badge--high');
+        elements.languageBadge.title = `Detected: ${languageState.detected.code} (${confidencePercent}% confidence)`;
+      }
+      elements.languageBadge.hidden = false;
+    } else {
+      elements.languageBadge.hidden = true;
+    }
+  }
+}
+
+/**
+ * Fetch language state from background
+ */
+async function fetchLanguageState(): Promise<void> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+
+    const response = await sendMessage<LanguageState>('language.getState', { tabId: tab.id });
+    if (response) {
+      languageState = response;
+      updateLanguageUI();
+      console.log('[Popup] Language state fetched:', languageState);
+    }
+  } catch (error) {
+    console.error('[Popup] Failed to fetch language state:', error);
+  }
+}
+
+/**
+ * Handle language selection change
+ */
+async function handleLanguageChange(event: Event): Promise<void> {
+  const target = event.target as HTMLSelectElement;
+  const value = target.value;
+
+  try {
+    if (value === 'auto') {
+      // Clear override - return to auto-detect
+      await sendMessage('language.clearOverride');
+      languageState.override = null;
+      languageState.effective = languageState.detected?.code || 'en';
+
+      usageTracker.track('language.override_cleared', {
+        source: 'popup',
+        previousOverride: languageState.override,
+      });
+
+      console.log('[Popup] Language override cleared');
+    } else {
+      // Set language override
+      await sendMessage('language.setOverride', { languageCode: value });
+      languageState.override = value;
+      languageState.effective = value;
+
+      usageTracker.track('language.override_set', {
+        source: 'popup',
+        languageCode: value,
+        previousDetected: languageState.detected?.code,
+      });
+
+      console.log('[Popup] Language override set to:', value);
+    }
+
+    updateLanguageUI();
+
+    // Check provider compatibility after language change (T040)
+    await checkProviderCompatibility();
+  } catch (error) {
+    console.error('[Popup] Language change error:', error);
+    // Revert UI on error
+    updateLanguageUI();
+  }
+}
+
+// ============================================
+// Provider Compatibility Functions (048-multilingual-tts-pillar: T039-T044)
+// ============================================
+
+/**
+ * Provider display name mapping
+ * 049-tts-provider-consolidation: Only ElevenLabs and Browser
+ * 050-groq-tts-provider: Added Groq
+ */
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  groq: 'Groq',
+  elevenlabs: 'ElevenLabs',
+  browser: 'Browser (Free)',
+};
+
+/**
+ * Groq model display names for T048
+ * 050-groq-tts-provider: Show model name in cost display
+ */
+const GROQ_MODEL_DISPLAY_NAMES: Record<string, string> = {
+  'playai-tts': 'PlayAI',
+  'distil-whisper-large-v3-en': 'Orpheus',
+};
+
+/**
+ * Get display name for provider, including model for Groq
+ * 050-groq-tts-provider (T048): Show Groq model name in cost display
+ */
+function getProviderDisplayName(provider: string, model?: string): string {
+  if (provider === 'groq' && model) {
+    const modelName = GROQ_MODEL_DISPLAY_NAMES[model] || model;
+    return `Groq (${modelName})`;
+  }
+  return PROVIDER_DISPLAY_NAMES[provider] || provider;
+}
+
+/**
+ * Check if current provider supports the effective language
+ */
+async function checkProviderCompatibility(): Promise<void> {
+  // Skip if warning was dismissed this session
+  if (compatibilityWarningDismissed) {
+    hideCompatibilityWarning();
+    return;
+  }
+
+  const effectiveLanguage = languageState.effective;
+  const currentProvider = currentState.provider;
+
+  if (!effectiveLanguage || !currentProvider) {
+    hideCompatibilityWarning();
+    return;
+  }
+
+  try {
+    const response = await sendMessage<{
+      ok: boolean;
+      value?: ProviderCompatibility;
+      error?: { type: string; message: string };
+    }>('provider.validateLanguage', {
+      language: effectiveLanguage,
+      provider: currentProvider,
+    });
+
+    // Handle Result<T, E> response pattern
+    if (response?.ok && response.value) {
+      const validation = response.value;
+
+      if (!validation.supported) {
+        // Show warning with suggested provider
+        showCompatibilityWarning(effectiveLanguage, currentProvider, validation.suggestedProviders);
+      } else {
+        hideCompatibilityWarning();
+      }
+    } else {
+      hideCompatibilityWarning();
+    }
+  } catch (error) {
+    console.error('[Popup] Provider compatibility check failed:', error);
+    hideCompatibilityWarning();
+  }
+}
+
+/**
+ * Show the provider compatibility warning
+ */
+function showCompatibilityWarning(
+  language: string,
+  provider: string,
+  suggestedProviders?: string[],
+): void {
+  if (!elements.languageWarning) return;
+
+  // Get language display name
+  const languageNames: Record<string, string> = {
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    pl: 'Polish',
+    tr: 'Turkish',
+    ru: 'Russian',
+    nl: 'Dutch',
+    cs: 'Czech',
+    ar: 'Arabic',
+    zh: 'Chinese',
+    hu: 'Hungarian',
+    ko: 'Korean',
+    ja: 'Japanese',
+    hi: 'Hindi',
+    sv: 'Swedish',
+    id: 'Indonesian',
+    uk: 'Ukrainian',
+    el: 'Greek',
+    fi: 'Finnish',
+    ro: 'Romanian',
+    da: 'Danish',
+    bg: 'Bulgarian',
+    ms: 'Malay',
+    sk: 'Slovak',
+    hr: 'Croatian',
+    ta: 'Tamil',
+    fil: 'Filipino',
+  };
+
+  const languageName = languageNames[language] || language.toUpperCase();
+  const providerName = PROVIDER_DISPLAY_NAMES[provider] || provider;
+
+  // Update warning text
+  if (elements.languageWarningText) {
+    elements.languageWarningText.textContent = `${providerName} may not fully support ${languageName}. Audio quality may be affected.`;
+  }
+
+  // Set suggested provider (first one that's not current)
+  suggestedProvider = suggestedProviders?.find((p) => p !== provider) || 'browser';
+
+  if (elements.suggestedProviderName) {
+    elements.suggestedProviderName.textContent =
+      PROVIDER_DISPLAY_NAMES[suggestedProvider] || suggestedProvider;
+  }
+
+  // Show warning
+  elements.languageWarning.hidden = false;
+
+  usageTracker.track('language.compatibility_warning_shown', {
+    language,
+    provider,
+    suggestedProvider,
+  });
+}
+
+/**
+ * Hide the provider compatibility warning
+ */
+function hideCompatibilityWarning(): void {
+  if (elements.languageWarning) {
+    elements.languageWarning.hidden = true;
+  }
+}
+
+/**
+ * Handle switching to suggested provider
+ */
+async function handleSwitchToSuggestedProvider(): Promise<void> {
+  if (!suggestedProvider) return;
+
+  try {
+    // Update provider selection
+    elements.providerSelect.value = suggestedProvider;
+    currentState.provider = suggestedProvider;
+
+    // Save to storage and notify background
+    await browser.storage.local.set({ provider: suggestedProvider });
+    await sendMessage('updateSettings', { provider: suggestedProvider });
+
+    usageTracker.track('language.provider_switched_from_warning', {
+      fromProvider: currentState.provider,
+      toProvider: suggestedProvider,
+      language: languageState.effective,
+    });
+
+    // Hide warning after switch
+    hideCompatibilityWarning();
+
+    console.log('[Popup] Switched to suggested provider:', suggestedProvider);
+  } catch (error) {
+    console.error('[Popup] Failed to switch provider:', error);
+  }
+}
+
+/**
+ * Handle dismissing the compatibility warning (suppress for session)
+ */
+function handleDismissCompatibilityWarning(): void {
+  compatibilityWarningDismissed = true;
+  hideCompatibilityWarning();
+
+  usageTracker.track('language.compatibility_warning_dismissed', {
+    language: languageState.effective,
+    provider: currentState.provider,
+  });
+
+  console.log('[Popup] Compatibility warning dismissed for this session');
 }
 
 /**
@@ -1156,9 +1574,19 @@ function formatSavingsDisplay(savings: number, percentage: number): string {
 
 /**
  * Update cost display in the popup UI
+ * 050-groq-tts-provider (T048): Added provider and model params to show provider name
  */
-function updateCostDisplay(estimate: CostEstimateResponse): void {
+function updateCostDisplay(
+  estimate: CostEstimateResponse,
+  provider?: string,
+  model?: string,
+): void {
   if (!elements.costSection) return;
+
+  // 050-groq-tts-provider (T048): Update provider name display
+  if (elements.costProvider && provider) {
+    elements.costProvider.textContent = getProviderDisplayName(provider, model);
+  }
 
   // Update estimated cost
   elements.costEstimate.textContent = formatCostDisplay(estimate.actualCost);
@@ -1193,7 +1621,13 @@ function hideCostDisplay(): void {
 async function fetchCostEstimate(): Promise<void> {
   try {
     // Check if cost display is enabled in settings
-    const settings = await browser.storage.local.get(['showCostEstimate', 'provider', 'voice']);
+    // 050-groq-tts-provider (T048): Added groqModel for model-specific pricing
+    const settings = await browser.storage.local.get([
+      'showCostEstimate',
+      'provider',
+      'voice',
+      'groqModel',
+    ]);
     if (settings.showCostEstimate === false) {
       hideCostDisplay();
       return;
@@ -1213,6 +1647,15 @@ async function fetchCostEstimate(): Promise<void> {
 
     if (!contentResponse?.paragraphs?.length) {
       // No content, show as free
+      // 050-groq-tts-provider (T048): Still show provider name
+      const provider = settings.provider || currentState.provider;
+      if (elements.costProvider) {
+        const groqModel = provider === 'groq' ? settings.groqModel : undefined;
+        elements.costProvider.textContent = getProviderDisplayName(
+          provider,
+          groqModel as string | undefined,
+        );
+      }
       elements.costEstimate.textContent = 'Free';
       elements.costSavingsRow.hidden = true;
       elements.costSection.hidden = false;
@@ -1222,16 +1665,23 @@ async function fetchCostEstimate(): Promise<void> {
     // Extract text from paragraphs
     const paragraphTexts = contentResponse.paragraphs.map((p) => p.text);
 
+    const provider = settings.provider || currentState.provider;
+
     // Request cost estimate from background
+    // 050-groq-tts-provider (T048): Pass model for Groq-specific pricing
     const response = await sendMessage<CostEstimateResponse>('cost.estimate', {
       url: tab.url,
       paragraphs: paragraphTexts,
-      provider: settings.provider || currentState.provider,
+      provider,
       voice: settings.voice || '',
+      // Only pass model for Groq provider
+      ...(provider === 'groq' && settings.groqModel ? { model: settings.groqModel } : {}),
     });
 
     if (response) {
-      updateCostDisplay(response);
+      // 050-groq-tts-provider (T048): Pass provider and model to show in display
+      const groqModel = provider === 'groq' ? settings.groqModel : undefined;
+      updateCostDisplay(response, provider, groqModel as string | undefined);
     }
   } catch (error) {
     console.error('[Popup] Failed to fetch cost estimate:', error);
@@ -1276,6 +1726,19 @@ function setupEventListeners(): void {
 
   // Provider selection
   elements.providerSelect.addEventListener('change', handleProviderChange);
+
+  // Language selection (048-multilingual-tts-pillar: T032-T035)
+  if (elements.languageSelect) {
+    elements.languageSelect.addEventListener('change', handleLanguageChange);
+  }
+
+  // Language compatibility warning (048-multilingual-tts-pillar: T041-T044)
+  if (elements.languageWarningSwitchBtn) {
+    elements.languageWarningSwitchBtn.addEventListener('click', handleSwitchToSuggestedProvider);
+  }
+  if (elements.languageWarningDismissBtn) {
+    elements.languageWarningDismissBtn.addEventListener('click', handleDismissCompatibilityWarning);
+  }
 
   // Progress seek
   elements.progressSeek.addEventListener('input', handleProgressSeek);
@@ -1585,6 +2048,12 @@ async function init(): Promise<void> {
   await fetchSettings();
   await fetchPlaybackState();
   await fetchQueueState();
+
+  // Fetch language state (048-multilingual-tts-pillar: T038)
+  await fetchLanguageState();
+
+  // Check provider compatibility after language state is fetched (T040)
+  await checkProviderCompatibility();
 
   // Update section visibility based on configured API keys
   await updateSectionVisibility();

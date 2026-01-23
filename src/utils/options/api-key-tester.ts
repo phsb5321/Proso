@@ -55,10 +55,16 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
         latencyMs,
       };
     } else {
+      // Ensure error is always a string (could be object from some handlers)
+      let errorMsg = 'Invalid API key';
+      if (response?.error) {
+        errorMsg =
+          typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+      }
       return {
         success: false,
         provider,
-        message: response?.error || 'Invalid API key',
+        message: errorMsg,
         latencyMs,
       };
     }
@@ -96,8 +102,10 @@ export async function testAllApiKeys(
 
 /**
  * Storage key mappings for each provider
+ * 050-groq-tts-provider: Added groq
  */
 export const API_KEY_STORAGE_KEYS: Record<string, string> = {
+  groq: 'groqApiKey',
   elevenlabs: 'elevenlabsApiKey',
   anthropic: 'anthropic:apiKey',
 };
