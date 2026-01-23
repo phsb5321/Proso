@@ -39,9 +39,9 @@ describe('Configuration Defaults', () => {
       expect(defaults.mode).toBe('article');
     });
 
-    test('provider defaults to elevenlabs', () => {
-      // Post-045: Only ElevenLabs is supported
-      expect(defaults.provider).toBe('elevenlabs');
+    test('provider defaults to groq', () => {
+      // 050-groq-tts-provider: Groq is the default TTS provider
+      expect(defaults.provider).toBe('groq');
     });
 
     test('voice defaults to null', () => {
@@ -98,9 +98,18 @@ describe('Configuration Defaults', () => {
     });
 
     test('contains all TTS providers', () => {
-      // Post-045: Only ElevenLabs is supported
+      // 050-groq-tts-provider: Groq, ElevenLabs and Browser TTS (OpenAI, Cartesia removed)
+      expect(PROVIDERS).toContain('groq');
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toHaveLength(1);
+      expect(PROVIDERS).toContain('browser');
+      expect(PROVIDERS).toHaveLength(3);
+    });
+
+    test('does not contain removed providers', () => {
+      // 049-tts-provider-consolidation: OpenAI, Cartesia removed
+      // 050-groq-tts-provider: Groq is now a supported provider
+      expect(PROVIDERS).not.toContain('openai');
+      expect(PROVIDERS).not.toContain('cartesia');
     });
 
     test('default provider is in PROVIDERS', () => {

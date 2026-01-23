@@ -149,6 +149,8 @@ describe('cache-key', () => {
 
   describe('parseCacheKey', () => {
     it('should parse valid cache key', () => {
+      // 049-tts-provider-consolidation: parseCacheKey returns isLegacyProvider
+      // Using openai here tests backward compatibility for legacy cache entries
       const result = parseCacheKey(
         'example.com/article:3:openai:alloy:a1b2c3d4e5f6g7h8'
       );
@@ -158,6 +160,22 @@ describe('cache-key', () => {
         provider: 'openai',
         voice: 'alloy',
         contentHash: 'a1b2c3d4e5f6g7h8',
+        isLegacyProvider: true, // openai is a legacy provider
+      });
+    });
+
+    it('should parse valid cache key with current provider', () => {
+      // 049-tts-provider-consolidation: test with non-legacy provider
+      const result = parseCacheKey(
+        'example.com/article:3:elevenlabs:rachel:a1b2c3d4e5f6g7h8'
+      );
+      expect(result).toEqual({
+        url: 'example.com/article',
+        paragraphIndex: 3,
+        provider: 'elevenlabs',
+        voice: 'rachel',
+        contentHash: 'a1b2c3d4e5f6g7h8',
+        isLegacyProvider: false, // elevenlabs is not a legacy provider
       });
     });
 
@@ -174,8 +192,9 @@ describe('cache-key', () => {
     });
 
     it('should handle hash with colons', () => {
+      // 049-tts-provider-consolidation: use valid provider name
       const result = parseCacheKey(
-        'example.com/article:0:provider:voice:hash:with:colons'
+        'example.com/article:0:elevenlabs:voice:hash:with:colons'
       );
       expect(result?.contentHash).toBe('hash:with:colons');
     });
@@ -309,12 +328,14 @@ describe('cache-key', () => {
 
     describe('cache key parsing round-trip', () => {
       it('should round-trip valid cache key', () => {
+        // 049-tts-provider-consolidation: parseCacheKey now returns isLegacyProvider
         const original = {
           url: 'example.com/article',
           paragraphIndex: 5,
           provider: 'elevenlabs',
           voice: 'rachel',
           contentHash: 'abcd1234efgh5678',
+          isLegacyProvider: false,
         };
 
         const key = generateCacheKey(
@@ -332,10 +353,11 @@ describe('cache-key', () => {
 
     describe('provider/voice case sensitivity', () => {
       it('should preserve provider case in key', () => {
+        // 049-tts-provider-consolidation: provider names are lowercase
         const key1 = generateCacheKey(
           'https://example.com/page',
           0,
-          'ElevenLabs',
+          'elevenlabs',
           'Rachel',
           'hash123'
         );
@@ -346,14 +368,15 @@ describe('cache-key', () => {
           'rachel',
           'hash123'
         );
-        // Keys should be different due to case
+        // Keys should be different due to voice case
         expect(key1).not.toBe(key2);
       });
 
       it('should preserve voice case when parsing', () => {
-        const key = 'example.com/page:0:ElevenLabs:Rachel:hash123';
+        // 049-tts-provider-consolidation: use valid lowercase provider
+        const key = 'example.com/page:0:elevenlabs:Rachel:hash123';
         const parsed = parseCacheKey(key);
-        expect(parsed?.provider).toBe('ElevenLabs');
+        expect(parsed?.provider).toBe('elevenlabs');
         expect(parsed?.voice).toBe('Rachel');
       });
     });

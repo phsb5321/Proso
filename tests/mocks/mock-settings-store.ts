@@ -12,7 +12,7 @@ import type { ProviderId } from '../../src/core/shared/errors';
 
 /**
  * Default settings for mock store.
- * Post-045: Only ElevenLabs provider is supported.
+ * 050-groq-tts-provider: Added providerOverride, groqModel, groqVoice
  */
 const DEFAULT_SETTINGS: Settings = {
   mode: 'article',
@@ -23,6 +23,9 @@ const DEFAULT_SETTINGS: Settings = {
   cacheEnabled: true,
   maxCacheSize: 50,
   wordSyncEnabled: true,
+  providerOverride: null,
+  groqModel: 'playai-tts',
+  groqVoice: null,
 };
 
 /**
