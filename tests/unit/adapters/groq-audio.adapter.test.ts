@@ -3,6 +3,8 @@
  *
  * Tests for the GroqAudioAdapter implementing IAudioGenerator port.
  * Uses mocked fetch for API calls.
+ * 
+ * Updated 2026-01-23: Only Orpheus model is available
  *
  * @module tests/unit/adapters/groq-audio
  */
@@ -24,14 +26,14 @@ describe('GroqAudioAdapter', () => {
   });
 
   describe('constructor', () => {
-    it('initializes with default model (playai-tts)', () => {
+    it('initializes with default model (orpheus)', () => {
       const adapter = new GroqAudioAdapter(testApiKey);
-      expect(adapter.getModel()).toBe('playai-tts');
+      expect(adapter.getModel()).toBe('canopylabs/orpheus-v1-english');
     });
 
     it('initializes with specified model', () => {
-      const adapter = new GroqAudioAdapter(testApiKey, 'distil-whisper-large-v3-en');
-      expect(adapter.getModel()).toBe('distil-whisper-large-v3-en');
+      const adapter = new GroqAudioAdapter(testApiKey, 'canopylabs/orpheus-v1-english');
+      expect(adapter.getModel()).toBe('canopylabs/orpheus-v1-english');
     });
 
     it('has correct providerId', () => {
@@ -49,7 +51,7 @@ describe('GroqAudioAdapter', () => {
 
   describe('generateAudio', () => {
     it('generates audio successfully', async () => {
-      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/mp3' });
+      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/wav' });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(mockAudioBlob),
@@ -57,7 +59,7 @@ describe('GroqAudioAdapter', () => {
 
       const result = await adapter.generateAudio({
         text: 'Hello world',
-        voice: 'Fritz-PlayAI',
+        voice: 'troy',
         speed: 1.0,
         language: 'en',
       });
@@ -138,7 +140,7 @@ describe('GroqAudioAdapter', () => {
     });
 
     it('accepts English language code', async () => {
-      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/mp3' });
+      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/wav' });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(mockAudioBlob),
@@ -171,7 +173,7 @@ describe('GroqAudioAdapter', () => {
     });
 
     it('uses default voice when none specified', async () => {
-      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/mp3' });
+      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/wav' });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(mockAudioBlob),
@@ -188,13 +190,13 @@ describe('GroqAudioAdapter', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const [, options] = mockFetch.mock.calls[0] as [string, RequestInit | undefined];
       const body = JSON.parse(options?.body as string);
-      expect(body.voice).toBe('Fritz-PlayAI'); // Default voice for playai-tts
+      expect(body.voice).toBe('troy'); // Default voice for orpheus
     });
   });
 
   describe('getVoices', () => {
-    it('returns voices for PlayAI model', async () => {
-      const adapter = new GroqAudioAdapter(testApiKey, 'playai-tts');
+    it('returns voices for Orpheus model', async () => {
+      const adapter = new GroqAudioAdapter(testApiKey, 'canopylabs/orpheus-v1-english');
       const result = await adapter.getVoices();
 
       expect(result.ok).toBe(true);
@@ -206,19 +208,14 @@ describe('GroqAudioAdapter', () => {
       }
     });
 
-    it('returns different voices for different models', async () => {
-      const playaiAdapter = new GroqAudioAdapter(testApiKey, 'playai-tts');
-      const distilAdapter = new GroqAudioAdapter(testApiKey, 'distil-whisper-large-v3-en');
+    it('returns 6 voices for Orpheus model', async () => {
+      const adapter = new GroqAudioAdapter(testApiKey, 'canopylabs/orpheus-v1-english');
+      const result = await adapter.getVoices();
 
-      const playaiResult = await playaiAdapter.getVoices();
-      const distilResult = await distilAdapter.getVoices();
-
-      expect(playaiResult.ok).toBe(true);
-      expect(distilResult.ok).toBe(true);
-
-      if (playaiResult.ok && distilResult.ok) {
-        // PlayAI should have more voices
-        expect(playaiResult.value.length).toBeGreaterThan(distilResult.value.length);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        // Orpheus has 6 voices: autumn, diana, hannah, austin, daniel, troy
+        expect(result.value.length).toBe(6);
       }
     });
   });
@@ -262,7 +259,7 @@ describe('GroqAudioAdapter', () => {
 
   describe('setApiKey', () => {
     it('updates the API key', async () => {
-      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/mp3' });
+      const mockAudioBlob = new Blob(['fake audio data'], { type: 'audio/wav' });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(mockAudioBlob),
@@ -285,10 +282,10 @@ describe('GroqAudioAdapter', () => {
 
   describe('setModel', () => {
     it('changes the active model', () => {
-      expect(adapter.getModel()).toBe('playai-tts');
+      expect(adapter.getModel()).toBe('canopylabs/orpheus-v1-english');
 
-      adapter.setModel('distil-whisper-large-v3-en');
-      expect(adapter.getModel()).toBe('distil-whisper-large-v3-en');
+      adapter.setModel('canopylabs/orpheus-v1-english');
+      expect(adapter.getModel()).toBe('canopylabs/orpheus-v1-english');
     });
   });
 });

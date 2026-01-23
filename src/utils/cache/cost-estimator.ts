@@ -19,13 +19,10 @@ import { generateCacheKey, generateContentHash } from './cache-key';
  * Provider pricing configuration (per 1000 characters)
  * Prices in USD as of 2025
  * 050-groq-tts-provider (T045): Added Groq pricing
+ * Updated 2026-01-23: Only Orpheus model is available
  */
 export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: string }> = {
   groq: {
-    pricePerKiloChar: 0.05, // $0.05 per 1K chars ($50/1M) - PlayAI model default
-    name: 'Groq',
-  },
-  'groq-orpheus': {
     pricePerKiloChar: 0.022, // $0.022 per 1K chars ($22/1M) - Orpheus model
     name: 'Groq Orpheus',
   },
@@ -42,18 +39,15 @@ export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: 
 /**
  * Get pricing for a provider
  * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
+ * Updated 2026-01-23: Simplified since only Orpheus model is available
  *
  * @param provider - Provider ID (e.g., 'groq', 'elevenlabs', 'browser')
- * @param model - Optional model ID for model-specific pricing (e.g., 'distil-whisper-large-v3-en' for Orpheus)
+ * @param model - Optional model ID (kept for API compatibility)
  */
 export function getProviderPricing(
   provider: string,
   model?: string,
 ): { pricePerKiloChar: number; name: string } {
-  // 050-groq-tts-provider (T046): Use model-specific pricing for Groq
-  if (provider === 'groq' && model === 'distil-whisper-large-v3-en') {
-    return PROVIDER_PRICING['groq-orpheus'];
-  }
   return PROVIDER_PRICING[provider] || PROVIDER_PRICING['elevenlabs'];
 }
 

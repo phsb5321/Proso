@@ -45,61 +45,43 @@ export interface GroqVoiceConfig {
 
 /**
  * Groq TTS model configurations
+ * Updated 2026-01-23: Only Orpheus models are available
+ * @see https://console.groq.com/docs/text-to-speech/orpheus
  */
 export const GROQ_MODELS: Record<GroqModel, GroqModelConfig> = {
-  'playai-tts': {
-    id: 'playai-tts',
-    displayName: 'PlayAI Dialog',
-    maxCharacters: 10000,
-    pricePerMillionChars: 50,
-    supportsSpeed: true,
-    supportedFormats: ['wav', 'mp3', 'flac', 'ogg', 'mulaw'],
-    defaultVoice: 'Fritz-PlayAI',
-  },
-  'distil-whisper-large-v3-en': {
-    id: 'distil-whisper-large-v3-en',
-    displayName: 'Distil Whisper',
-    maxCharacters: 10000,
+  'canopylabs/orpheus-v1-english': {
+    id: 'canopylabs/orpheus-v1-english',
+    displayName: 'Orpheus English',
+    maxCharacters: 200, // API limit for Orpheus
     pricePerMillionChars: 22,
     supportsSpeed: false,
     supportedFormats: ['wav'],
-    defaultVoice: 'Arista-PlayAI',
+    defaultVoice: 'troy',
   },
 };
 
 /**
- * Available Groq voices by model
+ * Available Groq voices for Orpheus English model
+ * @see https://console.groq.com/docs/text-to-speech/orpheus
  */
 export const GROQ_VOICES: Record<string, GroqVoiceConfig> = {
-  // PlayAI voices
-  'Fritz-PlayAI': { id: 'Fritz-PlayAI', name: 'Fritz', gender: 'male', model: 'playai-tts' },
-  'Troy-PlayAI': { id: 'Troy-PlayAI', name: 'Troy', gender: 'male', model: 'playai-tts' },
-  'Hannah-PlayAI': { id: 'Hannah-PlayAI', name: 'Hannah', gender: 'female', model: 'playai-tts' },
-  'Austin-PlayAI': { id: 'Austin-PlayAI', name: 'Austin', gender: 'male', model: 'playai-tts' },
-  'Arista-PlayAI': { id: 'Arista-PlayAI', name: 'Arista', gender: 'female', model: 'playai-tts' },
-  'Atlas-PlayAI': { id: 'Atlas-PlayAI', name: 'Atlas', gender: 'male', model: 'playai-tts' },
-  'Basil-PlayAI': { id: 'Basil-PlayAI', name: 'Basil', gender: 'male', model: 'playai-tts' },
-  'Briggs-PlayAI': { id: 'Briggs-PlayAI', name: 'Briggs', gender: 'male', model: 'playai-tts' },
-  'Deedee-PlayAI': { id: 'Deedee-PlayAI', name: 'Deedee', gender: 'female', model: 'playai-tts' },
-  'Duke-PlayAI': { id: 'Duke-PlayAI', name: 'Duke', gender: 'male', model: 'playai-tts' },
-  'Harper-PlayAI': { id: 'Harper-PlayAI', name: 'Harper', gender: 'female', model: 'playai-tts' },
-  'Haven-PlayAI': { id: 'Haven-PlayAI', name: 'Haven', gender: 'female', model: 'playai-tts' },
-  'Hera-PlayAI': { id: 'Hera-PlayAI', name: 'Hera', gender: 'female', model: 'playai-tts' },
-  'Luna-PlayAI': { id: 'Luna-PlayAI', name: 'Luna', gender: 'female', model: 'playai-tts' },
-  'Maisie-PlayAI': { id: 'Maisie-PlayAI', name: 'Maisie', gender: 'female', model: 'playai-tts' },
-  'Nia-PlayAI': { id: 'Nia-PlayAI', name: 'Nia', gender: 'female', model: 'playai-tts' },
-  'Nolan-PlayAI': { id: 'Nolan-PlayAI', name: 'Nolan', gender: 'male', model: 'playai-tts' },
-  'Quinn-PlayAI': { id: 'Quinn-PlayAI', name: 'Quinn', gender: 'female', model: 'playai-tts' },
-  'Thunder-PlayAI': { id: 'Thunder-PlayAI', name: 'Thunder', gender: 'male', model: 'playai-tts' },
-  'Tyson-PlayAI': { id: 'Tyson-PlayAI', name: 'Tyson', gender: 'male', model: 'playai-tts' },
-
-  // Distil Whisper uses PlayAI voices too
-  'Arista-Distil': {
-    id: 'Arista-PlayAI',
-    name: 'Arista',
+  // Orpheus English voices (6 total)
+  autumn: {
+    id: 'autumn',
+    name: 'Autumn',
     gender: 'female',
-    model: 'distil-whisper-large-v3-en',
+    model: 'canopylabs/orpheus-v1-english',
   },
+  diana: { id: 'diana', name: 'Diana', gender: 'female', model: 'canopylabs/orpheus-v1-english' },
+  hannah: {
+    id: 'hannah',
+    name: 'Hannah',
+    gender: 'female',
+    model: 'canopylabs/orpheus-v1-english',
+  },
+  austin: { id: 'austin', name: 'Austin', gender: 'male', model: 'canopylabs/orpheus-v1-english' },
+  daniel: { id: 'daniel', name: 'Daniel', gender: 'male', model: 'canopylabs/orpheus-v1-english' },
+  troy: { id: 'troy', name: 'Troy', gender: 'male', model: 'canopylabs/orpheus-v1-english' },
 };
 
 /**
@@ -394,6 +376,7 @@ export class GroqProvider {
 
     try {
       // Make a minimal request to validate the key
+      // Using Orpheus model which is the only available TTS model
       const response = await fetch(GROQ_API_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -401,13 +384,36 @@ export class GroqProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'playai-tts',
+          model: 'canopylabs/orpheus-v1-english',
           input: 'test',
-          voice: 'Fritz-PlayAI',
+          voice: 'troy',
+          response_format: 'wav',
         }),
       });
 
-      // 401 = invalid key, other errors might just be rate limits
+      // 401 = invalid key, 400 = bad request (invalid model/params)
+      // Successful validation means key is valid
+      if (response.ok) {
+        return true;
+      }
+
+      // Check for invalid API key specifically
+      if (response.status === 401) {
+        return false;
+      }
+
+      // For other errors (400, 429, etc.), try to parse the error
+      // 400 with "invalid_api_key" code means invalid key
+      try {
+        const errorBody = (await response.json()) as { error?: { code?: string } };
+        if (errorBody.error?.code === 'invalid_api_key') {
+          return false;
+        }
+      } catch {
+        // Ignore JSON parsing errors
+      }
+
+      // Rate limits or other errors - assume key is valid
       return response.status !== 401;
     } catch {
       // Network error - can't validate

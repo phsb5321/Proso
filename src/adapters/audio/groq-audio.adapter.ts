@@ -24,10 +24,12 @@ import { GroqProvider, GROQ_MODELS } from '../../utils/providers/groq';
  * Groq TTS adapter implementing the IAudioGenerator port.
  *
  * Features:
- * - PlayAI Dialog model (10K char limit)
- * - Distil Whisper model (10K char limit)
+ * - Orpheus English model (200 char limit)
  * - Automatic text chunking for long content
+ * - Vocal direction support (e.g., [cheerful], [whisper])
  * - English language support
+ *
+ * Updated 2026-01-23: Only Orpheus model is available
  */
 export class GroqAudioAdapter implements IAudioGenerator {
   readonly providerId = 'groq' as const;
@@ -37,7 +39,7 @@ export class GroqAudioAdapter implements IAudioGenerator {
   private readonly provider: GroqProvider;
   private model: GroqModel;
 
-  constructor(apiKey: string, model: GroqModel = 'playai-tts') {
+  constructor(apiKey: string, model: GroqModel = 'canopylabs/orpheus-v1-english') {
     this.provider = new GroqProvider();
     this.provider.setApiKey(apiKey);
     this.model = model;

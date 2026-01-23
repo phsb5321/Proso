@@ -41,8 +41,8 @@ export const defaults: Readonly<Settings> = Object.freeze({
   telemetryEnabled: false,
   // 049-tts-provider-consolidation
   providerOverride: null,
-  // 050-groq-tts-provider
-  groqModel: 'playai-tts' as GroqModel,
+  // 050-groq-tts-provider (updated 2026-01-23: Orpheus model)
+  groqModel: 'canopylabs/orpheus-v1-english' as GroqModel,
   groqVoice: null,
 });
 
@@ -177,4 +177,3 @@ export const cacheConstraints = Object.freeze({
   maxAgeDays: { min: 1, max: 365 },
   prefetchAhead: { min: 1, max: 10 },
 });
-

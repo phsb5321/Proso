@@ -170,13 +170,13 @@
           </div>
 
           <!-- 050-groq-tts-provider: Groq Model Selector (T033) -->
+          <!-- Updated 2026-01-23: Only Orpheus model is available -->
           <div class="form-group" id="groqModelGroup" data-provider-group="groq">
             <label for="groqModel" class="form-label">Groq Model</label>
             <select id="groqModel" class="voxpage-select" aria-describedby="groqModelHint" data-testid="settings-groq-model-select">
-              <option value="playai-tts">PlayAI Dialog ($50/1M chars)</option>
-              <option value="distil-whisper-large-v3-en">Orpheus ($22/1M chars)</option>
+              <option value="canopylabs/orpheus-v1-english">Orpheus English ($22/1M chars)</option>
             </select>
-            <p id="groqModelHint" class="form-hint">PlayAI has more voices. Orpheus is faster and cheaper.</p>
+            <p id="groqModelHint" class="form-hint">Expressive English TTS with vocal direction support. Max 200 chars per request.</p>
           </div>
 
           <!-- 050-groq-tts-provider: Groq Voice Selector (T034) -->
@@ -232,7 +232,7 @@
               <div class="provider-card__header">
                 <span class="voxpage-badge voxpage-badge--groq">Groq</span>
               </div>
-              <p class="provider-card__description">Fast, affordable TTS with PlayAI and Distil Whisper models</p>
+              <p class="provider-card__description">Fast, affordable TTS with Orpheus models (English)</p>
               <div class="provider-card__input-wrapper">
                 <input type="password" id="groqKey" class="voxpage-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
                 <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">

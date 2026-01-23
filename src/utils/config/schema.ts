@@ -26,8 +26,10 @@ export const PROVIDERS = ['groq', 'elevenlabs', 'browser'] as const;
 
 /**
  * Valid Groq TTS model values (050-groq-tts-provider)
+ * Updated 2026-01-23: Only Orpheus models are available
+ * @see https://console.groq.com/docs/text-to-speech/orpheus
  */
-export const GROQ_MODELS = ['playai-tts', 'distil-whisper-large-v3-en'] as const;
+export const GROQ_MODELS = ['canopylabs/orpheus-v1-english'] as const;
 
 /**
  * Valid language detection sources
@@ -122,7 +124,8 @@ export const settingsSchema = z.object({
   providerOverride: z.enum(PROVIDERS).nullable().default(null),
 
   // Groq TTS settings (050-groq-tts-provider)
-  groqModel: z.enum(GROQ_MODELS).default('playai-tts'),
+  // Updated 2026-01-23: Use Orpheus model
+  groqModel: z.enum(GROQ_MODELS).default('canopylabs/orpheus-v1-english'),
   groqVoice: z.string().nullable().default(null),
 });
 
