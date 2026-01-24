@@ -10,9 +10,8 @@
 /**
  * Provider identifier type (matches existing schema).
  * 049-tts-provider-consolidation: Removed 'openai', kept 'elevenlabs' and 'browser'
- * 050-groq-tts-provider: Added 'groq' for Groq TTS
  */
-export type ProviderId = 'groq' | 'elevenlabs' | 'browser';
+export type ProviderId = 'elevenlabs' | 'browser';
 
 /**
  * Language handler errors (048-multilingual-tts-pillar).
@@ -59,7 +58,6 @@ export type CacheError =
 
 /**
  * Audio generation errors.
- * 050-groq-tts-provider: Extended error types for better error handling in fallback logic
  */
 export type AudioError =
   | { type: 'network'; message: string }

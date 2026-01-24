@@ -258,6 +258,21 @@ export interface VoxPageProtocol {
     };
   };
 
+  'provider.getVoices': {
+    request: {
+      providerId: ProviderId;
+    };
+    response: {
+      voices: Array<{
+        id: string;
+        name: string;
+        language?: string;
+        gender?: string;
+        description?: string;
+      }>;
+    };
+  };
+
   // ========== Content Extraction Messages ==========
   'content.extract': {
     request: {
@@ -550,6 +565,16 @@ export interface VoxPageProtocol {
     request: void;
     response: {
       success: boolean;
+    };
+  };
+
+  'language.redetect': {
+    request: void;
+    response: {
+      success: boolean;
+      code?: string;
+      confidence?: number;
+      source?: 'metadata' | 'text' | 'fallback';
     };
   };
 

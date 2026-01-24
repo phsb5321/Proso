@@ -401,16 +401,16 @@ export class UsageTracker {
 
   /**
    * Destroy the tracker and clean up resources.
+   * Note: This is synchronous because it's typically called from beforeunload
+   * handlers where async operations cannot reliably complete.
+   * Buffered events persist in IndexedDB and will be flushed on next initialization.
    */
   destroy(): void {
     this.stopPeriodicFlush();
 
-    // Best-effort final flush
-    if (this.config.enabled && this.shipper) {
-      this.flush().catch(() => {
-        // Ignore errors on destroy
-      });
-    }
+    // Don't attempt async flush here - it causes race conditions where
+    // buffer.close() nullifies this.db while flush() is still running.
+    // Events are persisted in IndexedDB and will be recovered on next init.
 
     this.buffer.close();
     this.initialized = false;

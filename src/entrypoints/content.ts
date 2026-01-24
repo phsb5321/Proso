@@ -301,6 +301,7 @@ interface PlaybackStateMessage extends LegacyMessage {
 
 /**
  * Footer state update message
+ * Includes provider and language fields for footer display
  */
 interface FooterStateMessage extends LegacyMessage {
   action: 'FOOTER_STATE_UPDATE';
@@ -311,6 +312,8 @@ interface FooterStateMessage extends LegacyMessage {
   currentParagraph?: number;
   totalParagraphs?: number;
   speed?: number;
+  provider?: string;
+  language?: string;
 }
 
 /**
@@ -569,6 +572,15 @@ export default defineContentScript({
       // Extract text sample from main content
       const textSample = extractTextSample();
 
+      // Debug logging for language detection
+      console.log('VoxPage: Page language extraction:', {
+        htmlLang,
+        metaLang,
+        metadata,
+        textSampleLength: textSample.length,
+        url: window.location.href,
+      });
+
       return {
         metadata,
         textSample,
@@ -766,7 +778,8 @@ export default defineContentScript({
         }));
 
         // Render highlights and track orphans
-        const orphanStatus = await persistentHighlightManager.reanchorHighlights(highlightsToRender);
+        const orphanStatus =
+          await persistentHighlightManager.reanchorHighlights(highlightsToRender);
 
         // Report orphaned highlights to background for status update
         const orphanedIds = Array.from(orphanStatus.entries())
@@ -774,7 +787,9 @@ export default defineContentScript({
           .map(([id]) => id);
 
         if (orphanedIds.length > 0) {
-          console.warn(`VoxPage: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
+          console.warn(
+            `VoxPage: ${orphanedIds.length} highlights could not be anchored (orphaned)`,
+          );
           // Notify background about orphaned highlights
           browser.runtime
             .sendMessage({
@@ -1134,6 +1149,14 @@ export default defineContentScript({
             speed: msg.speed ?? 1.0,
           };
           stickyFooter.updateState(playbackState);
+
+          // Update provider and language displays
+          if (msg.provider) {
+            stickyFooter.updateProvider({ id: msg.provider as 'elevenlabs' | 'browser' });
+          }
+          if (msg.language) {
+            stickyFooter.updateLanguage({ code: msg.language });
+          }
           break;
         }
 
@@ -1154,18 +1177,19 @@ export default defineContentScript({
           const errorMsg = message as LegacyMessage & {
             message: string;
             provider?: string;
+            showSettings?: boolean;
           };
           console.error(`[VoxPage] Playback error (${errorMsg.provider}):`, errorMsg.message);
 
           // Show error notification in sticky footer if visible, otherwise show alert
           if (stickyFooter && stickyFooter.isFooterVisible()) {
-            stickyFooter.showError(errorMsg.message);
+            stickyFooter.showError(errorMsg.message, 0, errorMsg.showSettings); // 0 = no auto-dismiss for API key errors
           } else {
             // If footer not visible, show it first, then display error
             stickyFooter.show();
             // Small delay to ensure footer is rendered before showing error
             setTimeout(() => {
-              stickyFooter.showError(errorMsg.message);
+              stickyFooter.showError(errorMsg.message, 0, errorMsg.showSettings);
             }, 100);
           }
           return Promise.resolve({ success: true });

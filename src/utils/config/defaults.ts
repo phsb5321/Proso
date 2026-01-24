@@ -11,7 +11,7 @@
  * No hardcoded default values should exist elsewhere in the codebase.
  */
 
-import type { Settings, FooterState, Mode, Provider, ThemeMode, GroqModel } from './schema';
+import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema';
 
 /**
  * Default configuration values
@@ -22,7 +22,7 @@ import type { Settings, FooterState, Mode, Provider, ThemeMode, GroqModel } from
  */
 export const defaults: Readonly<Settings> = Object.freeze({
   mode: 'article' as Mode,
-  provider: 'groq' as Provider, // 050-groq-tts-provider: Groq is the default TTS provider
+  provider: 'elevenlabs' as Provider,
   voice: null,
   voiceId: 'EXAVITQu4vr4xnSDxMaL', // Rachel voice (045-pdf-removal-page-reader, kept for backward compatibility)
   speed: 1.0,
@@ -41,9 +41,6 @@ export const defaults: Readonly<Settings> = Object.freeze({
   telemetryEnabled: false,
   // 049-tts-provider-consolidation
   providerOverride: null,
-  // 050-groq-tts-provider (updated 2026-01-23: Orpheus model)
-  groqModel: 'canopylabs/orpheus-v1-english' as GroqModel,
-  groqVoice: null,
 });
 
 /**
@@ -51,10 +48,8 @@ export const defaults: Readonly<Settings> = Object.freeze({
  * Separate from main defaults as these are provider-specific
  * null means use the first available voice from the provider
  * 049-tts-provider-consolidation: Removed openai
- * 050-groq-tts-provider: Added groq
  */
 export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.freeze({
-  groq: null,
   elevenlabs: null,
   browser: null,
 });

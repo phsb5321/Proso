@@ -70,8 +70,6 @@ interface OptionsElements {
   quickSpeedValue: HTMLElement;
 
   // API Key inputs
-  // 050-groq-tts-provider: groqKey is primary TTS
-  groqKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
   elevenlabsKeyStatus: HTMLElement;
 
@@ -131,12 +129,6 @@ interface OptionsElements {
   showLanguageBadge: HTMLInputElement;
   voicePreferencesGrid: HTMLElement;
   addVoicePreferenceBtn: HTMLButtonElement;
-
-  // Groq model/voice settings (050-groq-tts-provider T033-T034)
-  groqModel: HTMLSelectElement;
-  groqVoice: HTMLSelectElement;
-  groqModelGroup: HTMLElement;
-  groqVoiceGroup: HTMLElement;
 }
 
 let elements: OptionsElements | null = null;
@@ -169,8 +161,6 @@ function getElements(): OptionsElements {
     quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
 
     // API Key inputs
-    // 050-groq-tts-provider: groqKey is primary TTS
-    groqKey: getElement<HTMLInputElement>('groqKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
 
@@ -224,12 +214,6 @@ function getElements(): OptionsElements {
     showLanguageBadge: getElement<HTMLInputElement>('showLanguageBadge'),
     voicePreferencesGrid: getElement<HTMLElement>('voicePreferencesGrid'),
     addVoicePreferenceBtn: getElement<HTMLButtonElement>('addVoicePreferenceBtn'),
-
-    // Groq model/voice settings (050-groq-tts-provider T033-T034)
-    groqModel: getElement<HTMLSelectElement>('groqModel'),
-    groqVoice: getElement<HTMLSelectElement>('groqVoice'),
-    groqModelGroup: getElement<HTMLElement>('groqModelGroup'),
-    groqVoiceGroup: getElement<HTMLElement>('groqVoiceGroup'),
   };
 }
 
@@ -271,93 +255,36 @@ export async function initOptionsPage(): Promise<void> {
 // ========================================
 
 /**
- * Voice configurations by provider
+ * Voice configurations by provider (fallback for when API is unavailable)
  * T021: Voice options filtered by provider
- * 050-groq-tts-provider: Added Groq voices, split by model
  */
-const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  groq: [
-    // Default to PlayAI voices (most common model)
-    { value: 'Fritz-PlayAI', label: 'Fritz (Male)' },
-    { value: 'Troy-PlayAI', label: 'Troy (Male)' },
-    { value: 'Hannah-PlayAI', label: 'Hannah (Female)' },
-    { value: 'Austin-PlayAI', label: 'Austin (Male)' },
-    { value: 'Arista-PlayAI', label: 'Arista (Female)' },
-    { value: 'Atlas-PlayAI', label: 'Atlas (Male)' },
-    { value: 'Basil-PlayAI', label: 'Basil (Male)' },
-    { value: 'Briggs-PlayAI', label: 'Briggs (Male)' },
-    { value: 'Deedee-PlayAI', label: 'Deedee (Female)' },
-    { value: 'Duke-PlayAI', label: 'Duke (Male)' },
-    { value: 'Harper-PlayAI', label: 'Harper (Female)' },
-    { value: 'Haven-PlayAI', label: 'Haven (Female)' },
-    { value: 'Hera-PlayAI', label: 'Hera (Female)' },
-    { value: 'Luna-PlayAI', label: 'Luna (Female)' },
-    { value: 'Maisie-PlayAI', label: 'Maisie (Female)' },
-    { value: 'Nia-PlayAI', label: 'Nia (Female)' },
-    { value: 'Nolan-PlayAI', label: 'Nolan (Male)' },
-    { value: 'Quinn-PlayAI', label: 'Quinn (Female)' },
-    { value: 'Thunder-PlayAI', label: 'Thunder (Male)' },
-    { value: 'Tyson-PlayAI', label: 'Tyson (Male)' },
+const FALLBACK_VOICES: Record<string, Array<{ value: string; label: string }>> = {
+  elevenlabs: [
+    { value: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel (Female, Calm)' },
+    { value: '29vD33N1CtxCmqQRPOHJ', label: 'Drew (Male, Confident)' },
+    { value: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah (Female, Soft)' },
+    { value: 'ErXwobaYiN019PkySvjV', label: 'Antoni (Male, Crisp)' },
+    { value: '2EiwWnXFnvU5JabPnv8n', label: 'Clyde (Male, Deep)' },
+    { value: '5Q0t7uMcjvnagumLfvZi', label: 'Paul (Male, News Anchor)' },
+    { value: 'AZnzlk1XvdvUeBnXmlld', label: 'Domi (Female, Assertive)' },
+    { value: 'CYw3kZ02Hs0563khs1Fj', label: 'Dave (Male, British)' },
+    { value: 'D38z5RcWu1voky8WS1ja', label: 'Fin (Male, Irish)' },
+    { value: 'MF3mGyEYCl7XYWbV9V6O', label: 'Elli (Female, Youthful)' },
   ],
-  elevenlabs: [{ value: 'default', label: 'Default Voice' }],
 };
 
-/**
- * Groq model-specific voice configurations (050-groq-tts-provider T034)
- * Voices are filtered based on selected Groq model
- */
-const GROQ_MODEL_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  'playai-tts': [
-    { value: 'Fritz-PlayAI', label: 'Fritz (Male)' },
-    { value: 'Troy-PlayAI', label: 'Troy (Male)' },
-    { value: 'Hannah-PlayAI', label: 'Hannah (Female)' },
-    { value: 'Austin-PlayAI', label: 'Austin (Male)' },
-    { value: 'Arista-PlayAI', label: 'Arista (Female)' },
-    { value: 'Atlas-PlayAI', label: 'Atlas (Male)' },
-    { value: 'Basil-PlayAI', label: 'Basil (Male)' },
-    { value: 'Briggs-PlayAI', label: 'Briggs (Male)' },
-    { value: 'Deedee-PlayAI', label: 'Deedee (Female)' },
-    { value: 'Duke-PlayAI', label: 'Duke (Male)' },
-    { value: 'Harper-PlayAI', label: 'Harper (Female)' },
-    { value: 'Haven-PlayAI', label: 'Haven (Female)' },
-    { value: 'Hera-PlayAI', label: 'Hera (Female)' },
-    { value: 'Luna-PlayAI', label: 'Luna (Female)' },
-    { value: 'Maisie-PlayAI', label: 'Maisie (Female)' },
-    { value: 'Nia-PlayAI', label: 'Nia (Female)' },
-    { value: 'Nolan-PlayAI', label: 'Nolan (Male)' },
-    { value: 'Quinn-PlayAI', label: 'Quinn (Female)' },
-    { value: 'Thunder-PlayAI', label: 'Thunder (Male)' },
-    { value: 'Tyson-PlayAI', label: 'Tyson (Male)' },
-  ],
-  'distil-whisper-large-v3-en': [
-    // Orpheus voices
-    { value: 'tara', label: 'Tara (Female)' },
-    { value: 'leah', label: 'Leah (Female)' },
-    { value: 'jess', label: 'Jess (Female)' },
-    { value: 'leo', label: 'Leo (Male)' },
-    { value: 'dan', label: 'Dan (Male)' },
-    { value: 'mia', label: 'Mia (Female)' },
-    { value: 'zac', label: 'Zac (Male)' },
-    { value: 'zoe', label: 'Zoe (Female)' },
-  ],
-};
+// Cache for fetched voices to avoid repeated API calls
+const cachedVoices: Record<string, Array<{ value: string; label: string }>> = {};
 
 /**
  * Load Quick Settings from storage
  * T020: Provider dropdown, T021: Voice dropdown, T022: Speed slider
- * 050-groq-tts-provider: Added groqModel and groqVoice loading
  */
 async function loadQuickSettings(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get([
-      'provider',
-      'voice',
-      'speed',
-      'groqModel',
-      'groqVoice',
-    ]);
+    const result = await browser.storage.local.get(['provider', 'voice', 'speed']);
 
     // Provider dropdown
     const provider = (result.provider as string) || settingsDefaults.provider;
@@ -374,28 +301,69 @@ async function loadQuickSettings(): Promise<void> {
     const speed = (result.speed as number) || settingsDefaults.speed;
     elements.quickSpeed.value = String(speed);
     elements.quickSpeedValue.textContent = `${speed.toFixed(1)}x`;
-
-    // 050-groq-tts-provider: Load Groq model/voice settings
-    const groqModel = (result.groqModel as string) || settingsDefaults.groqModel;
-    elements.groqModel.value = groqModel;
-
-    // Update Groq voice dropdown based on model
-    await updateGroqVoiceDropdown(groqModel);
-    const groqVoice = (result.groqVoice as string) || '';
-    if (groqVoice) {
-      elements.groqVoice.value = groqVoice;
-    }
-
-    // Show/hide Groq model/voice fields based on provider (T039)
-    updateGroqSettingsVisibility(provider);
   } catch (error) {
     console.error('Error loading Quick Settings:', error);
   }
 }
 
 /**
+ * Fetch voices from API for the given provider
+ * Uses caching to avoid repeated API calls
+ */
+async function fetchVoicesForProvider(
+  provider: string,
+): Promise<Array<{ value: string; label: string }>> {
+  // Check cache first
+  if (cachedVoices[provider] && cachedVoices[provider].length > 0) {
+    console.log('[Settings] Using cached voices for', provider);
+    return cachedVoices[provider];
+  }
+
+  try {
+    console.log('[Settings] Fetching voices from API for', provider);
+    const response = await browser.runtime.sendMessage({
+      type: 'provider.getVoices',
+      providerId: provider,
+    });
+
+    if (response?.voices && response.voices.length > 0) {
+      // Transform API response to dropdown format
+      const voices = response.voices.map(
+        (v: { id: string; name: string; gender?: string; description?: string }) => {
+          // Build label with gender and description if available
+          let label = v.name;
+          if (v.gender) {
+            const genderLabel = v.gender.charAt(0).toUpperCase() + v.gender.slice(1);
+            label += ` (${genderLabel}`;
+            if (v.description) {
+              label += `, ${v.description}`;
+            }
+            label += ')';
+          } else if (v.description) {
+            label += ` (${v.description})`;
+          }
+          return { value: v.id, label };
+        },
+      );
+
+      // Cache the result
+      cachedVoices[provider] = voices;
+      console.log('[Settings] Cached', voices.length, 'voices for', provider);
+
+      return voices;
+    }
+  } catch (error) {
+    console.error('[Settings] Failed to fetch voices:', error);
+  }
+
+  // Fall back to hardcoded voices
+  console.log('[Settings] Using fallback voices for', provider);
+  return FALLBACK_VOICES[provider] || [];
+}
+
+/**
  * Update voice dropdown based on selected provider
- * T021: Voice dropdown filtered by provider
+ * T021: Voice dropdown filtered by provider - now fetches from API
  */
 async function updateVoiceDropdown(provider: string): Promise<void> {
   if (!elements) return;
@@ -407,34 +375,17 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
     voiceSelect.removeChild(voiceSelect.firstChild);
   }
 
-  // Add default option
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = 'Default Voice';
-  voiceSelect.appendChild(defaultOption);
+  // Add loading indicator
+  const loadingOption = document.createElement('option');
+  loadingOption.value = '';
+  loadingOption.textContent = 'Loading voices...';
+  voiceSelect.appendChild(loadingOption);
+  voiceSelect.disabled = true;
 
-  // Get voices for provider
-  const voices = PROVIDER_VOICES[provider] || [];
+  // Fetch voices from API
+  const voices = await fetchVoicesForProvider(provider);
 
-  // Add voice options
-  voices.forEach((voice) => {
-    const option = document.createElement('option');
-    option.value = voice.value;
-    option.textContent = voice.label;
-    voiceSelect.appendChild(option);
-  });
-}
-
-/**
- * Update Groq voice dropdown based on selected model (050-groq-tts-provider T035)
- * Filters voice options based on whether PlayAI or Orpheus model is selected
- */
-async function updateGroqVoiceDropdown(model: string): Promise<void> {
-  if (!elements) return;
-
-  const voiceSelect = elements.groqVoice;
-
-  // Clear existing options using safe DOM method
+  // Clear loading indicator
   while (voiceSelect.firstChild) {
     voiceSelect.removeChild(voiceSelect.firstChild);
   }
@@ -445,9 +396,6 @@ async function updateGroqVoiceDropdown(model: string): Promise<void> {
   defaultOption.textContent = 'Default Voice';
   voiceSelect.appendChild(defaultOption);
 
-  // Get voices for the specific Groq model
-  const voices = GROQ_MODEL_VOICES[model] || GROQ_MODEL_VOICES['playai-tts'];
-
   // Add voice options
   voices.forEach((voice) => {
     const option = document.createElement('option');
@@ -455,24 +403,13 @@ async function updateGroqVoiceDropdown(model: string): Promise<void> {
     option.textContent = voice.label;
     voiceSelect.appendChild(option);
   });
-}
 
-/**
- * Show/hide Groq model/voice settings based on provider (050-groq-tts-provider T039)
- * Only shows Groq-specific settings when Groq is selected as provider
- */
-function updateGroqSettingsVisibility(provider: string): void {
-  if (!elements) return;
-
-  const isGroq = provider === 'groq';
-  elements.groqModelGroup.style.display = isGroq ? 'block' : 'none';
-  elements.groqVoiceGroup.style.display = isGroq ? 'block' : 'none';
+  voiceSelect.disabled = false;
 }
 
 /**
  * Setup Quick Settings event listeners
  * T020: Provider auto-save, T022-T023: Speed slider with debounce, T024: Toast notifications
- * 050-groq-tts-provider: Added Groq model/voice handlers
  */
 function setupQuickSettingsEventListeners(): void {
   if (!elements) return;
@@ -495,9 +432,6 @@ function setupQuickSettingsEventListeners(): void {
 
     // Reload language settings to reflect changes
     await loadLanguageSettings();
-
-    // 050-groq-tts-provider (T039): Update Groq settings visibility
-    updateGroqSettingsVisibility(provider);
 
     toast.success('Provider updated');
   });
@@ -536,35 +470,6 @@ function setupQuickSettingsEventListeners(): void {
       await saveQuickSetting('speed', speed);
       toast.success('Speed updated');
     }, 300);
-  });
-
-  // 050-groq-tts-provider (T035): Groq model change handler
-  elements.groqModel.addEventListener('change', async () => {
-    if (!elements) return;
-
-    const model = elements.groqModel.value;
-
-    // Update Groq voice dropdown for new model
-    await updateGroqVoiceDropdown(model);
-
-    // T036: Reset voice to null when model changes (avoid incompatible voice)
-    elements.groqVoice.value = '';
-    await browser.storage.local.set({ groqVoice: null });
-
-    // Save model
-    await browser.storage.local.set({ groqModel: model });
-
-    toast.success(`Groq model updated to ${model === 'playai-tts' ? 'PlayAI Dialog' : 'Orpheus'}`);
-  });
-
-  // 050-groq-tts-provider: Groq voice change handler
-  elements.groqVoice.addEventListener('change', async () => {
-    if (!elements) return;
-
-    const voice = elements.groqVoice.value;
-    await browser.storage.local.set({ groqVoice: voice || null });
-
-    toast.success(voice ? 'Groq voice updated' : 'Using default Groq voice');
   });
 }
 
@@ -801,9 +706,7 @@ async function loadSettings(): Promise<void> {
 
   try {
     // Load all settings from storage
-    // 050-groq-tts-provider: groqApiKey instead of anthropic:apiKey
     const result = await browser.storage.local.get([
-      'groqApiKey',
       'elevenlabsApiKey',
       'provider',
       'speed',
@@ -814,8 +717,6 @@ async function loadSettings(): Promise<void> {
     ]);
 
     // API keys (no defaults, empty if not set)
-    // 050-groq-tts-provider: groqKey is primary TTS
-    elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
 
     // Settings with defaults
@@ -893,9 +794,7 @@ function setupEventListeners(): void {
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Auto-save on input change (with debounce)
-  // 050-groq-tts-provider: groqKey instead of anthropicKey
   const autoSaveInputs: HTMLElement[] = [
-    elements.groqKey,
     elements.elevenlabsKey,
     elements.defaultProvider,
     elements.defaultSpeed,
@@ -1011,12 +910,9 @@ function setupThemeEventListener(): void {
 // ========================================
 
 /**
- * Storage key mapping for each provider's API key
- * 050-groq-tts-provider: Added groq
+ * Storage key mapping for each provider's API key input element
  */
-// 050-groq-tts-provider: Groq and ElevenLabs are the only TTS providers
 const PROVIDER_INPUT_IDS: Record<string, string> = {
-  groq: 'groqKey',
   elevenlabs: 'elevenlabsKey',
 };
 
@@ -1211,13 +1107,11 @@ function showProviderCardStatus(
 
 /**
  * Capitalize provider name for display
- * 050-groq-tts-provider: Added groq
  */
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
-    groq: 'Groq',
     elevenlabs: 'ElevenLabs',
-    anthropic: 'Anthropic',
+    browser: 'Browser',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
@@ -1229,9 +1123,7 @@ async function saveSettings(): Promise<void> {
   if (!elements) return;
 
   try {
-    // 050-groq-tts-provider: Save groqApiKey (not anthropic:apiKey)
     await browser.storage.local.set({
-      groqApiKey: elements.groqKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
       provider: elements.defaultProvider.value,
       speed: Number.parseFloat(elements.defaultSpeed.value),
@@ -2398,7 +2290,7 @@ async function getProviderVoices(
   }
 
   // Fallback for providers that don't support voice listing
-  return PROVIDER_VOICES[provider] || [];
+  return FALLBACK_VOICES[provider] || [];
 }
 
 /**

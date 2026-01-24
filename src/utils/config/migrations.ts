@@ -17,9 +17,9 @@ import { defaults, languageDefaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  * 049-tts-provider-consolidation: Bumped to 7 for OpenAI removal
- * 050-groq-tts-provider: Bumped to 8 for Groq TTS addition
+ * v10: Remove Groq TTS provider
  */
-export const CURRENT_CONFIG_VERSION = 8;
+export const CURRENT_CONFIG_VERSION = 10;
 
 /**
  * Storage object with migration flags
@@ -47,9 +47,10 @@ interface StoredSettings extends Record<string, unknown> {
   openaiApiKey?: string;
   defaultVoices?: Record<string, string | null>;
   providerOverride?: string | null;
-  // 050-groq-tts-provider: New Groq settings
+  // Legacy Groq settings (removed, kept for migration)
   groqModel?: string;
   groqVoice?: string | null;
+  groqApiKey?: string;
   elevenlabsApiKey?: string;
 }
 
@@ -227,7 +228,8 @@ export const migrations: Migration[] = [
   {
     version: 7,
     key: 'provider',
-    description: 'Remove OpenAI provider, migrate to ElevenLabs/Browser TTS (049-tts-provider-consolidation)',
+    description:
+      'Remove OpenAI provider, migrate to ElevenLabs/Browser TTS (049-tts-provider-consolidation)',
     /**
      * 049-tts-provider-consolidation migration (T041-T044):
      * - T042: If user had OpenAI selected and has ElevenLabs key → elevenlabs, else → browser
@@ -299,30 +301,103 @@ export const migrations: Migration[] = [
   {
     version: 8,
     key: 'groqSettings',
-    description: 'Add Groq TTS provider settings (050-groq-tts-provider)',
+    description: 'Legacy: Add Groq TTS provider settings (no longer applies - Groq removed)',
     /**
-     * 050-groq-tts-provider migration:
-     * - Add groqModel setting (default: 'playai-tts')
-     * - Add groqVoice setting (default: null = use model default)
+     * Legacy migration - Groq has been removed.
+     * Kept for version compatibility, but does nothing.
+     */
+    migrate: async (stored, _save) => {
+      // No-op: Groq has been removed
+      return stored;
+    },
+  },
+  {
+    version: 9,
+    key: 'groqModel',
+    description: 'Legacy: Fix invalid groqModel values (no longer applies - Groq removed)',
+    /**
+     * Legacy migration - Groq has been removed.
+     * Kept for version compatibility, but does nothing.
+     */
+    migrate: async (stored, _save) => {
+      // No-op: Groq has been removed
+      return stored;
+    },
+  },
+  {
+    version: 10,
+    key: 'removeGroq',
+    description: 'Remove Groq TTS provider, migrate users to ElevenLabs',
+    /**
+     * Groq removal migration:
+     * - T042: If user had Groq selected and has ElevenLabs key → elevenlabs, else → browser
+     * - T043: Mark groqApiKey, groqModel, groqVoice for removal
+     * - T044: Remove defaultVoices.groq
      *
-     * Non-destructive migration - only adds new fields if not present
+     * This migration handles users who were using Groq as their provider.
      */
     migrate: async (stored, save) => {
       const updates: Record<string, unknown> = {};
+      const keysToRemove: string[] = [];
 
-      // Add groqModel if not present (default: playai-tts)
-      if (stored.groqModel === undefined) {
-        updates.groqModel = 'playai-tts';
+      // Migrate provider selection
+      if (stored.provider === 'groq') {
+        // Check if user has ElevenLabs API key configured
+        const hasElevenLabsKey = Boolean(stored.elevenlabsApiKey);
+
+        if (hasElevenLabsKey) {
+          updates.provider = 'elevenlabs';
+          console.log('VoxPage: Migrated provider from groq to elevenlabs');
+        } else {
+          updates.provider = 'browser';
+          console.log('VoxPage: Migrated provider from groq to browser (no ElevenLabs key)');
+        }
       }
 
-      // Add groqVoice if not present (default: null = use model default)
-      if (stored.groqVoice === undefined) {
-        updates.groqVoice = null;
+      // Migrate providerOverride if it was set to groq
+      if (stored.providerOverride === 'groq') {
+        const hasElevenLabsKey = Boolean(stored.elevenlabsApiKey);
+        updates.providerOverride = hasElevenLabsKey ? 'elevenlabs' : null;
+        console.log('VoxPage: Migrated providerOverride from groq to', updates.providerOverride);
       }
 
-      if (Object.keys(updates).length > 0) {
+      // Mark Groq settings for removal
+      if (stored.groqApiKey !== undefined) {
+        keysToRemove.push('groqApiKey');
+        console.log('VoxPage: Marking groqApiKey for removal');
+      }
+      if (stored.groqModel !== undefined) {
+        keysToRemove.push('groqModel');
+        console.log('VoxPage: Marking groqModel for removal');
+      }
+      if (stored.groqVoice !== undefined) {
+        keysToRemove.push('groqVoice');
+        console.log('VoxPage: Marking groqVoice for removal');
+      }
+
+      // Clean up defaultVoices if it has groq
+      if (stored.defaultVoices && typeof stored.defaultVoices === 'object') {
+        const cleanedVoices = { ...stored.defaultVoices };
+        if ('groq' in cleanedVoices) {
+          (cleanedVoices as Record<string, unknown>).groq = undefined;
+          updates.defaultVoices = cleanedVoices;
+          console.log('VoxPage: Removed groq from defaultVoices');
+        }
+      }
+
+      // Save updates
+      if (Object.keys(updates).length > 0 || keysToRemove.length > 0) {
         await save(updates);
-        console.log('VoxPage: Added Groq TTS settings:', Object.keys(updates));
+
+        // Note: Actual key removal happens via browser.storage.local.remove()
+        // which should be called by the store after this migration
+        if (keysToRemove.length > 0) {
+          console.log('VoxPage: Keys to remove:', keysToRemove);
+          // Store keys to remove for the store to handle
+          (updates as Record<string, unknown>)._keysToRemove = keysToRemove;
+        }
+
+        console.log('VoxPage: Applied Groq removal migration');
         return { ...stored, ...updates };
       }
 

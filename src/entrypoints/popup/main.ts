@@ -97,8 +97,8 @@ const elements = {
 
   // Cost display
   costSection: document.getElementById('cost-section') as HTMLElement,
-  costProviderRow: document.getElementById('cost-provider-row') as HTMLDivElement, // 050-groq-tts-provider (T048)
-  costProvider: document.getElementById('cost-provider') as HTMLSpanElement, // 050-groq-tts-provider (T048)
+  costProviderRow: document.getElementById('cost-provider-row') as HTMLDivElement,
+  costProvider: document.getElementById('cost-provider') as HTMLSpanElement,
   costEstimate: document.getElementById('cost-estimate') as HTMLSpanElement,
   costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
   costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
@@ -106,6 +106,7 @@ const elements = {
   // Language selection (048-multilingual-tts-pillar: T032-T035)
   languageSelect: document.getElementById('language-select') as HTMLSelectElement,
   languageBadge: document.getElementById('language-badge') as HTMLSpanElement,
+  redetectLanguageBtn: document.getElementById('redetect-language-btn') as HTMLButtonElement,
 
   // Language compatibility warning (048-multilingual-tts-pillar: T041-T044)
   languageWarning: document.getElementById('language-warning') as HTMLDivElement,
@@ -743,6 +744,45 @@ async function handleLanguageChange(event: Event): Promise<void> {
   }
 }
 
+/**
+ * Handle re-detect language button click
+ * Clears language cache and triggers fresh detection
+ */
+async function handleRedetectLanguage(): Promise<void> {
+  try {
+    // Show loading state on button
+    const btn = elements.redetectLanguageBtn;
+    btn.disabled = true;
+    btn.classList.add('voxpage-button--loading');
+
+    console.log('[Popup] Re-detecting language...');
+
+    // Clear language cache and override via message to background
+    await sendMessage('language.redetect');
+
+    // Wait a moment for the content script to re-detect
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Refresh language state
+    await fetchLanguageState();
+    updateLanguageUI();
+
+    usageTracker.track('language.redetect', {
+      source: 'popup',
+      newDetected: languageState.detected?.code,
+    });
+
+    console.log('[Popup] Language re-detection complete:', languageState.detected?.code);
+  } catch (error) {
+    console.error('[Popup] Re-detect language error:', error);
+  } finally {
+    // Reset button state
+    const btn = elements.redetectLanguageBtn;
+    btn.disabled = false;
+    btn.classList.remove('voxpage-button--loading');
+  }
+}
+
 // ============================================
 // Provider Compatibility Functions (048-multilingual-tts-pillar: T039-T044)
 // ============================================
@@ -750,32 +790,16 @@ async function handleLanguageChange(event: Event): Promise<void> {
 /**
  * Provider display name mapping
  * 049-tts-provider-consolidation: Only ElevenLabs and Browser
- * 050-groq-tts-provider: Added Groq
  */
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  groq: 'Groq',
   elevenlabs: 'ElevenLabs',
   browser: 'Browser (Free)',
 };
 
 /**
- * Groq model display names for T048
- * 050-groq-tts-provider: Show model name in cost display
+ * Get display name for provider
  */
-const GROQ_MODEL_DISPLAY_NAMES: Record<string, string> = {
-  'playai-tts': 'PlayAI',
-  'distil-whisper-large-v3-en': 'Orpheus',
-};
-
-/**
- * Get display name for provider, including model for Groq
- * 050-groq-tts-provider (T048): Show Groq model name in cost display
- */
-function getProviderDisplayName(provider: string, model?: string): string {
-  if (provider === 'groq' && model) {
-    const modelName = GROQ_MODEL_DISPLAY_NAMES[model] || model;
-    return `Groq (${modelName})`;
-  }
+function getProviderDisplayName(provider: string): string {
   return PROVIDER_DISPLAY_NAMES[provider] || provider;
 }
 
@@ -1574,18 +1598,13 @@ function formatSavingsDisplay(savings: number, percentage: number): string {
 
 /**
  * Update cost display in the popup UI
- * 050-groq-tts-provider (T048): Added provider and model params to show provider name
  */
-function updateCostDisplay(
-  estimate: CostEstimateResponse,
-  provider?: string,
-  model?: string,
-): void {
+function updateCostDisplay(estimate: CostEstimateResponse, provider?: string): void {
   if (!elements.costSection) return;
 
-  // 050-groq-tts-provider (T048): Update provider name display
+  // Update provider name display
   if (elements.costProvider && provider) {
-    elements.costProvider.textContent = getProviderDisplayName(provider, model);
+    elements.costProvider.textContent = getProviderDisplayName(provider);
   }
 
   // Update estimated cost
@@ -1621,13 +1640,7 @@ function hideCostDisplay(): void {
 async function fetchCostEstimate(): Promise<void> {
   try {
     // Check if cost display is enabled in settings
-    // 050-groq-tts-provider (T048): Added groqModel for model-specific pricing
-    const settings = await browser.storage.local.get([
-      'showCostEstimate',
-      'provider',
-      'voice',
-      'groqModel',
-    ]);
+    const settings = await browser.storage.local.get(['showCostEstimate', 'provider', 'voice']);
     if (settings.showCostEstimate === false) {
       hideCostDisplay();
       return;
@@ -1640,21 +1653,25 @@ async function fetchCostEstimate(): Promise<void> {
       return;
     }
 
+    // Check if URL is injectable (content scripts only work on http/https)
+    if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) {
+      hideCostDisplay();
+      return;
+    }
+
     // Request paragraphs from content script
-    const contentResponse = (await browser.tabs.sendMessage(tab.id, {
-      type: 'getParagraphs',
-    })) as { paragraphs?: Array<{ index: number; text: string }> };
+    // Use catch to gracefully handle cases where content script isn't loaded
+    const contentResponse = (await browser.tabs
+      .sendMessage(tab.id, {
+        type: 'getParagraphs',
+      })
+      .catch(() => null)) as { paragraphs?: Array<{ index: number; text: string }> } | null;
 
     if (!contentResponse?.paragraphs?.length) {
       // No content, show as free
-      // 050-groq-tts-provider (T048): Still show provider name
-      const provider = settings.provider || currentState.provider;
+      const provider = (settings.provider as string) || currentState.provider;
       if (elements.costProvider) {
-        const groqModel = provider === 'groq' ? settings.groqModel : undefined;
-        elements.costProvider.textContent = getProviderDisplayName(
-          provider,
-          groqModel as string | undefined,
-        );
+        elements.costProvider.textContent = getProviderDisplayName(provider);
       }
       elements.costEstimate.textContent = 'Free';
       elements.costSavingsRow.hidden = true;
@@ -1665,23 +1682,18 @@ async function fetchCostEstimate(): Promise<void> {
     // Extract text from paragraphs
     const paragraphTexts = contentResponse.paragraphs.map((p) => p.text);
 
-    const provider = settings.provider || currentState.provider;
+    const provider = (settings.provider as string) || currentState.provider;
 
     // Request cost estimate from background
-    // 050-groq-tts-provider (T048): Pass model for Groq-specific pricing
     const response = await sendMessage<CostEstimateResponse>('cost.estimate', {
       url: tab.url,
       paragraphs: paragraphTexts,
       provider,
       voice: settings.voice || '',
-      // Only pass model for Groq provider
-      ...(provider === 'groq' && settings.groqModel ? { model: settings.groqModel } : {}),
     });
 
     if (response) {
-      // 050-groq-tts-provider (T048): Pass provider and model to show in display
-      const groqModel = provider === 'groq' ? settings.groqModel : undefined;
-      updateCostDisplay(response, provider, groqModel as string | undefined);
+      updateCostDisplay(response, provider);
     }
   } catch (error) {
     console.error('[Popup] Failed to fetch cost estimate:', error);
@@ -1730,6 +1742,9 @@ function setupEventListeners(): void {
   // Language selection (048-multilingual-tts-pillar: T032-T035)
   if (elements.languageSelect) {
     elements.languageSelect.addEventListener('change', handleLanguageChange);
+  }
+  if (elements.redetectLanguageBtn) {
+    elements.redetectLanguageBtn.addEventListener('click', handleRedetectLanguage);
   }
 
   // Language compatibility warning (048-multilingual-tts-pillar: T041-T044)

@@ -213,6 +213,57 @@ export class ElevenLabsProvider {
   }
 
   /**
+   * Fetch available voices from ElevenLabs API
+   * Returns user's voices + shared library voices
+   */
+  async fetchVoicesFromAPI(): Promise<Voice[]> {
+    if (!this.hasApiKey()) {
+      console.warn('[ElevenLabs] No API key, returning default voices');
+      return ELEVENLABS_VOICES;
+    }
+
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        method: 'GET',
+        headers: {
+          'xi-api-key': this.apiKey!,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[ElevenLabs] Failed to fetch voices:', response.status);
+        return ELEVENLABS_VOICES;
+      }
+
+      const data = await response.json();
+      const voices: Voice[] = [];
+
+      // Map API response to our Voice interface
+      for (const voice of data.voices || []) {
+        voices.push({
+          id: voice.voice_id,
+          name: voice.name,
+          language: voice.labels?.language || 'en',
+          gender: voice.labels?.gender,
+          description: voice.labels?.description || voice.labels?.accent,
+        });
+      }
+
+      console.log(`[ElevenLabs] Fetched ${voices.length} voices from API`);
+
+      // If no voices returned, fall back to defaults
+      if (voices.length === 0) {
+        return ELEVENLABS_VOICES;
+      }
+
+      return voices;
+    } catch (error) {
+      console.error('[ElevenLabs] Error fetching voices:', error);
+      return ELEVENLABS_VOICES;
+    }
+  }
+
+  /**
    * Generate audio from text
    */
   async generateAudio(
@@ -243,15 +294,24 @@ export class ElevenLabsProvider {
     };
 
     // Add language_code if specified
+    // ElevenLabs uses ISO 639-1 codes (2-letter), not regional variants like pt-BR
     if (options.languageCode) {
       const primary = options.languageCode.split('-')[0].toLowerCase();
       if (this.supportsLanguage(primary)) {
         requestBody.language_code = primary;
+        console.log('[ElevenLabs] Language code:', options.languageCode, '-> API code:', primary);
+      } else {
+        console.warn('[ElevenLabs] Unsupported language code:', options.languageCode);
       }
     }
 
-    console.log('[ElevenLabs] Generating audio, text length:', text.length);
-    console.log('[ElevenLabs] API key length:', this.apiKey!.length);
+    console.log('[ElevenLabs] Generating audio:', {
+      textLength: text.length,
+      voiceId,
+      modelId,
+      languageCode: requestBody.language_code || 'auto-detect',
+      apiKeyLength: this.apiKey!.length,
+    });
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
@@ -264,13 +324,22 @@ export class ElevenLabsProvider {
     });
 
     if (!response.ok) {
-      let errorBody: { detail?: { message?: string } } | null = null;
+      let errorBody: {
+        detail?: { message?: string; status?: string } | string;
+        message?: string;
+      } | null = null;
       try {
         errorBody = await response.json();
+        console.error('[ElevenLabs] Error response body:', errorBody);
       } catch {
         // Ignore parse error
       }
-      throw new Error(this.buildErrorMessage(response.status, errorBody?.detail?.message));
+      // ElevenLabs API can return errors in different formats
+      const errorMessage =
+        typeof errorBody?.detail === 'string'
+          ? errorBody.detail
+          : errorBody?.detail?.message || errorBody?.message;
+      throw new Error(this.buildErrorMessage(response.status, errorMessage));
     }
 
     return response.arrayBuffer();
@@ -297,12 +366,28 @@ export class ElevenLabsProvider {
       },
     };
 
+    // Add language_code if specified (ISO 639-1 format)
     if (options.languageCode) {
       const primary = options.languageCode.split('-')[0].toLowerCase();
       if (this.supportsLanguage(primary)) {
         requestBody.language_code = primary;
+        console.log(
+          '[ElevenLabs] Timestamps: Language code:',
+          options.languageCode,
+          '-> API code:',
+          primary,
+        );
+      } else {
+        console.warn('[ElevenLabs] Timestamps: Unsupported language code:', options.languageCode);
       }
     }
+
+    console.log('[ElevenLabs] Generating audio with timestamps:', {
+      textLength: text.length,
+      voiceId,
+      modelId,
+      languageCode: requestBody.language_code || 'auto-detect',
+    });
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
@@ -317,13 +402,22 @@ export class ElevenLabsProvider {
     );
 
     if (!response.ok) {
-      let errorBody: { detail?: { message?: string } } | null = null;
+      let errorBody: {
+        detail?: { message?: string; status?: string } | string;
+        message?: string;
+      } | null = null;
       try {
         errorBody = await response.json();
+        console.error('[ElevenLabs] Timestamps error response body:', errorBody);
       } catch {
         // Ignore parse error
       }
-      throw new Error(this.buildErrorMessage(response.status, errorBody?.detail?.message));
+      // ElevenLabs API can return errors in different formats
+      const errorMessage =
+        typeof errorBody?.detail === 'string'
+          ? errorBody.detail
+          : errorBody?.detail?.message || errorBody?.message;
+      throw new Error(this.buildErrorMessage(response.status, errorMessage));
     }
 
     const result = await response.json();
@@ -436,13 +530,28 @@ export class ElevenLabsProvider {
    * Build error message for specific status codes
    */
   private buildErrorMessage(status: number, message?: string): string {
+    // Log detailed error info for debugging
+    console.error('[ElevenLabs] API error:', {
+      status,
+      message,
+      apiKeyConfigured: this.hasApiKey(),
+      apiKeyLength: this.apiKey?.length ?? 0,
+    });
+
     switch (status) {
       case 401:
         return 'Invalid ElevenLabs API key. Please check your settings.';
       case 422:
-        return 'Invalid voice or settings. Please try a different voice.';
+        return message
+          ? `Invalid request: ${message}`
+          : 'Invalid voice or settings. Please try a different voice.';
       case 429:
         return 'Rate limited. Please wait and try again.';
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return `ElevenLabs server error (${status}). Please try again later.`;
       default:
         return message || `ElevenLabs API error (${status}). Please try again later.`;
     }

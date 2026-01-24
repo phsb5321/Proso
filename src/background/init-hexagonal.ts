@@ -37,13 +37,11 @@ import {
 
 /**
  * Load API keys from browser storage.
- * 050-groq-tts-provider: Added groqApiKey loading
  */
 async function loadApiKeys(): Promise<ApiKeys> {
-  const stored = await browser.storage.local.get(['groqApiKey', 'elevenlabsApiKey']);
+  const stored = await browser.storage.local.get(['elevenlabsApiKey']);
 
   return {
-    groq: (stored.groqApiKey as string) || null,
     elevenlabs: (stored.elevenlabsApiKey as string) || null,
     browser: null, // Browser TTS has no API key
   };
@@ -103,7 +101,6 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     console.log('[Hexagonal] Container initialized with config:', {
       provider: config.provider,
       cacheType: config.cacheType,
-      hasGroqKey: !!apiKeys.groq,
       hasElevenLabsKey: !!apiKeys.elevenlabs,
       registeredHandlers: registry.getHandlerNames().length,
     });
@@ -118,18 +115,16 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
 
 /**
  * Setup storage change listener to reconfigure container when API keys change.
- * 050-groq-tts-provider: Added to support hot-reloading of API keys.
  */
 function setupStorageChangeListener(): void {
   browser.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
 
     // Check if API keys changed
-    const groqKeyChanged = 'groqApiKey' in changes;
     const elevenlabsKeyChanged = 'elevenlabsApiKey' in changes;
     const providerChanged = 'provider' in changes;
 
-    if (!groqKeyChanged && !elevenlabsKeyChanged && !providerChanged) {
+    if (!elevenlabsKeyChanged && !providerChanged) {
       return;
     }
 
@@ -151,26 +146,7 @@ function setupStorageChangeListener(): void {
 
     // Get the API key for the new/current provider
     let apiKey: string | null = null;
-    if (newProvider === 'groq') {
-      if (groqKeyChanged) {
-        apiKey = (changes.groqApiKey?.newValue as string) || null;
-      } else {
-        // Key didn't change, get from container's stored keys
-        // We need to re-fetch from storage
-        browser.storage.local.get('groqApiKey').then((result) => {
-          const key = (result.groqApiKey as string) || null;
-          if (key) {
-            try {
-              reconfigureAudioGenerator(newProvider, key);
-              console.log('[Hexagonal] Reconfigured audio generator for provider:', newProvider);
-            } catch (error) {
-              console.error('[Hexagonal] Failed to reconfigure audio generator:', error);
-            }
-          }
-        });
-        return;
-      }
-    } else if (newProvider === 'elevenlabs') {
+    if (newProvider === 'elevenlabs') {
       if (elevenlabsKeyChanged) {
         apiKey = (changes.elevenlabsApiKey?.newValue as string) || null;
       } else {

@@ -17,10 +17,9 @@ import { defaults } from '../../../src/utils/config/defaults';
 describe('Configuration Schema (TypeScript/Zod)', () => {
   describe('settingsSchema.parse', () => {
     test('validates complete valid settings', () => {
-      // 050-groq-tts-provider: Groq is the default TTS provider
       const settings = {
         mode: 'article',
-        provider: 'groq',
+        provider: 'elevenlabs',
         voice: null,
         speed: 1.0,
         showCostEstimate: true,
@@ -37,8 +36,7 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
     test('applies defaults for missing keys', () => {
       const result = settingsSchema.parse({});
       expect(result.mode).toBe('article');
-      // 050-groq-tts-provider: Default provider is groq
-      expect(result.provider).toBe('groq');
+      expect(result.provider).toBe('elevenlabs');
       expect(result.speed).toBe(1.0);
     });
 
@@ -55,21 +53,20 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
     });
 
     test('validates valid providers', () => {
-      // 050-groq-tts-provider: Groq, ElevenLabs, and Browser TTS are supported
-      expect(settingsSchema.parse({ provider: 'groq' }).provider).toBe('groq');
+      // ElevenLabs and Browser TTS are supported
       expect(settingsSchema.parse({ provider: 'elevenlabs' }).provider).toBe('elevenlabs');
       expect(settingsSchema.parse({ provider: 'browser' }).provider).toBe('browser');
     });
 
     test('throws for invalid providers', () => {
-      // 050-groq-tts-provider: Groq is now a valid provider
       // 049-tts-provider-consolidation: OpenAI removed
+      // Groq removed
       expect(() => settingsSchema.parse({ provider: 'google' })).toThrow();
-      expect(() => settingsSchema.parse({ provider: 'openai' })).toThrow(); // OpenAI removed in 049
+      expect(() => settingsSchema.parse({ provider: 'openai' })).toThrow();
+      expect(() => settingsSchema.parse({ provider: 'groq' })).toThrow();
       expect(() => settingsSchema.parse({ provider: '' })).toThrow();
       // Valid providers should not throw
       expect(settingsSchema.parse({ provider: 'browser' }).provider).toBe('browser');
-      expect(settingsSchema.parse({ provider: 'groq' }).provider).toBe('groq'); // 050-groq-tts-provider
     });
 
     test('validates speed constraints', () => {
@@ -125,18 +122,18 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
   describe('PROVIDERS constant', () => {
     test('contains all TTS providers', () => {
       // 049-tts-provider-consolidation: ElevenLabs and Browser TTS (OpenAI removed)
-      // 050-groq-tts-provider: Groq added back
-      expect(PROVIDERS).toContain('groq');
+      // Groq removed - only ElevenLabs and Browser TTS remain
       expect(PROVIDERS).toContain('elevenlabs');
       expect(PROVIDERS).toContain('browser');
-      expect(PROVIDERS).toHaveLength(3);
+      expect(PROVIDERS).toHaveLength(2);
     });
 
     test('does not contain removed providers', () => {
       // 049-tts-provider-consolidation: OpenAI, Cartesia removed
-      // 050-groq-tts-provider: Groq is now a supported provider
+      // Groq removed
       expect(PROVIDERS).not.toContain('openai');
       expect(PROVIDERS).not.toContain('cartesia');
+      expect(PROVIDERS).not.toContain('groq');
     });
 
     test('default provider is in PROVIDERS', () => {
@@ -147,8 +144,8 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
   describe('defaults object', () => {
     test('returns default for known keys', () => {
       expect(defaults.mode).toBe('article');
-      // 050-groq-tts-provider: Default provider is groq
-      expect(defaults.provider).toBe('groq');
+      // ElevenLabs is now the default provider
+      expect(defaults.provider).toBe('elevenlabs');
       expect(defaults.speed).toBe(1.0);
       expect(defaults.voice).toBeNull();
     });

@@ -7,6 +7,7 @@
  * @module adapters/storage/browser-settings
  */
 
+import { browser } from 'wxt/browser';
 import type { ProviderId } from '../../core/shared/errors';
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
 import { defaults } from '../../utils/config/defaults';
@@ -14,10 +15,8 @@ import { settingsStore } from '../../utils/config/store';
 
 /**
  * API key storage keys for each provider.
- * 050-groq-tts-provider: Added 'groq' for Groq TTS
  */
 const API_KEY_STORAGE: Record<ProviderId, string> = {
-  groq: 'groqApiKey',
   elevenlabs: 'elevenlabsApiKey',
   browser: '', // Browser TTS doesn't need API key
 };
@@ -43,7 +42,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
     const all = settingsStore.getAll();
 
     // Map to port interface (ISettingsStore.Settings)
-    // 050-groq-tts-provider: Added providerOverride, groqModel, groqVoice
     return {
       mode: all.mode,
       provider: all.provider,
@@ -54,8 +52,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
       maxCacheSize: all.maxCacheSize,
       wordSyncEnabled: all.wordSyncEnabled,
       providerOverride: all.providerOverride,
-      groqModel: all.groqModel,
-      groqVoice: all.groqVoice,
     };
   }
 
@@ -97,7 +93,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
 
   subscribe(callback: (settings: Settings) => void): () => void {
     // Wrap the callback to map full Settings to port Settings
-    // 050-groq-tts-provider: Added providerOverride, groqModel, groqVoice
     const wrappedCallback = () => {
       const all = settingsStore.getAll();
       callback({
@@ -110,8 +105,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
         maxCacheSize: all.maxCacheSize,
         wordSyncEnabled: all.wordSyncEnabled,
         providerOverride: all.providerOverride,
-        groqModel: all.groqModel,
-        groqVoice: all.groqVoice,
       });
     };
 
@@ -120,7 +113,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
 
   /**
    * Get default settings (useful for testing).
-   * 050-groq-tts-provider: Added providerOverride, groqModel, groqVoice
    */
   getDefaults(): Settings {
     return {
@@ -133,8 +125,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
       maxCacheSize: defaults.maxCacheSize,
       wordSyncEnabled: defaults.wordSyncEnabled,
       providerOverride: defaults.providerOverride,
-      groqModel: defaults.groqModel,
-      groqVoice: defaults.groqVoice,
     };
   }
 }

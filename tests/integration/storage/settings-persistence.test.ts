@@ -85,7 +85,7 @@ describe('Settings Persistence Integration', () => {
       }
 
       // Provider validation
-      const validProviders = ['browser', 'openai', 'elevenlabs', 'groq', 'cartesia'];
+      const validProviders = ['browser', 'elevenlabs'];
       if (settings.provider && !validProviders.includes(settings.provider as string)) {
         return Err({ type: 'validation_failed', message: 'Invalid provider' });
       }

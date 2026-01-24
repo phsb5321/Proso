@@ -13,8 +13,8 @@
  * @module utils/content/sticky-footer
  */
 
-import { z } from "zod";
-import { browser } from "wxt/browser";
+import { z } from 'zod';
+import { browser } from 'wxt/browser';
 
 // ============================================================================
 // Zod Schemas (SSOT for type definitions)
@@ -26,7 +26,7 @@ import { browser } from "wxt/browser";
  * yOffset: vertical offset from bottom in pixels (0 to window.innerHeight / 3)
  */
 export const footerPositionSchema = z.object({
-  x: z.union([z.literal("center"), z.literal("left"), z.literal("right"), z.number()]),
+  x: z.union([z.literal('center'), z.literal('left'), z.literal('right'), z.number()]),
   yOffset: z.number().min(0),
 });
 
@@ -47,7 +47,7 @@ export const footerStateSchema = z.object({
 /**
  * Playback status schema
  */
-export const playbackStatusSchema = z.enum(["stopped", "loading", "playing", "paused"]);
+export const playbackStatusSchema = z.enum(['stopped', 'loading', 'playing', 'paused']);
 
 /**
  * Internal playback state schema (used by StickyFooter class)
@@ -78,29 +78,29 @@ export const buttonOptionsSchema = z.object({
  * Icon name schema
  */
 export const iconNameSchema = z.enum([
-  "play",
-  "pause",
-  "skip-back",
-  "skip-forward",
-  "minimize-2",
-  "maximize-2",
-  "x",
-  "queue", // T077: Add to queue icon
+  'play',
+  'pause',
+  'skip-back',
+  'skip-forward',
+  'minimize-2',
+  'maximize-2',
+  'x',
+  'queue', // T077: Add to queue icon
 ]);
 
 /**
  * Footer action schema (for message passing)
  */
 export const footerActionSchema = z.enum([
-  "play",
-  "pause",
-  "prev",
-  "next",
-  "seek",
-  "speed",
-  "stop",
-  "close",
-  "addToQueue", // T077: Add to queue action
+  'play',
+  'pause',
+  'prev',
+  'next',
+  'seek',
+  'speed',
+  'stop',
+  'close',
+  'addToQueue', // T077: Add to queue action
 ]);
 
 /**
@@ -130,7 +130,7 @@ export type StorageState = z.infer<typeof storageStateSchema>;
 
 // Storage key for footer state
 // NOTE: Must match StorageKey.FOOTER_STATE in background/constants.js
-const FOOTER_STATE_KEY = "footerState";
+const FOOTER_STATE_KEY = 'footerState';
 
 // Footer dimensions (matches styles/tokens.css)
 const FOOTER_HEIGHT = 64;
@@ -153,144 +153,144 @@ const ERROR_DISPLAY_DURATION_MS = 5000;
  * Create an SVG element from path data
  */
 function createSvgIcon(name: IconName): SVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "20");
-  svg.setAttribute("height", "20");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
 
   const icons: Record<IconName, () => void> = {
     play: () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "5 3 19 12 5 21 5 3");
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '5 3 19 12 5 21 5 3');
       svg.appendChild(polygon);
     },
     pause: () => {
-      const rect1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect1.setAttribute("x", "6");
-      rect1.setAttribute("y", "4");
-      rect1.setAttribute("width", "4");
-      rect1.setAttribute("height", "16");
-      const rect2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect2.setAttribute("x", "14");
-      rect2.setAttribute("y", "4");
-      rect2.setAttribute("width", "4");
-      rect2.setAttribute("height", "16");
+      const rect1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect1.setAttribute('x', '6');
+      rect1.setAttribute('y', '4');
+      rect1.setAttribute('width', '4');
+      rect1.setAttribute('height', '16');
+      const rect2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect2.setAttribute('x', '14');
+      rect2.setAttribute('y', '4');
+      rect2.setAttribute('width', '4');
+      rect2.setAttribute('height', '16');
       svg.appendChild(rect1);
       svg.appendChild(rect2);
     },
-    "skip-back": () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "19 20 9 12 19 4 19 20");
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "5");
-      line.setAttribute("y1", "19");
-      line.setAttribute("x2", "5");
-      line.setAttribute("y2", "5");
+    'skip-back': () => {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '19 20 9 12 19 4 19 20');
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '5');
+      line.setAttribute('y1', '19');
+      line.setAttribute('x2', '5');
+      line.setAttribute('y2', '5');
       svg.appendChild(polygon);
       svg.appendChild(line);
     },
-    "skip-forward": () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "5 4 15 12 5 20 5 4");
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "19");
-      line.setAttribute("y1", "5");
-      line.setAttribute("x2", "19");
-      line.setAttribute("y2", "19");
+    'skip-forward': () => {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '5 4 15 12 5 20 5 4');
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '19');
+      line.setAttribute('y1', '5');
+      line.setAttribute('x2', '19');
+      line.setAttribute('y2', '19');
       svg.appendChild(polygon);
       svg.appendChild(line);
     },
-    "minimize-2": () => {
-      const pl1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl1.setAttribute("points", "4 14 10 14 10 20");
-      const pl2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl2.setAttribute("points", "20 10 14 10 14 4");
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "14");
-      l1.setAttribute("y1", "10");
-      l1.setAttribute("x2", "21");
-      l1.setAttribute("y2", "3");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "3");
-      l2.setAttribute("y1", "21");
-      l2.setAttribute("x2", "10");
-      l2.setAttribute("y2", "14");
+    'minimize-2': () => {
+      const pl1 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl1.setAttribute('points', '4 14 10 14 10 20');
+      const pl2 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl2.setAttribute('points', '20 10 14 10 14 4');
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '14');
+      l1.setAttribute('y1', '10');
+      l1.setAttribute('x2', '21');
+      l1.setAttribute('y2', '3');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '3');
+      l2.setAttribute('y1', '21');
+      l2.setAttribute('x2', '10');
+      l2.setAttribute('y2', '14');
       svg.appendChild(pl1);
       svg.appendChild(pl2);
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
-    "maximize-2": () => {
-      const pl1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl1.setAttribute("points", "15 3 21 3 21 9");
-      const pl2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl2.setAttribute("points", "9 21 3 21 3 15");
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "21");
-      l1.setAttribute("y1", "3");
-      l1.setAttribute("x2", "14");
-      l1.setAttribute("y2", "10");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "3");
-      l2.setAttribute("y1", "21");
-      l2.setAttribute("x2", "10");
-      l2.setAttribute("y2", "14");
+    'maximize-2': () => {
+      const pl1 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl1.setAttribute('points', '15 3 21 3 21 9');
+      const pl2 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl2.setAttribute('points', '9 21 3 21 3 15');
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '21');
+      l1.setAttribute('y1', '3');
+      l1.setAttribute('x2', '14');
+      l1.setAttribute('y2', '10');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '3');
+      l2.setAttribute('y1', '21');
+      l2.setAttribute('x2', '10');
+      l2.setAttribute('y2', '14');
       svg.appendChild(pl1);
       svg.appendChild(pl2);
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
     x: () => {
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "18");
-      l1.setAttribute("y1", "6");
-      l1.setAttribute("x2", "6");
-      l1.setAttribute("y2", "18");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "6");
-      l2.setAttribute("y1", "6");
-      l2.setAttribute("x2", "18");
-      l2.setAttribute("y2", "18");
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '18');
+      l1.setAttribute('y1', '6');
+      l1.setAttribute('x2', '6');
+      l1.setAttribute('y2', '18');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '6');
+      l2.setAttribute('y1', '6');
+      l2.setAttribute('x2', '18');
+      l2.setAttribute('y2', '18');
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
     queue: () => {
       // List icon with plus for "add to queue"
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "8");
-      l1.setAttribute("y1", "6");
-      l1.setAttribute("x2", "21");
-      l1.setAttribute("y2", "6");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "8");
-      l2.setAttribute("y1", "12");
-      l2.setAttribute("x2", "21");
-      l2.setAttribute("y2", "12");
-      const l3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l3.setAttribute("x1", "8");
-      l3.setAttribute("y1", "18");
-      l3.setAttribute("x2", "21");
-      l3.setAttribute("y2", "18");
-      const d1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d1.setAttribute("x1", "3");
-      d1.setAttribute("y1", "6");
-      d1.setAttribute("x2", "3.01");
-      d1.setAttribute("y2", "6");
-      const d2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d2.setAttribute("x1", "3");
-      d2.setAttribute("y1", "12");
-      d2.setAttribute("x2", "3.01");
-      d2.setAttribute("y2", "12");
-      const d3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d3.setAttribute("x1", "3");
-      d3.setAttribute("y1", "18");
-      d3.setAttribute("x2", "3.01");
-      d3.setAttribute("y2", "18");
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '8');
+      l1.setAttribute('y1', '6');
+      l1.setAttribute('x2', '21');
+      l1.setAttribute('y2', '6');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '8');
+      l2.setAttribute('y1', '12');
+      l2.setAttribute('x2', '21');
+      l2.setAttribute('y2', '12');
+      const l3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l3.setAttribute('x1', '8');
+      l3.setAttribute('y1', '18');
+      l3.setAttribute('x2', '21');
+      l3.setAttribute('y2', '18');
+      const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d1.setAttribute('x1', '3');
+      d1.setAttribute('y1', '6');
+      d1.setAttribute('x2', '3.01');
+      d1.setAttribute('y2', '6');
+      const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d2.setAttribute('x1', '3');
+      d2.setAttribute('y1', '12');
+      d2.setAttribute('x2', '3.01');
+      d2.setAttribute('y2', '12');
+      const d3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d3.setAttribute('x1', '3');
+      d3.setAttribute('y1', '18');
+      d3.setAttribute('x2', '3.01');
+      d3.setAttribute('y2', '18');
       svg.appendChild(l1);
       svg.appendChild(l2);
       svg.appendChild(l3);
@@ -312,17 +312,17 @@ function createSvgIcon(name: IconName): SVGElement {
  * Create a button element with proper ARIA attributes
  */
 function createButton(options: ButtonOptions): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.className = options.className || "btn";
-  btn.setAttribute("aria-label", options.ariaLabel || "");
-  btn.setAttribute("tabindex", "0");
+  const btn = document.createElement('button');
+  btn.className = options.className || 'btn';
+  btn.setAttribute('aria-label', options.ariaLabel || '');
+  btn.setAttribute('tabindex', '0');
 
   if (options.action) {
     btn.dataset.action = options.action;
   }
 
   if (options.ariaPressed !== undefined) {
-    btn.setAttribute("aria-pressed", String(options.ariaPressed));
+    btn.setAttribute('aria-pressed', String(options.ariaPressed));
   }
 
   if (options.icon) {
@@ -503,7 +503,6 @@ function getStyles(): string {
       color: var(--footer-text-muted);
     }
     .provider-indicator[hidden] { display: none; }
-    .provider-indicator--groq { background: rgba(249, 115, 22, 0.2); color: #f97316; }
     .provider-indicator--elevenlabs { background: rgba(13, 148, 136, 0.2); color: var(--footer-accent); }
     .provider-indicator--browser { background: rgba(148, 163, 184, 0.2); color: var(--footer-text-muted); }
     .footer.minimized .provider-indicator { display: none; }
@@ -550,6 +549,22 @@ function getStyles(): string {
     .error-notification-dismiss:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    .error-notification-settings {
+      display: inline-block;
+      margin-left: 12px;
+      padding: 4px 10px;
+      background: var(--color-accent-primary, #0d9488);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .error-notification-settings:hover {
+      background: var(--color-accent-secondary, #14b8a6);
+    }
   `;
 }
 
@@ -565,16 +580,16 @@ export class StickyFooter {
   private shadowRoot: ShadowRoot | null = null;
   private isVisible = false;
   private isMinimized = false;
-  private position: FooterPosition = { x: "center", yOffset: 0 };
+  private position: FooterPosition = { x: 'center', yOffset: 0 };
   private isDragging = false;
   private dragStartY = 0;
   private dragStartOffset = 0;
 
   private playbackState: PlaybackState = {
-    status: "stopped",
+    status: 'stopped',
     progress: 0,
-    currentTime: "0:00",
-    totalTime: "0:00",
+    currentTime: '0:00',
+    totalTime: '0:00',
     currentParagraph: 0,
     totalParagraphs: 0,
     speed: 1.0,
@@ -602,9 +617,8 @@ export class StickyFooter {
   private _providerIndicator: HTMLSpanElement | null = null; // T028a: Provider indicator
 
   // Provider state (049-tts-provider-consolidation: T028a)
-  // 050-groq-tts-provider: Added 'groq' option
   private _providerState: {
-    id: 'groq' | 'elevenlabs' | 'browser';
+    id: 'elevenlabs' | 'browser';
     name: string;
   } = {
     id: 'browser',
@@ -647,104 +661,104 @@ export class StickyFooter {
   private _buildDOM(): DocumentFragment {
     const { status, progress, currentTime, totalTime, currentParagraph, totalParagraphs, speed } =
       this.playbackState;
-    const isPlaying = status === "playing";
-    const isLoading = status === "loading";
+    const isPlaying = status === 'playing';
+    const isLoading = status === 'loading';
 
     const fragment = document.createDocumentFragment();
 
     // Footer container
-    const footer = document.createElement("div");
-    footer.className = "footer";
-    footer.dataset.testid = "sticky-footer";
-    if (this.isMinimized) footer.classList.add("minimized");
-    if (this.position.x !== "center") footer.classList.add(String(this.position.x));
-    if (isLoading) footer.classList.add("loading");
-    footer.setAttribute("role", "toolbar");
-    footer.setAttribute("aria-label", "VoxPage playback controls");
-    footer.setAttribute("tabindex", "0");
+    const footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.dataset.testid = 'sticky-footer';
+    if (this.isMinimized) footer.classList.add('minimized');
+    if (this.position.x !== 'center') footer.classList.add(String(this.position.x));
+    if (isLoading) footer.classList.add('loading');
+    footer.setAttribute('role', 'toolbar');
+    footer.setAttribute('aria-label', 'VoxPage playback controls');
+    footer.setAttribute('tabindex', '0');
     this._footerEl = footer;
 
     // Drag handle
-    const dragHandle = document.createElement("div");
-    dragHandle.className = "drag-handle";
-    dragHandle.setAttribute("aria-hidden", "true");
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.setAttribute('aria-hidden', 'true');
     footer.appendChild(dragHandle);
 
     // Live region
-    const liveRegion = document.createElement("div");
-    liveRegion.className = "live-region";
-    liveRegion.setAttribute("role", "status");
-    liveRegion.setAttribute("aria-live", "polite");
-    liveRegion.setAttribute("aria-atomic", "true");
+    const liveRegion = document.createElement('div');
+    liveRegion.className = 'live-region';
+    liveRegion.setAttribute('role', 'status');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.setAttribute('aria-atomic', 'true');
     this._liveRegion = liveRegion;
     footer.appendChild(liveRegion);
 
     // Controls
-    const controls = document.createElement("div");
-    controls.className = "controls";
+    const controls = document.createElement('div');
+    controls.className = 'controls';
 
     const prevBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Previous paragraph",
-      action: "prev",
-      icon: "skip-back",
+      className: 'btn btn-sm',
+      ariaLabel: 'Previous paragraph',
+      action: 'prev',
+      icon: 'skip-back',
     });
-    prevBtn.dataset.testid = "footer-prev-btn";
+    prevBtn.dataset.testid = 'footer-prev-btn';
     controls.appendChild(prevBtn);
 
     const playPauseBtn = createButton({
-      className: "btn btn-play-pause",
-      ariaLabel: isPlaying ? "Pause" : "Play",
+      className: 'btn btn-play-pause',
+      ariaLabel: isPlaying ? 'Pause' : 'Play',
       ariaPressed: isPlaying,
-      action: "playPause",
-      icon: isPlaying ? "pause" : "play",
+      action: 'playPause',
+      icon: isPlaying ? 'pause' : 'play',
     });
-    playPauseBtn.dataset.testid = "footer-play-pause-btn";
+    playPauseBtn.dataset.testid = 'footer-play-pause-btn';
     this._playPauseBtn = playPauseBtn;
     controls.appendChild(playPauseBtn);
 
     const nextBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Next paragraph",
-      action: "next",
-      icon: "skip-forward",
+      className: 'btn btn-sm',
+      ariaLabel: 'Next paragraph',
+      action: 'next',
+      icon: 'skip-forward',
     });
-    nextBtn.dataset.testid = "footer-next-btn";
+    nextBtn.dataset.testid = 'footer-next-btn';
     controls.appendChild(nextBtn);
 
     footer.appendChild(controls);
 
     // Progress section
-    const progressSection = document.createElement("div");
-    progressSection.className = "progress-section";
+    const progressSection = document.createElement('div');
+    progressSection.className = 'progress-section';
 
-    const currentTimeEl = document.createElement("span");
-    currentTimeEl.className = "time-display";
+    const currentTimeEl = document.createElement('span');
+    currentTimeEl.className = 'time-display';
     currentTimeEl.textContent = currentTime;
     progressSection.appendChild(currentTimeEl);
 
-    const progressBar = document.createElement("div");
-    progressBar.className = "progress-bar";
-    progressBar.setAttribute("role", "slider");
-    progressBar.setAttribute("aria-label", "Playback progress");
-    progressBar.setAttribute("aria-valuenow", String(Math.round(progress)));
-    progressBar.setAttribute("aria-valuemin", "0");
-    progressBar.setAttribute("aria-valuemax", "100");
-    progressBar.setAttribute("aria-valuetext", `${Math.round(progress)}% complete`);
-    progressBar.setAttribute("tabindex", "0");
-    progressBar.dataset.action = "seek";
-    progressBar.dataset.testid = "footer-progress-bar";
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+    progressBar.setAttribute('role', 'slider');
+    progressBar.setAttribute('aria-label', 'Playback progress');
+    progressBar.setAttribute('aria-valuenow', String(Math.round(progress)));
+    progressBar.setAttribute('aria-valuemin', '0');
+    progressBar.setAttribute('aria-valuemax', '100');
+    progressBar.setAttribute('aria-valuetext', `${Math.round(progress)}% complete`);
+    progressBar.setAttribute('tabindex', '0');
+    progressBar.dataset.action = 'seek';
+    progressBar.dataset.testid = 'footer-progress-bar';
     this._progressBar = progressBar;
 
-    const progressFill = document.createElement("div");
-    progressFill.className = "progress-fill";
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
     progressFill.style.width = `${progress}%`;
     this._progressFill = progressFill;
     progressBar.appendChild(progressFill);
     progressSection.appendChild(progressBar);
 
-    const totalTimeEl = document.createElement("span");
-    totalTimeEl.className = "time-display";
+    const totalTimeEl = document.createElement('span');
+    totalTimeEl.className = 'time-display';
     totalTimeEl.textContent = totalTime;
     progressSection.appendChild(totalTimeEl);
 
@@ -752,31 +766,31 @@ export class StickyFooter {
     footer.appendChild(progressSection);
 
     // Speed control
-    const speedControl = document.createElement("div");
-    speedControl.className = "speed-control";
+    const speedControl = document.createElement('div');
+    speedControl.className = 'speed-control';
 
     const speedBtn = createButton({
-      className: "btn speed-btn",
+      className: 'btn speed-btn',
       ariaLabel: `Playback speed ${speed}x`,
-      action: "toggleSpeed",
+      action: 'toggleSpeed',
       text: `${speed}x`,
     });
     this._speedBtn = speedBtn; // T046: Store reference for updates
     speedControl.appendChild(speedBtn);
 
-    const speedDropdown = document.createElement("div");
-    speedDropdown.className = "speed-dropdown";
-    speedDropdown.setAttribute("role", "listbox");
-    speedDropdown.setAttribute("aria-label", "Select playback speed");
+    const speedDropdown = document.createElement('div');
+    speedDropdown.className = 'speed-dropdown';
+    speedDropdown.setAttribute('role', 'listbox');
+    speedDropdown.setAttribute('aria-label', 'Select playback speed');
     this._speedDropdown = speedDropdown;
 
     SPEED_OPTIONS.forEach((s) => {
-      const option = document.createElement("button");
-      option.className = "speed-option";
-      if (s === speed) option.classList.add("active");
-      option.setAttribute("role", "option");
-      option.setAttribute("aria-selected", String(s === speed));
-      option.setAttribute("tabindex", "0");
+      const option = document.createElement('button');
+      option.className = 'speed-option';
+      if (s === speed) option.classList.add('active');
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(s === speed));
+      option.setAttribute('tabindex', '0');
       option.dataset.speed = String(s);
       option.textContent = `${s}x`;
       speedDropdown.appendChild(option);
@@ -785,9 +799,9 @@ export class StickyFooter {
     footer.appendChild(speedControl);
 
     // Paragraph indicator
-    const indicator = document.createElement("span");
-    indicator.className = "paragraph-indicator";
-    indicator.setAttribute("aria-label", "Current position");
+    const indicator = document.createElement('span');
+    indicator.className = 'paragraph-indicator';
+    indicator.setAttribute('aria-label', 'Current position');
     if (totalParagraphs > 0) {
       indicator.textContent = this._formatPositionIndicator();
     }
@@ -795,9 +809,9 @@ export class StickyFooter {
     footer.appendChild(indicator);
 
     // Provider indicator (049-tts-provider-consolidation: T028a)
-    const providerIndicator = document.createElement("span");
+    const providerIndicator = document.createElement('span');
     providerIndicator.className = `provider-indicator provider-indicator--${this._providerState.id}`;
-    providerIndicator.setAttribute("aria-label", "Current TTS provider");
+    providerIndicator.setAttribute('aria-label', 'Current TTS provider');
     // Show language code + provider name (e.g., "EN • ElevenLabs")
     const langCode = this._languageState.code ? this._languageState.code.toUpperCase() : 'EN';
     providerIndicator.textContent = `${langCode} • ${this._providerState.name}`;
@@ -806,22 +820,22 @@ export class StickyFooter {
     footer.appendChild(providerIndicator);
 
     // Language badge (048-multilingual-tts-pillar: T048) - kept for backward compatibility
-    const languageBadge = document.createElement("span");
-    languageBadge.className = "language-badge";
-    languageBadge.setAttribute("aria-label", "Detected language");
+    const languageBadge = document.createElement('span');
+    languageBadge.className = 'language-badge';
+    languageBadge.setAttribute('aria-label', 'Detected language');
     // Hide language badge when provider indicator is shown (it now contains language info)
     languageBadge.hidden = true;
     if (this._languageState.code) {
       languageBadge.textContent = this._languageState.code.toUpperCase();
       // Add confidence state class
       if (this._languageState.isOverride) {
-        languageBadge.classList.add("language-badge--override");
+        languageBadge.classList.add('language-badge--override');
         languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (manual)`;
       } else if (this._languageState.confidence < 0.9) {
-        languageBadge.classList.add("language-badge--low");
+        languageBadge.classList.add('language-badge--low');
         languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (${Math.round(this._languageState.confidence * 100)}% confidence)`;
       } else {
-        languageBadge.classList.add("language-badge--high");
+        languageBadge.classList.add('language-badge--high');
         languageBadge.title = `Language: ${this._languageState.code.toUpperCase()}`;
       }
     }
@@ -829,16 +843,16 @@ export class StickyFooter {
     footer.appendChild(languageBadge);
 
     // Actions
-    const actions = document.createElement("div");
-    actions.className = "actions";
+    const actions = document.createElement('div');
+    actions.className = 'actions';
 
     const closeBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Close player",
-      action: "close",
-      icon: "x",
+      className: 'btn btn-sm',
+      ariaLabel: 'Close player',
+      action: 'close',
+      icon: 'x',
     });
-    closeBtn.dataset.testid = "footer-close-btn";
+    closeBtn.dataset.testid = 'footer-close-btn';
     actions.appendChild(closeBtn);
     footer.appendChild(actions);
 
@@ -858,7 +872,7 @@ export class StickyFooter {
     }
 
     // Add styles
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.textContent = getStyles();
     this.shadowRoot.appendChild(style);
 
@@ -881,14 +895,14 @@ export class StickyFooter {
 
     if (initialState) {
       this.isMinimized = initialState.isMinimized || false;
-      this.position = initialState.position || { x: "center", yOffset: 0 };
+      this.position = initialState.position || { x: 'center', yOffset: 0 };
     } else {
       await this._restoreState();
     }
 
-    this.container = document.createElement("div");
-    this.container.id = "voxpage-sticky-footer";
-    this.shadowRoot = this.container.attachShadow({ mode: "closed" });
+    this.container = document.createElement('div');
+    this.container.id = 'voxpage-sticky-footer';
+    this.shadowRoot = this.container.attachShadow({ mode: 'closed' });
 
     this._render();
     document.body.appendChild(this.container);
@@ -903,7 +917,7 @@ export class StickyFooter {
       this._footerEl.focus();
     }
 
-    console.log("VoxPage: Sticky footer shown");
+    console.log('VoxPage: Sticky footer shown');
   }
 
   /**
@@ -933,7 +947,7 @@ export class StickyFooter {
     this._playPauseBtn = null;
     this._speedDropdown = null;
 
-    console.log("VoxPage: Sticky footer hidden");
+    console.log('VoxPage: Sticky footer hidden');
   }
 
   /**
@@ -960,11 +974,11 @@ export class StickyFooter {
       // Update progress bar ARIA
       if (this._progressBar) {
         this._progressBar.setAttribute(
-          "aria-valuenow",
+          'aria-valuenow',
           String(Math.round(this.playbackState.progress)),
         );
         this._progressBar.setAttribute(
-          "aria-valuetext",
+          'aria-valuetext',
           `${Math.round(this.playbackState.progress)}% complete`,
         );
       }
@@ -977,13 +991,13 @@ export class StickyFooter {
       // T046: Update speed button display
       if (this._speedBtn && state.speed !== undefined) {
         this._speedBtn.textContent = `${this.playbackState.speed}x`;
-        this._speedBtn.setAttribute("aria-label", `Playback speed ${this.playbackState.speed}x`);
+        this._speedBtn.setAttribute('aria-label', `Playback speed ${this.playbackState.speed}x`);
       }
 
       // Update play/pause button if status changed
       if (previousStatus !== this.playbackState.status) {
         this._render();
-        this._announce(this.playbackState.status === "playing" ? "Playing" : "Paused");
+        this._announce(this.playbackState.status === 'playing' ? 'Playing' : 'Paused');
       }
 
       // Announce paragraph change
@@ -1024,9 +1038,9 @@ export class StickyFooter {
     if (this._languageBadge && this.shadowRoot) {
       // Remove old state classes
       this._languageBadge.classList.remove(
-        "language-badge--high",
-        "language-badge--low",
-        "language-badge--override",
+        'language-badge--high',
+        'language-badge--low',
+        'language-badge--override',
       );
 
       if (this._languageState.code) {
@@ -1034,13 +1048,13 @@ export class StickyFooter {
         // Keep hidden - provider indicator now shows this info
 
         if (this._languageState.isOverride) {
-          this._languageBadge.classList.add("language-badge--override");
+          this._languageBadge.classList.add('language-badge--override');
           this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (manual)`;
         } else if (this._languageState.confidence < 0.9) {
-          this._languageBadge.classList.add("language-badge--low");
+          this._languageBadge.classList.add('language-badge--low');
           this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()} (${Math.round(this._languageState.confidence * 100)}% confidence)`;
         } else {
-          this._languageBadge.classList.add("language-badge--high");
+          this._languageBadge.classList.add('language-badge--high');
           this._languageBadge.title = `Language: ${this._languageState.code.toUpperCase()}`;
         }
       }
@@ -1050,14 +1064,12 @@ export class StickyFooter {
   /**
    * Update provider state and indicator (049-tts-provider-consolidation: T028a)
    * Shows which TTS provider is currently being used
-   * 050-groq-tts-provider: Added 'groq' provider support
    */
   updateProvider(provider: {
-    id: 'groq' | 'elevenlabs' | 'browser';
+    id: 'elevenlabs' | 'browser';
     name?: string;
   }): void {
     const providerNames: Record<string, string> = {
-      groq: 'Groq',
       elevenlabs: 'ElevenLabs',
       browser: 'Browser',
     };
@@ -1072,16 +1084,14 @@ export class StickyFooter {
 
   /**
    * Update the provider indicator element (049-tts-provider-consolidation: T028a)
-   * 050-groq-tts-provider: Added 'groq' provider class
    */
   private _updateProviderIndicator(): void {
     if (!this._providerIndicator || !this.shadowRoot) return;
 
     // Update class for styling
     this._providerIndicator.classList.remove(
-      "provider-indicator--groq",
-      "provider-indicator--elevenlabs",
-      "provider-indicator--browser",
+      'provider-indicator--elevenlabs',
+      'provider-indicator--browser',
     );
     this._providerIndicator.classList.add(`provider-indicator--${this._providerState.id}`);
 
@@ -1101,10 +1111,11 @@ export class StickyFooter {
    *
    * @param message - Error message to display
    * @param duration - Auto-dismiss duration in ms (default: 5000). Set to 0 for no auto-dismiss.
+   * @param showSettings - Whether to show a "Settings" button to open the options page
    */
-  showError(message: string, duration: number = ERROR_DISPLAY_DURATION_MS): void {
+  showError(message: string, duration = ERROR_DISPLAY_DURATION_MS, showSettings = false): void {
     if (!this.shadowRoot || !this._footerEl) {
-      console.error("[VoxPage:StickyFooter] Cannot show error - footer not visible:", message);
+      console.error('[VoxPage:StickyFooter] Cannot show error - footer not visible:', message);
       return;
     }
 
@@ -1116,10 +1127,10 @@ export class StickyFooter {
 
     // Create error element if it doesn't exist
     if (!this._errorElement) {
-      this._errorElement = document.createElement("div");
-      this._errorElement.className = "error-notification";
-      this._errorElement.setAttribute("role", "alert");
-      this._errorElement.setAttribute("aria-live", "assertive");
+      this._errorElement = document.createElement('div');
+      this._errorElement.className = 'error-notification';
+      this._errorElement.setAttribute('role', 'alert');
+      this._errorElement.setAttribute('aria-live', 'assertive');
       this._footerEl.appendChild(this._errorElement);
     }
 
@@ -1129,30 +1140,46 @@ export class StickyFooter {
     }
 
     // Add message text using textContent (safe from XSS)
-    const messageSpan = document.createElement("span");
+    const messageSpan = document.createElement('span');
     messageSpan.textContent = message;
     this._errorElement.appendChild(messageSpan);
 
+    // Add Settings button if requested (for API key errors)
+    if (showSettings) {
+      const settingsBtn = document.createElement('button');
+      settingsBtn.className = 'error-notification-settings';
+      settingsBtn.textContent = 'Open Settings';
+      settingsBtn.setAttribute('aria-label', 'Open VoxPage settings');
+      settingsBtn.addEventListener('click', () => {
+        // Send message to background to open settings page
+        browser.runtime.sendMessage({ action: 'openOptions' }).catch((err) => {
+          console.error('[VoxPage:StickyFooter] Failed to open settings:', err);
+        });
+        this.hideError();
+      });
+      this._errorElement.appendChild(settingsBtn);
+    }
+
     // Add dismiss button
-    const dismissBtn = document.createElement("button");
-    dismissBtn.className = "error-notification-dismiss";
-    dismissBtn.textContent = "Dismiss";
-    dismissBtn.setAttribute("aria-label", "Dismiss error");
-    dismissBtn.addEventListener("click", () => this.hideError());
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'error-notification-dismiss';
+    dismissBtn.textContent = 'Dismiss';
+    dismissBtn.setAttribute('aria-label', 'Dismiss error');
+    dismissBtn.addEventListener('click', () => this.hideError());
     this._errorElement.appendChild(dismissBtn);
 
     // Show the notification
     // Use requestAnimationFrame to ensure CSS transition triggers
     requestAnimationFrame(() => {
       if (this._errorElement) {
-        this._errorElement.classList.add("visible");
+        this._errorElement.classList.add('visible');
       }
     });
 
     // Announce to screen readers
     this._announce(`Error: ${message}`);
 
-    console.log("[VoxPage:StickyFooter] Showing error:", message);
+    console.log('[VoxPage:StickyFooter] Showing error:', message);
 
     // Auto-dismiss after duration (if duration > 0)
     if (duration > 0) {
@@ -1172,7 +1199,7 @@ export class StickyFooter {
     }
 
     if (this._errorElement) {
-      this._errorElement.classList.remove("visible");
+      this._errorElement.classList.remove('visible');
     }
   }
 
@@ -1185,13 +1212,13 @@ export class StickyFooter {
    */
   private _adjustBodyPadding(show: boolean): void {
     if (show) {
-      this._originalBodyPadding = document.body.style.paddingBottom || "";
+      this._originalBodyPadding = document.body.style.paddingBottom || '';
       const computedPadding =
         Number.parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
       const footerHeight = this.isMinimized ? FOOTER_HEIGHT_MINIMIZED : FOOTER_HEIGHT;
       document.body.style.paddingBottom = `${computedPadding + footerHeight + 16}px`;
     } else {
-      document.body.style.paddingBottom = this._originalBodyPadding || "";
+      document.body.style.paddingBottom = this._originalBodyPadding || '';
       this._originalBodyPadding = null;
     }
   }
@@ -1212,11 +1239,11 @@ export class StickyFooter {
           this.isMinimized = parsed.data.isMinimized;
           this.position = parsed.data.position;
         } else {
-          console.warn("VoxPage: Invalid footer state schema:", parsed.error);
+          console.warn('VoxPage: Invalid footer state schema:', parsed.error);
         }
       }
     } catch (e) {
-      console.warn("VoxPage: Failed to restore footer state:", e);
+      console.warn('VoxPage: Failed to restore footer state:', e);
     }
   }
 
@@ -1233,7 +1260,7 @@ export class StickyFooter {
         [FOOTER_STATE_KEY]: state,
       });
     } catch (e) {
-      console.warn("VoxPage: Failed to save footer state:", e);
+      console.warn('VoxPage: Failed to save footer state:', e);
     }
   }
 
@@ -1251,7 +1278,7 @@ export class StickyFooter {
         ...payload,
       })
       .catch((err) => {
-        console.error("VoxPage: Failed to send message:", err);
+        console.error('VoxPage: Failed to send message:', err);
       });
   }
 
@@ -1263,7 +1290,7 @@ export class StickyFooter {
       this._liveRegion.textContent = message;
       setTimeout(() => {
         if (this._liveRegion) {
-          this._liveRegion.textContent = "";
+          this._liveRegion.textContent = '';
         }
       }, 1000);
     }
@@ -1301,21 +1328,21 @@ export class StickyFooter {
   private _setupEventListeners(): void {
     if (!this.shadowRoot) return;
 
-    const dragHandle = this.shadowRoot.querySelector(".drag-handle");
+    const dragHandle = this.shadowRoot.querySelector('.drag-handle');
     if (dragHandle) {
-      dragHandle.addEventListener("mousedown", this._onDragStart as EventListener);
-      dragHandle.addEventListener("touchstart", this._onDragStart as EventListener, {
+      dragHandle.addEventListener('mousedown', this._onDragStart as EventListener);
+      dragHandle.addEventListener('touchstart', this._onDragStart as EventListener, {
         passive: false,
       });
     }
 
-    document.addEventListener("mousemove", this._onDragMove as EventListener);
-    document.addEventListener("mouseup", this._onDragEnd);
-    document.addEventListener("touchmove", this._onDragMove as EventListener, { passive: false });
-    document.addEventListener("touchend", this._onDragEnd);
+    document.addEventListener('mousemove', this._onDragMove as EventListener);
+    document.addEventListener('mouseup', this._onDragEnd);
+    document.addEventListener('touchmove', this._onDragMove as EventListener, { passive: false });
+    document.addEventListener('touchend', this._onDragEnd);
 
     if (this._footerEl) {
-      this._footerEl.addEventListener("keydown", this._onKeyDown);
+      this._footerEl.addEventListener('keydown', this._onKeyDown);
     }
 
     this._attachButtonListeners();
@@ -1327,9 +1354,9 @@ export class StickyFooter {
   private _attachButtonListeners(): void {
     if (!this.shadowRoot) return;
 
-    const buttons = this.shadowRoot.querySelectorAll("[data-action]");
+    const buttons = this.shadowRoot.querySelectorAll('[data-action]');
     buttons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const action = (btn as HTMLElement).dataset.action;
         if (action) {
@@ -1339,19 +1366,19 @@ export class StickyFooter {
     });
 
     if (this._progressBar) {
-      this._progressBar.addEventListener("click", (e: MouseEvent) => {
+      this._progressBar.addEventListener('click', (e: MouseEvent) => {
         const rect = this._progressBar!.getBoundingClientRect();
         const percent = ((e.clientX - rect.left) / rect.width) * 100;
-        this._handleAction("seek", { value: Math.max(0, Math.min(100, percent)) });
+        this._handleAction('seek', { value: Math.max(0, Math.min(100, percent)) });
       });
     }
 
-    const speedOptions = this.shadowRoot.querySelectorAll(".speed-option");
+    const speedOptions = this.shadowRoot.querySelectorAll('.speed-option');
     speedOptions.forEach((option) => {
-      option.addEventListener("click", (e) => {
+      option.addEventListener('click', (e) => {
         e.stopPropagation();
-        const speed = Number.parseFloat((option as HTMLElement).dataset.speed || "1.0");
-        this._handleAction("speed", { value: speed });
+        const speed = Number.parseFloat((option as HTMLElement).dataset.speed || '1.0');
+        this._handleAction('speed', { value: speed });
         this._closeSpeedDropdown();
       });
     });
@@ -1361,10 +1388,10 @@ export class StickyFooter {
    * Remove event listeners
    */
   private _removeEventListeners(): void {
-    document.removeEventListener("mousemove", this._onDragMove as EventListener);
-    document.removeEventListener("mouseup", this._onDragEnd);
-    document.removeEventListener("touchmove", this._onDragMove as EventListener);
-    document.removeEventListener("touchend", this._onDragEnd);
+    document.removeEventListener('mousemove', this._onDragMove as EventListener);
+    document.removeEventListener('mouseup', this._onDragEnd);
+    document.removeEventListener('touchmove', this._onDragMove as EventListener);
+    document.removeEventListener('touchend', this._onDragEnd);
   }
 
   // ==========================================================================
@@ -1376,48 +1403,48 @@ export class StickyFooter {
    */
   private _handleAction(action: string, data: Event | { value?: number } = {}): void {
     switch (action) {
-      case "playPause":
+      case 'playPause':
         {
-          const actualAction = this.playbackState.status === "playing" ? "pause" : "play";
-          this._sendMessage("FOOTER_ACTION", { action: actualAction });
+          const actualAction = this.playbackState.status === 'playing' ? 'pause' : 'play';
+          this._sendMessage('FOOTER_ACTION', { action: actualAction });
         }
         break;
-      case "prev":
-      case "next":
-      case "stop":
-        this._sendMessage("FOOTER_ACTION", { action });
+      case 'prev':
+      case 'next':
+      case 'stop':
+        this._sendMessage('FOOTER_ACTION', { action });
         break;
-      case "seek":
-        if ("value" in data) {
-          this._sendMessage("FOOTER_ACTION", { action: "seek", value: data.value });
+      case 'seek':
+        if ('value' in data) {
+          this._sendMessage('FOOTER_ACTION', { action: 'seek', value: data.value });
         }
         break;
-      case "speed":
-        if ("value" in data && typeof data.value === "number") {
+      case 'speed':
+        if ('value' in data && typeof data.value === 'number') {
           this.playbackState.speed = data.value;
-          this._sendMessage("FOOTER_ACTION", { action: "speed", value: data.value });
+          this._sendMessage('FOOTER_ACTION', { action: 'speed', value: data.value });
           this._render();
           this._announce(`Speed ${data.value}x`);
         }
         break;
-      case "toggleSpeed":
+      case 'toggleSpeed':
         this._toggleSpeedDropdown();
         break;
-      case "toggleMinimize":
+      case 'toggleMinimize':
         this.isMinimized = !this.isMinimized;
         this._render();
         this._adjustBodyPadding(true);
-        this._sendMessage("FOOTER_VISIBILITY_CHANGED", { isMinimized: this.isMinimized });
+        this._sendMessage('FOOTER_VISIBILITY_CHANGED', { isMinimized: this.isMinimized });
         this._saveState();
-        this._announce(this.isMinimized ? "Player minimized" : "Player expanded");
+        this._announce(this.isMinimized ? 'Player minimized' : 'Player expanded');
         break;
-      case "close":
-        this._sendMessage("FOOTER_ACTION", { action: "close" });
+      case 'close':
+        this._sendMessage('FOOTER_ACTION', { action: 'close' });
         break;
-      case "addToQueue":
+      case 'addToQueue':
         // T077: Send add to queue action to background
-        this._sendMessage("FOOTER_ACTION", { action: "addToQueue" });
-        this._announce("Added to queue");
+        this._sendMessage('FOOTER_ACTION', { action: 'addToQueue' });
+        this._announce('Added to queue');
         break;
     }
   }
@@ -1427,7 +1454,7 @@ export class StickyFooter {
    */
   private _toggleSpeedDropdown(): void {
     if (this._speedDropdown) {
-      this._speedDropdown.classList.toggle("open");
+      this._speedDropdown.classList.toggle('open');
     }
   }
 
@@ -1436,7 +1463,7 @@ export class StickyFooter {
    */
   private _closeSpeedDropdown(): void {
     if (this._speedDropdown) {
-      this._speedDropdown.classList.remove("open");
+      this._speedDropdown.classList.remove('open');
     }
   }
 
@@ -1449,7 +1476,7 @@ export class StickyFooter {
    */
   private _handleDragStart(e: MouseEvent | TouchEvent): void {
     this.isDragging = true;
-    this.dragStartY = e.type.includes("touch")
+    this.dragStartY = e.type.includes('touch')
       ? (e as TouchEvent).touches[0].clientY
       : (e as MouseEvent).clientY;
     this.dragStartOffset = this.position.yOffset;
@@ -1461,7 +1488,7 @@ export class StickyFooter {
    */
   private _handleDragMove(e: MouseEvent | TouchEvent): void {
     if (!this.isDragging) return;
-    const currentY = e.type.includes("touch")
+    const currentY = e.type.includes('touch')
       ? (e as TouchEvent).touches[0].clientY
       : (e as MouseEvent).clientY;
     const deltaY = this.dragStartY - currentY;
@@ -1479,7 +1506,7 @@ export class StickyFooter {
   private _handleDragEnd(): void {
     if (this.isDragging) {
       this.isDragging = false;
-      this._sendMessage("FOOTER_POSITION_CHANGED", { position: this.position });
+      this._sendMessage('FOOTER_POSITION_CHANGED', { position: this.position });
       this._saveState();
     }
   }
@@ -1489,42 +1516,42 @@ export class StickyFooter {
    */
   private _handleKeyDown(e: KeyboardEvent): void {
     switch (e.key) {
-      case " ":
-      case "Enter":
+      case ' ':
+      case 'Enter':
         if ((e.target as HTMLElement)?.dataset?.action) {
           e.preventDefault();
           this._handleAction((e.target as HTMLElement).dataset.action!);
         } else {
           e.preventDefault();
-          this._handleAction("playPause");
+          this._handleAction('playPause');
         }
         break;
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         this._closeSpeedDropdown();
         break;
-      case "ArrowLeft":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowLeft':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.max(0, this.playbackState.progress - 5) });
+          this._handleAction('seek', { value: Math.max(0, this.playbackState.progress - 5) });
         }
         break;
-      case "ArrowRight":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowRight':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.min(100, this.playbackState.progress + 5) });
+          this._handleAction('seek', { value: Math.min(100, this.playbackState.progress + 5) });
         }
         break;
-      case "ArrowUp":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowUp':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.min(100, this.playbackState.progress + 10) });
+          this._handleAction('seek', { value: Math.min(100, this.playbackState.progress + 10) });
         }
         break;
-      case "ArrowDown":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowDown':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.max(0, this.playbackState.progress - 10) });
+          this._handleAction('seek', { value: Math.max(0, this.playbackState.progress - 10) });
         }
         break;
     }
@@ -1553,7 +1580,7 @@ export class StickyFooter {
   private _setupResizeObserver(): void {
     if (this._resizeObserver) return;
     this._resizeObserver = new ResizeObserver(() => this._onResize());
-    window.addEventListener("resize", this._onResize, { passive: true });
+    window.addEventListener('resize', this._onResize, { passive: true });
     this._resizeObserver.observe(document.documentElement);
   }
 
@@ -1565,7 +1592,7 @@ export class StickyFooter {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;
     }
-    window.removeEventListener("resize", this._onResize);
+    window.removeEventListener('resize', this._onResize);
   }
 
   /**
@@ -1575,11 +1602,11 @@ export class StickyFooter {
     if (this._mutationObserver || !this.container) return;
     this._mutationObserver = new MutationObserver(() => {
       if (!document.body.contains(this.container!)) {
-        console.log("VoxPage: Footer was removed from DOM, re-attaching");
+        console.log('VoxPage: Footer was removed from DOM, re-attaching');
         try {
           document.body.appendChild(this.container!);
         } catch (e) {
-          console.warn("VoxPage: Failed to re-attach footer:", e);
+          console.warn('VoxPage: Failed to re-attach footer:', e);
         }
       }
     });

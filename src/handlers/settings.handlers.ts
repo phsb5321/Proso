@@ -65,11 +65,10 @@ export interface ApiKeyTestResponse {
 
 /**
  * Response for settings.setProviderOverride handler (049-tts-provider-consolidation: T037).
- * 050-groq-tts-provider: Added 'groq' option.
  */
 export interface ProviderOverrideResponse {
   success: true;
-  providerOverride: 'groq' | 'elevenlabs' | 'browser' | null;
+  providerOverride: 'elevenlabs' | 'browser' | null;
 }
 
 // ============================================
@@ -96,11 +95,10 @@ interface ApiKeyParams {
 
 /**
  * Parameters for setProviderOverride handler (049-tts-provider-consolidation: T037)
- * 050-groq-tts-provider: Added 'groq' option.
  */
 interface ProviderOverrideParams {
   /** Provider to force, or null for automatic routing */
-  provider: 'groq' | 'elevenlabs' | 'browser' | null;
+  provider: 'elevenlabs' | 'browser' | null;
 }
 
 // ============================================
@@ -131,19 +129,17 @@ function getSettingsStore(): ISettingsStore {
  * Validate provider ID.
  * 049-tts-provider-consolidation: 'elevenlabs' and 'browser' are valid for TTS.
  * 'anthropic' is valid for AI summarization features.
- * 050-groq-tts-provider: Added 'groq' for Groq TTS.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['groq', 'elevenlabs', 'browser', 'anthropic'].includes(provider);
+  return ['elevenlabs', 'browser', 'anthropic'].includes(provider);
 }
 
 /**
  * Validate TTS provider ID specifically.
  * 049-tts-provider-consolidation: Only 'elevenlabs' and 'browser' for TTS.
- * 050-groq-tts-provider: Added 'groq' for Groq TTS.
  */
-function isValidTtsProvider(provider: string): provider is 'groq' | 'elevenlabs' | 'browser' {
-  return ['groq', 'elevenlabs', 'browser'].includes(provider);
+function isValidTtsProvider(provider: string): provider is 'elevenlabs' | 'browser' {
+  return ['elevenlabs', 'browser'].includes(provider);
 }
 
 // ============================================
@@ -217,7 +213,6 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
 /**
  * API test endpoints for each provider.
  * Uses minimal API calls to validate credentials.
- * 050-groq-tts-provider: Added groq endpoint.
  */
 const API_TEST_ENDPOINTS: Record<
   string,
@@ -228,20 +223,6 @@ const API_TEST_ENDPOINTS: Record<
     body?: unknown;
   }
 > = {
-  groq: {
-    url: 'https://api.groq.com/openai/v1/audio/speech',
-    method: 'POST',
-    headers: (apiKey) => ({
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    }),
-    body: {
-      model: 'playai-tts',
-      input: 'test',
-      voice: 'Fritz-PlayAI',
-      response_format: 'mp3',
-    },
-  },
   elevenlabs: {
     url: 'https://api.elevenlabs.io/v1/user',
     method: 'GET',
@@ -319,9 +300,8 @@ async function handleTestApiKey(
     apiKey?.length,
   );
 
-  // Validate provider - 'groq'/'elevenlabs' for TTS, 'anthropic' for AI summarization
-  // 050-groq-tts-provider: Added 'groq'
-  const validProviders = ['groq', 'elevenlabs', 'anthropic'];
+  // Validate provider - 'elevenlabs' for TTS, 'anthropic' for AI summarization
+  const validProviders = ['elevenlabs', 'anthropic'];
   if (!validProviders.includes(provider)) {
     console.error('[Settings] Invalid provider:', provider);
     return { success: false, error: `Invalid provider: ${provider}` };
@@ -341,9 +321,7 @@ async function handleTestApiKey(
       console.warn(
         '[Settings] Settings store not available, falling back to direct storage access',
       );
-      // 050-groq-tts-provider: Added groq storage key
       const storageKeyMap: Record<string, string> = {
-        groq: 'groqApiKey',
         elevenlabs: 'elevenlabsApiKey',
         anthropic: 'anthropic:apiKey',
       };

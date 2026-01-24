@@ -102,10 +102,8 @@ export async function testAllApiKeys(
 
 /**
  * Storage key mappings for each provider
- * 050-groq-tts-provider: Added groq
  */
 export const API_KEY_STORAGE_KEYS: Record<string, string> = {
-  groq: 'groqApiKey',
   elevenlabs: 'elevenlabsApiKey',
   anthropic: 'anthropic:apiKey',
 };

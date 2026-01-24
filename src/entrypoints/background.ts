@@ -272,6 +272,7 @@ interface PlaybackState {
   voice: string | null;
   currentTime: number; // Current audio time in seconds
   totalTime: number; // Total audio duration in seconds
+  language: string; // Current detected/selected language code
 }
 
 interface ApiKeys {
@@ -288,10 +289,14 @@ const playbackState: PlaybackState = {
   voice: null,
   currentTime: 0,
   totalTime: 0,
+  language: 'en', // Default to English
 };
 
 // Track if audio was manually stopped (to resolve pending Promises)
 let audioStoppedManually = false;
+
+// Track the last audio generation error for better user messaging
+let lastAudioGenerationError: string | null = null;
 
 // Playback generation ID - prevents stale speakCurrentParagraph calls from advancing
 // Incremented each time a new playback starts, checked before advancing to next paragraph
@@ -697,11 +702,13 @@ async function getResolvedVoiceId(): Promise<string> {
     const detected = result.detectedLanguage as
       | {
           primaryCode?: string;
+          code?: string;
         }
       | undefined;
 
     // Determine effective language
-    const effectiveLanguage = langPref?.currentOverride || detected?.primaryCode || 'en';
+    const effectiveLanguage =
+      langPref?.currentOverride || detected?.primaryCode || detected?.code || 'en';
 
     // Check for language-specific voice preference
     const voicePreferences = langPref?.voicePreferences || {};
@@ -736,7 +743,14 @@ async function getResolvedVoiceId(): Promise<string> {
   return 'default';
 }
 
-async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioResult | null> {
+async function generateElevenLabsAudio(
+  text: string,
+  languageCode?: string,
+  retryCount = 0,
+): Promise<ElevenLabsAudioResult | null> {
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 1000;
+
   // Initialize/refresh provider with latest key
   const provider = await initElevenLabsProvider();
   if (!provider) {
@@ -748,6 +762,7 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
     console.log(
       '[Background] Generating ElevenLabs audio with timestamps, text length:',
       text.length,
+      retryCount > 0 ? `(retry ${retryCount}/${MAX_RETRIES})` : '',
     );
 
     // T057: Get voice using language-aware resolution
@@ -760,12 +775,14 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
     console.log('[Background] Using voice:', voiceName, voiceId);
 
     // Generate audio WITH timestamps for word-by-word highlighting
+    // Pass language code for proper pronunciation
     const result = (await provider.generateAudio(text, voiceId, {
       turbo: false,
       stability: 0.5,
       similarityBoost: 0.75,
       style: 0.5,
       withTimestamps: true,
+      languageCode: languageCode,
     })) as AudioWithTiming;
 
     // Result is AudioWithTiming with audioData and wordTiming
@@ -792,12 +809,49 @@ async function generateElevenLabsAudio(text: string): Promise<ElevenLabsAudioRes
       duration,
     };
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+
+    // Check for rate limiting (429) or temporary server errors (5xx)
+    const isRetryable =
+      errorMsg.includes('Rate limited') ||
+      errorMsg.includes('429') ||
+      errorMsg.includes('500') ||
+      errorMsg.includes('502') ||
+      errorMsg.includes('503') ||
+      errorMsg.includes('504') ||
+      errorMsg.includes('timeout') ||
+      errorMsg.includes('network');
+
+    if (isRetryable && retryCount < MAX_RETRIES) {
+      // Exponential backoff: 1s, 2s, 4s
+      const delayMs = BASE_DELAY_MS * 2 ** retryCount;
+      console.warn(
+        `[Background] ElevenLabs API error (retryable), waiting ${delayMs}ms before retry:`,
+        errorMsg,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+      // Check if playback was stopped during delay
+      if (playbackState.status !== 'playing') {
+        console.log('[Background] Playback stopped during retry delay, aborting');
+        return null;
+      }
+
+      return generateElevenLabsAudio(text, languageCode, retryCount + 1);
+    }
+
     // T031: Add error context (provider, paragraph index)
-    console.error('[Background] ElevenLabs generation error:', {
-      error,
+    console.error('[Background] ElevenLabs generation error (non-retryable or max retries):', {
+      error: errorMsg,
       provider: 'elevenlabs',
       paragraphIndex: playbackState.currentParagraph,
+      retryCount,
     });
+
+    // Store the error for better user messaging
+    lastAudioGenerationError = errorMsg;
+
     return null;
   }
 }
@@ -1137,7 +1191,9 @@ function startWordHighlighting(paragraphIndex: number): void {
         action: 'highlightWord',
         paragraphIndex: paragraphIndex,
         wordIndex: currentWordIndex,
-        timestamp: currentTimeMs,
+        // Note: timestamp omitted - word highlight latency tracking was too noisy
+        // and used wrong value (audio position instead of Date.now()).
+        // FR-002 latency requirement is validated in integration tests.
       }).catch(() => {
         // Ignore errors - tab might be closed
       });
@@ -1170,6 +1226,7 @@ function stopWordHighlighting(): void {
 async function updateFooterProgress(): Promise<void> {
   if (!activeTabId) return;
 
+  // Include provider and language for footer display
   await sendToContentScript(activeTabId, {
     action: 'FOOTER_STATE_UPDATE',
     status: playbackState.status,
@@ -1179,6 +1236,8 @@ async function updateFooterProgress(): Promise<void> {
     currentParagraph: playbackState.currentParagraph + 1,
     totalParagraphs: playbackState.totalParagraphs,
     speed: playbackState.speed,
+    provider: playbackState.provider,
+    language: playbackState.language,
   });
 }
 
@@ -1291,30 +1350,70 @@ async function speakCurrentParagraph(): Promise<void> {
 
   let success = false;
 
+  // Language detection for proper ElevenLabs pronunciation
+  let effectiveProvider = playbackState.provider;
+  const stored = await browser.storage.local.get(['detectedLanguage', 'languagePreference']);
+  const detectedLang = stored.detectedLanguage as
+    | { primaryCode?: string; code?: string }
+    | undefined;
+  const langPref = stored.languagePreference as { currentOverride?: string } | undefined;
+  const currentLanguage =
+    langPref?.currentOverride || detectedLang?.primaryCode || detectedLang?.code || 'en';
+
+  // Debug: Log language resolution chain
+  console.log('[VoxPage:Language] Resolution chain:', {
+    override: langPref?.currentOverride,
+    detectedPrimary: detectedLang?.primaryCode,
+    detectedCode: detectedLang?.code,
+    resolved: currentLanguage,
+    storedDetectedLanguage: stored.detectedLanguage,
+  });
+
+  // Warn if falling back to English when there was supposed to be a detected language
+  if (currentLanguage === 'en' && !langPref?.currentOverride && !detectedLang?.primaryCode) {
+    console.warn(
+      '[VoxPage:Language] Falling back to English - no detected language found. Did detection run?',
+    );
+  }
+
+  // Update playback state with detected language for footer display
+  playbackState.language = currentLanguage;
+
+  // Use ElevenLabs for all languages
+  if (apiKeys.elevenlabsApiKey) {
+    effectiveProvider = 'elevenlabs';
+    console.log('[VoxPage:Routing] Using ElevenLabs for language:', currentLanguage);
+  }
+
   // T016: Debug logging for provider selection (035-selection-tts-hardening)
-  console.log('[VoxPage:Provider] Selected:', playbackState.provider);
+  console.log('[VoxPage:Provider] User selected:', playbackState.provider);
+  console.log('[VoxPage:Provider] Effective provider:', effectiveProvider);
+  console.log('[VoxPage:Provider] Language:', currentLanguage);
   console.log('[VoxPage:Provider] Voice:', playbackState.voice ?? 'default');
   console.log('[VoxPage:Provider] API Keys loaded:', {
     elevenlabs: !!apiKeys.elevenlabsApiKey,
   });
+
+  // Update playback state with effective provider for footer display
+  playbackState.provider = effectiveProvider;
 
   // T013: API key validation before playback attempt (035-selection-tts-hardening)
   const providerApiKeyMap: Record<string, string | undefined> = {
     elevenlabs: apiKeys.elevenlabsApiKey,
   };
 
-  const hasApiKey = !!providerApiKeyMap[playbackState.provider];
+  const hasApiKey = !!providerApiKeyMap[effectiveProvider];
 
   // T014: Show error notification if API key missing (035-selection-tts-hardening)
   if (!hasApiKey) {
-    const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} API key not configured. Please add your API key in the options page.`;
-    console.error(`[VoxPage:Provider] API key missing for ${playbackState.provider}`);
+    const errorMessage = `${effectiveProvider.charAt(0).toUpperCase() + effectiveProvider.slice(1)} API key not configured. Please add your API key in the options page.`;
+    console.error(`[VoxPage:Provider] API key missing for ${effectiveProvider}`);
 
     // Send error notification to content script for display in sticky footer
     await sendToContentScript(activeTabId, {
       action: 'PLAYBACK_ERROR',
       message: errorMessage,
-      provider: playbackState.provider,
+      provider: effectiveProvider,
     });
 
     // Stop playback - do NOT fallback to browser TTS
@@ -1323,8 +1422,8 @@ async function speakCurrentParagraph(): Promise<void> {
     return;
   }
 
-  // Provider routing - use the selected provider
-  if (playbackState.provider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
+  // ElevenLabs TTS playback
+  if (effectiveProvider === 'elevenlabs' && apiKeys.elevenlabsApiKey) {
     let audioResult: { audioUrl: string; wordTimings: WordTiming[] } | null = null;
     let shouldStoreToCache = false;
     let generatedAudioData: ArrayBuffer | null = null;
@@ -1395,7 +1494,8 @@ async function speakCurrentParagraph(): Promise<void> {
         '[Background] Generating audio on-demand for paragraph',
         playbackState.currentParagraph + 1,
       );
-      const generated = await generateElevenLabsAudio(text);
+      // Pass language code for proper pronunciation
+      const generated = await generateElevenLabsAudio(text, currentLanguage);
 
       // Check if playback was stopped/paused during API call
       if (playbackState.status !== 'playing') {
@@ -1487,14 +1587,35 @@ async function speakCurrentParagraph(): Promise<void> {
   // T012: Remove silent fallback - show error notification instead (035-selection-tts-hardening)
   // If provider failed (API error, network issue, etc.), notify user instead of silently falling back
   if (!success) {
-    const errorMessage = `${playbackState.provider.charAt(0).toUpperCase() + playbackState.provider.slice(1)} playback failed. Please check your API key or try again.`;
-    console.error(`[VoxPage:Provider] Playback failed for ${playbackState.provider}`);
+    // Build a specific, actionable error message based on the error type
+    let errorMessage: string;
+    const errorDetails = lastAudioGenerationError || '';
+
+    if (errorDetails.includes('Invalid') && errorDetails.includes('API key')) {
+      errorMessage = 'ElevenLabs API key is invalid or expired. Please update it in Settings.';
+    } else if (errorDetails.includes('Rate limited') || errorDetails.includes('429')) {
+      errorMessage = 'ElevenLabs rate limit reached. Please wait a moment and try again.';
+    } else if (errorDetails.includes('quota') || errorDetails.includes('exceeded')) {
+      errorMessage = 'ElevenLabs usage quota exceeded. Check your account at elevenlabs.io.';
+    } else if (errorDetails.includes('network') || errorDetails.includes('timeout')) {
+      errorMessage = 'Network error connecting to ElevenLabs. Please check your connection.';
+    } else if (errorDetails.includes('voice')) {
+      errorMessage = 'Invalid voice selected. Please choose a different voice in Settings.';
+    } else {
+      errorMessage = `${effectiveProvider.charAt(0).toUpperCase() + effectiveProvider.slice(1)} playback failed. Please check your API key in Settings.`;
+    }
+
+    console.error(`[VoxPage:Provider] Playback failed for ${effectiveProvider}:`, errorDetails);
+
+    // Clear the last error
+    lastAudioGenerationError = null;
 
     // Send error notification to content script for display in sticky footer
     await sendToContentScript(activeTabId, {
       action: 'PLAYBACK_ERROR',
       message: errorMessage,
-      provider: playbackState.provider,
+      provider: effectiveProvider,
+      showSettings: true, // Flag to show settings button
     });
 
     // Stop playback - do NOT fallback to browser TTS
@@ -1941,6 +2062,20 @@ const messageHandlers: Record<string, MessageHandler> = {
       case 'prev':
       case 'previous':
         return messageHandlers.previousParagraph({});
+      case 'speed':
+        // Handle speed change from footer
+        if (typeof data.value === 'number') {
+          const speed = Math.max(0.5, Math.min(2.0, data.value));
+          playbackState.speed = speed;
+          setAudioSpeedNative(speed);
+          // Persist to storage
+          await browser.storage.local.set({ speed });
+          // Sync popup UI
+          notifyPopup();
+          console.log('[Background] Footer speed changed to:', speed);
+          return { success: true };
+        }
+        return { success: false, error: 'Invalid speed value' };
       default:
         console.warn('[Background] Unknown footer action:', action);
         return { success: false, error: `Unknown action: ${action}` };
@@ -2039,6 +2174,128 @@ const messageHandlers: Record<string, MessageHandler> = {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('[Background] Flush logs failed:', error);
       return { success: false, error: errorMessage };
+    }
+  },
+
+  /**
+   * Open the VoxPage settings page in a new tab.
+   * Called from sticky footer error notifications.
+   */
+  openOptions: async () => {
+    try {
+      // Use type assertion for getURL since WXT runtime type doesn't include it
+      const getURL = (browser.runtime as unknown as { getURL: (path: string) => string }).getURL;
+      await browser.tabs.create({
+        url: getURL('settings.html'),
+      });
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Open options failed:', error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  /**
+   * Fetch available voices from ElevenLabs API.
+   * Returns dynamic voice list based on user's API key.
+   */
+  'provider.getVoices': async (data) => {
+    const providerId = data.providerId as string;
+
+    if (providerId !== 'elevenlabs') {
+      // Only ElevenLabs supports dynamic voice fetching
+      return { voices: [] };
+    }
+
+    try {
+      const provider = await initElevenLabsProvider();
+      if (!provider) {
+        console.warn('[Background] ElevenLabs provider not available, returning default voices');
+        // Return hardcoded fallback voices if no API key
+        return {
+          voices: [
+            {
+              id: '21m00Tcm4TlvDq8ikWAM',
+              name: 'Rachel',
+              gender: 'female',
+              description: 'Calm, soothing',
+            },
+            {
+              id: '29vD33N1CtxCmqQRPOHJ',
+              name: 'Drew',
+              gender: 'male',
+              description: 'Well-rounded, confident',
+            },
+            {
+              id: 'EXAVITQu4vr4xnSDxMaL',
+              name: 'Sarah',
+              gender: 'female',
+              description: 'Soft news presenter',
+            },
+            {
+              id: 'ErXwobaYiN019PkySvjV',
+              name: 'Antoni',
+              gender: 'male',
+              description: 'Crisp, natural',
+            },
+            {
+              id: '2EiwWnXFnvU5JabPnv8n',
+              name: 'Clyde',
+              gender: 'male',
+              description: 'Deep, warm',
+            },
+            {
+              id: '5Q0t7uMcjvnagumLfvZi',
+              name: 'Paul',
+              gender: 'male',
+              description: 'News anchor style',
+            },
+            {
+              id: 'AZnzlk1XvdvUeBnXmlld',
+              name: 'Domi',
+              gender: 'female',
+              description: 'Assertive, strong',
+            },
+            {
+              id: 'CYw3kZ02Hs0563khs1Fj',
+              name: 'Dave',
+              gender: 'male',
+              description: 'British, conversational',
+            },
+            {
+              id: 'D38z5RcWu1voky8WS1ja',
+              name: 'Fin',
+              gender: 'male',
+              description: 'Irish, friendly',
+            },
+            {
+              id: 'MF3mGyEYCl7XYWbV9V6O',
+              name: 'Elli',
+              gender: 'female',
+              description: 'Youthful, engaging',
+            },
+          ],
+        };
+      }
+
+      // Fetch voices from API
+      const voices = await provider.fetchVoicesFromAPI();
+      console.log('[Background] Fetched', voices.length, 'voices from ElevenLabs API');
+
+      return {
+        voices: voices.map((v) => ({
+          id: v.id,
+          name: v.name,
+          language: v.language,
+          gender: v.gender,
+          description: v.description,
+        })),
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Background] Failed to fetch voices:', error);
+      return { voices: [], error: errorMessage };
     }
   },
 

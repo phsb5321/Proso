@@ -19,14 +19,7 @@ import type { ApiKeys } from './types';
 
 // Audio adapters
 // 049-tts-provider-consolidation: Removed OpenAIAudioAdapter
-// 050-groq-tts-provider: Added GroqAudioAdapter
-import {
-  AudioUrlAdapter,
-  ElevenLabsAudioAdapter,
-  BrowserAudioAdapter,
-  GroqAudioAdapter,
-} from '../adapters/audio';
-import type { GroqModel } from '../utils/config/schema';
+import { AudioUrlAdapter, ElevenLabsAudioAdapter, BrowserAudioAdapter } from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -41,18 +34,10 @@ import { BrowserSettingsAdapter } from '../adapters/storage';
 import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapters/content';
 
 /**
- * Options for creating audio generator adapters
- */
-export interface AudioGeneratorOptions {
-  readonly groqModel?: GroqModel;
-}
-
-/**
  * Create an audio generator adapter based on provider.
  *
  * @param provider - Provider to create adapter for
  * @param apiKey - API key for the provider (null for browser)
- * @param options - Additional options (e.g., groqModel)
  * @returns IAudioGenerator adapter
  *
  * @throws Error if provider is unknown or API key is missing (for non-browser providers)
@@ -60,17 +45,9 @@ export interface AudioGeneratorOptions {
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
   apiKey: string | null,
-  options?: AudioGeneratorOptions,
 ): IAudioGenerator {
   // 049-tts-provider-consolidation: Removed 'openai' case
-  // 050-groq-tts-provider: Added 'groq' case
   switch (provider) {
-    case 'groq':
-      if (!apiKey) {
-        throw new Error('Groq API key is required');
-      }
-      return new GroqAudioAdapter(apiKey, options?.groqModel);
-
     case 'elevenlabs':
       if (!apiKey) {
         throw new Error('ElevenLabs API key is required');
@@ -170,20 +147,14 @@ export function createAudioUrlAdapter(): IAudioUrlProvider {
 
 /**
  * Get API key from keys object based on provider.
+ * 049-tts-provider-consolidation: Removed 'openai' case
  *
  * @param keys - API keys object
  * @param provider - Provider to get key for
  * @returns API key or null
  */
-/**
- * Get API key from keys object based on provider.
- * 049-tts-provider-consolidation: Removed 'openai' case
- * 050-groq-tts-provider: Added 'groq' case
- */
 export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): string | null {
   switch (provider) {
-    case 'groq':
-      return keys.groq;
     case 'elevenlabs':
       return keys.elevenlabs;
     case 'browser':

@@ -381,8 +381,7 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
         }
 
         // All retries failed - try fallback to Browser TTS (T029)
-        // 050-groq-tts-provider: Added 'groq' to providers that can fallback to browser
-        if (lastError && (primaryProviderId === 'elevenlabs' || primaryProviderId === 'groq')) {
+        if (lastError && primaryProviderId === 'elevenlabs') {
           console.log(`[AudioHandlers] ${primaryProviderId} failed, falling back to Browser TTS`);
 
           // Create Browser TTS adapter for fallback

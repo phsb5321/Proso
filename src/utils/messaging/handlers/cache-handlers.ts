@@ -246,7 +246,6 @@ export async function handlePrefetchGetStatus(data: {
 /**
  * Get cost estimate for content
  * Calculates estimated API costs with cache-aware pricing
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export async function handleCostEstimate(data: {
   url: string;
@@ -255,11 +254,10 @@ export async function handleCostEstimate(data: {
   endParagraph?: number;
   provider: string;
   voice: string;
-  model?: string; // 050-groq-tts-provider (T046): For Groq model-specific pricing
+  model?: string; // For model-specific pricing
 }): Promise<CostEstimate> {
   // If no paragraphs provided, return empty estimate
   if (!data.paragraphs || data.paragraphs.length === 0) {
-    // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
     const pricing = getProviderPricing(data.provider, data.model);
     return {
       totalCharacters: 0,
@@ -276,7 +274,6 @@ export async function handleCostEstimate(data: {
   }
 
   // Use the cost estimator service
-  // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
   return estimateCost({
     url: data.url,
     paragraphs: data.paragraphs,
@@ -291,14 +288,13 @@ export async function handleCostEstimate(data: {
 /**
  * Get paragraph cache status for UI indicators
  * Shows which paragraphs are cached and their estimated costs
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export async function handleParagraphsGetStatus(data: {
   url: string;
   paragraphs: string[]; // Paragraphs passed from background
   provider: string;
   voice: string;
-  model?: string; // 050-groq-tts-provider (T046): For Groq model-specific pricing
+  model?: string; // For model-specific pricing
 }): Promise<{
   paragraphs: Array<{
     index: number;
@@ -320,6 +316,5 @@ export async function handleParagraphsGetStatus(data: {
   }
 
   // Use the cost estimator service
-  // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
   return getParagraphCacheStatus(data.url, data.paragraphs, data.provider, data.voice, data.model);
 }

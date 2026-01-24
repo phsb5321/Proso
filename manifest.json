@@ -23,13 +23,7 @@
     "alarms"
   ],
 
-  "host_permissions": [
-    "<all_urls>",
-    "https://api.openai.com/*",
-    "https://api.elevenlabs.io/*",
-    "https://api.cartesia.ai/*",
-    "https://api.groq.com/*"
-  ],
+  "host_permissions": ["<all_urls>", "https://api.elevenlabs.io/*"],
 
   "action": {
     "default_icon": {

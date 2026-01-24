@@ -53,6 +53,8 @@ export class UsageBuffer {
   private config: BufferConfig;
   private initialized = false;
   private meta: BufferMeta = { ...DEFAULT_META };
+  /** Lock to prevent race condition between flush() and close() */
+  private flushing = false;
 
   constructor(config: Partial<BufferConfig> = {}) {
     this.config = { ...DEFAULT_BUFFER_CONFIG, ...config };
@@ -244,6 +246,12 @@ export class UsageBuffer {
       return [];
     }
 
+    // Prevent concurrent flush and protect against close() race
+    if (this.flushing) {
+      return [];
+    }
+    this.flushing = true;
+
     const events: UsageEvent[] = [];
     const idsToDelete: number[] = [];
     let bytesToRemove = 0;
@@ -278,6 +286,13 @@ export class UsageBuffer {
 
       // Delete flushed events
       if (idsToDelete.length > 0) {
+        // Defensive check: db may have been closed during async cursor iteration
+        if (!this.db) {
+          console.warn(
+            '[UsageBuffer] Database closed during flush, events will be re-read on next flush',
+          );
+          return [];
+        }
         const deleteTx = this.db.transaction(EVENTS_STORE, 'readwrite');
         const deleteStore = deleteTx.objectStore(EVENTS_STORE);
 
@@ -297,6 +312,8 @@ export class UsageBuffer {
     } catch (error) {
       console.error('[UsageBuffer] Failed to flush:', error);
       return [];
+    } finally {
+      this.flushing = false;
     }
   }
 
@@ -459,8 +476,15 @@ export class UsageBuffer {
 
   /**
    * Close the database connection.
+   * If a flush is in progress, the close will still proceed but events
+   * will be preserved in IndexedDB for recovery on next initialization.
    */
   close(): void {
+    if (this.flushing) {
+      console.warn(
+        '[UsageBuffer] Closing while flush in progress, events will persist in IndexedDB',
+      );
+    }
     if (this.db) {
       this.db.close();
       this.db = null;

@@ -156,13 +156,21 @@ function createDetectedLanguage(
 
 /**
  * Detect language combining metadata and text analysis
- * Priority: text detection (if confident) > metadata > text (low confidence) > fallback
+ * Priority: metadata (if present) > text detection > fallback
  *
  * @param params - Detection parameters
  * @returns Detected language object
  */
 export async function detectLanguage(params: PageLanguage): Promise<DetectedLanguage> {
   const { metadata, textSample, url } = params;
+
+  console.log('VoxPage: Language detection starting:', {
+    url,
+    hasMetadata: !!metadata,
+    metadata,
+    textSampleLength: textSample?.length || 0,
+    textSamplePreview: textSample?.slice(0, 100) || '',
+  });
 
   // Check cache first
   const cached = await getCachedLanguage(url);
@@ -173,10 +181,25 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
 
   let detected: DetectedLanguage | null = null;
 
-  // Try text detection first (prefer text if confidence > 90%)
-  if (textSample && textSample.length >= 50) {
+  // Priority 1: Use metadata (HTML lang attribute) - most reliable source
+  // This is what the page author declared as the language
+  if (metadata) {
+    const primary = normalizeLanguageCode(metadata);
+    if (isLanguageSupported(primary)) {
+      detected = createDetectedLanguage(metadata, 1.0, 'metadata');
+      console.log(`VoxPage: Using metadata language: ${detected.code} (from "${metadata}")`);
+    } else {
+      console.log(
+        `VoxPage: Metadata language "${metadata}" (${primary}) not supported, trying text detection`,
+      );
+    }
+  }
+
+  // Priority 2: Try text detection if metadata not available or not supported
+  if (!detected && textSample && textSample.length >= 50) {
     const textResult = detectLanguageFromText(textSample);
-    if (textResult && textResult.confidence >= 0.9) {
+    console.log('VoxPage: Text detection result:', textResult);
+    if (textResult && textResult.confidence >= 0.5) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
       console.log(
         `VoxPage: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
@@ -184,31 +207,18 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     }
   }
 
-  // Use metadata if text detection failed or was not confident
-  if (!detected && metadata) {
-    const primary = normalizeLanguageCode(metadata);
-    if (isLanguageSupported(primary)) {
-      detected = createDetectedLanguage(metadata, 1.0, 'metadata');
-      console.log(`VoxPage: Using metadata language: ${detected.code}`);
-    }
-  }
-
-  // Try text detection even if not highly confident
-  if (!detected && textSample && textSample.length >= 50) {
-    const textResult = detectLanguageFromText(textSample);
-    if (textResult && textResult.confidence >= 0.5) {
-      detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
-      console.log(
-        `VoxPage: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
-      );
-    }
-  }
-
-  // Fallback to English
+  // Priority 3: Fallback to English
   if (!detected) {
     detected = createDetectedLanguage('en', 0.5, 'fallback');
-    console.log('VoxPage: Fallback to English');
+    console.log('VoxPage: Fallback to English (no metadata, text detection failed)');
   }
+
+  console.log('VoxPage: Final detected language:', {
+    code: detected.code,
+    primaryCode: detected.primaryCode,
+    source: detected.source,
+    confidence: detected.confidence,
+  });
 
   // Cache the result
   await cacheLanguage(url, detected);
@@ -262,6 +272,30 @@ async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<v
     await browser.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CACHE]: cache });
   } catch (error) {
     console.warn('VoxPage: Failed to cache language:', error);
+  }
+}
+
+/**
+ * Clear language cache for a specific URL or all URLs
+ * Useful when detection seems wrong and user wants to re-detect
+ */
+export async function clearLanguageCache(url?: string): Promise<void> {
+  try {
+    if (url) {
+      // Clear cache for specific URL
+      const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
+      const cache: Record<string, DetectedLanguage> =
+        (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+      delete cache[url];
+      await browser.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CACHE]: cache });
+      console.log(`VoxPage: Cleared language cache for ${url}`);
+    } else {
+      // Clear all language cache
+      await browser.storage.local.remove(STORAGE_KEYS.LANGUAGE_CACHE);
+      console.log('VoxPage: Cleared all language cache');
+    }
+  } catch (error) {
+    console.warn('VoxPage: Failed to clear language cache:', error);
   }
 }
 

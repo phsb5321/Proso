@@ -18,14 +18,8 @@ import { generateCacheKey, generateContentHash } from './cache-key';
 /**
  * Provider pricing configuration (per 1000 characters)
  * Prices in USD as of 2025
- * 050-groq-tts-provider (T045): Added Groq pricing
- * Updated 2026-01-23: Only Orpheus model is available
  */
 export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: string }> = {
-  groq: {
-    pricePerKiloChar: 0.022, // $0.022 per 1K chars ($22/1M) - Orpheus model
-    name: 'Groq Orpheus',
-  },
   elevenlabs: {
     pricePerKiloChar: 0.18, // $0.18 per 1K chars (depends on tier)
     name: 'ElevenLabs',
@@ -38,10 +32,8 @@ export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: 
 
 /**
  * Get pricing for a provider
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
- * Updated 2026-01-23: Simplified since only Orpheus model is available
  *
- * @param provider - Provider ID (e.g., 'groq', 'elevenlabs', 'browser')
+ * @param provider - Provider ID (e.g., 'elevenlabs', 'browser')
  * @param model - Optional model ID (kept for API compatibility)
  */
 export function getProviderPricing(
@@ -53,7 +45,6 @@ export function getProviderPricing(
 
 /**
  * Calculate cost for text based on character count
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export function calculateTextCost(text: string, provider: string, model?: string): number {
   const pricing = getProviderPricing(provider, model);
@@ -63,14 +54,13 @@ export function calculateTextCost(text: string, provider: string, model?: string
 
 /**
  * Cost estimation options
- * 050-groq-tts-provider (T046): Added model for Groq model-specific pricing
  */
 export interface CostEstimateOptions {
   url: string;
   paragraphs: string[];
   provider: string;
   voice: string;
-  /** Optional model ID for model-specific pricing (e.g., Groq Orpheus) */
+  /** Optional model ID for model-specific pricing */
   model?: string;
   startParagraph?: number;
   endParagraph?: number;
@@ -87,7 +77,6 @@ export async function estimateCost(options: CostEstimateOptions): Promise<CostEs
 
   const end = endParagraph ?? paragraphs.length;
   const selectedParagraphs = paragraphs.slice(startParagraph, end);
-  // 050-groq-tts-provider (T046): Pass model for Groq-specific pricing
   const pricing = getProviderPricing(provider, model);
   const store = getCacheStore();
 
@@ -175,7 +164,6 @@ export function formatSavings(savings: number, percentage: number): string {
 
 /**
  * Get paragraph cache status for a URL
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export async function getParagraphCacheStatus(
   url: string,
@@ -252,7 +240,6 @@ export function createCumulativeSavings(): CumulativeSavings {
 
 /**
  * Update cumulative savings after a cache hit
- * 050-groq-tts-provider (T046): Added model parameter for Groq model-specific pricing
  */
 export function recordCacheHit(
   savings: CumulativeSavings,

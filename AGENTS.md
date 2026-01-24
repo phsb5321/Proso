@@ -10,6 +10,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-09
 - SQLite via `tauri-plugin-sql` (highlights, library, settings) (044-tauri-pdf-reader)
 - TypeScript 5.x (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.x (build framework), Zod (schema validation), browser.storage API (050-groq-tts-provider)
 - browser.storage.local (settings, API keys), IndexedDB (audio cache) (050-groq-tts-provider)
+- IndexedDB (audio cache), browser.storage.local (settings, API keys) (050-groq-tts-provider)
 
 ## Project Structure
 
@@ -28,8 +29,8 @@ TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionType
 
 ## Recent Changes
 - 050-groq-tts-provider: Added TypeScript 5.x (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.x (build framework), Zod (schema validation), browser.storage API
+- 050-groq-tts-provider: Added TypeScript 5.x (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.x (build framework), Zod (schema validation), browser.storage API
 - 044-tauri-pdf-reader: Added Rust 1.75+ (backend), TypeScript 5.x (frontend) + Tauri 2.x, PDF.js v5.4.x, Rust `tts` crate v0.26
-- 041-firefox-first-pivot: Firefox-first architecture pivot (Firefox 112+, event pages with DOM access, native Audio API, no service workers)
 
 ## Firefox-First Guidelines
 

@@ -25,8 +25,7 @@ export const playbackStatusSchema = z.enum([
 export const extractionModeSchema = z.enum(['selection', 'article', 'full']);
 
 // 049-tts-provider-consolidation: Removed 'openai'
-// 050-groq-tts-provider: Added 'groq' for Groq TTS
-export const providerIdSchema = z.enum(['groq', 'elevenlabs', 'browser']);
+export const providerIdSchema = z.enum(['elevenlabs', 'browser']);
 
 export const logLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 

@@ -180,11 +180,10 @@
           />
         </section>
 
-        <!-- Provider Selection (050-groq-tts-provider: Groq, ElevenLabs, and Browser) -->
+        <!-- Provider Selection -->
         <section class="voxpage-popup__provider">
           <label for="provider-select" class="voxpage-popup__provider-label">Provider</label>
           <select id="provider-select" class="voxpage-select" data-testid="popup-provider-select">
-            <option value="groq">Groq (Fast)</option>
             <option value="elevenlabs">ElevenLabs</option>
             <option value="browser">Browser (Free)</option>
           </select>
@@ -192,10 +191,25 @@
 
         <!-- Language Selection (048-multilingual-tts-pillar: T032-T035) -->
         <section class="voxpage-popup__language">
-          <label for="language-select" class="voxpage-popup__language-label">
-            Language
-            <span class="voxpage-popup__language-badge" id="language-badge" title="Detected language" hidden></span>
-          </label>
+          <div class="voxpage-popup__language-header">
+            <label for="language-select" class="voxpage-popup__language-label">
+              Language
+              <span class="voxpage-popup__language-badge" id="language-badge" title="Detected language" hidden></span>
+            </label>
+            <button
+              id="redetect-language-btn"
+              class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+              title="Re-detect page language (clears cache)"
+              aria-label="Re-detect language"
+              data-testid="popup-redetect-btn"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6"></path>
+                <path d="M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+          </div>
           <select id="language-select" class="voxpage-select" data-testid="popup-language-select">
             <option value="auto">Auto-detect</option>
             <option value="en">English</option>
@@ -262,7 +276,6 @@
 
         <!-- Cost Estimate Section -->
         <section class="voxpage-popup__cost" id="cost-section">
-          <!-- 050-groq-tts-provider (T048): Show provider name with model for Groq -->
           <div class="voxpage-popup__cost-row voxpage-popup__cost-row--provider" id="cost-provider-row">
             <span class="voxpage-popup__cost-label">Provider:</span>
             <span class="voxpage-popup__cost-value voxpage-popup__cost-value--provider" id="cost-provider">--</span>

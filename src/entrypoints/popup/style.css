@@ -520,7 +520,8 @@ body {
 
 .voxpage-select {
   width: 100%;
-  padding: var(--spacing-sm, 8px) var(--spacing-lg, 32px) var(--spacing-sm, 8px) var(--spacing-md, 12px);
+  padding: var(--spacing-sm, 8px) var(--spacing-lg, 32px) var(--spacing-sm, 8px)
+    var(--spacing-md, 12px);
   background: var(--color-bg-secondary, #16213e);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-sm, 4px);
@@ -559,6 +560,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__language-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .voxpage-popup__language-label {

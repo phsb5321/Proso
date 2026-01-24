@@ -3,11 +3,11 @@ import { defineConfig } from "wxt";
 /**
  * VoxPage - Text-to-Speech Extension for Web Pages
  *
- * Chrome MV3-first architecture with Firefox compatibility:
- * - Service worker background (MV3) with Firefox event page fallback
+ * Firefox-first architecture:
+ * - Event page background (MV2) with DOM access
  * - Article extraction via Mozilla Readability
- * - Groq TTS API (primary, affordable with PlayAI voices)
  * - ElevenLabs TTS API (high-quality multilingual)
+ * - Browser TTS (Web Speech API fallback)
  * - Word-level text highlighting via CSS Custom Highlight API
  */
 export default defineConfig({
@@ -32,7 +32,6 @@ export default defineConfig({
         "scripting", // For programmatic content script injection
       ],
       host_permissions: [
-        "https://api.groq.com/*", // Groq TTS API (primary)
         "https://api.elevenlabs.io/*", // ElevenLabs TTS API
         "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
       ],

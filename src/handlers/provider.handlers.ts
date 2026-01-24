@@ -8,11 +8,7 @@
  */
 
 import { browser } from 'wxt/browser';
-import {
-  getContainer,
-  isContainerInitialized,
-  reconfigureAudioGenerator,
-} from '../composition';
+import { getContainer, isContainerInitialized, reconfigureAudioGenerator } from '../composition';
 import type { ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
@@ -68,25 +64,44 @@ export interface LanguageValidationResponse {
 /**
  * Static provider metadata.
  * 049-tts-provider-consolidation: Removed OpenAI, kept ElevenLabs and Browser
- * 050-groq-tts-provider: Added Groq provider
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
-  groq: {
-    name: 'Groq',
-    description: 'Fast, affordable TTS with PlayAI and Orpheus models',
-    supportsWordTiming: false,
-    requiresApiKey: true,
-    supportedLanguages: ['en'], // English only
-  },
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
     supportsWordTiming: true,
     requiresApiKey: true,
     supportedLanguages: [
-      'en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl',
-      'cs', 'ar', 'zh', 'hu', 'ko', 'ja', 'hi', 'sv', 'id', 'fil',
-      'uk', 'el', 'fi', 'ro', 'da', 'bg', 'ms', 'sk', 'hr', 'ta',
+      'en',
+      'es',
+      'fr',
+      'de',
+      'it',
+      'pt',
+      'pl',
+      'tr',
+      'ru',
+      'nl',
+      'cs',
+      'ar',
+      'zh',
+      'hu',
+      'ko',
+      'ja',
+      'hi',
+      'sv',
+      'id',
+      'fil',
+      'uk',
+      'el',
+      'fi',
+      'ro',
+      'da',
+      'bg',
+      'ms',
+      'sk',
+      'hr',
+      'ta',
     ], // 30 languages (ElevenLabs Turbo v2.5)
   },
   browser: {
@@ -101,7 +116,6 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
 /**
  * Providers that support all languages (empty array means all).
  * 049-tts-provider-consolidation: Removed OpenAI
- * 050-groq-tts-provider: Note - Groq only supports English
  */
 const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser'];
 
@@ -162,8 +176,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
       }
 
       // 049-tts-provider-consolidation: Only elevenlabs and browser are valid
-      // 050-groq-tts-provider: Added groq
-      const validProviders: ProviderId[] = ['groq', 'elevenlabs', 'browser'];
+      const validProviders: ProviderId[] = ['elevenlabs', 'browser'];
       if (!params.provider || !validProviders.includes(params.provider)) {
         return Err({
           type: 'invalid_params',
@@ -271,12 +284,8 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
   /**
    * Resolve provider for a given language using routing policy.
    * 049-tts-provider-consolidation: New handler for automatic routing
-   * 050-groq-tts-provider (T042): Added hasGroqKey to routing context
    */
-  registry.register<
-    { languageCode: string },
-    Result<RoutingDecision, ProviderHandlerError>
-  >(
+  registry.register<{ languageCode: string }, Result<RoutingDecision, ProviderHandlerError>>(
     'provider.resolveForLanguage',
     async (params) => {
       if (!params.languageCode || typeof params.languageCode !== 'string') {
@@ -287,9 +296,8 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
       }
 
       try {
-        // Get API key availability for all providers (050-groq-tts-provider T042)
-        const stored = await browser.storage.local.get(['groqApiKey', 'elevenlabsApiKey', 'providerOverride']);
-        const hasGroqKey = Boolean(stored.groqApiKey);
+        // Get API key availability
+        const stored = await browser.storage.local.get(['elevenlabsApiKey', 'providerOverride']);
         const hasElevenLabsKey = Boolean(stored.elevenlabsApiKey);
         const userOverride = (stored.providerOverride as ProviderId) || null;
 
@@ -297,7 +305,6 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         const routingPolicy = new TtsRoutingPolicy();
         const decision = routingPolicy.resolveProvider({
           languageCode: params.languageCode,
-          hasGroqKey,
           hasElevenLabsKey,
           userOverride,
         });
