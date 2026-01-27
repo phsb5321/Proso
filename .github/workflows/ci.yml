@@ -271,9 +271,11 @@ jobs:
           - browser: firefox
             project: firefox-e2e
             artifact: extension-firefox
+            output_dir: firefox-mv2
           - browser: chromium
             project: chromium-extension
             artifact: extension-chrome
+            output_dir: chrome-mv3
     steps:
       - uses: actions/checkout@v4
 
@@ -311,7 +313,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.artifact }}-${{ github.sha }}
-          path: .output/${{ matrix.browser == 'firefox' && 'firefox-mv2' || 'chrome-mv3' }}/
+          path: .output/${{ matrix.output_dir }}/
 
       # Run E2E tests
       - name: Run E2E tests
