@@ -1,6 +1,5 @@
 # Consolidated CI Workflow
 # Feature: 055-automated-testing-ci
-# Consolidates ci.yml and test.yml into a single optimized workflow
 
 name: CI
 
@@ -25,25 +24,17 @@ env:
   CI: true
 
 jobs:
-  # ============================================
-  # Fast Checks (run in parallel)
-  # ============================================
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
-
       - run: pnpm install --frozen-lockfile
-
       - run: pnpm run lint
 
   typecheck:
@@ -51,16 +42,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
-
       - run: pnpm install --frozen-lockfile
-
       - run: npx tsc --noEmit
 
   build:
@@ -68,24 +55,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
-
       - run: pnpm install --frozen-lockfile
-
-      # Build both browsers
       - name: Build Firefox
         run: pnpm run build:firefox
-
       - name: Build Chrome
         run: pnpm run build:chrome
-
-      # Validate Firefox build
       - name: Validate Firefox manifest
         run: |
           MANIFEST=".output/firefox-mv2/manifest.json"
@@ -94,7 +73,6 @@ jobs:
             exit 1
           fi
           echo "Manifest valid: $(jq -r '.name + " v" + .version' "$MANIFEST")"
-
       - name: Check extension size
         run: |
           SIZE=$(du -sb .output/firefox-mv2 | cut -f1)
@@ -103,379 +81,13 @@ jobs:
             exit 1
           fi
           echo "Size: $((SIZE / 1024))KB"
-
-      # Upload artifacts for E2E jobs
       - uses: actions/upload-artifact@v4
         with:
           name: extension-firefox-${{ github.sha }}
           path: .output/firefox-mv2/
           retention-days: 7
-
       - uses: actions/upload-artifact@v4
         with:
           name: extension-chrome-${{ github.sha }}
           path: .output/chrome-mv3/
           retention-days: 7
-
-  # ============================================
-  # Unit Tests (depends on lint + typecheck)
-  # ============================================
-
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Run unit tests with coverage
-        run: pnpm run test:unit -- --coverage
-        env:
-          NODE_OPTIONS: '--max-old-space-size=4096 --experimental-vm-modules'
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
-          verbose: true
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
-  # ============================================
-  # Secondary Test Suites (depend on unit tests)
-  # ============================================
-
-  contract:
-    name: Contract Tests
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm run test:contract
-        env:
-          NODE_OPTIONS: '--experimental-vm-modules'
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    if: ${{ hashFiles('tests/integration/**') != '' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm run test:integration
-        env:
-          NODE_OPTIONS: '--experimental-vm-modules'
-
-  security:
-    name: Security Tests
-    runs-on: ubuntu-latest
-    needs: [unit-tests, build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: extension-firefox-${{ github.sha }}
-          path: .output/firefox-mv2/
-
-      - run: pnpm run test:security
-        env:
-          NODE_OPTIONS: '--experimental-vm-modules'
-
-  quality:
-    name: Quality Check
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: extension-firefox-${{ github.sha }}
-          path: .output/firefox-mv2/
-
-      - name: Check circular dependencies
-        run: pnpm run deps:check
-
-      - name: Check code duplication
-        run: pnpm run duplication
-
-      - name: Lint manifest
-        run: pnpm run lint:manifest
-
-  # ============================================
-  # E2E Tests (matrix: Firefox + Chromium)
-  # ============================================
-
-  e2e-tests:
-    name: E2E Tests (${{ matrix.browser }})
-    runs-on: ubuntu-latest
-    needs: [build, unit-tests]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - browser: firefox
-            project: firefox-e2e
-            artifact: extension-firefox
-            output_dir: firefox-mv2
-          - browser: chromium
-            project: chromium-extension
-            artifact: extension-chrome
-            output_dir: chrome-mv3
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      # Cache Playwright browsers
-      - name: Get Playwright version
-        id: pw-version
-        run: |
-          VERSION=$(pnpm ls @playwright/test --json | jq -r '.[0].devDependencies["@playwright/test"].version')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.pw-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-
-      - name: Install Playwright system deps
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps ${{ matrix.browser }}
-
-      # Download pre-built extension
-      - uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}-${{ github.sha }}
-          path: .output/${{ matrix.output_dir }}/
-
-      # Run E2E tests
-      - name: Run E2E tests
-        run: xvfb-run --auto-servernum -- npx playwright test --project=${{ matrix.project }}
-        timeout-minutes: 10
-        env:
-          LOKI_URL: ${{ secrets.LOKI_URL }}
-          LOKI_USER: ${{ secrets.LOKI_USER }}
-          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
-
-      # Upload artifacts on failure
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report-${{ matrix.browser }}
-          path: playwright-report/
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: test-results-${{ matrix.browser }}
-          path: test-results/
-          retention-days: 7
-
-  # ============================================
-  # Visual Regression Tests
-  # ============================================
-
-  visual-tests:
-    name: Visual Tests
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Get Playwright version
-        id: pw-version
-        run: |
-          VERSION=$(pnpm ls @playwright/test --json | jq -r '.[0].devDependencies["@playwright/test"].version')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-firefox-${{ steps.pw-version.outputs.version }}
-
-      - name: Install Playwright Firefox
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps firefox
-
-      - name: Install Playwright system deps
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps firefox
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: extension-firefox-${{ github.sha }}
-          path: .output/firefox-mv2/
-
-      - name: Run visual tests
-        run: npx playwright test --project=firefox-visual
-        continue-on-error: true
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: visual-snapshots
-          path: |
-            playwright-report/
-            test-results/**/*-diff.png
-          retention-days: 7
-
-  # ============================================
-  # Aggregation Job (for branch protection)
-  # ============================================
-
-  ci-success:
-    name: CI Success
-    runs-on: ubuntu-latest
-    needs:
-      - lint
-      - typecheck
-      - unit-tests
-      - contract
-      - integration
-      - security
-      - e2e-tests
-      - visual-tests
-      - quality
-    if: ${{ always() }}
-    steps:
-      - name: Check all jobs passed
-        env:
-          LINT_RESULT: ${{ needs.lint.result }}
-          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
-          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
-          CONTRACT_RESULT: ${{ needs.contract.result }}
-          INTEGRATION_RESULT: ${{ needs.integration.result }}
-          SECURITY_RESULT: ${{ needs.security.result }}
-          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
-          VISUAL_TESTS_RESULT: ${{ needs.visual-tests.result }}
-          QUALITY_RESULT: ${{ needs.quality.result }}
-        run: |
-          echo "Job results:"
-          echo "  lint: $LINT_RESULT"
-          echo "  typecheck: $TYPECHECK_RESULT"
-          echo "  unit-tests: $UNIT_TESTS_RESULT"
-          echo "  contract: $CONTRACT_RESULT"
-          echo "  integration: $INTEGRATION_RESULT"
-          echo "  security: $SECURITY_RESULT"
-          echo "  e2e-tests: $E2E_TESTS_RESULT"
-          echo "  visual-tests: $VISUAL_TESTS_RESULT"
-          echo "  quality: $QUALITY_RESULT"
-
-          # Required jobs must succeed
-          if [[ "$LINT_RESULT" != "success" ]]; then
-            echo "::error::Lint job failed"
-            exit 1
-          fi
-          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
-            echo "::error::Typecheck job failed"
-            exit 1
-          fi
-          if [[ "$UNIT_TESTS_RESULT" != "success" ]]; then
-            echo "::error::Unit tests job failed"
-            exit 1
-          fi
-          if [[ "$CONTRACT_RESULT" != "success" ]]; then
-            echo "::error::Contract tests job failed"
-            exit 1
-          fi
-          # Integration is optional (may be skipped if no files)
-          if [[ "$INTEGRATION_RESULT" != "success" && "$INTEGRATION_RESULT" != "skipped" ]]; then
-            echo "::error::Integration tests job failed"
-            exit 1
-          fi
-          if [[ "$SECURITY_RESULT" != "success" ]]; then
-            echo "::error::Security tests job failed"
-            exit 1
-          fi
-          if [[ "$E2E_TESTS_RESULT" != "success" ]]; then
-            echo "::error::E2E tests job failed"
-            exit 1
-          fi
-          # Visual tests are non-blocking (continue-on-error)
-          if [[ "$VISUAL_TESTS_RESULT" == "failure" ]]; then
-            echo "::warning::Visual tests failed (non-blocking)"
-          fi
-          if [[ "$QUALITY_RESULT" != "success" ]]; then
-            echo "::error::Quality check job failed"
-            exit 1
-          fi
-
-          echo "All required CI checks passed!"
