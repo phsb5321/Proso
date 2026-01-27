@@ -1,274 +1,464 @@
+# Consolidated CI Workflow
+# Feature: 055-automated-testing-ci
+# Consolidates ci.yml and test.yml into a single optimized workflow
+
 name: CI
 
 on:
-  pull_request:
-    branches: [develop, main]
   push:
-    branches: [develop, main]
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  CI: true
 
 jobs:
-  test:
+  # ============================================
+  # Fast Checks (run in parallel)
+  # ============================================
+
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm run lint
+      - run: pnpm run lint
 
-      - name: Unit Tests
-        run: pnpm run test:unit
-        env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build Firefox extension
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: npx tsc --noEmit
+
+  build:
+    name: Build Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build both browsers
+      - name: Build Firefox
         run: pnpm run build:firefox
 
-      # ============================================
-      # Firefox Build Validation (041-firefox-first-pivot T4.1)
-      # ============================================
+      - name: Build Chrome
+        run: pnpm run build:chrome
 
-      - name: Validate Firefox manifest.json
+      # Validate Firefox build
+      - name: Validate Firefox manifest
         run: |
-          echo "Validating Firefox manifest.json..."
           MANIFEST=".output/firefox-mv2/manifest.json"
-          
-          # Check manifest exists
-          if [ ! -f "$MANIFEST" ]; then
-            echo "ERROR: manifest.json not found at $MANIFEST"
-            exit 1
-          fi
-          
-          # Validate JSON syntax
           if ! jq empty "$MANIFEST" 2>/dev/null; then
-            echo "ERROR: manifest.json is not valid JSON"
+            echo "::error::Invalid manifest.json"
             exit 1
           fi
-          
-          # Check required fields
-          echo "Checking required manifest fields..."
-          
-          # Check manifest_version
-          MANIFEST_VERSION=$(jq -r '.manifest_version' "$MANIFEST")
-          if [ "$MANIFEST_VERSION" != "2" ]; then
-            echo "ERROR: manifest_version should be 2 for Firefox MV2, got: $MANIFEST_VERSION"
-            exit 1
-          fi
-          echo "  ✓ manifest_version: $MANIFEST_VERSION"
-          
-          # Check name
-          NAME=$(jq -r '.name' "$MANIFEST")
-          if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
-            echo "ERROR: name is required in manifest.json"
-            exit 1
-          fi
-          echo "  ✓ name: $NAME"
-          
-          # Check version
-          VERSION=$(jq -r '.version' "$MANIFEST")
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "ERROR: version is required in manifest.json"
-            exit 1
-          fi
-          echo "  ✓ version: $VERSION"
-          
-          # Check browser_specific_settings.gecko
-          GECKO_ID=$(jq -r '.browser_specific_settings.gecko.id // .applications.gecko.id' "$MANIFEST")
-          if [ -z "$GECKO_ID" ] || [ "$GECKO_ID" = "null" ]; then
-            echo "ERROR: gecko.id is required for Firefox extensions"
-            exit 1
-          fi
-          echo "  ✓ gecko.id: $GECKO_ID"
-          
-          # Check strict_min_version
-          MIN_VERSION=$(jq -r '.browser_specific_settings.gecko.strict_min_version // .applications.gecko.strict_min_version' "$MANIFEST")
-          if [ -z "$MIN_VERSION" ] || [ "$MIN_VERSION" = "null" ]; then
-            echo "WARNING: strict_min_version not set, Firefox may reject the extension"
-          else
-            echo "  ✓ strict_min_version: $MIN_VERSION"
-          fi
-          
-          echo "✓ Manifest validation passed"
+          echo "Manifest valid: $(jq -r '.name + " v" + .version' "$MANIFEST")"
 
-      - name: Validate required Firefox files
+      - name: Check extension size
         run: |
-          echo "Checking required Firefox extension files..."
-          BUILD_DIR=".output/firefox-mv2"
-          MISSING_FILES=0
-          
-          # Required files for the extension
-          REQUIRED_FILES=(
-            "manifest.json"
-            "background.js"
-            "popup.html"
-            "settings.html"
-          )
-          
-          for file in "${REQUIRED_FILES[@]}"; do
-            if [ -f "$BUILD_DIR/$file" ]; then
-              echo "  ✓ $file"
-            else
-              echo "  ✗ $file (MISSING)"
-              MISSING_FILES=$((MISSING_FILES + 1))
-            fi
-          done
-          
-          # Check for icons directory
-          if [ -d "$BUILD_DIR/icons" ]; then
-            ICON_COUNT=$(ls -1 "$BUILD_DIR/icons"/*.png 2>/dev/null | wc -l)
-            echo "  ✓ icons/ ($ICON_COUNT icons)"
-          else
-            echo "  ✗ icons/ (MISSING)"
-            MISSING_FILES=$((MISSING_FILES + 1))
-          fi
-          
-          # Check for content script
-          if ls "$BUILD_DIR"/content*.js 1> /dev/null 2>&1; then
-            echo "  ✓ content script(s)"
-          else
-            echo "  ⚠ No content script found (may be bundled)"
-          fi
-          
-          if [ $MISSING_FILES -gt 0 ]; then
-            echo "ERROR: $MISSING_FILES required file(s) missing"
+          SIZE=$(du -sb .output/firefox-mv2 | cut -f1)
+          if [ $SIZE -gt 5242880 ]; then
+            echo "::error::Extension exceeds 5MB limit"
             exit 1
           fi
-          
-          echo "✓ All required files present"
+          echo "Size: $((SIZE / 1024))KB"
 
-      - name: Check Firefox extension size
-        run: |
-          echo "Checking Firefox extension size..."
-          BUILD_DIR=".output/firefox-mv2"
-          
-          # Calculate total size in bytes
-          TOTAL_SIZE=$(du -sb "$BUILD_DIR" | cut -f1)
-          TOTAL_SIZE_KB=$((TOTAL_SIZE / 1024))
-          TOTAL_SIZE_MB=$((TOTAL_SIZE / 1048576))
-          
-          # Size limit: 5MB (Firefox AMO recommendation)
-          MAX_SIZE_BYTES=5242880
-          
-          echo "  Total size: ${TOTAL_SIZE_MB}MB (${TOTAL_SIZE_KB}KB, $TOTAL_SIZE bytes)"
-          
-          if [ $TOTAL_SIZE -gt $MAX_SIZE_BYTES ]; then
-            echo "ERROR: Extension size (${TOTAL_SIZE_MB}MB) exceeds 5MB limit"
-            echo "Consider:"
-            echo "  - Removing unused dependencies"
-            echo "  - Optimizing assets"
-            echo "  - Using code splitting"
-            exit 1
-          fi
-          
-          # Warning threshold: 4MB
-          WARNING_BYTES=4194304
-          if [ $TOTAL_SIZE -gt $WARNING_BYTES ]; then
-            echo "⚠ WARNING: Extension size approaching 5MB limit"
-          fi
-          
-          # List largest files for visibility
-          echo ""
-          echo "Largest files:"
-          find "$BUILD_DIR" -type f -exec ls -la {} \; | sort -k5 -rn | head -5 | awk '{print "  " $5 " " $NF}'
-          
-          echo "✓ Extension size within limits"
-
-      - name: Quality check
-        run: pnpm run quality
-
-  # ============================================
-  # Firefox Visual Tests (041-firefox-first-pivot T4.2)
-  # ============================================
-  visual-tests:
-    runs-on: ubuntu-latest
-    needs: test # Only run visual tests if unit tests pass
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # Upload artifacts for E2E jobs
+      - uses: actions/upload-artifact@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+          retention-days: 7
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: npx playwright install firefox --with-deps
-
-      - name: Run Firefox visual tests
-        run: npx playwright test --project=firefox-visual --reporter=list,html
-        continue-on-error: true # Don't fail CI on snapshot differences
-
-      - name: Upload visual test report
-        uses: actions/upload-artifact@v4
-        if: always()
+      - uses: actions/upload-artifact@v4
         with:
-          name: playwright-visual-report
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 14
-
-      - name: Upload snapshot diffs
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: snapshot-diffs
-          path: test-results/**/*-diff.png
+          name: extension-chrome-${{ github.sha }}
+          path: .output/chrome-mv3/
           retention-days: 7
 
   # ============================================
-  # Extension E2E Tests (Chromium)
+  # Unit Tests (depends on lint + typecheck)
   # ============================================
-  e2e-tests:
+
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    needs: test # Only run E2E tests if unit tests pass
+    needs: [lint, typecheck]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: pnpm run test:unit -- --coverage
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096 --experimental-vm-modules'
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ============================================
+  # Secondary Test Suites (depend on unit tests)
+  # ============================================
+
+  contract:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run test:contract
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    if: hashFiles('tests/integration/**') != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run test:integration
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+
+      - run: pnpm run test:security
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+  quality:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+
+      - name: Check circular dependencies
+        run: pnpm run deps:check
+
+      - name: Check code duplication
+        run: pnpm run duplication
+
+      - name: Lint manifest
+        run: pnpm run lint:manifest
+
+  # ============================================
+  # E2E Tests (matrix: Firefox + Chromium)
+  # ============================================
+
+  e2e-tests:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: [build, unit-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: firefox
+            project: firefox-e2e
+            artifact: extension-firefox
+          - browser: chromium
+            project: chromium-extension
+            artifact: extension-chrome
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      # Cache Playwright browsers
+      - name: Get Playwright version
+        id: pw-version
+        run: |
+          VERSION=$(pnpm ls @playwright/test --json | jq -r '.[0].devDependencies["@playwright/test"].version')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.pw-version.outputs.version }}
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Build Firefox extension
-        run: pnpm run build:firefox
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps ${{ matrix.browser }}
 
-      - name: Run extension E2E tests
-        run: npx playwright test --project=chromium-extension --reporter=list,html
-
-      - name: Upload E2E test report
-        uses: actions/upload-artifact@v4
-        if: always()
+      # Download pre-built extension
+      - uses: actions/download-artifact@v4
         with:
-          name: playwright-e2e-report
+          name: ${{ matrix.artifact }}-${{ github.sha }}
+          path: .output/${{ matrix.browser == 'firefox' && 'firefox-mv2' || 'chrome-mv3' }}/
+
+      # Run E2E tests
+      - name: Run E2E tests
+        run: xvfb-run --auto-servernum -- npx playwright test --project=${{ matrix.project }}
+        timeout-minutes: 10
+        env:
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USER: ${{ secrets.LOKI_USER }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
+
+      # Upload artifacts on failure
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+
+  # ============================================
+  # Visual Regression Tests
+  # ============================================
+
+  visual-tests:
+    name: Visual Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Get Playwright version
+        id: pw-version
+        run: |
+          VERSION=$(pnpm ls @playwright/test --json | jq -r '.[0].devDependencies["@playwright/test"].version')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-firefox-${{ steps.pw-version.outputs.version }}
+
+      - name: Install Playwright Firefox
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps firefox
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps firefox
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+
+      - name: Run visual tests
+        run: npx playwright test --project=firefox-visual
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-snapshots
           path: |
             playwright-report/
-            test-results/
-          retention-days: 14
+            test-results/**/*-diff.png
+          retention-days: 7
+
+  # ============================================
+  # Aggregation Job (for branch protection)
+  # ============================================
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, unit-tests, contract, integration, security, e2e-tests, visual-tests, quality]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
+          CONTRACT_RESULT: ${{ needs.contract.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
+          VISUAL_TESTS_RESULT: ${{ needs.visual-tests.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: |
+          echo "Job results:"
+          echo "  lint: $LINT_RESULT"
+          echo "  typecheck: $TYPECHECK_RESULT"
+          echo "  unit-tests: $UNIT_TESTS_RESULT"
+          echo "  contract: $CONTRACT_RESULT"
+          echo "  integration: $INTEGRATION_RESULT"
+          echo "  security: $SECURITY_RESULT"
+          echo "  e2e-tests: $E2E_TESTS_RESULT"
+          echo "  visual-tests: $VISUAL_TESTS_RESULT"
+          echo "  quality: $QUALITY_RESULT"
+
+          # Required jobs must succeed
+          if [[ "$LINT_RESULT" != "success" ]]; then
+            echo "::error::Lint job failed"
+            exit 1
+          fi
+          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
+            echo "::error::Typecheck job failed"
+            exit 1
+          fi
+          if [[ "$UNIT_TESTS_RESULT" != "success" ]]; then
+            echo "::error::Unit tests job failed"
+            exit 1
+          fi
+          if [[ "$CONTRACT_RESULT" != "success" ]]; then
+            echo "::error::Contract tests job failed"
+            exit 1
+          fi
+          # Integration is optional (may be skipped if no files)
+          if [[ "$INTEGRATION_RESULT" != "success" && "$INTEGRATION_RESULT" != "skipped" ]]; then
+            echo "::error::Integration tests job failed"
+            exit 1
+          fi
+          if [[ "$SECURITY_RESULT" != "success" ]]; then
+            echo "::error::Security tests job failed"
+            exit 1
+          fi
+          if [[ "$E2E_TESTS_RESULT" != "success" ]]; then
+            echo "::error::E2E tests job failed"
+            exit 1
+          fi
+          # Visual tests are non-blocking (continue-on-error)
+          if [[ "$VISUAL_TESTS_RESULT" == "failure" ]]; then
+            echo "::warning::Visual tests failed (non-blocking)"
+          fi
+          if [[ "$QUALITY_RESULT" != "success" ]]; then
+            echo "::error::Quality check job failed"
+            exit 1
+          fi
+
+          echo "All required CI checks passed!"

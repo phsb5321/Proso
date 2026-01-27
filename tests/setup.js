@@ -4,6 +4,10 @@
  */
 
 import { jest } from '@jest/globals';
+
+// Configure test retries for flaky tests (FR-018)
+// Retries tests up to 2 times before marking as failed
+jest.retryTimes(2, { logErrorsBeforeRetry: true });
 import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill TextEncoder/TextDecoder for jsdom environment

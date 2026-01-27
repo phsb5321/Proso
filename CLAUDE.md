@@ -246,6 +246,15 @@ const service = new PlaybackService({
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, franc-min 6.2.0 (048-multilingual-tts-pillar)
 - IndexedDB (audio cache), browser.storage.local (settings, language cache, preferences) (048-multilingual-tts-pillar)
 - IndexedDB (audio cache), browser.storage.local (settings, API keys) (050-groq-tts-provider)
+- TypeScript 5.x (strict mode) + Claude Code plugin system + Claude Code CLI, Claude API (Anthropic SDK), Zod (validation) (052-message-exchange-orchestration)
+- Local filesystem (`.claude/` artifacts) + YAML/JSON for structured context (052-message-exchange-orchestration)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + Zod 4.3.4 (runtime validation), Node.js fs/path (artifact I/O) (052-message-exchange-orchestration)
+- Local filesystem (`.claude/plugins/message-exchange/artifacts/`) for client, project, conversation context (052-message-exchange-orchestration)
+- N/A (visual-only feature, no persistent storage changes) (053-highlight-selection-ux)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x, @webext-core/messaging 2.3.0, Zod 4.3.4 (054-groq-tts-provider)
+- IndexedDB (audio cache via ICacheStore), browser.storage.local (API keys, settings) (054-groq-tts-provider)
+- TypeScript 5.x (strict mode), YAML (GitHub Actions workflows) (055-automated-testing-ci)
+- N/A (CI infrastructure only) (055-automated-testing-ci)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -401,10 +410,41 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
-- 050-groq-tts-provider: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4
-- 049-tts-provider-consolidation: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 048-multilingual-tts-pillar: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4, franc-min 6.2.0
+- 055-automated-testing-ci: Consolidated CI workflow with coverage tracking, cross-browser E2E tests, and ci-success aggregation
+- 054-groq-tts-provider: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x, @webext-core/messaging 2.3.0, Zod 4.3.4
+- 053-highlight-selection-ux: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 4.3.4
 
+## CI/CD Pipeline (055-automated-testing-ci)
+
+**Consolidated Workflow**: `.github/workflows/ci.yml` runs on all PRs and pushes to main/develop.
+
+### CI Jobs Architecture
+
+```text
+Push/PR → [Lint] [Typecheck] [Build] (parallel)
+              ↓
+         [Unit Tests + Coverage]
+              ↓
+    [Contract] [Integration] [Security] [Quality] (parallel)
+              ↓
+         [E2E Tests: Firefox + Chromium] (matrix)
+              ↓
+         [Visual Tests]
+              ↓
+         [CI Success] (aggregation job for branch protection)
+```
+
+### Key Features
+
+- **Coverage Tracking**: Codecov integration with 70% global threshold, 85% for core/, 80% for adapters/
+- **Cross-Browser E2E**: Matrix strategy runs tests in both Firefox and Chromium
+- **Flaky Test Handling**: Jest retries (2x) and Playwright retries (2x in CI)
+- **Artifact Preservation**: Screenshots, traces, and reports on failure (7-day retention)
+- **Concurrency Control**: `cancel-in-progress: true` saves CI minutes
+
+### Branch Protection
+
+Add **`CI / CI Success`** as the single required status check. See `.github/BRANCH_PROTECTION.md` for setup guide.
 
 <!-- MANUAL ADDITIONS START -->
 
@@ -888,11 +928,11 @@ Adds automatic language detection and multilingual text-to-speech support. The e
 
 | Provider | Languages | Detection Mode |
 |----------|-----------|----------------|
-| OpenAI | All (*) | Auto-detect from text |
 | ElevenLabs | 29 languages | language_code parameter |
+| Groq | English only | Word-level timing via Whisper |
 | Browser TTS | System-dependent | Dynamic voice filtering |
-| Groq | English only | Throws LanguageNotSupportedError |
-| Cartesia | English only | Throws LanguageNotSupportedError |
+
+**Note**: 054-groq-tts-provider added Groq TTS provider with word-level timing support via Whisper API. Cost is ~8x cheaper than ElevenLabs ($22/1M chars vs $180/1M chars).
 
 ### Message Types (from `background/constants.js`)
 
@@ -1011,11 +1051,11 @@ Provider pricing (per 1000 characters):
 
 | Provider | Price |
 |----------|-------|
-| OpenAI TTS | $0.015 |
 | ElevenLabs | $0.18 |
-| Cartesia | $0.05 |
-| Groq | Free |
+| Groq | $0.022 |
 | Browser TTS | Free |
+
+**054-groq-tts-provider**: Groq pricing is ~8x cheaper than ElevenLabs ($22/1M chars vs $180/1M chars).
 
 ### Configuration (from `src/utils/config/defaults.ts`)
 
@@ -1143,5 +1183,249 @@ grep -E "console\.(log|warn|error)\(" .output/firefox-mv2/*.js | wc -l
 - `TERMS_OF_SERVICE.md` - Extension terms of service
 - `templates/NDA.md` - NDA template for contractors
 - `wxt.config.ts` - Production build hardening
+
+## Feature 052: Message Exchange Orchestration Plugin
+
+### Overview (052-message-exchange-orchestration)
+
+Multi-agent Claude Code plugin for processing freelance platform messages (Upwork, Fiverr, Freelancer.com, email). Uses orchestrator-worker pattern with specialized agents for parsing, analysis, drafting, and review.
+
+### Architecture
+
+**Plugin Structure**:
+```
+.claude/plugins/message-exchange/
+├── plugin.json                    # Plugin manifest
+├── README.md                      # Plugin documentation
+├── agents/                        # Agent definitions
+│   ├── orchestrator.md            # Lead orchestrator (Opus)
+│   ├── drafter.md                 # Response composition (Sonnet)
+│   ├── reviewer.md                # Quality assurance (Sonnet)
+│   ├── parser.md                  # Message parsing (Sonnet)
+│   └── analyst.md                 # Thread analysis (Sonnet)
+├── skills/                        # User-invocable skills
+│   ├── process-message/SKILL.md   # Process incoming message
+│   ├── view-context/SKILL.md      # View client context
+│   └── analyze-thread/SKILL.md    # Analyze conversation thread
+├── hooks/                         # Automation hooks
+│   ├── hooks.json                 # Hook configuration
+│   └── scripts/context-update.sh  # Context update script
+└── artifacts/                     # Data storage
+    ├── clients/                   # Client profiles
+    ├── projects/                  # Project details
+    └── conversations/             # Thread history
+```
+
+**TypeScript Schemas** (in `src/schemas/`):
+- `message.schema.ts` - IncomingMessage, ParsedMessage, MessageAnalysis, RiskAssessment
+- `context.schema.ts` - ClientContext, ProjectContext, ConversationContext
+- `draft.schema.ts` - ResponseDraft, ReviewResult, StyleTemplate
+- `commitment.schema.ts` - Commitment tracking
+- `exchange.schema.ts` - MessageExchange aggregate
+
+**Utilities** (in `src/utils/`):
+- `artifact-store.ts` - Read/write markdown files with YAML frontmatter
+- `context-manager.ts` - Load and search context artifacts
+
+**Platform Adapters** (in `src/adapters/`):
+- `upwork.adapter.ts` - 5000 char limit, basic markdown
+- `fiverr.adapter.ts` - 2500 char limit, plain text
+- `freelancer.adapter.ts` - 4000 char limit, minimal formatting
+- `email.adapter.ts` - No limit, full markdown support
+
+### Key Schemas
+
+**IncomingMessage**:
+```typescript
+{
+  content: string;
+  platform: 'upwork' | 'fiverr' | 'freelancer' | 'email' | 'other';
+  senderName: string | null;
+  receivedAt: string | null; // ISO8601
+  attachments: string[];
+}
+```
+
+**MessageAnalysis**:
+```typescript
+{
+  priorityScore: number; // 0-1
+  priority: 'immediate' | 'today' | 'this_week' | 'backlog';
+  riskAssessment: {
+    level: 'critical' | 'elevated' | 'normal' | 'low';
+    flags: RiskFlag[];
+    mitigationSuggestions: string[];
+  };
+  opportunities: Opportunity[];
+  recommendedUrgency: string;
+}
+```
+
+**Risk Flags**:
+- `scope_creep_detected` - Requirements expanding beyond original agreement
+- `payment_delay_pattern` - Late milestone payments
+- `unrealistic_deadline` - Compressed timeline requests
+- `ambiguous_requirements` - Vague specifications
+- `communication_breakdown` - Response gaps
+- `hostile_tone` - Aggressive language
+
+### Agent Workflow
+
+```
+/process-message
+      │
+      ▼
+┌─────────────────────────────────┐
+│      Orchestrator (Opus)        │
+│  - Load context                 │
+│  - Classify complexity          │
+└─────────────┬───────────────────┘
+              │
+    Complex   │   Simple
+    Message   │   Message
+              │
+  ┌───────────┴───────────┐
+  │                       │
+  ▼                       ▼
+┌─────────┐ ┌─────────┐   │
+│ Parser  │ │ Analyst │   │
+│(Sonnet) │ │(Sonnet) │   │
+└────┬────┘ └────┬────┘   │
+     │           │        │
+     └─────┬─────┘        │
+           │              │
+           ▼              │
+    ┌─────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────┐
+│        Drafter (Sonnet)         │
+│  - Apply style template         │
+│  - Respect platform limits      │
+└─────────────┬───────────────────┘
+              │
+              ▼
+┌─────────────────────────────────┐
+│       Reviewer (Sonnet)         │
+│  - Check tone, completeness     │
+│  - Max 3 iterations             │
+└─────────────┬───────────────────┘
+              │
+              ▼
+        Present Draft
+```
+
+### Usage
+
+**Process a message**:
+```
+/process-message
+
+Client: Can you add a login page by Friday? Also wondering about the budget for phase 2.
+Platform: upwork
+```
+
+**View context**:
+```
+/view-context acme-corp
+```
+
+**Analyze thread**:
+```
+/analyze-thread acme-corp website-redesign full
+```
+
+### Testing
+
+```bash
+# Run schema tests
+pnpm test -- tests/unit/schemas.test.ts --selectProjects unit
+
+# Run context manager tests
+pnpm test -- tests/unit/context-manager.test.ts --selectProjects unit
+```
+
+### Configuration
+
+Artifacts use YAML frontmatter for metadata:
+```yaml
+---
+id: client_acme
+name: ACME Corp
+slug: acme-corp
+platform: upwork
+communicationStyle: professional_friendly
+---
+
+# ACME Corp
+
+## Communication Preferences
+...
+```
+
+## Feature 054: Groq TTS Provider Integration
+
+### Overview (054-groq-tts-provider)
+
+Adds Groq as a cost-effective TTS provider for English content with word-level timing via Whisper API.
+
+**Key Benefits**:
+- ~8x cheaper than ElevenLabs ($22/1M chars vs $180/1M chars)
+- Word-level timestamp support via Whisper API
+- Automatic provider routing prioritizes Groq for English content
+
+### Architecture
+
+**New Adapter**: `src/adapters/audio/groq-audio.adapter.ts`
+- Implements `IAudioGenerator` port
+- TTS via Groq API (`/v1/audio/speech`)
+- Word timing via Whisper API (`/v1/audio/transcriptions`)
+- Text chunking for 200-char limit
+
+**Provider Routing** (`src/core/tts/routing-policy.ts`):
+```
+Priority 1: User override (if set)
+Priority 2: Groq (if API key + English)
+Priority 3: ElevenLabs (if API key)
+Priority 4: Browser TTS (fallback)
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/adapters/audio/groq-audio.adapter.ts` | Groq adapter implementation |
+| `src/core/tts/routing-policy.ts` | Provider routing with Groq priority |
+| `src/handlers/provider.handlers.ts` | Provider selection handlers |
+| `src/utils/cache/cost-estimator.ts` | Groq pricing ($0.022/1K chars) |
+| `tests/contract/groq-audio.contract.test.ts` | Contract tests |
+
+### Groq Voices
+
+| ID | Name | Gender |
+|----|------|--------|
+| autumn | Autumn | Female |
+| diana | Diana | Female |
+| hannah | Hannah | Female |
+| austin | Austin | Male |
+| daniel | Daniel | Male |
+| troy | Troy (default) | Male |
+
+### Error Handling
+
+- **401**: Invalid API key → `invalidCredentials` error
+- **429**: Rate limit → `rateLimit` error with 60s retry hint
+- **Whisper failure**: Gracefully fallback to audio without word timing
+- **Non-English**: Returns `unsupportedLanguage` error
+
+### Testing
+
+```bash
+# Run Groq contract tests
+pnpm test -- --selectProjects contract --testPathPattern="groq-audio"
+
+# Run all contract tests (verifies adapter interchangeability)
+pnpm test -- --selectProjects contract
+```
 
 <!-- MANUAL ADDITIONS END -->

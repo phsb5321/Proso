@@ -88,6 +88,20 @@ export default {
       branches: 60,
       functions: 70,
       lines: 70
+    },
+    // Higher thresholds for core business logic (FR-014)
+    'src/core/**/*.ts': {
+      statements: 85,
+      branches: 75,
+      functions: 85,
+      lines: 85
+    },
+    // High thresholds for adapter implementations
+    'src/adapters/**/*.ts': {
+      statements: 80,
+      branches: 70,
+      functions: 80,
+      lines: 80
     }
   },
   verbose: true
