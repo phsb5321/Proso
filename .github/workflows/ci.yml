@@ -91,3 +91,147 @@ jobs:
           name: extension-chrome-${{ github.sha }}
           path: .output/chrome-mv3/
           retention-days: 7
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run unit tests with coverage
+        run: pnpm run test:unit -- --coverage
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096 --experimental-vm-modules'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  contract:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:contract
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+  security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+      - run: pnpm run test:security
+        env:
+          NODE_OPTIONS: '--experimental-vm-modules'
+
+  quality:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-firefox-${{ github.sha }}
+          path: .output/firefox-mv2/
+      - name: Check circular dependencies
+        run: pnpm run deps:check
+      - name: Check code duplication
+        run: pnpm run duplication
+      - name: Lint manifest
+        run: pnpm run lint:manifest
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - typecheck
+      - unit-tests
+      - contract
+      - security
+      - quality
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
+          CONTRACT_RESULT: ${{ needs.contract.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: |
+          echo "Job results:"
+          echo "  lint: $LINT_RESULT"
+          echo "  typecheck: $TYPECHECK_RESULT"
+          echo "  unit-tests: $UNIT_TESTS_RESULT"
+          echo "  contract: $CONTRACT_RESULT"
+          echo "  security: $SECURITY_RESULT"
+          echo "  quality: $QUALITY_RESULT"
+
+          if [[ "$LINT_RESULT" != "success" ]]; then
+            echo "::error::Lint job failed"
+            exit 1
+          fi
+          if [[ "$TYPECHECK_RESULT" != "success" ]]; then
+            echo "::error::Typecheck job failed"
+            exit 1
+          fi
+          if [[ "$UNIT_TESTS_RESULT" != "success" ]]; then
+            echo "::error::Unit tests job failed"
+            exit 1
+          fi
+          if [[ "$CONTRACT_RESULT" != "success" ]]; then
+            echo "::error::Contract tests job failed"
+            exit 1
+          fi
+          if [[ "$SECURITY_RESULT" != "success" ]]; then
+            echo "::error::Security tests job failed"
+            exit 1
+          fi
+          if [[ "$QUALITY_RESULT" != "success" ]]; then
+            echo "::error::Quality check job failed"
+            exit 1
+          fi
+
+          echo "All required CI checks passed!"
