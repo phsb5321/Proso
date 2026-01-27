@@ -185,7 +185,7 @@ describe('Language Handlers (048-multilingual-tts-pillar)', () => {
 
       registerLanguageHandlers(mockRegistry as never);
 
-      expect(mockRegistry.register).toHaveBeenCalledTimes(4);
+      expect(mockRegistry.register).toHaveBeenCalledTimes(5);
       expect(mockRegistry.register).toHaveBeenCalledWith(
         'language.detect',
         expect.any(Function),
