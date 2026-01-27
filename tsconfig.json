@@ -26,6 +26,7 @@
     "types/**/*",
     "entrypoints/**/*",
     "utils/**/*",
+    "contracts/**/*",
     "tests/**/*",
     "wxt.config.ts"
   ],
