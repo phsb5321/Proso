@@ -6,9 +6,14 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, '[0-9]*-*']
+    branches:
+      - main
+      - develop
+      - '[0-9]*-*'
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
