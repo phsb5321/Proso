@@ -121,23 +121,6 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-    if: ${{ hashFiles('tests/integration/**') != '' }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run test:integration
-        env:
-          NODE_OPTIONS: '--experimental-vm-modules'
-
   contract:
     name: Contract Tests
     runs-on: ubuntu-latest
@@ -197,6 +180,66 @@ jobs:
       - name: Lint manifest
         run: pnpm run lint:manifest
 
+  e2e-tests:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: [build, unit-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: firefox
+            project: firefox-e2e
+            artifact: extension-firefox
+            output_dir: firefox-mv2
+          - browser: chromium
+            project: chromium-extension
+            artifact: extension-chrome
+            output_dir: chrome-mv3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Get Playwright version
+        id: pw-version
+        run: |
+          VERSION=$(pnpm ls @playwright/test --json | jq -r '.[0].devDependencies["@playwright/test"].version')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.pw-version.outputs.version }}
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps ${{ matrix.browser }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}-${{ github.sha }}
+          path: .output/${{ matrix.output_dir }}/
+      - name: Run E2E tests
+        run: xvfb-run --auto-servernum -- npx playwright test --project=${{ matrix.project }}
+        timeout-minutes: 10
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
@@ -206,6 +249,7 @@ jobs:
       - unit-tests
       - contract
       - security
+      - e2e-tests
       - quality
     if: always()
     steps:
@@ -216,6 +260,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           CONTRACT_RESULT: ${{ needs.contract.result }}
           SECURITY_RESULT: ${{ needs.security.result }}
+          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
         run: |
           echo "Job results:"
@@ -224,6 +269,7 @@ jobs:
           echo "  unit-tests: $UNIT_TESTS_RESULT"
           echo "  contract: $CONTRACT_RESULT"
           echo "  security: $SECURITY_RESULT"
+          echo "  e2e-tests: $E2E_TESTS_RESULT"
           echo "  quality: $QUALITY_RESULT"
 
           if [[ "$LINT_RESULT" != "success" ]]; then
@@ -244,6 +290,10 @@ jobs:
           fi
           if [[ "$SECURITY_RESULT" != "success" ]]; then
             echo "::error::Security tests job failed"
+            exit 1
+          fi
+          if [[ "$E2E_TESTS_RESULT" != "success" ]]; then
+            echo "::error::E2E tests job failed"
             exit 1
           fi
           if [[ "$QUALITY_RESULT" != "success" ]]; then
