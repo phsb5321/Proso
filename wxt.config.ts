@@ -51,13 +51,13 @@ export default defineConfig({
         id: "voxpage@example.com",
         strict_min_version: "1.1.1", // Firefox 109+ for better extension APIs
         // Required for AMO submission - declares data collection practices
-        // See: https://mzl.la/firefox-builtin-data-consent
+        // See: https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/
         // @ts-expect-error - WXT types don't include this new Firefox property yet
         data_collection_permissions: {
-          // Technical telemetry (error logs, performance metrics) - opt-in only
-          techdata_permitted: true,
-          // No interaction data collection
-          intdata_permitted: false,
+          // No data collection required for core functionality (browser TTS works offline)
+          required: ["none"],
+          // Optional: cloud TTS sends text to APIs, telemetry is opt-in
+          optional: ["websiteContent", "technicalAndInteraction"],
         },
       },
     },
