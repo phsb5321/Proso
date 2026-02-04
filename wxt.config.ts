@@ -14,7 +14,7 @@ export default defineConfig({
   manifest: {
     name: "VoxPage",
     description: "Text-to-speech for web pages with word-level highlighting",
-    version: "1.1.2",
+    version: "1.1.3",
     permissions: [
       "storage",
       "unlimitedStorage", // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
