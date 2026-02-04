@@ -49,7 +49,7 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "voxpage@example.com",
-        strict_min_version: "1.1.2", // Firefox 109+ for better extension APIs
+        strict_min_version: "109.0", // Firefox 109+ for better extension APIs
         // Required for AMO submission - declares data collection practices
         // See: https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/
         // @ts-expect-error - WXT types don't include this new Firefox property yet
