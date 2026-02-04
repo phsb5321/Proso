@@ -67,9 +67,10 @@ update_version() {
         echo -e "  ${GREEN}✓${NC} Updated manifest.json"
     fi
 
-    # Update wxt.config.ts
+    # Update wxt.config.ts (only extension version, not strict_min_version)
     if [[ -f "$WXT_CONFIG" ]]; then
-        sed -i "s/version: *\"[^\"]*\"/version: \"$new_version\"/" "$WXT_CONFIG"
+        # Exclude lines containing strict_min_version or manifest_version
+        sed -i '/strict_min_version\|manifest_version/!s/version: *"[^"]*"/version: "'"$new_version"'"/' "$WXT_CONFIG"
         echo -e "  ${GREEN}✓${NC} Updated wxt.config.ts"
     fi
 
