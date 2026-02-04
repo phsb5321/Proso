@@ -50,6 +50,15 @@ export default defineConfig({
       gecko: {
         id: "voxpage@example.com",
         strict_min_version: "109.0", // Firefox 109+ for better extension APIs
+        // Required for AMO submission - declares data collection practices
+        // See: https://mzl.la/firefox-builtin-data-consent
+        // @ts-expect-error - WXT types don't include this new Firefox property yet
+        data_collection_permissions: {
+          // Technical telemetry (error logs, performance metrics) - opt-in only
+          techdata_permitted: true,
+          // No interaction data collection
+          intdata_permitted: false,
+        },
       },
     },
     // NOTE: We intentionally DO NOT use options_ui here.
