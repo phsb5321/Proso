@@ -25,6 +25,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 PACKAGE_JSON="$PROJECT_ROOT/package.json"
 MANIFEST_JSON="$PROJECT_ROOT/manifest.json"
+WXT_CONFIG="$PROJECT_ROOT/wxt.config.ts"
 
 # Get current version from package.json
 get_current_version() {
@@ -66,9 +67,15 @@ update_version() {
         echo -e "  ${GREEN}✓${NC} Updated manifest.json"
     fi
 
+    # Update wxt.config.ts
+    if [[ -f "$WXT_CONFIG" ]]; then
+        sed -i "s/version: *\"[^\"]*\"/version: \"$new_version\"/" "$WXT_CONFIG"
+        echo -e "  ${GREEN}✓${NC} Updated wxt.config.ts"
+    fi
+
     echo -e "\n${GREEN}Version updated to $new_version${NC}"
     echo -e "${YELLOW}Remember to commit these changes:${NC}"
-    echo -e "  git add package.json manifest.json"
+    echo -e "  git add package.json manifest.json wxt.config.ts"
     echo -e "  git commit -m \"chore(release): bump version to $new_version\""
 }
 
@@ -131,6 +138,7 @@ Examples:
 Files Updated:
   - package.json
   - manifest.json
+  - wxt.config.ts
 
 EOF
 }
