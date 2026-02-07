@@ -9,9 +9,9 @@
 
 import { browser } from 'wxt/browser';
 import {
-  defaults as settingsDefaults,
-  queueDefaults,
   type QueueSettings,
+  queueDefaults,
+  defaults as settingsDefaults,
 } from '../../utils/config';
 
 // UI defaults (inline since they're simple)
@@ -33,16 +33,18 @@ const loggingDefaults = {
 
 // Type definitions
 type LoggingConfig = typeof loggingDefaults;
-type LogViewerResponse = { logs: Array<{ timestamp: number; level: string; message: string }>; total: number };
-type EndpointValidation = { isValid: boolean; error?: string };
+type LogViewerResponse = {
+  logs: Array<{ timestamp: number; level: string; message: string }>;
+  total: number;
+};
 
+import { saveApiKey, testApiKey } from '../../utils/options/api-key-tester';
+import { type ScrollSpyInstance, createScrollSpy } from '../../utils/options/scroll-spy';
+import { type ThemeMode, getThemeManager } from '../../utils/options/theme-manager';
 import { usageTracker } from '../../utils/telemetry/usage';
-import { toast } from './components/toast';
 import { showConfirmModal } from './components/modal';
-import { testApiKey, saveApiKey } from '../../utils/options/api-key-tester';
-import { createScrollSpy, type ScrollSpyInstance } from '../../utils/options/scroll-spy';
 import { setupSidebarKeyboardNav } from './components/sidebar';
-import { getThemeManager, type ThemeMode } from '../../utils/options/theme-manager';
+import { toast } from './components/toast';
 
 /**
  * DOM element references
@@ -58,15 +60,14 @@ interface OptionsElements {
   quickSpeedValue: HTMLElement;
 
   // API Key inputs
-  anthropicKey: HTMLInputElement;
   elevenlabsKey: HTMLInputElement;
   elevenlabsKeyStatus: HTMLElement;
 
-  // Settings inputs (legacy, kept for backwards compatibility)
-  defaultProvider: HTMLSelectElement;
-  defaultSpeed: HTMLInputElement;
-  speedValue: HTMLElement;
-  defaultMode: HTMLSelectElement;
+  // Browser TTS elements
+  browserVoice: HTMLSelectElement;
+  browserTtsStatus: HTMLElement;
+
+  // Settings inputs
   highlightEnabled: HTMLInputElement;
   autoScroll: HTMLInputElement;
 
@@ -76,20 +77,6 @@ interface OptionsElements {
 
   // Logging elements
   loggingEnabled: HTMLInputElement;
-  loggingConfigSection: HTMLElement;
-  loggingEndpoint: HTMLInputElement;
-  loggingAuthType: HTMLSelectElement;
-  loggingUsername: HTMLInputElement;
-  loggingPassword: HTMLInputElement;
-  loggingBearerToken: HTMLInputElement;
-  loggingCfClientId: HTMLInputElement;
-  loggingCfClientSecret: HTMLInputElement;
-  loggingLogLevel: HTMLSelectElement;
-  basicAuthFields: HTMLElement;
-  bearerAuthFields: HTMLElement;
-  cloudflareAuthFields: HTMLElement;
-  testLoggingConnection: HTMLButtonElement;
-  loggingTestStatus: HTMLElement;
 
   // Log viewer elements
   viewLogsBtn: HTMLButtonElement;
@@ -143,34 +130,19 @@ function getElements(): OptionsElements {
     quickSpeedValue: getElement<HTMLElement>('quickSpeedValue'),
 
     // API Key inputs
-    anthropicKey: getElement<HTMLInputElement>('anthropicKey'),
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
 
-    // Legacy settings inputs (kept for backwards compatibility)
-    defaultProvider: getElement<HTMLSelectElement>('defaultProvider'),
-    defaultSpeed: getElement<HTMLInputElement>('defaultSpeed'),
-    speedValue: getElement<HTMLElement>('speedValue'),
-    defaultMode: getElement<HTMLSelectElement>('defaultMode'),
+    // Browser TTS elements
+    browserVoice: getElement<HTMLSelectElement>('browserVoice'),
+    browserTtsStatus: getElement<HTMLElement>('browserTtsStatus'),
+
+    // Settings inputs
     highlightEnabled: getElement<HTMLInputElement>('highlightEnabled'),
     autoScroll: getElement<HTMLInputElement>('autoScroll'),
     saveBtn: getElement<HTMLButtonElement>('saveBtn'),
     saveStatus: getElement<HTMLElement>('saveStatus'),
     loggingEnabled: getElement<HTMLInputElement>('loggingEnabled'),
-    loggingConfigSection: getElement<HTMLElement>('loggingConfigSection'),
-    loggingEndpoint: getElement<HTMLInputElement>('loggingEndpoint'),
-    loggingAuthType: getElement<HTMLSelectElement>('loggingAuthType'),
-    loggingUsername: getElement<HTMLInputElement>('loggingUsername'),
-    loggingPassword: getElement<HTMLInputElement>('loggingPassword'),
-    loggingBearerToken: getElement<HTMLInputElement>('loggingBearerToken'),
-    loggingCfClientId: getElement<HTMLInputElement>('loggingCfClientId'),
-    loggingCfClientSecret: getElement<HTMLInputElement>('loggingCfClientSecret'),
-    loggingLogLevel: getElement<HTMLSelectElement>('loggingLogLevel'),
-    basicAuthFields: getElement<HTMLElement>('basicAuthFields'),
-    bearerAuthFields: getElement<HTMLElement>('bearerAuthFields'),
-    cloudflareAuthFields: getElement<HTMLElement>('cloudflareAuthFields'),
-    testLoggingConnection: getElement<HTMLButtonElement>('testLoggingConnection'),
-    loggingTestStatus: getElement<HTMLElement>('loggingTestStatus'),
     viewLogsBtn: getElement<HTMLButtonElement>('viewLogsBtn'),
     flushLogsBtn: getElement<HTMLButtonElement>('flushLogsBtn'),
     clearLogsBtn: getElement<HTMLButtonElement>('clearLogsBtn'),
@@ -213,6 +185,7 @@ export async function initOptionsPage(): Promise<void> {
   setupQuickSettingsEventListeners();
   setupEventListeners();
   setupProviderCardEventListeners();
+  setupBrowserTtsVoices();
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupCacheEventListeners();
@@ -233,9 +206,7 @@ export async function initOptionsPage(): Promise<void> {
  * T021: Voice options filtered by provider
  */
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
-  elevenlabs: [
-    { value: 'default', label: 'Default Voice' },
-  ],
+  elevenlabs: [{ value: 'default', label: 'Default Voice' }],
 };
 
 /**
@@ -368,25 +339,6 @@ async function saveQuickSetting(key: string, value: string | number): Promise<vo
 
     // T018: Track setting changes
     trackSettingChange('settings.quick_setting_changed', { key, value });
-
-    // Also update legacy elements if they exist
-    if (elements) {
-      switch (key) {
-        case 'provider':
-          if (elements.defaultProvider) {
-            elements.defaultProvider.value = value as string;
-          }
-          break;
-        case 'speed':
-          if (elements.defaultSpeed) {
-            elements.defaultSpeed.value = String(value);
-          }
-          if (elements.speedValue) {
-            elements.speedValue.textContent = `${(value as number).toFixed(1)}x`;
-          }
-          break;
-      }
-    }
   } catch (error) {
     console.error(`Error saving ${key}:`, error);
     toast.error(`Failed to save ${key}`);
@@ -592,7 +544,6 @@ async function loadSettings(): Promise<void> {
   try {
     // Load all settings from storage
     const result = await browser.storage.local.get([
-      'anthropic:apiKey',
       'elevenlabsApiKey',
       'provider',
       'speed',
@@ -603,17 +554,7 @@ async function loadSettings(): Promise<void> {
     ]);
 
     // API keys (no defaults, empty if not set)
-    elements.anthropicKey.value = (result['anthropic:apiKey'] as string | undefined) || '';
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
-
-    // Settings with defaults
-    elements.defaultProvider.value =
-      (result.provider as string | undefined) || settingsDefaults.provider;
-    elements.defaultSpeed.value = String(
-      (result.speed as number | undefined) || settingsDefaults.speed,
-    );
-    elements.speedValue.textContent = `${(result.speed as number | undefined) || settingsDefaults.speed}x`;
-    elements.defaultMode.value = (result.mode as string | undefined) || settingsDefaults.mode;
 
     console.log(
       'VoxPage options: Settings loaded, mode:',
@@ -665,29 +606,16 @@ function setupEventListeners(): void {
     });
   });
 
-  // Speed slider
-  elements.defaultSpeed.addEventListener('input', (e) => {
-    if (!elements) return;
-    const value = Number.parseFloat((e.target as HTMLInputElement).value);
-    elements.speedValue.textContent = `${value.toFixed(1)}x`;
-  });
-
   // NOTE: Legacy testElevenLabsApiKey handler removed.
   // ElevenLabs test button now uses the modern provider card handler
-  // (setupProviderCardEventListeners → handleProviderTest) which is
+  // (setupProviderCardEventListeners -> handleProviderTest) which is
   // attached via .provider-card__test-btn[data-provider="elevenlabs"]
 
   // Save button
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Auto-save on input change (with debounce)
-  const autoSaveInputs: HTMLElement[] = [
-    elements.anthropicKey,
-    elements.elevenlabsKey,
-    elements.defaultProvider,
-    elements.defaultSpeed,
-    elements.defaultMode,
-  ];
+  const autoSaveInputs: HTMLElement[] = [elements.elevenlabsKey];
 
   autoSaveInputs.forEach((input) => {
     input.addEventListener('change', () => {
@@ -802,7 +730,6 @@ function setupThemeEventListener(): void {
  */
 const PROVIDER_INPUT_IDS: Record<string, string> = {
   elevenlabs: 'elevenlabsKey',
-  anthropic: 'anthropicKey',
 };
 
 /**
@@ -819,7 +746,11 @@ function setupProviderCardEventListeners(): void {
       const provider = button.dataset.provider;
       if (!provider) return;
 
-      await handleProviderTest(provider, button);
+      if (provider === 'browser') {
+        await handleBrowserTtsTest(button);
+      } else {
+        await handleProviderTest(provider, button);
+      }
     });
   });
 
@@ -844,6 +775,95 @@ function setupProviderCardEventListeners(): void {
       }, 0);
     });
   });
+}
+
+// ========================================
+// BROWSER TTS (056-production-readiness-sprint T021)
+// ========================================
+
+/**
+ * Populate the Browser TTS voice dropdown with available system voices
+ */
+function loadBrowserVoices(): void {
+  if (!elements) return;
+
+  const voiceSelect = elements.browserVoice;
+  const voices = window.speechSynthesis?.getVoices() || [];
+
+  // Clear existing options (keep default)
+  while (voiceSelect.options.length > 1) {
+    voiceSelect.remove(1);
+  }
+
+  // Add available voices
+  voices.forEach((voice) => {
+    const option = document.createElement('option');
+    option.value = voice.name;
+    option.textContent = `${voice.name} (${voice.lang})`;
+    voiceSelect.appendChild(option);
+  });
+}
+
+/**
+ * Setup Browser TTS voice loading
+ * Voices may load asynchronously, so we listen for the voiceschanged event
+ */
+function setupBrowserTtsVoices(): void {
+  // Load voices immediately (may be empty on first call)
+  loadBrowserVoices();
+
+  // Listen for voices to become available (async loading in some browsers)
+  if (window.speechSynthesis) {
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      loadBrowserVoices();
+    });
+  }
+}
+
+/**
+ * Handle Browser TTS test button — speaks a test phrase
+ */
+async function handleBrowserTtsTest(button: HTMLButtonElement): Promise<void> {
+  const statusEl = document.querySelector(
+    '.provider-card__status[data-provider="browser"]',
+  ) as HTMLElement | null;
+
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel();
+
+  button.disabled = true;
+  button.textContent = 'Speaking...';
+  showProviderCardStatus(statusEl, 'Testing...', 'loading');
+
+  try {
+    const utterance = new SpeechSynthesisUtterance('Hello! VoxPage Browser TTS is working.');
+    utterance.rate = 1.0;
+
+    // Apply selected voice if any
+    if (elements?.browserVoice.value) {
+      const voices = window.speechSynthesis.getVoices();
+      const selectedVoice = voices.find((v) => v.name === elements?.browserVoice.value);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => reject(new Error(e.error || 'Speech synthesis failed'));
+      window.speechSynthesis.speak(utterance);
+    });
+
+    showProviderCardStatus(statusEl, '✓ Working', 'success');
+    toast.success('Browser TTS is working');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Test failed';
+    showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
+    toast.error(`Browser TTS test failed: ${errorMessage}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Test Voice';
+  }
 }
 
 /**
@@ -1000,7 +1020,7 @@ function showProviderCardStatus(
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
     elevenlabs: 'ElevenLabs',
-    anthropic: 'Anthropic',
+    browser: 'Browser TTS',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
@@ -1013,19 +1033,16 @@ async function saveSettings(): Promise<void> {
 
   try {
     await browser.storage.local.set({
-      'anthropic:apiKey': elements.anthropicKey.value.trim(),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
-      provider: elements.defaultProvider.value,
-      speed: Number.parseFloat(elements.defaultSpeed.value),
-      mode: elements.defaultMode.value,
+      provider: elements.quickProvider.value,
+      speed: Number.parseFloat(elements.quickSpeed.value),
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
     });
 
     // T018: Track settings saved event
     trackSettingChange('settings.saved', {
-      provider: elements.defaultProvider.value,
-      mode: elements.defaultMode.value,
+      provider: elements.quickProvider.value,
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
     });
@@ -1108,22 +1125,6 @@ function setupLoggingEventListeners(): void {
 }
 
 /**
- * Update visibility of logging config section
- * NOTE: Config section is now hidden - using defaults
- */
-function updateLoggingConfigVisibility(): void {
-  // No-op: config section removed, using defaults
-}
-
-/**
- * Update visibility of auth fields based on selected auth type
- * NOTE: Auth fields are now hidden - using defaults
- */
-function updateAuthFieldsVisibility(): void {
-  // No-op: auth fields removed, using defaults
-}
-
-/**
  * Save logging configuration to storage
  * Uses defaults for all settings except enabled toggle
  */
@@ -1141,95 +1142,6 @@ async function saveLoggingConfig(): Promise<void> {
   } catch (error) {
     console.error('Error saving logging config:', error);
     showSaveStatus('Error saving settings', true);
-  }
-}
-
-/**
- * Validate Loki endpoint URL
- */
-function validateLoggingEndpoint(url: string): EndpointValidation {
-  try {
-    const parsed = new URL(url);
-
-    if (parsed.protocol !== 'https:') {
-      return { valid: false, error: 'Endpoint must use HTTPS' };
-    }
-
-    // Allow both direct Loki endpoints and VoxPage gateway
-    const validPaths = ['/loki/api/v1/push', '/ingest', ''];
-    const pathValid = validPaths.some((p) => parsed.pathname === p || parsed.pathname.endsWith(p));
-    if (!pathValid && !url.includes('voxpage-logs')) {
-      return { valid: false, error: 'Invalid endpoint path' };
-    }
-
-    return { valid: true };
-  } catch {
-    return { valid: false, error: 'Invalid URL format' };
-  }
-}
-
-/**
- * Test connection to Loki endpoint
- */
-async function testLoggingConnection(): Promise<void> {
-  if (!elements) return;
-
-  showLoggingStatus('Testing connection...', 'loading');
-
-  const config = {
-    endpoint: elements.loggingEndpoint.value.trim(),
-    authType: elements.loggingAuthType.value,
-    username: elements.loggingUsername.value.trim(),
-    password: elements.loggingPassword.value,
-    bearerToken: elements.loggingBearerToken.value,
-    cfAccessClientId: elements.loggingCfClientId.value.trim(),
-    cfAccessClientSecret: elements.loggingCfClientSecret.value,
-  };
-
-  // Validate endpoint
-  if (!config.endpoint) {
-    showLoggingStatus('Please enter an endpoint URL', 'error');
-    return;
-  }
-
-  const validation = validateLoggingEndpoint(config.endpoint);
-  if (!validation.valid) {
-    showLoggingStatus(validation.error || 'Invalid endpoint', 'error');
-    return;
-  }
-
-  try {
-    // Send test request to background script
-    const response = await browser.runtime.sendMessage({
-      action: 'testLoggingConnection',
-      config: config,
-    });
-
-    if (response && response.success) {
-      showLoggingStatus('Connection successful!', 'success');
-    } else {
-      showLoggingStatus(`Connection failed: ${response?.error || 'Unknown error'}`, 'error');
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    showLoggingStatus(`Connection failed: ${errorMessage}`, 'error');
-  }
-}
-
-/**
- * Show logging test status message
- */
-function showLoggingStatus(message: string, type: 'success' | 'error' | 'loading'): void {
-  if (!elements) return;
-
-  elements.loggingTestStatus.textContent = message;
-  elements.loggingTestStatus.className = `logging-test-status show ${type}`;
-
-  // Auto-hide success/error messages
-  if (type !== 'loading') {
-    setTimeout(() => {
-      elements?.loggingTestStatus.classList.remove('show');
-    }, 5000);
   }
 }
 
@@ -1687,11 +1599,13 @@ async function initTelemetry(): Promise<void> {
       return;
     }
 
-    // Only initialize if gateway is configured
-    const gatewayUrl =
-      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
-    const gatewayToken =
-      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+    // Only initialize if gateway is configured (seeded by onInstalled handler)
+    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+    if (!gatewayUrl || !gatewayToken) {
+      return;
+    }
 
     await usageTracker.initialize({
       gatewayUrl,

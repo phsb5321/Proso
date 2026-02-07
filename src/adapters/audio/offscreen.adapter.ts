@@ -12,10 +12,10 @@
  */
 
 import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
+import { Err, Ok } from '../../core/shared/result';
 import type {
-  IAudioPlayer,
   AudioPlayerError,
+  IAudioPlayer,
   PlaybackEvent,
   PlaybackEventListener,
 } from '../../ports/audio-player.port';
@@ -61,7 +61,7 @@ export class OffscreenAudioAdapter implements IAudioPlayer {
    */
   private setupEventListener(): void {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-      chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+      chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any) => {
         if (message.type === 'OFFSCREEN_EVENT') {
           this.handleOffscreenEvent(message.eventType, message.data);
         }
@@ -151,9 +151,7 @@ export class OffscreenAudioAdapter implements IAudioPlayer {
   /**
    * Send message to offscreen document
    */
-  private async sendToOffscreen(
-    message: Record<string, unknown>,
-  ): Promise<OffscreenResponse> {
+  private async sendToOffscreen(message: Record<string, unknown>): Promise<OffscreenResponse> {
     await this.ensureOffscreen();
 
     return new Promise((resolve, reject) => {

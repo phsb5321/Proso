@@ -14,7 +14,7 @@ import { normalizeLanguageCode } from './codes';
 /**
  * Provider ID type
  */
-export type ProviderId = 'elevenlabs';
+export type ProviderId = 'elevenlabs' | 'browser';
 
 /**
  * Language mapping entry with provider-specific codes
@@ -23,6 +23,7 @@ export interface LanguageMapping {
   bcp47: string;
   providers: {
     elevenlabs: string | null; // null = use default/English
+    browser: string | null; // BCP 47 code used by speechSynthesis
   };
   displayName: string;
   iso639_1: string;
@@ -45,181 +46,181 @@ export interface Voice {
 export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = Object.freeze({
   en: {
     bcp47: 'en',
-    providers: { elevenlabs: null },
+    providers: { elevenlabs: null, browser: 'en' },
     displayName: 'English',
     iso639_1: 'en',
   },
   es: {
     bcp47: 'es',
-    providers: { elevenlabs: 'es' },
+    providers: { elevenlabs: 'es', browser: 'es' },
     displayName: 'Spanish',
     iso639_1: 'es',
   },
   fr: {
     bcp47: 'fr',
-    providers: { elevenlabs: 'fr' },
+    providers: { elevenlabs: 'fr', browser: 'fr' },
     displayName: 'French',
     iso639_1: 'fr',
   },
   de: {
     bcp47: 'de',
-    providers: { elevenlabs: 'de' },
+    providers: { elevenlabs: 'de', browser: 'de' },
     displayName: 'German',
     iso639_1: 'de',
   },
   it: {
     bcp47: 'it',
-    providers: { elevenlabs: 'it' },
+    providers: { elevenlabs: 'it', browser: 'it' },
     displayName: 'Italian',
     iso639_1: 'it',
   },
   pt: {
     bcp47: 'pt',
-    providers: { elevenlabs: 'pt' },
+    providers: { elevenlabs: 'pt', browser: 'pt' },
     displayName: 'Portuguese',
     iso639_1: 'pt',
   },
   pl: {
     bcp47: 'pl',
-    providers: { elevenlabs: 'pl' },
+    providers: { elevenlabs: 'pl', browser: 'pl' },
     displayName: 'Polish',
     iso639_1: 'pl',
   },
   tr: {
     bcp47: 'tr',
-    providers: { elevenlabs: 'tr' },
+    providers: { elevenlabs: 'tr', browser: 'tr' },
     displayName: 'Turkish',
     iso639_1: 'tr',
   },
   ru: {
     bcp47: 'ru',
-    providers: { elevenlabs: 'ru' },
+    providers: { elevenlabs: 'ru', browser: 'ru' },
     displayName: 'Russian',
     iso639_1: 'ru',
   },
   nl: {
     bcp47: 'nl',
-    providers: { elevenlabs: 'nl' },
+    providers: { elevenlabs: 'nl', browser: 'nl' },
     displayName: 'Dutch',
     iso639_1: 'nl',
   },
   cs: {
     bcp47: 'cs',
-    providers: { elevenlabs: 'cs' },
+    providers: { elevenlabs: 'cs', browser: 'cs' },
     displayName: 'Czech',
     iso639_1: 'cs',
   },
   ar: {
     bcp47: 'ar',
-    providers: { elevenlabs: 'ar' },
+    providers: { elevenlabs: 'ar', browser: 'ar' },
     displayName: 'Arabic',
     iso639_1: 'ar',
   },
   zh: {
     bcp47: 'zh',
-    providers: { elevenlabs: 'zh-cn' },
+    providers: { elevenlabs: 'zh-cn', browser: 'zh' },
     displayName: 'Chinese',
     iso639_1: 'zh',
   },
   hu: {
     bcp47: 'hu',
-    providers: { elevenlabs: 'hu' },
+    providers: { elevenlabs: 'hu', browser: 'hu' },
     displayName: 'Hungarian',
     iso639_1: 'hu',
   },
   ko: {
     bcp47: 'ko',
-    providers: { elevenlabs: 'ko' },
+    providers: { elevenlabs: 'ko', browser: 'ko' },
     displayName: 'Korean',
     iso639_1: 'ko',
   },
   ja: {
     bcp47: 'ja',
-    providers: { elevenlabs: 'ja' },
+    providers: { elevenlabs: 'ja', browser: 'ja' },
     displayName: 'Japanese',
     iso639_1: 'ja',
   },
   hi: {
     bcp47: 'hi',
-    providers: { elevenlabs: 'hi' },
+    providers: { elevenlabs: 'hi', browser: 'hi' },
     displayName: 'Hindi',
     iso639_1: 'hi',
   },
   sv: {
     bcp47: 'sv',
-    providers: { elevenlabs: 'sv' },
+    providers: { elevenlabs: 'sv', browser: 'sv' },
     displayName: 'Swedish',
     iso639_1: 'sv',
   },
   id: {
     bcp47: 'id',
-    providers: { elevenlabs: 'id' },
+    providers: { elevenlabs: 'id', browser: 'id' },
     displayName: 'Indonesian',
     iso639_1: 'id',
   },
   uk: {
     bcp47: 'uk',
-    providers: { elevenlabs: 'uk' },
+    providers: { elevenlabs: 'uk', browser: 'uk' },
     displayName: 'Ukrainian',
     iso639_1: 'uk',
   },
   el: {
     bcp47: 'el',
-    providers: { elevenlabs: 'el' },
+    providers: { elevenlabs: 'el', browser: 'el' },
     displayName: 'Greek',
     iso639_1: 'el',
   },
   fi: {
     bcp47: 'fi',
-    providers: { elevenlabs: 'fi' },
+    providers: { elevenlabs: 'fi', browser: 'fi' },
     displayName: 'Finnish',
     iso639_1: 'fi',
   },
   ro: {
     bcp47: 'ro',
-    providers: { elevenlabs: 'ro' },
+    providers: { elevenlabs: 'ro', browser: 'ro' },
     displayName: 'Romanian',
     iso639_1: 'ro',
   },
   da: {
     bcp47: 'da',
-    providers: { elevenlabs: 'da' },
+    providers: { elevenlabs: 'da', browser: 'da' },
     displayName: 'Danish',
     iso639_1: 'da',
   },
   bg: {
     bcp47: 'bg',
-    providers: { elevenlabs: 'bg' },
+    providers: { elevenlabs: 'bg', browser: 'bg' },
     displayName: 'Bulgarian',
     iso639_1: 'bg',
   },
   ms: {
     bcp47: 'ms',
-    providers: { elevenlabs: 'ms' },
+    providers: { elevenlabs: 'ms', browser: 'ms' },
     displayName: 'Malay',
     iso639_1: 'ms',
   },
   sk: {
     bcp47: 'sk',
-    providers: { elevenlabs: 'sk' },
+    providers: { elevenlabs: 'sk', browser: 'sk' },
     displayName: 'Slovak',
     iso639_1: 'sk',
   },
   hr: {
     bcp47: 'hr',
-    providers: { elevenlabs: 'hr' },
+    providers: { elevenlabs: 'hr', browser: 'hr' },
     displayName: 'Croatian',
     iso639_1: 'hr',
   },
   ta: {
     bcp47: 'ta',
-    providers: { elevenlabs: 'ta' },
+    providers: { elevenlabs: 'ta', browser: 'ta' },
     displayName: 'Tamil',
     iso639_1: 'ta',
   },
   fil: {
     bcp47: 'fil',
-    providers: { elevenlabs: 'fil' },
+    providers: { elevenlabs: 'fil', browser: 'fil' },
     displayName: 'Filipino',
     iso639_1: 'fil',
   },
@@ -284,7 +285,7 @@ export function providerSupportsLanguage(_providerId: ProviderId, languageCode: 
  * @returns Array of provider IDs
  */
 export function getProvidersForLanguage(languageCode: string): ProviderId[] {
-  const providers: ProviderId[] = ['elevenlabs'];
+  const providers: ProviderId[] = ['elevenlabs', 'browser'];
   return providers.filter((providerId) => providerSupportsLanguage(providerId, languageCode));
 }
 

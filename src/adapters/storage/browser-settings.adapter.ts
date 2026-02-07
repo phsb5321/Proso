@@ -16,6 +16,7 @@ import { settingsStore } from '../../utils/config/store';
  * API key storage keys for each provider.
  */
 const API_KEY_STORAGE: Record<ProviderId, string> = {
+  browser: '', // Browser TTS doesn't require an API key
   elevenlabs: 'elevenlabsApiKey',
 };
 

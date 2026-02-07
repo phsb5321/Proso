@@ -37,6 +37,7 @@ Thumbs.db
 .env
 .env.local
 .env.*
+!.env.example
 secrets.json
 *.key
 *.pem

@@ -9,18 +9,33 @@
  * Chrome extension APIs not fully typed by WXT.
  * Used for Chrome-specific features like offscreen documents.
  */
-declare const chrome: {
-  offscreen?: {
-    createDocument(options: {
+declare namespace chrome {
+  namespace offscreen {
+    type Reason = string;
+    function createDocument(options: {
       url: string;
-      reasons: string[];
+      reasons: Reason[];
       justification: string;
     }): Promise<void>;
-    closeDocument(): Promise<void>;
-  };
-  runtime: {
-    getContexts(filter: {
-      contextTypes: string[];
+    function closeDocument(): Promise<void>;
+  }
+
+  namespace runtime {
+    type ContextType = string;
+    const lastError: { message?: string } | undefined;
+    function getContexts(filter: {
+      contextTypes: ContextType[];
     }): Promise<Array<{ contextType: string; documentUrl: string }>>;
-  };
-};
+    function sendMessage(message: Record<string, unknown>, callback: (response: any) => void): void;
+    const onMessage: {
+      addListener(callback: (message: any, sender: any, sendResponse: any) => void): void;
+    };
+  }
+}
+
+/**
+ * Build-time constants injected by Vite define in wxt.config.ts.
+ * Seeded into browser.storage.local at install time by runtime.onInstalled handler.
+ */
+declare const __TELEMETRY_GATEWAY_URL__: string;
+declare const __TELEMETRY_GATEWAY_TOKEN__: string;

@@ -98,9 +98,10 @@ describe('Configuration Defaults', () => {
     });
 
     test('contains all TTS providers', () => {
-      // Post-045: Only ElevenLabs is supported
+      // Post-056: ElevenLabs and Browser TTS are supported
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toHaveLength(1);
+      expect(PROVIDERS).toContain('browser');
+      expect(PROVIDERS).toHaveLength(2);
     });
 
     test('default provider is in PROVIDERS', () => {

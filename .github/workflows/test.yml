@@ -35,7 +35,7 @@ jobs:
         run: pnpm run lint
 
       - name: Run unit tests
-        run: pnpm run test:unit
+        run: NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit --coverage
 
       - name: Run contract tests
         run: pnpm run test:contract

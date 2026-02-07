@@ -15,7 +15,7 @@ import {
   HighlightUpdateSchema,
   formatTime,
   parseTime,
-} from '../../specs/046-bug-bounty-sprint/contracts/footer-state';
+} from './schemas/footer-state';
 
 describe('FOOTER_STATE_UPDATE Contract (US1)', () => {
   describe('FooterStateUpdateSchema validation', () => {

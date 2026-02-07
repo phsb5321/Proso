@@ -163,24 +163,77 @@ export {
   type HighlightDeleteByUrlResponse,
 } from './highlight.handlers';
 
+// Export handler exports (T066)
+export {
+  registerExportHandlers,
+  setExportDependencies,
+  clearActiveJobs,
+  cleanupCompletedJobs,
+  type ExportHandlerError,
+  type ExportStartResponse,
+  type ExportCancelResponse,
+  type ExportProgressResponse,
+  type ExportDownloadResponse,
+  type ExportDependencies,
+} from './export.handlers';
+
+// Summarize handler exports (T067)
+export {
+  registerSummarizeHandlers,
+  setSummarizeDependencies,
+  type SummarizeHandlerError,
+  type SummarizeArticleResponse,
+  type SummarizeReadSummaryResponse,
+  type SummarizeProviderStatusResponse,
+  type SummarizeDependencies,
+} from './summarize.handlers';
+
+// Language handler exports (T069)
+export {
+  registerLanguageHandlers,
+  setLanguageDependencies,
+  clearLanguageState,
+  type LanguageHandlerError,
+  type LanguageDetectResponse,
+  type LanguageStateResponse,
+  type LanguageSetOverrideResponse,
+  type LanguageClearOverrideResponse,
+  type LanguageDependencies,
+} from './language.handlers';
+
+// Logging handler exports (T070)
+export {
+  registerLoggingHandlers,
+  setLoggingDependencies,
+  type LoggingHandlerError,
+  type LogRemoteResponse,
+  type FlushBufferResponse,
+  type LoggingStateResponse,
+  type LoggingDependencies,
+} from './logging.handlers';
+
 // Import handler registration functions
 import { registerAudioHandlers as regAudio } from './audio.handlers';
 import { registerCacheHandlers as regCache } from './cache.handlers';
 import { registerContentHandlers as regContent } from './content.handlers';
 import { registerDebugHandlers as regDebug } from './debug.handlers';
+import { registerExportHandlers as regExport } from './export.handlers';
 import { registerFooterHandlers as regFooter } from './footer.handlers';
+import { registerHighlightHandlers as regHighlight } from './highlight.handlers';
+import {
+  type InstrumentedRegistry as InstrReg,
+  createInstrumentedRegistry as createInstrReg,
+} from './instrumented-registry';
+import { registerLanguageHandlers as regLanguage } from './language.handlers';
+import { registerLoggingHandlers as regLogging } from './logging.handlers';
 import { registerPlaybackHandlers as regPlayback } from './playback.handlers';
 import { registerPrefetchHandlers as regPrefetch } from './prefetch.handlers';
 import { registerProviderHandlers as regProvider } from './provider.handlers';
 import { registerQueueHandlers as regQueue } from './queue.handlers';
 import { registerReaderHandlers as regReader } from './reader.handlers';
-import { registerSettingsHandlers as regSettings } from './settings.handlers';
-import { registerHighlightHandlers as regHighlight } from './highlight.handlers';
 import { type HandlerRegistry as Registry, createHandlerRegistry as createReg } from './registry';
-import {
-  type InstrumentedRegistry as InstrReg,
-  createInstrumentedRegistry as createInstrReg,
-} from './instrumented-registry';
+import { registerSettingsHandlers as regSettings } from './settings.handlers';
+import { registerSummarizeHandlers as regSummarize } from './summarize.handlers';
 
 /**
  * Register all handlers on the given registry.
@@ -200,6 +253,10 @@ export function registerAllHandlers(registry: Registry): void {
   regQueue(registry); // T061/T064
   regReader(registry); // 045-pdf-removal-page-reader
   regHighlight(registry); // 045-pdf-removal-page-reader Phase 4
+  regExport(registry); // T066
+  regSummarize(registry); // T067
+  regLanguage(registry); // T069
+  regLogging(registry); // T070
 }
 
 /**
