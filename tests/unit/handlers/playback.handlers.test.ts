@@ -139,7 +139,7 @@ describe('Playback Handlers', () => {
   // Registration
   // -----------------------------------------------------------------------
   describe('registration', () => {
-    it('should register all 10 playback handlers', () => {
+    it('should register all 10 playback handlers plus PARAGRAPH_CLICKED', () => {
       const names = registry.getHandlerNames();
       const expected = [
         'playback.getState',
@@ -152,11 +152,13 @@ describe('Playback Handlers', () => {
         'playback.seekToParagraph',
         'playback.setSpeed',
         'playback.seek',
+        'PARAGRAPH_CLICKED',
       ];
       for (const name of expected) {
         expect(names).toContain(name);
       }
       expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(10);
+      expect(names).toContain('PARAGRAPH_CLICKED');
     });
   });
 
@@ -874,6 +876,179 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('operation_failed');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // PARAGRAPH_CLICKED
+  // -----------------------------------------------------------------------
+  describe('PARAGRAPH_CLICKED', () => {
+    it('should start playback and seek to clicked paragraph when idle', async () => {
+      // Service starts idle
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'idle' }));
+      // Tab with paragraphs
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { paragraphs: ['p0', 'p1', 'p2', 'p3', 'p4'] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 3,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      expect(result.value.playbackStarted).toBe(true);
+      expect(mockPlaybackService.start).toHaveBeenCalledWith(
+        ['p0', 'p1', 'p2', 'p3', 'p4'],
+        42,
+        'https://example.com',
+      );
+      expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
+    });
+
+    it('should start playback at paragraph 0 without seeking', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'idle' }));
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { paragraphs: ['p0', 'p1'] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 0,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      // Should NOT call seekToParagraph for paragraph 0
+      expect(mockPlaybackService.seekToParagraph).not.toHaveBeenCalled();
+    });
+
+    it('should seek to paragraph when already playing', async () => {
+      // Already playing with 5 paragraphs
+      mockPlaybackService.getState.mockReturnValue(
+        defaultState({ status: 'playing', totalParagraphs: 5 }),
+      );
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 2,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      expect(result.value.playbackStarted).toBe(true);
+      // Should NOT call start — just seek
+      expect(mockPlaybackService.start).not.toHaveBeenCalled();
+      expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(2);
+    });
+
+    it('should return error when no active tab', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'idle' }));
+      mockTabsQuery.mockResolvedValue([]);
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 0,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toContain('No active tab');
+    });
+
+    it('should return error when text extraction fails', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'stopped' }));
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockResolvedValue(null);
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 0,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toContain('Failed to extract text');
+    });
+
+    it('should return error for invalid paragraph index when idle', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'idle' }));
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { paragraphs: ['p0', 'p1'] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 10,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toContain('Invalid paragraph index');
+    });
+
+    it('should return error for invalid paragraph index when playing', async () => {
+      mockPlaybackService.getState.mockReturnValue(
+        defaultState({ status: 'playing', totalParagraphs: 3 }),
+      );
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 5,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toContain('Invalid paragraph index');
+    });
+
+    it('should return service_unavailable when service is not available', async () => {
+      mockIsPlaybackServiceAvailable.mockReturnValue(false);
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 0,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('service_unavailable');
+    });
+
+    it('should return operation_failed when an unexpected error is thrown', async () => {
+      mockPlaybackService.getState.mockImplementation(() => {
+        throw new Error('unexpected crash');
+      });
+
+      const raw = await registry.dispatch('PARAGRAPH_CLICKED', {
+        paragraphIndex: 0,
+        isCached: false,
+      });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('operation_failed');
+      expect(result.error.message).toBe('unexpected crash');
     });
   });
 
