@@ -25,7 +25,8 @@ const sharedConfig = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true,
-      tsconfig: '<rootDir>/tsconfig.json'
+      tsconfig: '<rootDir>/tsconfig.json',
+      diagnostics: false
     }]
   },
   extensionsToTreatAsEsm: ['.ts'],

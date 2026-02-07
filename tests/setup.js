@@ -141,6 +141,28 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   }
 }));
 
+// Mock chrome.* APIs for Chrome-specific adapters (e.g., offscreen.adapter.ts)
+// jest-webextension-mock provides browser.* but NOT chrome.*
+if (typeof globalThis.chrome === 'undefined') {
+  globalThis.chrome = {
+    runtime: {
+      getContexts: jest.fn().mockResolvedValue([]),
+      onMessage: {
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        hasListener: jest.fn().mockReturnValue(false),
+      },
+      sendMessage: jest.fn(),
+      lastError: null,
+    },
+    offscreen: {
+      createDocument: jest.fn().mockResolvedValue(undefined),
+      closeDocument: jest.fn().mockResolvedValue(undefined),
+      Reason: { AUDIO_PLAYBACK: 'AUDIO_PLAYBACK' },
+    },
+  };
+}
+
 // Mock window.matchMedia for prefers-reduced-motion tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
