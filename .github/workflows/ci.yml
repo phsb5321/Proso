@@ -28,7 +28,7 @@ jobs:
         run: pnpm run lint
 
       - name: Unit Tests
-        run: pnpm run test:unit -- --coverage
+        run: NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit --coverage
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 

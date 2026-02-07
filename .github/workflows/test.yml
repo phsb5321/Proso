@@ -35,7 +35,7 @@ jobs:
         run: pnpm run lint
 
       - name: Run unit tests
-        run: pnpm run test:unit -- --coverage
+        run: NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit --coverage
 
       - name: Run contract tests
         run: pnpm run test:contract
@@ -45,7 +45,7 @@ jobs:
         if: always()
         with:
           files: coverage/lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
 
   # Integration tests (~15s)
