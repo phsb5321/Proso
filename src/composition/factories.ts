@@ -18,7 +18,7 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
-import { AudioUrlAdapter, ElevenLabsAudioAdapter } from '../adapters/audio';
+import { AudioUrlAdapter, BrowserTtsAudioAdapter, ElevenLabsAudioAdapter } from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -46,6 +46,9 @@ export function createAudioGeneratorAdapter(
   apiKey: string | null,
 ): IAudioGenerator {
   switch (provider) {
+    case 'browser':
+      return new BrowserTtsAudioAdapter();
+
     case 'elevenlabs':
       if (!apiKey) {
         throw new Error('ElevenLabs API key is required');

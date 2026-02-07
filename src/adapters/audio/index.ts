@@ -10,6 +10,7 @@
 
 // TTS Generator Adapters (IAudioGenerator)
 export { ElevenLabsAudioAdapter } from './elevenlabs-audio.adapter';
+export { BrowserTtsAudioAdapter } from './browser-tts-audio.adapter';
 export { AudioUrlAdapter } from './audio-url.adapter';
 
 // Playback Adapters (IAudioPlayer)
