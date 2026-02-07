@@ -417,9 +417,9 @@ describe('redactSensitiveData', () => {
 
   it('redacts known sensitive keys', () => {
     const data = {
-      apiKey: 'my-api-key',
-      token: 'bearer-123',
-      password: 'p4ssw0rd',
+      apiKey: 'test-fake-key',
+      token: 'test-fake-token',
+      password: 'test-fake-value',
       normalField: 'visible',
     };
     const result = redactSensitiveData(data) as Record<string, unknown>;
