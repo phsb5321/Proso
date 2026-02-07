@@ -144,7 +144,7 @@ interface MigrationFlags {
 }
 
 const MIGRATION_FLAGS: MigrationFlags = {
-  USE_LEGACY_PLAYBACK: true, // T-FIX: Force legacy until hexagonal PlaybackService is connected to actual playback
+  USE_LEGACY_PLAYBACK: false, // Migrated: all playback routed through hexagonal handlers
   USE_LEGACY_AUDIO: false,
   USE_LEGACY_SETTINGS: false,
   USE_LEGACY_CACHE: false,
