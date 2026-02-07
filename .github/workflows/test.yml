@@ -35,7 +35,7 @@ jobs:
         run: pnpm run lint
 
       - name: Run unit tests
-        run: pnpm run test:unit
+        run: pnpm run test:unit -- --coverage
 
       - name: Run contract tests
         run: pnpm run test:contract
@@ -45,7 +45,7 @@ jobs:
         if: always()
         with:
           files: coverage/lcov.info
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true
 
   # Integration tests (~15s)
