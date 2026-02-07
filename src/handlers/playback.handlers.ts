@@ -220,11 +220,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
             mode: 'article',
           });
 
-          if (
-            extractResult &&
-            typeof extractResult === 'object' &&
-            'paragraphs' in extractResult
-          ) {
+          if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
             const result = extractResult as { paragraphs: string[] };
             paragraphs = result.paragraphs;
           } else {
@@ -526,5 +522,147 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
       }
     },
     'Seek to position by progress percentage',
+  );
+
+  /**
+   * Handle paragraph click from content script.
+   *
+   * When a user clicks a paragraph in the content page, this handler:
+   * 1. Starts playback if not already playing (extracts text, shows footer)
+   * 2. Seeks to the clicked paragraph index
+   *
+   * This replaces the legacy PARAGRAPH_CLICKED handler in background.ts.
+   */
+  registry.register<
+    { paragraphIndex: number; isCached?: boolean },
+    Result<{ success: boolean; playbackStarted: boolean; error?: string }, PlaybackHandlerError>
+  >(
+    'PARAGRAPH_CLICKED',
+    async (params) => {
+      if (!isPlaybackServiceAvailable()) {
+        return Err({
+          type: 'service_unavailable',
+          message: 'PlaybackService not yet initialized.',
+        });
+      }
+
+      const paragraphIndex = typeof params.paragraphIndex === 'number' ? params.paragraphIndex : 0;
+
+      try {
+        const service = getPlaybackService();
+        const currentState = service.getState();
+
+        // If not currently playing, start fresh playback first
+        if (currentState.status === 'idle' || currentState.status === 'stopped') {
+          // Get active tab for text extraction
+          const tab = await getActiveTab();
+          if (!tab?.id) {
+            return Ok({ success: false, playbackStarted: false, error: 'No active tab' });
+          }
+
+          // Extract text from the page
+          const extractResult = await sendToContentScript(tab.id, {
+            action: 'extractText',
+            mode: 'article',
+          });
+
+          if (
+            !extractResult ||
+            typeof extractResult !== 'object' ||
+            !('paragraphs' in extractResult)
+          ) {
+            return Ok({
+              success: false,
+              playbackStarted: false,
+              error: 'Failed to extract text',
+            });
+          }
+
+          const result = extractResult as { paragraphs: string[] };
+          const paragraphs = result.paragraphs;
+
+          if (paragraphs.length === 0) {
+            return Ok({
+              success: false,
+              playbackStarted: false,
+              error: 'No text found on page',
+            });
+          }
+
+          // Validate paragraph index against extracted content
+          if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
+            return Ok({
+              success: false,
+              playbackStarted: false,
+              error: `Invalid paragraph index ${paragraphIndex} (total: ${paragraphs.length})`,
+            });
+          }
+
+          // Show footer UI
+          await sendToContentScript(tab.id, {
+            action: 'FOOTER_SHOW',
+            initialState: {
+              isPlaying: true,
+              currentIndex: paragraphIndex,
+              totalParagraphs: paragraphs.length,
+              progress: (paragraphIndex / paragraphs.length) * 100,
+              speed: currentState.speed,
+            },
+          });
+
+          // Start PlaybackService with extracted paragraphs
+          const startResult = await service.start(paragraphs, tab.id, tab.url ?? '');
+          if (!startResult.ok) {
+            return Ok({
+              success: false,
+              playbackStarted: false,
+              error: getPlaybackErrorMessage(startResult.error),
+            });
+          }
+
+          // If clicking paragraph 0, we're already there from start()
+          if (paragraphIndex === 0) {
+            return Ok({ success: true, playbackStarted: true });
+          }
+
+          // Seek to the clicked paragraph
+          const seekResult = await service.seekToParagraph(paragraphIndex);
+          if (!seekResult.ok) {
+            return Ok({
+              success: false,
+              playbackStarted: true,
+              error: getPlaybackErrorMessage(seekResult.error),
+            });
+          }
+
+          return Ok({ success: true, playbackStarted: true });
+        }
+
+        // Already playing — just seek to the clicked paragraph
+        // Validate paragraph index
+        if (paragraphIndex < 0 || paragraphIndex >= currentState.totalParagraphs) {
+          return Ok({
+            success: false,
+            playbackStarted: false,
+            error: `Invalid paragraph index ${paragraphIndex} (total: ${currentState.totalParagraphs})`,
+          });
+        }
+
+        const seekResult = await service.seekToParagraph(paragraphIndex);
+        if (!seekResult.ok) {
+          return Ok({
+            success: false,
+            playbackStarted: false,
+            error: getPlaybackErrorMessage(seekResult.error),
+          });
+        }
+
+        return Ok({ success: true, playbackStarted: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err({ type: 'operation_failed', message });
+      }
+    },
+    'Handle paragraph click from content script',
   );
 }
