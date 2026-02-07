@@ -24,6 +24,8 @@ interface ReadabilityArticle {
   excerpt: string;
   byline: string | null;
   dir: string | null;
+  siteName: string | null;
+  lang: string | null;
 }
 
 /**

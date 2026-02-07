@@ -11,14 +11,14 @@
  * @module handlers/reader.handlers
  */
 
-import type { HandlerRegistry } from './registry';
 import { ReadabilityAdapter } from '../adapters/content/readability.adapter';
+import type { Article } from '../core/article/article.entity';
 import {
   type ArticleExtractionService,
   createArticleExtractionService,
 } from '../core/article/extraction.service';
-import type { Article } from '../core/article/article.entity';
 import { isErr } from '../core/shared/result';
+import type { HandlerRegistry, MessageSender } from './registry';
 
 /**
  * Cache for extracted articles by tab ID
@@ -66,7 +66,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
    * This is called from the content script context where we have access
    * to the document. The content script sends the HTML to the background.
    */
-  registry.register('reader.extractArticle', async (params, sender) => {
+  registry.register('reader.extractArticle', async (params: unknown, sender?: MessageSender) => {
     const tabId = sender?.tab?.id;
 
     if (!tabId) {
@@ -134,7 +134,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
   /**
    * GET_PARAGRAPHS - Get paragraphs for a tab's cached article
    */
-  registry.register('reader.getParagraphs', async (params, sender) => {
+  registry.register('reader.getParagraphs', async (params: unknown, sender?: MessageSender) => {
     const tabId = (params as { tabId?: number })?.tabId || sender?.tab?.id;
 
     if (!tabId) {
@@ -169,7 +169,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
   /**
    * GET_PARAGRAPH - Get a specific paragraph by index
    */
-  registry.register('reader.getParagraph', async (params, sender) => {
+  registry.register('reader.getParagraph', async (params: unknown, sender?: MessageSender) => {
     const { index, tabId: paramTabId } = params as { index: number; tabId?: number };
     const tabId = paramTabId || sender?.tab?.id;
 
@@ -213,7 +213,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
   /**
    * GET_ARTICLE_INFO - Get cached article metadata without paragraphs
    */
-  registry.register('reader.getArticleInfo', async (params, sender) => {
+  registry.register('reader.getArticleInfo', async (params: unknown, sender?: MessageSender) => {
     const tabId = (params as { tabId?: number })?.tabId || sender?.tab?.id;
 
     if (!tabId) {
@@ -251,7 +251,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
   /**
    * CLEAR_ARTICLE - Clear cached article for a tab
    */
-  registry.register('reader.clearArticle', async (params, sender) => {
+  registry.register('reader.clearArticle', async (params: unknown, sender?: MessageSender) => {
     const tabId = (params as { tabId?: number })?.tabId || sender?.tab?.id;
 
     if (!tabId) {
@@ -273,7 +273,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
   /**
    * IS_ARTICLE_PAGE - Check if current page is likely an article
    */
-  registry.register('reader.isArticlePage', async (params) => {
+  registry.register('reader.isArticlePage', async (params: unknown) => {
     const { html } = params as { html?: string };
 
     if (!html) {

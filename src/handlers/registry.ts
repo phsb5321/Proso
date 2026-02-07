@@ -11,11 +11,19 @@ import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 
 /**
+ * Message sender information (subset of browser.runtime.MessageSender).
+ */
+export interface MessageSender {
+  tab?: { id?: number };
+}
+
+/**
  * Handler function signature.
- * Handlers receive params and return a Promise with the response.
+ * Handlers receive params and an optional sender, returning a Promise with the response.
  */
 export type Handler<TParams = unknown, TResponse = unknown> = (
   params: TParams,
+  sender?: MessageSender,
 ) => Promise<TResponse>;
 
 /**
@@ -99,11 +107,13 @@ export class HandlerRegistry {
    *
    * @param name - Handler name
    * @param params - Handler parameters
+   * @param sender - Optional message sender info
    * @returns Result with handler response or error
    */
   async dispatch<TParams = unknown, TResponse = unknown>(
     name: string,
     params: TParams,
+    sender?: MessageSender,
   ): Promise<Result<TResponse, HandlerError>> {
     const entry = this.handlers.get(name);
 
@@ -112,7 +122,7 @@ export class HandlerRegistry {
     }
 
     try {
-      const response = await entry.handler(params);
+      const response = await entry.handler(params, sender);
       return Ok(response as TResponse);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
