@@ -17,7 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 5;
+export const CURRENT_CONFIG_VERSION = 6;
 
 /**
  * Storage object with migration flags
@@ -29,6 +29,7 @@ interface StoredSettings extends Record<string, unknown> {
   mode?: string;
   provider?: string;
   voice?: string | null;
+  voiceId?: string | null;
   themeMode?: string;
   highlightEnabled?: boolean;
   autoScroll?: boolean;
@@ -155,6 +156,42 @@ export const migrations: Migration[] = [
       if (Object.keys(updates).length > 0) {
         await save(updates);
         console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        return { ...stored, ...updates };
+      }
+
+      return stored;
+    },
+  },
+  {
+    version: 6,
+    key: 'provider-consolidation',
+    description:
+      'Remove orphaned provider data from removed providers (OpenAI, Groq, Cartesia, Anthropic)',
+    /**
+     * Clean up orphaned API keys from removed providers and reset
+     * provider to 'browser' if user had a removed provider configured.
+     */
+    migrate: async (stored, save) => {
+      const removedProviders = ['openai', 'groq', 'cartesia', 'anthropic'];
+      const updates: Record<string, unknown> = {};
+
+      // Clean up orphaned API keys
+      for (const provider of removedProviders) {
+        if (stored[`apiKey_${provider}`]) {
+          updates[`apiKey_${provider}`] = undefined;
+        }
+      }
+
+      // Reset provider to 'browser' if it was a removed provider
+      if (removedProviders.includes(stored.provider as string)) {
+        updates.provider = 'browser';
+        updates.voice = null;
+        updates.voiceId = null;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await save(updates);
+        console.log('VoxPage: Cleaned up orphaned provider data:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 

@@ -23,7 +23,7 @@ export type ExtractionMode = 'selection' | 'article' | 'full';
  * Provider ID type
  * Post-045: Only ElevenLabs is supported
  */
-export type ProviderId = 'elevenlabs';
+export type ProviderId = 'elevenlabs' | 'browser';
 
 /**
  * Log level type

@@ -11,7 +11,7 @@
  * No hardcoded default values should exist elsewhere in the codebase.
  */
 
-import type { Settings, FooterState, Mode, Provider, ThemeMode } from './schema';
+import type { FooterState, Mode, Provider, Settings, ThemeMode } from './schema';
 
 /**
  * Default configuration values
@@ -48,6 +48,7 @@ export const defaults: Readonly<Settings> = Object.freeze({
  */
 export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.freeze({
   elevenlabs: null,
+  browser: null,
 });
 
 /**
@@ -73,11 +74,11 @@ export const footerStateDefaults: Readonly<FooterState> = Object.freeze({
 // ========== Roadmap Feature Defaults (023-feature-roadmap) ==========
 
 import type {
-  QueueSettings,
-  ExportSettings,
-  AISettings,
   AIProvider,
+  AISettings,
   ExportQuality,
+  ExportSettings,
+  QueueSettings,
 } from './schema';
 
 /**
@@ -152,4 +153,3 @@ export const cacheConstraints = Object.freeze({
   maxAgeDays: { min: 1, max: 365 },
   prefetchAhead: { min: 1, max: 10 },
 });
-

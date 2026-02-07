@@ -82,9 +82,6 @@ const elements = {
   // Queue
   addToQueueBtn: document.getElementById('add-to-queue-btn') as HTMLButtonElement,
   addQueueBtnText: document.getElementById('add-queue-btn-text') as HTMLSpanElement,
-  toggleQueueBtn: document.getElementById('toggle-queue-btn') as HTMLButtonElement,
-  queueCountBadge: document.getElementById('queue-count-badge') as HTMLSpanElement,
-  queueSidebar: document.getElementById('queue-sidebar') as HTMLDivElement,
   queueCount: document.getElementById('queue-count') as HTMLSpanElement,
   queueList: document.getElementById('queue-list') as HTMLDivElement,
   queueEmptyMessage: document.getElementById('queue-empty-message') as HTMLParagraphElement,
@@ -171,7 +168,6 @@ let queueState: QueueState = {
   items: [],
   metadata: { count: 0, lastModified: 0 },
 };
-let isQueueSidebarOpen = false;
 
 // ============================================
 // UI Update Functions
@@ -305,22 +301,16 @@ function handleTabClick(event: Event): void {
  * In the tabbed layout, tool sections are visible by default.
  * This function hides sections that require API keys when those keys aren't configured.
  *
- * - Summarize section: shown if OpenAI or Anthropic API key is configured
+ * - Summarize section: hidden (no AI provider currently available; OpenAI/Anthropic removed in 056)
  * - Export section: shown if ElevenLabs API key is configured
  */
 async function updateSectionVisibility(): Promise<void> {
   try {
-    const result = await browser.storage.local.get([
-      'openaiApiKey',
-      'anthropicApiKey',
-      'elevenlabsApiKey',
-      'provider',
-    ]);
+    const result = await browser.storage.local.get(['elevenlabsApiKey', 'provider']);
 
-    // Show Summarize section only if AI API key (OpenAI or Anthropic) is configured
-    const hasAIKey = !!(result.openaiApiKey || result.anthropicApiKey);
+    // Summarize section: hidden until an AI provider is (re-)added
     if (elements.summarizeSection) {
-      elements.summarizeSection.hidden = !hasAIKey;
+      elements.summarizeSection.hidden = true;
     }
 
     // Show Export section only if ElevenLabs audio provider has API key configured
@@ -330,9 +320,8 @@ async function updateSectionVisibility(): Promise<void> {
     }
 
     console.log('[Popup] Section visibility updated:', {
-      hasAIKey,
       hasAudioApiKey,
-      summarize: hasAIKey,
+      summarize: false,
       export: hasAudioApiKey,
     });
   } catch (error) {
@@ -862,14 +851,6 @@ async function handleExportCancel(): Promise<void> {
  * Update queue count badge
  */
 function updateQueueBadge(count: number): void {
-  // Update legacy badge (hidden, for compatibility)
-  if (count > 0) {
-    elements.queueCountBadge.textContent = String(count);
-    elements.queueCountBadge.hidden = false;
-  } else {
-    elements.queueCountBadge.hidden = true;
-  }
-
   // Update tab badge
   if (elements.queueTabBadge) {
     if (count > 0) {
@@ -977,25 +958,10 @@ async function fetchQueueState(): Promise<void> {
         metadata: response.metadata ?? { count: 0, lastModified: 0 },
       };
       updateQueueBadge(queueState.items.length);
-      if (isQueueSidebarOpen) {
-        renderQueueItems(queueState.items);
-      }
+      renderQueueItems(queueState.items);
     }
   } catch (error) {
     console.error('[Popup] Failed to fetch queue state:', error);
-  }
-}
-
-/**
- * Toggle queue sidebar visibility
- */
-function toggleQueueSidebar(): void {
-  isQueueSidebarOpen = !isQueueSidebarOpen;
-  elements.queueSidebar.hidden = !isQueueSidebarOpen;
-  elements.toggleQueueBtn.setAttribute('aria-expanded', String(isQueueSidebarOpen));
-
-  if (isQueueSidebarOpen) {
-    renderQueueItems(queueState.items ?? []);
   }
 }
 
@@ -1295,7 +1261,6 @@ function setupEventListeners(): void {
 
   // Queue controls
   elements.addToQueueBtn.addEventListener('click', handleAddToQueue);
-  elements.toggleQueueBtn.addEventListener('click', toggleQueueSidebar);
   elements.playQueueBtn.addEventListener('click', handlePlayQueue);
   elements.clearQueueBtn.addEventListener('click', handleClearQueue);
 
@@ -1343,11 +1308,13 @@ async function initTelemetry(): Promise<void> {
       return;
     }
 
-    // Only initialize if gateway is configured
-    const gatewayUrl =
-      (stored.telemetryGatewayUrl as string) || 'https://voxpage-logs.home301server.com.br/ingest';
-    const gatewayToken =
-      (stored.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+    // Only initialize if gateway is configured (seeded by onInstalled handler)
+    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
+    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
+
+    if (!gatewayUrl || !gatewayToken) {
+      return;
+    }
 
     await usageTracker.initialize({
       gatewayUrl,
