@@ -48,7 +48,7 @@ export default defineConfig({
     },
     browser_specific_settings: {
       gecko: {
-        id: "voxpage@example.com",
+        id: "{41eb66cb-b520-4047-9b6c-63fdce6fca11}",
         strict_min_version: "109.0", // Firefox 109+ for better extension APIs
         // Required for AMO submission - declares data collection practices
         // See: https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/
@@ -78,12 +78,26 @@ export default defineConfig({
   },
 
   // Vite configuration (T119-T121: Build performance optimization)
-  vite: () => ({
+  vite: (env) => {
+    const isProduction = env.command === "build";
+    return {
+    // T001 (056): Build-time telemetry config injection
+    // Token is read from env vars at build time and seeded into browser.storage.local at install
+    // See research.md RQ-1 for the hybrid approach
+    define: {
+      __TELEMETRY_GATEWAY_URL__: JSON.stringify(
+        process.env.TELEMETRY_GATEWAY_URL ||
+          "https://voxpage-logs.home301server.com.br/ingest",
+      ),
+      __TELEMETRY_GATEWAY_TOKEN__: JSON.stringify(
+        process.env.TELEMETRY_GATEWAY_TOKEN || "",
+      ),
+    },
     build: {
       target: "es2020",
       // T121: Inline sourcemaps for development debugging
       // T011 (031): Disable source maps in production for IP protection
-      sourcemap: process.env.NODE_ENV === "development" ? "inline" : false,
+      sourcemap: isProduction ? false : "inline",
       // T120: Enable tree-shaking via esbuild minification (default in Vite)
       minify: "esbuild",
       // T119: Code splitting - WXT handles chunking automatically for extensions
@@ -98,7 +112,11 @@ export default defineConfig({
     // T012-T013 (031): Remove console/debugger in production, tree-shaking enabled
     esbuild: {
       treeShaking: true,
-      drop: process.env.NODE_ENV === "production" ? ["console", "debugger"] : [],
+      drop: isProduction ? ["console", "debugger"] : [],
+      pure: isProduction
+        ? ["console.log", "console.debug", "console.info", "console.warn", "console.error"]
+        : [],
     },
-  }),
+  };
+  },
 });
