@@ -358,6 +358,152 @@ async function handleTestApiKey(
 }
 
 // ============================================
+// Theme Management (T068)
+// ============================================
+
+/**
+ * Theme mode type.
+ */
+type ThemeModeType = 'light' | 'dark' | 'system';
+
+/**
+ * Settings section type for reset operations.
+ */
+type SettingsSectionType = 'quick-settings' | 'appearance' | 'reading-queue' | 'developer' | 'all';
+
+/**
+ * Response for settings.getTheme handler.
+ */
+export interface ThemeGetResponse {
+  mode: ThemeModeType;
+  resolvedTheme: 'light' | 'dark';
+}
+
+/**
+ * Response for settings.setTheme handler.
+ */
+export interface ThemeSetResponse {
+  success: boolean;
+  mode: ThemeModeType;
+  resolvedTheme: 'light' | 'dark';
+}
+
+/**
+ * Response for settings.resetSection handler.
+ */
+export interface SettingsResetResponse {
+  success: boolean;
+  section: string;
+  resetKeys: string[];
+}
+
+/**
+ * Section-to-keys mapping for reset operations.
+ */
+const SECTION_KEYS: Record<SettingsSectionType, string[]> = {
+  'quick-settings': ['provider', 'voice', 'speed'],
+  appearance: ['themeMode', 'highlightEnabled', 'autoScroll'],
+  'reading-queue': ['queue:settings'],
+  developer: ['loggingConfig'],
+  all: [
+    'provider',
+    'voice',
+    'speed',
+    'themeMode',
+    'highlightEnabled',
+    'autoScroll',
+    'queue:settings',
+    'loggingConfig',
+  ],
+};
+
+/**
+ * Default values for each key used in reset operations.
+ */
+const RESET_DEFAULTS: Record<string, unknown> = {
+  provider: 'elevenlabs',
+  voice: null,
+  speed: 1.0,
+  themeMode: 'system',
+  highlightEnabled: true,
+  autoScroll: true,
+  'queue:settings': {
+    autoPlayNext: true,
+    autoArchiveCompleted: false,
+    archiveAfterDays: 30,
+    maxQueueSize: 300,
+  },
+  loggingConfig: {
+    enabled: false,
+    endpoint: null,
+    authType: 'none',
+    logLevel: 'warn',
+    batchIntervalMs: 10000,
+    maxBatchSize: 100,
+    maxBufferBytes: 1048576,
+  },
+};
+
+/**
+ * Get current theme preference.
+ */
+async function handleGetTheme(): Promise<ThemeGetResponse> {
+  const result = await browser.storage.local.get('themeMode');
+  const mode = (result.themeMode as ThemeModeType) || 'system';
+
+  // Resolve system theme — in background context, default to light
+  let resolvedTheme: 'light' | 'dark' = 'light';
+  if (mode !== 'system') {
+    resolvedTheme = mode;
+  }
+
+  return { mode, resolvedTheme };
+}
+
+/**
+ * Set theme preference.
+ */
+async function handleSetTheme(params: { mode?: ThemeModeType }): Promise<ThemeSetResponse> {
+  const mode = params.mode ?? 'system';
+
+  await browser.storage.local.set({ themeMode: mode });
+
+  let resolvedTheme: 'light' | 'dark' = 'light';
+  if (mode !== 'system') {
+    resolvedTheme = mode;
+  }
+
+  return { success: true, mode, resolvedTheme };
+}
+
+/**
+ * Reset a settings section to defaults.
+ * API keys are excluded from reset operations.
+ */
+async function handleResetSection(params: {
+  section?: SettingsSectionType;
+}): Promise<SettingsResetResponse> {
+  const section = params.section ?? 'all';
+
+  const keysToReset = SECTION_KEYS[section];
+  if (!keysToReset) {
+    return { success: false, section, resetKeys: [] };
+  }
+
+  // Build the reset object
+  const resetValues: Record<string, unknown> = {};
+  for (const key of keysToReset) {
+    if (RESET_DEFAULTS[key] !== undefined) {
+      resetValues[key] = RESET_DEFAULTS[key];
+    }
+  }
+
+  await browser.storage.local.set(resetValues);
+
+  return { success: true, section, resetKeys: keysToReset };
+}
+
+// ============================================
 // Registration
 // ============================================
 
@@ -372,4 +518,11 @@ export function registerSettingsHandlers(registry: HandlerRegistry): void {
   registry.register('settings.getApiKey', handleGetApiKey, 'Check if API key exists');
   registry.register('settings.setApiKey', handleSetApiKey, 'Set API key for provider');
   registry.register('settings.testApiKey', handleTestApiKey, 'Test API key validation');
+  registry.register('settings.getTheme', handleGetTheme, 'Get current theme preference');
+  registry.register('settings.setTheme', handleSetTheme, 'Set theme preference');
+  registry.register(
+    'settings.resetSection',
+    handleResetSection,
+    'Reset settings section to defaults',
+  );
 }
