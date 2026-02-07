@@ -41,15 +41,6 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     brandColor: '#5e5ce6',
     testSupported: true,
   },
-  anthropic: {
-    id: 'anthropic',
-    name: 'Anthropic',
-    description: 'AI assistant for content processing',
-    keyPlaceholder: 'sk-ant-...',
-    docsUrl: 'https://console.anthropic.com/settings/keys',
-    brandColor: '#cc785c',
-    testSupported: false,
-  },
 };
 
 /**

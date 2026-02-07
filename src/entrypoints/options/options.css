@@ -731,28 +731,8 @@ kbd {
 }
 
 /* Provider-specific brand colors */
-.voxpage-badge--openai {
-  background: #10a37f;
-  color: white;
-}
-
 .voxpage-badge--elevenlabs {
   background: #5e5ce6;
-  color: white;
-}
-
-.voxpage-badge--cartesia {
-  background: #ff6b35;
-  color: white;
-}
-
-.voxpage-badge--groq {
-  background: #f55036;
-  color: white;
-}
-
-.voxpage-badge--anthropic {
-  background: #cc785c;
   color: white;
 }
 

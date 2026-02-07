@@ -141,10 +141,7 @@
             <label for="quickProvider" class="form-label">Provider</label>
             <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint" data-testid="settings-provider-select">
               <option value="browser">Browser TTS (Free)</option>
-              <option value="groq">Groq (Fast)</option>
-              <option value="openai">OpenAI</option>
               <option value="elevenlabs">ElevenLabs</option>
-              <option value="cartesia">Cartesia</option>
             </select>
             <p id="quickProviderHint" class="form-hint">Select your preferred text-to-speech provider</p>
           </div>
@@ -187,27 +184,23 @@
           </p>
 
           <div class="provider-cards-grid">
-            <!-- OpenAI Provider Card -->
-            <div class="provider-card" data-provider="openai" style="--provider-color: #10a37f;">
+            <!-- Browser TTS Provider Card -->
+            <div class="provider-card" data-provider="browser" style="--provider-color: #10b981;">
               <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--openai">OpenAI</span>
+                <span class="voxpage-badge voxpage-badge--browser">Browser TTS</span>
+                <span class="voxpage-badge voxpage-badge--free">Free</span>
               </div>
-              <p class="provider-card__description">High-quality voices with natural speech patterns</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="openaiKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="openaiKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
+              <p class="provider-card__description">Built-in browser text-to-speech. No API key required.</p>
+              <div class="form-group" style="margin-bottom: var(--space-2, 0.5rem);">
+                <label for="browserVoice" class="form-label">Voice</label>
+                <select id="browserVoice" class="voxpage-select">
+                  <option value="">Default Voice</option>
+                </select>
               </div>
               <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="openai">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="openai">Save</button>
+                <button type="button" id="testBrowserTts" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="browser">Test Voice</button>
               </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="openai"></div>
-              <a class="provider-card__docs-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+              <div id="browserTtsStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="browser"></div>
             </div>
 
             <!-- ElevenLabs Provider Card -->
@@ -232,120 +225,7 @@
               <div id="elevenlabsKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="elevenlabs"></div>
               <a class="provider-card__docs-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
             </div>
-
-            <!-- Groq Provider Card -->
-            <div class="provider-card" data-provider="groq" style="--provider-color: #f55036;">
-              <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--groq">Groq</span>
-              </div>
-              <p class="provider-card__description">Ultra-fast inference with LPU technology</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="groqKey" class="voxpage-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="groq">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="groq">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="groq"></div>
-              <a class="provider-card__docs-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
-            </div>
-
-            <!-- Cartesia Provider Card -->
-            <div class="provider-card" data-provider="cartesia" style="--provider-color: #ff6b35;">
-              <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--cartesia">Cartesia</span>
-              </div>
-              <p class="provider-card__description">Fast, low-latency voice synthesis</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="cartesiaKey" class="voxpage-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="cartesiaKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="cartesia">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="cartesia">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="cartesia"></div>
-              <a class="provider-card__docs-link" href="https://play.cartesia.ai/settings" target="_blank" rel="noopener noreferrer">Get API Key</a>
-            </div>
-
-            <!-- Anthropic Provider Card -->
-            <div class="provider-card" data-provider="anthropic" style="--provider-color: #cc785c;">
-              <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--anthropic">Anthropic</span>
-              </div>
-              <p class="provider-card__description">AI assistant for content summarization</p>
-              <div class="provider-card__input-wrapper">
-                <input type="password" id="anthropicKey" class="voxpage-input provider-card__input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="anthropicKey" aria-label="Toggle API key visibility">
-                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="provider-card__actions">
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="anthropic">Save</button>
-              </div>
-              <div class="provider-card__status" role="status" aria-live="polite" data-provider="anthropic"></div>
-              <a class="provider-card__docs-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
-            </div>
           </div>
-        </div>
-      </section>
-
-      <!-- Default Settings Section - merged into Quick Settings above -->
-      <section id="defaults" class="voxpage-card voxpage-accordion voxpage-hidden" data-section="defaults">
-        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="defaults-content">
-          <h2 class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            Default Settings
-          </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-        <div id="defaults-content" class="voxpage-accordion__content">
-        <div class="form-group">
-          <label for="defaultProvider" class="form-label">Default Provider</label>
-          <select id="defaultProvider" class="voxpage-select">
-            <option value="groq">Groq (Fast & Cheap)</option>
-            <option value="openai">OpenAI TTS</option>
-            <option value="elevenlabs">ElevenLabs</option>
-            <option value="cartesia">Cartesia</option>
-            <option value="browser">Browser TTS (Free)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="defaultSpeed" class="form-label">Default Speed</label>
-          <div class="range-wrapper">
-            <input type="range" id="defaultSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1">
-            <span id="speedValue" class="range-value">1.0x</span>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="defaultMode" class="form-label">Default Reading Mode</label>
-          <select id="defaultMode" class="voxpage-select">
-            <option value="full">Full Page</option>
-            <option value="article">Article Only</option>
-            <option value="selection">Selection</option>
-          </select>
-        </div>
         </div>
       </section>
 
@@ -635,22 +515,6 @@
           </label>
           <p class="form-hint">Logs are sent to our secure server and contain no personal data.</p>
         </div>
-
-        <!-- Hidden elements for backwards compatibility with controller -->
-        <input type="hidden" id="loggingEndpoint" value="https://voxpage-logs.home301server.com.br">
-        <input type="hidden" id="loggingAuthType" value="none">
-        <input type="hidden" id="loggingUsername" value="">
-        <input type="hidden" id="loggingPassword" value="">
-        <input type="hidden" id="loggingBearerToken" value="">
-        <input type="hidden" id="loggingCfClientId" value="">
-        <input type="hidden" id="loggingCfClientSecret" value="">
-        <input type="hidden" id="loggingLogLevel" value="warn">
-        <div id="loggingConfigSection" style="display: none;"></div>
-        <div id="basicAuthFields" style="display: none;"></div>
-        <div id="bearerAuthFields" style="display: none;"></div>
-        <div id="cloudflareAuthFields" style="display: none;"></div>
-        <button id="testLoggingConnection" type="button" style="display: none;"></button>
-        <span id="loggingTestStatus" style="display: none;"></span>
 
         <!-- Log Buffer Section -->
         <div class="log-viewer-section" style="margin-top: var(--space-4);">
