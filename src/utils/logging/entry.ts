@@ -20,7 +20,15 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 /**
  * Log components enum
  */
-export const COMPONENTS = ['background', 'content', 'popup', 'options'] as const;
+export const COMPONENTS = [
+  'background',
+  'content',
+  'popup',
+  'options',
+  'handler',
+  'adapter',
+  'service',
+] as const;
 export type Component = (typeof COMPONENTS)[number];
 
 /**

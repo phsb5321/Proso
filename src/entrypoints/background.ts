@@ -10,20 +10,20 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import {
-  ElevenLabsProvider,
-  loadElevenLabsApiKey,
-  type WordTiming,
   type AudioWithTiming,
+  ElevenLabsProvider,
+  type WordTiming,
+  loadElevenLabsApiKey,
 } from '../background/providers/elevenlabs';
 
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
-import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
+import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
 
 // Smart Audio Cache (028-smart-audio-cache)
-import { getCacheStore, generateContentHash, generateCacheKey } from '../utils/cache';
+import { generateCacheKey, generateContentHash, getCacheStore } from '../utils/cache';
 import type { CachedAudioEntry, WordTimelineItem } from '../utils/cache';
 
 // Playback Queue and Prefetch Service (028-smart-audio-cache User Story 3)
@@ -31,8 +31,8 @@ import { playbackQueue, prefetchService } from '../utils/playback';
 
 // Hexagonal Architecture (034-hexagonal-architecture)
 import {
-  initHexagonalArchitecture,
   dispatchToHexagonal,
+  initHexagonalArchitecture,
   logLegacyDispatch,
 } from '../background/init-hexagonal';
 
@@ -42,7 +42,7 @@ import { unknownMessageResponse } from '../utils/messaging/error-response';
 import { logUnknownMessage } from '../utils/telemetry';
 
 // Usage observability (043-usage-observability-loki)
-import { usageTracker, installErrorCapture, installConsoleCapture } from '../utils/telemetry/usage';
+import { installConsoleCapture, installErrorCapture, usageTracker } from '../utils/telemetry/usage';
 
 // ============================================
 // Strangler Fig Pattern: Hexagonal Migration
@@ -560,6 +560,12 @@ async function playAudioNative(
  * Stop audio playback.
  */
 function stopAudioNative(): { success: boolean } {
+  // T024 (056): Cancel Browser TTS if active
+  if (speechSynthesis.speaking || speechSynthesis.pending) {
+    speechSynthesis.cancel();
+    console.log('[Background] Browser TTS cancelled');
+  }
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.removeAttribute('src');
@@ -574,13 +580,20 @@ function stopAudioNative(): { success: boolean } {
 
     return { success: true };
   }
-  return { success: false };
+  return { success: speechSynthesis.speaking === false };
 }
 
 /**
  * Pause audio playback.
  */
 function pauseAudioNative(): { success: boolean } {
+  // T024 (056): Pause Browser TTS if active
+  if (speechSynthesis.speaking) {
+    speechSynthesis.pause();
+    console.log('[Background] Browser TTS paused');
+    return { success: true };
+  }
+
   if (currentAudio) {
     currentAudio.pause();
     console.log('[Background] Audio paused');
@@ -593,6 +606,13 @@ function pauseAudioNative(): { success: boolean } {
  * Resume audio playback.
  */
 function resumeAudioNative(): { success: boolean } {
+  // T024 (056): Resume Browser TTS if paused
+  if (speechSynthesis.paused) {
+    speechSynthesis.resume();
+    console.log('[Background] Browser TTS resumed');
+    return { success: true };
+  }
+
   if (currentAudio) {
     currentAudio.play().catch((err) => {
       console.error('[Background] Failed to resume audio:', err);
@@ -1257,11 +1277,13 @@ async function speakCurrentParagraph(): Promise<void> {
   });
 
   // T013: API key validation before playback attempt (035-selection-tts-hardening)
+  // T024 (056): Browser TTS doesn't require an API key
   const providerApiKeyMap: Record<string, string | undefined> = {
     elevenlabs: apiKeys.elevenlabsApiKey,
   };
 
-  const hasApiKey = !!providerApiKeyMap[playbackState.provider];
+  const requiresApiKey = playbackState.provider !== 'browser';
+  const hasApiKey = !requiresApiKey || !!providerApiKeyMap[playbackState.provider];
 
   // T014: Show error notification if API key missing (035-selection-tts-hardening)
   if (!hasApiKey) {
@@ -1439,6 +1461,44 @@ async function speakCurrentParagraph(): Promise<void> {
       cleanupPrefetchCache();
     } else {
       console.warn('[Background] ElevenLabs failed');
+    }
+  } else if (playbackState.provider === 'browser') {
+    // T024 (056): Browser TTS playback using speechSynthesis API
+    // Firefox event pages have full DOM access, so speechSynthesis is available
+    console.log('[Background] Using Browser TTS for paragraph', playbackState.currentParagraph + 1);
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = playbackState.speed;
+
+      // Apply selected voice if stored
+      if (playbackState.voice) {
+        const voices = speechSynthesis.getVoices();
+        const selectedVoice = voices.find((v) => v.name === playbackState.voice);
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+      }
+
+      // Play using speechSynthesis and wait for completion
+      success = await new Promise<boolean>((resolve) => {
+        utterance.onend = () => resolve(true);
+        utterance.onerror = (e) => {
+          console.error('[Background] Browser TTS error:', e.error);
+          resolve(false);
+        };
+        speechSynthesis.speak(utterance);
+      });
+
+      // Check if playback was stopped/paused during speech
+      if (playbackState.status !== 'playing') {
+        console.log('[Background] Playback cancelled during Browser TTS');
+        speechSynthesis.cancel();
+        return;
+      }
+    } catch (error) {
+      console.error('[Background] Browser TTS exception:', error);
+      success = false;
     }
   }
 
@@ -2047,6 +2107,33 @@ async function notifyPopup(): Promise<void> {
 export default defineBackground(() => {
   console.log('VoxPage background service worker started');
 
+  // Seed telemetry gateway config from build-time constants on install/update
+  browser.runtime.onInstalled.addListener(async (details) => {
+    try {
+      const existing = await browser.storage.local.get([
+        'telemetryGatewayUrl',
+        'telemetryGatewayToken',
+      ]);
+
+      const updates: Record<string, string> = {};
+
+      // Only seed if not already configured (don't overwrite user/options changes)
+      if (!existing.telemetryGatewayUrl && __TELEMETRY_GATEWAY_URL__) {
+        updates.telemetryGatewayUrl = __TELEMETRY_GATEWAY_URL__;
+      }
+      if (!existing.telemetryGatewayToken && __TELEMETRY_GATEWAY_TOKEN__) {
+        updates.telemetryGatewayToken = __TELEMETRY_GATEWAY_TOKEN__;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await browser.storage.local.set(updates);
+        console.log(`[Background] Telemetry config seeded on ${details.reason}`);
+      }
+    } catch (error) {
+      console.warn('[Background] Failed to seed telemetry config:', error);
+    }
+  });
+
   // Initialize usage observability (043-usage-observability-loki)
   // Gateway URL and token are loaded from storage or environment
   const initUsageTracker = async () => {
@@ -2064,12 +2151,14 @@ export default defineBackground(() => {
         return;
       }
 
-      // Use default gateway if not configured
-      const gatewayUrl =
-        (result.telemetryGatewayUrl as string) ||
-        'https://voxpage-logs.home301server.com.br/ingest';
-      const gatewayToken =
-        (result.telemetryGatewayToken as string) || '5Q0LlZ+6fcJ0wAPsSXtJzaf2rfd64fN6vUx84wWlzwY=';
+      // Use gateway config from storage (seeded by onInstalled handler)
+      const gatewayUrl = result.telemetryGatewayUrl as string | undefined;
+      const gatewayToken = result.telemetryGatewayToken as string | undefined;
+
+      if (!gatewayUrl || !gatewayToken) {
+        console.log('[Background] Telemetry gateway not configured, skipping');
+        return;
+      }
 
       await usageTracker.initialize({
         gatewayUrl,
@@ -2229,24 +2318,22 @@ export default defineBackground(() => {
   });
 
   // Initialize settings from storage
-  browser.storage.local
-    .get(['speed', 'provider', 'elevenlabsApiKey'])
-    .then((result) => {
-      if (typeof result.speed === 'number') {
-        playbackState.speed = result.speed;
-      }
-      if (typeof result.provider === 'string') {
-        playbackState.provider = result.provider;
-      }
-      apiKeys = {
-        elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
-      };
-      console.log('[Background] Settings loaded:', {
-        speed: playbackState.speed,
-        provider: playbackState.provider,
-        hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
-      });
+  browser.storage.local.get(['speed', 'provider', 'elevenlabsApiKey']).then((result) => {
+    if (typeof result.speed === 'number') {
+      playbackState.speed = result.speed;
+    }
+    if (typeof result.provider === 'string') {
+      playbackState.provider = result.provider;
+    }
+    apiKeys = {
+      elevenlabsApiKey: result.elevenlabsApiKey as string | undefined,
+    };
+    console.log('[Background] Settings loaded:', {
+      speed: playbackState.speed,
+      provider: playbackState.provider,
+      hasElevenLabsKey: !!apiKeys.elevenlabsApiKey,
     });
+  });
 
   console.log('VoxPage: Message handlers registered');
 

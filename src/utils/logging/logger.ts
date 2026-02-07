@@ -12,12 +12,12 @@
 import { z } from 'zod';
 import { LogBuffer } from './buffer';
 import {
+  type Component,
   type LogEntry,
   type LogLevel,
-  type Component,
   createLogEntry,
-  serializeForLoki,
   loggingConstants,
+  serializeForLoki,
 } from './entry';
 
 /**
@@ -364,4 +364,183 @@ export function getLogger(): RemoteLogger {
     loggerInstance = new RemoteLogger();
   }
   return loggerInstance;
+}
+
+// ============================================================================
+// Structured Logger Factory (T058)
+// ============================================================================
+
+/**
+ * Global log buffer for structured logging.
+ * Shared across all createLogger instances.
+ */
+let globalLogBuffer: LogBuffer | null = null;
+
+/**
+ * Get or create the global LogBuffer instance.
+ */
+export function getGlobalLogBuffer(): LogBuffer {
+  if (!globalLogBuffer) {
+    globalLogBuffer = new LogBuffer({
+      maxBytes: loggingConstants.maxBufferBytes,
+    });
+  }
+  return globalLogBuffer;
+}
+
+/**
+ * Reset the global log buffer (for testing).
+ */
+export function resetGlobalLogBuffer(): void {
+  globalLogBuffer = null;
+}
+
+/**
+ * Log level values for filtering (used by createLogger)
+ */
+const LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+/**
+ * Configured minimum log level for createLogger instances.
+ * Defaults to 'debug' (log everything).
+ */
+let configuredLogLevel: LogLevel = 'debug';
+
+/**
+ * Set the minimum log level for all createLogger instances.
+ */
+export function setLogLevel(level: LogLevel): void {
+  configuredLogLevel = level;
+}
+
+/**
+ * Get the current minimum log level.
+ */
+export function getLogLevel(): LogLevel {
+  return configuredLogLevel;
+}
+
+/**
+ * Safely serialize metadata, handling circular references and size limits.
+ * @param metadata - Metadata object to serialize
+ * @returns Safe metadata or null if too large or circular
+ */
+function safeSerializeMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, any> | null {
+  if (!metadata) return null;
+
+  try {
+    // Handle circular references with a replacer
+    const seen = new WeakSet();
+    const safeStr = JSON.stringify(metadata, (_key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return '[Circular]';
+        seen.add(value);
+      }
+      if (typeof value === 'function') return '[Function]';
+      if (typeof value === 'symbol') return value.toString();
+      if (typeof value === 'bigint') return value.toString();
+      if (value instanceof Error) return { name: value.name, message: value.message };
+      return value;
+    });
+
+    // Check metadata size limit (4096 bytes)
+    if (safeStr.length > loggingConstants.maxMetadataBytes) {
+      return { _truncated: true, _size: safeStr.length };
+    }
+
+    return JSON.parse(safeStr);
+  } catch {
+    return { _error: 'metadata serialization failed' };
+  }
+}
+
+/**
+ * Structured logger interface returned by createLogger.
+ */
+export interface Logger {
+  debug(message: string, metadata?: Record<string, unknown>): void;
+  info(message: string, metadata?: Record<string, unknown>): void;
+  warn(message: string, metadata?: Record<string, unknown>): void;
+  error(message: string, metadata?: Record<string, unknown>): void;
+}
+
+/**
+ * Create a structured logger pre-bound to a component tag.
+ *
+ * Each log method:
+ * 1. Checks the configured log level (skips if below threshold)
+ * 2. Truncates messages exceeding 8192 bytes
+ * 3. Safely serializes metadata (handles circular refs, enforces 4096 byte limit)
+ * 4. Creates a LogEntry and adds it to the global LogBuffer
+ * 5. Also logs to console for dev visibility (stripped in production by esbuild.drop)
+ *
+ * @param component - Component tag for this logger instance
+ * @returns Logger with debug/info/warn/error methods
+ *
+ * @example
+ * ```ts
+ * const logger = createLogger('handler');
+ * logger.info('Request processed', { handler: 'playback.start', durationMs: 42 });
+ * logger.error('Failed to generate audio', { provider: 'elevenlabs', error: err.message });
+ * ```
+ */
+export function createLogger(component: Component): Logger {
+  const buffer = getGlobalLogBuffer();
+  const tag = `[${component}]`;
+
+  function log(level: LogLevel, message: string, metadata?: Record<string, unknown>): void {
+    // Check level filter
+    if (LEVEL_PRIORITY[level] < LEVEL_PRIORITY[configuredLogLevel]) return;
+
+    // Truncate message if needed
+    let msg = message;
+    if (msg.length > loggingConstants.maxMessageBytes) {
+      msg = msg.substring(0, loggingConstants.maxMessageBytes - 3) + '...';
+    }
+
+    // Create entry and add to buffer
+    const safeMeta = safeSerializeMetadata(metadata);
+    const entry = createLogEntry({
+      level,
+      message: msg,
+      component,
+      metadata: safeMeta,
+    });
+
+    if (entry) {
+      buffer.add(entry);
+    }
+
+    // Also output to console for dev visibility
+    // These calls are stripped in production by esbuild.drop: ['console']
+    const consoleArgs = metadata ? [tag, msg, metadata] : [tag, msg];
+    switch (level) {
+      case 'debug':
+        console.debug(...consoleArgs);
+        break;
+      case 'info':
+        console.info(...consoleArgs);
+        break;
+      case 'warn':
+        console.warn(...consoleArgs);
+        break;
+      case 'error':
+        console.error(...consoleArgs);
+        break;
+    }
+  }
+
+  return {
+    debug: (message: string, metadata?: Record<string, unknown>) => log('debug', message, metadata),
+    info: (message: string, metadata?: Record<string, unknown>) => log('info', message, metadata),
+    warn: (message: string, metadata?: Record<string, unknown>) => log('warn', message, metadata),
+    error: (message: string, metadata?: Record<string, unknown>) => log('error', message, metadata),
+  };
 }

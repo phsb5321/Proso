@@ -8,11 +8,7 @@
  */
 
 import { browser } from 'wxt/browser';
-import {
-  getContainer,
-  isContainerInitialized,
-  reconfigureAudioGenerator,
-} from '../composition';
+import { getContainer, isContainerInitialized, reconfigureAudioGenerator } from '../composition';
 import type { ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
@@ -69,6 +65,13 @@ export interface LanguageValidationResponse {
  * Matches existing VoxPage providers.
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
+  browser: {
+    name: 'Browser TTS',
+    description: 'Built-in browser text-to-speech',
+    supportsWordTiming: false,
+    requiresApiKey: false,
+    supportedLanguages: [],
+  },
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
@@ -81,7 +84,7 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
 /**
  * Providers that support all languages (empty array means all).
  */
-const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs'];
+const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser'];
 
 /**
  * Register provider message handlers on the registry.
@@ -139,7 +142,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      const validProviders: ProviderId[] = ['elevenlabs'];
+      const validProviders: ProviderId[] = ['elevenlabs', 'browser'];
       if (!params.provider || !validProviders.includes(params.provider)) {
         return Err({
           type: 'invalid_params',

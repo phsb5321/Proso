@@ -10,7 +10,7 @@
 /**
  * Provider identifier type (matches existing schema).
  */
-export type ProviderId = 'elevenlabs';
+export type ProviderId = 'elevenlabs' | 'browser';
 
 /**
  * Text extraction mode (matches existing schema).

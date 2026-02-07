@@ -12,8 +12,8 @@ import type { AudioError, ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import type { AudioRequest, Voice } from '../ports/audio-generator.port';
-import type { HandlerRegistry } from './registry';
 import { createAudioUrl } from '../utils/audio/audio-url';
+import type { HandlerRegistry } from './registry';
 
 /**
  * Audio handler error type.
@@ -59,18 +59,18 @@ export interface GenerateAudioResponse {
  */
 function getAudioErrorMessage(error: AudioError): string {
   switch (error.type) {
-    case 'api_error':
-      return error.message;
-    case 'network_error':
+    case 'network':
       return `Network error: ${error.message}`;
-    case 'invalid_credentials':
-      return `Invalid credentials for ${error.provider}`;
-    case 'rate_limited':
+    case 'rate_limit':
       return `Rate limited. Retry after ${error.retryAfterMs}ms`;
+    case 'invalid_credentials':
+      return 'Invalid credentials';
     case 'unsupported_language':
-      return `Language ${error.language} not supported by ${error.provider}`;
-    case 'audio_decode_error':
-      return `Audio decode error: ${error.message}`;
+      return `Language ${error.language} not supported`;
+    case 'text_too_long':
+      return `Text too long (max ${error.maxLength} characters)`;
+    case 'provider_error':
+      return `Provider error [${error.code}]: ${error.message}`;
     default:
       return 'Unknown audio error';
   }

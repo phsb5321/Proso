@@ -133,25 +133,28 @@ describe('Language Mappings', () => {
   });
 
   describe('getProvidersForLanguage', () => {
-    test('returns elevenlabs for English', () => {
-      // Post-045: Only ElevenLabs is supported
+    test('returns elevenlabs and browser for English', () => {
+      // Post-056: ElevenLabs and Browser TTS are supported
       const providers = getProvidersForLanguage('en');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toHaveLength(1);
+      expect(providers).toContain('browser');
+      expect(providers).toHaveLength(2);
     });
 
-    test('returns elevenlabs for Spanish', () => {
-      // Post-045: Only ElevenLabs is supported
+    test('returns elevenlabs and browser for Spanish', () => {
+      // Post-056: ElevenLabs and Browser TTS are supported
       const providers = getProvidersForLanguage('es');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toHaveLength(1);
+      expect(providers).toContain('browser');
+      expect(providers).toHaveLength(2);
     });
 
-    test('returns elevenlabs for Japanese', () => {
-      // Post-045: Only ElevenLabs is supported
+    test('returns elevenlabs and browser for Japanese', () => {
+      // Post-056: ElevenLabs and Browser TTS are supported
       const providers = getProvidersForLanguage('ja');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toHaveLength(1);
+      expect(providers).toContain('browser');
+      expect(providers).toHaveLength(2);
     });
 
     test('returns empty array for unsupported language', () => {

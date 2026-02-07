@@ -19,9 +19,9 @@ export const MODES = ['selection', 'article', 'full'] as const;
 
 /**
  * Valid TTS provider values
- * Post-045: Only ElevenLabs is supported
+ * Post-056: ElevenLabs and Browser TTS supported
  */
-export const PROVIDERS = ['elevenlabs'] as const;
+export const PROVIDERS = ['elevenlabs', 'browser'] as const;
 
 /**
  * Valid language detection sources

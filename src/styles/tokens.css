@@ -85,8 +85,6 @@
      Provider Colors
      Brand-specific colors for TTS provider badges
      ---------------------------------------- */
-  --color-provider-cartesia: #3b82f6;
-  --color-provider-groq: #f97316;
 
   /* Overlay - modal/dialog backgrounds */
   --color-overlay-bg: rgba(0, 0, 0, 0.6);

@@ -587,24 +587,9 @@
 }
 
 /* Provider-specific variants */
-.voxpage-badge--openai {
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--color-success);
-}
-
-.voxpage-badge--groq {
-  background: rgba(249, 115, 22, 0.2);
-  color: var(--color-provider-groq);
-}
-
 .voxpage-badge--elevenlabs {
   background: rgba(245, 158, 11, 0.2);
   color: var(--color-warning);
-}
-
-.voxpage-badge--cartesia {
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-provider-cartesia);
 }
 
 .voxpage-badge--browser {
