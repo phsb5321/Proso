@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      skip_amo:
+        description: 'Skip AMO submission'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -33,19 +38,24 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+          GIT_REF: ${{ github.ref }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="$INPUT_VERSION"
           else
-            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION="${GIT_REF#refs/tags/v}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Releasing version: $VERSION"
 
       - name: Validate version format
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version format: $VERSION"
             echo "Expected: X.Y.Z or X.Y.Z-prerelease"
@@ -57,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -106,9 +116,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Update version in manifests
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          ./scripts/version.sh set "$VERSION"
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: ./scripts/version.sh set "$VERSION"
 
       - name: Build extension
         run: pnpm run build:${{ matrix.browser }}
@@ -143,8 +153,61 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  release:
+  amo-submit:
     needs: [validate, build]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_amo != 'true' }}
+    steps:
+      - name: Download Firefox artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voxpage-firefox-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
+      - name: Download sources artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voxpage-sources-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Submit to AMO (unlisted/self-distributed)
+        id: amo-sign
+        uses: kewisch/action-web-ext@v1
+        with:
+          cmd: sign
+          source: artifacts/voxpage-${{ needs.validate.outputs.version }}-firefox.zip
+          channel: unlisted
+          apiKey: ${{ secrets.AMO_API_KEY }}
+          apiSecret: ${{ secrets.AMO_API_SECRET }}
+          sourceCode: artifacts/voxpage-${{ needs.validate.outputs.version }}-sources.zip
+          approvalNotes: |
+            Build instructions: pnpm install && NODE_ENV=production pnpm run build:firefox
+
+            Permissions justification:
+            - wasm-unsafe-eval: Required for franc-min WASM language detection module
+            - unlimitedStorage: IndexedDB audio cache for TTS audio (up to 500MB)
+            - <all_urls> content script: Core functionality reads page text for TTS
+            - host_permissions (elevenlabs.io): TTS API calls to generate speech audio
+            - host_permissions (custom domain): Optional opt-in telemetry, disabled by default
+
+            No obfuscation — only esbuild minification (AMO-compliant).
+          timeout: 900000
+
+      - name: Upload signed .xpi to artifacts
+        if: steps.amo-sign.outputs.target != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          path: ${{ steps.amo-sign.outputs.target }}
+          retention-days: 90
+
+  release:
+    needs: [validate, build, amo-submit]
+    # Run even if amo-submit was skipped (skip_amo=true)
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -167,44 +230,69 @@ jobs:
           name: voxpage-sources-${{ needs.validate.outputs.version }}
           path: artifacts/
 
+      - name: Download signed .xpi (if available)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
       - name: List artifacts
         run: ls -la artifacts/
 
       - name: Create tag (if workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ needs.validate.outputs.tag }}" -m "Release ${{ needs.validate.outputs.version }}"
-          git push origin "${{ needs.validate.outputs.tag }}"
+          git tag -a "$RELEASE_TAG" -m "Release $RELEASE_VERSION"
+          git push origin "$RELEASE_TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
           name: VoxPage ${{ needs.validate.outputs.version }}
-          files: artifacts/*.zip
+          files: |
+            artifacts/*.zip
+            artifacts/*.xpi
           generate_release_notes: true
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
-    needs: [validate, release]
+    needs: [validate, release, amo-submit]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Release Summary
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+          AMO_RESULT: ${{ needs.amo-submit.result }}
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: ${{ needs.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ needs.release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $RELEASE_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: $RELEASE_TAG" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**: $RELEASE_RESULT" >> $GITHUB_STEP_SUMMARY
+          echo "- **AMO Submission**: $AMO_RESULT" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ needs.release.result }}" == "success" ]]; then
-            echo "✅ Release created successfully!" >> $GITHUB_STEP_SUMMARY
+          if [[ "$RELEASE_RESULT" == "success" ]]; then
+            echo "Release created successfully!" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Release failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
+            echo "Release failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "$AMO_RESULT" == "success" ]]; then
+            echo "AMO submission successful — signed .xpi attached to release!" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$AMO_RESULT" == "skipped" ]]; then
+            echo "AMO submission skipped." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "AMO submission failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
           fi
