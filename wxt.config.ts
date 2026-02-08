@@ -49,14 +49,12 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "{41eb66cb-b520-4047-9b6c-63fdce6fca11}",
-        strict_min_version: "109.0", // Firefox 109+ for better extension APIs
-        // Required for AMO submission - declares data collection practices
-        // See: https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/
-        // @ts-expect-error - WXT types don't include this new Firefox property yet
+        strict_min_version: "109.0", // Firefox 109+ (AMO compat override to 109)
+        // Required by AMO for all new extensions (mandatory since 2026).
+        // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
+        // @ts-expect-error - WXT types don't include this Firefox property yet
         data_collection_permissions: {
-          // No data collection required for core functionality (browser TTS works offline)
           required: ["none"],
-          // Optional: cloud TTS sends text to APIs, telemetry is opt-in
           optional: ["websiteContent", "technicalAndInteraction"],
         },
       },
@@ -112,7 +110,11 @@ export default defineConfig({
     // T012-T013 (031): Remove console/debugger in production, tree-shaking enabled
     esbuild: {
       treeShaking: true,
-      drop: isProduction ? ["console", "debugger"] : [],
+      // Only drop debugger — console is handled by `pure` below which strips
+      // standalone calls but preserves stored references (console-capture.ts).
+      // Using drop:['console'] replaced bound references with (void 0) causing
+      // AMO linter no-unsanitized warnings.
+      drop: isProduction ? ["debugger"] : [],
       pure: isProduction
         ? ["console.log", "console.debug", "console.info", "console.warn", "console.error"]
         : [],
