@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 env:
   NODE_VERSION: '20'
@@ -265,8 +266,96 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  notify:
+  deploy-updates:
     needs: [validate, release, amo-submit]
+    runs-on: ubuntu-latest
+    # Only deploy if AMO signing succeeded (we need the signed .xpi)
+    if: ${{ needs.amo-submit.result == 'success' }}
+    steps:
+      - name: Download signed .xpi
+        uses: actions/download-artifact@v4
+        with:
+          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          path: artifacts/
+
+      - name: List signed artifacts
+        run: ls -la artifacts/
+
+      - name: Deploy to GitHub Pages
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Find the signed .xpi file
+          XPI=$(find artifacts -name "*.xpi" -type f | head -1)
+          if [[ -z "$XPI" ]]; then
+            echo "::error::No signed .xpi found in artifacts"
+            exit 1
+          fi
+          echo "Found signed .xpi: $XPI"
+
+          # Calculate SHA256 hash
+          export HASH="sha256:$(sha256sum "$XPI" | awk '{print $1}')"
+          echo "SHA256 hash: $HASH"
+
+          # Clone gh-pages branch
+          git clone --branch gh-pages --single-branch \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" gh-pages-dir
+
+          # Copy signed .xpi to releases/
+          mkdir -p gh-pages-dir/releases
+          cp "$XPI" "gh-pages-dir/releases/voxpage-${VERSION}.xpi"
+
+          # Generate updated updates.json (preserves existing entries, appends new version)
+          node -e "
+            const fs = require('fs');
+            const path = 'gh-pages-dir/updates.json';
+            const addonId = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
+            const version = process.env.VERSION;
+            const hash = process.env.HASH;
+
+            // Load existing updates.json
+            let data = { addons: { [addonId]: { updates: [] } } };
+            if (fs.existsSync(path)) {
+              data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            }
+
+            const updates = data.addons[addonId].updates;
+
+            // Remove existing entry for this version (if re-releasing)
+            const filtered = updates.filter(u => u.version !== version);
+
+            // Add new version entry
+            filtered.push({
+              version: version,
+              update_link: 'https://phsb5321.github.io/VoxPage/releases/voxpage-' + version + '.xpi',
+              update_hash: hash,
+              browser_specific_settings: {
+                gecko: { strict_min_version: '109.0' }
+              }
+            });
+
+            data.addons[addonId].updates = filtered;
+            fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+            console.log('Updated updates.json with version ' + version);
+            console.log('Total versions:', filtered.length);
+          "
+
+          # Commit and push
+          cd gh-pages-dir
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: release v${VERSION} — update auto-update manifest"
+          git push origin gh-pages
+
+          echo "Deployed updates.json and .xpi for v${VERSION}"
+          echo "Updates URL: https://phsb5321.github.io/VoxPage/updates.json"
+          echo "XPI URL: https://phsb5321.github.io/VoxPage/releases/voxpage-${VERSION}.xpi"
+
+  notify:
+    needs: [validate, release, amo-submit, deploy-updates]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -276,6 +365,7 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
           RELEASE_RESULT: ${{ needs.release.result }}
           AMO_RESULT: ${{ needs.amo-submit.result }}
+          UPDATES_RESULT: ${{ needs.deploy-updates.result }}
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -283,6 +373,7 @@ jobs:
           echo "- **Tag**: $RELEASE_TAG" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub Release**: $RELEASE_RESULT" >> $GITHUB_STEP_SUMMARY
           echo "- **AMO Submission**: $AMO_RESULT" >> $GITHUB_STEP_SUMMARY
+          echo "- **Auto-Update Deploy**: $UPDATES_RESULT" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "$RELEASE_RESULT" == "success" ]]; then
             echo "Release created successfully!" >> $GITHUB_STEP_SUMMARY
@@ -295,4 +386,11 @@ jobs:
             echo "AMO submission skipped." >> $GITHUB_STEP_SUMMARY
           else
             echo "AMO submission failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "$UPDATES_RESULT" == "success" ]]; then
+            echo "Auto-update manifest deployed to GitHub Pages!" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$UPDATES_RESULT" == "skipped" ]]; then
+            echo "Auto-update deploy skipped (AMO signing required)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Auto-update deploy failed. Check the workflow logs." >> $GITHUB_STEP_SUMMARY
           fi
