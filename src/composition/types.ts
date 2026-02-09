@@ -30,6 +30,9 @@ export interface AppConfig {
  */
 export interface ApiKeys {
   readonly elevenlabs: string | null;
+  readonly openai: string | null;
+  readonly groq: string | null;
+  readonly cartesia: string | null;
 }
 
 /**

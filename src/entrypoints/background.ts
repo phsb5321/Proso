@@ -338,11 +338,23 @@ export default defineBackground(() => {
       // T007: Inject sender tab ID into dispatch data
       const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
 
-      // T021: Bridge content script action names to hexagonal handler names
-      const actionToHandler: Record<string, string> = {
+      // T068: Bridge legacy action names to canonical dot-notation handler names.
+      // Single mapping location for all camelCase and SCREAMING_SNAKE legacy names.
+      const LEGACY_BRIDGE: Record<string, string> = {
+        // Content script legacy actions
         languageDetected: 'language.detect',
+        controllerAction: 'footer.action',
+        jumpToParagraph: 'playback.jumpToParagraph',
+        jumpToWord: 'playback.jumpToWord',
+        requestResync: 'playback.resync',
+        // SCREAMING_SNAKE footer messages
+        FOOTER_SHOW: 'footer.show',
+        FOOTER_HIDE: 'footer.hide',
+        FOOTER_STATE_UPDATE: 'footer.stateUpdate',
+        FOOTER_ACTION: 'footer.action',
+        TOGGLE_FOOTER_SETTINGS: 'footer.toggleSettings',
       };
-      const handlerType = actionToHandler[action] ?? action;
+      const handlerType = LEGACY_BRIDGE[action] ?? action;
 
       return dispatchMessage(handlerType, enrichedData).then((result) => {
         if (result === null) {

@@ -61,9 +61,10 @@ export class OffscreenAudioAdapter implements IAudioPlayer {
    */
   private setupEventListener(): void {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-      chrome.runtime.onMessage.addListener((message: any, _sender: any, _sendResponse: any) => {
-        if (message.type === 'OFFSCREEN_EVENT') {
-          this.handleOffscreenEvent(message.eventType, message.data);
+      chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, _sendResponse: unknown) => {
+        const msg = message as Record<string, unknown>;
+        if (msg.type === 'OFFSCREEN_EVENT') {
+          this.handleOffscreenEvent(msg.eventType as string, msg.data as Record<string, unknown>);
         }
       });
     }
@@ -155,11 +156,11 @@ export class OffscreenAudioAdapter implements IAudioPlayer {
     await this.ensureOffscreen();
 
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(message, (response: OffscreenResponse) => {
+      chrome.runtime.sendMessage(message, (response: unknown) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
         } else {
-          resolve(response);
+          resolve(response as OffscreenResponse);
         }
       });
     });

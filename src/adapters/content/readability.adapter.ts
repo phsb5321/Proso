@@ -173,7 +173,7 @@ export class ReadabilityAdapter implements IReader {
    */
   async extractVisibleText(
     document: Document,
-    url: string,
+    _url: string,
   ): Promise<Result<Paragraph[], ReaderError>> {
     try {
       const body = document.body;

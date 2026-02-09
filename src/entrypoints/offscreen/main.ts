@@ -17,7 +17,7 @@ let audioElement: HTMLAudioElement | null = null;
 let currentObjectUrl: string | null = null;
 
 // Playback state
-let isPlaying = false;
+let _isPlaying = false;
 let playbackSpeed = 1.0;
 
 /**
@@ -261,7 +261,7 @@ function handleStopCommand(sendResponse: (response: unknown) => void): void {
     }
 
     audioElement.src = '';
-    isPlaying = false;
+    _isPlaying = false;
 
     sendResponse({ success: true });
   } catch (error) {
@@ -349,21 +349,21 @@ function handleGetStateCommand(sendResponse: (response: unknown) => void): void 
 // Event handlers
 
 function handlePlay(): void {
-  isPlaying = true;
+  _isPlaying = true;
   sendEventToBackground('playing', {
     positionMs: (audioElement?.currentTime || 0) * 1000,
   });
 }
 
 function handlePause(): void {
-  isPlaying = false;
+  _isPlaying = false;
   sendEventToBackground('paused', {
     positionMs: (audioElement?.currentTime || 0) * 1000,
   });
 }
 
 function handleEnded(): void {
-  isPlaying = false;
+  _isPlaying = false;
   sendEventToBackground('ended', {});
 }
 
@@ -399,7 +399,7 @@ function sendEventToBackground(eventType: string, data: Record<string, unknown>)
       eventType,
       data,
     });
-  } catch (error) {
+  } catch (_error) {
     // Ignore send errors (background may not be listening)
   }
 }

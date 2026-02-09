@@ -57,17 +57,15 @@ describe('Cost Estimator', () => {
       expect(elevenlabsPricing.name).toBe('ElevenLabs');
     });
 
-    it('should return elevenlabs pricing for unknown providers', () => {
-      // Post-045: Falls back to elevenlabs (the only supported provider)
+    it('should return zero pricing for unknown providers', () => {
       const unknownPricing = getProviderPricing('unknown-provider');
-      expect(unknownPricing.pricePerKiloChar).toBe(0.18);
-      expect(unknownPricing.name).toBe('ElevenLabs');
+      expect(unknownPricing.pricePerKiloChar).toBe(0);
+      expect(unknownPricing.name).toBe('unknown-provider');
     });
 
     it('should handle empty provider string', () => {
-      // Post-045: Falls back to elevenlabs
       const emptyPricing = getProviderPricing('');
-      expect(emptyPricing.pricePerKiloChar).toBe(0.18);
+      expect(emptyPricing.pricePerKiloChar).toBe(0);
     });
   });
 
@@ -105,10 +103,9 @@ describe('Cost Estimator', () => {
       expect(cost).toBeCloseTo(180, 2);
     });
 
-    it('should use elevenlabs pricing for unknown providers', () => {
-      // Post-045: Unknown providers fall back to elevenlabs
+    it('should return zero cost for unknown providers', () => {
       const cost = calculateTextCost('a'.repeat(1000), 'unknown');
-      expect(cost).toBeCloseTo(0.18, 5);
+      expect(cost).toBeCloseTo(0, 5);
     });
   });
 
@@ -214,14 +211,13 @@ describe('Cost Estimator', () => {
       expect(updated.totalCacheHits).toBe(1);
     });
 
-    it('should handle unknown providers with elevenlabs pricing', () => {
-      // Post-045: Unknown providers fall back to elevenlabs pricing
+    it('should handle unknown providers with zero pricing', () => {
       let savings = createCumulativeSavings();
       savings = recordCacheHit(savings, 'unknown-provider', 1000);
 
       expect(savings.totalCacheHits).toBe(1);
       expect(savings.byProvider['unknown-provider'].hits).toBe(1);
-      expect(savings.byProvider['unknown-provider'].savings).toBeCloseTo(0.18, 5);
+      expect(savings.byProvider['unknown-provider'].savings).toBeCloseTo(0, 5);
     });
   });
 

@@ -1012,13 +1012,13 @@
    ======================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  .toast,
-  .toast--visible,
-  .toast--exiting,
-  .voxpage-accordion__chevron,
-  .voxpage-accordion__content {
-    animation: none !important;
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 
   .toast {
@@ -1028,27 +1028,5 @@
 
   .toast--exiting {
     display: none;
-  }
-
-  @keyframes accordion-expand {
-    from,
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  @keyframes toast-exit {
-    from,
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes save-pulse {
-    from,
-    to {
-      transform: none;
-    }
   }
 }

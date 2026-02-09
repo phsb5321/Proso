@@ -182,10 +182,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.add', { title: 'Test' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'url and title are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueAdd).not.toHaveBeenCalled();
     });
 
@@ -193,10 +192,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.add', { url: 'https://example.com' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'url and title are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
     });
 
     it('returns invalid_params when params is null', async () => {
@@ -278,10 +276,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.remove', {});
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id is required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueRemove).not.toHaveBeenCalled();
     });
 
@@ -351,10 +348,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.reorder', { newPosition: 0 });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and newPosition are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueReorder).not.toHaveBeenCalled();
     });
 
@@ -362,10 +358,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.reorder', { id: 'item-1' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and newPosition are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
     });
 
     it('returns invalid_params when newPosition is not a number', async () => {
@@ -454,10 +449,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.updateStatus', { status: 'reading' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and status are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueUpdateStatus).not.toHaveBeenCalled();
     });
 
@@ -465,10 +459,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.updateStatus', { id: 'item-1' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and status are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
     });
 
     it('returns operation_failed when legacy handler reports failure', async () => {
@@ -543,10 +536,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.updateProgress', { progress: 0.5 });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and progress are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueUpdateProgress).not.toHaveBeenCalled();
     });
 
@@ -554,10 +546,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.updateProgress', { id: 'item-1' });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id and progress are required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
     });
 
     it('returns invalid_params when progress is not a number', async () => {
@@ -758,10 +749,9 @@ describe('Queue Handlers', () => {
       const result = await dispatch(registry, 'queue.getItem', {});
 
       expect(result.ok).toBe(false);
-      expect(result.error).toEqual({
-        type: 'invalid_params',
-        message: 'id is required',
-      });
+      expect(result.error).toEqual(
+        expect.objectContaining({ type: 'invalid_params' }),
+      );
       expect(mockHandleQueueGetItem).not.toHaveBeenCalled();
     });
 

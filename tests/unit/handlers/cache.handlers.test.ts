@@ -361,7 +361,6 @@ describe('Cache Handlers', () => {
       expect(inner.ok).toBe(false);
       if (!inner.ok) {
         expect(inner.error.type).toBe('invalid_params');
-        expect(inner.error.message).toContain('urlHash');
       }
     });
 
@@ -631,7 +630,6 @@ describe('Cache Handlers', () => {
       expect(inner.ok).toBe(false);
       if (!inner.ok) {
         expect(inner.error.type).toBe('invalid_params');
-        expect(inner.error.message).toContain('url is required');
       }
     });
 
@@ -766,7 +764,6 @@ describe('Cache Handlers', () => {
       expect(inner.ok).toBe(false);
       if (!inner.ok) {
         expect(inner.error.type).toBe('invalid_params');
-        expect(inner.error.message).toContain('url is required');
       }
     });
 

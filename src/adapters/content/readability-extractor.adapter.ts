@@ -177,7 +177,7 @@ export class ReadabilityExtractorAdapter implements ITextExtractor {
   /**
    * Extract selected text from document.
    */
-  private extractSelection(doc: Document): { paragraphs: Paragraph[]; title: string | null } {
+  private extractSelection(_doc: Document): { paragraphs: Paragraph[]; title: string | null } {
     // Note: In a real browser context, this would use window.getSelection()
     // For now, return empty as selection requires browser runtime
     // The content script should handle selection extraction
