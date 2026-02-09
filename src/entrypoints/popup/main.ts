@@ -135,9 +135,6 @@ let currentState: PlaybackState = {
 let currentExportJobId: string | null = null;
 let exportPollingInterval: ReturnType<typeof setInterval> | null = null;
 
-// Summarize state
-let currentSummaryBullets: Array<{ text: string }> = [];
-
 // Highlight state (T093-T095)
 type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
 let selectedHighlightColor: HighlightColor = 'yellow';
@@ -364,7 +361,7 @@ async function sendMessage<T = unknown>(type: string, data?: Record<string, unkn
  */
 async function fetchPlaybackState(): Promise<void> {
   try {
-    const state = await sendMessage<PlaybackState>('getPlaybackState');
+    const state = await sendMessage<PlaybackState>('playback.getState');
     if (state) {
       applyState(state);
     }
@@ -412,13 +409,13 @@ async function handlePlayPause(): Promise<void> {
   try {
     if (currentState.status === 'playing') {
       trackClick('playback.pause_clicked');
-      await sendMessage('pausePlayback');
+      await sendMessage('playback.pause');
       updateStatus('paused');
       updatePlayPauseButton(false);
     } else if (currentState.status === 'paused') {
       // Resume from paused state
       trackClick('playback.play_clicked', { resumed: true });
-      await sendMessage('resumePlayback');
+      await sendMessage('playback.resume');
       updateStatus('playing');
       updatePlayPauseButton(true);
     } else {
@@ -426,7 +423,7 @@ async function handlePlayPause(): Promise<void> {
       trackClick('playback.play_clicked');
       console.log('[Popup] Starting web page playback');
       usageTracker.track('popup.web_playback_starting');
-      await sendMessage('startPlayback');
+      await sendMessage('playback.start');
       updateStatus('loading');
     }
   } catch (error) {
@@ -445,7 +442,7 @@ async function handlePlayPause(): Promise<void> {
 async function handlePrev(): Promise<void> {
   trackClick('playback.skip_clicked', { direction: 'previous' });
   try {
-    await sendMessage('previousParagraph');
+    await sendMessage('playback.previous');
   } catch (error) {
     console.error('[Popup] Previous error:', error);
   }
@@ -457,7 +454,7 @@ async function handlePrev(): Promise<void> {
 async function handleNext(): Promise<void> {
   trackClick('playback.skip_clicked', { direction: 'next' });
   try {
-    await sendMessage('nextParagraph');
+    await sendMessage('playback.next');
   } catch (error) {
     console.error('[Popup] Next error:', error);
   }
@@ -469,7 +466,7 @@ async function handleNext(): Promise<void> {
 async function handleStop(): Promise<void> {
   trackClick('playback.stop_clicked');
   try {
-    await sendMessage('stopPlayback');
+    await sendMessage('playback.stop');
     updateStatus('stopped');
     updatePlayPauseButton(false);
   } catch (error) {
@@ -492,7 +489,10 @@ async function handleSpeedChange(event: Event): Promise<void> {
 
   try {
     await browser.storage.local.set({ speed });
-    await sendMessage('updateSettings', { speed });
+    // Persist to settings store
+    await sendMessage('settings.update', { speed });
+    // T019: Also send runtime message to update active playback immediately
+    await sendMessage('playback.setSpeed', { speed });
   } catch (error) {
     console.error('[Popup] Speed change error:', error);
   }
@@ -515,7 +515,8 @@ async function handleProviderChange(event: Event): Promise<void> {
 
   try {
     await browser.storage.local.set({ provider });
-    await sendMessage('updateSettings', { provider });
+    await sendMessage('settings.update', { provider });
+    await sendMessage('provider.select', { providerId: provider });
   } catch (error) {
     console.error('[Popup] Provider change error:', error);
   }
@@ -531,7 +532,7 @@ async function handleProgressSeek(event: Event): Promise<void> {
   updateProgress(progress);
 
   try {
-    await sendMessage('seekToPosition', { progress });
+    await sendMessage('playback.seek', { progress });
   } catch (error) {
     console.error('[Popup] Seek error:', error);
   }
@@ -560,118 +561,6 @@ function handleHelpClick(event: Event): void {
     url: 'https://github.com/phsb5321/VoxPage#usage',
   });
   window.close();
-}
-
-// ============================================
-// Summarize Functions
-// ============================================
-
-/**
- * Show summary display with bullets
- */
-function showSummaryDisplay(bullets: Array<{ text: string }>): void {
-  currentSummaryBullets = bullets;
-
-  // Clear existing bullets using safe DOM methods
-  while (elements.summaryBullets.firstChild) {
-    elements.summaryBullets.removeChild(elements.summaryBullets.firstChild);
-  }
-
-  bullets.forEach((bullet) => {
-    const li = document.createElement('li');
-    li.textContent = bullet.text;
-    elements.summaryBullets.appendChild(li);
-  });
-
-  elements.summarizeBtn.hidden = true;
-  elements.summaryDisplay.hidden = false;
-}
-
-/**
- * Hide summary display
- */
-function hideSummaryDisplay(): void {
-  elements.summarizeBtn.hidden = false;
-  elements.summaryDisplay.hidden = true;
-  elements.summarizeBtnText.textContent = 'Summarize';
-  elements.summarizeBtn.disabled = false;
-  currentSummaryBullets = [];
-}
-
-/**
- * Handle summarize button click
- */
-async function handleSummarizeClick(): Promise<void> {
-  try {
-    elements.summarizeBtn.disabled = true;
-    elements.summarizeBtnText.textContent = 'Summarizing...';
-
-    // Get current tab to request article text
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      throw new Error('No active tab');
-    }
-
-    // Request article text from content script
-    const contentResponse = (await browser.tabs.sendMessage(tab.id, {
-      type: 'getArticleText',
-    })) as { text?: string; title?: string; url?: string };
-
-    if (!contentResponse?.text || contentResponse.text.length < 100) {
-      throw new Error('Not enough content to summarize');
-    }
-
-    // Request summarization from background
-    const response = await sendMessage<{
-      success: boolean;
-      bullets: Array<{ text: string }>;
-      error?: string;
-    }>('summarize.article', {
-      text: contentResponse.text,
-      title: contentResponse.title,
-      url: contentResponse.url,
-      provider: 'elevenlabs', // Default to ElevenLabs for summarization TTS
-      bulletCount: 5,
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to summarize');
-    }
-
-    showSummaryDisplay(response.bullets);
-  } catch (error) {
-    console.error('[Popup] Summarize error:', error);
-    elements.summarizeBtnText.textContent =
-      error instanceof Error ? error.message : 'Summarize failed';
-    setTimeout(() => {
-      elements.summarizeBtnText.textContent = 'Summarize';
-      elements.summarizeBtn.disabled = false;
-    }, 2000);
-  }
-}
-
-/**
- * Handle read summary button click
- */
-async function handleReadSummaryClick(): Promise<void> {
-  if (currentSummaryBullets.length === 0) return;
-
-  try {
-    await sendMessage('summarize.readSummary', {
-      bullets: currentSummaryBullets,
-      provider: currentState.provider,
-      speed: currentState.speed,
-    });
-  } catch (error) {
-    console.error('[Popup] Read summary error:', error);
-  }
-}
-
-/**
- * Handle close summary button click
- */
-function handleCloseSummaryClick(): void {
-  hideSummaryDisplay();
 }
 
 // ============================================
@@ -1249,11 +1138,6 @@ function setupEventListeners(): void {
   // Footer actions
   elements.settingsBtn.addEventListener('click', handleSettingsClick);
   elements.helpLink.addEventListener('click', handleHelpClick);
-
-  // Summarize controls
-  elements.summarizeBtn.addEventListener('click', handleSummarizeClick);
-  elements.readSummaryBtn.addEventListener('click', handleReadSummaryClick);
-  elements.closeSummaryBtn.addEventListener('click', handleCloseSummaryClick);
 
   // Export controls
   elements.exportBtn.addEventListener('click', handleExportClick);

@@ -9,6 +9,7 @@
 
 import type { IHighlightSynchronizer, FooterState } from '../ports/highlight-sync.port';
 import { isErr } from '../core/shared/result';
+import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { HandlerRegistry } from './registry';
 
 // ============================================
@@ -58,7 +59,8 @@ interface FooterStateUpdateParams {
   currentIndex: number;
   totalParagraphs: number;
   progress: number;
-  currentText: string;
+  currentTime: string;
+  totalTime: string;
   speed: number;
 }
 
@@ -179,7 +181,8 @@ async function handleFooterStateUpdate(
     currentIndex: params.currentIndex,
     totalParagraphs: params.totalParagraphs,
     progress: params.progress,
-    currentText: params.currentText,
+    currentTime: params.currentTime,
+    totalTime: params.totalTime,
     speed: params.speed,
   };
 
@@ -194,19 +197,55 @@ async function handleFooterStateUpdate(
 
 /**
  * Handle footer action (play, pause, next, prev, etc.).
- * This is a passthrough handler - actual action execution
- * is handled by the playback handlers.
+ * T025: Dispatches to PlaybackService for actual playback control.
  */
 async function handleFooterAction(params: FooterActionParams): Promise<FooterActionResponse> {
-  // Log the action for telemetry
   console.log('[Footer] Action received:', params.action, params.value);
 
-  // Return success - the actual action will be dispatched
-  // to the appropriate playback handler by the background
-  return {
-    success: true,
-    action: params.action,
-  };
+  if (!isPlaybackServiceAvailable()) {
+    return { success: false, error: 'PlaybackService not available', action: params.action };
+  }
+
+  try {
+    const service = getPlaybackService();
+
+    switch (params.action) {
+      case 'play':
+      case 'resume':
+        await service.resume();
+        break;
+      case 'pause':
+        await service.pause();
+        break;
+      case 'next':
+        await service.next();
+        break;
+      case 'prev':
+        await service.previous();
+        break;
+      case 'stop':
+      case 'close':
+        await service.stop();
+        break;
+      case 'seek':
+        if (typeof params.value === 'number') {
+          await service.seekToParagraph(params.value);
+        }
+        break;
+      case 'speed':
+        if (typeof params.value === 'number') {
+          service.setSpeed(params.value);
+        }
+        break;
+      default:
+        console.warn('[Footer] Unknown action:', params.action);
+    }
+
+    return { success: true, action: params.action };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message, action: params.action };
+  }
 }
 
 /**

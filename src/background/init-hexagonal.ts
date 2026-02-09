@@ -24,7 +24,16 @@ import {
   getGlobalInstrumentedRegistry,
   registerAllHandlers,
   setSettingsStore,
+  setHighlightSync,
+  setActiveTabId,
+  setLanguageDependencies,
+  setHighlightRepository,
+  setExportDependencies,
+  setLoggingDependencies,
 } from '../handlers';
+import { detectLanguageFromText } from '../utils/language/detector';
+import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
+import { createLogBuffer } from '../utils/logging/buffer';
 import {
   type DispatchStats,
   type DispatchSummary,
@@ -82,9 +91,100 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     // Create and initialize the container
     createContainer(config, apiKeys);
 
-    // Wire up the settings store for handlers that need it
+    // Wire up dependencies for all handler subsystems
     const container = getContainer();
     setSettingsStore(container.adapters.settingsStore);
+
+    // T001: Wire highlight sync for footer handlers
+    setHighlightSync(container.adapters.highlightSync);
+
+    // T017: Subscribe PlaybackService to settings changes for reactive updates
+    container.services.playback.subscribeToSettings();
+
+    // T002: Wire language detection using franc-min
+    setLanguageDependencies({
+      detectLanguage: (text: string) => detectLanguageFromText(text)?.code ?? 'en',
+    });
+
+    // T003: Wire highlight repository for highlight CRUD handlers
+    setHighlightRepository(createHighlightRepository());
+
+    // T004: Wire export dependencies (graceful — export is a secondary feature)
+    try {
+      setExportDependencies({
+        generateAudio: async (request) => {
+          // Delegate to the container's audio generator
+          const audioGen = container.adapters.audioGenerator;
+          const result = await audioGen.generateAudio({
+            text: request.text,
+            voice: request.voice ?? null,
+            speed: request.speed,
+            language: null,
+          });
+          if (result.ok && result.value.audioBlob.size > 0) {
+            const url = URL.createObjectURL(result.value.audioBlob);
+            return { audioUrl: url, success: true };
+          }
+          return { success: false, error: result.ok ? 'Empty audio' : String(result.error) };
+        },
+        downloadFile: async (url, filename) => {
+          await browser.downloads.download({ url, filename });
+        },
+        encodeToMp3: async (audioBlobs) => {
+          // MP3 encoding is best-effort — return concatenated blob if encoder unavailable
+          const blob = new Blob(audioBlobs, { type: 'audio/mpeg' });
+          return { blob, durationMs: 0, sizeBytes: blob.size };
+        },
+        createAudioUrl: async (blob) => URL.createObjectURL(blob),
+        revokeAudioUrl: (url) => {
+          if (url) URL.revokeObjectURL(url);
+        },
+        saveExportHistory: async (entry) => {
+          const result = await browser.storage.local.get('exportHistory');
+          const history = (result.exportHistory as unknown[]) || [];
+          history.push(entry);
+          // Keep last 50 entries
+          if (history.length > 50) history.splice(0, history.length - 50);
+          await browser.storage.local.set({ exportHistory: history });
+        },
+      });
+    } catch (error) {
+      console.warn('[Hexagonal] Failed to wire export dependencies:', error);
+    }
+
+    // T005: Wire logging dependencies (graceful — logging handlers return disabled state if unwired)
+    try {
+      const logBuffer = createLogBuffer();
+      setLoggingDependencies({
+        addToBuffer: (entry) => {
+          // Convert millisecond timestamp to nanosecond string (19 digits)
+          const nsTimestamp = String(entry.timestamp * 1_000_000).padStart(19, '0');
+          logBuffer.add({
+            level: entry.level,
+            message: entry.message,
+            component: 'background' as const,
+            metadata: entry.metadata,
+            timestamp: nsTimestamp,
+          });
+        },
+        flushBuffer: async () => {
+          const entries = logBuffer.flush();
+          return entries.length;
+        },
+        getBufferSize: () => logBuffer.count,
+        isEnabled: () => !logBuffer.isCircuitBroken(),
+        getLastFlushAttempt: () => logBuffer.getState().lastFlushAttempt,
+        getConsecutiveFailures: () => logBuffer.getState().consecutiveFailures,
+        isCircuitBreakerOpen: () => logBuffer.isCircuitBroken(),
+      });
+    } catch (error) {
+      console.warn('[Hexagonal] Failed to wire logging dependencies:', error);
+    }
+
+    // T006: Track active tab for footer handlers
+    browser.tabs.onActivated.addListener((activeInfo) => {
+      setActiveTabId(activeInfo.tabId);
+    });
 
     // Register all handlers on the GLOBAL registry
     // This is critical - dispatchToHexagonal() uses getGlobalInstrumentedRegistry()
@@ -190,7 +290,8 @@ export async function dispatchToHexagonal<T = unknown>(
       timestamp: startTime,
     });
     console.warn('[Hexagonal] Handler error:', result.error);
-    return null;
+    // T033: Return discriminated error instead of null
+    return { _hexError: true, error: String(result.error) } as T;
   }
 
   // Handlers return Result<T, E>, which gets wrapped by registry.dispatch in another Result.
@@ -230,7 +331,7 @@ export async function dispatchToHexagonal<T = unknown>(
 
       return innerResult.value as T;
     } else {
-      // Inner Result is Err - log failure and return null
+      // Inner Result is Err - log failure and return discriminated error
       logDispatch({
         type,
         path: 'hex',
@@ -240,7 +341,8 @@ export async function dispatchToHexagonal<T = unknown>(
         timestamp: startTime,
       });
       console.warn('[Hexagonal] Handler returned error:', innerResult.error);
-      return null;
+      // T033: Return discriminated error instead of null
+      return { _hexError: true, error: String(innerResult.error) } as T;
     }
   }
 

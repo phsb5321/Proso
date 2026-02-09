@@ -23,7 +23,8 @@ export interface FooterState {
   readonly currentIndex: number;
   readonly totalParagraphs: number;
   readonly progress: number;
-  readonly currentText: string;
+  readonly currentTime: string;
+  readonly totalTime: string;
   readonly speed: number;
 }
 
@@ -39,11 +40,15 @@ export interface IHighlightSynchronizer {
    * @param tabId - Tab to highlight in
    * @param paragraphIndex - Paragraph index to highlight
    * @param scroll - Whether to scroll to the paragraph
+   * @param text - Paragraph text for DOM matching
+   * @param timestamp - Message freshness timestamp
    */
   highlightParagraph(
     tabId: number,
     paragraphIndex: number,
     scroll: boolean,
+    text?: string,
+    timestamp?: number,
   ): Promise<Result<void, HighlightError>>;
 
   /**

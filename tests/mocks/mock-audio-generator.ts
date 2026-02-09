@@ -42,6 +42,7 @@ export interface MockAudioGeneratorConfig {
  */
 export class MockAudioGenerator implements IAudioGenerator {
   readonly providerId: ProviderId;
+  readonly playbackMode = 'blob' as const;
   readonly supportsWordTiming: boolean;
   readonly supportedLanguages: readonly string[];
 

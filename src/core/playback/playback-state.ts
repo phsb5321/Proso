@@ -42,7 +42,7 @@ export const initialPlaybackState: PlaybackState = {
   paragraphs: [],
   progress: 0,
   speed: 1.0,
-  provider: 'elevenlabs', // Post-045: Only ElevenLabs is supported
+  provider: 'browser', // Default to Browser TTS (always available, no API key needed)
   voice: null,
   mode: 'article',
   activeTabId: null,
