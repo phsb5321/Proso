@@ -141,7 +141,7 @@ export class UsageTracker {
     level?: LogLevel,
     options?: TrackOptions,
   ): void {
-    if (!this.config.enabled) {
+    if (!this.config.enabled || !this.initialized) {
       return;
     }
 
