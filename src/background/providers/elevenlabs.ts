@@ -251,7 +251,6 @@ export class ElevenLabsProvider {
     }
 
     console.log('[ElevenLabs] Generating audio, text length:', text.length);
-    console.log('[ElevenLabs] API key length:', this.apiKey!.length);
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
@@ -354,7 +353,7 @@ export class ElevenLabsProvider {
    * Parse character-level timing into word boundaries
    */
   private parseWordTiming(
-    text: string,
+    _text: string,
     alignment: {
       characters: string[];
       character_start_times_seconds: number[];

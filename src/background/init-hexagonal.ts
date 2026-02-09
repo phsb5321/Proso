@@ -47,10 +47,18 @@ import {
  * Load API keys from browser storage.
  */
 async function loadApiKeys(): Promise<ApiKeys> {
-  const stored = await browser.storage.local.get(['elevenlabsApiKey']);
+  const stored = await browser.storage.local.get([
+    'elevenlabsApiKey',
+    'openaiApiKey',
+    'groqApiKey',
+    'cartesiaApiKey',
+  ]);
 
   return {
     elevenlabs: (stored.elevenlabsApiKey as string) || null,
+    openai: (stored.openaiApiKey as string) || null,
+    groq: (stored.groqApiKey as string) || null,
+    cartesia: (stored.cartesiaApiKey as string) || null,
   };
 }
 

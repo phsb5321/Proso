@@ -232,8 +232,8 @@ export class LogBuffer {
           consecutiveFailures: this.consecutiveFailures,
         },
       });
-    } catch (err: any) {
-      console.warn('LogBuffer: Failed to save to storage', err.message);
+    } catch (err: unknown) {
+      console.warn('LogBuffer: Failed to save to storage', (err as Error).message);
     }
   }
 
@@ -246,13 +246,13 @@ export class LogBuffer {
       const saved = result[STORAGE_KEY] as SavedBufferState | undefined;
 
       if (saved && Array.isArray(saved.entries)) {
-        this.entries = saved.entries.filter((e: any) => validateLogEntry(e));
+        this.entries = saved.entries.filter((e: unknown) => validateLogEntry(e));
         this.totalBytes = saved.totalBytes || this.recalculateSize();
         this.lastFlushAttempt = saved.lastFlushAttempt || 0;
         this.consecutiveFailures = saved.consecutiveFailures || 0;
       }
-    } catch (err: any) {
-      console.warn('LogBuffer: Failed to load from storage', err.message);
+    } catch (err: unknown) {
+      console.warn('LogBuffer: Failed to load from storage', (err as Error).message);
     }
   }
 

@@ -268,7 +268,7 @@ async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<v
 /**
  * Get current language state for a tab
  */
-export async function getLanguageState(tabId: number): Promise<LanguageState> {
+export async function getLanguageState(_tabId: number): Promise<LanguageState> {
   const result = await browser.storage.local.get([
     STORAGE_KEYS.DETECTED_LANGUAGE,
     STORAGE_KEYS.LANGUAGE_PREFERENCE,
@@ -355,7 +355,7 @@ export function setupNavigationListener(): void {
   // Track previous URLs per tab for hostname comparison
   const tabUrls = new Map<number, string>();
 
-  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, _tab) => {
     // Only process URL changes (actual navigation)
     if (changeInfo.url) {
       try {

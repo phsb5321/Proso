@@ -12,6 +12,13 @@ import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import type { HandlerRegistry } from './registry';
+import {
+  playbackStartParamsSchema,
+  playbackSeekToParagraphParamsSchema,
+  playbackSetSpeedParamsSchema,
+  playbackSeekParamsSchema,
+  paragraphClickedParamsSchema,
+} from './schemas/playback.schemas';
 
 /**
  * Get the active tab in the current window.
@@ -190,6 +197,14 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
   >(
     'playback.start',
     async (params) => {
+      const parsed = playbackStartParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
+      }
+
       if (!isPlaybackServiceAvailable()) {
         return Err({
           type: 'service_unavailable',
@@ -199,8 +214,8 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
 
       try {
         // Step 1: Get active tab if not provided
-        let tabId = params.tabId;
-        let pageUrl = params.pageUrl;
+        let tabId = parsed.data.tabId;
+        let pageUrl = parsed.data.pageUrl;
 
         if (!tabId || !pageUrl) {
           const tab = await getActiveTab();
@@ -212,7 +227,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         }
 
         // Step 2: Extract paragraphs if not provided
-        let paragraphs = params.paragraphs;
+        let paragraphs = parsed.data.paragraphs;
 
         if (!paragraphs || paragraphs.length === 0) {
           const extractResult = await sendToContentScript(tabId, {
@@ -414,6 +429,14 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
   >(
     'playback.seekToParagraph',
     async (params) => {
+      const parsed = playbackSeekToParagraphParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
+      }
+
       if (!isPlaybackServiceAvailable()) {
         return Err({
           type: 'service_unavailable',
@@ -421,22 +444,15 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (typeof params.paragraphIndex !== 'number') {
-        return Err({
-          type: 'invalid_params',
-          message: 'paragraphIndex must be a number',
-        });
-      }
-
       try {
         const service = getPlaybackService();
-        const result = await service.seekToParagraph(params.paragraphIndex);
+        const result = await service.seekToParagraph(parsed.data.paragraphIndex);
 
         if (!result.ok) {
           return Ok({ success: false, error: getPlaybackErrorMessage(result.error) });
         }
 
-        return Ok({ success: true, currentParagraph: params.paragraphIndex });
+        return Ok({ success: true, currentParagraph: parsed.data.paragraphIndex });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return Err({ type: 'operation_failed', message });
@@ -451,6 +467,14 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
   registry.register<{ speed: number }, Result<PlaybackOperationResponse, PlaybackHandlerError>>(
     'playback.setSpeed',
     async (params) => {
+      const parsed = playbackSetSpeedParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
+      }
+
       if (!isPlaybackServiceAvailable()) {
         return Err({
           type: 'service_unavailable',
@@ -458,16 +482,9 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (typeof params.speed !== 'number' || params.speed < 0.5 || params.speed > 2.0) {
-        return Err({
-          type: 'invalid_params',
-          message: 'speed must be a number between 0.5 and 2.0',
-        });
-      }
-
       try {
         const service = getPlaybackService();
-        service.setSpeed(params.speed);
+        service.setSpeed(parsed.data.speed);
         return Ok({ success: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -485,17 +502,18 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
   registry.register<{ progress: number }, Result<PlaybackOperationResponse, PlaybackHandlerError>>(
     'playback.seek',
     async (params) => {
+      const parsed = playbackSeekParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
+      }
+
       if (!isPlaybackServiceAvailable()) {
         return Err({
           type: 'service_unavailable',
           message: 'PlaybackService not yet initialized. Use legacy handlers.',
-        });
-      }
-
-      if (typeof params.progress !== 'number' || params.progress < 0 || params.progress > 100) {
-        return Err({
-          type: 'invalid_params',
-          message: 'progress must be a number between 0 and 100',
         });
       }
 
@@ -506,7 +524,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         // Convert progress percentage to paragraph index
         const paragraphIndex =
           state.totalParagraphs > 0
-            ? Math.floor((params.progress / 100) * state.totalParagraphs)
+            ? Math.floor((parsed.data.progress / 100) * state.totalParagraphs)
             : 0;
 
         const result = await service.seekToParagraph(paragraphIndex);
@@ -539,6 +557,14 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
   >(
     'PARAGRAPH_CLICKED',
     async (params) => {
+      const parsed = paragraphClickedParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
+      }
+
       if (!isPlaybackServiceAvailable()) {
         return Err({
           type: 'service_unavailable',
@@ -546,7 +572,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      const paragraphIndex = typeof params.paragraphIndex === 'number' ? params.paragraphIndex : 0;
+      const paragraphIndex = parsed.data.paragraphIndex;
 
       try {
         const service = getPlaybackService();

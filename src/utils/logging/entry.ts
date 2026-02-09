@@ -60,7 +60,7 @@ export interface CreateLogEntryParams {
   level: LogLevel;
   message: string;
   component: Component;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 /**
@@ -108,7 +108,7 @@ export function createLogEntry(params: CreateLogEntryParams): LogEntry | null {
   }
 
   // Validate and sanitize metadata
-  let sanitizedMetadata: Record<string, any> | null = null;
+  let sanitizedMetadata: Record<string, unknown> | null = null;
   if (
     params.metadata !== null &&
     params.metadata !== undefined &&
@@ -139,7 +139,7 @@ export function createLogEntry(params: CreateLogEntryParams): LogEntry | null {
  * Validate an existing LogEntry object
  * @param entry - LogEntry to validate
  */
-export function validateLogEntry(entry: any): entry is LogEntry {
+export function validateLogEntry(entry: unknown): entry is LogEntry {
   try {
     logEntrySchema.parse(entry);
     return true;
@@ -177,7 +177,7 @@ export function getEntrySize(entry: LogEntry): number {
  */
 export function serializeForLoki(
   entry: LogEntry,
-): [string, string] | [string, string, Record<string, any>] {
+): [string, string] | [string, string, Record<string, unknown>] {
   if (entry.metadata && Object.keys(entry.metadata).length > 0) {
     return [entry.timestamp, entry.message, entry.metadata];
   }

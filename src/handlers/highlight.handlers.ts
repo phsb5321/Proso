@@ -16,6 +16,14 @@ import type { IHighlightRepository } from '../ports/highlight-repository.port';
 import { createHighlight, type HighlightColor } from '../core/highlight/highlight.entity';
 import { isOk } from '../core/shared/result';
 import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
+import {
+  highlightCreateParamsSchema,
+  highlightGetParamsSchema,
+  highlightListParamsSchema,
+  highlightUpdateParamsSchema,
+  highlightDeleteParamsSchema,
+  highlightDeleteByUrlParamsSchema,
+} from './schemas/misc.schemas';
 
 /**
  * Highlight handler error types
@@ -117,25 +125,23 @@ export function setHighlightRepository(repo: IHighlightRepository): void {
  */
 export function registerHighlightHandlers(registry: HandlerRegistry): void {
   // CREATE
-  registry.register('highlight.create', async (params: {
-    url: string;
-    exact: string;
-    prefix?: string;
-    suffix?: string;
-    color?: HighlightColor;
-    note?: string;
-  }): Promise<HighlightCreateResponse> => {
+  registry.register('highlight.create', async (params: unknown): Promise<HighlightCreateResponse> => {
+    const parsed = highlightCreateParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
 
       // Create highlight entity
       const highlight = createHighlight({
-        url: params.url,
-        exact: params.exact,
-        prefix: params.prefix,
-        suffix: params.suffix,
-        color: params.color ?? 'yellow',
-        note: params.note,
+        url: parsed.data.url,
+        exact: parsed.data.exact,
+        prefix: parsed.data.prefix,
+        suffix: parsed.data.suffix,
+        color: (parsed.data.color as HighlightColor) ?? 'yellow',
+        note: parsed.data.note,
       });
 
       // Save to repository
@@ -158,12 +164,15 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // GET
-  registry.register('highlight.get', async (params: {
-    id: string;
-  }): Promise<HighlightGetResponse> => {
+  registry.register('highlight.get', async (params: unknown): Promise<HighlightGetResponse> => {
+    const parsed = highlightGetParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
-      const result = await repo.get(params.id);
+      const result = await repo.get(parsed.data.id);
 
       if (isOk(result)) {
         const h = result.value;
@@ -196,12 +205,15 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // LIST
-  registry.register('highlight.list', async (params: {
-    url: string;
-  }): Promise<HighlightListResponse> => {
+  registry.register('highlight.list', async (params: unknown): Promise<HighlightListResponse> => {
+    const parsed = highlightListParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, highlights: [], error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
-      const result = await repo.getByUrl(params.url);
+      const result = await repo.getByUrl(parsed.data.url);
 
       if (isOk(result)) {
         const highlights = result.value.map((h) => ({
@@ -227,17 +239,18 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // UPDATE
-  registry.register('highlight.update', async (params: {
-    id: string;
-    color?: HighlightColor;
-    note?: string;
-  }): Promise<HighlightUpdateResponse> => {
+  registry.register('highlight.update', async (params: unknown): Promise<HighlightUpdateResponse> => {
+    const parsed = highlightUpdateParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
 
-      const result = await repo.update(params.id, {
-        color: params.color,
-        note: params.note,
+      const result = await repo.update(parsed.data.id, {
+        color: parsed.data.color as HighlightColor | undefined,
+        note: parsed.data.note,
       });
 
       if (isOk(result)) {
@@ -254,12 +267,15 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // DELETE
-  registry.register('highlight.delete', async (params: {
-    id: string;
-  }): Promise<HighlightDeleteResponse> => {
+  registry.register('highlight.delete', async (params: unknown): Promise<HighlightDeleteResponse> => {
+    const parsed = highlightDeleteParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
-      const result = await repo.delete(params.id);
+      const result = await repo.delete(parsed.data.id);
 
       if (isOk(result)) {
         return { success: true };
@@ -275,12 +291,15 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // DELETE BY URL
-  registry.register('highlight.deleteByUrl', async (params: {
-    url: string;
-  }): Promise<HighlightDeleteByUrlResponse> => {
+  registry.register('highlight.deleteByUrl', async (params: unknown): Promise<HighlightDeleteByUrlResponse> => {
+    const parsed = highlightDeleteByUrlParamsSchema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, deletedCount: 0, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    }
+
     try {
       const repo = getRepository();
-      const result = await repo.deleteByUrl(params.url);
+      const result = await repo.deleteByUrl(parsed.data.url);
 
       if (isOk(result)) {
         return { success: true, deletedCount: result.value };

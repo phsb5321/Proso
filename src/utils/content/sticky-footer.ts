@@ -586,7 +586,7 @@ export class StickyFooter {
    * Build the footer DOM structure using safe DOM methods
    */
   private _buildDOM(): DocumentFragment {
-    const { status, progress, currentTime, totalTime, currentParagraph, totalParagraphs, speed } =
+    const { status, progress, currentTime, totalTime, currentParagraph: _currentParagraph, totalParagraphs, speed } =
       this.playbackState;
     const isPlaying = status === "playing";
     const isLoading = status === "loading";

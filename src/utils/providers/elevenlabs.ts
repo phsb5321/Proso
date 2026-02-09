@@ -123,7 +123,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
 
     const voiceId = validated.voice || '21m00Tcm4TlvDq8ikWAM'; // Default to Rachel
 
-    const requestBody: any = {
+    const requestBody: Record<string, unknown> = {
       text: validated.text,
       model_id: 'eleven_multilingual_v2',
       voice_settings: {
@@ -311,7 +311,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
     return wordTimings;
   }
 
-  async getVoices(language?: string): Promise<VoiceOption[]> {
+  async getVoices(_language?: string): Promise<VoiceOption[]> {
     // All voices support all languages via multilingual_v2 model
     return ELEVENLABS_VOICES;
   }
@@ -332,7 +332,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
     }
   }
 
-  protected clampSpeed(speed: number): number {
+  protected clampSpeed(_speed: number): number {
     // ElevenLabs doesn't support speed in API - handled by playbackRate
     return 1.0;
   }

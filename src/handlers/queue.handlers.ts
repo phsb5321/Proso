@@ -23,6 +23,16 @@ import {
   handleQueuePlayPrevious,
 } from '../utils/messaging/handlers/queue';
 import type { HandlerRegistry } from './registry';
+import {
+  queueAddParamsSchema,
+  queueRemoveParamsSchema,
+  queueReorderParamsSchema,
+  queueUpdateStatusParamsSchema,
+  queueUpdateProgressParamsSchema,
+  queueClearParamsSchema,
+  queueGetItemParamsSchema,
+  queuePlayParamsSchema,
+} from './schemas/queue.schemas';
 
 /**
  * Queue handler error type.
@@ -211,25 +221,26 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Add an article to the reading queue.
    */
-  registry.register<QueueAddParams, Result<QueueAddResponse, QueueHandlerError>>(
+  registry.register<unknown, Result<QueueAddResponse, QueueHandlerError>>(
     'queue.add',
     async (params) => {
-      if (!params?.url || !params?.title) {
+      const parsed = queueAddParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'url and title are required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const result = await handleQueueAdd({
-          url: params.url,
-          title: params.title,
-          excerpt: params.excerpt,
-          author: params.author,
-          faviconUrl: params.faviconUrl,
-          language: params.language,
-          estimatedReadTime: params.estimatedReadTime,
+          url: parsed.data.url,
+          title: parsed.data.title,
+          excerpt: parsed.data.excerpt,
+          author: parsed.data.author,
+          faviconUrl: parsed.data.faviconUrl,
+          language: parsed.data.language,
+          estimatedReadTime: parsed.data.estimatedReadTime,
         });
 
         if (!result.success) {
@@ -254,18 +265,19 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Remove an article from the queue.
    */
-  registry.register<QueueRemoveParams, Result<{ success: boolean }, QueueHandlerError>>(
+  registry.register<unknown, Result<{ success: boolean }, QueueHandlerError>>(
     'queue.remove',
     async (params) => {
-      if (!params?.id) {
+      const parsed = queueRemoveParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'id is required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
-        const result = await handleQueueRemove({ id: params.id });
+        const result = await handleQueueRemove({ id: parsed.data.id });
 
         if (!result.success) {
           return Err({
@@ -286,20 +298,21 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Reorder an article in the queue.
    */
-  registry.register<QueueReorderParams, Result<QueueReorderResponse, QueueHandlerError>>(
+  registry.register<unknown, Result<QueueReorderResponse, QueueHandlerError>>(
     'queue.reorder',
     async (params) => {
-      if (!params?.id || typeof params?.newPosition !== 'number') {
+      const parsed = queueReorderParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'id and newPosition are required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const result = await handleQueueReorder({
-          id: params.id,
-          newPosition: params.newPosition,
+          id: parsed.data.id,
+          newPosition: parsed.data.newPosition,
         });
 
         if (!result.success) {
@@ -323,20 +336,21 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Update the status of a queue item.
    */
-  registry.register<QueueUpdateStatusParams, Result<{ success: boolean }, QueueHandlerError>>(
+  registry.register<unknown, Result<{ success: boolean }, QueueHandlerError>>(
     'queue.updateStatus',
     async (params) => {
-      if (!params?.id || !params?.status) {
+      const parsed = queueUpdateStatusParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'id and status are required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const result = await handleQueueUpdateStatus({
-          id: params.id,
-          status: params.status,
+          id: parsed.data.id,
+          status: parsed.data.status,
         });
 
         if (!result.success) {
@@ -358,21 +372,22 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Update the reading progress of a queue item.
    */
-  registry.register<QueueUpdateProgressParams, Result<{ success: boolean }, QueueHandlerError>>(
+  registry.register<unknown, Result<{ success: boolean }, QueueHandlerError>>(
     'queue.updateProgress',
     async (params) => {
-      if (!params?.id || typeof params?.progress !== 'number') {
+      const parsed = queueUpdateProgressParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'id and progress are required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const result = await handleQueueUpdateProgress({
-          id: params.id,
-          progress: params.progress,
-          lastParagraphIndex: params.lastParagraphIndex,
+          id: parsed.data.id,
+          progress: parsed.data.progress,
+          lastParagraphIndex: parsed.data.lastParagraphIndex,
         });
 
         if (!result.success) {
@@ -394,12 +409,20 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Clear queue items by filter.
    */
-  registry.register<QueueClearParams, Result<QueueClearResponse, QueueHandlerError>>(
+  registry.register<unknown, Result<QueueClearResponse, QueueHandlerError>>(
     'queue.clear',
     async (params) => {
+      const parsed = queueClearParamsSchema.safeParse(params ?? {});
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map(i => i.message).join('; '),
+        });
+      }
+
       try {
         const result = await handleQueueClear({
-          filter: params?.filter,
+          filter: parsed.data.filter,
         });
 
         if (!result.success) {
@@ -444,18 +467,19 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Get a single queue item by ID.
    */
-  registry.register<QueueGetItemParams, Result<QueueGetItemResponse, QueueHandlerError>>(
+  registry.register<unknown, Result<QueueGetItemResponse, QueueHandlerError>>(
     'queue.getItem',
     async (params) => {
-      if (!params?.id) {
+      const parsed = queueGetItemParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'id is required',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
-        const result = await handleQueueGetItem({ id: params.id });
+        const result = await handleQueueGetItem({ id: parsed.data.id });
 
         if (!result.success || !result.item) {
           return Err({
@@ -478,12 +502,20 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
   /**
    * Start playing the queue.
    */
-  registry.register<QueuePlayParams, Result<QueuePlayResponse, QueueHandlerError>>(
+  registry.register<unknown, Result<QueuePlayResponse, QueueHandlerError>>(
     'queue.play',
     async (params) => {
+      const parsed = queuePlayParamsSchema.safeParse(params ?? {});
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map(i => i.message).join('; '),
+        });
+      }
+
       try {
         const result = await handleQueuePlay({
-          startFromId: params?.startFromId,
+          startFromId: parsed.data.startFromId,
         });
 
         if (!result.success) {

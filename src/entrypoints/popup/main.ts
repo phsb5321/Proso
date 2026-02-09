@@ -134,6 +134,8 @@ let currentState: PlaybackState = {
 // Export state
 let currentExportJobId: string | null = null;
 let exportPollingInterval: ReturnType<typeof setInterval> | null = null;
+let exportPollingTimeout: ReturnType<typeof setTimeout> | null = null;
+const EXPORT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 // Highlight state (T093-T095)
 type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple';
@@ -349,6 +351,18 @@ function applyState(state: PlaybackState): void {
 async function sendMessage<T = unknown>(type: string, data?: Record<string, unknown>): Promise<T> {
   try {
     const response = await browser.runtime.sendMessage({ type, ...data });
+
+    // Guard against null/undefined responses from disconnected ports or missing handlers
+    if (response === null || response === undefined) {
+      console.warn('[Popup] Null response for message:', type);
+      return response as T;
+    }
+
+    // Guard against non-object responses (strings, numbers) when expecting objects
+    if (typeof response === 'object' && 'error' in response && response.error) {
+      console.warn('[Popup] Error response for message:', type, response.error);
+    }
+
     return response as T;
   } catch (error) {
     console.error('[Popup] Message error:', type, error);
@@ -517,6 +531,16 @@ async function handleProviderChange(event: Event): Promise<void> {
     await browser.storage.local.set({ provider });
     await sendMessage('settings.update', { provider });
     await sendMessage('provider.select', { providerId: provider });
+
+    // FR-009: Warn about language-limited providers on non-English pages
+    if (provider === 'groq' || provider === 'cartesia') {
+      const langResponse = await sendMessage<{ effective?: string }>('language.getState');
+      const lang = langResponse?.effective;
+      if (lang && !lang.startsWith('en')) {
+        elements.statusText.textContent = `${provider === 'groq' ? 'Groq' : 'Cartesia'}: English only`;
+        elements.statusText.title = 'This provider only supports English. Consider switching to Browser, ElevenLabs, or OpenAI for other languages.';
+      }
+    }
   } catch (error) {
     console.error('[Popup] Provider change error:', error);
   }
@@ -600,6 +624,28 @@ function startExportPolling(jobId: string): void {
   if (exportPollingInterval) {
     clearInterval(exportPollingInterval);
   }
+  if (exportPollingTimeout) {
+    clearTimeout(exportPollingTimeout);
+  }
+
+  // FR-004: 10-minute timeout for export polling
+  exportPollingTimeout = setTimeout(async () => {
+    console.warn('[Popup] Export polling timed out after 10 minutes');
+    stopExportPolling();
+    updateExportProgress(0, 'Export timed out');
+
+    // Cancel the export job on the background side
+    try {
+      await sendMessage('export.cancel', { jobId });
+    } catch {
+      // Best-effort cleanup
+    }
+
+    setTimeout(() => {
+      hideExportProgress();
+      currentExportJobId = null;
+    }, 3000);
+  }, EXPORT_TIMEOUT_MS);
 
   exportPollingInterval = setInterval(async () => {
     try {
@@ -652,6 +698,10 @@ function stopExportPolling(): void {
   if (exportPollingInterval) {
     clearInterval(exportPollingInterval);
     exportPollingInterval = null;
+  }
+  if (exportPollingTimeout) {
+    clearTimeout(exportPollingTimeout);
+    exportPollingTimeout = null;
   }
 }
 
@@ -1322,7 +1372,7 @@ async function checkForSelection(): Promise<void> {
     } else {
       hideSelectionUI();
     }
-  } catch (error) {
+  } catch (_error) {
     // Content script may not be injected - ignore
     hideSelectionUI();
   }

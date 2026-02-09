@@ -110,8 +110,8 @@ export class RemoteLogger {
       }
 
       this.initialized = true;
-    } catch (err: any) {
-      console.warn('RemoteLogger: Initialization failed', err.message);
+    } catch (err: unknown) {
+      console.warn('RemoteLogger: Initialization failed', (err as Error).message);
     }
   }
 
@@ -126,7 +126,7 @@ export class RemoteLogger {
     level: LogLevel,
     message: string,
     component: Component,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): void {
     // Check if logging is enabled and level is sufficient
     if (!this.config.enabled) return;
@@ -146,19 +146,19 @@ export class RemoteLogger {
   /**
    * Convenience methods for each log level
    */
-  debug(message: string, component: Component, metadata?: Record<string, any>): void {
+  debug(message: string, component: Component, metadata?: Record<string, unknown>): void {
     this.log('debug', message, component, metadata);
   }
 
-  info(message: string, component: Component, metadata?: Record<string, any>): void {
+  info(message: string, component: Component, metadata?: Record<string, unknown>): void {
     this.log('info', message, component, metadata);
   }
 
-  warn(message: string, component: Component, metadata?: Record<string, any>): void {
+  warn(message: string, component: Component, metadata?: Record<string, unknown>): void {
     this.log('warn', message, component, metadata);
   }
 
-  error(message: string, component: Component, metadata?: Record<string, any>): void {
+  error(message: string, component: Component, metadata?: Record<string, unknown>): void {
     this.log('error', message, component, metadata);
   }
 
@@ -251,8 +251,8 @@ export class RemoteLogger {
       }
 
       return true;
-    } catch (err: any) {
-      console.error('RemoteLogger: Failed to send to Loki', err.message);
+    } catch (err: unknown) {
+      console.error('RemoteLogger: Failed to send to Loki', (err as Error).message);
       return false;
     }
   }
@@ -269,15 +269,15 @@ export class RemoteLogger {
           ...result[STORAGE_KEY_CONFIG],
         });
       }
-    } catch (err: any) {
-      console.warn('RemoteLogger: Failed to load config', err.message);
+    } catch (err: unknown) {
+      console.warn('RemoteLogger: Failed to load config', (err as Error).message);
     }
   }
 
   /**
    * Handle configuration change
    */
-  private handleConfigChange(newConfig: any): void {
+  private handleConfigChange(newConfig: unknown): void {
     const wasEnabled = this.config.enabled;
     this.config = loggingConfigSchema.parse({ ...this.config, ...newConfig });
 
@@ -301,8 +301,8 @@ export class RemoteLogger {
       if (Array.isArray(result[STORAGE_KEY_RETRY])) {
         this.retryQueue = result[STORAGE_KEY_RETRY];
       }
-    } catch (err: any) {
-      console.warn('RemoteLogger: Failed to load retry queue', err.message);
+    } catch (err: unknown) {
+      console.warn('RemoteLogger: Failed to load retry queue', (err as Error).message);
     }
   }
 
@@ -314,8 +314,8 @@ export class RemoteLogger {
       await browser.storage.local.set({
         [STORAGE_KEY_RETRY]: this.retryQueue,
       });
-    } catch (err: any) {
-      console.warn('RemoteLogger: Failed to save retry queue', err.message);
+    } catch (err: unknown) {
+      console.warn('RemoteLogger: Failed to save retry queue', (err as Error).message);
     }
   }
 
@@ -432,7 +432,7 @@ export function getLogLevel(): LogLevel {
  */
 function safeSerializeMetadata(
   metadata: Record<string, unknown> | undefined,
-): Record<string, any> | null {
+): Record<string, unknown> | null {
   if (!metadata) return null;
 
   try {
