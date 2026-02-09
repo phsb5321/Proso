@@ -307,13 +307,13 @@ describe('Settings Handlers', () => {
 
     it('should throw for invalid provider', async () => {
       const result = await registry.dispatch('settings.setApiKey', {
-        provider: 'openai',
+        provider: 'invalid-provider',
         key: 'sk-key',
       });
 
       expect(result.ok).toBe(false);
       if (!result.ok && result.error.type === 'execution_failed') {
-        expect(result.error.message).toContain('Invalid provider: openai');
+        expect(result.error.message).toContain('Invalid provider: invalid-provider');
       }
       expect(mockStore.setApiKey).not.toHaveBeenCalled();
     });

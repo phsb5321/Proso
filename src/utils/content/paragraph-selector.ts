@@ -49,7 +49,7 @@ const SELECTABLE_CLASS = 'voxpage-selectable';
 const SELECTED_CLASS = 'voxpage-selected';
 const CACHED_CLASS = 'voxpage-cached';
 const PLAY_ICON_CLASS = 'voxpage-play-icon';
-const DATA_INDEX_ATTR = 'data-voxpage-select-index';
+const _DATA_INDEX_ATTR = 'data-voxpage-select-index';
 
 // T019: Click debounce configuration (035-selection-tts-hardening)
 const CLICK_DEBOUNCE_MS = 300;

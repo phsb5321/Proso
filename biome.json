@@ -13,12 +13,12 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noUnusedVariables": "off",
+        "noUnusedVariables": "warn",
         "noUnusedImports": "warn",
         "useExhaustiveDependencies": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off",
+        "noExplicitAny": "warn",
         "noConsoleLog": "off",
         "noGlobalIsNan": "off",
         "noGlobalIsFinite": "off",

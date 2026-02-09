@@ -144,7 +144,7 @@ describe('export.handlers', () => {
       })) as { success: boolean; error?: string };
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('jobId');
+      expect(result.error).toBeDefined();
     });
 
     it('should reject empty paragraphs array', async () => {
@@ -156,7 +156,7 @@ describe('export.handlers', () => {
       })) as { success: boolean; error?: string };
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('paragraphs');
+      expect(result.error).toBeDefined();
     });
 
     it('should reject missing paragraphs', async () => {

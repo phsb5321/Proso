@@ -26,9 +26,9 @@ declare namespace chrome {
     function getContexts(filter: {
       contextTypes: ContextType[];
     }): Promise<Array<{ contextType: string; documentUrl: string }>>;
-    function sendMessage(message: Record<string, unknown>, callback: (response: any) => void): void;
+    function sendMessage(message: Record<string, unknown>, callback: (response: unknown) => void): void;
     const onMessage: {
-      addListener(callback: (message: any, sender: any, sendResponse: any) => void): void;
+      addListener(callback: (message: unknown, sender: unknown, sendResponse: unknown) => void): void;
     };
   }
 }

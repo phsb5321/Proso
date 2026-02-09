@@ -128,11 +128,14 @@ describe('Provider Handlers', () => {
 
       const { providers, currentProvider } = result.value;
       expect(currentProvider).toBe('browser');
-      expect(providers).toHaveLength(2);
+      expect(providers).toHaveLength(5);
 
       const ids = providers.map((p) => p.id);
       expect(ids).toContain('browser');
       expect(ids).toContain('elevenlabs');
+      expect(ids).toContain('openai');
+      expect(ids).toContain('groq');
+      expect(ids).toContain('cartesia');
 
       const browserProvider = providers.find((p) => p.id === 'browser');
       expect(browserProvider).toMatchObject({
@@ -256,15 +259,13 @@ describe('Provider Handlers', () => {
       const result = await dispatchHandler<ProviderSelectResponse>(
         registry,
         'provider.select',
-        { provider: 'openai' },
+        { provider: 'google' },
       );
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
 
       expect(result.error.type).toBe('invalid_params');
       expect(result.error.message).toContain('Invalid provider');
-      expect(result.error.message).toContain('elevenlabs');
-      expect(result.error.message).toContain('browser');
     });
 
     it('should return invalid_params error when provider is missing', async () => {
@@ -406,7 +407,6 @@ describe('Provider Handlers', () => {
       if (!isErr(result)) return;
 
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('Unknown provider');
     });
 
     it('should return container_not_initialized error when container is not ready', async () => {

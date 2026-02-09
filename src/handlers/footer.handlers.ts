@@ -11,6 +11,14 @@ import type { IHighlightSynchronizer, FooterState } from '../ports/highlight-syn
 import { isErr } from '../core/shared/result';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { HandlerRegistry } from './registry';
+import {
+  footerShowParamsSchema,
+  footerHideParamsSchema,
+  footerStateUpdateParamsSchema,
+  footerActionParamsSchema,
+  footerVisibilityParamsSchema,
+  footerPositionParamsSchema,
+} from './schemas/footer.schemas';
 
 // ============================================
 // Response Types
@@ -39,44 +47,6 @@ export interface FooterActionResponse {
   success: boolean;
   error?: string;
   action?: string;
-}
-
-// ============================================
-// Handler Parameters
-// ============================================
-
-interface FooterShowParams {
-  tabId: number;
-}
-
-interface FooterHideParams {
-  tabId: number;
-}
-
-interface FooterStateUpdateParams {
-  tabId: number;
-  status: FooterState['status'];
-  currentIndex: number;
-  totalParagraphs: number;
-  progress: number;
-  currentTime: string;
-  totalTime: string;
-  speed: number;
-}
-
-interface FooterActionParams {
-  action: string;
-  value?: number | string;
-}
-
-interface FooterVisibilityParams {
-  isMinimized?: boolean;
-  isVisible?: boolean;
-}
-
-interface FooterPositionParams {
-  x: number | 'center' | 'left' | 'right';
-  yOffset: number;
 }
 
 // ============================================
@@ -126,9 +96,14 @@ function getHighlightSync(): IHighlightSynchronizer {
 /**
  * Show the sticky footer in content script.
  */
-async function handleFooterShow(params: FooterShowParams): Promise<FooterOperationResponse> {
+async function handleFooterShow(params: unknown): Promise<FooterOperationResponse> {
+  const parsed = footerShowParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
   const sync = getHighlightSync();
-  const tabId = params.tabId || activeTabId;
+  const tabId = parsed.data.tabId || activeTabId;
 
   if (!tabId) {
     return { success: false, error: 'No active tab' };
@@ -146,9 +121,14 @@ async function handleFooterShow(params: FooterShowParams): Promise<FooterOperati
 /**
  * Hide the sticky footer in content script.
  */
-async function handleFooterHide(params: FooterHideParams): Promise<FooterOperationResponse> {
+async function handleFooterHide(params: unknown): Promise<FooterOperationResponse> {
+  const parsed = footerHideParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
   const sync = getHighlightSync();
-  const tabId = params.tabId || activeTabId;
+  const tabId = parsed.data.tabId || activeTabId;
 
   if (!tabId) {
     return { success: false, error: 'No active tab' };
@@ -167,23 +147,28 @@ async function handleFooterHide(params: FooterHideParams): Promise<FooterOperati
  * Update footer state in content script.
  */
 async function handleFooterStateUpdate(
-  params: FooterStateUpdateParams,
+  params: unknown,
 ): Promise<FooterOperationResponse> {
+  const parsed = footerStateUpdateParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
   const sync = getHighlightSync();
-  const tabId = params.tabId || activeTabId;
+  const tabId = parsed.data.tabId || activeTabId;
 
   if (!tabId) {
     return { success: false, error: 'No active tab' };
   }
 
   const state: FooterState = {
-    status: params.status,
-    currentIndex: params.currentIndex,
-    totalParagraphs: params.totalParagraphs,
-    progress: params.progress,
-    currentTime: params.currentTime,
-    totalTime: params.totalTime,
-    speed: params.speed,
+    status: parsed.data.status,
+    currentIndex: parsed.data.currentIndex,
+    totalParagraphs: parsed.data.totalParagraphs,
+    progress: parsed.data.progress,
+    currentTime: parsed.data.currentTime,
+    totalTime: parsed.data.totalTime,
+    speed: parsed.data.speed,
   };
 
   const result = await sync.updateFooterState(tabId, state);
@@ -199,19 +184,23 @@ async function handleFooterStateUpdate(
  * Handle footer action (play, pause, next, prev, etc.).
  * T025: Dispatches to PlaybackService for actual playback control.
  */
-async function handleFooterAction(params: FooterActionParams): Promise<FooterActionResponse> {
-  console.log('[Footer] Action received:', params.action, params.value);
+async function handleFooterAction(params: unknown): Promise<FooterActionResponse> {
+  const parsed = footerActionParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
+  console.log('[Footer] Action received:', parsed.data.action, parsed.data.value);
 
   if (!isPlaybackServiceAvailable()) {
-    return { success: false, error: 'PlaybackService not available', action: params.action };
+    return { success: false, error: 'PlaybackService not available', action: parsed.data.action };
   }
 
   try {
     const service = getPlaybackService();
 
-    switch (params.action) {
+    switch (parsed.data.action) {
       case 'play':
-      case 'resume':
         await service.resume();
         break;
       case 'pause':
@@ -228,23 +217,23 @@ async function handleFooterAction(params: FooterActionParams): Promise<FooterAct
         await service.stop();
         break;
       case 'seek':
-        if (typeof params.value === 'number') {
-          await service.seekToParagraph(params.value);
+        if (typeof parsed.data.value === 'number') {
+          await service.seekToParagraph(parsed.data.value);
         }
         break;
       case 'speed':
-        if (typeof params.value === 'number') {
-          service.setSpeed(params.value);
+        if (typeof parsed.data.value === 'number') {
+          service.setSpeed(parsed.data.value);
         }
         break;
       default:
-        console.warn('[Footer] Unknown action:', params.action);
+        console.warn('[Footer] Unknown action:', parsed.data.action);
     }
 
-    return { success: true, action: params.action };
+    return { success: true, action: parsed.data.action };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { success: false, error: message, action: params.action };
+    return { success: false, error: message, action: parsed.data.action };
   }
 }
 
@@ -253,9 +242,14 @@ async function handleFooterAction(params: FooterActionParams): Promise<FooterAct
  * This is informational - the footer handles its own state.
  */
 async function handleFooterVisibilityChanged(
-  params: FooterVisibilityParams,
+  params: unknown,
 ): Promise<FooterOperationResponse> {
-  console.log('[Footer] Visibility changed:', params);
+  const parsed = footerVisibilityParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
+  console.log('[Footer] Visibility changed:', parsed.data);
   // Informational only - acknowledge receipt
   return { success: true };
 }
@@ -265,9 +259,14 @@ async function handleFooterVisibilityChanged(
  * This is informational - the footer persists its own position.
  */
 async function handleFooterPositionChanged(
-  params: FooterPositionParams,
+  params: unknown,
 ): Promise<FooterOperationResponse> {
-  console.log('[Footer] Position changed:', params);
+  const parsed = footerPositionParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+  }
+
+  console.log('[Footer] Position changed:', parsed.data);
   // Informational only - acknowledge receipt
   return { success: true };
 }

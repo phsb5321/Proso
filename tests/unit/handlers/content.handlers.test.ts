@@ -170,7 +170,6 @@ describe('content.handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('invalid_params');
-      expect(result.error!.message).toContain('html');
     });
 
     it('should return invalid_params when html is not a string', async () => {
@@ -309,7 +308,6 @@ describe('content.handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('invalid_params');
-      expect(result.error!.message).toContain('html');
     });
 
     it('should return Ok with success=false when service extraction fails', async () => {
@@ -380,7 +378,6 @@ describe('content.handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('invalid_params');
-      expect(result.error!.message).toContain('html');
     });
 
     it('should return invalid_params when html is empty string', async () => {

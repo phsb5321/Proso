@@ -117,7 +117,7 @@ export function getDispatchSummary(
   legacyHandlerNames: string[],
 ): DispatchSummary {
   const hexSet = new Set(hexHandlerNames);
-  const legacySet = new Set(legacyHandlerNames);
+  const _legacySet = new Set(legacyHandlerNames);
 
   const migratedHandlers: string[] = [];
   const legacyOnlyHandlers: string[] = [];

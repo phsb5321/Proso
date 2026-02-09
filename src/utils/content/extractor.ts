@@ -212,7 +212,7 @@ interface ContentScorer {
  * In the future, this will be replaced with direct imports
  */
 function getScorer(): ContentScorer {
-  return (window as any).VoxPage?.contentScorer || {};
+  return ((window as Record<string, unknown>).VoxPage as Record<string, unknown> | undefined)?.contentScorer as ContentScorer || {};
 }
 
 // ============================================================================
@@ -872,7 +872,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     try {
       const elements = searchRoot.querySelectorAll(selector);
       domParagraphs.push(...Array.from(elements));
-    } catch (e) {
+    } catch (_e) {
       // Ignore invalid selectors
     }
   }
@@ -1173,7 +1173,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     try {
       const style = window.getComputedStyle(el);
       if (style.position === "fixed" || style.position === "sticky") continue;
-    } catch (e) {
+    } catch (_e) {
       // Ignore styling errors
     }
 
@@ -1377,7 +1377,7 @@ function extractCleanTextFromElement(element: Element): string {
   for (const selector of unwantedSelectors) {
     try {
       clone.querySelectorAll(selector).forEach((el) => el.remove());
-    } catch (e) {
+    } catch (_e) {
       // Ignore selector errors
     }
   }

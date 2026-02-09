@@ -66,7 +66,7 @@ export class HighlightManager {
       currentWordTimeline: null,
       currentParagraphForWords: -1,
       wordHighlightSupported:
-        typeof CSS !== 'undefined' && typeof (CSS as any).highlights !== 'undefined',
+        typeof CSS !== 'undefined' && typeof (CSS as unknown as Record<string, unknown>).highlights !== 'undefined',
       autoScrollEnabled: true,
       userScrollTimestamp: 0,
       prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -250,8 +250,8 @@ export class HighlightManager {
       const range = this.createWordRange(element, charOffset, charLength);
 
       if (range) {
-        const highlight = new (window as any).Highlight(range);
-        (CSS as any).highlights.set('voxpage-word', highlight);
+        const highlight = new ((window as unknown as Record<string, unknown>).Highlight as new (range: Range) => unknown)(range);
+        ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).set('voxpage-word', highlight);
       }
     } catch (e) {
       console.warn('VoxPage: Failed to create word highlight:', e);
@@ -348,7 +348,7 @@ export class HighlightManager {
         behavior: scrollBehavior,
         block: 'center',
       });
-    } catch (e) {
+    } catch (_e) {
       // Fallback for older browsers
       element.scrollIntoView(true);
     }
@@ -410,8 +410,8 @@ export class HighlightManager {
    * Does NOT clear timeline data - used during paragraph transitions
    */
   clearWordHighlightVisual(): void {
-    if (this.state.wordHighlightSupported && (CSS as any).highlights) {
-      (CSS as any).highlights.delete('voxpage-word');
+    if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
+      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('voxpage-word');
     }
     // NOTE: Do NOT clear currentWordTimeline or currentParagraphForWords here
   }
@@ -421,8 +421,8 @@ export class HighlightManager {
    * Use this only when stopping playback completely
    */
   clearWordHighlightFull(): void {
-    if (this.state.wordHighlightSupported && (CSS as any).highlights) {
-      (CSS as any).highlights.delete('voxpage-word');
+    if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
+      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('voxpage-word');
     }
     this.state.currentWordTimeline = null;
     this.state.currentParagraphForWords = -1;
@@ -466,7 +466,7 @@ export class HighlightManager {
         .catch(() => {
           // Ignore send errors
         });
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   }
@@ -503,7 +503,7 @@ export class HighlightManager {
         .catch(() => {
           // Ignore send errors
         });
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   }

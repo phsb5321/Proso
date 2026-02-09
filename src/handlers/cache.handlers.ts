@@ -14,6 +14,12 @@ import type { CacheKey, CacheStats } from '../ports/cache-store.port';
 import { getCacheStore } from '../utils/cache/audio-cache-store';
 import { getProviderPricing } from '../utils/cache/cost-estimator';
 import type { HandlerRegistry } from './registry';
+import {
+  cacheClearParamsSchema,
+  cacheKeyParamsSchema,
+  getCachedParagraphsParamsSchema,
+  costEstimateParamsSchema,
+} from './schemas/cache.schemas';
 
 /**
  * Cache handler error type.
@@ -157,9 +163,14 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
   /**
    * Clear all cache entries.
    */
-  registry.register<{ urlFilter?: string }, Result<CacheClearResponse, CacheHandlerError>>(
+  registry.register<unknown, Result<CacheClearResponse, CacheHandlerError>>(
     'cache.clear',
     async (params) => {
+      const parsed = cacheClearParamsSchema.safeParse(params ?? {});
+      if (!parsed.success) {
+        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+      }
+
       if (!isContainerInitialized()) {
         return Err({
           type: 'adapter_unavailable',
@@ -178,7 +189,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
           });
         }
 
-        const result = await cacheStore.clear(params?.urlFilter);
+        const result = await cacheStore.clear(parsed.data.urlFilter);
 
         if (!result.ok) {
           return Ok({ success: false, entriesCleared: 0 });
@@ -196,20 +207,18 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
   /**
    * Check if a cache entry exists.
    */
-  registry.register<CacheKey, Result<CacheCheckResponse, CacheHandlerError>>(
+  registry.register<unknown, Result<CacheCheckResponse, CacheHandlerError>>(
     'cache.has',
     async (params) => {
+      const parsed = cacheKeyParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+      }
+
       if (!isContainerInitialized()) {
         return Err({
           type: 'adapter_unavailable',
           message: 'Container not initialized. Cache adapter unavailable.',
-        });
-      }
-
-      if (!params?.urlHash || typeof params.paragraphIndex !== 'number') {
-        return Err({
-          type: 'invalid_params',
-          message: 'CacheKey requires urlHash and paragraphIndex',
         });
       }
 
@@ -224,7 +233,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
           });
         }
 
-        const exists = await cacheStore.has(params);
+        const exists = await cacheStore.has(parsed.data as CacheKey);
         return Ok({ exists });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -237,20 +246,18 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
   /**
    * Delete a cache entry.
    */
-  registry.register<CacheKey, Result<{ success: boolean; deleted: boolean }, CacheHandlerError>>(
+  registry.register<unknown, Result<{ success: boolean; deleted: boolean }, CacheHandlerError>>(
     'cache.delete',
     async (params) => {
+      const parsed = cacheKeyParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+      }
+
       if (!isContainerInitialized()) {
         return Err({
           type: 'adapter_unavailable',
           message: 'Container not initialized. Cache adapter unavailable.',
-        });
-      }
-
-      if (!params?.urlHash || typeof params.paragraphIndex !== 'number') {
-        return Err({
-          type: 'invalid_params',
-          message: 'CacheKey requires urlHash and paragraphIndex',
         });
       }
 
@@ -265,7 +272,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
           });
         }
 
-        const result = await cacheStore.delete(params);
+        const result = await cacheStore.delete(parsed.data as CacheKey);
 
         if (!result.ok) {
           return Ok({ success: false, deleted: false });
@@ -323,32 +330,30 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
    * Get cached paragraph indices for a URL.
    * Uses the legacy cache store directly (until port interface is extended).
    */
-  registry.register<GetCachedParagraphsParams, Result<CachedParagraphsResponse, CacheHandlerError>>(
+  registry.register<unknown, Result<CachedParagraphsResponse, CacheHandlerError>>(
     'cache.getCachedParagraphs',
     async (params) => {
-      if (!params?.url) {
-        return Err({
-          type: 'invalid_params',
-          message: 'url is required',
-        });
+      const parsed = getCachedParagraphsParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
       }
 
       try {
         const cacheStore = getCacheStore();
-        const provider = params.provider || 'browser';
-        const voice = params.voice || '';
+        const provider = parsed.data.provider || 'browser';
+        const voice = parsed.data.voice || '';
 
         if (!cacheStore.isInitialized) {
           return Ok({
             cachedIndices: [],
-            totalParagraphs: params.totalParagraphs ?? 0,
+            totalParagraphs: parsed.data.totalParagraphs ?? 0,
           });
         }
 
-        const cachedIndices = cacheStore.getCachedParagraphs(params.url, provider, voice);
+        const cachedIndices = cacheStore.getCachedParagraphs(parsed.data.url, provider, voice);
         return Ok({
           cachedIndices,
-          totalParagraphs: params.totalParagraphs ?? 0,
+          totalParagraphs: parsed.data.totalParagraphs ?? 0,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -361,21 +366,19 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
   /**
    * Estimate TTS cost for paragraphs with cache awareness.
    */
-  registry.register<CostEstimateParams, Result<CostEstimateResponse, CacheHandlerError>>(
+  registry.register<unknown, Result<CostEstimateResponse, CacheHandlerError>>(
     'cost.estimate',
     async (params) => {
-      if (!params?.url) {
-        return Err({
-          type: 'invalid_params',
-          message: 'url is required',
-        });
+      const parsed = costEstimateParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
       }
 
-      const paragraphs = params.paragraphs || [];
-      const provider = params.provider || 'browser';
-      const voice = params.voice || '';
-      const startParagraph = params.startParagraph ?? 0;
-      const endParagraph = params.endParagraph ?? paragraphs.length;
+      const paragraphs = parsed.data.paragraphs ?? [];
+      const provider = parsed.data.provider || 'browser';
+      const voice = parsed.data.voice || '';
+      const startParagraph = parsed.data.startParagraph ?? 0;
+      const endParagraph = parsed.data.endParagraph ?? paragraphs.length;
 
       // If no paragraphs provided, return empty estimate
       if (paragraphs.length === 0) {
@@ -401,7 +404,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
         // Get cached paragraph indices
         let cachedIndicesSet = new Set<number>();
         if (cacheStore.isInitialized) {
-          const cachedIndices = cacheStore.getCachedParagraphs(params.url, provider, voice);
+          const cachedIndices = cacheStore.getCachedParagraphs(parsed.data.url, provider, voice);
           cachedIndicesSet = new Set(cachedIndices);
         }
 

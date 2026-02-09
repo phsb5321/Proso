@@ -13,6 +13,10 @@ import type { ProviderId } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import type { HandlerRegistry } from './registry';
+import {
+  providerSelectParamsSchema,
+  providerValidateLanguageParamsSchema,
+} from './schemas/provider.schemas';
 
 /**
  * Provider handler error type.
@@ -79,12 +83,33 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
     requiresApiKey: true,
     supportedLanguages: [],
   },
+  openai: {
+    name: 'OpenAI TTS',
+    description: 'High-quality voices with gpt-4o-mini-tts model',
+    supportsWordTiming: false,
+    requiresApiKey: true,
+    supportedLanguages: [],
+  },
+  groq: {
+    name: 'Groq',
+    description: 'Fast inference TTS (English only)',
+    supportsWordTiming: false,
+    requiresApiKey: true,
+    supportedLanguages: ['en'],
+  },
+  cartesia: {
+    name: 'Cartesia',
+    description: 'Low-latency voice synthesis (English only)',
+    supportsWordTiming: false,
+    requiresApiKey: true,
+    supportedLanguages: ['en'],
+  },
 };
 
 /**
  * Providers that support all languages (empty array means all).
  */
-const MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser'];
+const _MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser', 'openai'];
 
 /**
  * Register provider message handlers on the registry.
@@ -135,6 +160,14 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
   registry.register<{ provider: ProviderId }, Result<ProviderSelectResponse, ProviderHandlerError>>(
     'provider.select',
     async (params) => {
+      const parsed = providerSelectParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: 'Invalid provider. Must be one of: elevenlabs, browser, openai, groq, cartesia',
+        });
+      }
+
       if (!isContainerInitialized()) {
         return Err({
           type: 'container_not_initialized',
@@ -142,29 +175,21 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      const validProviders: ProviderId[] = ['elevenlabs', 'browser'];
-      if (!params.provider || !validProviders.includes(params.provider)) {
-        return Err({
-          type: 'invalid_params',
-          message: `Invalid provider. Must be one of: ${validProviders.join(', ')}`,
-        });
-      }
-
       try {
         // Get API key for the new provider
-        const keyName = `${params.provider}ApiKey`;
+        const keyName = `${parsed.data.provider}ApiKey`;
         const stored = await browser.storage.local.get([keyName]);
         const apiKey = (stored[keyName] as string) || null;
 
         // Reconfigure the container with new provider
-        reconfigureAudioGenerator(params.provider, apiKey);
+        reconfigureAudioGenerator(parsed.data.provider, apiKey);
 
         // Save to storage
-        await browser.storage.local.set({ provider: params.provider });
+        await browser.storage.local.set({ provider: parsed.data.provider });
 
         return Ok({
           success: true,
-          provider: params.provider,
+          provider: parsed.data.provider,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -183,6 +208,14 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
   >(
     'provider.validateLanguage',
     async (params) => {
+      const langParsed = providerValidateLanguageParamsSchema.safeParse(params);
+      if (!langParsed.success) {
+        return Err({
+          type: 'invalid_params',
+          message: 'language is required and must be a string (BCP-47 code)',
+        });
+      }
+
       if (!isContainerInitialized()) {
         return Err({
           type: 'container_not_initialized',
@@ -190,16 +223,9 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (!params.language || typeof params.language !== 'string') {
-        return Err({
-          type: 'invalid_params',
-          message: 'language is required and must be a string (BCP-47 code)',
-        });
-      }
-
       try {
         const container = getContainer();
-        const providerId = params.provider || container.config.provider;
+        const providerId = langParsed.data.provider || container.config.provider;
         const metadata = PROVIDER_METADATA[providerId];
 
         if (!metadata) {
@@ -209,12 +235,14 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
           });
         }
 
+        const language = langParsed.data.language;
+
         // Empty supportedLanguages means all languages are supported
         const supported =
           metadata.supportedLanguages.length === 0 ||
-          metadata.supportedLanguages.includes(params.language) ||
+          metadata.supportedLanguages.includes(language) ||
           metadata.supportedLanguages.some((lang) =>
-            params.language.toLowerCase().startsWith(lang.toLowerCase()),
+            language.toLowerCase().startsWith(lang.toLowerCase()),
           );
 
         // Find providers that support this language
@@ -223,9 +251,9 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
           for (const [id, meta] of Object.entries(PROVIDER_METADATA)) {
             const supportsLang =
               meta.supportedLanguages.length === 0 ||
-              meta.supportedLanguages.includes(params.language) ||
+              meta.supportedLanguages.includes(language) ||
               meta.supportedLanguages.some((lang) =>
-                params.language.toLowerCase().startsWith(lang.toLowerCase()),
+                language.toLowerCase().startsWith(lang.toLowerCase()),
               );
             if (supportsLang) {
               suggestedProviders.push(id as ProviderId);
@@ -236,7 +264,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         return Ok({
           supported,
           provider: providerId,
-          language: params.language,
+          language,
           suggestedProviders: suggestedProviders.length > 0 ? suggestedProviders : undefined,
         });
       } catch (error) {

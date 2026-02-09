@@ -117,9 +117,9 @@ const limiter = rateLimit({
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     // Still do a dummy comparison to maintain constant time
-    let result = 0;
+    let _result = 0;
     for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ a.charCodeAt(i);
+      _result |= a.charCodeAt(i) ^ a.charCodeAt(i);
     }
     return false;
   }

@@ -26,6 +26,15 @@ const { BrowserTtsAudioAdapter } = await import(
 const { ElevenLabsAudioAdapter } = await import(
   '../../../src/adapters/audio/elevenlabs-audio.adapter'
 );
+const { OpenAiAudioAdapter } = await import(
+  '../../../src/adapters/audio/openai-audio.adapter'
+);
+const { GroqAudioAdapter } = await import(
+  '../../../src/adapters/audio/groq-audio.adapter'
+);
+const { CartesiaAudioAdapter } = await import(
+  '../../../src/adapters/audio/cartesia-audio.adapter'
+);
 const { AudioUrlAdapter } = await import(
   '../../../src/adapters/audio/audio-url.adapter'
 );
@@ -34,6 +43,9 @@ const { AudioUrlAdapter } = await import(
 jest.unstable_mockModule(resolve(srcDir, 'adapters/audio'), () => ({
   BrowserTtsAudioAdapter,
   ElevenLabsAudioAdapter,
+  OpenAiAudioAdapter,
+  GroqAudioAdapter,
+  CartesiaAudioAdapter,
   AudioUrlAdapter,
   OffscreenAudioAdapter: jest.fn(),
   DirectAudioAdapter: jest.fn(),
@@ -122,17 +134,17 @@ describe('createAudioGeneratorAdapter', () => {
 
 describe('getApiKeyForProvider', () => {
   it('should return elevenlabs key for elevenlabs provider', () => {
-    const keys = { elevenlabs: 'test-key' };
+    const keys = { elevenlabs: 'test-key', openai: null, groq: null, cartesia: null };
     expect(getApiKeyForProvider(keys, 'elevenlabs')).toBe('test-key');
   });
 
   it('should return null for browser provider', () => {
-    const keys = { elevenlabs: 'test-key' };
+    const keys = { elevenlabs: 'test-key', openai: null, groq: null, cartesia: null };
     expect(getApiKeyForProvider(keys, 'browser')).toBeNull();
   });
 
   it('should return null for elevenlabs when key is null', () => {
-    const keys = { elevenlabs: null };
+    const keys = { elevenlabs: null, openai: null, groq: null, cartesia: null };
     expect(getApiKeyForProvider(keys, 'elevenlabs')).toBeNull();
   });
 });

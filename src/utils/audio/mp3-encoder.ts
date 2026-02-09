@@ -149,7 +149,7 @@ export class Mp3Encoder {
    * @returns Promise resolving to encoding result
    */
   async encodeArticle(paragraphAudios: Blob[]): Promise<EncodingResult> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
 
     // Concatenate all audio blobs
     const combinedBlob = await this.concatenateBlobs(paragraphAudios);

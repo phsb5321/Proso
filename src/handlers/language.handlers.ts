@@ -9,6 +9,11 @@
  */
 
 import type { HandlerRegistry } from './registry';
+import {
+  languageDetectParamsSchema,
+  languageGetStateParamsSchema,
+  languageSetOverrideParamsSchema,
+} from './schemas/language.schemas';
 
 // ============================================
 // Types
@@ -64,25 +69,6 @@ export interface LanguageSetOverrideResponse {
  */
 export interface LanguageClearOverrideResponse {
   success: boolean;
-}
-
-// ============================================
-// Handler Parameters
-// ============================================
-
-interface LanguageDetectParams {
-  textSample?: string;
-  metadata?: string;
-  url?: string;
-  __tabId?: number;
-}
-
-interface LanguageGetStateParams {
-  tabId?: number;
-}
-
-interface LanguageSetOverrideParams {
-  languageCode: string;
 }
 
 // ============================================
@@ -143,17 +129,21 @@ const MIN_DETECTION_TEXT_LENGTH = 20;
  * Detect language from text sample or metadata.
  */
 async function handleLanguageDetect(params: unknown): Promise<LanguageDetectResponse> {
-  const p = params as LanguageDetectParams;
+  const parsed = languageDetectParamsSchema.safeParse(params ?? {});
+  if (!parsed.success) {
+    // Default to English on validation failure (non-breaking)
+    return { code: 'en', confidence: 0.5, source: 'default', isReliable: false };
+  }
+  const p = parsed.data;
 
   let result: LanguageDetectResponse;
 
   // If metadata provides a language code, use it directly
-  if (p.metadata && typeof p.metadata === 'string' && p.metadata.length >= 2) {
+  if (p.metadata && p.metadata.length >= 2) {
     const code = p.metadata.substring(0, 2).toLowerCase();
     result = { code, confidence: 0.9, source: 'metadata', isReliable: true };
   } else if (
     p.textSample &&
-    typeof p.textSample === 'string' &&
     p.textSample.length >= MIN_DETECTION_TEXT_LENGTH &&
     dependencies
   ) {
@@ -191,8 +181,8 @@ async function handleLanguageDetect(params: unknown): Promise<LanguageDetectResp
  * Get language state for a tab.
  */
 async function handleLanguageGetState(params: unknown): Promise<LanguageStateResponse> {
-  const p = params as LanguageGetStateParams;
-  const tabId = p.tabId ?? 0;
+  const parsed = languageGetStateParamsSchema.safeParse(params ?? {});
+  const tabId = parsed.success ? (parsed.data.tabId ?? 0) : 0;
 
   const state = tabLanguageStates.get(tabId);
   const override = globalOverride ?? state?.override ?? null;
@@ -211,13 +201,12 @@ async function handleLanguageGetState(params: unknown): Promise<LanguageStateRes
  * Set a language override.
  */
 async function handleLanguageSetOverride(params: unknown): Promise<LanguageSetOverrideResponse> {
-  const p = params as LanguageSetOverrideParams;
-
-  if (!p.languageCode || typeof p.languageCode !== 'string' || p.languageCode.length < 2) {
+  const parsed = languageSetOverrideParamsSchema.safeParse(params);
+  if (!parsed.success) {
     return { success: false, languageCode: '' };
   }
 
-  const code = p.languageCode.substring(0, 2).toLowerCase();
+  const code = parsed.data.languageCode.substring(0, 2).toLowerCase();
   globalOverride = code;
 
   return { success: true, languageCode: code };
