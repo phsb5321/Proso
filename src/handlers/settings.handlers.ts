@@ -112,10 +112,10 @@ function getSettingsStore(): ISettingsStore {
 /**
  * Validate provider ID.
  * Only 'elevenlabs' is valid for TTS (other TTS providers removed).
- * 'anthropic' is valid for AI summarization features.
+ * 'browser' is the free Browser TTS option.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['elevenlabs', 'anthropic'].includes(provider);
+  return ['elevenlabs', 'browser'].includes(provider);
 }
 
 // ============================================

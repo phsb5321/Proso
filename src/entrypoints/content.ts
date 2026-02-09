@@ -1572,7 +1572,7 @@ export default defineContentScript({
       // Send stop message to background (triggers blob URL cleanup)
       browser.runtime
         .sendMessage({
-          action: 'stopPlayback',
+          action: 'playback.stop',
           reason: reason,
         })
         .catch(() => {

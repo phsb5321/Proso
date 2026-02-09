@@ -29,6 +29,7 @@ import { ElevenLabsProvider } from '../../utils/providers/elevenlabs';
  */
 export class ElevenLabsAudioAdapter implements IAudioGenerator {
   readonly providerId = 'elevenlabs' as const;
+  readonly playbackMode = 'blob' as const;
   readonly supportsWordTiming = true;
   readonly supportedLanguages: readonly string[];
 

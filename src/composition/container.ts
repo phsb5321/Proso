@@ -218,6 +218,12 @@ export function reconfigureAudioGenerator(
       provider,
     },
   };
+
+  // T016: Also update the PlaybackService's audio generator reference
+  // Without this, PlaybackService holds a stale reference to the old generator
+  if (containerInstance.services.playback) {
+    containerInstance.services.playback.setAudioGenerator(newAudioGenerator);
+  }
 }
 
 /**

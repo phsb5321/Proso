@@ -177,17 +177,6 @@ export {
   type ExportDependencies,
 } from './export.handlers';
 
-// Summarize handler exports (T067)
-export {
-  registerSummarizeHandlers,
-  setSummarizeDependencies,
-  type SummarizeHandlerError,
-  type SummarizeArticleResponse,
-  type SummarizeReadSummaryResponse,
-  type SummarizeProviderStatusResponse,
-  type SummarizeDependencies,
-} from './summarize.handlers';
-
 // Language handler exports (T069)
 export {
   registerLanguageHandlers,
@@ -233,8 +222,6 @@ import { registerQueueHandlers as regQueue } from './queue.handlers';
 import { registerReaderHandlers as regReader } from './reader.handlers';
 import { type HandlerRegistry as Registry, createHandlerRegistry as createReg } from './registry';
 import { registerSettingsHandlers as regSettings } from './settings.handlers';
-import { registerSummarizeHandlers as regSummarize } from './summarize.handlers';
-
 /**
  * Register all handlers on the given registry.
  *
@@ -254,7 +241,6 @@ export function registerAllHandlers(registry: Registry): void {
   regReader(registry); // 045-pdf-removal-page-reader
   regHighlight(registry); // 045-pdf-removal-page-reader Phase 4
   regExport(registry); // T066
-  regSummarize(registry); // T067
   regLanguage(registry); // T069
   regLogging(registry); // T070
 }

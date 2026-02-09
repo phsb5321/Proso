@@ -59,7 +59,8 @@ const FooterStateSchema = z.object({
   currentIndex: z.number().int().min(0),
   totalParagraphs: z.number().int().min(0),
   progress: z.number().min(0).max(1),
-  currentText: z.string(),
+  currentTime: z.string(),
+  totalTime: z.string(),
   speed: z.number().min(0.5).max(2.0),
 });
 
@@ -239,7 +240,8 @@ describe('Messaging Contracts', () => {
           currentIndex: 2,
           totalParagraphs: 8,
           progress: 0.3,
-          currentText: 'This is the current paragraph being read.',
+          currentTime: '0:30',
+          totalTime: '2:00',
           speed: 1.0,
         };
 
@@ -252,7 +254,8 @@ describe('Messaging Contracts', () => {
           currentIndex: 0,
           totalParagraphs: 5,
           progress: 0,
-          currentText: 'Loading...',
+          currentTime: '0:00',
+          totalTime: '1:15',
           speed: 1.0,
         };
 
@@ -415,7 +418,8 @@ describe('Messaging Contracts', () => {
         currentIndex: playbackState.currentParagraph,
         totalParagraphs: playbackState.totalParagraphs,
         progress: playbackState.progress,
-        currentText: 'Sample paragraph text',
+        currentTime: '0:15',
+        totalTime: '2:00',
         speed: playbackState.speed,
       };
 

@@ -27,6 +27,10 @@ export interface AudioResponse {
   readonly audioBlob: Blob;
   readonly durationMs: number;
   readonly wordTimings: readonly WordTiming[] | null;
+  /** True if audio was already played by the adapter (e.g., Browser TTS via speechSynthesis) */
+  readonly playedDirectly?: boolean;
+  /** Promise that resolves when direct playback completes (Browser TTS). Used for paragraph advancement. */
+  readonly onEndPromise?: Promise<void>;
 }
 
 /**
@@ -79,6 +83,12 @@ export interface IAudioGenerator {
    * Provider identifier.
    */
   readonly providerId: ProviderId;
+
+  /**
+   * Playback strategy: 'blob' returns audio data for HTMLAudioElement,
+   * 'direct' plays audio via system APIs (e.g., speechSynthesis) and returns a sentinel blob.
+   */
+  readonly playbackMode: 'blob' | 'direct';
 
   /**
    * Whether this provider supports word-level timing.

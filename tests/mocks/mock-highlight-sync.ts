@@ -101,7 +101,9 @@ export class MockHighlightSync implements IHighlightSynchronizer {
   async highlightParagraph(
     tabId: number,
     paragraphIndex: number,
-    scroll: boolean
+    scroll: boolean,
+    _text?: string,
+    _timestamp?: number,
   ): Promise<Result<void, HighlightError>> {
     this.highlightParagraphCalls.push({
       tabId,

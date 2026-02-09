@@ -74,6 +74,7 @@ interface LanguageDetectParams {
   textSample?: string;
   metadata?: string;
   url?: string;
+  __tabId?: number;
 }
 
 interface LanguageGetStateParams {
@@ -100,7 +101,7 @@ interface TabLanguageState {
   override: string | null;
 }
 
-const tabLanguageStates = new Map<number, TabLanguageState>();
+export const tabLanguageStates = new Map<number, TabLanguageState>();
 let globalOverride: string | null = null;
 
 /**
@@ -144,46 +145,46 @@ const MIN_DETECTION_TEXT_LENGTH = 20;
 async function handleLanguageDetect(params: unknown): Promise<LanguageDetectResponse> {
   const p = params as LanguageDetectParams;
 
+  let result: LanguageDetectResponse;
+
   // If metadata provides a language code, use it directly
   if (p.metadata && typeof p.metadata === 'string' && p.metadata.length >= 2) {
     const code = p.metadata.substring(0, 2).toLowerCase();
-    return {
-      code,
-      confidence: 0.9,
-      source: 'metadata',
-      isReliable: true,
-    };
-  }
-
-  // Use text sample for detection
-  if (
+    result = { code, confidence: 0.9, source: 'metadata', isReliable: true };
+  } else if (
     p.textSample &&
     typeof p.textSample === 'string' &&
-    p.textSample.length >= MIN_DETECTION_TEXT_LENGTH
+    p.textSample.length >= MIN_DETECTION_TEXT_LENGTH &&
+    dependencies
   ) {
-    if (dependencies) {
-      const detectedCode = dependencies.detectLanguage(p.textSample);
+    const detectedCode = dependencies.detectLanguage(p.textSample);
 
-      // franc returns 'und' for undetermined
-      if (detectedCode && detectedCode !== 'und') {
-        const confidence = Math.min(0.95, 0.5 + (p.textSample.length / 1000) * 0.45);
-        return {
-          code: detectedCode,
-          confidence,
-          source: 'detection',
-          isReliable: confidence >= MIN_RELIABLE_CONFIDENCE,
-        };
-      }
+    // franc returns 'und' for undetermined
+    if (detectedCode && detectedCode !== 'und') {
+      const confidence = Math.min(0.95, 0.5 + (p.textSample.length / 1000) * 0.45);
+      result = {
+        code: detectedCode,
+        confidence,
+        source: 'detection',
+        isReliable: confidence >= MIN_RELIABLE_CONFIDENCE,
+      };
+    } else {
+      result = { code: 'en', confidence: 0.5, source: 'default', isReliable: false };
     }
+  } else {
+    // Default to English
+    result = { code: 'en', confidence: 0.5, source: 'default', isReliable: false };
   }
 
-  // Default to English
-  return {
-    code: 'en',
-    confidence: 0.5,
-    source: 'default',
-    isReliable: false,
-  };
+  // T022: Store detection result in per-tab state
+  if (p.__tabId != null) {
+    tabLanguageStates.set(p.__tabId, {
+      detected: { code: result.code, confidence: result.confidence, source: result.source },
+      override: tabLanguageStates.get(p.__tabId)?.override ?? null,
+    });
+  }
+
+  return result;
 }
 
 /**

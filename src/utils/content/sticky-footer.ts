@@ -1198,23 +1198,23 @@ export class StickyFooter {
       case "playPause":
         {
           const actualAction = this.playbackState.status === "playing" ? "pause" : "play";
-          this._sendMessage("FOOTER_ACTION", { action: actualAction });
+          this._sendMessage("footer.action", { action: actualAction });
         }
         break;
       case "prev":
       case "next":
       case "stop":
-        this._sendMessage("FOOTER_ACTION", { action });
+        this._sendMessage("footer.action", { action });
         break;
       case "seek":
         if ("value" in data) {
-          this._sendMessage("FOOTER_ACTION", { action: "seek", value: data.value });
+          this._sendMessage("footer.action", { action: "seek", value: data.value });
         }
         break;
       case "speed":
         if ("value" in data && typeof data.value === "number") {
           this.playbackState.speed = data.value;
-          this._sendMessage("FOOTER_ACTION", { action: "speed", value: data.value });
+          this._sendMessage("footer.action", { action: "speed", value: data.value });
           this._render();
           this._announce(`Speed ${data.value}x`);
         }
@@ -1226,16 +1226,16 @@ export class StickyFooter {
         this.isMinimized = !this.isMinimized;
         this._render();
         this._adjustBodyPadding(true);
-        this._sendMessage("FOOTER_VISIBILITY_CHANGED", { isMinimized: this.isMinimized });
+        this._sendMessage("footer.visibilityChanged", { isMinimized: this.isMinimized });
         this._saveState();
         this._announce(this.isMinimized ? "Player minimized" : "Player expanded");
         break;
       case "close":
-        this._sendMessage("FOOTER_ACTION", { action: "close" });
+        this._sendMessage("footer.action", { action: "close" });
         break;
       case "addToQueue":
         // T077: Send add to queue action to background
-        this._sendMessage("FOOTER_ACTION", { action: "addToQueue" });
+        this._sendMessage("footer.action", { action: "addToQueue" });
         this._announce("Added to queue");
         break;
     }
@@ -1298,7 +1298,7 @@ export class StickyFooter {
   private _handleDragEnd(): void {
     if (this.isDragging) {
       this.isDragging = false;
-      this._sendMessage("FOOTER_POSITION_CHANGED", { position: this.position });
+      this._sendMessage("footer.positionChanged", { position: this.position });
       this._saveState();
     }
   }
