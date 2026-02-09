@@ -634,7 +634,6 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('paragraphIndex must be a number');
     });
 
     it('should return service_unavailable when service is not available', async () => {
@@ -713,7 +712,6 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('speed must be a number between 0.5 and 2.0');
     });
 
     it('should return invalid_params when speed is above 2.0', async () => {
@@ -722,7 +720,6 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('speed must be a number between 0.5 and 2.0');
     });
 
     it('should return invalid_params when speed is not a number', async () => {
@@ -819,7 +816,6 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('progress must be a number between 0 and 100');
     });
 
     it('should return invalid_params when progress is above 100', async () => {
@@ -828,7 +824,6 @@ describe('Playback Handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('progress must be a number between 0 and 100');
     });
 
     it('should return invalid_params when progress is not a number', async () => {

@@ -9,6 +9,7 @@
  */
 
 import type { HandlerRegistry } from './registry';
+import { loggingLogRemoteParamsSchema } from './schemas/misc.schemas';
 
 // ============================================
 // Types
@@ -57,13 +58,6 @@ export interface LoggingStateResponse {
 // Handler Parameters
 // ============================================
 
-interface LogRemoteParams {
-  level: LogLevel;
-  message: string;
-  component?: string;
-  metadata?: Record<string, unknown>;
-}
-
 // ============================================
 // Dependencies (injectable for testing)
 // ============================================
@@ -101,19 +95,12 @@ function getDependencies(): LoggingDependencies | null {
 // Handlers
 // ============================================
 
-const VALID_LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error'];
-
 /**
  * Log a message to the remote buffer.
  */
 async function handleLoggingLogRemote(params: unknown): Promise<LogRemoteResponse> {
-  const p = params as LogRemoteParams;
-
-  if (!p.message || typeof p.message !== 'string' || p.message.trim().length === 0) {
-    return { success: false, buffered: false };
-  }
-
-  if (!p.level || !VALID_LOG_LEVELS.includes(p.level)) {
+  const parsed = loggingLogRemoteParamsSchema.safeParse(params);
+  if (!parsed.success) {
     return { success: false, buffered: false };
   }
 
@@ -125,10 +112,10 @@ async function handleLoggingLogRemote(params: unknown): Promise<LogRemoteRespons
 
   try {
     deps.addToBuffer({
-      level: p.level,
-      message: p.message.substring(0, 10000), // Max message length
-      component: p.component ?? 'unknown',
-      metadata: p.metadata,
+      level: parsed.data.level,
+      message: parsed.data.message.substring(0, 10000), // Max message length
+      component: parsed.data.component ?? 'unknown',
+      metadata: parsed.data.metadata,
       timestamp: Date.now(),
     });
 

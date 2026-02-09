@@ -21,8 +21,24 @@ import { generateCacheKey, generateContentHash } from './cache-key';
  */
 export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: string }> = {
   elevenlabs: {
-    pricePerKiloChar: 0.18, // $0.18 per 1K chars (depends on tier)
+    pricePerKiloChar: 0.18,
     name: 'ElevenLabs',
+  },
+  openai: {
+    pricePerKiloChar: 0.015,
+    name: 'OpenAI',
+  },
+  groq: {
+    pricePerKiloChar: 0,
+    name: 'Groq',
+  },
+  cartesia: {
+    pricePerKiloChar: 0.05,
+    name: 'Cartesia',
+  },
+  browser: {
+    pricePerKiloChar: 0,
+    name: 'Browser TTS',
   },
 };
 
@@ -30,7 +46,7 @@ export const PROVIDER_PRICING: Record<string, { pricePerKiloChar: number; name: 
  * Get pricing for a provider
  */
 export function getProviderPricing(provider: string): { pricePerKiloChar: number; name: string } {
-  return PROVIDER_PRICING[provider] || PROVIDER_PRICING['elevenlabs'];
+  return PROVIDER_PRICING[provider] || { pricePerKiloChar: 0, name: provider };
 }
 
 /**

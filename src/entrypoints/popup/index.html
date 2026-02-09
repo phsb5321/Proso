@@ -85,7 +85,7 @@
         <section class="voxpage-popup__status" aria-live="polite" data-testid="popup-status-section">
           <div class="voxpage-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">
             <span class="voxpage-popup__status-dot" id="status-dot"></span>
-            <span class="voxpage-popup__status-text" id="status-text" data-testid="popup-status-text">Ready</span>
+            <span class="voxpage-popup__status-text" id="status-text" aria-live="polite" data-testid="popup-status-text">Ready</span>
           </div>
           <div class="voxpage-popup__paragraph" id="paragraph-info">
             <span id="paragraph-current">-</span> / <span id="paragraph-total">-</span>
@@ -186,6 +186,9 @@
           <select id="provider-select" class="voxpage-select" data-testid="popup-provider-select">
             <option value="browser">Browser (Free)</option>
             <option value="elevenlabs">ElevenLabs</option>
+            <option value="openai">OpenAI</option>
+            <option value="groq">Groq (Free)</option>
+            <option value="cartesia">Cartesia</option>
           </select>
         </section>
 
@@ -370,7 +373,7 @@
           <!-- Export Progress (hidden by default) -->
           <div class="voxpage-popup__export-progress" id="export-progress" hidden>
             <div class="voxpage-popup__export-progress-bar" id="export-progress-bar"></div>
-            <span class="voxpage-popup__export-progress-text" id="export-progress-text">Preparing...</span>
+            <span class="voxpage-popup__export-progress-text" id="export-progress-text" aria-live="polite">Preparing...</span>
             <button
               id="export-cancel-btn"
               class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
@@ -407,7 +410,7 @@
             <span id="add-queue-btn-text">Add Current Page</span>
           </button>
 
-          <div class="voxpage-popup__queue-list" id="queue-list">
+          <div class="voxpage-popup__queue-list" id="queue-list" aria-live="polite">
             <p class="voxpage-popup__queue-empty" id="queue-empty-message">Queue is empty. Add articles to listen later.</p>
           </div>
 

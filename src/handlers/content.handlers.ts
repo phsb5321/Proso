@@ -12,6 +12,7 @@ import type { ExtractionMode } from '../core/shared/errors';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import type { HandlerRegistry } from './registry';
+import { contentExtractParamsSchema, contentScoreParamsSchema } from './schemas/content.schemas';
 
 /**
  * Internal service contract for content handlers.
@@ -145,7 +146,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
    * Extract content from HTML.
    */
   registry.register<
-    { html: string; mode?: ExtractionMode },
+    unknown,
     Result<ContentExtractResponse, ContentHandlerError>
   >(
     'content.extract',
@@ -157,18 +158,19 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (!params?.html || typeof params.html !== 'string') {
+      const parsed = contentExtractParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'html parameter is required and must be a string',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const service = getContentExtractionService() as unknown as ContentService;
-        const mode: ExtractionMode = params.mode ?? 'article';
+        const mode: ExtractionMode = parsed.data.mode ?? 'article';
 
-        const result = await service.extract(params.html, { mode });
+        const result = await service.extract(parsed.data.html, { mode });
 
         if (!result.ok) {
           return Ok({
@@ -211,7 +213,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
    * Extract content with scoring.
    */
   registry.register<
-    { html: string; mode?: ExtractionMode },
+    unknown,
     Result<ContentExtractResponse & { score: number; confidence: number }, ContentHandlerError>
   >(
     'content.extractWithScore',
@@ -223,18 +225,19 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (!params?.html || typeof params.html !== 'string') {
+      const parsed = contentExtractParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'html parameter is required and must be a string',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
       try {
         const service = getContentExtractionService() as unknown as ContentService;
-        const mode: ExtractionMode = params.mode ?? 'article';
+        const mode: ExtractionMode = parsed.data.mode ?? 'article';
 
-        const result = await service.extractWithScore(params.html, { mode });
+        const result = await service.extractWithScore(parsed.data.html, { mode });
 
         if (!result.ok) {
           return Ok({
@@ -286,7 +289,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
   /**
    * Score HTML content quality.
    */
-  registry.register<{ html: string }, Result<ContentScoreResponse, ContentHandlerError>>(
+  registry.register<unknown, Result<ContentScoreResponse, ContentHandlerError>>(
     'content.score',
     async (params) => {
       if (!isContentExtractionServiceAvailable()) {
@@ -296,10 +299,11 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
         });
       }
 
-      if (!params?.html || typeof params.html !== 'string') {
+      const parsed = contentScoreParamsSchema.safeParse(params);
+      if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'html parameter is required and must be a string',
+          message: parsed.error.issues.map(i => i.message).join('; '),
         });
       }
 
@@ -307,7 +311,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
         const service = getContentExtractionService() as unknown as ContentService;
         // Support both mock method name (scoreContent) and actual service method (score)
         const scoreFn = service.scoreContent ?? service.score;
-        const result = scoreFn!.call(service, params.html);
+        const result = scoreFn!.call(service, parsed.data.html);
 
         return Ok({
           success: true,

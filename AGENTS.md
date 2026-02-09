@@ -10,6 +10,8 @@ Auto-generated from all feature plans. Last updated: 2026-01-09
 - SQLite via `tauri-plugin-sql` (highlights, library, settings) (044-tauri-pdf-reader)
 - TypeScript 5.9.3 (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.13 (build framework), Zod 3.25.76 (validation), Dexie 4.2.1 (IndexedDB), @webext-core/messaging 2.3.0, franc-min 6.2.0 (language detection), lamejs 1.2.1 (MP3 encoding) (056-production-readiness-sprint)
 - IndexedDB via Dexie (audio cache, highlights), browser.storage.local (settings, provider config) (056-production-readiness-sprint)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter) (063-extension-quality-sprint)
+- IndexedDB (audio cache via Dexie), browser.storage.local (settings) (063-extension-quality-sprint)
 
 ## Project Structure
 
@@ -27,9 +29,9 @@ npm test && npm run lint
 TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes): Follow standard conventions
 
 ## Recent Changes
-- 056-production-readiness-sprint: Added TypeScript 5.9.3 (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.13 (build framework), Zod 3.25.76 (validation), Dexie 4.2.1 (IndexedDB), @webext-core/messaging 2.3.0, franc-min 6.2.0 (language detection), lamejs 1.2.1 (MP3 encoding)
-- 044-tauri-pdf-reader: Added Rust 1.75+ (backend), TypeScript 5.x (frontend) + Tauri 2.x, PDF.js v5.4.x, Rust `tts` crate v0.26
-- 041-firefox-first-pivot: Firefox-first architecture pivot (Firefox 112+, event pages with DOM access, native Audio API, no service workers)
+- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
+- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
+- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
 
 ## Firefox-First Guidelines
 

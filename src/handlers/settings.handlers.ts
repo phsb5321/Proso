@@ -115,7 +115,7 @@ function getSettingsStore(): ISettingsStore {
  * 'browser' is the free Browser TTS option.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['elevenlabs', 'browser'].includes(provider);
+  return ['elevenlabs', 'browser', 'openai', 'groq', 'cartesia'].includes(provider);
 }
 
 // ============================================
@@ -265,7 +265,7 @@ async function handleTestApiKey(
       const store = getSettingsStore();
       keyToTest = await store.getApiKey(provider as ProviderId);
       console.log('[Settings] Key from storage via store:', keyToTest ? 'found' : 'not found');
-    } catch (storeError) {
+    } catch (_storeError) {
       // Fallback: access browser.storage.local directly if store isn't initialized
       console.warn(
         '[Settings] Settings store not available, falling back to direct storage access',

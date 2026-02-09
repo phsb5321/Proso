@@ -9,6 +9,12 @@
  */
 
 import type { HandlerRegistry } from './registry';
+import {
+  exportStartParamsSchema,
+  exportCancelParamsSchema,
+  exportProgressParamsSchema,
+  exportDownloadParamsSchema,
+} from './schemas/export.schemas';
 
 // ============================================
 // Types
@@ -67,32 +73,6 @@ export interface ExportProgressResponse {
 export interface ExportDownloadResponse {
   success: boolean;
   error?: string;
-}
-
-// ============================================
-// Handler Parameters
-// ============================================
-
-interface ExportStartParams {
-  jobId: string;
-  paragraphs: Array<{ index: number; text: string }>;
-  provider: string;
-  voice?: string;
-  speed: number;
-  quality?: string;
-}
-
-interface ExportCancelParams {
-  jobId: string;
-}
-
-interface ExportProgressParams {
-  jobId: string;
-}
-
-interface ExportDownloadParams {
-  jobId: string;
-  filename?: string;
 }
 
 // ============================================
@@ -166,19 +146,11 @@ function getDependencies(): ExportDependencies {
  * Start an export job.
  */
 async function handleExportStart(params: unknown): Promise<ExportStartResponse> {
-  const p = params as ExportStartParams;
-
-  if (!p.jobId || typeof p.jobId !== 'string') {
-    return { success: false, jobId: '', error: 'jobId is required' };
+  const parsed = exportStartParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return { success: false, jobId: '', error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
   }
-
-  if (!p.paragraphs || !Array.isArray(p.paragraphs) || p.paragraphs.length === 0) {
-    return {
-      success: false,
-      jobId: p.jobId,
-      error: 'paragraphs array is required and must not be empty',
-    };
-  }
+  const p = parsed.data;
 
   if (activeJobs.has(p.jobId)) {
     return { success: false, jobId: p.jobId, error: 'Export job already exists' };
@@ -207,13 +179,12 @@ async function handleExportStart(params: unknown): Promise<ExportStartResponse> 
  * Cancel an export job.
  */
 async function handleExportCancel(params: unknown): Promise<ExportCancelResponse> {
-  const p = params as ExportCancelParams;
-
-  if (!p.jobId || typeof p.jobId !== 'string') {
+  const parsed = exportCancelParamsSchema.safeParse(params);
+  if (!parsed.success) {
     return { success: false, wasCancelled: false };
   }
 
-  const job = activeJobs.get(p.jobId);
+  const job = activeJobs.get(parsed.data.jobId);
   if (!job) {
     return { success: false, wasCancelled: false };
   }
@@ -230,7 +201,7 @@ async function handleExportCancel(params: unknown): Promise<ExportCancelResponse
     // Dependencies not initialized, skip cleanup
   }
 
-  activeJobs.delete(p.jobId);
+  activeJobs.delete(parsed.data.jobId);
 
   return { success: true, wasCancelled: true };
 }
@@ -239,9 +210,8 @@ async function handleExportCancel(params: unknown): Promise<ExportCancelResponse
  * Get export progress.
  */
 async function handleExportGetProgress(params: unknown): Promise<ExportProgressResponse> {
-  const p = params as ExportProgressParams;
-
-  if (!p.jobId || typeof p.jobId !== 'string') {
+  const parsed = exportProgressParamsSchema.safeParse(params);
+  if (!parsed.success) {
     return {
       status: 'error',
       currentParagraph: 0,
@@ -251,7 +221,7 @@ async function handleExportGetProgress(params: unknown): Promise<ExportProgressR
     };
   }
 
-  const job = activeJobs.get(p.jobId);
+  const job = activeJobs.get(parsed.data.jobId);
   if (!job) {
     return {
       status: 'error',
@@ -278,20 +248,19 @@ async function handleExportGetProgress(params: unknown): Promise<ExportProgressR
  * Download a completed export.
  */
 async function handleExportDownload(params: unknown): Promise<ExportDownloadResponse> {
-  const p = params as ExportDownloadParams;
-
-  if (!p.jobId || typeof p.jobId !== 'string') {
+  const parsed = exportDownloadParamsSchema.safeParse(params);
+  if (!parsed.success) {
     return { success: false, error: 'jobId is required' };
   }
 
-  const job = activeJobs.get(p.jobId);
+  const job = activeJobs.get(parsed.data.jobId);
   if (!job || job.status !== 'complete' || !job.blobUrl) {
     return { success: false, error: 'Export not ready for download' };
   }
 
   try {
     const deps = getDependencies();
-    const filename = p.filename || `voxpage-export-${Date.now()}.mp3`;
+    const filename = parsed.data.filename || `voxpage-export-${Date.now()}.mp3`;
     await deps.downloadFile(job.blobUrl, filename);
 
     await deps.saveExportHistory({

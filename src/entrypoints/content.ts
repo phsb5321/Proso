@@ -282,21 +282,35 @@ function injectContentStyles(): void {
 // ============================================================================
 
 /**
+ * VoxPage namespace on the window object.
+ * Used for backward compatibility with legacy code and cross-module communication.
+ */
+interface VoxPageNamespace {
+  _contentInitialized?: boolean;
+  paragraphSelector?: ParagraphSelector;
+  paragraphIndicator?: ParagraphIndicator;
+  persistentHighlightManager?: PersistentHighlightManager;
+  highlightManager?: {
+    onUserScroll: () => void;
+  };
+  getCurrentSelection?: () => TextQuoteSelector | null;
+  registerCleanupCallback?: (callback: (reason: string) => void) => void;
+}
+
+/**
+ * Window with VoxPage audio element for content-script-based playback.
+ */
+interface VoxPageWindow {
+  VoxPage?: VoxPageNamespace;
+  __voxpageAudio?: HTMLAudioElement | null;
+}
+
+/**
  * Legacy message format (backward compatibility until background service is migrated)
  */
 interface LegacyMessage {
   action: string;
   [key: string]: unknown;
-}
-
-/**
- * Playback state update message
- */
-interface PlaybackStateMessage extends LegacyMessage {
-  action: 'updatePlaybackState';
-  isPlaying: boolean;
-  progress?: number;
-  timeRemaining?: number;
 }
 
 /**
@@ -370,17 +384,6 @@ interface FooterShowMessage extends LegacyMessage {
   };
 }
 
-/**
- * Footer position message
- */
-interface FooterPositionMessage extends LegacyMessage {
-  action: 'showFloatingController';
-  position?: {
-    x: 'left' | 'center' | 'right' | number;
-    yOffset: number;
-  };
-}
-
 // ============================================================================
 // WXT Content Script Definition
 // ============================================================================
@@ -407,14 +410,15 @@ export default defineContentScript({
     let persistentHighlightManager: PersistentHighlightManager | null = null;
 
     // Prevent re-initialization
-    if ((window as any).VoxPage?._contentInitialized) {
+    const voxWindow = window as unknown as VoxPageWindow;
+    if (voxWindow.VoxPage?._contentInitialized) {
       console.log('VoxPage: Content script already initialized, skipping');
       return;
     }
 
     // Initialize VoxPage namespace for backward compatibility
-    (window as any).VoxPage = (window as any).VoxPage || {};
-    (window as any).VoxPage._contentInitialized = true;
+    voxWindow.VoxPage = voxWindow.VoxPage || {};
+    voxWindow.VoxPage._contentInitialized = true;
 
     // Initialize modules
     try {
@@ -425,9 +429,9 @@ export default defineContentScript({
       persistentHighlightManager = createPersistentHighlightManager();
 
       // Expose modules on namespace for legacy code
-      (window as any).VoxPage.paragraphSelector = paragraphSelector;
-      (window as any).VoxPage.paragraphIndicator = paragraphIndicator;
-      (window as any).VoxPage.persistentHighlightManager = persistentHighlightManager;
+      voxWindow.VoxPage!.paragraphSelector = paragraphSelector;
+      voxWindow.VoxPage!.paragraphIndicator = paragraphIndicator;
+      voxWindow.VoxPage!.persistentHighlightManager = persistentHighlightManager;
 
       console.log('VoxPage: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
@@ -453,16 +457,6 @@ export default defineContentScript({
     // ========================================================================
 
     /**
-     * Format time remaining in seconds to MM:SS format
-     */
-    function formatTimeRemaining(seconds: number | undefined): string {
-      if (!seconds || seconds < 0) return '0:00';
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    /**
      * Jump to a clicked paragraph (only during active playback)
      */
     function jumpToClickedParagraph(index: number): void {
@@ -471,7 +465,7 @@ export default defineContentScript({
 
       browser.runtime
         .sendMessage({
-          action: 'jumpToParagraph',
+          type: 'playback.jumpToParagraph',
           index: index,
         })
         .catch((err) => {
@@ -498,11 +492,11 @@ export default defineContentScript({
 
         // Check if we clicked on a selectable paragraph (selection mode)
         const selectableEl = target.closest('.voxpage-selectable') as HTMLElement;
-        if (selectableEl && (window as any).VoxPage?.paragraphSelector?.isActive?.()) {
+        if (selectableEl && voxWindow.VoxPage?.paragraphSelector?.isActive?.()) {
           const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
           if (!isNaN(index)) {
             // Selection mode: just select visually, don't play
-            (window as any).VoxPage.paragraphSelector?.selectParagraph?.(index);
+            voxWindow.VoxPage?.paragraphSelector?.selectParagraph?.(index);
           }
           return;
         }
@@ -520,7 +514,7 @@ export default defineContentScript({
 
         // Check if clicking on an extracted paragraph
         const extractedParagraphs = extractor.getExtractedParagraphs();
-        const highlightElements = highlightManager.getHighlightElements();
+        const _highlightElements = highlightManager.getHighlightElements();
 
         // T046: Allow clicking paragraphs even before playback starts
         // If content has been extracted, allow starting playback from clicked paragraph
@@ -539,8 +533,9 @@ export default defineContentScript({
     }
 
     /**
-     * Extract page language information
-     * TODO: Migrate language-extractor.js to utils/content/language-extractor.ts
+     * Extract page language information.
+     * Note: A shared version exists at utils/language/extractor.ts.
+     * This inline version is kept for content script bundling efficiency.
      */
     function extractPageLanguage(): {
       metadata: string | null;
@@ -618,7 +613,7 @@ export default defineContentScript({
       const langData = extractPageLanguage();
       browser.runtime
         .sendMessage({
-          action: 'languageDetected',
+          type: 'language.detect',
           metadata: langData.metadata,
           textSample: langData.textSample,
           url: langData.url,
@@ -718,7 +713,7 @@ export default defineContentScript({
       });
 
       // Expose function to get current selection
-      (window as any).VoxPage.getCurrentSelection = () => currentSelection;
+      voxWindow.VoxPage!.getCurrentSelection = () => currentSelection;
     }
 
     /**
@@ -1046,7 +1041,7 @@ export default defineContentScript({
             };
             browser.runtime
               .sendMessage({
-                action: 'jumpToWord',
+                type: 'playback.jumpToWord',
                 paragraphIndex,
                 wordIndex,
               })
@@ -1058,53 +1053,10 @@ export default defineContentScript({
         }
 
         // ====================================================================
-        // Floating Controller (Legacy - TODO: Remove after sticky footer migration)
-        // ====================================================================
-        case 'showFloatingController': {
-          const msg = message as FooterPositionMessage;
-          if ((window as any).VoxPage?.floatingController) {
-            (window as any).VoxPage.floatingController.show(msg.position);
-            (window as any).VoxPage.floatingController.onAction((action: string, data: unknown) => {
-              browser.runtime
-                .sendMessage({
-                  action: 'controllerAction',
-                  controllerAction: action,
-                  ...((data as object) || {}),
-                })
-                .catch((err) => {
-                  console.error('VoxPage: Failed to send controller action:', err);
-                });
-            });
-          }
-          break;
-        }
-
-        case 'hideFloatingController': {
-          if ((window as any).VoxPage?.floatingController) {
-            (window as any).VoxPage.floatingController.hide();
-          }
-          break;
-        }
-
-        case 'updatePlaybackState': {
-          const msg = message as PlaybackStateMessage;
-          if ((window as any).VoxPage?.floatingController) {
-            const status = msg.isPlaying ? 'playing' : 'paused';
-            const timeRemaining = formatTimeRemaining(msg.timeRemaining);
-            (window as any).VoxPage.floatingController.updateState({
-              status: status,
-              progress: msg.progress || 0,
-              timeRemaining: timeRemaining,
-            });
-          }
-          break;
-        }
-
-        // ====================================================================
         // Sticky Footer
         // ====================================================================
         case 'FOOTER_SHOW': {
-          const msg = message as FooterShowMessage;
+          const _msg = message as FooterShowMessage;
           // Convert legacy initialState to StorageState format
           const storageState: Partial<StorageState> = {
             isMinimized: false,
@@ -1451,27 +1403,27 @@ export default defineContentScript({
           return new Promise<{ success: boolean }>((resolve) => {
             // Stop any existing audio
             // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-            if ((window as any).__voxpageAudio) {
-              const existingAudio = (window as any).__voxpageAudio as HTMLAudioElement;
+            if (voxWindow.__voxpageAudio) {
+              const existingAudio = voxWindow.__voxpageAudio;
               existingAudio.pause();
               existingAudio.removeAttribute('src');
               existingAudio.load();
-              (window as any).__voxpageAudio = null;
+              voxWindow.__voxpageAudio = null;
             }
 
             const audio = new Audio(audioUrl);
-            (window as any).__voxpageAudio = audio;
+            voxWindow.__voxpageAudio = audio;
             audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
 
             audio.onended = () => {
               console.log('VoxPage: Audio playback ended');
-              (window as any).__voxpageAudio = null;
+              voxWindow.__voxpageAudio = null;
               resolve({ success: true });
             };
 
             audio.onerror = (event) => {
               console.error('VoxPage: Audio playback error:', event);
-              (window as any).__voxpageAudio = null;
+              voxWindow.__voxpageAudio = null;
               resolve({ success: false });
             };
 
@@ -1485,12 +1437,12 @@ export default defineContentScript({
 
         case 'stopAudio': {
           // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-          if ((window as any).__voxpageAudio) {
-            const audio = (window as any).__voxpageAudio as HTMLAudioElement;
+          if (voxWindow.__voxpageAudio) {
+            const audio = voxWindow.__voxpageAudio;
             audio.pause();
             audio.removeAttribute('src');
             audio.load();
-            (window as any).__voxpageAudio = null;
+            voxWindow.__voxpageAudio = null;
             console.log('VoxPage: Audio stopped');
           }
           return Promise.resolve({ success: true });
@@ -1531,8 +1483,8 @@ export default defineContentScript({
         }
         scrollListenerDebounce = window.setTimeout(() => {
           // Notify highlight manager of user scroll
-          if ((window as any).VoxPage?.highlightManager?.onUserScroll) {
-            (window as any).VoxPage.highlightManager.onUserScroll();
+          if (voxWindow.VoxPage?.highlightManager?.onUserScroll) {
+            voxWindow.VoxPage.highlightManager.onUserScroll();
           }
           scrollListenerDebounce = null;
         }, 100); // 100ms debounce for scroll events
@@ -1554,13 +1506,13 @@ export default defineContentScript({
       console.log(`VoxPage: Executing cleanup (reason: ${reason})`);
 
       // T023: Stop and cleanup content script audio first
-      if ((window as any).__voxpageAudio) {
-        const audio = (window as any).__voxpageAudio as HTMLAudioElement;
+      if (voxWindow.__voxpageAudio) {
+        const audio = voxWindow.__voxpageAudio;
         audio.pause();
         // Use proper cleanup to avoid Invalid URI errors
         audio.removeAttribute('src');
         audio.load();
-        (window as any).__voxpageAudio = null;
+        voxWindow.__voxpageAudio = null;
         console.log('[VoxPage:Cleanup] Content script audio stopped and cleaned');
       }
 
@@ -1572,7 +1524,7 @@ export default defineContentScript({
       // Send stop message to background (triggers blob URL cleanup)
       browser.runtime
         .sendMessage({
-          action: 'playback.stop',
+          type: 'playback.stop',
           reason: reason,
         })
         .catch(() => {
@@ -1582,11 +1534,6 @@ export default defineContentScript({
       // T023: Reset paragraph selector state
       if (paragraphSelector) {
         paragraphSelector.resetPlayingState();
-      }
-
-      // Hide floating controller
-      if ((window as any).VoxPage?.floatingController) {
-        (window as any).VoxPage.floatingController.hide();
       }
 
       // Hide sticky footer
@@ -1619,7 +1566,7 @@ export default defineContentScript({
     }
 
     // Expose cleanup registration on namespace
-    (window as any).VoxPage.registerCleanupCallback = registerCleanupCallback;
+    voxWindow.VoxPage!.registerCleanupCallback = registerCleanupCallback;
 
     /**
      * Handle pagehide event (primary navigation handler)
@@ -1646,7 +1593,7 @@ export default defineContentScript({
         const resyncStart = performance.now();
         browser.runtime
           .sendMessage({
-            action: 'requestResync',
+            type: 'playback.resync',
             reason: 'tab-visible',
             timestamp: Date.now(),
           })

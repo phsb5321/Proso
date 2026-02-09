@@ -83,7 +83,7 @@ export class AudioVisualizer {
       }
 
       // Create audio context
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new (window.AudioContext || (window as Record<string, unknown>).webkitAudioContext as typeof AudioContext)();
 
       // Create analyser node
       this.analyserNode = this.audioContext.createAnalyser();
@@ -139,7 +139,7 @@ export class AudioVisualizer {
       if (this.sourceNode) {
         try {
           this.sourceNode.disconnect();
-        } catch (e) {
+        } catch (_e) {
           // May already be disconnected
         }
       }
@@ -153,9 +153,9 @@ export class AudioVisualizer {
         this.sourceNode = this.audioContext.createMediaElementSource(audioElement);
         this.sourceNode.connect(this.analyserNode);
         return true;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Audio element might already be connected
-        if (error.name === 'InvalidStateError') {
+        if (error instanceof DOMException && error.name === 'InvalidStateError') {
           console.warn('Audio element already connected to a context');
           return true;
         }
@@ -301,7 +301,7 @@ export class AudioVisualizer {
     if (this.sourceNode) {
       try {
         this.sourceNode.disconnect();
-      } catch (e) {
+      } catch (_e) {
         // May already be disconnected
       }
       this.sourceNode = null;

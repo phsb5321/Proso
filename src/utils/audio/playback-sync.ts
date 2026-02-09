@@ -579,7 +579,7 @@ export class PlaybackSyncState {
   /**
    * Handle playback speed change
    */
-  setPlaybackSpeed(speed: number): void {
+  setPlaybackSpeed(_speed: number): void {
     // Note: Audio element handles actual speed change
     // Timeline doesn't need adjustment as audio.currentTime
     // already reflects actual playback position

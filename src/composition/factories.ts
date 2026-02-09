@@ -18,7 +18,14 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
-import { AudioUrlAdapter, BrowserTtsAudioAdapter, ElevenLabsAudioAdapter } from '../adapters/audio';
+import {
+  AudioUrlAdapter,
+  BrowserTtsAudioAdapter,
+  CartesiaAudioAdapter,
+  ElevenLabsAudioAdapter,
+  GroqAudioAdapter,
+  OpenAiAudioAdapter,
+} from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -54,6 +61,24 @@ export function createAudioGeneratorAdapter(
         throw new Error('ElevenLabs API key is required');
       }
       return new ElevenLabsAudioAdapter(apiKey);
+
+    case 'openai':
+      if (!apiKey) {
+        throw new Error('OpenAI API key is required');
+      }
+      return new OpenAiAudioAdapter(apiKey);
+
+    case 'groq':
+      if (!apiKey) {
+        throw new Error('Groq API key is required');
+      }
+      return new GroqAudioAdapter(apiKey);
+
+    case 'cartesia':
+      if (!apiKey) {
+        throw new Error('Cartesia API key is required');
+      }
+      return new CartesiaAudioAdapter(apiKey);
 
     default:
       throw new Error(`Unknown audio provider: ${provider as string}`);
@@ -153,6 +178,12 @@ export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): strin
   switch (provider) {
     case 'elevenlabs':
       return keys.elevenlabs;
+    case 'openai':
+      return keys.openai;
+    case 'groq':
+      return keys.groq;
+    case 'cartesia':
+      return keys.cartesia;
     default:
       return null;
   }

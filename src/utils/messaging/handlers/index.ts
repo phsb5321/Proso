@@ -3,33 +3,16 @@
 // Commercial licensing: https://voxpage.com/commercial
 
 /**
- * Message Handlers Index
- * Exports all domain-based message handlers
+ * Message Handlers Index (Legacy)
  *
- * NOTE: Pure stub handlers (playback, audio, content, provider, footer,
- * highlight, language, logging) were removed in 057-background-migration.
- * These domains are now served by hexagonal handlers in src/handlers/.
+ * Most handlers have been migrated to hexagonal architecture in src/handlers/.
+ * This file only re-exports handlers still used as legacy wrappers.
  *
  * @module utils/messaging/handlers
  */
 
-// Settings handlers
-export {
-  handleSettingsGet,
-  handleSettingsUpdate,
-  handleSettingsMigrate,
-} from './settings';
+// Export handlers — still imported by background.ts
+export { exportHandlers } from './export';
 
-// Cache handlers (028-smart-audio-cache)
-export {
-  handleCacheGetStats,
-  handleCacheClear,
-  handleCacheClearUrl,
-  handleCacheCheck,
-  handleCacheGet,
-  handleCacheSet,
-  handlePrefetchStart,
-  handlePrefetchGetStatus,
-  handleCostEstimate,
-  handleParagraphsGetStatus,
-} from './cache-handlers';
+// Queue handlers — still imported by background.ts and wrapped by hexagonal queue.handlers.ts
+export { queueHandlers } from './queue';

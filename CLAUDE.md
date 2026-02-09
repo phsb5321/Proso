@@ -244,6 +244,7 @@ const service = new PlaybackService({
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, Dexie 4.2.1 (047-architecture-ui-polish)
 - IndexedDB (audio cache via Dexie), browser.storage.local (settings) (047-architecture-ui-polish)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1 (062-hexagonal-wiring-recovery)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter) (063-extension-quality-sprint)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -399,9 +400,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
 - 062-hexagonal-wiring-recovery: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1
 - 047-architecture-ui-polish: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, Dexie 4.2.1
-- 046-bug-bounty-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.x (build framework), @webext-core/messaging 2.3.0 (type-safe messaging), Zod 4.3.4 (runtime validation), @mozilla/readability (content extraction)
 
 
 <!-- MANUAL ADDITIONS START -->

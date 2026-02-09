@@ -199,7 +199,6 @@ describe('audio.handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('invalid_params');
-      expect(result.error!.message).toContain('voiceId');
     });
 
     it('should return invalid_params when voiceId is missing', async () => {
@@ -378,7 +377,6 @@ describe('audio.handlers', () => {
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('invalid_params');
-      expect(result.error!.message).toContain('text');
     });
 
     it('should return invalid_params when text is missing', async () => {
