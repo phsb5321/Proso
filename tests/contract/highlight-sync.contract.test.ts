@@ -148,7 +148,8 @@ export function runHighlightSyncContractTests(
           currentIndex: 0,
           totalParagraphs: 10,
           progress: 0.5,
-          currentText: 'Test paragraph',
+          currentTime: '0:00',
+          totalTime: '2:30',
           speed: 1.0,
         };
 
@@ -174,7 +175,8 @@ export function runHighlightSyncContractTests(
             currentIndex: 0,
             totalParagraphs: 10,
             progress: 0.5,
-            currentText: 'Test',
+            currentTime: '0:00',
+            totalTime: '2:30',
             speed: 1.0,
           };
 

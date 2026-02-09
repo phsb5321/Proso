@@ -9,7 +9,7 @@
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { BrowserTtsAudioAdapter } from '../../../src/adapters/audio/browser-tts-audio.adapter';
-import { isOk, isErr } from '../../../src/core/shared/result';
+import { isOk } from '../../../src/core/shared/result';
 import type { AudioRequest, AudioResponse, Voice } from '../../../src/ports/audio-generator.port';
 import type { AudioError } from '../../../src/core/shared/errors';
 import type { Result } from '../../../src/core/shared/result';
@@ -298,7 +298,7 @@ describe('BrowserTtsAudioAdapter', () => {
       expect(result.value.durationMs).toBeGreaterThan(0);
     });
 
-    it('should handle speechSynthesis errors', async () => {
+    it('should handle speechSynthesis errors via onEndPromise', async () => {
       // Override speak to fire onerror
       const synth = (global as Record<string, unknown>).speechSynthesis as {
         speak: jest.Mock;
@@ -319,11 +319,14 @@ describe('BrowserTtsAudioAdapter', () => {
         language: null,
       };
 
+      // T027: generateAudio returns Ok immediately; errors propagate via onEndPromise
       const result: Result<AudioResponse, AudioError> = await adapter.generateAudio(request);
 
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
-      expect(result.error.type).toBeDefined();
+      // The result should be Ok (non-blocking), but onEndPromise should reject
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+      expect(result.value.onEndPromise).toBeDefined();
+      await expect(result.value.onEndPromise).rejects.toThrow('synthesis-failed');
     });
 
     it('should handle empty text gracefully', async () => {
@@ -371,6 +374,57 @@ describe('BrowserTtsAudioAdapter', () => {
       const utterance = UtteranceClass.mock.results[0].value as MockUtterance;
       // Voice should be set (the adapter should look up the voice by id)
       expect(utterance.voice).toBeTruthy();
+    });
+
+    // T031: Verify non-blocking behavior
+    it('should return BEFORE speech synthesis onend fires (T031)', async () => {
+      // Override speak to NOT auto-fire onend (simulates speech in progress)
+      const synth = (global as Record<string, unknown>).speechSynthesis as {
+        speak: jest.Mock;
+      };
+      synth.speak.mockImplementation(() => {
+        // Do nothing — onend never fires
+      });
+
+      const request: AudioRequest = {
+        text: 'This is a long sentence that would take time to speak',
+        voice: null,
+        speed: 1.0,
+        language: null,
+      };
+
+      // This should resolve immediately, not wait for speech completion
+      const result = await adapter.generateAudio(request);
+
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+
+      // Verify playedDirectly is true
+      expect(result.value.playedDirectly).toBe(true);
+
+      // Verify onEndPromise exists (for paragraph advancement)
+      expect(result.value.onEndPromise).toBeDefined();
+      expect(result.value.onEndPromise).toBeInstanceOf(Promise);
+
+      // Verify the returned blob is empty (no audio data for Browser TTS)
+      expect(result.value.audioBlob.size).toBe(0);
+    });
+
+    it('should resolve onEndPromise when speech completes (T031)', async () => {
+      const request: AudioRequest = {
+        text: 'Completion test',
+        voice: null,
+        speed: 1.0,
+        language: null,
+      };
+
+      // Default mock auto-fires onend via microtask
+      const result = await adapter.generateAudio(request);
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+
+      // onEndPromise should resolve (onend fires after microtask)
+      await expect(result.value.onEndPromise).resolves.toBeUndefined();
     });
   });
 });

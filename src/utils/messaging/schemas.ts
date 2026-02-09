@@ -272,7 +272,8 @@ export const footerUpdateStateParamsSchema = z.object({
   currentIndex: z.number().int().nonnegative().optional(),
   totalParagraphs: z.number().int().nonnegative().optional(),
   progress: z.number().min(0).max(100).optional(),
-  currentText: z.string().optional(),
+  currentTime: z.string().optional(),
+  totalTime: z.string().optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
 });
 

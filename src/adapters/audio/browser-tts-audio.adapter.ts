@@ -39,6 +39,7 @@ import type {
  */
 export class BrowserTtsAudioAdapter implements IAudioGenerator {
   readonly providerId = 'browser' as const;
+  readonly playbackMode = 'direct' as const;
   readonly supportsWordTiming = false;
   readonly supportedLanguages: readonly string[] = [];
 
@@ -77,8 +78,13 @@ export class BrowserTtsAudioAdapter implements IAudioGenerator {
         }
       }
 
-      // Speak and wait for completion
-      await new Promise<void>((resolve, reject) => {
+      // Estimate duration based on text length and speed
+      const wordCount = request.text.split(/\s+/).filter(Boolean).length;
+      const estimatedDurationMs = Math.max(100, (wordCount * 300) / request.speed);
+
+      // T027: Create completion promise but do NOT await it.
+      // This allows generateAudio() to return immediately while speech plays.
+      const onEndPromise = new Promise<void>((resolve, reject) => {
         utterance.onend = () => resolve();
         utterance.onerror = (event: SpeechSynthesisErrorEvent | Event) => {
           const errorMessage =
@@ -87,18 +93,18 @@ export class BrowserTtsAudioAdapter implements IAudioGenerator {
               : 'Speech synthesis failed';
           reject(new Error(errorMessage));
         };
-        synth.speak(utterance);
       });
 
-      // Estimate duration based on text length and speed
-      const wordCount = request.text.split(/\s+/).filter(Boolean).length;
-      const estimatedDurationMs = Math.max(100, (wordCount * 300) / request.speed);
+      // Start speaking — returns immediately
+      synth.speak(utterance);
 
-      // Return minimal AudioResponse — audio was played directly
+      // Return minimal AudioResponse with onEndPromise for paragraph advancement
       return Ok({
         audioBlob: new Blob([], { type: 'audio/wav' }),
         durationMs: estimatedDurationMs,
         wordTimings: null,
+        playedDirectly: true,
+        onEndPromise,
       });
     } catch (error) {
       return this.handleError(error);

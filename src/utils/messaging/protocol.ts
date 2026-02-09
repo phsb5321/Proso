@@ -46,11 +46,6 @@ export type ExportQualityType = '128' | '192' | '256';
 export type QueueItemStatus = 'pending' | 'reading' | 'completed' | 'archived';
 
 /**
- * AI provider type
- */
-export type AIProviderType = 'openai' | 'anthropic';
-
-/**
  * Theme mode type (027-settings-ux-overhaul)
  */
 export type ThemeModeType = 'light' | 'dark' | 'system';
@@ -628,7 +623,8 @@ export interface VoxPageProtocol {
       currentIndex?: number;
       totalParagraphs?: number;
       progress?: number;
-      currentText?: string;
+      currentTime?: string;
+      totalTime?: string;
       speed?: number;
     };
     response: {
@@ -738,59 +734,6 @@ export interface VoxPageProtocol {
     };
     response: {
       success: boolean;
-      error?: string;
-    };
-  };
-
-  // ========== AI Summarization Messages (023-feature-roadmap) ==========
-  'summarize.article': {
-    request: {
-      text: string;
-      title?: string;
-      url?: string;
-      provider: AIProviderType;
-      bulletCount: number;
-      outputLanguage: string;
-    };
-    response: {
-      success: boolean;
-      bullets: Array<{
-        text: string;
-        sourceOffset?: number;
-        confidence?: number;
-      }>;
-      provider: AIProviderType;
-      model: string;
-      tokensUsed?: {
-        input: number;
-        output: number;
-      };
-      processingTimeMs: number;
-      error?: string;
-    };
-  };
-
-  'summarize.readSummary': {
-    request: {
-      bullets: Array<{ text: string }>;
-      provider: ProviderId;
-      voice?: string;
-      speed?: number;
-    };
-    response: {
-      success: boolean;
-      error?: string;
-    };
-  };
-
-  'summarize.getProviderStatus': {
-    request: {
-      provider: AIProviderType;
-    };
-    response: {
-      available: boolean;
-      hasApiKey: boolean;
-      model?: string;
       error?: string;
     };
   };

@@ -44,11 +44,15 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     tabId: number,
     paragraphIndex: number,
     scroll: boolean,
+    text = '',
+    timestamp = Date.now(),
   ): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'highlight.paragraph',
-        paragraphIndex,
+        type: 'highlight',
+        index: paragraphIndex,
+        text,
+        timestamp,
         scroll,
       });
       return Ok(undefined);
@@ -64,7 +68,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
   ): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'highlight.word',
+        type: 'highlightWord',
         paragraphIndex,
         wordIndex,
       });
@@ -77,7 +81,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
   async clearHighlights(tabId: number): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'highlight.clear',
+        type: 'clearHighlight',
       });
       return Ok(undefined);
     } catch (error) {
@@ -88,7 +92,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
   async showFooter(tabId: number): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'footer.show',
+        type: 'FOOTER_SHOW',
       });
       return Ok(undefined);
     } catch (error) {
@@ -99,7 +103,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
   async hideFooter(tabId: number): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'footer.hide',
+        type: 'FOOTER_HIDE',
       });
       return Ok(undefined);
     } catch (error) {
@@ -113,12 +117,13 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
   ): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
-        type: 'footer.updateState',
+        type: 'FOOTER_STATE_UPDATE',
         status: state.status,
-        currentIndex: state.currentIndex,
+        currentParagraph: state.currentIndex,
         totalParagraphs: state.totalParagraphs,
         progress: state.progress,
-        currentText: state.currentText,
+        currentTime: state.currentTime,
+        totalTime: state.totalTime,
         speed: state.speed,
       });
       return Ok(undefined);
