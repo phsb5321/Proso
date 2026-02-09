@@ -20,11 +20,17 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import type { IHighlightSynchronizer } from '../../../src/ports/highlight-sync.port';
 import type {
   FooterOperationResponse,
   FooterActionResponse,
 } from '../../../src/handlers/footer.handlers';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const srcDir = resolve(__dirname, '../../../src');
 
 // ---------------------------------------------------------------------------
 // Mocks (must precede dynamic imports)
@@ -34,6 +40,24 @@ import type {
 // in case transitive deps pull it in.
 jest.unstable_mockModule('wxt/browser', () => ({
   browser: { tabs: { sendMessage: jest.fn() } },
+}));
+
+// Mock composition module for footer.action handler (T025)
+const mockResult = { ok: true as const, value: {} };
+const mockPlaybackService = {
+  pause: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  resume: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  stop: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  next: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  previous: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  seekToParagraph: jest.fn<() => Promise<typeof mockResult>>().mockResolvedValue(mockResult),
+  setSpeed: jest.fn(),
+  getState: jest.fn().mockReturnValue({ status: 'idle' }),
+};
+
+jest.unstable_mockModule(resolve(srcDir, 'composition'), () => ({
+  getPlaybackService: jest.fn(() => mockPlaybackService),
+  isPlaybackServiceAvailable: jest.fn(() => true),
 }));
 
 // Dynamic imports after mocks are wired
@@ -252,7 +276,8 @@ describe('footer.handlers', () => {
       currentIndex: 3,
       totalParagraphs: 10,
       progress: 0.3,
-      currentText: 'Hello world',
+      currentTime: '0:45',
+      totalTime: '2:30',
       speed: 1.5,
     };
 
@@ -268,7 +293,8 @@ describe('footer.handlers', () => {
         currentIndex: 3,
         totalParagraphs: 10,
         progress: 0.3,
-        currentText: 'Hello world',
+        currentTime: '0:45',
+        totalTime: '2:30',
         speed: 1.5,
       });
     });
@@ -320,7 +346,8 @@ describe('footer.handlers', () => {
         currentIndex: 0,
         totalParagraphs: 1,
         progress: 0,
-        currentText: '',
+        currentTime: '0:00',
+        totalTime: '0:00',
         speed: 0.5,
       };
 
@@ -331,7 +358,8 @@ describe('footer.handlers', () => {
         currentIndex: 0,
         totalParagraphs: 1,
         progress: 0,
-        currentText: '',
+        currentTime: '0:00',
+        totalTime: '0:00',
         speed: 0.5,
       });
     });
@@ -405,7 +433,7 @@ describe('footer.handlers', () => {
     });
 
     it('should not require highlightSync to be set', async () => {
-      // footer.action does not call getHighlightSync()
+      // footer.action does not call getHighlightSync() — but T025 added PlaybackService dependency
       setHighlightSync(null as unknown as IHighlightSynchronizer);
 
       const outer = await registry.dispatch('footer.action', { action: 'play' });
@@ -413,6 +441,18 @@ describe('footer.handlers', () => {
 
       expect(result.success).toBe(true);
       expect(result.action).toBe('play');
+    });
+
+    it('should return error when PlaybackService is not available', async () => {
+      // Temporarily override mock to return false
+      const { isPlaybackServiceAvailable } = await import(resolve(srcDir, 'composition'));
+      (isPlaybackServiceAvailable as jest.Mock).mockReturnValueOnce(false);
+
+      const outer = await registry.dispatch('footer.action', { action: 'play' });
+      const result = unwrapDispatch(outer) as FooterActionResponse;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('PlaybackService not available');
     });
   });
 
@@ -573,7 +613,8 @@ describe('footer.handlers', () => {
         currentIndex: 0,
         totalParagraphs: 5,
         progress: 0,
-        currentText: 'test',
+        currentTime: '0:00',
+        totalTime: '1:15',
         speed: 1,
       });
 
@@ -637,6 +678,101 @@ describe('footer.handlers', () => {
       await registry.dispatch('footer.hide', {});
 
       expect(mockSync.hideFooter).toHaveBeenCalledWith(77);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // T026: Footer state update field validation (SC-006)
+  // -----------------------------------------------------------------------
+
+  describe('footer state fields (T026)', () => {
+    it('should require all footer state fields in stateUpdate', async () => {
+      mockSync.updateFooterState.mockResolvedValue(okResult(undefined));
+
+      const fullState = {
+        tabId: 1,
+        status: 'playing' as const,
+        currentIndex: 2,
+        totalParagraphs: 10,
+        progress: 0.2,
+        currentTime: '0:30',
+        totalTime: '2:30',
+        speed: 1.5,
+      };
+
+      const outer = await registry.dispatch('footer.stateUpdate', fullState);
+      const result = unwrapDispatch(outer) as FooterOperationResponse;
+      expect(result.success).toBe(true);
+
+      // Verify the FooterState passed to adapter has all required fields
+      const passedState = mockSync.updateFooterState.mock.calls[0]?.[1];
+      expect(passedState).toEqual({
+        status: 'playing',
+        currentIndex: 2,
+        totalParagraphs: 10,
+        progress: 0.2,
+        currentTime: '0:30',
+        totalTime: '2:30',
+        speed: 1.5,
+      });
+    });
+
+    it('should pass currentTime as formatted string (not currentText)', async () => {
+      mockSync.updateFooterState.mockResolvedValue(okResult(undefined));
+
+      await registry.dispatch('footer.stateUpdate', {
+        tabId: 1,
+        status: 'playing' as const,
+        currentIndex: 5,
+        totalParagraphs: 20,
+        progress: 0.75,
+        currentTime: '1:45',
+        totalTime: '3:00',
+        speed: 1.0,
+      });
+
+      const passedState = mockSync.updateFooterState.mock.calls[0]?.[1];
+
+      // Verify currentTime is a formatted string
+      expect(typeof passedState?.currentTime).toBe('string');
+      expect(passedState?.currentTime).toMatch(/^\d+:\d{2}$/);
+
+      // Verify totalTime is a formatted string
+      expect(typeof passedState?.totalTime).toBe('string');
+      expect(passedState?.totalTime).toMatch(/^\d+:\d{2}$/);
+
+      // Verify NO currentText field exists
+      expect(passedState).not.toHaveProperty('currentText');
+    });
+
+    it('should include all 7 required fields in FooterState', async () => {
+      mockSync.updateFooterState.mockResolvedValue(okResult(undefined));
+
+      await registry.dispatch('footer.stateUpdate', {
+        tabId: 1,
+        status: 'idle' as const,
+        currentIndex: 0,
+        totalParagraphs: 0,
+        progress: 0,
+        currentTime: '0:00',
+        totalTime: '0:00',
+        speed: 1.0,
+      });
+
+      const passedState = mockSync.updateFooterState.mock.calls[0]?.[1];
+      const requiredFields = [
+        'status',
+        'currentIndex',
+        'totalParagraphs',
+        'progress',
+        'currentTime',
+        'totalTime',
+        'speed',
+      ];
+
+      for (const field of requiredFields) {
+        expect(passedState).toHaveProperty(field);
+      }
     });
   });
 });

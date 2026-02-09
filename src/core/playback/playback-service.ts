@@ -47,8 +47,28 @@ export class PlaybackService {
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
 
+  // Direct playback tracking (Browser TTS via speechSynthesis)
+  private directPlaybackTimer: ReturnType<typeof setInterval> | null = null;
+  private isDirectPlayback = false;
+
+  // Detected page language (set externally via setLanguage)
+  private detectedLanguage: string | null = null;
+
+  // Mutable audio generator reference (updated on provider switch)
+  private audioGenerator: IAudioGenerator;
+
   constructor(private readonly deps: PlaybackServiceDependencies) {
     this.state = initialPlaybackState;
+    this.audioGenerator = deps.audioGenerator;
+  }
+
+  /**
+   * Replace the audio generator (called when provider is switched).
+   * This fixes the stale reference issue where PlaybackService held
+   * a reference to the old generator after container reconfiguration.
+   */
+  setAudioGenerator(generator: IAudioGenerator): void {
+    this.audioGenerator = generator;
   }
 
   /**
@@ -84,7 +104,7 @@ export class PlaybackService {
 
     // Show footer and highlight first paragraph
     await this.deps.highlightSync.showFooter(tabId);
-    await this.deps.highlightSync.highlightParagraph(tabId, 0, true);
+    await this.deps.highlightSync.highlightParagraph(tabId, 0, true, paragraphs[0] ?? '', Date.now());
 
     // Generate audio for first paragraph
     const result = await this.generateAndPlayParagraph(0);
@@ -103,7 +123,14 @@ export class PlaybackService {
       return Err(playbackError.playbackFailed('Cannot pause: not playing'));
     }
 
-    this.audioElement?.pause();
+    if (this.isDirectPlayback) {
+      // Browser TTS: pause via speechSynthesis
+      try { speechSynthesis.pause(); } catch { /* ignore if unavailable */ }
+      this.stopDirectPlaybackTimer();
+    } else {
+      this.audioElement?.pause();
+    }
+
     this.state = playbackStateTransitions.pause(this.state);
 
     // Update footer state
@@ -120,7 +147,15 @@ export class PlaybackService {
       return Err(playbackError.playbackFailed('Cannot resume: not paused'));
     }
 
-    this.audioElement?.play();
+    if (this.isDirectPlayback) {
+      // Browser TTS: resume via speechSynthesis
+      try { speechSynthesis.resume(); } catch { /* ignore if unavailable */ }
+      // Re-start progress timer (approximate remaining time)
+      // We don't know exact remaining time, so we won't restart the timer here
+    } else {
+      this.audioElement?.play();
+    }
+
     this.state = playbackStateTransitions.resume(this.state);
 
     // Update footer state
@@ -133,7 +168,14 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
-    // Stop audio
+    // Stop direct playback (Browser TTS)
+    if (this.isDirectPlayback) {
+      try { speechSynthesis.cancel(); } catch { /* ignore if unavailable */ }
+      this.stopDirectPlaybackTimer();
+      this.isDirectPlayback = false;
+    }
+
+    // Stop audio element playback (ElevenLabs)
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.src = '';
@@ -267,6 +309,13 @@ export class PlaybackService {
   }
 
   /**
+   * Set detected language for audio requests.
+   */
+  setLanguage(language: string | null): void {
+    this.detectedLanguage = language;
+  }
+
+  /**
    * Update extraction mode.
    */
   async setMode(mode: ExtractionMode): Promise<void> {
@@ -308,6 +357,7 @@ export class PlaybackService {
    */
   dispose(): void {
     this.unsubscribeFromSettings();
+    this.stopDirectPlaybackTimer();
     this.stop();
     this.audioElement = null;
   }
@@ -331,7 +381,13 @@ export class PlaybackService {
 
     let audioResponse: AudioResponse;
 
-    if (isOk(cachedResult) && cachedResult.value !== null) {
+    if (
+      isOk(cachedResult) &&
+      cachedResult.value !== null &&
+      // T030: Treat 0-byte cache entries as cache misses
+      cachedResult.value.sizeBytes > 0 &&
+      cachedResult.value.audioBlob.size > 0
+    ) {
       // Use cached audio
       audioResponse = {
         audioBlob: cachedResult.value.audioBlob,
@@ -344,10 +400,10 @@ export class PlaybackService {
         text,
         voice: this.state.voice,
         speed: this.state.speed,
-        language: null, // TODO: Add language detection
+        language: this.detectedLanguage,
       };
 
-      const generateResult = await this.deps.audioGenerator.generateAudio(request);
+      const generateResult = await this.audioGenerator.generateAudio(request);
 
       if (isErr(generateResult)) {
         const error = this.convertAudioError(generateResult.error);
@@ -357,35 +413,103 @@ export class PlaybackService {
 
       audioResponse = generateResult.value;
 
-      // Cache the result
-      const cacheEntry: CacheEntry = {
-        audioBlob: audioResponse.audioBlob,
-        durationMs: audioResponse.durationMs,
-        wordTimings: audioResponse.wordTimings,
-        createdAt: Date.now(),
-        lastAccessedAt: Date.now(),
-        accessCount: 1,
-        sizeBytes: audioResponse.audioBlob.size,
-      };
+      // T029: Skip caching for direct playback (Browser TTS) — 0-byte blobs are useless
+      if (!audioResponse.playedDirectly) {
+        const cacheEntry: CacheEntry = {
+          audioBlob: audioResponse.audioBlob,
+          durationMs: audioResponse.durationMs,
+          wordTimings: audioResponse.wordTimings,
+          createdAt: Date.now(),
+          lastAccessedAt: Date.now(),
+          accessCount: 1,
+          sizeBytes: audioResponse.audioBlob.size,
+        };
 
-      await this.deps.cacheStore.set(cacheKey, cacheEntry);
+        await this.deps.cacheStore.set(cacheKey, cacheEntry);
+      }
     }
 
     // Play the audio
-    await this.playAudio(audioResponse.audioBlob);
+    if (audioResponse.playedDirectly) {
+      // Direct playback (Browser TTS) — audio already played by the adapter
+      this.isDirectPlayback = true;
+      this.trackDirectPlayback(audioResponse.durationMs, audioResponse.onEndPromise);
+    } else {
+      // Blob playback (ElevenLabs) — play via HTMLAudioElement
+      this.isDirectPlayback = false;
+      await this.playAudio(audioResponse.audioBlob);
+    }
 
     // Update state to playing
     this.state = playbackStateTransitions.startPlaying(this.state);
 
     // Update highlights
     if (this.state.activeTabId !== null) {
-      await this.deps.highlightSync.highlightParagraph(this.state.activeTabId, index, true);
+      const paragraphText = this.state.paragraphs[index] ?? '';
+      await this.deps.highlightSync.highlightParagraph(this.state.activeTabId, index, true, paragraphText, Date.now());
     }
 
     // Update footer state
     await this.updateFooterState();
 
     return Ok(this.state);
+  }
+
+  /**
+   * Track progress for direct playback (Browser TTS via speechSynthesis).
+   * T028: Timer only drives progress bar; actual paragraph advancement
+   * uses onEndPromise from the speech synthesis adapter.
+   */
+  private trackDirectPlayback(durationMs: number, onEndPromise?: Promise<void>): void {
+    this.stopDirectPlaybackTimer();
+
+    const startTime = Date.now();
+    const updateInterval = 250; // Update 4x/second
+
+    // Progress timer — only updates the progress bar, does NOT advance paragraphs
+    this.directPlaybackTimer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+
+      this.state = playbackStateTransitions.updateProgress(this.state, progress);
+      this.updateFooterState();
+    }, updateInterval);
+
+    // Paragraph advancement — wait for actual speech completion
+    if (onEndPromise) {
+      onEndPromise.then(() => {
+        this.stopDirectPlaybackTimer();
+        this.isDirectPlayback = false;
+        this.next();
+      }).catch(() => {
+        // Speech synthesis error — stop playback
+        this.stopDirectPlaybackTimer();
+        this.isDirectPlayback = false;
+      });
+    } else {
+      // Fallback: no onEndPromise — use timer-based advancement (legacy behavior)
+      const fallbackTimer = setTimeout(() => {
+        this.stopDirectPlaybackTimer();
+        this.isDirectPlayback = false;
+        this.next();
+      }, durationMs);
+      // Store reference so it can be cleaned up on stop
+      const originalStop = this.stopDirectPlaybackTimer.bind(this);
+      this.stopDirectPlaybackTimer = () => {
+        originalStop();
+        clearTimeout(fallbackTimer);
+      };
+    }
+  }
+
+  /**
+   * Stop the direct playback progress timer.
+   */
+  private stopDirectPlaybackTimer(): void {
+    if (this.directPlaybackTimer) {
+      clearInterval(this.directPlaybackTimer);
+      this.directPlaybackTimer = null;
+    }
   }
 
   /**
@@ -483,12 +607,19 @@ export class PlaybackService {
   private async updateFooterState(): Promise<void> {
     if (this.state.activeTabId === null) return;
 
+    // Estimate current/total time from progress and paragraph count
+    const avgSecondsPerParagraph = 15; // rough estimate
+    const totalSeconds = this.state.totalParagraphs * avgSecondsPerParagraph;
+    const currentSeconds = Math.round(this.state.progress * totalSeconds);
+    const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
     const footerState: FooterState = {
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,
       progress: this.state.progress,
-      currentText: this.state.paragraphs[this.state.currentParagraphIndex] ?? '',
+      currentTime: formatTime(currentSeconds),
+      totalTime: formatTime(totalSeconds),
       speed: this.state.speed,
     };
 

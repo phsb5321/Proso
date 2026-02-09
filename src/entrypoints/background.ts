@@ -20,7 +20,6 @@ import { defineBackground } from 'wxt/utils/define-background';
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
 import { queueHandlers } from '../utils/messaging/handlers/queue';
-import { summarizeHandlers } from '../utils/messaging/handlers/summarize';
 import { QUEUE_STORAGE_KEYS } from '../utils/queue/types';
 
 // Smart Audio Cache (028-smart-audio-cache)
@@ -135,13 +134,6 @@ const messageHandlers: Record<string, MessageHandler> = {
   // Export handlers
   ...Object.fromEntries(
     Object.entries(exportHandlers).map(([key, handler]) => [
-      key,
-      async (data: Record<string, unknown>) => handler(data as never),
-    ]),
-  ),
-  // Summarize handlers
-  ...Object.fromEntries(
-    Object.entries(summarizeHandlers).map(([key, handler]) => [
       key,
       async (data: Record<string, unknown>) => handler(data as never),
     ]),
@@ -281,7 +273,18 @@ export default defineBackground(() => {
   async function dispatchMessage(type: string, data: Record<string, unknown>): Promise<unknown> {
     // Try hexagonal handler first
     const hexResult = await dispatchToHexagonal(type, data);
+
+    // T034: Check for discriminated error from hexagonal dispatch
     if (hexResult !== null) {
+      if (
+        hexResult &&
+        typeof hexResult === 'object' &&
+        '_hexError' in (hexResult as Record<string, unknown>)
+      ) {
+        const hexError = hexResult as { _hexError: boolean; error: string };
+        console.warn('[Background] Hexagonal handler error for', type, ':', hexError.error);
+        return { success: false, error: hexError.error };
+      }
       return hexResult;
     }
 
@@ -295,7 +298,10 @@ export default defineBackground(() => {
   }
 
   // Set up message listener
-  browser.runtime.onMessage.addListener((message, _sender) => {
+  browser.runtime.onMessage.addListener((message, sender) => {
+    // T007: Extract sender tab ID for per-tab state (Contract 7)
+    const senderTabId = sender.tab?.id;
+
     // Handle messages with 'type' field (from popup)
     if (message && typeof message === 'object' && 'type' in message) {
       const { type, ...data } = message as { type: string; [key: string]: unknown };
@@ -307,7 +313,10 @@ export default defineBackground(() => {
 
       console.log('[Background] Received message:', type);
 
-      return dispatchMessage(type, data).then((result) => {
+      // T007: Inject sender tab ID into dispatch data
+      const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
+
+      return dispatchMessage(type, enrichedData).then((result) => {
         if (result === null) {
           console.warn('[Background] Unknown message type:', type);
           logUnknownMessage(type);
@@ -326,7 +335,16 @@ export default defineBackground(() => {
       const { action, ...data } = message as { action: string; [key: string]: unknown };
       console.log('[Background] Received legacy action:', action);
 
-      return dispatchMessage(action, data).then((result) => {
+      // T007: Inject sender tab ID into dispatch data
+      const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
+
+      // T021: Bridge content script action names to hexagonal handler names
+      const actionToHandler: Record<string, string> = {
+        languageDetected: 'language.detect',
+      };
+      const handlerType = actionToHandler[action] ?? action;
+
+      return dispatchMessage(handlerType, enrichedData).then((result) => {
         if (result === null) {
           // Return structured error for unknown actions
           logUnknownMessage(action);

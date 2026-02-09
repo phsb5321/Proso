@@ -27,6 +27,8 @@ export class NoOpHighlightSyncAdapter implements IHighlightSynchronizer {
     _tabId: number,
     _paragraphIndex: number,
     _scroll: boolean,
+    _text?: string,
+    _timestamp?: number,
   ): Promise<Result<void, HighlightError>> {
     // No-op: silently succeed
     return Ok(undefined);

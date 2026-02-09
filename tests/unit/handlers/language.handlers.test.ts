@@ -23,6 +23,7 @@ const {
   registerLanguageHandlers,
   setLanguageDependencies,
   clearLanguageState,
+  tabLanguageStates,
 } = await import('../../../src/handlers/language.handlers');
 const { HandlerRegistry } = await import('../../../src/handlers/registry');
 
@@ -315,6 +316,91 @@ describe('language.handlers', () => {
       )) as { success: boolean };
 
       expect(result.success).toBe(true);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // T023: Integration — per-tab language state tracking via __tabId
+  // -----------------------------------------------------------------------
+
+  describe('per-tab language state (T022/T023)', () => {
+    it('should populate tabLanguageStates when __tabId is provided (metadata path)', async () => {
+      const result = (await dispatchOk(registry, 'language.detect', {
+        metadata: 'es',
+        __tabId: 42,
+      })) as { code: string; source: string };
+
+      expect(result.code).toBe('es');
+      expect(result.source).toBe('metadata');
+      expect(tabLanguageStates.has(42)).toBe(true);
+      expect(tabLanguageStates.get(42)?.detected?.code).toBe('es');
+    });
+
+    it('should populate tabLanguageStates when __tabId is provided (detection path)', async () => {
+      setLanguageDependencies({
+        detectLanguage: jest.fn<(text: string) => string>().mockReturnValue('por'),
+      });
+
+      const result = (await dispatchOk(registry, 'language.detect', {
+        textSample: 'Este é um texto em português suficientemente longo para detecção.',
+        __tabId: 99,
+      })) as { code: string; source: string };
+
+      expect(result.code).toBe('por');
+      expect(result.source).toBe('detection');
+      expect(tabLanguageStates.has(99)).toBe(true);
+      expect(tabLanguageStates.get(99)?.detected?.code).toBe('por');
+    });
+
+    it('should populate tabLanguageStates on default fallback path', async () => {
+      const result = (await dispatchOk(registry, 'language.detect', {
+        __tabId: 7,
+      })) as { code: string; source: string };
+
+      expect(result.code).toBe('en');
+      expect(result.source).toBe('default');
+      expect(tabLanguageStates.has(7)).toBe(true);
+      expect(tabLanguageStates.get(7)?.detected?.code).toBe('en');
+    });
+
+    it('should NOT populate tabLanguageStates when __tabId is missing', async () => {
+      await dispatchOk(registry, 'language.detect', {
+        metadata: 'fr',
+      });
+
+      // No tabId = no state stored
+      expect(tabLanguageStates.size).toBe(0);
+    });
+
+    it('should preserve existing override when detecting language for a tab', async () => {
+      // Set override first via global
+      await dispatchOk(registry, 'language.setOverride', { languageCode: 'ja' });
+
+      // Detect for a specific tab — the tab should get detected state
+      await dispatchOk(registry, 'language.detect', {
+        metadata: 'de',
+        __tabId: 55,
+      });
+
+      expect(tabLanguageStates.get(55)?.detected?.code).toBe('de');
+      // Override is null per-tab (global override is separate)
+      expect(tabLanguageStates.get(55)?.override).toBeNull();
+    });
+
+    it('should allow getState to read per-tab detected language', async () => {
+      // Detect Spanish for tab 10
+      await dispatchOk(registry, 'language.detect', {
+        metadata: 'es',
+        __tabId: 10,
+      });
+
+      // Get state for tab 10
+      const state = (await dispatchOk(registry, 'language.getState', {
+        tabId: 10,
+      })) as { detected: { code: string } | null; effective: string };
+
+      expect(state.detected?.code).toBe('es');
+      expect(state.effective).toBe('es');
     });
   });
 });

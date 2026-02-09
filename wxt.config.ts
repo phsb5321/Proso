@@ -75,6 +75,13 @@ export default defineConfig({
     },
   },
 
+  // Use Firefox Nightly for development (NixOS: /run/current-system/sw/bin/firefox-nightly)
+  webExt: {
+    binaries: {
+      firefox: "firefox-nightly",
+    },
+  },
+
   // Vite configuration (T119-T121: Build performance optimization)
   vite: (env) => {
     const isProduction = env.command === "build";
