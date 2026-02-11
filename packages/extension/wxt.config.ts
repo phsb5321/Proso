@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import path from "node:path";
 
 /**
  * VoxPage - Text-to-Speech Extension for Web Pages
@@ -88,6 +89,11 @@ export default defineConfig({
   vite: (env) => {
     const isProduction = env.command === "build";
     return {
+    resolve: {
+      alias: {
+        '@voxpage/shared': path.resolve(__dirname, '../shared/src'),
+      },
+    },
     // T001 (056): Build-time telemetry config injection
     // Token is read from env vars at build time and seeded into browser.storage.local at install
     // See research.md RQ-1 for the hybrid approach

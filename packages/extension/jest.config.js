@@ -20,7 +20,9 @@ const sharedConfig = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^(\\.{1,2}/.*)\\.ts$': '$1',
-    '^@/(.*)$': '<rootDir>/utils/$1'
+    '^@/(.*)$': '<rootDir>/src/utils/$1',
+    '^@voxpage/shared$': '<rootDir>/../shared/src/index.ts',
+    '^@voxpage/shared/(.*)$': '<rootDir>/../shared/src/$1'
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
