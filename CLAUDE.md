@@ -1,6 +1,76 @@
 # VoxPage Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-06
+Auto-generated from all feature plans. Last updated: 2026-02-11
+
+## Monorepo Architecture (064-monorepo-nestjs-dokku)
+
+**Current Status**: pnpm workspace monorepo with extension + NestJS server + shared types.
+
+### Workspace Structure
+
+```
+VoxPage/
+├── packages/
+│   ├── extension/        # Firefox browser extension (WXT)
+│   ├── server/           # NestJS backend (hexagonal architecture)
+│   └── shared/           # Shared domain types & constants
+├── specs/                # Feature specifications
+├── docs/                 # Documentation
+└── pnpm-workspace.yaml   # Workspace config
+```
+
+### Workspace Commands
+
+```bash
+# Extension
+pnpm --filter @voxpage/extension dev        # Dev server with HMR
+pnpm --filter @voxpage/extension build:firefox  # Production build
+pnpm --filter @voxpage/extension test:unit  # Run extension tests (2300+)
+
+# Server
+pnpm --filter @voxpage/server dev           # Dev server (NestJS)
+pnpm --filter @voxpage/server build         # Production build
+pnpm --filter @voxpage/server test          # Run server tests (237+)
+
+# All packages
+pnpm install                                # Install all workspace deps
+```
+
+### Server Architecture (Hexagonal)
+
+```
+packages/server/src/
+├── core/           # Domain logic — ZERO @nestjs imports
+│   ├── subscription/  # Subscription + license validation
+│   ├── credits/       # Credit deduction + allocation
+│   ├── routing/       # Provider selection + fallback chains
+│   ├── tts/           # TTS orchestration (cache → credits → route → synth)
+│   └── shared/        # Result<T,E>, domain errors
+├── ports/          # Abstract port interfaces (DI tokens)
+├── adapters/       # Port implementations (Prisma, TTS APIs, cache)
+└── infrastructure/ # NestJS modules, controllers, guards, config
+```
+
+### Shared Package (`@voxpage/shared`)
+
+Exports used by both extension and server:
+- `SubscriptionTier`, `SubscriptionStatus`, `TTSProvider` enums
+- `TIER_CREDITS`, `PROVIDER_COSTS` constants
+- `Result<T,E>`, `Ok()`, `Err()`, `isErr()` type utilities
+- `ErrorCode` enum for domain errors
+- API types: `LicenseValidateResponse`, `CreditBalanceResponse`, etc.
+
+### Business Invariants
+
+| ID | Rule |
+|---|---|
+| INV-001 | Free tier never requires account creation |
+| INV-002 | BYOK always available on all tiers |
+| INV-004 | No credit expiration mid-billing cycle |
+| INV-005 | Browser TTS always unlimited (client-side only) |
+| INV-006 | Cached content never re-charges |
+
+---
 
 ## ✅ MIGRATION COMPLETE - 026-src-folder-restructure
 
@@ -245,6 +315,8 @@ const service = new PlaybackService({
 - IndexedDB (audio cache via Dexie), browser.storage.local (settings) (047-architecture-ui-polish)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1 (062-hexagonal-wiring-recovery)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter) (063-extension-quality-sprint)
+- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + NestJS 10+, Prisma ORM, @paddle/paddle-node-sdk, nestjs-pino, pino-loki, @nestjs/terminus, @nestjs/throttler, WXT 0.20.13 (064-monorepo-nestjs-dokku)
+- PostgreSQL 18.1 (Dokku postgres plugin), Redis (Dokku redis plugin), IndexedDB (extension audio cache) (064-monorepo-nestjs-dokku)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -400,9 +472,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 064-monorepo-nestjs-dokku: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + NestJS 10+, Prisma ORM, @paddle/paddle-node-sdk, nestjs-pino, pino-loki, @nestjs/terminus, @nestjs/throttler, WXT 0.20.13
 - 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
 - 062-hexagonal-wiring-recovery: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1
-- 047-architecture-ui-polish: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, Dexie 4.2.1
 
 
 <!-- MANUAL ADDITIONS START -->

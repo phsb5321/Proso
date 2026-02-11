@@ -344,14 +344,14 @@
 
 **Purpose**: Improvements that affect multiple user stories. CI/CD, documentation, final validations.
 
-- [ ] T138 [P] Create `packages/server/tests/unit/core/shared/` with tests verifying `core/` directory has zero `@nestjs/*` imports (SC-006 static analysis)
-- [ ] T139 [P] Create `.github/workflows/server-ci.yml` for server CI: install, lint, test, build
-- [ ] T140 [P] Update `.github/workflows/` extension CI to use `pnpm --filter @voxpage/extension` commands from monorepo root
-- [ ] T141 Verify total server test count meets 200+ target (SC-007): `pnpm --filter @voxpage/server test -- --verbose 2>&1 | tail -5`
-- [ ] T142 Set TTS provider API keys on Dokku: `dokku config:set voxpage-api GROQ_API_KEY=<key> ELEVENLABS_API_KEY=<key> OPENAI_API_KEY=<key>`
-- [ ] T143 Run full E2E validation: extension with license key → server validates → TTS proxy → audio plays
-- [ ] T144 Update `CLAUDE.md` with monorepo development guidelines, workspace commands, and new project structure
-- [ ] T145 Final deployment push to Dokku and full health/log verification
+- [X] T138 [P] Create `packages/server/tests/unit/core/shared/no-nestjs-imports.spec.ts` verifying `core/` has zero `@nestjs/*` imports (SC-006: 10 files scanned)
+- [X] T139 [P] Create `.github/workflows/server-ci.yml` for server CI: install, lint, test, build
+- [X] T140 [P] Update `.github/workflows/ci.yml` extension CI for monorepo paths (`packages/extension/`)
+- [X] T141 Server test count: 237 tests across 13 suites (exceeds 200+ target SC-007)
+- [ ] T142 ⏳ Set TTS provider API keys on Dokku (requires production secrets — deferred to deployment)
+- [ ] T143 ⏳ Full E2E validation deferred (requires running Dokku server with database)
+- [X] T144 Update `CLAUDE.md` with monorepo development guidelines, workspace commands, and new project structure
+- [ ] T145 ⏳ Final deployment push to Dokku deferred (requires domain/SSL setup + secrets)
 
 **Checkpoint**: All success criteria validated. Production-ready.
 
