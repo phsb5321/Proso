@@ -20,6 +20,7 @@ import type {
   SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
+  CreditHistoryResponse,
   ErrorResponse,
   TTSSynthesizeRequest,
 } from '@voxpage/shared';
@@ -72,6 +73,18 @@ export class VoxPageApiAdapter implements IApiClient {
       return Err(apiClientError.notConfigured('No license key configured'));
     }
     return this.get<CreditBalanceResponse>('/api/v1/credits/balance');
+  }
+
+  async getCreditHistory(
+    limit = 50,
+    offset = 0,
+  ): Promise<Result<CreditHistoryResponse, ApiClientError>> {
+    if (!this.licenseKey) {
+      return Err(apiClientError.notConfigured('No license key configured'));
+    }
+    return this.get<CreditHistoryResponse>(
+      `/api/v1/credits/history?limit=${limit}&offset=${offset}`,
+    );
   }
 
   async createCheckout(

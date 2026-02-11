@@ -13,6 +13,7 @@ export abstract class CreditRepositoryPort {
     limit: number,
     offset: number,
   ): Promise<CreditTransactionRecord[]>;
+  abstract getTransactionCount(userId: string): Promise<number>;
   abstract createAllocation(allocation: Omit<CreditAllocationRecord, 'id' | 'createdAt'>): Promise<CreditAllocationRecord>;
 }
 

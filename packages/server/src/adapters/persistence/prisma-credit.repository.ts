@@ -65,6 +65,10 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
     return transactions.map((t) => this.toTransactionRecord(t));
   }
 
+  async getTransactionCount(userId: string): Promise<number> {
+    return this.prisma.creditTransaction.count({ where: { userId } });
+  }
+
   async createAllocation(
     allocation: Omit<CreditAllocationRecord, 'id' | 'createdAt'>,
   ): Promise<CreditAllocationRecord> {

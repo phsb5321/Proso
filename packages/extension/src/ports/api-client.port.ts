@@ -13,6 +13,7 @@ import type {
   SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
+  CreditHistoryResponse,
   TTSSynthesizeRequest,
 } from '@voxpage/shared';
 
@@ -68,6 +69,14 @@ export interface IApiClient {
    * Get the current credit balance for the authenticated user.
    */
   getCreditBalance(): Promise<Result<CreditBalanceResponse, ApiClientError>>;
+
+  /**
+   * Get credit transaction history for the authenticated user.
+   *
+   * @param limit - Max number of transactions to return (default 50)
+   * @param offset - Number of transactions to skip (default 0)
+   */
+  getCreditHistory(limit?: number, offset?: number): Promise<Result<CreditHistoryResponse, ApiClientError>>;
 
   /**
    * Generate a checkout URL for upgrading to a paid tier.

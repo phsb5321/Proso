@@ -18,6 +18,7 @@ import type {
   SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
+  CreditHistoryResponse,
   TTSSynthesizeRequest,
 } from '@voxpage/shared';
 
@@ -45,6 +46,13 @@ export class NoOpApiClientAdapter implements IApiClient {
   }
 
   async getCreditBalance(): Promise<Result<CreditBalanceResponse, ApiClientError>> {
+    return Err(NOT_CONFIGURED);
+  }
+
+  async getCreditHistory(
+    _limit?: number,
+    _offset?: number,
+  ): Promise<Result<CreditHistoryResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 
