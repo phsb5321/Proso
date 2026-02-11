@@ -20,6 +20,8 @@ COPY packages/server/ packages/server/
 COPY tsconfig.base.json ./
 RUN pnpm --filter @voxpage/server exec prisma generate
 RUN pnpm --filter @voxpage/server run build
+# Create a pruned production deployment
+RUN pnpm --filter @voxpage/server deploy --prod /app/pruned
 
 # Stage 4: Production
 FROM node:22-slim AS production
@@ -30,14 +32,18 @@ WORKDIR /app
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
-USER nestjs
 
-# Copy built artifacts and generated Prisma client
+# Copy pruned deployment (includes all production deps)
+COPY --from=build --chown=nestjs:nodejs /app/pruned/node_modules ./node_modules
+COPY --from=build --chown=nestjs:nodejs /app/pruned/package.json ./
+# Copy built output
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/dist ./dist
+# Copy generated Prisma client (used by compiled TS)
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/src/generated ./src/generated
+# Copy prisma schema for migrations
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/prisma ./prisma
-COPY --from=build --chown=nestjs:nodejs /app/packages/server/package.json ./
-COPY --from=build --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+USER nestjs
 
 ENV NODE_ENV=production
 ENV PORT=5000
