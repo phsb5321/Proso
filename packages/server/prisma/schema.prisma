@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubscriptionTier {
+  free
+  pro
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  expired
+  past_due
+  trialing
+}
+
+enum TTSProvider {
+  openai
+  elevenlabs
+  groq
+}
+
+enum TransactionType {
+  deduction
+  allocation
+  refund
+}
+
+model User {
+  id        String   @id @default(uuid())
+  licenseKey String  @unique
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions      Subscription[]
+  creditAllocations  CreditAllocation[]
+  creditTransactions CreditTransaction[]
+  ttsRequests        TTSRequest[]
+  licenseKeys        LicenseKey[]
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String
+  paddleSubscriptionId String             @unique
+  tier                 SubscriptionTier
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelledAt          DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id])
+  creditAllocations CreditAllocation[]
+
+  @@index([userId])
+}
+
+model CreditAllocation {
+  id               String   @id @default(uuid())
+  userId           String
+  subscriptionId   String
+  totalCredits     Int
+  remainingCredits Int
+  periodStart      DateTime
+  periodEnd        DateTime
+  createdAt        DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id])
+  subscription Subscription   @relation(fields: [subscriptionId], references: [id])
+  transactions CreditTransaction[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+}
+
+model CreditTransaction {
+  id             String          @id @default(uuid())
+  allocationId   String
+  userId         String
+  type           TransactionType
+  amount         Int
+  provider       TTSProvider?
+  characterCount Int?
+  cacheKey       String?
+  ttsRequestId   String?
+  createdAt      DateTime        @default(now())
+
+  allocation CreditAllocation @relation(fields: [allocationId], references: [id])
+  user       User             @relation(fields: [userId], references: [id])
+  ttsRequest TTSRequest?      @relation(fields: [ttsRequestId], references: [id])
+
+  @@index([userId])
+  @@index([allocationId])
+}
+
+model TTSRequest {
+  id             String      @id @default(uuid())
+  userId         String
+  textHash       String
+  text           String
+  provider       TTSProvider
+  voice          String?
+  language       String?
+  cacheKey       String
+  cachedHit      Boolean     @default(false)
+  characterCount Int
+  durationMs     Int?
+  createdAt      DateTime    @default(now())
+
+  user            User              @relation(fields: [userId], references: [id])
+  routingDecision RoutingDecision?
+  transactions    CreditTransaction[]
+
+  @@index([userId])
+  @@index([cacheKey])
+  @@index([textHash])
+}
+
+model RoutingDecision {
+  id               String      @id @default(uuid())
+  ttsRequestId     String      @unique
+  selectedProvider TTSProvider
+  fallbackChain    TTSProvider[]
+  costEstimate     Int
+  routingRationale String
+  fallbackUsed     Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+
+  ttsRequest TTSRequest @relation(fields: [ttsRequestId], references: [id])
+}
+
+model LicenseKey {
+  id          String    @id @default(uuid())
+  userId      String
+  keyHash     String    @unique
+  activatedAt DateTime
+  expiresAt   DateTime?
+  deviceCount Int       @default(0)
+  maxDevices  Int       @default(5)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

@@ -55,62 +55,62 @@
 
 ### Shared Package Core
 
-- [ ] T017 [P] Implement `Result<T,E>` type with `Ok()`, `Err()`, `isOk()`, `isErr()`, `unwrap()`, `map()`, `andThen()` helpers in `packages/shared/src/result.ts`
-- [ ] T018 [P] Define `SubscriptionTier` and `SubscriptionStatus` enums in `packages/shared/src/domain/subscription.ts`
-- [ ] T019 [P] Define `TTSProvider` enum and `ProviderCost` type in `packages/shared/src/domain/provider.ts`
-- [ ] T020 [P] Define `CreditAllocation` and `CreditTransaction` interfaces in `packages/shared/src/domain/credits.ts`
-- [ ] T021 [P] Define `LicenseKey` types in `packages/shared/src/domain/license.ts`
-- [ ] T022 [P] Implement `TIER_CREDITS` and `FEATURE_MATRIX` constants in `packages/shared/src/constants/tiers.ts`
-- [ ] T023 [P] Implement `PROVIDER_COSTS` constants in `packages/shared/src/constants/providers.ts`
-- [ ] T024 [P] Implement business invariant constants (INV-001 through INV-006) in `packages/shared/src/constants/invariants.ts`
-- [ ] T025 [P] Define API request/response types matching `contracts/api-v1.yaml` schemas in `packages/shared/src/types/api.ts`
-- [ ] T026 [P] Define shared error types in `packages/shared/src/types/errors.ts`
-- [ ] T027 Create barrel export `packages/shared/src/index.ts` re-exporting all domain types, constants, and the Result type
+- [X] T017 [P] Implement `Result<T,E>` type with `Ok()`, `Err()`, `isOk()`, `isErr()`, `unwrap()`, `map()`, `andThen()` helpers in `packages/shared/src/result.ts`
+- [X] T018 [P] Define `SubscriptionTier` and `SubscriptionStatus` enums in `packages/shared/src/domain/subscription.ts`
+- [X] T019 [P] Define `TTSProvider` enum and `ProviderCost` type in `packages/shared/src/domain/provider.ts`
+- [X] T020 [P] Define `CreditAllocation` and `CreditTransaction` interfaces in `packages/shared/src/domain/credits.ts`
+- [X] T021 [P] Define `LicenseKey` types in `packages/shared/src/domain/license.ts`
+- [X] T022 [P] Implement `TIER_CREDITS` and `FEATURE_MATRIX` constants in `packages/shared/src/constants/tiers.ts`
+- [X] T023 [P] Implement `PROVIDER_COSTS` constants in `packages/shared/src/constants/providers.ts`
+- [X] T024 [P] Implement business invariant constants (INV-001 through INV-006) in `packages/shared/src/constants/invariants.ts`
+- [X] T025 [P] Define API request/response types matching `contracts/api-v1.yaml` schemas in `packages/shared/src/types/api.ts`
+- [X] T026 [P] Define shared error types in `packages/shared/src/types/errors.ts`
+- [X] T027 Create barrel export `packages/shared/src/index.ts` re-exporting all domain types, constants, and the Result type
 
 ### Server Scaffold
 
-- [ ] T028 Create `packages/server/package.json` for `@voxpage/server` with NestJS 10+, Prisma, nestjs-pino, @nestjs/terminus, @nestjs/throttler dependencies and `"@voxpage/shared": "workspace:*"`
-- [ ] T029 Create `packages/server/tsconfig.json` extending `../../tsconfig.base.json` with `emitDecoratorMetadata: true` and `experimentalDecorators: true`
-- [ ] T030 Create `packages/server/nest-cli.json` with `sourceRoot: "src"` and `compilerOptions`
-- [ ] T031 Create `packages/server/biome.json` with `"extends": ["../../biome.json"]`
-- [ ] T032 Implement `packages/server/src/main.ts` with NestJS bootstrap: `rawBody: true`, `bufferLogs: true`, `trust proxy`, port from env, Pino logger
-- [ ] T033 Implement `packages/server/src/app.module.ts` root module importing HealthModule and LoggingModule
-- [ ] T034 [P] Implement `packages/server/src/infrastructure/config/app.config.ts` with `@nestjs/config` reading env vars (PORT, NODE_ENV, DATABASE_URL, REDIS_URL, JWT_SECRET, etc.)
-- [ ] T035 [P] Implement `packages/server/src/infrastructure/modules/logging.module.ts` with nestjs-pino + pino-loki transport, health endpoint excluded
-- [ ] T036 [P] Implement `packages/server/src/infrastructure/modules/health.module.ts` with @nestjs/terminus
-- [ ] T037 [P] Implement `packages/server/src/infrastructure/controllers/health.controller.ts` with `GET /health` returning status, version, uptime, and component health (database, memory)
-- [ ] T038 [P] Implement custom `packages/server/src/infrastructure/health/prisma.health.ts` PrismaHealthIndicator
-- [ ] T039 Implement `packages/server/src/ports/logger.port.ts` abstract class with info/warn/error/debug methods
-- [ ] T040 Implement `packages/server/src/adapters/logging/pino-logger.adapter.ts` implementing LoggerPort via nestjs-pino
+- [X] T028 Create `packages/server/package.json` for `@voxpage/server` with NestJS 10+, Prisma, nestjs-pino, @nestjs/terminus, @nestjs/throttler dependencies and `"@voxpage/shared": "workspace:*"`
+- [X] T029 Create `packages/server/tsconfig.json` extending `../../tsconfig.base.json` with `emitDecoratorMetadata: true` and `experimentalDecorators: true`
+- [X] T030 Create `packages/server/nest-cli.json` with `sourceRoot: "src"` and `compilerOptions`
+- [X] T031 Create `packages/server/biome.json` with `"extends": ["../../biome.json"]`
+- [X] T032 Implement `packages/server/src/main.ts` with NestJS bootstrap: `rawBody: true`, `bufferLogs: true`, `trust proxy`, port from env, Pino logger
+- [X] T033 Implement `packages/server/src/app.module.ts` root module importing HealthModule and LoggingModule
+- [X] T034 [P] Implement `packages/server/src/infrastructure/config/app.config.ts` with `@nestjs/config` reading env vars (PORT, NODE_ENV, DATABASE_URL, REDIS_URL, JWT_SECRET, etc.)
+- [X] T035 [P] Implement `packages/server/src/infrastructure/modules/logging.module.ts` with nestjs-pino + pino-loki transport, health endpoint excluded
+- [X] T036 [P] Implement `packages/server/src/infrastructure/modules/health.module.ts` with @nestjs/terminus
+- [X] T037 [P] Implement `packages/server/src/infrastructure/controllers/health.controller.ts` with `GET /health` returning status, version, uptime, and component health (database, memory)
+- [X] T038 [P] Implement custom `packages/server/src/infrastructure/health/prisma.health.ts` PrismaHealthIndicator
+- [X] T039 Implement `packages/server/src/ports/logger.port.ts` abstract class with info/warn/error/debug methods
+- [X] T040 Implement `packages/server/src/adapters/logging/pino-logger.adapter.ts` implementing LoggerPort via nestjs-pino
 
 ### Database & Prisma
 
-- [ ] T041 Write `packages/server/prisma/schema.prisma` with all 7 models (User, Subscription, CreditAllocation, CreditTransaction, TTSRequest, RoutingDecision, LicenseKey) and 4 enums per data-model.md
-- [ ] T042 Create `packages/server/src/infrastructure/modules/prisma.module.ts` with PrismaService (global, onModuleInit connect, onModuleDestroy disconnect)
-- [ ] T043 Add Prisma scripts to `packages/server/package.json`: `prisma:generate`, `prisma:migrate:dev`, `prisma:migrate:deploy`
+- [X] T041 Write `packages/server/prisma/schema.prisma` with all 7 models (User, Subscription, CreditAllocation, CreditTransaction, TTSRequest, RoutingDecision, LicenseKey) and 4 enums per data-model.md
+- [X] T042 Create `packages/server/src/infrastructure/modules/prisma.module.ts` with PrismaService (global, onModuleInit connect, onModuleDestroy disconnect)
+- [X] T043 Add Prisma scripts to `packages/server/package.json`: `prisma:generate`, `prisma:migrate:dev`, `prisma:migrate:deploy`
 
 ### Auth Infrastructure
 
-- [ ] T044 Implement `packages/server/src/infrastructure/guards/license-key.guard.ts` extracting `X-License-Key` header, with `@Public()` decorator for unprotected routes
-- [ ] T045 Implement `packages/server/src/infrastructure/modules/auth.module.ts` registering LicenseKeyGuard as global APP_GUARD
+- [X] T044 Implement `packages/server/src/infrastructure/guards/license-key.guard.ts` extracting `X-License-Key` header, with `@Public()` decorator for unprotected routes
+- [X] T045 Implement `packages/server/src/infrastructure/modules/auth.module.ts` registering LicenseKeyGuard as global APP_GUARD
 
 ### Rate Limiting
 
-- [ ] T046 Implement `packages/server/src/infrastructure/modules/rate-limit.module.ts` with @nestjs/throttler (short: 3/s, medium: 20/10s, long: 100/min) and Redis storage
+- [X] T046 Implement `packages/server/src/infrastructure/modules/rate-limit.module.ts` with @nestjs/throttler (short: 3/s, medium: 20/10s, long: 100/min) and Redis storage
 
 ### Deployment Artifacts
 
-- [ ] T047 [P] Create `packages/server/Dockerfile` with multi-stage build: base → deps (pnpm fetch) → build (pnpm deploy --prod) → production (node:22-slim, non-root user, HEALTHCHECK)
-- [ ] T048 [P] Create `packages/server/Procfile` with `release: npx prisma migrate deploy` and `web: node dist/main.js`
-- [ ] T049 [P] Create `packages/server/app.json` with Dokku predeploy script for Prisma migrations
-- [ ] T050 [P] Create `packages/server/.env.example` with all env vars from quickstart.md
-- [ ] T051 [P] Create `packages/server/.dockerignore` excluding node_modules, .git, tests, coverage, *.md
+- [X] T047 [P] Create `packages/server/Dockerfile` with multi-stage build: base → deps (pnpm fetch) → build (pnpm deploy --prod) → production (node:22-slim, non-root user, HEALTHCHECK)
+- [X] T048 [P] Create `packages/server/Procfile` with `release: npx prisma migrate deploy` and `web: node dist/main.js`
+- [X] T049 [P] Create `packages/server/app.json` with Dokku predeploy script for Prisma migrations
+- [X] T050 [P] Create `packages/server/.env.example` with all env vars from quickstart.md
+- [X] T051 [P] Create `packages/server/.dockerignore` excluding node_modules, .git, tests, coverage, *.md
 
 ### Server Boot Verification
 
-- [ ] T052 Run `pnpm install` from root to install server dependencies
-- [ ] T053 Run `pnpm --filter @voxpage/server build` and verify TypeScript compilation succeeds
-- [ ] T054 Verify server starts locally with `pnpm --filter @voxpage/server start:dev` and `GET /health` responds with 200
+- [X] T052 Run `pnpm install` from root to install server dependencies
+- [X] T053 Run `pnpm --filter @voxpage/server build` and verify TypeScript compilation succeeds
+- [X] T054 Verify server starts locally and `GET /health` responds (database=down expected without PG, memory=up)
 
 **Checkpoint**: Server boots, health check works, structured logs emit, Prisma schema compiles, shared package types importable by both extension and server.
 
