@@ -225,16 +225,16 @@
 
 ### Server Ports
 
-- [ ] T095 [P] [US5] Implement `packages/server/src/ports/tts-provider.port.ts` abstract class with `synthesize(text, voice, language)` returning `Result<Buffer, TTSError>`
-- [ ] T096 [P] [US5] Implement `packages/server/src/ports/cache-store.port.ts` abstract class with `get(key)`, `set(key, data, ttl)`, `has(key)` for audio caching
+- [X] T095 [P] [US5] Implement `packages/server/src/ports/tts-provider.port.ts` abstract class with `synthesize(text, voice, language)` returning `Result<Buffer, TTSError>`
+- [X] T096 [P] [US5] Implement `packages/server/src/ports/cache-store.port.ts` abstract class with `get(key)`, `set(key, data, ttl)`, `has(key)` for audio caching
 
 ### Server Core (ZERO NestJS imports)
 
-- [ ] T097 [P] [US5] Implement `packages/server/src/core/credits/credit.service.ts` with `deductCredits(userId, amount)` returning `Result<CreditTransaction, CreditError>`, enforcing atomic deduction and INV-004 (no mid-cycle expiry)
-- [ ] T098 [P] [US5] Implement `packages/server/src/core/credits/credit-allocation.entity.ts` domain entity with `hasCredits(amount)`, `deduct(amount)`, `isExpired()` methods
-- [ ] T099 [P] [US5] Implement `packages/server/src/core/routing/provider-router.ts` with `selectProvider(tier, language, preferredProvider)` returning `RoutingDecision` with fallback chain
-- [ ] T100 [P] [US5] Implement `packages/server/src/core/routing/fallback-chain.ts` with ordered provider fallback logic per tier
-- [ ] T101 [US5] Implement `packages/server/src/core/tts/tts.service.ts` orchestrating: cache check (INV-006) → credit check → provider routing → synthesis → credit deduction → cache store
+- [X] T097 [P] [US5] Implement `packages/server/src/core/credits/credit.service.ts` with `deductCredits(userId, amount)` returning `Result<CreditTransaction, CreditError>`, enforcing atomic deduction and INV-004 (no mid-cycle expiry)
+- [X] T098 [P] [US5] Implement `packages/server/src/core/credits/credit-allocation.entity.ts` domain entity with `hasCredits(amount)`, `deduct(amount)`, `isExpired()` methods
+- [X] T099 [P] [US5] Implement `packages/server/src/core/routing/provider-router.ts` with `selectProvider(tier, language, preferredProvider)` returning `RoutingDecision` with fallback chain
+- [X] T100 [P] [US5] Implement `packages/server/src/core/routing/fallback-chain.ts` with ordered provider fallback logic per tier
+- [X] T101 [US5] Implement `packages/server/src/core/tts/tts.service.ts` orchestrating: cache check (INV-006) → credit check → provider routing → synthesis → credit deduction → cache store
 
 ### Server Adapters
 
@@ -252,10 +252,10 @@
 
 ### Server Tests
 
-- [ ] T110 [P] [US5] Write unit tests for CreditService in `packages/server/tests/unit/core/credits/credit.service.spec.ts` (20+ tests: deduction, insufficient credits, atomic, INV-004, INV-006 cache skip)
-- [ ] T111 [P] [US5] Write unit tests for CreditAllocation entity in `packages/server/tests/unit/core/credits/credit-allocation.entity.spec.ts` (10+ tests)
-- [ ] T112 [P] [US5] Write unit tests for ProviderRouter in `packages/server/tests/unit/core/routing/provider-router.spec.ts` (15+ tests: tier routing, fallback, language, unavailable provider)
-- [ ] T113 [P] [US5] Write unit tests for TTSService in `packages/server/tests/unit/core/tts/tts.service.spec.ts` (15+ tests: cache hit, cache miss, credit deduction, provider fallback, insufficient credits)
+- [X] T110 [P] [US5] Write unit tests for CreditService in `packages/server/tests/unit/core/credits/credit.service.spec.ts` (30 tests)
+- [X] T111 [P] [US5] Write unit tests for CreditAllocation entity in `packages/server/tests/unit/core/credits/credit-allocation.entity.spec.ts` (23 tests)
+- [X] T112 [P] [US5] Write unit tests for ProviderRouter in `packages/server/tests/unit/core/routing/provider-router.spec.ts` (28 tests)
+- [X] T113 [P] [US5] Write unit tests for TTSService in `packages/server/tests/unit/core/tts/tts.service.spec.ts` (24 tests)
 - [ ] T114 [P] [US5] Write contract tests for TTS provider adapters in `packages/server/tests/contract/tts-provider.adapter.spec.ts`
 
 ### Extension Integration
