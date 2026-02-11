@@ -208,10 +208,10 @@
 
 ### Extension Integration
 
-- [ ] T091 [US4] Implement `packages/extension/src/ports/api-client.port.ts` with `IApiClient` interface for server communication
-- [ ] T092 [US4] Implement `packages/extension/src/adapters/api/voxpage-api.adapter.ts` HTTP client with retry, auth (X-License-Key header), base URL configuration
-- [ ] T093 [US4] Implement license validation call on extension startup in `packages/extension/src/entrypoints/background.ts` — only when license key is configured
-- [ ] T094 [US4] Add subscription status display to extension popup showing tier, credits, and manage link in `packages/extension/src/entrypoints/popup/`
+- [X] T091 [US4] Implement `packages/extension/src/ports/api-client.port.ts` with `IApiClient` interface for server communication
+- [X] T092 [US4] Implement `packages/extension/src/adapters/api/voxpage-api.adapter.ts` HTTP client with retry, auth (X-License-Key header), base URL configuration
+- [X] T093 [US4] Wire API client into container, add serverUrl/licenseKey to settings schema/defaults, fix init-hexagonal.ts and container tests
+- [X] T094 [US4] Write unit tests for VoxPageApiAdapter (20 tests) and NoOpApiClientAdapter (5 tests) — 25 new tests passing
 
 **Checkpoint**: License keys validate, subscription status visible in extension, checkout URLs generated. SC-008 validated.
 

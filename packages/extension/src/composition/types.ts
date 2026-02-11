@@ -16,6 +16,7 @@ import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
+import type { IApiClient } from '../ports/api-client.port';
 
 /**
  * Application configuration for container initialization.
@@ -23,6 +24,8 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 export interface AppConfig {
   readonly provider: ProviderId;
   readonly cacheType: 'indexeddb' | 'memory';
+  readonly serverUrl: string | null;
+  readonly licenseKey: string | null;
 }
 
 /**
@@ -65,6 +68,7 @@ export interface ContainerAdapters {
   readonly textExtractor: ITextExtractor;
   readonly contentScorer: IContentScorer;
   readonly settingsStore: ISettingsStore;
+  readonly apiClient: IApiClient;
 }
 
 /**

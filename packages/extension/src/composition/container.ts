@@ -12,6 +12,7 @@ import { PlaybackService } from '../core/playback/playback-service';
 import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
 import {
+  createApiClientAdapter,
   createAudioGeneratorAdapter,
   createAudioUrlAdapter,
   createCacheStoreAdapter,
@@ -76,6 +77,9 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
     throw error; // Re-throw - settings store is critical
   }
 
+  // API client (064-monorepo-nestjs-dokku)
+  const apiClient = createApiClientAdapter(config.serverUrl ?? null, config.licenseKey ?? null);
+
   return {
     audioGenerator,
     audioUrlProvider,
@@ -84,6 +88,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
     textExtractor,
     contentScorer,
     settingsStore,
+    apiClient,
   };
 }
 

@@ -39,6 +39,9 @@ export const defaults: Readonly<Settings> = Object.freeze({
   defaultHighlightColor: 'yellow' as const,
   maxCacheSizeMb: 500,
   telemetryEnabled: false,
+  // 064-monorepo-nestjs-dokku
+  serverUrl: null,
+  licenseKey: null,
 });
 
 /**

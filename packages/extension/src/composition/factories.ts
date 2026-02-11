@@ -15,6 +15,7 @@ import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
+import type { IApiClient } from '../ports/api-client.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
@@ -38,6 +39,9 @@ import { BrowserSettingsAdapter } from '../adapters/storage';
 
 // Content adapters
 import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapters/content';
+
+// API adapters
+import { VoxPageApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
 
 /**
  * Create an audio generator adapter based on provider.
@@ -187,4 +191,24 @@ export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): strin
     default:
       return null;
   }
+}
+
+/**
+ * Create an API client adapter.
+ *
+ * Returns VoxPageApiAdapter when serverUrl is configured,
+ * otherwise returns NoOpApiClientAdapter (BYOK-only mode).
+ *
+ * @param serverUrl - VoxPage server URL (null = not configured)
+ * @param licenseKey - User's license key (null = not configured)
+ * @returns IApiClient adapter
+ */
+export function createApiClientAdapter(
+  serverUrl: string | null,
+  licenseKey: string | null,
+): IApiClient {
+  if (serverUrl) {
+    return new VoxPageApiAdapter(serverUrl, licenseKey);
+  }
+  return new NoOpApiClientAdapter();
 }

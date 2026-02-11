@@ -75,3 +75,9 @@ export type {
   PlaybackEvent,
   PlaybackEventListener,
 } from './audio-player.port';
+
+// API Client Port (064-monorepo-nestjs-dokku)
+export type {
+  IApiClient,
+  ApiClientError,
+} from './api-client.port';

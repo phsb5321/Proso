@@ -90,6 +90,7 @@ const mockCreateHighlightSyncAdapter = jest.fn(() => stubHighlightSync);
 const mockCreateTextExtractorAdapter = jest.fn(() => stubTextExtractor);
 const mockCreateContentScorerAdapter = jest.fn(() => stubContentScorer);
 const mockCreateSettingsStoreAdapter = jest.fn(() => stubSettingsStore);
+const mockCreateApiClientAdapter = jest.fn(() => ({ isConfigured: false, validateLicense: jest.fn(), getSubscription: jest.fn(), getCreditBalance: jest.fn(), createCheckout: jest.fn() }));
 const mockGetApiKeyForProvider = jest.fn(
   (keys: Record<string, string | null>, provider: string) => {
     return (keys as Record<string, string | null>)[provider] ?? null;
@@ -106,6 +107,7 @@ jest.unstable_mockModule(resolve(srcDir, 'composition/factories'), () => ({
   createTextExtractorAdapter: mockCreateTextExtractorAdapter,
   createContentScorerAdapter: mockCreateContentScorerAdapter,
   createSettingsStoreAdapter: mockCreateSettingsStoreAdapter,
+  createApiClientAdapter: mockCreateApiClientAdapter,
   getApiKeyForProvider: mockGetApiKeyForProvider,
 }));
 
@@ -149,6 +151,8 @@ const {
 const defaultConfig = {
   provider: 'browser' as const,
   cacheType: 'memory' as const,
+  serverUrl: null,
+  licenseKey: null,
 };
 
 const defaultApiKeys = {
@@ -510,13 +514,13 @@ describe('Container', () => {
 
   describe('container structure', () => {
     it('should expose config on the container object', () => {
-      const config = { provider: 'elevenlabs' as const, cacheType: 'memory' as const };
+      const config = { provider: 'elevenlabs' as const, cacheType: 'memory' as const, serverUrl: null, licenseKey: null };
       const container = createContainer(config, defaultApiKeys);
 
       expect(container.config).toBe(config);
     });
 
-    it('should expose all seven adapters', () => {
+    it('should expose all eight adapters', () => {
       const container = createContainer(defaultConfig, defaultApiKeys);
 
       expect(container.adapters).toHaveProperty('audioGenerator');
@@ -526,6 +530,7 @@ describe('Container', () => {
       expect(container.adapters).toHaveProperty('textExtractor');
       expect(container.adapters).toHaveProperty('contentScorer');
       expect(container.adapters).toHaveProperty('settingsStore');
+      expect(container.adapters).toHaveProperty('apiClient');
     });
 
     it('should expose both services', () => {

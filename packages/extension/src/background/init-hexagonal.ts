@@ -66,11 +66,13 @@ async function loadApiKeys(): Promise<ApiKeys> {
  * Load app configuration from browser storage.
  */
 async function loadAppConfig(): Promise<AppConfig> {
-  const stored = await browser.storage.local.get(['provider', 'cacheType']);
+  const stored = await browser.storage.local.get(['provider', 'cacheType', 'serverUrl', 'licenseKey']);
 
   return {
     provider: (stored.provider as AppConfig['provider']) || 'browser',
     cacheType: (stored.cacheType as 'indexeddb' | 'memory') || 'indexeddb',
+    serverUrl: (stored.serverUrl as string) || null,
+    licenseKey: (stored.licenseKey as string) || null,
   };
 }
 

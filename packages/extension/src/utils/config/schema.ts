@@ -109,6 +109,10 @@ export const settingsSchema = z.object({
 
   // Telemetry enabled (045-pdf-removal-page-reader)
   telemetryEnabled: z.boolean().default(false),
+
+  // VoxPage server integration (064-monorepo-nestjs-dokku)
+  serverUrl: z.string().url().nullable().default(null),
+  licenseKey: z.string().nullable().default(null),
 });
 
 /**

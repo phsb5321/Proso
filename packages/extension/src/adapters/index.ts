@@ -20,3 +20,6 @@ export * from './storage';
 
 // Content adapters (text extraction and scoring)
 export * from './content';
+
+// API adapters (VoxPage server communication)
+export * from './api';
