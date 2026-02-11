@@ -32,12 +32,12 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 USER nestjs
 
-# Copy built artifacts
+# Copy built artifacts and generated Prisma client
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/dist ./dist
+COPY --from=build --chown=nestjs:nodejs /app/packages/server/src/generated ./src/generated
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/prisma ./prisma
-COPY --from=build --chown=nestjs:nodejs /app/packages/server/node_modules ./node_modules
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/package.json ./
-COPY --from=build --chown=nestjs:nodejs /app/node_modules/.pnpm node_modules/.pnpm
+COPY --from=build --chown=nestjs:nodejs /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 ENV PORT=5000
