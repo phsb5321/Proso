@@ -5,6 +5,8 @@ import { HealthModule } from './infrastructure/modules/health.module';
 import { PrismaModule } from './infrastructure/modules/prisma.module';
 import { LicenseModule } from './infrastructure/modules/license.module';
 import { SubscriptionModule } from './infrastructure/modules/subscription.module';
+import { TTSModule } from './infrastructure/modules/tts.module';
+import { CreditsModule } from './infrastructure/modules/credits.module';
 import appConfig from './infrastructure/config/app.config';
 
 @Module({
@@ -29,6 +31,12 @@ import appConfig from './infrastructure/config/app.config';
 
     // Subscription management
     SubscriptionModule,
+
+    // TTS synthesis proxy
+    TTSModule,
+
+    // Credit management
+    CreditsModule,
   ],
 })
 export class AppModule {}

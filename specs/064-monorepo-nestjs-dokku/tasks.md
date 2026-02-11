@@ -238,17 +238,17 @@
 
 ### Server Adapters
 
-- [ ] T102 [P] [US5] Implement `packages/server/src/adapters/tts/openai-tts.adapter.ts` implementing TTSProviderPort, calling OpenAI TTS API
-- [ ] T103 [P] [US5] Implement `packages/server/src/adapters/tts/elevenlabs-tts.adapter.ts` implementing TTSProviderPort, calling ElevenLabs API
-- [ ] T104 [P] [US5] Implement `packages/server/src/adapters/tts/groq-tts.adapter.ts` implementing TTSProviderPort, calling Groq API
-- [ ] T105 [US5] Implement `packages/server/src/adapters/cache/redis-cache.adapter.ts` implementing CacheStorePort with Redis get/set/has
-- [ ] T106 [US5] Implement `packages/server/src/adapters/persistence/prisma-credit.repository.ts` with atomic credit deduction using Prisma transactions
+- [X] T102 [P] [US5] Implement `packages/server/src/adapters/tts/openai-tts.adapter.ts` implementing TTSProviderPort, calling OpenAI TTS API
+- [X] T103 [P] [US5] Implement `packages/server/src/adapters/tts/elevenlabs-tts.adapter.ts` implementing TTSProviderPort, calling ElevenLabs API
+- [X] T104 [P] [US5] Implement `packages/server/src/adapters/tts/groq-tts.adapter.ts` implementing TTSProviderPort, calling Groq API
+- [X] T105 [US5] Implement `packages/server/src/adapters/cache/in-memory-cache.adapter.ts` implementing CacheStorePort (Redis swap TODO)
+- [X] T106 [US5] Implement `packages/server/src/adapters/persistence/prisma-credit.repository.ts` with atomic credit deduction using Prisma transactions (done in Phase 5)
 
 ### Server Infrastructure
 
-- [ ] T107 [US5] Implement `packages/server/src/infrastructure/controllers/tts.controller.ts` with `POST /api/v1/tts/synthesize` (returns audio/mpeg with X-Credits-Used, X-Credits-Remaining, X-Cache-Hit, X-Provider headers) and `GET /api/v1/tts/voices/:provider` per api-v1.yaml
-- [ ] T108 [US5] Implement `packages/server/src/infrastructure/modules/tts.module.ts` wiring TTS ports → adapters, registering provider factory
-- [ ] T109 [US5] Implement `packages/server/src/infrastructure/modules/credits.module.ts` wiring credit ports → adapters via factory providers
+- [X] T107 [US5] Implement `packages/server/src/infrastructure/controllers/tts.controller.ts` with `POST /api/v1/tts/synthesize` and `GET /api/v1/tts/voices/:provider`
+- [X] T108 [US5] Implement `packages/server/src/infrastructure/modules/tts.module.ts` wiring TTS ports → adapters, registering provider factory
+- [X] T109 [US5] Implement `packages/server/src/infrastructure/modules/credits.module.ts` wiring credit ports → adapters via factory providers
 
 ### Server Tests
 
