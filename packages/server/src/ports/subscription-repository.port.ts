@@ -5,6 +5,7 @@ export abstract class SubscriptionRepositoryPort {
   abstract findById(id: string): Promise<SubscriptionRecord | null>;
   abstract findByUserId(userId: string): Promise<SubscriptionRecord | null>;
   abstract findActiveByUserId(userId: string): Promise<SubscriptionRecord | null>;
+  abstract findByPaddleId(paddleSubscriptionId: string): Promise<SubscriptionRecord | null>;
   abstract save(subscription: SubscriptionRecord): Promise<SubscriptionRecord>;
   abstract update(id: string, data: Partial<SubscriptionRecord>): Promise<SubscriptionRecord>;
 }

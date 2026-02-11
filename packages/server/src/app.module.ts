@@ -7,6 +7,7 @@ import { LicenseModule } from './infrastructure/modules/license.module';
 import { SubscriptionModule } from './infrastructure/modules/subscription.module';
 import { TTSModule } from './infrastructure/modules/tts.module';
 import { CreditsModule } from './infrastructure/modules/credits.module';
+import { BillingModule } from './infrastructure/modules/billing.module';
 import appConfig from './infrastructure/config/app.config';
 
 @Module({
@@ -37,6 +38,9 @@ import appConfig from './infrastructure/config/app.config';
 
     // Credit management
     CreditsModule,
+
+    // Billing webhooks (Paddle)
+    BillingModule,
   ],
 })
 export class AppModule {}

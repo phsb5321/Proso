@@ -24,6 +24,13 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     return sub ? this.toRecord(sub) : null;
   }
 
+  async findByPaddleId(paddleSubscriptionId: string): Promise<SubscriptionRecord | null> {
+    const sub = await this.prisma.subscription.findFirst({
+      where: { paddleSubscriptionId },
+    });
+    return sub ? this.toRecord(sub) : null;
+  }
+
   async findActiveByUserId(userId: string): Promise<SubscriptionRecord | null> {
     const sub = await this.prisma.subscription.findFirst({
       where: {
