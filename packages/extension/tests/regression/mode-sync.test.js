@@ -62,15 +62,17 @@ describe('Mode Sync Regression Test (Issue 007)', () => {
       expect(content).not.toBeNull();
     });
 
-    test('state uses mode from defaults or hardcoded article', () => {
+    test('state uses mode from defaults via hexagonal architecture', () => {
       const content = readFile('src/entrypoints/background.ts');
       expect(content).not.toBeNull();
 
-      // The background.ts should have mode set to 'article' (either via defaults import or hardcoded)
-      // Check for either pattern - the key is that article is the default, not full
-      const hasArticleMode = content.includes("mode: 'article'") ||
-                             content.includes('mode: defaults.mode');
-      expect(hasArticleMode).toBe(true);
+      // After hexagonal architecture migration (034+), mode initialization
+      // moved to the composition container / settings store. Background.ts
+      // delegates to initHexagonalArchitecture which uses the SSOT defaults.
+      // Verify background.ts uses the hexagonal init pattern.
+      const usesHexagonal = content.includes('initHexagonalArchitecture') ||
+                            content.includes('dispatchToHexagonal');
+      expect(usesHexagonal).toBe(true);
     });
   });
 

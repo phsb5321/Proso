@@ -18,6 +18,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
+const MONOREPO_ROOT = path.resolve(ROOT_DIR, '../..');
 const SRC_DIR = path.resolve(ROOT_DIR, 'src');
 const TESTS_DIR = path.resolve(ROOT_DIR, 'tests');
 const BUILD_DIR = path.resolve(ROOT_DIR, '.output/firefox-mv2');
@@ -221,7 +222,8 @@ describe('Credential Scanning', () => {
 
 describe('Configuration Hygiene', () => {
   it('.env files should be gitignored', () => {
-    const gitignorePath = path.join(ROOT_DIR, '.gitignore');
+    // In monorepo, .gitignore lives at the workspace root
+    const gitignorePath = path.join(MONOREPO_ROOT, '.gitignore');
     expect(fs.existsSync(gitignorePath)).toBe(true);
 
     const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
