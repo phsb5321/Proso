@@ -21,7 +21,7 @@ COPY tsconfig.base.json ./
 RUN pnpm --filter @voxpage/server exec prisma generate
 RUN pnpm --filter @voxpage/server run build
 # Create a pruned production deployment
-RUN pnpm --filter @voxpage/server deploy --prod /app/pruned
+RUN pnpm --filter @voxpage/server deploy --prod --legacy /app/pruned
 
 # Stage 4: Production
 FROM node:22-slim AS production
