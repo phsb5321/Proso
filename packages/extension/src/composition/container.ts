@@ -39,8 +39,11 @@ let containerInstance: Container | null = null;
 function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters {
   const apiKey = getApiKeyForProvider(apiKeys, config.provider);
 
-  // Audio generator is fully implemented
-  const audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey);
+  // API client (064-monorepo-nestjs-dokku)
+  const apiClient = createApiClientAdapter(config.serverUrl ?? null, config.licenseKey ?? null);
+
+  // Audio generator — routes through server proxy for managed credits (INV-002)
+  const audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
 
   // Audio URL provider (no fallback needed - always works)
   const audioUrlProvider = createAudioUrlAdapter();
@@ -76,9 +79,6 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
     console.error('[Container] SettingsStore failed:', error);
     throw error; // Re-throw - settings store is critical
   }
-
-  // API client (064-monorepo-nestjs-dokku)
-  const apiClient = createApiClientAdapter(config.serverUrl ?? null, config.licenseKey ?? null);
 
   return {
     audioGenerator,
@@ -209,7 +209,11 @@ export function reconfigureAudioGenerator(
     throw new Error('Container not initialized');
   }
 
-  const newAudioGenerator = createAudioGeneratorAdapter(provider, apiKey);
+  const newAudioGenerator = createAudioGeneratorAdapter(
+    provider,
+    apiKey,
+    containerInstance.adapters.apiClient,
+  );
 
   // Create new container with updated audio generator
   containerInstance = {

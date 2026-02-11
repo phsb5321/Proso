@@ -11,13 +11,14 @@
 
 import type { Result } from '../../core/shared/result';
 import { Err } from '../../core/shared/result';
-import type { IApiClient, ApiClientError } from '../../ports/api-client.port';
+import type { IApiClient, ApiClientError, SynthesizeResponse } from '../../ports/api-client.port';
 import { apiClientError } from '../../ports/api-client.port';
 import type {
   LicenseValidateResponse,
   SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
+  TTSSynthesizeRequest,
 } from '@voxpage/shared';
 
 const NOT_CONFIGURED = apiClientError.notConfigured(
@@ -50,6 +51,12 @@ export class NoOpApiClientAdapter implements IApiClient {
   async createCheckout(
     _tier: string,
   ): Promise<Result<CheckoutResponse, ApiClientError>> {
+    return Err(NOT_CONFIGURED);
+  }
+
+  async synthesize(
+    _request: TTSSynthesizeRequest,
+  ): Promise<Result<SynthesizeResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 }

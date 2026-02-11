@@ -392,7 +392,7 @@ describe('Container', () => {
 
       reconfigureAudioGenerator('openai', 'test-key');
 
-      expect(mockCreateAudioGeneratorAdapter).toHaveBeenCalledWith('openai', 'test-key');
+      expect(mockCreateAudioGeneratorAdapter).toHaveBeenCalledWith('openai', 'test-key', expect.anything());
     });
 
     it('should update the container adapters with new audio generator', () => {

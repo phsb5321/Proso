@@ -260,8 +260,8 @@
 
 ### Extension Integration
 
-- [ ] T115 [US5] Update `packages/extension/src/adapters/api/voxpage-api.adapter.ts` to add `synthesize(text, provider, voice, language)` method calling server TTS proxy
-- [ ] T116 [US5] Update extension audio generation flow to route managed-credit requests through server proxy while keeping BYOK direct (INV-002) in `packages/extension/src/composition/factories.ts`
+- [X] T115 [US5] Update `packages/extension/src/adapters/api/voxpage-api.adapter.ts` to add `synthesize(text, provider, voice, language)` method calling server TTS proxy
+- [X] T116 [US5] Update extension audio generation flow to route managed-credit requests through server proxy while keeping BYOK direct (INV-002) in `packages/extension/src/composition/factories.ts`
 
 **Checkpoint**: TTS proxy works end-to-end: text → server → provider → audio → extension. Credits tracked. SC-009, SC-011 validated.
 

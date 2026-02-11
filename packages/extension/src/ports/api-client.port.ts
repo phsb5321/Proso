@@ -13,7 +13,21 @@ import type {
   SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
+  TTSSynthesizeRequest,
 } from '@voxpage/shared';
+
+/**
+ * TTS synthesis response from the server.
+ * Contains audio blob and metadata from response headers.
+ */
+export interface SynthesizeResponse {
+  audioBlob: Blob;
+  contentType: string;
+  creditsUsed: number;
+  creditsRemaining: number;
+  cacheHit: boolean;
+  provider: string;
+}
 
 /**
  * API client errors — discriminated union.
@@ -61,6 +75,17 @@ export interface IApiClient {
    * @param tier - Target subscription tier ('pro' or 'enterprise')
    */
   createCheckout(tier: string): Promise<Result<CheckoutResponse, ApiClientError>>;
+
+  /**
+   * Synthesize text to audio via the server TTS proxy.
+   * Returns audio blob with metadata (credits used, cache hit, provider).
+   *
+   * INV-002: This is only called for managed-credit users.
+   * BYOK users call provider APIs directly from the extension.
+   *
+   * @param request - Text, provider, voice, and language params
+   */
+  synthesize(request: TTSSynthesizeRequest): Promise<Result<SynthesizeResponse, ApiClientError>>;
 
   /**
    * Check if the API client is configured with a server URL.

@@ -17,6 +17,7 @@ import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { IApiClient } from '../ports/api-client.port';
 import type { ApiKeys } from './types';
+import { TTSProvider } from '@voxpage/shared';
 
 // Audio adapters
 import {
@@ -26,6 +27,7 @@ import {
   ElevenLabsAudioAdapter,
   GroqAudioAdapter,
   OpenAiAudioAdapter,
+  ServerTtsAudioAdapter,
 } from '../adapters/audio';
 
 // Messaging adapters
@@ -46,42 +48,61 @@ import { VoxPageApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
 /**
  * Create an audio generator adapter based on provider.
  *
+ * INV-002: BYOK is always available. If apiClient is configured and provider
+ * is not 'browser' (INV-005: browser TTS always client-side) and no BYOK
+ * API key is set, routes through server proxy for managed credits.
+ *
  * @param provider - Provider to create adapter for
  * @param apiKey - API key for the provider (null for browser)
+ * @param apiClient - Optional API client for server proxy routing
  * @returns IAudioGenerator adapter
  *
- * @throws Error if provider is unknown or API key is missing (for non-browser providers)
+ * @throws Error if provider is unknown or API key is missing (for non-browser providers without server)
  */
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
   apiKey: string | null,
+  apiClient?: IApiClient,
 ): IAudioGenerator {
-  switch (provider) {
-    case 'browser':
-      return new BrowserTtsAudioAdapter();
+  // INV-005: Browser TTS is always client-side, unlimited
+  if (provider === 'browser') {
+    return new BrowserTtsAudioAdapter();
+  }
 
+  // INV-002: If user has a BYOK API key, use direct provider adapter
+  if (apiKey) {
+    return createDirectProviderAdapter(provider, apiKey);
+  }
+
+  // If server is configured, route through server proxy (managed credits)
+  if (apiClient?.isConfigured) {
+    const providerMap: Record<string, TTSProvider> = {
+      openai: TTSProvider.OpenAI,
+      elevenlabs: TTSProvider.ElevenLabs,
+      groq: TTSProvider.Groq,
+    };
+    return new ServerTtsAudioAdapter(apiClient, providerMap[provider]);
+  }
+
+  // No API key and no server — error
+  throw new Error(`${provider} API key is required (or configure VoxPage server for managed credits)`);
+}
+
+/**
+ * Create a direct (BYOK) provider adapter.
+ */
+function createDirectProviderAdapter(provider: ProviderId, apiKey: string): IAudioGenerator {
+  switch (provider) {
     case 'elevenlabs':
-      if (!apiKey) {
-        throw new Error('ElevenLabs API key is required');
-      }
       return new ElevenLabsAudioAdapter(apiKey);
 
     case 'openai':
-      if (!apiKey) {
-        throw new Error('OpenAI API key is required');
-      }
       return new OpenAiAudioAdapter(apiKey);
 
     case 'groq':
-      if (!apiKey) {
-        throw new Error('Groq API key is required');
-      }
       return new GroqAudioAdapter(apiKey);
 
     case 'cartesia':
-      if (!apiKey) {
-        throw new Error('Cartesia API key is required');
-      }
       return new CartesiaAudioAdapter(apiKey);
 
     default:

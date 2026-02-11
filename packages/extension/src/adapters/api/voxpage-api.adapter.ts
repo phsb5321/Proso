@@ -12,6 +12,7 @@ import { Ok, Err } from '../../core/shared/result';
 import type {
   IApiClient,
   ApiClientError,
+  SynthesizeResponse,
 } from '../../ports/api-client.port';
 import { apiClientError } from '../../ports/api-client.port';
 import type {
@@ -20,6 +21,7 @@ import type {
   CheckoutResponse,
   CreditBalanceResponse,
   ErrorResponse,
+  TTSSynthesizeRequest,
 } from '@voxpage/shared';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -79,6 +81,15 @@ export class VoxPageApiAdapter implements IApiClient {
       return Err(apiClientError.notConfigured('No license key configured'));
     }
     return this.post<CheckoutResponse>('/api/v1/subscription/checkout', { tier });
+  }
+
+  async synthesize(
+    request: TTSSynthesizeRequest,
+  ): Promise<Result<SynthesizeResponse, ApiClientError>> {
+    if (!this.licenseKey) {
+      return Err(apiClientError.notConfigured('No license key configured'));
+    }
+    return this.requestBinary('/api/v1/tts/synthesize', request);
   }
 
   // ── HTTP helpers ──
@@ -156,6 +167,77 @@ export class VoxPageApiAdapter implements IApiClient {
       if (attempt < MAX_RETRIES) {
         await this.delay(RETRY_DELAY_MS * (attempt + 1));
         return this.request<T>(method, path, body, attempt + 1);
+      }
+
+      const message = error instanceof Error ? error.message : 'Unknown network error';
+      return Err(apiClientError.network(message));
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async requestBinary(
+    path: string,
+    body: unknown,
+    attempt = 0,
+  ): Promise<Result<SynthesizeResponse, ApiClientError>> {
+    const url = `${this.baseUrl}${path}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.licenseKey) {
+        headers['X-License-Key'] = this.licenseKey;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        return Ok({
+          audioBlob,
+          contentType: response.headers.get('Content-Type') ?? 'audio/mpeg',
+          creditsUsed: Number(response.headers.get('X-Credits-Used') ?? '0'),
+          creditsRemaining: Number(response.headers.get('X-Credits-Remaining') ?? '0'),
+          cacheHit: response.headers.get('X-Cache-Hit') === 'true',
+          provider: response.headers.get('X-Provider') ?? 'unknown',
+        });
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        const errorBody = await this.tryParseError(response);
+        return Err(apiClientError.unauthorized(errorBody?.message ?? 'Unauthorized'));
+      }
+
+      if (response.status >= 500 && attempt < MAX_RETRIES) {
+        await this.delay(RETRY_DELAY_MS * (attempt + 1));
+        return this.requestBinary(path, body, attempt + 1);
+      }
+
+      const errorBody = await this.tryParseError(response);
+      return Err(
+        apiClientError.serverError(
+          response.status,
+          errorBody?.message ?? `HTTP ${response.status}`,
+        ),
+      );
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return Err(apiClientError.timeout(DEFAULT_TIMEOUT_MS));
+      }
+
+      if (attempt < MAX_RETRIES) {
+        await this.delay(RETRY_DELAY_MS * (attempt + 1));
+        return this.requestBinary(path, body, attempt + 1);
       }
 
       const message = error instanceof Error ? error.message : 'Unknown network error';

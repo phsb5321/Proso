@@ -14,6 +14,7 @@ export { BrowserTtsAudioAdapter } from './browser-tts-audio.adapter';
 export { OpenAiAudioAdapter } from './openai-audio.adapter';
 export { GroqAudioAdapter } from './groq-audio.adapter';
 export { CartesiaAudioAdapter } from './cartesia-audio.adapter';
+export { ServerTtsAudioAdapter } from './server-tts-audio.adapter';
 export { AudioUrlAdapter } from './audio-url.adapter';
 
 // Playback Adapters (IAudioPlayer)
