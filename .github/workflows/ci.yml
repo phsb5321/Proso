@@ -3,8 +3,16 @@ name: CI
 on:
   pull_request:
     branches: [develop, main]
+    paths:
+      - 'packages/extension/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
   push:
     branches: [develop, main]
+    paths:
+      - 'packages/extension/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
 
 jobs:
   test:
@@ -25,15 +33,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm --filter @voxpage/extension lint
 
       - name: Unit Tests
-        run: NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit --coverage
+        run: pnpm --filter @voxpage/extension test:unit -- --coverage
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Build Firefox extension
-        run: pnpm run build:firefox
+        run: pnpm --filter @voxpage/extension build:firefox
 
       # ============================================
       # Firefox Build Validation (041-firefox-first-pivot T4.1)
@@ -42,7 +50,7 @@ jobs:
       - name: Validate Firefox manifest.json
         run: |
           echo "Validating Firefox manifest.json..."
-          MANIFEST=".output/firefox-mv2/manifest.json"
+          MANIFEST="packages/extension/.output/firefox-mv2/manifest.json"
           
           # Check manifest exists
           if [ ! -f "$MANIFEST" ]; then
@@ -65,7 +73,7 @@ jobs:
             echo "ERROR: manifest_version should be 2 for Firefox MV2, got: $MANIFEST_VERSION"
             exit 1
           fi
-          echo "  ✓ manifest_version: $MANIFEST_VERSION"
+          echo "  manifest_version: $MANIFEST_VERSION"
           
           # Check name
           NAME=$(jq -r '.name' "$MANIFEST")
@@ -73,7 +81,7 @@ jobs:
             echo "ERROR: name is required in manifest.json"
             exit 1
           fi
-          echo "  ✓ name: $NAME"
+          echo "  name: $NAME"
           
           # Check version
           VERSION=$(jq -r '.version' "$MANIFEST")
@@ -81,7 +89,7 @@ jobs:
             echo "ERROR: version is required in manifest.json"
             exit 1
           fi
-          echo "  ✓ version: $VERSION"
+          echo "  version: $VERSION"
           
           # Check browser_specific_settings.gecko
           GECKO_ID=$(jq -r '.browser_specific_settings.gecko.id // .applications.gecko.id' "$MANIFEST")
@@ -89,22 +97,22 @@ jobs:
             echo "ERROR: gecko.id is required for Firefox extensions"
             exit 1
           fi
-          echo "  ✓ gecko.id: $GECKO_ID"
+          echo "  gecko.id: $GECKO_ID"
           
           # Check strict_min_version
           MIN_VERSION=$(jq -r '.browser_specific_settings.gecko.strict_min_version // .applications.gecko.strict_min_version' "$MANIFEST")
           if [ -z "$MIN_VERSION" ] || [ "$MIN_VERSION" = "null" ]; then
             echo "WARNING: strict_min_version not set, Firefox may reject the extension"
           else
-            echo "  ✓ strict_min_version: $MIN_VERSION"
+            echo "  strict_min_version: $MIN_VERSION"
           fi
           
-          echo "✓ Manifest validation passed"
+          echo "Manifest validation passed"
 
       - name: Validate required Firefox files
         run: |
           echo "Checking required Firefox extension files..."
-          BUILD_DIR=".output/firefox-mv2"
+          BUILD_DIR="packages/extension/.output/firefox-mv2"
           MISSING_FILES=0
           
           # Required files for the extension
@@ -117,9 +125,9 @@ jobs:
           
           for file in "${REQUIRED_FILES[@]}"; do
             if [ -f "$BUILD_DIR/$file" ]; then
-              echo "  ✓ $file"
+              echo "  $file OK"
             else
-              echo "  ✗ $file (MISSING)"
+              echo "  $file MISSING"
               MISSING_FILES=$((MISSING_FILES + 1))
             fi
           done
@@ -127,17 +135,17 @@ jobs:
           # Check for icons directory
           if [ -d "$BUILD_DIR/icons" ]; then
             ICON_COUNT=$(ls -1 "$BUILD_DIR/icons"/*.png 2>/dev/null | wc -l)
-            echo "  ✓ icons/ ($ICON_COUNT icons)"
+            echo "  icons/ ($ICON_COUNT icons) OK"
           else
-            echo "  ✗ icons/ (MISSING)"
+            echo "  icons/ MISSING"
             MISSING_FILES=$((MISSING_FILES + 1))
           fi
           
           # Check for content script
           if ls "$BUILD_DIR"/content*.js 1> /dev/null 2>&1; then
-            echo "  ✓ content script(s)"
+            echo "  content script(s) OK"
           else
-            echo "  ⚠ No content script found (may be bundled)"
+            echo "  No content script found (may be bundled)"
           fi
           
           if [ $MISSING_FILES -gt 0 ]; then
@@ -145,12 +153,12 @@ jobs:
             exit 1
           fi
           
-          echo "✓ All required files present"
+          echo "All required files present"
 
       - name: Check Firefox extension size
         run: |
           echo "Checking Firefox extension size..."
-          BUILD_DIR=".output/firefox-mv2"
+          BUILD_DIR="packages/extension/.output/firefox-mv2"
           
           # Calculate total size in bytes
           TOTAL_SIZE=$(du -sb "$BUILD_DIR" | cut -f1)
@@ -174,7 +182,7 @@ jobs:
           # Warning threshold: 4MB
           WARNING_BYTES=4194304
           if [ $TOTAL_SIZE -gt $WARNING_BYTES ]; then
-            echo "⚠ WARNING: Extension size approaching 5MB limit"
+            echo "WARNING: Extension size approaching 5MB limit"
           fi
           
           # List largest files for visibility
@@ -182,10 +190,10 @@ jobs:
           echo "Largest files:"
           find "$BUILD_DIR" -type f -exec ls -la {} \; | sort -k5 -rn | head -5 | awk '{print "  " $5 " " $NF}'
           
-          echo "✓ Extension size within limits"
+          echo "Extension size within limits"
 
       - name: Quality check
-        run: pnpm run quality
+        run: pnpm --filter @voxpage/extension quality
 
   # ============================================
   # Firefox Visual Tests (041-firefox-first-pivot T4.2)
@@ -212,7 +220,7 @@ jobs:
         run: npx playwright install firefox --with-deps
 
       - name: Run Firefox visual tests
-        run: npx playwright test --project=firefox-visual --reporter=list,html
+        run: pnpm --filter @voxpage/extension test:visual
         continue-on-error: true # Don't fail CI on snapshot differences
 
       - name: Upload visual test report
@@ -221,8 +229,8 @@ jobs:
         with:
           name: playwright-visual-report
           path: |
-            playwright-report/
-            test-results/
+            packages/extension/playwright-report/
+            packages/extension/test-results/
           retention-days: 14
 
       - name: Upload snapshot diffs
@@ -230,7 +238,7 @@ jobs:
         if: failure()
         with:
           name: snapshot-diffs
-          path: test-results/**/*-diff.png
+          path: packages/extension/test-results/**/*-diff.png
           retention-days: 7
 
   # ============================================
@@ -258,10 +266,10 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Build Firefox extension
-        run: pnpm run build:firefox
+        run: pnpm --filter @voxpage/extension build:firefox
 
       - name: Run extension E2E tests
-        run: npx playwright test --project=chromium-extension --reporter=list,html
+        run: pnpm --filter @voxpage/extension test:e2e:ext
 
       - name: Upload E2E test report
         uses: actions/upload-artifact@v4
@@ -269,6 +277,6 @@ jobs:
         with:
           name: playwright-e2e-report
           path: |
-            playwright-report/
-            test-results/
+            packages/extension/playwright-report/
+            packages/extension/test-results/
           retention-days: 14
