@@ -18,6 +18,8 @@ FROM deps AS build
 COPY packages/shared/ packages/shared/
 COPY packages/server/ packages/server/
 COPY tsconfig.base.json ./
+# Build shared package first (produces CJS in packages/shared/dist/)
+RUN pnpm --filter @voxpage/shared run build
 RUN pnpm --filter @voxpage/server exec prisma generate
 RUN pnpm --filter @voxpage/server run build
 # Create a pruned production deployment

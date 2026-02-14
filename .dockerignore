@@ -1,0 +1,8 @@
+node_modules
+.git
+.output
+.wxt
+coverage
+.env
+.env.*
+.env.local
