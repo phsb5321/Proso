@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/modules/prisma.module';
+import type { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
-  CreditRepositoryPort,
   type CreditAllocationRecord,
-  type CreditTransactionRecord,
   type CreditDeductionMetadata,
+  CreditRepositoryPort,
+  type CreditTransactionRecord,
 } from '../../ports/credit-repository.port';
 
 @Injectable()
@@ -32,23 +32,26 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
     metadata: CreditDeductionMetadata,
   ): Promise<CreditTransactionRecord> {
     // Atomic deduction using a transaction
-    const [, transaction] = await this.prisma.$transaction([
-      this.prisma.creditAllocation.update({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const allocation = await tx.creditAllocation.update({
         where: { id: allocationId },
         data: { remainingCredits: { decrement: amount } },
-      }),
-      this.prisma.creditTransaction.create({
+      });
+
+      const transaction = await tx.creditTransaction.create({
         data: {
           allocationId,
-          userId: '', // Will be filled from allocation lookup
+          userId: allocation.userId,
           type: 'deduction',
           amount: -amount,
           provider: metadata.provider as 'openai' | 'elevenlabs' | 'groq',
           characterCount: metadata.characterCount,
         },
-      }),
-    ]);
-    return this.toTransactionRecord(transaction);
+      });
+
+      return transaction;
+    });
+    return this.toTransactionRecord(result);
   }
 
   async getAllocationHistory(
