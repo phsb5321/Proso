@@ -44,6 +44,8 @@ COPY --from=build --chown=nestjs:nodejs /app/packages/server/dist ./dist
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/src/generated ./src/generated
 # Copy prisma schema for migrations
 COPY --from=build --chown=nestjs:nodejs /app/packages/server/prisma ./prisma
+# Copy predeploy script (used by Dokku predeploy task)
+COPY --from=build --chown=nestjs:nodejs /app/packages/server/scripts ./scripts
 
 USER nestjs
 
