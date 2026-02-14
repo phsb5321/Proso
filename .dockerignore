@@ -6,3 +6,17 @@ coverage
 .env
 .env.*
 .env.local
+Dockerfile*
+.dockerignore
+*.log
+*.log.*
+tests/
+*.md
+specs/
+.specify/
+.claude/
+.github/
+.vscode/
+.idea/
+test-results/
+playwright-report/
