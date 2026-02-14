@@ -204,7 +204,7 @@
 
 - [X] T088 [P] [US4] Write unit tests for Subscription entity in `packages/server/tests/unit/core/subscription/subscription.entity.spec.ts` (17 tests: isActive, cancel, upgrade, renew, expire, grace period, INV-004, immutability, toProps)
 - [X] T089 [P] [US4] Write unit tests for LicenseValidationService in `packages/server/tests/unit/core/subscription/license-validation.service.spec.ts` (7 tests: unknown key, no subscription, active subscription, no allocation, cancelled grace period, expired grace, expired subscription)
-- [ ] T090 [P] [US4] ⏳ Contract tests for PrismaSubscriptionRepository deferred (requires running PostgreSQL)
+- [X] T090 [P] [US4] Contract tests for PrismaSubscriptionRepository using testcontainers (21 tests)
 
 ### Extension Integration
 
@@ -313,7 +313,7 @@
 ### Server Tests
 
 - [X] T129 [P] [US7] Write unit tests for credits controller in `packages/server/tests/unit/infrastructure/credits.controller.spec.ts` (14 tests: balance calculation, zeros, 401, history pagination, clamping, empty)
-- [ ] T130 [P] [US7] ⏳ Integration tests for credits endpoints deferred (requires running PostgreSQL)
+- [X] T130 [P] [US7] Contract tests for PrismaCreditRepository using testcontainers (22 tests)
 
 ### Extension Integration
 
