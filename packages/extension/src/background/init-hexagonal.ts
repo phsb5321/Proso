@@ -12,6 +12,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
 import {
   type ApiKeys,
   type AppConfig,
@@ -23,16 +24,16 @@ import {
   type HandlerRegistry,
   getGlobalInstrumentedRegistry,
   registerAllHandlers,
-  setSettingsStore,
-  setHighlightSync,
   setActiveTabId,
-  setLanguageDependencies,
-  setHighlightRepository,
+  setCreditApiClient,
   setExportDependencies,
+  setHighlightRepository,
+  setHighlightSync,
+  setLanguageDependencies,
   setLoggingDependencies,
+  setSettingsStore,
 } from '../handlers';
 import { detectLanguageFromText } from '../utils/language/detector';
-import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
 import { createLogBuffer } from '../utils/logging/buffer';
 import {
   type DispatchStats,
@@ -66,7 +67,12 @@ async function loadApiKeys(): Promise<ApiKeys> {
  * Load app configuration from browser storage.
  */
 async function loadAppConfig(): Promise<AppConfig> {
-  const stored = await browser.storage.local.get(['provider', 'cacheType', 'serverUrl', 'licenseKey']);
+  const stored = await browser.storage.local.get([
+    'provider',
+    'cacheType',
+    'serverUrl',
+    'licenseKey',
+  ]);
 
   return {
     provider: (stored.provider as AppConfig['provider']) || 'browser',
@@ -104,6 +110,9 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     // Wire up dependencies for all handler subsystems
     const container = getContainer();
     setSettingsStore(container.adapters.settingsStore);
+
+    // T132: Wire API client for credit handlers
+    setCreditApiClient(container.adapters.apiClient);
 
     // T001: Wire highlight sync for footer handlers
     setHighlightSync(container.adapters.highlightSync);

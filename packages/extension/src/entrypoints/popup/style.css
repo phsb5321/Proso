@@ -520,7 +520,8 @@ body {
 
 .voxpage-select {
   width: 100%;
-  padding: var(--spacing-sm, 8px) var(--spacing-lg, 32px) var(--spacing-sm, 8px) var(--spacing-md, 12px);
+  padding: var(--spacing-sm, 8px) var(--spacing-lg, 32px) var(--spacing-sm, 8px)
+    var(--spacing-md, 12px);
   background: var(--color-bg-secondary, #16213e);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-sm, 4px);
@@ -1125,6 +1126,88 @@ body {
 
 .voxpage-popup__queue-play-btn {
   flex: 1;
+}
+
+/* ========================================
+   CREDIT BALANCE (T132/T133)
+   ======================================== */
+
+.voxpage-popup__credits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs, 4px);
+  padding: var(--spacing-sm, 8px);
+  background: var(--color-bg-secondary, #16213e);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--font-size-xs, 10px);
+}
+
+.voxpage-popup__credits-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__credits-label {
+  color: var(--color-text-secondary, #b8c5d6);
+}
+
+.voxpage-popup__credits-value {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary, #ffffff);
+}
+
+.voxpage-popup__credits-total {
+  color: var(--color-text-secondary, #b8c5d6);
+  font-size: var(--font-size-xxs, 9px);
+}
+
+.voxpage-popup__credits-bar {
+  height: 4px;
+  background: var(--color-bg-tertiary, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-full, 9999px);
+  overflow: hidden;
+  margin-top: var(--spacing-xs, 4px);
+}
+
+.voxpage-popup__credits-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full, 9999px);
+  transition: width var(--transition-normal, 200ms) ease;
+}
+
+/* T133 — Credit level color states */
+.voxpage-popup__credits-bar-fill--normal {
+  background: var(--color-accent-primary, #0d9488);
+}
+
+.voxpage-popup__credits-bar-fill--warning {
+  background: var(--color-warning, #f59e0b);
+}
+
+.voxpage-popup__credits-bar-fill--critical {
+  background: var(--color-error, #ef4444);
+}
+
+.voxpage-popup__credits-bar-fill--exhausted {
+  background: var(--color-error, #ef4444);
+  width: 100% !important;
+  opacity: 0.3;
+}
+
+.voxpage-popup__credits-warning {
+  font-size: var(--font-size-xxs, 9px);
+  margin-top: var(--spacing-xs, 4px);
+  color: var(--color-text-secondary, #b8c5d6);
+}
+
+.voxpage-popup__credits-warning--warning {
+  color: var(--color-warning, #f59e0b);
+}
+
+.voxpage-popup__credits-warning--critical,
+.voxpage-popup__credits-warning--exhausted {
+  color: var(--color-error, #ef4444);
 }
 
 /* ========================================

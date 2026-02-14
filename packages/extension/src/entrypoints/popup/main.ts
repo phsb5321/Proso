@@ -95,6 +95,13 @@ const elements = {
   costSavingsRow: document.getElementById('cost-savings-row') as HTMLDivElement,
   costSavings: document.getElementById('cost-savings') as HTMLSpanElement,
 
+  // Credit balance (T132)
+  creditsSection: document.getElementById('credits-section') as HTMLElement,
+  creditsRemaining: document.getElementById('credits-remaining') as HTMLSpanElement,
+  creditsTotal: document.getElementById('credits-total') as HTMLSpanElement,
+  creditsBarFill: document.getElementById('credits-bar-fill') as HTMLDivElement,
+  creditsWarning: document.getElementById('credits-warning') as HTMLSpanElement,
+
   // Collapsible sections (hidden by default in CSS)
   summarizeSection: document.getElementById('summarize-section') as HTMLElement,
   exportSection: document.getElementById('export-section') as HTMLElement,
@@ -538,7 +545,8 @@ async function handleProviderChange(event: Event): Promise<void> {
       const lang = langResponse?.effective;
       if (lang && !lang.startsWith('en')) {
         elements.statusText.textContent = `${provider === 'groq' ? 'Groq' : 'Cartesia'}: English only`;
-        elements.statusText.title = 'This provider only supports English. Consider switching to Browser, ElevenLabs, or OpenAI for other languages.';
+        elements.statusText.title =
+          'This provider only supports English. Consider switching to Browser, ElevenLabs, or OpenAI for other languages.';
       }
     }
   } catch (error) {
@@ -1146,6 +1154,127 @@ async function fetchCostEstimate(): Promise<void> {
 }
 
 // ============================================
+// Credit Balance (T132/T133)
+// ============================================
+
+/**
+ * Credit balance response from background handler.
+ */
+interface CreditBalanceResult {
+  success: boolean;
+  balance?: {
+    total: number;
+    remaining: number;
+    usagePercent: number;
+    periodStart?: string;
+    periodEnd?: string;
+  };
+  error?: { type: string; message: string };
+}
+
+/**
+ * Determine credit warning level from usage percent.
+ * - normal:    >50% remaining (usagePercent < 50)
+ * - warning:   10-50% remaining (usagePercent 50-90)
+ * - critical:  <10% remaining (usagePercent > 90)
+ * - exhausted: 0 remaining
+ */
+function getCreditLevel(
+  remaining: number,
+  usagePercent: number,
+): 'normal' | 'warning' | 'critical' | 'exhausted' {
+  if (remaining <= 0) return 'exhausted';
+  if (usagePercent > 90) return 'critical';
+  if (usagePercent >= 50) return 'warning';
+  return 'normal';
+}
+
+/**
+ * Format a credit number for display (e.g. 123456 -> "123,456").
+ */
+function formatCredits(n: number): string {
+  return n.toLocaleString();
+}
+
+/**
+ * Update the credit balance display in the popup.
+ */
+function updateCreditDisplay(balance: CreditBalanceResult['balance']): void {
+  if (!balance || !elements.creditsSection) return;
+
+  const { total, remaining, usagePercent } = balance;
+  const level = getCreditLevel(remaining, usagePercent);
+  const remainingPercent = Math.max(0, Math.min(100, 100 - usagePercent));
+
+  // Update text
+  elements.creditsRemaining.textContent = formatCredits(remaining);
+  elements.creditsTotal.textContent = `/ ${formatCredits(total)}`;
+
+  // Update progress bar
+  elements.creditsBarFill.style.width = `${remainingPercent}%`;
+
+  // Remove previous level classes
+  elements.creditsBarFill.classList.remove(
+    'voxpage-popup__credits-bar-fill--normal',
+    'voxpage-popup__credits-bar-fill--warning',
+    'voxpage-popup__credits-bar-fill--critical',
+    'voxpage-popup__credits-bar-fill--exhausted',
+  );
+  elements.creditsBarFill.classList.add(`voxpage-popup__credits-bar-fill--${level}`);
+
+  // Update warning text (T133)
+  elements.creditsWarning.classList.remove(
+    'voxpage-popup__credits-warning--warning',
+    'voxpage-popup__credits-warning--critical',
+    'voxpage-popup__credits-warning--exhausted',
+  );
+
+  if (level === 'exhausted') {
+    elements.creditsWarning.textContent = 'Credits exhausted \u2014 upgrade to continue';
+    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--exhausted');
+    elements.creditsWarning.hidden = false;
+  } else if (level === 'critical') {
+    elements.creditsWarning.textContent = `Low credits \u2014 ${formatCredits(remaining)} remaining`;
+    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--critical');
+    elements.creditsWarning.hidden = false;
+  } else if (level === 'warning') {
+    elements.creditsWarning.textContent = `${formatCredits(remaining)} credits remaining`;
+    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--warning');
+    elements.creditsWarning.hidden = false;
+  } else {
+    elements.creditsWarning.hidden = true;
+  }
+
+  // Show the section
+  elements.creditsSection.hidden = false;
+}
+
+/**
+ * Fetch credit balance from background (non-blocking).
+ * Hidden for BYOK/free-tier users (not_configured response).
+ */
+async function fetchCreditBalance(): Promise<void> {
+  try {
+    const result = await sendMessage<CreditBalanceResult>('credit.getBalance');
+
+    if (!result || !result.success || !result.balance) {
+      // Not configured or error — hide section silently
+      if (elements.creditsSection) {
+        elements.creditsSection.hidden = true;
+      }
+      return;
+    }
+
+    updateCreditDisplay(result.balance);
+  } catch (error) {
+    console.error('[Popup] Failed to fetch credit balance:', error);
+    if (elements.creditsSection) {
+      elements.creditsSection.hidden = true;
+    }
+  }
+}
+
+// ============================================
 // Message Listener (State Updates from Background)
 // ============================================
 
@@ -1493,6 +1622,11 @@ async function init(): Promise<void> {
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {
     console.error('[Popup] Cost estimate fetch failed:', err);
+  });
+
+  // Fetch credit balance (non-blocking, T132)
+  fetchCreditBalance().catch((err) => {
+    console.error('[Popup] Credit balance fetch failed:', err);
   });
 
   // Initialize highlights (T093-T095)

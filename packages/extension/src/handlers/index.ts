@@ -201,10 +201,21 @@ export {
   type LoggingDependencies,
 } from './logging.handlers';
 
+// Credit handler exports (T132)
+export {
+  registerCreditHandlers,
+  setCreditApiClient,
+  type CreditHandlerError,
+  type CreditBalanceHandlerResponse,
+  type CreditHistoryHandlerResponse,
+  type CreditErrorResponse,
+} from './credit.handlers';
+
 // Import handler registration functions
 import { registerAudioHandlers as regAudio } from './audio.handlers';
 import { registerCacheHandlers as regCache } from './cache.handlers';
 import { registerContentHandlers as regContent } from './content.handlers';
+import { registerCreditHandlers as regCredit } from './credit.handlers';
 import { registerDebugHandlers as regDebug } from './debug.handlers';
 import { registerExportHandlers as regExport } from './export.handlers';
 import { registerFooterHandlers as regFooter } from './footer.handlers';
@@ -243,6 +254,7 @@ export function registerAllHandlers(registry: Registry): void {
   regExport(registry); // T066
   regLanguage(registry); // T069
   regLogging(registry); // T070
+  regCredit(registry); // T132
 }
 
 /**
