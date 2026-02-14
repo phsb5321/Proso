@@ -7,13 +7,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TTSProvider } from '@voxpage/shared';
-import { TTSController } from '../controllers/tts.controller';
-import { CacheStorePort } from '../../ports/cache-store.port';
-import { TTSProviderPort } from '../../ports/tts-provider.port';
 import { InMemoryCacheAdapter } from '../../adapters/cache/in-memory-cache.adapter';
-import { OpenAITTSAdapter } from '../../adapters/tts/openai-tts.adapter';
 import { ElevenLabsTTSAdapter } from '../../adapters/tts/elevenlabs-tts.adapter';
 import { GroqTTSAdapter } from '../../adapters/tts/groq-tts.adapter';
+import { OpenAITTSAdapter } from '../../adapters/tts/openai-tts.adapter';
+import { CacheStorePort } from '../../ports/cache-store.port';
+import type { TTSProviderPort } from '../../ports/tts-provider.port';
+import { TTSController } from '../controllers/tts.controller';
 import { SubscriptionModule } from './subscription.module';
 
 @Module({
@@ -21,7 +21,8 @@ import { SubscriptionModule } from './subscription.module';
   controllers: [TTSController],
   providers: [
     // Cache adapter — in-memory placeholder (TODO: swap for Redis)
-    { provide: CacheStorePort, useClass: InMemoryCacheAdapter },
+    // useFactory avoids NestJS trying to DI-inject the plain `maxEntries` param
+    { provide: CacheStorePort, useFactory: () => new InMemoryCacheAdapter(1000) },
 
     // Individual TTS adapters (registered so NestJS can inject ConfigService)
     OpenAITTSAdapter,
