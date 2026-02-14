@@ -3,7 +3,7 @@
   "description": "VoxPage backend API server",
   "scripts": {
     "dokku": {
-      "predeploy": "npx prisma db push --url \"$(echo $DATABASE_URL | sed 's|^postgres://|postgresql://|')\" --schema /app/prisma/schema.prisma"
+      "predeploy": "npx prisma db push --url \"$DATABASE_URL\" --schema /app/prisma/schema.prisma"
     }
   },
   "healthchecks": {
