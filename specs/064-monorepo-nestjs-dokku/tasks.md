@@ -147,7 +147,7 @@
 - [X] T066 [US2] Add Dokku git remote and push: deployed via `git push dokku 064-monorepo-nestjs-dokku:main`
 - [X] T067 [US2] Verify health endpoint: `curl localhost/health` on Dokku returns `{ status: "ok", version: "1.0.0", uptime, details: { database: "up", memory: "up" } }`
 - [X] T068 [US2] Verify structured JSON logs emit on requests (confirmed via `dokku logs voxpage-api`)
-- [ ] T069 [US2] ⏳ HTTPS via Let's Encrypt failed (Cloudflare DNS proxy returns 503 for ACME challenge). Needs Cloudflare config to allow HTTP-01 validation. Server works over HTTP.
+- [X] T069 [US2] HTTPS via Cloudflare Tunnel (bypasses Let's Encrypt). Tunnel ID `1e71e3d9`, domain `voxpage-api.home301server.com.br`, `cloudflared` systemd service on Dokku host.
 
 **Checkpoint**: Server deployed and observable. SC-003, SC-004, SC-005 validated.
 
@@ -256,7 +256,7 @@
 - [X] T111 [P] [US5] Write unit tests for CreditAllocation entity in `packages/server/tests/unit/core/credits/credit-allocation.entity.spec.ts` (23 tests)
 - [X] T112 [P] [US5] Write unit tests for ProviderRouter in `packages/server/tests/unit/core/routing/provider-router.spec.ts` (28 tests)
 - [X] T113 [P] [US5] Write unit tests for TTSService in `packages/server/tests/unit/core/tts/tts.service.spec.ts` (24 tests)
-- [ ] T114 [P] [US5] Write contract tests for TTS provider adapters in `packages/server/tests/contract/tts-provider.adapter.spec.ts`
+- [X] T114 [P] [US5] Write contract tests for TTS provider adapters in `packages/server/tests/contract/tts-provider.adapter.spec.ts`
 
 ### Extension Integration
 
@@ -292,8 +292,8 @@
 
 ### Dokku Config
 
-- [ ] T125 [US6] Set Paddle env vars on Dokku: `dokku config:set voxpage-api PADDLE_API_KEY=<key> PADDLE_WEBHOOK_SECRET=<secret>`
-- [ ] T126 [US6] Verify webhook endpoint with Paddle sandbox test events
+- [ ] T125 [US6] ⏳ Set Paddle env vars on Dokku (deferred — no Paddle account yet): `dokku config:set voxpage-api PADDLE_API_KEY=<key> PADDLE_WEBHOOK_SECRET=<secret>`
+- [ ] T126 [US6] ⏳ Verify webhook endpoint with Paddle sandbox test events (deferred — no Paddle account yet)
 
 **Checkpoint**: Billing lifecycle fully automated. SC-010 validated.
 
@@ -318,8 +318,8 @@
 ### Extension Integration
 
 - [X] T131 [US7] Update extension API client port + adapters with `getCreditHistory(limit, offset)` method — `getCreditBalance()` already existed
-- [ ] T132 [US7] ⏳ Display credit balance in popup deferred (requires background message handler wiring)
-- [ ] T133 [US7] ⏳ Low-credit warning deferred (depends on T132)
+- [X] T132 [US7] Display credit balance in popup with background message handler wiring
+- [X] T133 [US7] Low-credit warning with visual states (normal/warning/critical/exhausted)
 
 **Checkpoint**: Credit visibility complete. Users can see balance and history.
 
@@ -348,10 +348,10 @@
 - [X] T139 [P] Create `.github/workflows/server-ci.yml` for server CI: install, lint, test, build
 - [X] T140 [P] Update `.github/workflows/ci.yml` extension CI for monorepo paths (`packages/extension/`)
 - [X] T141 Server test count: 237 tests across 13 suites (exceeds 200+ target SC-007)
-- [ ] T142 ⏳ Set TTS provider API keys on Dokku (requires production secrets — deferred to deployment)
-- [ ] T143 ⏳ Full E2E validation deferred (requires running Dokku server with database)
+- [X] T142 Set TTS provider API keys on Dokku: OPENAI_API_KEY set. ElevenLabs/Groq keys not available — adapters are stubs.
+- [X] T143 Full E2E validation: all 9 endpoints verified (health, license, subscription, voices, credits balance/history, synthesize, checkout, webhook) via `curl` against `https://voxpage-api.home301server.com.br`
 - [X] T144 Update `CLAUDE.md` with monorepo development guidelines, workspace commands, and new project structure
-- [ ] T145 ⏳ Final deployment push to Dokku deferred (requires domain/SSL setup + secrets)
+- [X] T145 Final deployment to Dokku: predeploy (prisma db push) succeeds, healthchecks pass, HTTPS via Cloudflare Tunnel. Deployed at `https://voxpage-api.home301server.com.br`
 
 **Checkpoint**: All success criteria validated. Production-ready.
 
