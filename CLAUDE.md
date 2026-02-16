@@ -1,6 +1,15 @@
 # VoxPage Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-11
+Auto-generated from all feature plans. Last updated: 2026-02-16
+
+## MANDATORY: Playwright Must Use Docker
+
+**All Playwright/browser automation MUST use Docker.** Never use a local Chrome/Chromium binary.
+
+- Project `.mcp.json` configures Playwright MCP to use `mcr.microsoft.com/playwright/mcp` Docker image
+- The NixOS environment does not have Chrome/Chromium installed system-wide
+- Docker-based Playwright ensures consistent, reproducible browser testing across all environments
+- Config: `{"command": "docker", "args": ["run", "-i", "--rm", "--init", "--pull=always", "mcr.microsoft.com/playwright/mcp"]}`
 
 ## Monorepo Architecture (064-monorepo-nestjs-dokku)
 
@@ -317,6 +326,8 @@ const service = new PlaybackService({
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter) (063-extension-quality-sprint)
 - TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + NestJS 10+, Prisma ORM, @paddle/paddle-node-sdk, nestjs-pino, pino-loki, @nestjs/terminus, @nestjs/throttler, WXT 0.20.13 (064-monorepo-nestjs-dokku)
 - PostgreSQL 18.1 (Dokku postgres plugin), Redis (Dokku redis plugin), IndexedDB (extension audio cache) (064-monorepo-nestjs-dokku)
+- HTML5, CSS3 (custom properties, grid, `@layer`), JavaScript ES2022+ (vanilla, no dependencies) + Google Fonts (Fraunces, Inter) — loaded via CDN, no npm packages (065-landing-page)
+- N/A (static site, zero cookies, zero tracking) (065-landing-page)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -472,9 +483,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 065-landing-page: Added HTML5, CSS3 (custom properties, grid, `@layer`), JavaScript ES2022+ (vanilla, no dependencies) + Google Fonts (Fraunces, Inter) — loaded via CDN, no npm packages
 - 064-monorepo-nestjs-dokku: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + NestJS 10+, Prisma ORM, @paddle/paddle-node-sdk, nestjs-pino, pino-loki, @nestjs/terminus, @nestjs/throttler, WXT 0.20.13
 - 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
-- 062-hexagonal-wiring-recovery: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1
 
 
 <!-- MANUAL ADDITIONS START -->

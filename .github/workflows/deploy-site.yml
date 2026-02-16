@@ -1,0 +1,23 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/site/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to voxpage-site repo
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.SITE_DEPLOY_TOKEN }}
+          external_repository: phsb5321/voxpage-site
+          publish_branch: main
+          publish_dir: ./packages/site
+          keep_files: false
+          commit_message: 'deploy: update landing page from VoxPage monorepo'
