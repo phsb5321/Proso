@@ -354,6 +354,14 @@ jobs:
           echo "Updates URL: https://phsb5321.github.io/VoxPage/updates.json"
           echo "XPI URL: https://phsb5321.github.io/VoxPage/releases/voxpage-${VERSION}.xpi"
 
+      - name: Trigger site redeploy to include release files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/dispatches \
+            -f event_type=release-deployed
+          echo "Triggered site redeploy to serve updated auto-update files"
+
   notify:
     needs: [validate, release, amo-submit, deploy-updates]
     runs-on: ubuntu-latest

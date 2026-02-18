@@ -328,6 +328,10 @@ const service = new PlaybackService({
 - PostgreSQL 18.1 (Dokku postgres plugin), Redis (Dokku redis plugin), IndexedDB (extension audio cache) (064-monorepo-nestjs-dokku)
 - HTML5, CSS3 (custom properties, grid, `@layer`), JavaScript ES2022+ (vanilla, no dependencies) + Google Fonts (Fraunces, Inter) — loaded via CDN, no npm packages (065-landing-page)
 - N/A (static site, zero cookies, zero tracking) (065-landing-page)
+- HTML5, CSS3 (no JavaScript) + None (pure static HTML+CSS, system fonts only) (066-standalone-tos)
+- N/A (static document, no data persistence) (066-standalone-tos)
+- YAML (GitHub Actions workflows), HTML5, CSS3, Markdown + `actions/deploy-pages@v4`, `actions/upload-pages-artifact@v3`, `actions/configure-pages@v5` (067-ghpages-private-deploy)
+- N/A (static site, no persistence) (067-ghpages-private-deploy)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -483,9 +487,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 067-ghpages-private-deploy: Added YAML (GitHub Actions workflows), HTML5, CSS3, Markdown + `actions/deploy-pages@v4`, `actions/upload-pages-artifact@v3`, `actions/configure-pages@v5`
+- 066-standalone-tos: Added HTML5, CSS3 (no JavaScript) + None (pure static HTML+CSS, system fonts only)
 - 065-landing-page: Added HTML5, CSS3 (custom properties, grid, `@layer`), JavaScript ES2022+ (vanilla, no dependencies) + Google Fonts (Fraunces, Inter) — loaded via CDN, no npm packages
-- 064-monorepo-nestjs-dokku: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + NestJS 10+, Prisma ORM, @paddle/paddle-node-sdk, nestjs-pino, pino-loki, @nestjs/terminus, @nestjs/throttler, WXT 0.20.13
-- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
 
 
 <!-- MANUAL ADDITIONS START -->
