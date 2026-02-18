@@ -1,0 +1,72 @@
+// @voxpage/shared — barrel export for all shared domain types, constants, and utilities
+
+// Result type
+export {
+  type Result,
+  Ok,
+  Err,
+  isOk,
+  isErr,
+  unwrap,
+  unwrapErr,
+  map,
+  mapErr,
+  andThen,
+  orElse,
+  unwrapOr,
+} from './result.js';
+
+// Domain types
+export {
+  SubscriptionTier,
+  SubscriptionStatus,
+  type SubscriptionDetails,
+  type CreditBalance,
+  type FeatureEntitlements,
+} from './domain/subscription.js';
+
+export {
+  TTSProvider,
+  type ProviderCost,
+} from './domain/provider.js';
+
+export {
+  TransactionType,
+  type CreditAllocation,
+  type CreditTransaction,
+} from './domain/credits.js';
+
+export {
+  type LicenseValidationRequest,
+  type LicenseValidationResponse,
+  type LicenseActivationRequest,
+} from './domain/license.js';
+
+// Constants
+export { TIER_CREDITS, FEATURE_MATRIX } from './constants/tiers.js';
+export { PROVIDER_COSTS, calculateCreditCost } from './constants/providers.js';
+export { BUSINESS_INVARIANTS, type InvariantId } from './constants/invariants.js';
+
+// API types
+export type {
+  HealthResponse,
+  HealthIndicator,
+  LicenseValidateRequest,
+  LicenseValidateResponse,
+  LicenseActivateRequest,
+  TTSSynthesizeRequest,
+  TTSSynthesizeHeaders,
+  Voice,
+  VoiceListResponse,
+  CreditBalanceResponse,
+  CreditHistoryResponse,
+  CreditHistoryParams,
+  SubscriptionDetailsResponse,
+  CheckoutRequest,
+  CheckoutResponse,
+  WebhookResponse,
+  ErrorResponse,
+} from './types/api.js';
+
+// Error types
+export { ErrorCode, type DomainError } from './types/errors.js';

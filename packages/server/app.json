@@ -1,0 +1,20 @@
+{
+  "name": "voxpage-api",
+  "description": "VoxPage backend API server",
+  "scripts": {
+    "dokku": {
+      "predeploy": "npx prisma migrate deploy"
+    }
+  },
+  "healthchecks": {
+    "web": [
+      {
+        "type": "startup",
+        "name": "web check",
+        "path": "/health",
+        "attempts": 10,
+        "wait": 5
+      }
+    ]
+  }
+}

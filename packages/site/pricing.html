@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing &mdash; VoxPage</title>
+  <meta name="description" content="VoxPage pricing plans: Free forever with unlimited browser TTS, Basic $4.99/mo, Pro $14.99/mo. Bring your own API key on any tier.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Pricing &mdash; VoxPage">
+  <meta property="og:description" content="VoxPage pricing plans: Free forever, Basic $4.99/mo, Pro $14.99/mo. BYOK always free.">
+  <meta property="og:image" content="assets/images/og-image.png">
+  <meta property="og:url" content="https://phsb5321.github.io/VoxPage/pricing.html">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Pricing &mdash; VoxPage">
+  <meta name="twitter:description" content="VoxPage pricing plans: Free forever, Basic $4.99/mo, Pro $14.99/mo. BYOK always free.">
+  <meta name="twitter:image" content="assets/images/og-image.png">
+
+  <link rel="canonical" href="https://phsb5321.github.io/VoxPage/pricing.html">
+  <link rel="icon" type="image/png" href="assets/images/favicon.png">
+
+  <link rel="stylesheet" href="assets/css/style.css">
+  <noscript><style>.site-nav__links{display:flex!important;position:static!important;flex-wrap:wrap;background:none!important;border:none!important}.nav-toggle{display:none!important}</style></noscript>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" aria-label="VoxPage home">Vox<span>Page</span></a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+          <span></span><span></span><span></span>
+        </button>
+        <ul class="site-nav__links" id="nav-links" role="list">
+          <li><a href="index.html#features" class="site-nav__link">Features</a></li>
+          <li><a href="pricing.html" class="site-nav__link">Pricing</a></li>
+          <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
+          <li><a href="terms.html" class="site-nav__link">Terms</a></li>
+        </ul>
+        <a href="https://github.com/phsb5321/VoxPage/releases" class="btn btn--primary btn--sm">Install for Firefox</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="pricing-hero" class="pricing-hero">
+      <div class="container">
+        <h1>Simple, transparent pricing</h1>
+        <p>The free tier is genuinely useful &mdash; unlimited browser TTS with BYOK support. Pay only when you want managed premium voices.</p>
+      </div>
+    </section>
+
+    <section id="pricing-cards">
+      <div class="container">
+        <div class="pricing-toggle">
+          <span class="pricing-toggle__label pricing-toggle__label--active" id="toggle-monthly-label">Monthly</span>
+          <button class="pricing-toggle__btn" aria-checked="false" aria-label="Toggle annual pricing" role="switch" id="pricing-toggle"></button>
+          <span class="pricing-toggle__label" id="toggle-annual-label">Annual <strong>(Save ~33%)</strong></span>
+        </div>
+
+        <div class="pricing-grid" id="pricing-cards-grid">
+          <!-- Free -->
+          <div class="pricing-card">
+            <div class="pricing-card__name">Free</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount pricing-card__monthly">$0</span>
+              <span class="pricing-card__amount pricing-card__annual">$0</span>
+              <span class="pricing-card__period">/forever</span>
+            </div>
+            <ul class="pricing-card__features" role="list">
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Unlimited browser TTS</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Word-level highlighting</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> BYOK &mdash; all providers</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Smart text extraction</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Speed control</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Paragraph navigation</li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed credits</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">MP3 export</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Cloud sync</span></li>
+            </ul>
+            <a href="https://github.com/phsb5321/VoxPage/releases" class="btn btn--primary">Install Now</a>
+          </div>
+
+          <!-- Basic -->
+          <div class="pricing-card">
+            <div class="pricing-card__name">Basic</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount pricing-card__monthly">$4.99</span>
+              <span class="pricing-card__amount pricing-card__annual">$3.33</span>
+              <span class="pricing-card__period pricing-card__monthly">/month</span>
+              <span class="pricing-card__period pricing-card__annual">/mo (billed $39.99/yr)</span>
+            </div>
+            <ul class="pricing-card__features" role="list">
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Free</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 100K chars/month credits</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> OpenAI voices included</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Priority support</li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">MP3 export</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Cloud sync</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">PDF reading</span></li>
+            </ul>
+            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+          </div>
+
+          <!-- Pro -->
+          <div class="pricing-card pricing-card--highlighted">
+            <div class="pricing-card__name">Pro</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount pricing-card__monthly">$14.99</span>
+              <span class="pricing-card__amount pricing-card__annual">$9.99</span>
+              <span class="pricing-card__period pricing-card__monthly">/month</span>
+              <span class="pricing-card__period pricing-card__annual">/mo (billed $119.99/yr)</span>
+            </div>
+            <ul class="pricing-card__features" role="list">
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Basic</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 300K chars/month credits</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> OpenAI voices included</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> MP3 export</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Cloud sync</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> PDF reading</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Credit rollover (up to 100K)</li>
+            </ul>
+            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+          </div>
+
+          <!-- Multilingual -->
+          <div class="pricing-card">
+            <div class="pricing-card__name">Multilingual</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount pricing-card__monthly">$19.99</span>
+              <span class="pricing-card__amount pricing-card__annual">$13.33</span>
+              <span class="pricing-card__period pricing-card__monthly">/month</span>
+              <span class="pricing-card__period pricing-card__annual">/mo (billed $159.99/yr)</span>
+            </div>
+            <ul class="pricing-card__features" role="list">
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Pro</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 300K chars/month credits</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Google Cloud voices (40+ langs)</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> MP3 export</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Cloud sync</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> PDF reading</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Credit rollover (up to 100K)</li>
+            </ul>
+            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+          </div>
+        </div>
+
+        <div class="enterprise-callout">
+          <h2>Enterprise</h2>
+          <p>Need a commercial license, custom integration, or white-label solution? We offer flexible licensing for businesses of all sizes.</p>
+          <a href="mailto:commercial@voxpage.com" class="btn btn--secondary">Contact Us</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="byok">
+      <div class="container container--narrow">
+        <div class="callout">
+          <h2>Bring Your Own Key (BYOK)</h2>
+          <p>Already have API keys from a TTS provider? Use them with VoxPage for free on any tier &mdash; including the Free plan. Your keys stay in your browser. VoxPage never sees them.</p>
+          <ul style="margin-top: var(--space-4); list-style: disc; padding-left: var(--space-6); color: var(--text-secondary);">
+            <li style="margin-bottom: var(--space-2);"><strong style="color: var(--text-primary);">OpenAI</strong> &mdash; High-quality voices with natural intonation</li>
+            <li style="margin-bottom: var(--space-2);"><strong style="color: var(--text-primary);">ElevenLabs</strong> &mdash; Ultra-realistic AI voices with word timing</li>
+            <li style="margin-bottom: var(--space-2);"><strong style="color: var(--text-primary);">Groq</strong> &mdash; Blazing-fast inference at low cost</li>
+            <li style="margin-bottom: var(--space-2);"><strong style="color: var(--text-primary);">Cartesia</strong> &mdash; Low-latency streaming voices</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-header">
+          <h2>Frequently Asked Questions</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>What happens when I run out of credits?</summary>
+            <div class="faq-item__answer">
+              <p>Your extension automatically falls back to your browser's built-in text-to-speech engine, which is always unlimited and free. You can also use your own API keys (BYOK) to access premium voices without spending credits.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Can I use my own API keys?</summary>
+            <div class="faq-item__answer">
+              <p>Yes, on every tier &mdash; including Free &mdash; and it's always free. Bring your own OpenAI, ElevenLabs, Groq, or Cartesia API key and use premium voices without spending any managed credits. Your keys are stored locally in your browser and never sent to VoxPage servers.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Is there a free trial?</summary>
+            <div class="faq-item__answer">
+              <p>The Free tier is unlimited forever &mdash; it's not a trial. You get unlimited browser TTS, word-level highlighting, and BYOK support permanently. Paid tiers include a 7-day free trial so you can try managed credits and premium features risk-free.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>What's your refund policy?</summary>
+            <div class="faq-item__answer">
+              <p>Full refund within 7 days for annual plans, no questions asked. Monthly plans are prorated &mdash; you'll receive a refund for the unused portion of your billing period.</p>
+            </div>
+          </details>
+          <details class="faq-item">
+            <summary>Do unused credits roll over?</summary>
+            <div class="faq-item__answer">
+              <p>Pro and Multilingual tiers allow up to 100,000 characters to roll over to the next billing period. Basic tier credits reset each month. Credits never expire mid-billing cycle.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="index.html#features">Features</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="mailto:commercial@voxpage.com">Commercial Licensing</a>
+      </nav>
+      <div class="footer-info">
+        <p>&copy; 2026 VoxPage. All rights reserved.</p>
+        <p>Made with care in Recife, Brazil.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>

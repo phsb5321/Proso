@@ -51,76 +51,17 @@
   "javascript": {
     "formatter": {
       "quoteStyle": "single"
-    },
-    "globals": [
-      "browser",
-      "document",
-      "window",
-      "HTMLElement",
-      "Element",
-      "Node",
-      "NodeList",
-      "MutationObserver",
-      "ResizeObserver",
-      "IntersectionObserver",
-      "console",
-      "setTimeout",
-      "clearTimeout",
-      "setInterval",
-      "clearInterval",
-      "requestAnimationFrame",
-      "cancelAnimationFrame",
-      "fetch",
-      "Blob",
-      "URL",
-      "URLSearchParams",
-      "FormData",
-      "Headers",
-      "Request",
-      "Response",
-      "Audio",
-      "AudioContext",
-      "OfflineAudioContext",
-      "GainNode",
-      "AnalyserNode",
-      "CanvasRenderingContext2D",
-      "CSS",
-      "Highlight",
-      "Range",
-      "Event",
-      "CustomEvent",
-      "KeyboardEvent",
-      "MouseEvent",
-      "localStorage",
-      "sessionStorage",
-      "navigator",
-      "location",
-      "history",
-      "performance",
-      "atob",
-      "btoa",
-      "TextEncoder",
-      "TextDecoder"
-    ]
+    }
   },
   "files": {
     "ignore": [
       "node_modules/**",
       ".output/**",
       "coverage/**",
-      "tests/**",
-      "playwright-report/**",
-      "test-results/**",
-      "*.config.js",
-      "*.config.ts",
-      "jest.config.js",
-      "playwright.config.js",
-      "wxt.config.ts",
-      "legacy/**",
       "dist/**",
       "pnpm-lock.yaml",
       "package-lock.json",
-      "public/**"
+      ".wxt/**"
     ]
   }
 }

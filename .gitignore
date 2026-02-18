@@ -17,6 +17,7 @@ web-ext-artifacts/
 .wxt/
 .output/
 dist/
+build/
 
 # IDE
 .vscode/

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://phsb5321.github.io/VoxPage/sitemap.xml

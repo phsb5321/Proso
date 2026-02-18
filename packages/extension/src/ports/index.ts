@@ -1,0 +1,83 @@
+/**
+ * Port Interfaces
+ *
+ * Exports all port interfaces that define contracts between
+ * the domain layer and infrastructure adapters.
+ *
+ * @module ports
+ */
+
+// Audio Generator Port
+export type {
+  IAudioGenerator,
+  AudioRequest,
+  AudioResponse,
+  WordTiming,
+  Voice,
+} from './audio-generator.port';
+
+// Audio URL Provider Port
+export type { IAudioUrlProvider } from './audio-url.port';
+
+// Cache Store Port
+export type {
+  ICacheStore,
+  CacheKey,
+  CacheEntry,
+  CacheStats,
+} from './cache-store.port';
+
+// Highlight Synchronizer Port
+export type {
+  IHighlightSynchronizer,
+  FooterState,
+  PlaybackStatus,
+} from './highlight-sync.port';
+
+// Text Extractor Port
+export type {
+  ITextExtractor,
+  ExtractedContent,
+  Paragraph,
+} from './text-extractor.port';
+
+// Content Scorer Port
+export type {
+  IContentScorer,
+  ContentScore,
+} from './content-scorer.port';
+
+// Settings Store Port
+export type {
+  ISettingsStore,
+  Settings,
+} from './settings-store.port';
+
+// Reader Port (045-pdf-removal-page-reader)
+export type {
+  IReader,
+  ReaderError,
+  ExtractionOptions,
+} from './reader.port';
+
+// Highlight Repository Port (045-pdf-removal-page-reader)
+export type {
+  IHighlightRepository,
+  HighlightRepositoryError,
+  HighlightQuery,
+  HighlightUpdate,
+} from './highlight-repository.port';
+
+// Audio Player Port (045-pdf-removal-page-reader)
+export type {
+  IAudioPlayer,
+  AudioPlayerError,
+  PlaybackEvent,
+  PlaybackEventListener,
+} from './audio-player.port';
+
+// API Client Port (064-monorepo-nestjs-dokku)
+export type {
+  IApiClient,
+  ApiClientError,
+} from './api-client.port';
