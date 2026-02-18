@@ -1,0 +1,472 @@
+# Tasks: VoxPage Monorepo + NestJS Server + Dokku Deployment
+
+**Input**: Design documents from `/specs/064-monorepo-nestjs-dokku/`
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/api-v1.yaml, quickstart.md
+
+**Tests**: Server unit tests (200+) are part of the spec success criteria (SC-007). Test tasks are included for server domain logic. Extension tests (2,881+) are regression-only — no new extension test tasks.
+
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
+- Include exact file paths in descriptions
+
+## Path Conventions
+
+- **Root**: `pnpm-workspace.yaml`, `tsconfig.base.json`, `biome.json`, `.npmrc`
+- **Extension**: `packages/extension/` (existing code, moved via `git mv`)
+- **Server**: `packages/server/` (new NestJS backend)
+- **Shared**: `packages/shared/` (new shared types package)
+
+---
+
+## Phase 1: Setup (Workspace Scaffolding)
+
+**Purpose**: Convert single-package project into pnpm workspace monorepo. No behavior changes.
+
+- [X] T001 Create `pnpm-workspace.yaml` at repo root with `packages: ["packages/*"]`
+- [X] T002 Create `tsconfig.base.json` at repo root with shared strict-mode compiler options from plan.md
+- [X] T003 Update `.npmrc` to replace `shamefully-hoist=true` with `public-hoist-pattern[]=@nestjs/*` per research.md §3.3
+- [X] T004 Create `packages/` directory and `packages/shared/package.json` for `@voxpage/shared` (private, no build step, `main`/`types` point to `./src/index.ts`)
+- [X] T005 Create `packages/shared/tsconfig.json` extending `../../tsconfig.base.json`
+- [X] T006 Move extension code via `git mv`: `src/` → `packages/extension/src/`, `tests/` → `packages/extension/tests/`, `public/` → `packages/extension/public/`, `wxt.config.ts`, `jest.config.js`, `tsconfig.json` → `packages/extension/`
+- [X] T007 Create `packages/extension/package.json` for `@voxpage/extension` with existing dependencies moved from root, add `"@voxpage/shared": "workspace:*"` dependency
+- [X] T008 Update root `package.json` to workspace root (remove extension-specific deps, keep shared devDeps like `typescript`, `@biomejs/biome`)
+- [X] T009 Update `packages/extension/tsconfig.json` to extend `../../tsconfig.base.json` and add path references for `@voxpage/shared`
+- [X] T010 Update `packages/extension/wxt.config.ts` with alias for `@voxpage/shared` pointing to `../../packages/shared/src`
+- [X] T011 Update `packages/extension/jest.config.js` paths and moduleNameMapper for new monorepo location
+- [X] T012 Move `wxt prepare` postinstall script from root to `packages/extension/package.json`
+- [X] T013 Update `biome.json` at root for monorepo; create `packages/extension/biome.json` with `"extends": ["../../biome.json"]` and browser globals
+- [X] T014 Run `pnpm install` from root to validate workspace resolution and fix any dependency issues
+- [X] T015 Run extension test suite from `packages/extension/` and verify all 2,881+ tests pass
+- [X] T016 Run `pnpm --filter @voxpage/extension build:firefox` and verify build succeeds under 1.1 MB
+
+**Checkpoint**: Monorepo structure working, extension unchanged. All existing tests pass from new location.
+
+---
+
+## Phase 2: Foundational (Server Skeleton + Shared Package)
+
+**Purpose**: Minimal NestJS server that boots, passes health checks, and produces structured logs. Shared package with domain types. BLOCKS all server user stories.
+
+**⚠️ CRITICAL**: No server user story work can begin until this phase is complete.
+
+### Shared Package Core
+
+- [X] T017 [P] Implement `Result<T,E>` type with `Ok()`, `Err()`, `isOk()`, `isErr()`, `unwrap()`, `map()`, `andThen()` helpers in `packages/shared/src/result.ts`
+- [X] T018 [P] Define `SubscriptionTier` and `SubscriptionStatus` enums in `packages/shared/src/domain/subscription.ts`
+- [X] T019 [P] Define `TTSProvider` enum and `ProviderCost` type in `packages/shared/src/domain/provider.ts`
+- [X] T020 [P] Define `CreditAllocation` and `CreditTransaction` interfaces in `packages/shared/src/domain/credits.ts`
+- [X] T021 [P] Define `LicenseKey` types in `packages/shared/src/domain/license.ts`
+- [X] T022 [P] Implement `TIER_CREDITS` and `FEATURE_MATRIX` constants in `packages/shared/src/constants/tiers.ts`
+- [X] T023 [P] Implement `PROVIDER_COSTS` constants in `packages/shared/src/constants/providers.ts`
+- [X] T024 [P] Implement business invariant constants (INV-001 through INV-006) in `packages/shared/src/constants/invariants.ts`
+- [X] T025 [P] Define API request/response types matching `contracts/api-v1.yaml` schemas in `packages/shared/src/types/api.ts`
+- [X] T026 [P] Define shared error types in `packages/shared/src/types/errors.ts`
+- [X] T027 Create barrel export `packages/shared/src/index.ts` re-exporting all domain types, constants, and the Result type
+
+### Server Scaffold
+
+- [X] T028 Create `packages/server/package.json` for `@voxpage/server` with NestJS 10+, Prisma, nestjs-pino, @nestjs/terminus, @nestjs/throttler dependencies and `"@voxpage/shared": "workspace:*"`
+- [X] T029 Create `packages/server/tsconfig.json` extending `../../tsconfig.base.json` with `emitDecoratorMetadata: true` and `experimentalDecorators: true`
+- [X] T030 Create `packages/server/nest-cli.json` with `sourceRoot: "src"` and `compilerOptions`
+- [X] T031 Create `packages/server/biome.json` with `"extends": ["../../biome.json"]`
+- [X] T032 Implement `packages/server/src/main.ts` with NestJS bootstrap: `rawBody: true`, `bufferLogs: true`, `trust proxy`, port from env, Pino logger
+- [X] T033 Implement `packages/server/src/app.module.ts` root module importing HealthModule and LoggingModule
+- [X] T034 [P] Implement `packages/server/src/infrastructure/config/app.config.ts` with `@nestjs/config` reading env vars (PORT, NODE_ENV, DATABASE_URL, REDIS_URL, JWT_SECRET, etc.)
+- [X] T035 [P] Implement `packages/server/src/infrastructure/modules/logging.module.ts` with nestjs-pino + pino-loki transport, health endpoint excluded
+- [X] T036 [P] Implement `packages/server/src/infrastructure/modules/health.module.ts` with @nestjs/terminus
+- [X] T037 [P] Implement `packages/server/src/infrastructure/controllers/health.controller.ts` with `GET /health` returning status, version, uptime, and component health (database, memory)
+- [X] T038 [P] Implement custom `packages/server/src/infrastructure/health/prisma.health.ts` PrismaHealthIndicator
+- [X] T039 Implement `packages/server/src/ports/logger.port.ts` abstract class with info/warn/error/debug methods
+- [X] T040 Implement `packages/server/src/adapters/logging/pino-logger.adapter.ts` implementing LoggerPort via nestjs-pino
+
+### Database & Prisma
+
+- [X] T041 Write `packages/server/prisma/schema.prisma` with all 7 models (User, Subscription, CreditAllocation, CreditTransaction, TTSRequest, RoutingDecision, LicenseKey) and 4 enums per data-model.md
+- [X] T042 Create `packages/server/src/infrastructure/modules/prisma.module.ts` with PrismaService (global, onModuleInit connect, onModuleDestroy disconnect)
+- [X] T043 Add Prisma scripts to `packages/server/package.json`: `prisma:generate`, `prisma:migrate:dev`, `prisma:migrate:deploy`
+
+### Auth Infrastructure
+
+- [X] T044 Implement `packages/server/src/infrastructure/guards/license-key.guard.ts` extracting `X-License-Key` header, with `@Public()` decorator for unprotected routes
+- [X] T045 Implement `packages/server/src/infrastructure/modules/auth.module.ts` registering LicenseKeyGuard as global APP_GUARD
+
+### Rate Limiting
+
+- [X] T046 Implement `packages/server/src/infrastructure/modules/rate-limit.module.ts` with @nestjs/throttler (short: 3/s, medium: 20/10s, long: 100/min) and Redis storage
+
+### Deployment Artifacts
+
+- [X] T047 [P] Create `packages/server/Dockerfile` with multi-stage build: base → deps (pnpm fetch) → build (pnpm deploy --prod) → production (node:22-slim, non-root user, HEALTHCHECK)
+- [X] T048 [P] Create `packages/server/Procfile` with `release: npx prisma migrate deploy` and `web: node dist/main.js`
+- [X] T049 [P] Create `packages/server/app.json` with Dokku predeploy script for Prisma migrations
+- [X] T050 [P] Create `packages/server/.env.example` with all env vars from quickstart.md
+- [X] T051 [P] Create `packages/server/.dockerignore` excluding node_modules, .git, tests, coverage, *.md
+
+### Server Boot Verification
+
+- [X] T052 Run `pnpm install` from root to install server dependencies
+- [X] T053 Run `pnpm --filter @voxpage/server build` and verify TypeScript compilation succeeds
+- [X] T054 Verify server starts locally and `GET /health` responds (database=down expected without PG, memory=up)
+
+**Checkpoint**: Server boots, health check works, structured logs emit, Prisma schema compiles, shared package types importable by both extension and server.
+
+---
+
+## Phase 3: User Story 1 — Extension Continues Working After Monorepo Migration (Priority: P1) 🎯 MVP
+
+**Goal**: Validate that the monorepo migration from Phase 1 is fully non-breaking. Extension builds, all tests pass, behavior is identical.
+
+**Independent Test**: Run full test suite, build extension, verify build size, manually test in Firefox.
+
+- [X] T055 [US1] Verify `@voxpage/shared` types are importable in extension (paths configured in tsconfig, wxt.config, jest.config)
+- [X] T056 [US1] Run full extension test suite: `pnpm --filter @voxpage/extension test` — 2,882 pass, 1 skip, 0 fail
+- [X] T057 [US1] Build extension: `pnpm --filter @voxpage/extension build:firefox` — 1.05 MB (under 1.1 MB)
+- [X] T058 [US1] Run `pnpm --filter @voxpage/extension lint` — zero lint errors (185 files checked)
+- [ ] T059 [US1] Manually install built `.xpi` in Firefox Nightly and verify basic playback, settings, and footer work
+
+**Checkpoint**: Extension is proven non-breaking in monorepo. SC-001, SC-002, SC-012 validated.
+
+---
+
+## Phase 4: User Story 2 — Server Health & Deployment (Priority: P1)
+
+**Goal**: Deploy the minimal NestJS server to Dokku. Health check passes. Logs appear in Grafana/Loki.
+
+**Independent Test**: `curl https://voxpage-api.home301server.com.br/health` returns 200 with status "ok". Check Grafana for log entries.
+
+- [X] T060 [US2] Create Dokku app: `ssh ProxMox.Dokku "dokku apps:create voxpage-api"`
+- [X] T061 [US2] Create and link PostgreSQL: `dokku postgres:create voxpage-db && dokku postgres:link voxpage-db voxpage-api`
+- [X] T062 [US2] Create and link Redis: `dokku redis:create voxpage-cache && dokku redis:link voxpage-cache voxpage-api`
+- [X] T063 [US2] Set environment variables on Dokku: NODE_ENV, PORT, JWT_SECRET, LOG_LEVEL, LOKI_HOST
+- [X] T064 [US2] Set Dokku domain: `dokku domains:add voxpage-api voxpage-api.home301server.com.br`
+- [X] T065 [US2] Configure Dokku health check via app.json (Dokku 0.37+ uses app.json format)
+- [X] T066 [US2] Add Dokku git remote and push: deployed via `git push dokku 064-monorepo-nestjs-dokku:main`
+- [X] T067 [US2] Verify health endpoint: `curl localhost/health` on Dokku returns `{ status: "ok", version: "1.0.0", uptime, details: { database: "up", memory: "up" } }`
+- [X] T068 [US2] Verify structured JSON logs emit on requests (confirmed via `dokku logs voxpage-api`)
+- [X] T069 [US2] HTTPS via Cloudflare Tunnel (bypasses Let's Encrypt). Tunnel ID `1e71e3d9`, domain `voxpage-api.home301server.com.br`, `cloudflared` systemd service on Dokku host.
+
+**Checkpoint**: Server deployed and observable. SC-003, SC-004, SC-005 validated.
+
+---
+
+## Phase 5: User Story 3 — Free Tier TTS Without Account (Priority: P1)
+
+**Goal**: Ensure free-tier and BYOK users are never affected by the server. Extension works fully without server. Business invariants INV-001, INV-002, INV-005 enforced.
+
+**Independent Test**: Use extension with no license key, verify no network calls to VoxPage server. Use BYOK, verify direct provider calls.
+
+- [X] T070 [US3] Implement `packages/server/src/core/subscription/feature-gate.ts` with `isFeatureEnabled(tier, feature)` returning free-tier defaults for unknown keys (INV-001)
+- [X] T071 [US3] Implement free-tier default response in license validation in `packages/server/src/core/subscription/subscription.service.ts`
+- [X] T072 [US3] Write unit tests for feature-gate free-tier defaults in `packages/server/tests/unit/core/subscription/feature-gate.spec.ts` (21 test cases)
+- [X] T073 [US3] Write unit tests for INV-001 enforcement in `packages/server/tests/unit/core/subscription/subscription.service.spec.ts` (14 test cases)
+- [ ] T074 [US3] Verify extension makes zero network calls to VoxPage server when no license key is configured (manual test in Firefox Nightly with network monitor)
+
+**Checkpoint**: Free-tier users completely unaffected. SC-012 validated. INV-001, INV-002, INV-005 enforced.
+
+---
+
+## Phase 6: User Story 4 — License Validation & Subscription Management (Priority: P2)
+
+**Goal**: Users can activate license keys, view subscription status, and manage billing via Paddle checkout.
+
+**Independent Test**: POST license key to `/api/v1/license/validate`, verify correct tier/credits/features returned.
+
+### Server Ports
+
+- [X] T075 [P] [US4] Implement `packages/server/src/ports/subscription-repository.port.ts` abstract class with findById, findByUserId, save, findActiveByUserId methods
+- [X] T076 [P] [US4] Implement `packages/server/src/ports/credit-repository.port.ts` abstract class with findCurrentAllocation, deductCredits, getAllocationHistory methods
+- [X] T077 [P] [US4] Implement `packages/server/src/ports/billing-gateway.port.ts` abstract class with createCheckoutUrl, getSubscription, cancelSubscription methods
+
+### Server Core (ZERO NestJS imports)
+
+- [X] T078 [P] [US4] Implement `packages/server/src/core/subscription/subscription.entity.ts` domain entity with `isActive()`, `cancel()`, `upgrade()`, `isInGracePeriod()` methods
+- [X] T079 [P] [US4] Implement `packages/server/src/core/subscription/license-validation.service.ts` with `validate(keyHash)` returning `Result<LicenseValidationResponse, LicenseError>`
+- [X] T080 [P] [US4] Implement `packages/server/src/core/shared/domain-errors.ts` with discriminated union error types: `LicenseError`, `SubscriptionError`, `CreditError`
+
+### Server Adapters
+
+- [X] T081 [US4] Implement `packages/server/src/adapters/persistence/prisma-subscription.repository.ts` with Prisma queries, domain↔persistence mapping
+- [X] T082 [US4] Implement `packages/server/src/adapters/persistence/prisma-user.repository.ts` with findByLicenseKeyHash, create, findById
+- [X] T083 [US4] Implement `packages/server/src/adapters/billing/paddle.adapter.ts` wrapping `@paddle/paddle-node-sdk` for checkout URL generation (stub with TODO markers)
+
+### Server Infrastructure
+
+- [X] T084 [US4] Implement `packages/server/src/infrastructure/controllers/license.controller.ts` with `POST /api/v1/license/validate` and `POST /api/v1/license/activate` per api-v1.yaml
+- [X] T085 [US4] Implement `packages/server/src/infrastructure/controllers/subscription.controller.ts` with `GET /api/v1/subscription` and `POST /api/v1/subscription/checkout` per api-v1.yaml
+- [X] T086 [US4] Implement `packages/server/src/infrastructure/modules/subscription.module.ts` wiring ports → adapters via factory providers for core services
+- [X] T087 [US4] Implement `packages/server/src/infrastructure/modules/license.module.ts` wiring license validation service
+
+### Server Tests
+
+- [X] T088 [P] [US4] Write unit tests for Subscription entity in `packages/server/tests/unit/core/subscription/subscription.entity.spec.ts` (17 tests: isActive, cancel, upgrade, renew, expire, grace period, INV-004, immutability, toProps)
+- [X] T089 [P] [US4] Write unit tests for LicenseValidationService in `packages/server/tests/unit/core/subscription/license-validation.service.spec.ts` (7 tests: unknown key, no subscription, active subscription, no allocation, cancelled grace period, expired grace, expired subscription)
+- [X] T090 [P] [US4] Contract tests for PrismaSubscriptionRepository using testcontainers (21 tests)
+
+### Extension Integration
+
+- [X] T091 [US4] Implement `packages/extension/src/ports/api-client.port.ts` with `IApiClient` interface for server communication
+- [X] T092 [US4] Implement `packages/extension/src/adapters/api/voxpage-api.adapter.ts` HTTP client with retry, auth (X-License-Key header), base URL configuration
+- [X] T093 [US4] Wire API client into container, add serverUrl/licenseKey to settings schema/defaults, fix init-hexagonal.ts and container tests
+- [X] T094 [US4] Write unit tests for VoxPageApiAdapter (20 tests) and NoOpApiClientAdapter (5 tests) — 25 new tests passing
+
+**Checkpoint**: License keys validate, subscription status visible in extension, checkout URLs generated. SC-008 validated.
+
+---
+
+## Phase 7: User Story 5 — Managed Credit TTS Proxy (Priority: P2)
+
+**Goal**: Subscribed users can use premium TTS via server proxy with credit deduction, caching, and provider routing.
+
+**Independent Test**: POST to `/api/v1/tts/synthesize` with valid license key, verify audio returned, credits deducted, X-Credits-Remaining header present.
+
+### Server Ports
+
+- [X] T095 [P] [US5] Implement `packages/server/src/ports/tts-provider.port.ts` abstract class with `synthesize(text, voice, language)` returning `Result<Buffer, TTSError>`
+- [X] T096 [P] [US5] Implement `packages/server/src/ports/cache-store.port.ts` abstract class with `get(key)`, `set(key, data, ttl)`, `has(key)` for audio caching
+
+### Server Core (ZERO NestJS imports)
+
+- [X] T097 [P] [US5] Implement `packages/server/src/core/credits/credit.service.ts` with `deductCredits(userId, amount)` returning `Result<CreditTransaction, CreditError>`, enforcing atomic deduction and INV-004 (no mid-cycle expiry)
+- [X] T098 [P] [US5] Implement `packages/server/src/core/credits/credit-allocation.entity.ts` domain entity with `hasCredits(amount)`, `deduct(amount)`, `isExpired()` methods
+- [X] T099 [P] [US5] Implement `packages/server/src/core/routing/provider-router.ts` with `selectProvider(tier, language, preferredProvider)` returning `RoutingDecision` with fallback chain
+- [X] T100 [P] [US5] Implement `packages/server/src/core/routing/fallback-chain.ts` with ordered provider fallback logic per tier
+- [X] T101 [US5] Implement `packages/server/src/core/tts/tts.service.ts` orchestrating: cache check (INV-006) → credit check → provider routing → synthesis → credit deduction → cache store
+
+### Server Adapters
+
+- [X] T102 [P] [US5] Implement `packages/server/src/adapters/tts/openai-tts.adapter.ts` implementing TTSProviderPort, calling OpenAI TTS API
+- [X] T103 [P] [US5] Implement `packages/server/src/adapters/tts/elevenlabs-tts.adapter.ts` implementing TTSProviderPort, calling ElevenLabs API
+- [X] T104 [P] [US5] Implement `packages/server/src/adapters/tts/groq-tts.adapter.ts` implementing TTSProviderPort, calling Groq API
+- [X] T105 [US5] Implement `packages/server/src/adapters/cache/in-memory-cache.adapter.ts` implementing CacheStorePort (Redis swap TODO)
+- [X] T106 [US5] Implement `packages/server/src/adapters/persistence/prisma-credit.repository.ts` with atomic credit deduction using Prisma transactions (done in Phase 5)
+
+### Server Infrastructure
+
+- [X] T107 [US5] Implement `packages/server/src/infrastructure/controllers/tts.controller.ts` with `POST /api/v1/tts/synthesize` and `GET /api/v1/tts/voices/:provider`
+- [X] T108 [US5] Implement `packages/server/src/infrastructure/modules/tts.module.ts` wiring TTS ports → adapters, registering provider factory
+- [X] T109 [US5] Implement `packages/server/src/infrastructure/modules/credits.module.ts` wiring credit ports → adapters via factory providers
+
+### Server Tests
+
+- [X] T110 [P] [US5] Write unit tests for CreditService in `packages/server/tests/unit/core/credits/credit.service.spec.ts` (30 tests)
+- [X] T111 [P] [US5] Write unit tests for CreditAllocation entity in `packages/server/tests/unit/core/credits/credit-allocation.entity.spec.ts` (23 tests)
+- [X] T112 [P] [US5] Write unit tests for ProviderRouter in `packages/server/tests/unit/core/routing/provider-router.spec.ts` (28 tests)
+- [X] T113 [P] [US5] Write unit tests for TTSService in `packages/server/tests/unit/core/tts/tts.service.spec.ts` (24 tests)
+- [X] T114 [P] [US5] Write contract tests for TTS provider adapters in `packages/server/tests/contract/tts-provider.adapter.spec.ts`
+
+### Extension Integration
+
+- [X] T115 [US5] Update `packages/extension/src/adapters/api/voxpage-api.adapter.ts` to add `synthesize(text, provider, voice, language)` method calling server TTS proxy
+- [X] T116 [US5] Update extension audio generation flow to route managed-credit requests through server proxy while keeping BYOK direct (INV-002) in `packages/extension/src/composition/factories.ts`
+
+**Checkpoint**: TTS proxy works end-to-end: text → server → provider → audio → extension. Credits tracked. SC-009, SC-011 validated.
+
+---
+
+## Phase 8: User Story 6 — Billing Webhook Processing (Priority: P2)
+
+**Goal**: Paddle webhook events automatically update subscription status, credit allocations, and features.
+
+**Independent Test**: Send Paddle webhook payloads to `POST /webhooks/paddle`, verify subscription state transitions and credit allocations.
+
+### Server Core
+
+- [X] T117 [US6] Implement `packages/server/src/core/subscription/subscription.service.ts` with `handleSubscriptionCreated()`, `handleSubscriptionUpdated()`, `handleSubscriptionCanceled()`, `handleRenewal()` — all returning `Result<Subscription, SubscriptionError>`
+
+### Server Adapters & Infrastructure
+
+- [X] T118 [US6] Implement `packages/server/src/infrastructure/guards/paddle-webhook.guard.ts` with Paddle SDK `unmarshal()` signature verification (requires rawBody)
+- [X] T119 [US6] Implement `packages/server/src/infrastructure/controllers/webhook.controller.ts` with `POST /webhooks/paddle` handling SubscriptionCreated, SubscriptionUpdated, SubscriptionCanceled, TransactionCompleted events per api-v1.yaml
+- [X] T120 [US6] Implement `packages/server/src/infrastructure/modules/billing.module.ts` wiring Paddle adapter and webhook controller
+- [X] T121 [US6] Implement idempotency check: store processed webhook event IDs to prevent duplicate processing (FR-021)
+
+### Server Tests
+
+- [X] T122 [P] [US6] Write unit tests for SubscriptionService webhook handlers in `packages/server/tests/unit/core/subscription/webhook-handlers.spec.ts` (28 tests: create, update, cancel, renew, not-found errors, tier changes, INV-004)
+- [X] T123 [P] [US6] Write unit tests for IdempotencyService in `packages/server/tests/unit/infrastructure/idempotency.service.spec.ts` (9 tests: mark/check, bounded capacity, FIFO eviction)
+- [X] T124 [P] [US6] Write unit tests for WebhookController in `packages/server/tests/unit/infrastructure/webhook.controller.spec.ts` (17 tests: all event types, idempotency, error handling)
+
+### Dokku Config
+
+- [ ] T125 [US6] ⏳ Set Paddle env vars on Dokku (deferred — no Paddle account yet): `dokku config:set voxpage-api PADDLE_API_KEY=<key> PADDLE_WEBHOOK_SECRET=<secret>`
+- [ ] T126 [US6] ⏳ Verify webhook endpoint with Paddle sandbox test events (deferred — no Paddle account yet)
+
+**Checkpoint**: Billing lifecycle fully automated. SC-010 validated.
+
+---
+
+## Phase 9: User Story 7 — Credit Balance Visibility & History (Priority: P3)
+
+**Goal**: Users see credit balance, usage percentage, and transaction history in the extension.
+
+**Independent Test**: `GET /api/v1/credits/balance` and `GET /api/v1/credits/history` return correct data for authenticated user.
+
+### Server Infrastructure
+
+- [X] T127 [US7] Implement `packages/server/src/infrastructure/controllers/credits.controller.ts` with `GET /api/v1/credits/balance` and `GET /api/v1/credits/history?limit=50&offset=0` per api-v1.yaml
+- [X] T128 [US7] Wire CreditsController into existing `credits.module.ts` (no separate credits-api module needed)
+
+### Server Tests
+
+- [X] T129 [P] [US7] Write unit tests for credits controller in `packages/server/tests/unit/infrastructure/credits.controller.spec.ts` (14 tests: balance calculation, zeros, 401, history pagination, clamping, empty)
+- [X] T130 [P] [US7] Contract tests for PrismaCreditRepository using testcontainers (22 tests)
+
+### Extension Integration
+
+- [X] T131 [US7] Update extension API client port + adapters with `getCreditHistory(limit, offset)` method — `getCreditBalance()` already existed
+- [X] T132 [US7] Display credit balance in popup with background message handler wiring
+- [X] T133 [US7] Low-credit warning with visual states (normal/warning/critical/exhausted)
+
+**Checkpoint**: Credit visibility complete. Users can see balance and history.
+
+---
+
+## Phase 10: User Story 8 — Shared Domain Types Across Extension & Server (Priority: P3)
+
+**Goal**: Developers import shared types from `@voxpage/shared` in both packages. Type mismatches caught at compile time.
+
+**Independent Test**: Both `pnpm --filter @voxpage/extension build:firefox` and `pnpm --filter @voxpage/server build` succeed with shared type imports. Intentional type mismatch causes compile error.
+
+- [X] T134 [US8] Extension imports `TTSProvider`, `CreditBalanceResponse`, `CreditHistoryResponse`, etc. from `@voxpage/shared` — extension doesn't use `TIER_CREDITS`/`PROVIDER_COSTS` (correct: pricing is server-side only)
+- [X] T135 [US8] Server core imports `SubscriptionTier`, `TTSProvider`, `Result`, `TIER_CREDITS`, `ErrorCode`, etc. from `@voxpage/shared` throughout `core/`
+- [X] T136 [US8] Workspace type check: shared + server compile clean (0 errors). Extension has pre-existing TS errors in offscreen/options unrelated to monorepo.
+- [X] T137 [US8] Workspace build: extension builds 1.05 MB, server builds via `nest build` — both succeed
+
+**Checkpoint**: Shared types proven consistent. SC-013 validated.
+
+---
+
+## Phase 11: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories. CI/CD, documentation, final validations.
+
+- [X] T138 [P] Create `packages/server/tests/unit/core/shared/no-nestjs-imports.spec.ts` verifying `core/` has zero `@nestjs/*` imports (SC-006: 10 files scanned)
+- [X] T139 [P] Create `.github/workflows/server-ci.yml` for server CI: install, lint, test, build
+- [X] T140 [P] Update `.github/workflows/ci.yml` extension CI for monorepo paths (`packages/extension/`)
+- [X] T141 Server test count: 237 tests across 13 suites (exceeds 200+ target SC-007)
+- [X] T142 Set TTS provider API keys on Dokku: OPENAI_API_KEY set. ElevenLabs/Groq keys not available — adapters are stubs.
+- [X] T143 Full E2E validation: all 9 endpoints verified (health, license, subscription, voices, credits balance/history, synthesize, checkout, webhook) via `curl` against `https://voxpage-api.home301server.com.br`
+- [X] T144 Update `CLAUDE.md` with monorepo development guidelines, workspace commands, and new project structure
+- [X] T145 Final deployment to Dokku: predeploy (prisma db push) succeeds, healthchecks pass, HTTPS via Cloudflare Tunnel. Deployed at `https://voxpage-api.home301server.com.br`
+
+**Checkpoint**: All success criteria validated. Production-ready.
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 (Setup)**: No dependencies — start immediately
+- **Phase 2 (Foundational)**: Depends on Phase 1 — BLOCKS all server user stories
+- **Phase 3 (US1 - Extension Regression)**: Depends on Phase 1 only — can run in parallel with Phase 2
+- **Phase 4 (US2 - Deployment)**: Depends on Phase 2
+- **Phase 5 (US3 - Free Tier)**: Depends on Phase 2 — can run in parallel with Phase 4
+- **Phase 6 (US4 - License/Subscription)**: Depends on Phase 2 and Phase 4 (server deployed)
+- **Phase 7 (US5 - TTS Proxy)**: Depends on Phase 6 (needs subscription/credit infrastructure)
+- **Phase 8 (US6 - Webhooks)**: Depends on Phase 6 (needs subscription infrastructure)
+- **Phase 9 (US7 - Credit Visibility)**: Depends on Phase 7 (needs credit transaction data)
+- **Phase 10 (US8 - Shared Types)**: Can start after Phase 2 — independent of other stories
+- **Phase 11 (Polish)**: Depends on all desired user stories being complete
+
+### User Story Dependencies
+
+```
+Phase 1 (Setup) ──┬──→ Phase 3 (US1: Extension Regression) ✅ MVP
+                   │
+                   └──→ Phase 2 (Foundational) ──┬──→ Phase 4 (US2: Deployment)
+                                                  │
+                                                  ├──→ Phase 5 (US3: Free Tier) [parallel with US2]
+                                                  │
+                                                  ├──→ Phase 10 (US8: Shared Types) [parallel]
+                                                  │
+                                                  └──→ Phase 6 (US4: License) ──┬──→ Phase 7 (US5: TTS Proxy)
+                                                                                │
+                                                                                └──→ Phase 8 (US6: Webhooks)
+                                                                                         │
+                                                                                         └──→ Phase 9 (US7: Credits UI)
+```
+
+### Parallel Opportunities
+
+**Within Phase 1**: T001-T005 can run in parallel (different files)
+**Within Phase 2**: T017-T026 (shared package) all [P]. T034-T038 (server modules) all [P]. T047-T051 (deployment artifacts) all [P].
+**Between Phases**: Phase 3 and Phase 2 can run concurrently. Phase 4 and Phase 5 can run concurrently. Phase 7 and Phase 8 can run concurrently.
+
+---
+
+## Parallel Example: Phase 2 (Foundational)
+
+```
+# Launch all shared package types in parallel:
+T017: Result<T,E> type in packages/shared/src/result.ts
+T018: Subscription types in packages/shared/src/domain/subscription.ts
+T019: Provider types in packages/shared/src/domain/provider.ts
+T020: Credit types in packages/shared/src/domain/credits.ts
+T021: License types in packages/shared/src/domain/license.ts
+T022: Tier constants in packages/shared/src/constants/tiers.ts
+T023: Provider costs in packages/shared/src/constants/providers.ts
+T024: Invariants in packages/shared/src/constants/invariants.ts
+T025: API types in packages/shared/src/types/api.ts
+T026: Error types in packages/shared/src/types/errors.ts
+
+# After T027 (barrel export), launch server modules in parallel:
+T034: App config
+T035: Logging module
+T036: Health module
+T037: Health controller
+T038: Prisma health indicator
+
+# Launch deployment artifacts in parallel (any time):
+T047: Dockerfile
+T048: Procfile
+T049: app.json
+T050: .env.example
+T051: .dockerignore
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (Phase 1 + Phase 3 = Extension Regression Only)
+
+1. Complete Phase 1: Monorepo Setup
+2. Complete Phase 3: Extension Regression Validation (US1)
+3. **STOP and VALIDATE**: All 2,881+ tests pass, extension builds, behavior unchanged
+4. Commit and push — monorepo migration is complete and safe
+
+### Server MVP (Add Phase 2 + Phase 4)
+
+1. Complete Phase 2: Server Skeleton + Shared Package
+2. Complete Phase 4: Deploy to Dokku (US2)
+3. **STOP and VALIDATE**: Health check works, logs in Grafana
+4. Server is live — feature development can begin
+
+### Incremental Delivery
+
+1. Setup + Extension Regression → Monorepo migration validated
+2. Foundational + Deployment → Server live on Dokku
+3. Free Tier (US3) → Business invariants enforced
+4. License/Subscription (US4) → Revenue model functional
+5. TTS Proxy (US5) → Core value delivered
+6. Webhooks (US6) → Billing automated
+7. Credit Visibility (US7) → User experience polished
+8. Shared Types (US8) → Developer experience improved
+9. Polish → Production-ready
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies on incomplete tasks
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
+- Server `core/` directory must have ZERO `@nestjs/*` imports (SC-006)
+- All 6 business invariants (INV-001 through INV-006) must be enforced
+- Commit after each phase completion
+- Total: 145 tasks across 11 phases

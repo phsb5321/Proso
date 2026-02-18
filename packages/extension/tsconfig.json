@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM"],
+    "downlevelIteration": true,
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["./src/utils/*"],
+      "~/*": ["./*"],
+      "@voxpage/shared": ["../shared/src"],
+      "@voxpage/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": [
+    "global.d.ts",
+    "types/**/*",
+    ".wxt/types/**/*",
+    "src/**/*",
+    "tests/**/*",
+    "wxt.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".wxt", ".output"]
+}
