@@ -1,6 +1,6 @@
-# VoxPage Legal Documents
+# Proso Legal Documents
 
-Standalone legal documents for VoxPage. These are the authoritative versions referenced by the extension, server, Paddle checkout, and external links.
+Standalone legal documents for Proso. These are the authoritative versions referenced by the extension, server, Paddle checkout, and external links.
 
 ## Files
 
@@ -33,8 +33,8 @@ Legal pages deploy alongside the marketing site via `.github/workflows/deploy-si
 
 1. Push changes to `main` branch
 2. GitHub Action copies `packages/legal/` into `packages/site/legal/`
-3. Deploys to `phsb5321/VoxPage` repo
-4. Accessible at `https://phsb5321.github.io/VoxPage/legal/terms.html`
+3. Deploys to `phsb5321/Proso` repo
+4. Accessible at `https://phsb5321.github.io/Proso/legal/terms.html`
 
 ## Updating the ToS
 

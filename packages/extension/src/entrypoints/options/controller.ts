@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Options Page Controller
+ * Proso Options Page Controller
  * TypeScript conversion from options/options.js
  */
 
@@ -394,7 +394,7 @@ function setupStorageChangeListener(): void {
  * Setup collapsible accordion sections (018-ui-redesign T084)
  */
 function setupAccordions(): void {
-  const accordionHeaders = document.querySelectorAll('.voxpage-accordion__header');
+  const accordionHeaders = document.querySelectorAll('.proso-accordion__header');
 
   accordionHeaders.forEach((header) => {
     header.addEventListener('click', () => {
@@ -557,7 +557,7 @@ async function loadSettings(): Promise<void> {
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
 
     console.log(
-      'VoxPage options: Settings loaded, mode:',
+      'Proso options: Settings loaded, mode:',
       (result.mode as string | undefined) || settingsDefaults.mode,
     );
 
@@ -836,7 +836,7 @@ async function handleBrowserTtsTest(button: HTMLButtonElement): Promise<void> {
   showProviderCardStatus(statusEl, 'Testing...', 'loading');
 
   try {
-    const utterance = new SpeechSynthesisUtterance('Hello! VoxPage Browser TTS is working.');
+    const utterance = new SpeechSynthesisUtterance('Hello! Proso Browser TTS is working.');
     utterance.rate = 1.0;
 
     // Apply selected voice if any
@@ -1088,10 +1088,10 @@ async function loadLoggingConfig(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get('voxpage_logging_config');
+    const result = await browser.storage.local.get('proso_logging_config');
     const config: LoggingConfig = {
       ...loggingDefaults,
-      ...((result.voxpage_logging_config as Partial<LoggingConfig>) || {}),
+      ...((result.proso_logging_config as Partial<LoggingConfig>) || {}),
     };
 
     // Only the toggle is visible - other settings use defaults
@@ -1137,7 +1137,7 @@ async function saveLoggingConfig(): Promise<void> {
       enabled: elements.loggingEnabled.checked,
     };
 
-    await browser.storage.local.set({ voxpage_logging_config: config });
+    await browser.storage.local.set({ proso_logging_config: config });
     showSaveStatus('Settings saved!');
   } catch (error) {
     console.error('Error saving logging config:', error);
@@ -1273,7 +1273,7 @@ async function exportLogs(): Promise<void> {
 
       const a = document.createElement('a');
       a.href = url;
-      a.download = `voxpage-logs-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `proso-logs-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -65,7 +65,7 @@ cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "## Git Status Context\n- **Branch**: $BRANCH\n- **Uncommitted changes**: $UNCOMMITTED file(s)\n- **Unpushed commits**: $UNPUSHED\n- **Commits ahead of $MAIN_BRANCH**: $AHEAD_OF_MAIN\n- **Pull Request**: $PR_STATUS\n\nUse the voxpage-git-workflow skill for commit/push/PR operations."
+    "additionalContext": "## Git Status Context\n- **Branch**: $BRANCH\n- **Uncommitted changes**: $UNCOMMITTED file(s)\n- **Unpushed commits**: $UNPUSHED\n- **Commits ahead of $MAIN_BRANCH**: $AHEAD_OF_MAIN\n- **Pull Request**: $PR_STATUS\n\nUse the proso-git-workflow skill for commit/push/PR operations."
   }
 }
 EOF

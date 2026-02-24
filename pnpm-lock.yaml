@@ -14,7 +14,7 @@ importers:
 
   packages/extension:
     dependencies:
-      '@voxpage/shared':
+      '@proso/shared':
         specifier: workspace:*
         version: link:../shared
       '@webext-core/messaging':
@@ -111,7 +111,7 @@ importers:
       '@prisma/client':
         specifier: ^7.0.1
         version: 7.3.0(prisma@7.3.0(@types/react@19.2.14)(magicast@0.3.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
-      '@voxpage/shared':
+      '@proso/shared':
         specifier: workspace:*
         version: link:../shared
       nestjs-pino:
@@ -181,6 +181,8 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
+
+  packages/site: {}
 
 packages:
 

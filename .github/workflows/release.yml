@@ -140,8 +140,8 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: voxpage-${{ matrix.browser }}-${{ needs.validate.outputs.version }}
-          path: .output/voxpage-${{ needs.validate.outputs.version }}-${{ matrix.browser }}.zip
+          name: proso-${{ matrix.browser }}-${{ needs.validate.outputs.version }}
+          path: .output/proso-${{ needs.validate.outputs.version }}-${{ matrix.browser }}.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -149,8 +149,8 @@ jobs:
         if: matrix.browser == 'firefox'
         uses: actions/upload-artifact@v4
         with:
-          name: voxpage-sources-${{ needs.validate.outputs.version }}
-          path: .output/voxpage-${{ needs.validate.outputs.version }}-sources.zip
+          name: proso-sources-${{ needs.validate.outputs.version }}
+          path: .output/proso-${{ needs.validate.outputs.version }}-sources.zip
           if-no-files-found: warn
           retention-days: 30
 
@@ -162,13 +162,13 @@ jobs:
       - name: Download Firefox artifact
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-firefox-${{ needs.validate.outputs.version }}
+          name: proso-firefox-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: Download sources artifact
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-sources-${{ needs.validate.outputs.version }}
+          name: proso-sources-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: List artifacts
@@ -179,11 +179,11 @@ jobs:
         uses: kewisch/action-web-ext@v1
         with:
           cmd: sign
-          source: artifacts/voxpage-${{ needs.validate.outputs.version }}-firefox.zip
+          source: artifacts/proso-${{ needs.validate.outputs.version }}-firefox.zip
           channel: unlisted
           apiKey: ${{ secrets.AMO_API_KEY }}
           apiSecret: ${{ secrets.AMO_API_SECRET }}
-          sourceCode: artifacts/voxpage-${{ needs.validate.outputs.version }}-sources.zip
+          sourceCode: artifacts/proso-${{ needs.validate.outputs.version }}-sources.zip
           approvalNotes: |
             Build instructions: pnpm install && NODE_ENV=production pnpm run build:firefox
 
@@ -201,7 +201,7 @@ jobs:
         if: steps.amo-sign.outputs.target != ''
         uses: actions/upload-artifact@v4
         with:
-          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          name: proso-signed-${{ needs.validate.outputs.version }}
           path: ${{ steps.amo-sign.outputs.target }}
           retention-days: 90
 
@@ -216,26 +216,26 @@ jobs:
       - name: Download Firefox artifact
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-firefox-${{ needs.validate.outputs.version }}
+          name: proso-firefox-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: Download Chrome artifact
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-chrome-${{ needs.validate.outputs.version }}
+          name: proso-chrome-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: Download sources artifact
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-sources-${{ needs.validate.outputs.version }}
+          name: proso-sources-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: Download signed .xpi (if available)
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          name: proso-signed-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: List artifacts
@@ -256,7 +256,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
-          name: VoxPage ${{ needs.validate.outputs.version }}
+          name: Proso ${{ needs.validate.outputs.version }}
           files: |
             artifacts/*.zip
             artifacts/*.xpi
@@ -275,7 +275,7 @@ jobs:
       - name: Download signed .xpi
         uses: actions/download-artifact@v4
         with:
-          name: voxpage-signed-${{ needs.validate.outputs.version }}
+          name: proso-signed-${{ needs.validate.outputs.version }}
           path: artifacts/
 
       - name: List signed artifacts
@@ -305,7 +305,7 @@ jobs:
 
           # Copy signed .xpi to releases/
           mkdir -p gh-pages-dir/releases
-          cp "$XPI" "gh-pages-dir/releases/voxpage-${VERSION}.xpi"
+          cp "$XPI" "gh-pages-dir/releases/proso-${VERSION}.xpi"
 
           # Generate updated updates.json (preserves existing entries, appends new version)
           node -e "
@@ -329,7 +329,7 @@ jobs:
             // Add new version entry
             filtered.push({
               version: version,
-              update_link: 'https://phsb5321.github.io/VoxPage/releases/voxpage-' + version + '.xpi',
+              update_link: 'https://phsb5321.github.io/Proso/releases/proso-' + version + '.xpi',
               update_hash: hash,
               browser_specific_settings: {
                 gecko: { strict_min_version: '109.0' }
@@ -351,8 +351,8 @@ jobs:
           git push origin gh-pages
 
           echo "Deployed updates.json and .xpi for v${VERSION}"
-          echo "Updates URL: https://phsb5321.github.io/VoxPage/updates.json"
-          echo "XPI URL: https://phsb5321.github.io/VoxPage/releases/voxpage-${VERSION}.xpi"
+          echo "Updates URL: https://phsb5321.github.io/Proso/updates.json"
+          echo "XPI URL: https://phsb5321.github.io/Proso/releases/proso-${VERSION}.xpi"
 
       - name: Trigger site redeploy to include release files
         env:

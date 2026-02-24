@@ -346,7 +346,7 @@ describe('PlaybackSyncState', () => {
   });
 
   // T017: Unit test for paragraph callback behavior
-  // NOTE: VoxPage plays paragraphs one at a time (discrete audio), so the sync loop
+  // NOTE: Proso plays paragraphs one at a time (discrete audio), so the sync loop
   // does NOT fire onParagraphChange. Paragraph highlighting is handled directly
   // by playCurrentParagraph() in background.js.
   describe('Initial Paragraph Callback (T017)', () => {

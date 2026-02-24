@@ -82,15 +82,15 @@ async function enableSelectionMode(page) {
   await page.evaluate(() => {
     const paragraphs = document.querySelectorAll('p');
     paragraphs.forEach((p, index) => {
-      p.classList.add('voxpage-selectable');
-      p.dataset.voxpageSelectIndex = index.toString();
-      p.dataset.testid = 'voxpage-paragraph';
+      p.classList.add('proso-selectable');
+      p.dataset.prosoSelectIndex = index.toString();
+      p.dataset.testid = 'proso-paragraph';
 
       // Create play icon with accessibility attributes (T009)
       const icon = document.createElement('div');
-      icon.className = 'voxpage-play-icon';
-      icon.dataset.voxpagePlayIndex = index.toString();
-      icon.dataset.testid = 'voxpage-play-icon';
+      icon.className = 'proso-play-icon';
+      icon.dataset.prosoPlayIndex = index.toString();
+      icon.dataset.testid = 'proso-play-icon';
       icon.setAttribute('role', 'button');
       icon.setAttribute('aria-label', `Play from paragraph ${index + 1}`);
       icon.setAttribute('tabindex', '0'); // Make focusable
@@ -99,7 +99,7 @@ async function enableSelectionMode(page) {
   });
 
   // Wait for DOM to update
-  await waitForLayoutStable(page, 'p.voxpage-selectable', 50);
+  await waitForLayoutStable(page, 'p.proso-selectable', 50);
 }
 
 test.describe('Keyboard Navigation Accessibility (T004)', () => {
@@ -125,7 +125,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
 
     // Verify play icon is visible (opacity > 0)
     const playIconOpacity = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .voxpage-play-icon');
+      const icon = document.querySelector('#p1 .proso-play-icon');
       if (!icon) return '0';
       return getComputedStyle(icon).opacity;
     });
@@ -176,11 +176,11 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
     // Tab to play icon within the paragraph
     await page.keyboard.press('Tab'); // Play icon
 
-    await waitForLayoutStable(page, '#p1 .voxpage-play-icon', 50);
+    await waitForLayoutStable(page, '#p1 .proso-play-icon', 50);
 
     // Verify focus ring is visible via outline
     const focusRingStyle = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .voxpage-play-icon');
+      const icon = document.querySelector('#p1 .proso-play-icon');
       if (!icon) return { outline: 'none', opacity: '0' };
       const style = getComputedStyle(icon);
       return {
@@ -215,7 +215,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
     await page.keyboard.press('Tab'); // Second paragraph
     await page.keyboard.press('Tab'); // Second play icon
 
-    await waitForLayoutStable(page, '#p2 .voxpage-play-icon', 50);
+    await waitForLayoutStable(page, '#p2 .proso-play-icon', 50);
 
     await expect(page).toHaveScreenshot('tab-to-play-button-focus-dark.png', {
       maxDiffPixelRatio: 0.02
@@ -231,7 +231,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
     await page.evaluate(() => {
       window.playButtonClicked = false;
       window.clickedIndex = null;
-      document.querySelectorAll('.voxpage-play-icon').forEach((icon, index) => {
+      document.querySelectorAll('.proso-play-icon').forEach((icon, index) => {
         icon.addEventListener('click', () => {
           window.playButtonClicked = true;
           window.clickedIndex = index;
@@ -275,7 +275,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
     await page.evaluate(() => {
       window.playButtonClicked = false;
       window.clickedIndex = null;
-      document.querySelectorAll('.voxpage-play-icon').forEach((icon, index) => {
+      document.querySelectorAll('.proso-play-icon').forEach((icon, index) => {
         icon.addEventListener('click', () => {
           window.playButtonClicked = true;
           window.clickedIndex = index;
@@ -324,7 +324,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
 
     // Check that play icon is visible
     const playIconOpacity = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .voxpage-play-icon');
+      const icon = document.querySelector('#p1 .proso-play-icon');
       if (!icon) return '0';
       return getComputedStyle(icon).opacity;
     });
@@ -342,7 +342,7 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
     await enableSelectionMode(page);
 
     const ariaAttributes = await page.evaluate(() => {
-      const icons = document.querySelectorAll('.voxpage-play-icon');
+      const icons = document.querySelectorAll('.proso-play-icon');
       return Array.from(icons).map((icon, index) => ({
         role: icon.getAttribute('role'),
         ariaLabel: icon.getAttribute('aria-label'),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NixOS Playwright Setup for VoxPage
+# NixOS Playwright Setup for Proso
 #
 # Problem: Playwright downloads browser binaries that are incompatible with NixOS
 # Solution: Use system Firefox from the Nix store instead

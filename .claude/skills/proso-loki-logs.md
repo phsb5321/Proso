@@ -1,12 +1,12 @@
 ---
-name: voxpage-loki-logs
-description: Query VoxPage telemetry logs from the Loki gateway. Use when debugging user issues, investigating errors, analyzing telemetry data, or querying extension logs.
+name: proso-loki-logs
+description: Query Proso telemetry logs from the Loki gateway. Use when debugging user issues, investigating errors, analyzing telemetry data, or querying extension logs.
 allowed-tools: Bash(curl:*), Bash(jq:*), Bash(./scripts/loki/*), Read, WebFetch
 ---
 
-# VoxPage Loki Logs Skill
+# Proso Loki Logs Skill
 
-This skill guides Claude through querying VoxPage telemetry logs from the production Loki instance for debugging, support, and analysis.
+This skill guides Claude through querying Proso telemetry logs from the production Loki instance for debugging, support, and analysis.
 
 ## Infrastructure Overview
 
@@ -14,14 +14,14 @@ This skill guides Claude through querying VoxPage telemetry logs from the produc
 |---------|-----|---------|
 | Loki | https://loki.home301server.com.br | Log storage and query API |
 | Grafana | https://grafana.home301server.com.br | Log visualization UI |
-| VoxPage Gateway | https://voxpage-logs.home301server.com.br | Log ingestion endpoint |
+| Proso Gateway | https://logs.proso.com | Log ingestion endpoint |
 | Prometheus | https://prometheus.home301server.com.br | Metrics (not logs) |
 
 ## Quick Reference
 
 ### Using Helper Scripts
 
-VoxPage includes shell scripts in `scripts/loki/` for common queries:
+Proso includes shell scripts in `scripts/loki/` for common queries:
 
 ```bash
 # Set production Loki URL
@@ -42,19 +42,19 @@ export LOKI_URL="https://loki.home301server.com.br"
 For custom queries without scripts:
 
 ```bash
-# Basic query - recent VoxPage logs
+# Basic query - recent Proso logs
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"}' \
+  --data-urlencode 'query={app="proso"}' \
   --data-urlencode 'limit=100' | jq '.data.result[].values[] | .[1] | fromjson'
 
 # Query errors only
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", level="error"}' \
+  --data-urlencode 'query={app="proso", level="error"}' \
   --data-urlencode 'limit=50' | jq '.'
 
 # Query by environment
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", env="prod"}' \
+  --data-urlencode 'query={app="proso", env="prod"}' \
   --data-urlencode 'limit=100' | jq '.'
 ```
 
@@ -62,18 +62,18 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 
 1. Go to https://grafana.home301server.com.br/explore
 2. Select "Loki" as the data source
-3. Enter query: `{app="voxpage"}`
+3. Enter query: `{app="proso"}`
 4. Adjust time range as needed
 
 ## LogQL Query Reference
 
 ### Label Selectors
 
-VoxPage logs use these labels (low-cardinality, efficient for filtering):
+Proso logs use these labels (low-cardinality, efficient for filtering):
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `app` | `voxpage` | Application identifier (always "voxpage") |
+| `app` | `proso` | Application identifier (always "proso") |
 | `env` | `dev`, `staging`, `prod` | Environment |
 | `entrypoint` | `background`, `popup`, `options`, `content` | Extension context |
 | `level` | `debug`, `info`, `warn`, `error` | Log severity |
@@ -98,26 +98,26 @@ High-cardinality fields stored in the log body (use JSON filtering):
 ### Query Examples
 
 ```logql
-# All VoxPage logs
-{app="voxpage"}
+# All Proso logs
+{app="proso"}
 
 # Production errors only
-{app="voxpage", level="error", env="prod"}
+{app="proso", level="error", env="prod"}
 
 # Playback events from popup
-{app="voxpage", eventGroup="playback", entrypoint="popup"}
+{app="proso", eventGroup="playback", entrypoint="popup"}
 
 # Filter by JSON field (sessionId)
-{app="voxpage"} | json | sessionId="550e8400-e29b-41d4-a716-446655440000"
+{app="proso"} | json | sessionId="550e8400-e29b-41d4-a716-446655440000"
 
 # Filter by installId (user)
-{app="voxpage"} | json | installId="550e8400-e29b-41d4-a716-446655440000"
+{app="proso"} | json | installId="550e8400-e29b-41d4-a716-446655440000"
 
 # Filter by event name pattern
-{app="voxpage"} | json | event=~"playback.*"
+{app="proso"} | json | event=~"playback.*"
 
 # Count errors per hour
-count_over_time({app="voxpage", level="error"}[1h])
+count_over_time({app="proso", level="error"}[1h])
 ```
 
 ## Common Debugging Workflows
@@ -132,7 +132,7 @@ When a user reports an issue:
 
 # Or search for errors in the timeframe they reported
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", level="error"}' \
+  --data-urlencode 'query={app="proso", level="error"}' \
   --data-urlencode 'start=1704067200000000000' \
   --data-urlencode 'end=1704153600000000000' \
   --data-urlencode 'limit=500' | jq '.'
@@ -149,7 +149,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 
 # Check error rate trend
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query=count_over_time({app="voxpage", level="error"}[1h])' \
+  --data-urlencode 'query=count_over_time({app="proso", level="error"}[1h])' \
   --data-urlencode 'step=3600' | jq '.'
 ```
 
@@ -158,7 +158,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # Query playback events for a session
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", eventGroup="playback"} | json | sessionId="<uuid>"' \
+  --data-urlencode 'query={app="proso", eventGroup="playback"} | json | sessionId="<uuid>"' \
   --data-urlencode 'limit=500' | jq '.data.result[].values[] | .[1] | fromjson | "\(.ts) \(.event): \(.msg)"' -r
 ```
 
@@ -167,7 +167,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # PDF-related events
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", eventGroup="pdf"}' \
+  --data-urlencode 'query={app="proso", eventGroup="pdf"}' \
   --data-urlencode 'limit=200' | jq '.'
 ```
 
@@ -176,7 +176,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # System events (extension lifecycle)
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", eventGroup="system"}' \
+  --data-urlencode 'query={app="proso", eventGroup="system"}' \
   --data-urlencode 'limit=100' | jq '.data.result[].values[] | .[1] | fromjson'
 ```
 
@@ -187,17 +187,17 @@ Console capture sends `console.log`, `console.warn`, `console.error` etc. to Lok
 ```bash
 # All console output
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"} | json | event=~"console\\..*"' \
+  --data-urlencode 'query={app="proso"} | json | event=~"console\\..*"' \
   --data-urlencode 'limit=200' | jq '.data.result[].values[] | .[1] | fromjson | "\(.ts) [\(.event)] \(.data.message)"' -r
 
 # Console errors only
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"} | json | event="console.error"' \
+  --data-urlencode 'query={app="proso"} | json | event="console.error"' \
   --data-urlencode 'limit=100' | jq '.'
 
 # Console warnings
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"} | json | event="console.warn"' \
+  --data-urlencode 'query={app="proso"} | json | event="console.warn"' \
   --data-urlencode 'limit=100' | jq '.'
 ```
 
@@ -220,7 +220,7 @@ START_NS=$(( ($(date +%s) - 86400) * 1000000000 ))
 END_NS=$(( $(date +%s) * 1000000000 ))
 
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"}' \
+  --data-urlencode 'query={app="proso"}' \
   --data-urlencode "start=$START_NS" \
   --data-urlencode "end=$END_NS" \
   --data-urlencode 'limit=100' | jq '.'
@@ -233,7 +233,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # Parse and format log entries
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"}' \
+  --data-urlencode 'query={app="proso"}' \
   --data-urlencode 'limit=50' | jq -r '
     .data.result[].values[] | .[1] | fromjson |
     "[\(.ts)] [\(.level | ascii_upcase)] \(.event): \(.msg)"
@@ -245,7 +245,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # Get sessionId, event, and message
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage", level="error"}' \
+  --data-urlencode 'query={app="proso", level="error"}' \
   --data-urlencode 'limit=20' | jq -r '
     .data.result[].values[] | .[1] | fromjson |
     {sessionId, event, msg, data}
@@ -257,7 +257,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
 ```bash
 # Count logs by event type
 curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
-  --data-urlencode 'query={app="voxpage"}' \
+  --data-urlencode 'query={app="proso"}' \
   --data-urlencode 'limit=1000' | jq '
     [.data.result[].values[] | .[1] | fromjson | .event] |
     group_by(.) | map({event: .[0], count: length}) | sort_by(.count) | reverse
@@ -286,7 +286,7 @@ curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query_range' \
    ```bash
    # Test query syntax
    curl -s -G 'https://loki.home301server.com.br/loki/api/v1/query' \
-     --data-urlencode 'query={app="voxpage"}' | jq '.status'
+     --data-urlencode 'query={app="proso"}' | jq '.status'
    # Should return: "success"
    ```
 
@@ -315,7 +315,7 @@ Use this skill when:
 
 ## Console Capture
 
-VoxPage can capture console output and send it to Loki for remote debugging.
+Proso can capture console output and send it to Loki for remote debugging.
 
 ### Enabling Console Capture
 
@@ -355,13 +355,13 @@ cleanupConsole();
 
 ### Self-Filtering
 
-VoxPage internal logs (prefixed with `[VoxPage]`, `[UsageTracker]`, etc.) are automatically filtered to prevent infinite loops.
+Proso internal logs (prefixed with `[Proso]`, `[UsageTracker]`, etc.) are automatically filtered to prevent infinite loops.
 
 ### Example Prompts
 
-- "Show me recent VoxPage errors"
+- "Show me recent Proso errors"
 - "Query logs for session <uuid>"
 - "What errors happened in the last hour?"
-- "Check VoxPage telemetry"
+- "Check Proso telemetry"
 - "Debug playback issues for install <uuid>"
-- "Is Loki receiving logs from VoxPage?"
+- "Is Loki receiving logs from Proso?"

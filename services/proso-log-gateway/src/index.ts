@@ -1,7 +1,7 @@
 /**
- * VoxPage Log Gateway
+ * Proso Log Gateway
  *
- * Express server that receives telemetry events from the VoxPage extension
+ * Express server that receives telemetry events from the Proso extension
  * and pushes them to Loki for storage and querying.
  *
  * Architecture:
@@ -262,7 +262,7 @@ async function start(): Promise<void> {
         rateLimitRpm: config.rateLimitRpm,
         authEnabled: !!config.gatewayToken,
       },
-      'VoxPage Log Gateway started',
+      'Proso Log Gateway started',
     );
   });
 }

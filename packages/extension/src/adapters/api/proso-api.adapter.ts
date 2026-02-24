@@ -1,10 +1,10 @@
 /**
- * VoxPage API Adapter
+ * Proso API Adapter
  *
- * HTTP client for communicating with the VoxPage backend server.
+ * HTTP client for communicating with the Proso backend server.
  * Implements IApiClient port with retry logic and license key auth.
  *
- * @module adapters/api/voxpage-api
+ * @module adapters/api/proso-api
  */
 
 import type { Result } from '../../core/shared/result';
@@ -23,16 +23,16 @@ import type {
   CreditHistoryResponse,
   ErrorResponse,
   TTSSynthesizeRequest,
-} from '@voxpage/shared';
+} from '@proso/shared';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1_000;
 
 /**
- * VoxPage API adapter — HTTP client with retry and auth headers.
+ * Proso API adapter — HTTP client with retry and auth headers.
  */
-export class VoxPageApiAdapter implements IApiClient {
+export class ProsoApiAdapter implements IApiClient {
   private readonly baseUrl: string;
   private licenseKey: string | null;
 

@@ -20,7 +20,7 @@ import type {
   CreditBalanceResponse,
   CreditHistoryResponse,
   TTSSynthesizeRequest,
-} from '@voxpage/shared';
+} from '@proso/shared';
 
 const NOT_CONFIGURED = apiClientError.notConfigured(
   'Server URL not configured. Extension operates in BYOK-only mode.',

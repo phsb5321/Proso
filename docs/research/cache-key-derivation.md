@@ -3,7 +3,7 @@
 **Last Updated**: 2026-01-20
 **Feature Branch**: `047-architecture-ui-polish`
 
-This document describes VoxPage's cache key derivation strategy for the Smart Audio Cache system.
+This document describes Proso's cache key derivation strategy for the Smart Audio Cache system.
 
 ---
 

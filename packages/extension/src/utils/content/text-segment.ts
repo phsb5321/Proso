@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Text Segment Module
+ * Proso Text Segment Module
  * Maps extracted text to DOM elements for highlighting
  * Supports both paragraph-level and word-level highlighting
  *
@@ -155,7 +155,7 @@ export class TextSegment {
         return range;
       }
     } catch (e) {
-      console.warn('VoxPage: Failed to create word range:', e);
+      console.warn('Proso: Failed to create word range:', e);
     }
 
     return null;

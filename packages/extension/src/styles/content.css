@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later
- * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
- * Commercial licensing: https://voxpage.com/commercial
+ * Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+ * Commercial licensing: https://proso.com/commercial
  */
 /**
- * VoxPage Content Styles
+ * Proso Content Styles
  * Styles injected into web pages for highlighting
  */
 
-.voxpage-highlight {
+.proso-highlight {
   background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(20, 184, 166, 0.15) 100%) !important;
   border-left: 3px solid #0d9488 !important;
   padding-left: 12px !important;
@@ -21,7 +21,7 @@
 }
 
 /* Animation for highlight */
-@keyframes voxpage-pulse {
+@keyframes proso-pulse {
   0%,
   100% {
     box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1);
@@ -31,34 +31,34 @@
   }
 }
 
-.voxpage-highlight {
-  animation: voxpage-pulse 2s ease-in-out infinite;
+.proso-highlight {
+  animation: proso-pulse 2s ease-in-out infinite;
 }
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-  .voxpage-highlight {
+  .proso-highlight {
     background: linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(20, 184, 166, 0.25) 100%) !important;
   }
 }
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .voxpage-highlight {
+  .proso-highlight {
     animation: none !important;
     transition: none !important;
   }
 }
 
 /* Word-level highlighting using CSS Custom Highlight API (T049) */
-::highlight(voxpage-word) {
+::highlight(proso-word) {
   background-color: rgba(13, 148, 136, 0.4);
   color: inherit;
 }
 
 /* Dark mode support for word highlighting */
 @media (prefers-color-scheme: dark) {
-  ::highlight(voxpage-word) {
+  ::highlight(proso-word) {
     background-color: rgba(20, 184, 166, 0.5);
   }
 }
@@ -69,7 +69,7 @@
  * ============================================ */
 
 /* Selectable paragraph indicator */
-.voxpage-selectable {
+.proso-selectable {
   position: relative !important;
   cursor: pointer !important;
   transition: background-color 0.15s ease, border-color 0.15s ease !important;
@@ -80,31 +80,31 @@
 }
 
 /* Ensure links and interactive elements inside paragraphs remain clickable */
-.voxpage-selectable a,
-.voxpage-selectable button,
-.voxpage-selectable input,
-.voxpage-selectable [onclick],
-.voxpage-selectable [role="button"],
-.voxpage-selectable [role="link"] {
+.proso-selectable a,
+.proso-selectable button,
+.proso-selectable input,
+.proso-selectable [onclick],
+.proso-selectable [role="button"],
+.proso-selectable [role="link"] {
   position: relative !important;
   z-index: 10 !important;
   cursor: pointer !important;
 }
 
 /* Hover state for selectable paragraphs */
-.voxpage-selectable:hover {
+.proso-selectable:hover {
   background-color: rgba(13, 148, 136, 0.08) !important;
 }
 
 /* T005: Focus-within state for keyboard navigation (035-selection-tts-hardening) */
-.voxpage-selectable:focus-within {
+.proso-selectable:focus-within {
   background-color: rgba(13, 148, 136, 0.08) !important;
   outline: 2px solid rgba(13, 148, 136, 0.5) !important;
   outline-offset: 2px !important;
 }
 
 /* Selected (pre-play) state */
-.voxpage-selected {
+.proso-selected {
   background-color: rgba(13, 148, 136, 0.12) !important;
   border-left: 2px solid rgba(13, 148, 136, 0.5) !important;
   padding-left: 8px !important;
@@ -113,7 +113,7 @@
 }
 
 /* Play icon container */
-.voxpage-play-icon {
+.proso-play-icon {
   position: absolute !important;
   left: -40px !important;
   top: 50% !important;
@@ -134,20 +134,20 @@
 }
 
 /* Show play icon on paragraph hover or focus-within (T005) */
-.voxpage-selectable:hover .voxpage-play-icon,
-.voxpage-selectable:focus-within .voxpage-play-icon,
-.voxpage-selected .voxpage-play-icon {
+.proso-selectable:hover .proso-play-icon,
+.proso-selectable:focus-within .proso-play-icon,
+.proso-selected .proso-play-icon {
   opacity: 1 !important;
 }
 
 /* T006: Focus state for play icon button (035-selection-tts-hardening) */
-.voxpage-play-icon:focus {
+.proso-play-icon:focus {
   opacity: 1 !important;
   background: #14b8a6 !important;
 }
 
 /* T007: Focus-visible outline for play icon (035-selection-tts-hardening) */
-.voxpage-play-icon:focus-visible {
+.proso-play-icon:focus-visible {
   opacity: 1 !important;
   outline: 2px solid #0d9488 !important;
   outline-offset: 2px !important;
@@ -155,23 +155,23 @@
 }
 
 /* Hide default outline on focus (non-visible) */
-.voxpage-play-icon:focus:not(:focus-visible) {
+.proso-play-icon:focus:not(:focus-visible) {
   outline: none !important;
 }
 
 /* Play icon hover effect */
-.voxpage-play-icon:hover {
+.proso-play-icon:hover {
   background: #14b8a6 !important;
   transform: translateY(-50%) scale(1.1) !important;
 }
 
 /* Play icon active state */
-.voxpage-play-icon:active {
+.proso-play-icon:active {
   transform: translateY(-50%) scale(0.95) !important;
 }
 
 /* Play icon SVG/content */
-.voxpage-play-icon::after {
+.proso-play-icon::after {
   content: "" !important;
   width: 0 !important;
   height: 0 !important;
@@ -182,7 +182,7 @@
 }
 
 /* Inline play icon for narrow margins */
-.voxpage-play-icon--inline {
+.proso-play-icon--inline {
   position: relative !important;
   left: auto !important;
   top: auto !important;
@@ -194,52 +194,52 @@
   height: 22px !important;
 }
 
-.voxpage-play-icon--inline:hover {
+.proso-play-icon--inline:hover {
   transform: scale(1.1) !important;
 }
 
-.voxpage-play-icon--inline:active {
+.proso-play-icon--inline:active {
   transform: scale(0.95) !important;
 }
 
-.voxpage-play-icon--inline::after {
+.proso-play-icon--inline::after {
   border-width: 5px 0 5px 8px !important;
   margin-left: 2px !important;
 }
 
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
-  .voxpage-selectable:hover {
+  .proso-selectable:hover {
     background-color: rgba(20, 184, 166, 0.12) !important;
   }
 
   /* T005: Focus-within in dark mode */
-  .voxpage-selectable:focus-within {
+  .proso-selectable:focus-within {
     background-color: rgba(20, 184, 166, 0.12) !important;
     outline-color: rgba(20, 184, 166, 0.6) !important;
   }
 
-  .voxpage-selected {
+  .proso-selected {
     background-color: rgba(20, 184, 166, 0.18) !important;
     border-left-color: rgba(20, 184, 166, 0.6) !important;
   }
 
-  .voxpage-play-icon {
+  .proso-play-icon {
     background: #14b8a6 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 
-  .voxpage-play-icon:hover {
+  .proso-play-icon:hover {
     background: #2dd4bf !important;
   }
 
   /* T006-T007: Focus states in dark mode */
-  .voxpage-play-icon:focus,
-  .voxpage-play-icon:focus-visible {
+  .proso-play-icon:focus,
+  .proso-play-icon:focus-visible {
     background: #2dd4bf !important;
   }
 
-  .voxpage-play-icon:focus-visible {
+  .proso-play-icon:focus-visible {
     outline-color: #14b8a6 !important;
     box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4), 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
@@ -247,8 +247,8 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .voxpage-selectable,
-  .voxpage-play-icon {
+  .proso-selectable,
+  .proso-play-icon {
     transition: none !important;
   }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Confirmation Modal Component
@@ -44,7 +44,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
 
     // Create modal overlay
     const overlay = document.createElement('div');
-    overlay.className = 'voxpage-modal-overlay';
+    overlay.className = 'proso-modal-overlay';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'modal-title');
@@ -52,42 +52,42 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
 
     // Create modal container
     const modal = document.createElement('div');
-    modal.className = 'voxpage-modal';
+    modal.className = 'proso-modal';
 
     // Create modal header
     const header = document.createElement('div');
-    header.className = 'voxpage-modal__header';
+    header.className = 'proso-modal__header';
 
     const titleEl = document.createElement('h3');
     titleEl.id = 'modal-title';
-    titleEl.className = 'voxpage-modal__title';
+    titleEl.className = 'proso-modal__title';
     titleEl.textContent = title;
 
     header.appendChild(titleEl);
 
     // Create modal body
     const body = document.createElement('div');
-    body.className = 'voxpage-modal__body';
+    body.className = 'proso-modal__body';
 
     const messageEl = document.createElement('p');
     messageEl.id = 'modal-message';
-    messageEl.className = 'voxpage-modal__message';
+    messageEl.className = 'proso-modal__message';
     messageEl.textContent = message;
 
     body.appendChild(messageEl);
 
     // Create modal footer with buttons
     const footer = document.createElement('div');
-    footer.className = 'voxpage-modal__footer';
+    footer.className = 'proso-modal__footer';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
-    cancelBtn.className = 'voxpage-button voxpage-button--secondary';
+    cancelBtn.className = 'proso-button proso-button--secondary';
     cancelBtn.textContent = cancelText;
 
     const confirmBtn = document.createElement('button');
     confirmBtn.type = 'button';
-    confirmBtn.className = `voxpage-button voxpage-button--${confirmVariant}`;
+    confirmBtn.className = `proso-button proso-button--${confirmVariant}`;
     confirmBtn.textContent = confirmText;
 
     footer.appendChild(cancelBtn);
@@ -111,7 +111,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
     // Cleanup function
     const closeModal = (confirmed: boolean) => {
       if (activeModal) {
-        activeModal.classList.add('voxpage-modal-overlay--closing');
+        activeModal.classList.add('proso-modal-overlay--closing');
 
         // Wait for animation to complete
         setTimeout(() => {
@@ -188,7 +188,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
 
     // Trigger entrance animation
     requestAnimationFrame(() => {
-      overlay.classList.add('voxpage-modal-overlay--visible');
+      overlay.classList.add('proso-modal-overlay--visible');
     });
   });
 }
@@ -198,7 +198,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
  */
 export function closeActiveModal(): void {
   if (activeModal) {
-    activeModal.classList.add('voxpage-modal-overlay--closing');
+    activeModal.classList.add('proso-modal-overlay--closing');
 
     setTimeout(() => {
       activeModal?.remove();

@@ -1,5 +1,5 @@
 /**
- * Jest Configuration for VoxPage
+ * Jest Configuration for Proso
  * ES Modules support with WebExtension mocking and TypeScript
  *
  * Test types:
@@ -21,8 +21,8 @@ const sharedConfig = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^(\\.{1,2}/.*)\\.ts$': '$1',
     '^@/(.*)$': '<rootDir>/src/utils/$1',
-    '^@voxpage/shared$': '<rootDir>/../shared/src/index.ts',
-    '^@voxpage/shared/(.*)$': '<rootDir>/../shared/src/$1'
+    '^@proso/shared$': '<rootDir>/../shared/src/index.ts',
+    '^@proso/shared/(.*)$': '<rootDir>/../shared/src/$1'
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {

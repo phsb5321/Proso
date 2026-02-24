@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# query-errors.sh - Query VoxPage error logs from Loki
+# query-errors.sh - Query Proso error logs from Loki
 #
 # Usage:
 #   ./query-errors.sh [time_range] [environment] [limit]
@@ -47,9 +47,9 @@ END_NS=$(( $(date +%s) * 1000000000 ))
 
 # Build LogQL query
 if [[ -n "$ENVIRONMENT" ]]; then
-  QUERY='{app="voxpage", level="error", env="'"$ENVIRONMENT"'"}'
+  QUERY='{app="proso", level="error", env="'"$ENVIRONMENT"'"}'
 else
-  QUERY='{app="voxpage", level="error"}'
+  QUERY='{app="proso", level="error"}'
 fi
 
 # Execute query

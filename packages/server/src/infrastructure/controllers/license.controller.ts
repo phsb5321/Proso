@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { Public } from '../guards/license-key.guard';
-import type { LicenseValidateRequest, LicenseValidateResponse } from '@voxpage/shared';
-import { isOk } from '@voxpage/shared';
+import type { LicenseValidateRequest, LicenseValidateResponse } from '@proso/shared';
+import { isOk } from '@proso/shared';
 import { UserRepositoryPort } from '../../ports/user-repository.port';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';

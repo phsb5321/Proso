@@ -1,6 +1,6 @@
 # Release Command
 
-Create a new release for VoxPage with proper versioning, tagging, and changelog.
+Create a new release for Proso with proper versioning, tagging, and changelog.
 
 ## Outline
 

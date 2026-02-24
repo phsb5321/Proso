@@ -256,7 +256,7 @@ test.describe('Language Detection Patterns', () => {
 });
 
 test.describe('UI Element Injection Patterns', () => {
-  // Test patterns for injecting VoxPage UI elements
+  // Test patterns for injecting Proso UI elements
 
   test('can inject shadow DOM element', async ({ page }) => {
     test.skip(!fixturesExist() || !fs.existsSync(SIMPLE_PAGE_PATH), 'Simple page fixture not found');
@@ -266,24 +266,24 @@ test.describe('UI Element Injection Patterns', () => {
     // Inject a shadow DOM container (simulating content script behavior)
     await page.evaluate(() => {
       const container = document.createElement('div');
-      container.id = 'voxpage-test-container';
+      container.id = 'proso-test-container';
       const shadow = container.attachShadow({ mode: 'open' });
       const innerDiv = document.createElement('div');
-      innerDiv.className = 'voxpage-footer';
+      innerDiv.className = 'proso-footer';
       innerDiv.textContent = 'Test Footer';
       shadow.appendChild(innerDiv);
       document.body.appendChild(container);
     });
 
     // Verify injection
-    const container = page.locator('#voxpage-test-container');
+    const container = page.locator('#proso-test-container');
     await expect(container).toBeVisible();
 
     // Verify shadow DOM content
     const innerContent = await page.evaluate(() => {
-      const container = document.getElementById('voxpage-test-container');
+      const container = document.getElementById('proso-test-container');
       const shadow = container?.shadowRoot;
-      return shadow?.querySelector('.voxpage-footer')?.textContent || '';
+      return shadow?.querySelector('.proso-footer')?.textContent || '';
     });
 
     expect(innerContent).toBe('Test Footer');
@@ -299,12 +299,12 @@ test.describe('UI Element Injection Patterns', () => {
       const p = document.querySelector('p');
       if (p) {
         p.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
-        p.dataset.voxpageHighlight = 'true';
+        p.dataset.prosoHighlight = 'true';
       }
     });
 
     // Verify highlight
-    const highlighted = page.locator('[data-voxpage-highlight="true"]');
+    const highlighted = page.locator('[data-proso-highlight="true"]');
     await expect(highlighted).toBeVisible();
 
     const bg = await highlighted.evaluate((el) => {

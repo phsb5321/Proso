@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Paragraph Selector Module
@@ -45,11 +45,11 @@ export interface ParagraphClickedPayload {
 // Constants
 // ============================================================================
 
-const SELECTABLE_CLASS = 'voxpage-selectable';
-const SELECTED_CLASS = 'voxpage-selected';
-const CACHED_CLASS = 'voxpage-cached';
-const PLAY_ICON_CLASS = 'voxpage-play-icon';
-const _DATA_INDEX_ATTR = 'data-voxpage-select-index';
+const SELECTABLE_CLASS = 'proso-selectable';
+const SELECTED_CLASS = 'proso-selected';
+const CACHED_CLASS = 'proso-cached';
+const PLAY_ICON_CLASS = 'proso-play-icon';
+const _DATA_INDEX_ATTR = 'data-proso-select-index';
 
 // T019: Click debounce configuration (035-selection-tts-hardening)
 const CLICK_DEBOUNCE_MS = 300;
@@ -121,12 +121,12 @@ export class ParagraphSelector {
    */
   async enableSelectionMode(paragraphElements: Element[], cachedIndices: number[] = []): Promise<void> {
     if (this.state.isActive) {
-      console.log('VoxPage: Selection mode already active');
+      console.log('Proso: Selection mode already active');
       return;
     }
 
     console.log(
-      `VoxPage: Enabling selection mode with ${paragraphElements.length} paragraphs, ${cachedIndices.length} cached`,
+      `Proso: Enabling selection mode with ${paragraphElements.length} paragraphs, ${cachedIndices.length} cached`,
     );
 
     this.state.paragraphElements = paragraphElements;
@@ -149,7 +149,7 @@ export class ParagraphSelector {
     requestAnimationFrame(() => {
       paragraphElements.forEach((el, index) => {
         el.classList.add(SELECTABLE_CLASS);
-        (el as HTMLElement).dataset.voxpageSelectIndex = String(index);
+        (el as HTMLElement).dataset.prosoSelectIndex = String(index);
 
         // Add cached indicator if this paragraph is cached
         if (cachedIndices.includes(index)) {
@@ -163,7 +163,7 @@ export class ParagraphSelector {
       // Setup event handlers after DOM is ready
       this.setupEventHandlers();
 
-      console.log('VoxPage: Selection mode enabled');
+      console.log('Proso: Selection mode enabled');
     });
   }
 
@@ -176,7 +176,7 @@ export class ParagraphSelector {
       return;
     }
 
-    console.log('VoxPage: Disabling selection mode');
+    console.log('Proso: Disabling selection mode');
 
     // Remove event handlers
     this.removeEventHandlers();
@@ -184,7 +184,7 @@ export class ParagraphSelector {
     // Remove styling from all paragraphs
     this.state.paragraphElements.forEach((el) => {
       el.classList.remove(SELECTABLE_CLASS, SELECTED_CLASS, CACHED_CLASS);
-      delete (el as HTMLElement).dataset.voxpageSelectIndex;
+      delete (el as HTMLElement).dataset.prosoSelectIndex;
 
       // Remove play icon
       const playIcon = el.querySelector(`.${PLAY_ICON_CLASS}`);
@@ -201,7 +201,7 @@ export class ParagraphSelector {
       cachedIndices: [],
     };
 
-    console.log('VoxPage: Selection mode disabled');
+    console.log('Proso: Selection mode disabled');
   }
 
   /**
@@ -241,7 +241,7 @@ export class ParagraphSelector {
     el.classList.add(SELECTED_CLASS);
     this.state.selectedIndex = index;
 
-    console.log(`VoxPage: Paragraph ${index} selected`);
+    console.log(`Proso: Paragraph ${index} selected`);
   }
 
   /**
@@ -270,7 +270,7 @@ export class ParagraphSelector {
     this.state.paragraphElements.forEach((el, index) => {
       if (!el.classList.contains(SELECTABLE_CLASS)) {
         el.classList.add(SELECTABLE_CLASS);
-        (el as HTMLElement).dataset.voxpageSelectIndex = String(index);
+        (el as HTMLElement).dataset.prosoSelectIndex = String(index);
 
         if (this.state.cachedIndices.includes(index)) {
           el.classList.add(CACHED_CLASS);
@@ -328,11 +328,11 @@ export class ParagraphSelector {
     playIcon.setAttribute('aria-label', `Play from paragraph ${index + 1}`);
     playIcon.setAttribute('title', 'Start playback from here');
     playIcon.setAttribute('tabindex', '0'); // Explicit tab order (button default but ensures consistency)
-    playIcon.dataset.voxpageIndex = String(index);
+    playIcon.dataset.prosoIndex = String(index);
 
     // If margin is less than 50px, use inline positioning
     if (marginLeft < 50) {
-      playIcon.classList.add('voxpage-play-icon--inline');
+      playIcon.classList.add('proso-play-icon--inline');
     }
 
     // Insert at the beginning of the element
@@ -363,7 +363,7 @@ export class ParagraphSelector {
         e.preventDefault();
         e.stopPropagation();
 
-        const index = Number.parseInt(playIcon.dataset.voxpageIndex || '', 10);
+        const index = Number.parseInt(playIcon.dataset.prosoIndex || '', 10);
         if (!isNaN(index)) {
           this.handlePlayFromParagraph(index);
         }
@@ -378,7 +378,7 @@ export class ParagraphSelector {
           return;
         }
 
-        const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
+        const index = Number.parseInt(selectableEl.dataset.prosoSelectIndex || '', 10);
         if (!isNaN(index)) {
           this.selectParagraph(index);
         }
@@ -387,7 +387,7 @@ export class ParagraphSelector {
 
     document.addEventListener('click', this.clickHandler, true);
 
-    console.log('VoxPage: Selection event handlers setup');
+    console.log('Proso: Selection event handlers setup');
   }
 
   /**
@@ -416,13 +416,13 @@ export class ParagraphSelector {
 
     // T019: Debounce - ignore rapid clicks within 300ms
     if (now - this.lastClickTime < CLICK_DEBOUNCE_MS) {
-      console.log(`[VoxPage:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`);
+      console.log(`[Proso:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`);
       return;
     }
 
     // T021: Deduplication - ignore clicks on paragraph already playing
     if (this.currentlyPlayingIndex === index) {
-      console.log(`[VoxPage:Selection] Ignored duplicate click on paragraph ${index} (already playing)`);
+      console.log(`[Proso:Selection] Ignored duplicate click on paragraph ${index} (already playing)`);
       return;
     }
 
@@ -442,7 +442,7 @@ export class ParagraphSelector {
     };
 
     // T022: Debug logging for debounce
-    console.log(`[VoxPage:Selection] Starting playback from paragraph ${index}`, {
+    console.log(`[Proso:Selection] Starting playback from paragraph ${index}`, {
       isCached,
       characterCount: text.length,
       lastClickedIndex: this.lastClickedIndex,
@@ -456,7 +456,7 @@ export class ParagraphSelector {
         ...payload,
       })
       .catch((err) => {
-        console.error('VoxPage: Failed to send PARAGRAPH_CLICKED message:', err);
+        console.error('Proso: Failed to send PARAGRAPH_CLICKED message:', err);
         // Reset playing state on error
         this.currentlyPlayingIndex = null;
       });
@@ -495,4 +495,4 @@ export class ParagraphSelector {
  */
 export const paragraphSelector = new ParagraphSelector();
 
-console.log('VoxPage: utils/content/paragraph-selector.ts loaded');
+console.log('Proso: utils/content/paragraph-selector.ts loaded');

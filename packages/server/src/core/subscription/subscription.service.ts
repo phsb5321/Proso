@@ -9,10 +9,10 @@ import {
   SubscriptionStatus,
   ErrorCode,
   TIER_CREDITS,
-} from '@voxpage/shared';
-import type { LicenseValidateResponse } from '@voxpage/shared';
-import type { Result } from '@voxpage/shared';
-import { Ok, Err } from '@voxpage/shared';
+} from '@proso/shared';
+import type { LicenseValidateResponse } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { Ok, Err } from '@proso/shared';
 import { getFreeTierDefaults, getFeatureEntitlements } from './feature-gate.js';
 import type { LicenseError, SubscriptionError } from '../shared/domain-errors.js';
 import { subscriptionError } from '../shared/domain-errors.js';
@@ -196,7 +196,7 @@ export interface RenewalParams {
  * Handle a new subscription created via Paddle webhook.
  *
  * Creates a subscription record and allocates initial credits based on
- * `TIER_CREDITS[tier]` from `@voxpage/shared`.
+ * `TIER_CREDITS[tier]` from `@proso/shared`.
  */
 export async function handleSubscriptionCreated(
   params: SubscriptionCreatedParams,

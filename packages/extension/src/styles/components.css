@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later
- * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
- * Commercial licensing: https://voxpage.com/commercial
+ * Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+ * Commercial licensing: https://proso.com/commercial
  */
 /**
- * VoxPage Component Library
+ * Proso Component Library
  *
  * Reusable CSS components for popup, options, and floating controller.
- * All components use BEM naming with `voxpage-` prefix and consume design tokens.
+ * All components use BEM naming with `proso-` prefix and consume design tokens.
  *
  * Dependencies: tokens.css must be imported before this file.
  *
@@ -18,7 +18,7 @@
    Base button styles and variants
    ======================================== */
 
-.voxpage-button {
+.proso-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -38,57 +38,57 @@
 }
 
 /* Primary button - main CTA */
-.voxpage-button--primary {
+.proso-button--primary {
   background: var(--color-accent-gradient);
   color: white;
   border-color: transparent;
   box-shadow: var(--shadow-accent);
 }
 
-.voxpage-button--primary:hover {
+.proso-button--primary:hover {
   filter: brightness(1.1);
   transform: scale(1.02);
 }
 
-.voxpage-button--primary:active {
+.proso-button--primary:active {
   transform: scale(0.98);
 }
 
 /* Secondary button - subtle background */
-.voxpage-button--secondary {
+.proso-button--secondary {
   background: var(--color-button-bg);
   color: var(--color-text-secondary);
   border-color: var(--color-border);
 }
 
-.voxpage-button--secondary:hover {
+.proso-button--secondary:hover {
   background: var(--color-button-bg-hover);
   border-color: var(--color-accent-primary);
   color: var(--color-text-primary);
 }
 
-.voxpage-button--secondary:active {
+.proso-button--secondary:active {
   transform: scale(0.98);
 }
 
 /* Ghost button - minimal/transparent */
-.voxpage-button--ghost {
+.proso-button--ghost {
   background: transparent;
   color: var(--color-text-secondary);
   border-color: transparent;
 }
 
-.voxpage-button--ghost:hover {
+.proso-button--ghost:hover {
   background: var(--color-button-bg);
   color: var(--color-text-primary);
 }
 
-.voxpage-button--ghost:active {
+.proso-button--ghost:active {
   background: var(--color-button-bg-hover);
 }
 
 /* Icon button - square, icon-only */
-.voxpage-button--icon {
+.proso-button--icon {
   padding: var(--spacing-sm);
   width: var(--min-touch-target);
   height: var(--min-touch-target);
@@ -96,8 +96,8 @@
 }
 
 /* Disabled state for all button variants */
-.voxpage-button[disabled],
-.voxpage-button:disabled {
+.proso-button[disabled],
+.proso-button:disabled {
   background: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   border-color: transparent;
@@ -109,12 +109,12 @@
 }
 
 /* Focus state for all button variants */
-.voxpage-button:focus-visible {
+.proso-button:focus-visible {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
 }
 
-.voxpage-button:focus:not(:focus-visible) {
+.proso-button:focus:not(:focus-visible) {
   outline: none;
 }
 
@@ -123,7 +123,7 @@
    Text input and wrapper styles
    ======================================== */
 
-.voxpage-input {
+.proso-input {
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--color-input-bg);
@@ -137,40 +137,40 @@
   box-sizing: border-box;
 }
 
-.voxpage-input::placeholder {
+.proso-input::placeholder {
   color: var(--color-text-muted);
 }
 
-.voxpage-input:hover {
+.proso-input:hover {
   border-color: var(--color-accent-primary);
 }
 
-.voxpage-input:focus {
+.proso-input:focus {
   outline: none;
   border-color: var(--color-accent-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
-.voxpage-input[disabled],
-.voxpage-input:disabled {
+.proso-input[disabled],
+.proso-input:disabled {
   background: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   cursor: not-allowed;
 }
 
 /* Input wrapper for input + icon/button combos */
-.voxpage-input-wrapper {
+.proso-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
 }
 
-.voxpage-input-wrapper .voxpage-input {
+.proso-input-wrapper .proso-input {
   padding-right: calc(var(--min-touch-target) + var(--spacing-sm));
 }
 
-.voxpage-input-wrapper .voxpage-button--icon {
+.proso-input-wrapper .proso-button--icon {
   position: absolute;
   right: var(--spacing-xs);
 }
@@ -180,7 +180,7 @@
    Dropdown select with custom arrow
    ======================================== */
 
-.voxpage-select {
+.proso-select {
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-lg);
   padding-right: 40px; /* Space for arrow */
@@ -204,18 +204,18 @@
   background-size: 12px;
 }
 
-.voxpage-select:hover {
+.proso-select:hover {
   border-color: var(--color-accent-primary);
 }
 
-.voxpage-select:focus {
+.proso-select:focus {
   outline: none;
   border-color: var(--color-accent-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
-.voxpage-select[disabled],
-.voxpage-select:disabled {
+.proso-select[disabled],
+.proso-select:disabled {
   background-color: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   cursor: not-allowed;
@@ -226,7 +226,7 @@
    Range input with styled track and thumb
    ======================================== */
 
-.voxpage-slider {
+.proso-slider {
   width: 100%;
   height: 4px;
   border-radius: 2px;
@@ -237,7 +237,7 @@
 }
 
 /* WebKit (Chrome, Safari, Edge) thumb */
-.voxpage-slider::-webkit-slider-thumb {
+.proso-slider::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
@@ -249,16 +249,16 @@
   transition: transform var(--transition-fast) var(--ease-default);
 }
 
-.voxpage-slider::-webkit-slider-thumb:hover {
+.proso-slider::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
-.voxpage-slider::-webkit-slider-thumb:active {
+.proso-slider::-webkit-slider-thumb:active {
   transform: scale(0.95);
 }
 
 /* Firefox thumb */
-.voxpage-slider::-moz-range-thumb {
+.proso-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: var(--radius-full);
@@ -269,31 +269,31 @@
   transition: transform var(--transition-fast) var(--ease-default);
 }
 
-.voxpage-slider::-moz-range-thumb:hover {
+.proso-slider::-moz-range-thumb:hover {
   transform: scale(1.1);
 }
 
-.voxpage-slider::-moz-range-thumb:active {
+.proso-slider::-moz-range-thumb:active {
   transform: scale(0.95);
 }
 
 /* Firefox track */
-.voxpage-slider::-moz-range-track {
+.proso-slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
   background: var(--color-button-bg);
 }
 
 /* Focus state */
-.voxpage-slider:focus {
+.proso-slider:focus {
   outline: none;
 }
 
-.voxpage-slider:focus-visible::-webkit-slider-thumb {
+.proso-slider:focus-visible::-webkit-slider-thumb {
   box-shadow: var(--shadow-accent), 0 0 0 3px var(--color-focus-ring);
 }
 
-.voxpage-slider:focus-visible::-moz-range-thumb {
+.proso-slider:focus-visible::-moz-range-thumb {
   box-shadow: var(--shadow-accent), 0 0 0 3px var(--color-focus-ring);
 }
 
@@ -302,7 +302,7 @@
    Switch toggle with on/off states
    ======================================== */
 
-.voxpage-toggle {
+.proso-toggle {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-md);
@@ -311,14 +311,14 @@
   user-select: none;
 }
 
-.voxpage-toggle__input {
+.proso-toggle__input {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-.voxpage-toggle__switch {
+.proso-toggle__switch {
   position: relative;
   width: 48px;
   height: 26px;
@@ -328,7 +328,7 @@
   flex-shrink: 0;
 }
 
-.voxpage-toggle__switch::after {
+.proso-toggle__switch::after {
   content: "";
   position: absolute;
   top: 3px;
@@ -341,41 +341,41 @@
 }
 
 /* Checked state */
-.voxpage-toggle__input:checked + .voxpage-toggle__switch {
+.proso-toggle__input:checked + .proso-toggle__switch {
   background: var(--color-accent-primary);
 }
 
-.voxpage-toggle__input:checked + .voxpage-toggle__switch::after {
+.proso-toggle__input:checked + .proso-toggle__switch::after {
   left: 25px;
   background: white;
 }
 
 /* Hover state */
-.voxpage-toggle:hover .voxpage-toggle__switch {
+.proso-toggle:hover .proso-toggle__switch {
   border: 1px solid var(--color-accent-primary);
 }
 
 /* Focus state */
-.voxpage-toggle__input:focus-visible + .voxpage-toggle__switch {
+.proso-toggle__input:focus-visible + .proso-toggle__switch {
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 /* Disabled state */
-.voxpage-toggle__input:disabled + .voxpage-toggle__switch {
+.proso-toggle__input:disabled + .proso-toggle__switch {
   background: var(--color-disabled-bg);
   cursor: not-allowed;
 }
 
-.voxpage-toggle__input:disabled + .voxpage-toggle__switch::after {
+.proso-toggle__input:disabled + .proso-toggle__switch::after {
   background: var(--color-disabled-text);
 }
 
-.voxpage-toggle__input:disabled ~ .voxpage-toggle__text {
+.proso-toggle__input:disabled ~ .proso-toggle__text {
   color: var(--color-disabled-text);
 }
 
 /* Toggle label text */
-.voxpage-toggle__text {
+.proso-toggle__text {
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
@@ -386,32 +386,32 @@
    Container with optional header/footer
    ======================================== */
 
-.voxpage-card {
+.proso-card {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl);
 }
 
-.voxpage-card__header {
+.proso-card__header {
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--spacing-lg);
 }
 
-.voxpage-card__header h2,
-.voxpage-card__header h3 {
+.proso-card__header h2,
+.proso-card__header h3 {
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
-.voxpage-card__body {
+.proso-card__body {
   /* Default body styles */
 }
 
-.voxpage-card__footer {
+.proso-card__footer {
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--color-border);
   margin-top: var(--spacing-lg);
@@ -422,13 +422,13 @@
    Tab bar with active state
    ======================================== */
 
-.voxpage-tabs {
+.proso-tabs {
   display: flex;
   gap: var(--spacing-sm);
   flex-wrap: wrap;
 }
 
-.voxpage-tab {
+.proso-tab {
   flex: 1;
   min-width: 60px;
   padding: var(--spacing-md);
@@ -445,30 +445,30 @@
   text-align: center;
 }
 
-.voxpage-tab:hover {
+.proso-tab:hover {
   border-color: var(--color-accent-primary);
   color: var(--color-text-primary);
 }
 
-.voxpage-tab:focus-visible {
+.proso-tab:focus-visible {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
 }
 
-.voxpage-tab:focus:not(:focus-visible) {
+.proso-tab:focus:not(:focus-visible) {
   outline: none;
 }
 
 /* Active tab state */
-.voxpage-tab--active,
-.voxpage-tab[aria-selected="true"] {
+.proso-tab--active,
+.proso-tab[aria-selected="true"] {
   background: var(--color-accent-gradient);
   border-color: transparent;
   color: white;
 }
 
-.voxpage-tab--active:hover,
-.voxpage-tab[aria-selected="true"]:hover {
+.proso-tab--active:hover,
+.proso-tab[aria-selected="true"]:hover {
   color: white;
   border-color: transparent;
 }
@@ -478,7 +478,7 @@
    Status banners with semantic variants
    ======================================== */
 
-.voxpage-banner {
+.proso-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -490,11 +490,11 @@
   border-radius: var(--radius-sm);
 }
 
-.voxpage-banner__text {
+.proso-banner__text {
   flex: 1;
 }
 
-.voxpage-banner__dismiss {
+.proso-banner__dismiss {
   background: transparent;
   border: none;
   color: white;
@@ -511,35 +511,35 @@
   transition: var(--transition-colors);
 }
 
-.voxpage-banner__dismiss:hover {
+.proso-banner__dismiss:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.voxpage-banner__dismiss:focus-visible {
+.proso-banner__dismiss:focus-visible {
   outline: 2px solid white;
   outline-offset: 2px;
 }
 
 /* Semantic variants */
-.voxpage-banner--success {
+.proso-banner--success {
   background: var(--color-success);
 }
 
-.voxpage-banner--warning {
+.proso-banner--warning {
   background: var(--color-warning);
   color: #1a1a2e; /* Dark text for yellow background */
 }
 
-.voxpage-banner--warning .voxpage-banner__dismiss {
+.proso-banner--warning .proso-banner__dismiss {
   color: #1a1a2e;
 }
 
-.voxpage-banner--error {
+.proso-banner--error {
   background: var(--color-error);
 }
 
-.voxpage-banner--info {
+.proso-banner--info {
   background: var(--color-info);
 }
 
@@ -548,7 +548,7 @@
    Progress bar with fill indicator
    ======================================== */
 
-.voxpage-progress {
+.proso-progress {
   width: 100%;
   height: 4px;
   background: var(--color-button-bg);
@@ -556,14 +556,14 @@
   overflow: hidden;
 }
 
-.voxpage-progress__fill {
+.proso-progress__fill {
   height: 100%;
   background: var(--color-accent-gradient);
   border-radius: 2px;
   transition: width 0.1s linear;
 }
 
-.voxpage-progress__info {
+.proso-progress__info {
   display: flex;
   justify-content: space-between;
   margin-top: var(--spacing-xs);
@@ -576,7 +576,7 @@
    Provider badges with brand colors
    ======================================== */
 
-.voxpage-badge {
+.proso-badge {
   display: inline-block;
   padding: 2px var(--spacing-sm);
   border-radius: 4px;
@@ -587,12 +587,12 @@
 }
 
 /* Provider-specific variants */
-.voxpage-badge--elevenlabs {
+.proso-badge--elevenlabs {
   background: rgba(245, 158, 11, 0.2);
   color: var(--color-warning);
 }
 
-.voxpage-badge--browser {
+.proso-badge--browser {
   background: rgba(255, 255, 255, 0.1);
   color: var(--color-text-secondary);
 }
@@ -602,7 +602,7 @@
    Heading, label, and hint styles
    ======================================== */
 
-.voxpage-heading {
+.proso-heading {
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
@@ -610,7 +610,7 @@
   line-height: var(--line-height-tight);
 }
 
-.voxpage-label {
+.proso-label {
   display: block;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
@@ -618,7 +618,7 @@
   margin-bottom: var(--spacing-xs);
 }
 
-.voxpage-hint {
+.proso-hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   margin-top: var(--spacing-xs);
@@ -630,14 +630,14 @@
    ======================================== */
 
 /* Text truncation with ellipsis */
-.voxpage-truncate {
+.proso-truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* Visually hidden but accessible to screen readers */
-.voxpage-sr-only {
+.proso-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -650,7 +650,7 @@
 }
 
 /* Hidden utility */
-.voxpage-hidden {
+.proso-hidden {
   display: none !important;
 }
 
@@ -683,7 +683,7 @@
 }
 
 /* Small button variant */
-.voxpage-button--sm {
+.proso-button--sm {
   padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-size-xs);
   min-height: 32px;
@@ -728,11 +728,11 @@
    FR-011: Accordion animations
    ======================================== */
 
-.voxpage-accordion {
+.proso-accordion {
   overflow: hidden;
 }
 
-.voxpage-accordion__header {
+.proso-accordion__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -749,16 +749,16 @@
   transition: var(--transition-colors);
 }
 
-.voxpage-accordion__header:hover {
+.proso-accordion__header:hover {
   background: var(--color-button-bg);
 }
 
-.voxpage-accordion__header:focus-visible {
+.proso-accordion__header:focus-visible {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: -2px;
 }
 
-.voxpage-accordion__chevron {
+.proso-accordion__chevron {
   width: 20px;
   height: 20px;
   color: var(--color-text-muted);
@@ -766,16 +766,16 @@
   flex-shrink: 0;
 }
 
-.voxpage-accordion__header[aria-expanded="true"] .voxpage-accordion__chevron {
+.proso-accordion__header[aria-expanded="true"] .proso-accordion__chevron {
   transform: rotate(180deg);
 }
 
-.voxpage-accordion__content {
+.proso-accordion__content {
   padding-top: var(--spacing-lg);
   animation: accordion-expand var(--transition-normal) var(--ease-default);
 }
 
-.voxpage-accordion__content[hidden] {
+.proso-accordion__content[hidden] {
   display: none;
 }
 
@@ -975,16 +975,16 @@
 }
 
 /* High contrast focus for form inputs */
-.voxpage-input:focus-visible,
-.voxpage-select:focus-visible,
-.voxpage-slider:focus-visible {
+.proso-input:focus-visible,
+.proso-select:focus-visible,
+.proso-slider:focus-visible {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px var(--color-focus-ring);
 }
 
 /* Focus indicator for toggle switches */
-.voxpage-toggle__input:focus-visible + .voxpage-toggle__switch {
+.proso-toggle__input:focus-visible + .proso-toggle__switch {
   outline: 2px solid var(--color-accent-primary);
   outline-offset: 2px;
 }

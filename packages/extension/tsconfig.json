@@ -7,8 +7,8 @@
     "paths": {
       "@/*": ["./src/utils/*"],
       "~/*": ["./*"],
-      "@voxpage/shared": ["../shared/src"],
-      "@voxpage/shared/*": ["../shared/src/*"]
+      "@proso/shared": ["../shared/src"],
+      "@proso/shared/*": ["../shared/src/*"]
     }
   },
   "include": [

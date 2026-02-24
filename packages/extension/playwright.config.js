@@ -1,5 +1,5 @@
 /**
- * Playwright Configuration for VoxPage
+ * Playwright Configuration for Proso
  *
  * Test types:
  * - Visual regression: Screenshot comparison tests (tests/visual/)

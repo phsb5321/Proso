@@ -59,8 +59,8 @@ describe('Word Highlight Clearing (020-code-quality-fix)', () => {
       },
 
       clearWordHighlight() {
-        if (CSS.highlights && CSS.highlights.get('voxpage-word')) {
-          CSS.highlights.delete('voxpage-word');
+        if (CSS.highlights && CSS.highlights.get('proso-word')) {
+          CSS.highlights.delete('proso-word');
         }
         this._wordHighlight = null;
       },
@@ -82,7 +82,7 @@ describe('Word Highlight Clearing (020-code-quality-fix)', () => {
       highlightWord(wordIndex) {
         const highlight = new MockCustomHighlight();
         highlight.add({ wordIndex }); // Simplified range mock
-        CSS.highlights.set('voxpage-word', highlight);
+        CSS.highlights.set('proso-word', highlight);
         this._wordHighlight = highlight;
       }
     };
@@ -92,11 +92,11 @@ describe('Word Highlight Clearing (020-code-quality-fix)', () => {
     test('removes word highlight from CSS registry', () => {
       // Set up a word highlight
       highlightManager.highlightWord(0);
-      expect(CSS.highlights.get('voxpage-word')).toBeDefined();
+      expect(CSS.highlights.get('proso-word')).toBeDefined();
 
       // Clear it
       highlightManager.clearWordHighlight();
-      expect(CSS.highlights.get('voxpage-word')).toBeUndefined();
+      expect(CSS.highlights.get('proso-word')).toBeUndefined();
     });
 
     test('handles case when no highlight exists', () => {
@@ -115,25 +115,25 @@ describe('Word Highlight Clearing (020-code-quality-fix)', () => {
     test('original function does NOT clear word highlights (showing the bug)', () => {
       // Setup: highlight a word
       highlightManager.highlightWord(5);
-      expect(CSS.highlights.get('voxpage-word')).toBeDefined();
+      expect(CSS.highlights.get('proso-word')).toBeDefined();
 
       // Original behavior: word highlight persists after paragraph change
       highlightManager.highlightParagraphOriginal(1);
 
       // BUG: Word highlight still exists
-      expect(CSS.highlights.get('voxpage-word')).toBeDefined();
+      expect(CSS.highlights.get('proso-word')).toBeDefined();
     });
 
     test('fixed function DOES clear word highlights', () => {
       // Setup: highlight a word
       highlightManager.highlightWord(5);
-      expect(CSS.highlights.get('voxpage-word')).toBeDefined();
+      expect(CSS.highlights.get('proso-word')).toBeDefined();
 
       // Fixed behavior: word highlight is cleared on paragraph change
       highlightManager.highlightParagraphFixed(1);
 
       // FIXED: Word highlight is now cleared
-      expect(CSS.highlights.get('voxpage-word')).toBeUndefined();
+      expect(CSS.highlights.get('proso-word')).toBeUndefined();
     });
 
     test('paragraph index is updated correctly', () => {

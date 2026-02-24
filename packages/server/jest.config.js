@@ -10,8 +10,8 @@ module.exports = {
   coverageDirectory: './coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@voxpage/shared$': '<rootDir>/../shared/src',
-    '^@voxpage/shared/(.*)$': '<rootDir>/../shared/src/$1',
+    '^@proso/shared$': '<rootDir>/../shared/src',
+    '^@proso/shared/(.*)$': '<rootDir>/../shared/src/$1',
     // Strip .js extensions from imports (shared package uses ESM-style .js extensions)
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },

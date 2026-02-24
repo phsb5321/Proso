@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage IndexedDB Initialization
+ * Proso IndexedDB Initialization
  *
  * Database initialization, migrations, and health checks.
  *
@@ -42,7 +42,7 @@ export async function initDatabase(): Promise<DBInitResult> {
     // Open the database (triggers version upgrade if needed)
     await db.open();
 
-    console.log(`[VoxPage:DB] Database initialized: ${DB_NAME} v${DB_VERSION}`);
+    console.log(`[Proso:DB] Database initialized: ${DB_NAME} v${DB_VERSION}`);
 
     return {
       success: true,
@@ -50,7 +50,7 @@ export async function initDatabase(): Promise<DBInitResult> {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown database error';
-    console.error('[VoxPage:DB] Initialization failed:', message);
+    console.error('[Proso:DB] Initialization failed:', message);
 
     return {
       success: false,
@@ -118,7 +118,7 @@ export async function checkDatabaseHealth(): Promise<DBHealthCheck> {
       audioCacheSizeBytes,
     };
   } catch (error) {
-    console.error('[VoxPage:DB] Health check failed:', error);
+    console.error('[Proso:DB] Health check failed:', error);
 
     return {
       available: true,
@@ -141,10 +141,10 @@ export async function clearAudioCache(): Promise<number> {
     const db = getDB();
     const count = await db.audioCache.count();
     await db.audioCache.clear();
-    console.log(`[VoxPage:DB] Cleared ${count} audio cache entries`);
+    console.log(`[Proso:DB] Cleared ${count} audio cache entries`);
     return count;
   } catch (error) {
-    console.error('[VoxPage:DB] Failed to clear audio cache:', error);
+    console.error('[Proso:DB] Failed to clear audio cache:', error);
     return 0;
   }
 }
@@ -164,10 +164,10 @@ export async function evictOldAudioCache(maxAgeMs: number): Promise<number> {
 
     await db.audioCache.bulkDelete(oldEntries);
 
-    console.log(`[VoxPage:DB] Evicted ${oldEntries.length} old audio cache entries`);
+    console.log(`[Proso:DB] Evicted ${oldEntries.length} old audio cache entries`);
     return oldEntries.length;
   } catch (error) {
-    console.error('[VoxPage:DB] Failed to evict old audio cache:', error);
+    console.error('[Proso:DB] Failed to evict old audio cache:', error);
     return 0;
   }
 }
@@ -197,10 +197,10 @@ export async function evictToTargetSize(targetSizeBytes: number): Promise<number
       evicted++;
     }
 
-    console.log(`[VoxPage:DB] LRU evicted ${evicted} entries, new size: ${currentSize} bytes`);
+    console.log(`[Proso:DB] LRU evicted ${evicted} entries, new size: ${currentSize} bytes`);
     return evicted;
   } catch (error) {
-    console.error('[VoxPage:DB] LRU eviction failed:', error);
+    console.error('[Proso:DB] LRU eviction failed:', error);
     return 0;
   }
 }

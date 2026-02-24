@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * Queue Message Handlers for VoxPage
+ * Queue Message Handlers for Proso
  * Handles reading queue requests from popup/content
  *
  * @module utils/messaging/handlers/queue
  */
 
-import type { VoxPageProtocol } from '../protocol';
+import type { ProsoProtocol } from '../protocol';
 import { type QueueStore, createQueueStore } from '../../queue/store';
 import { type QueuePlayer, createQueuePlayer } from '../../queue/player';
 import type { QueueItemStatus } from '../../queue/types';
@@ -76,8 +76,8 @@ async function broadcastQueueEvent(event: string, data: Record<string, unknown>)
  * Adds article to reading queue
  */
 export async function handleQueueAdd(
-  request: VoxPageProtocol['queue.add']['request'],
-): Promise<VoxPageProtocol['queue.add']['response']> {
+  request: ProsoProtocol['queue.add']['request'],
+): Promise<ProsoProtocol['queue.add']['response']> {
   try {
     const item = await getQueueStore().add({
       url: request.url,
@@ -109,8 +109,8 @@ export async function handleQueueAdd(
  * Removes article from queue
  */
 export async function handleQueueRemove(
-  request: VoxPageProtocol['queue.remove']['request'],
-): Promise<VoxPageProtocol['queue.remove']['response']> {
+  request: ProsoProtocol['queue.remove']['request'],
+): Promise<ProsoProtocol['queue.remove']['response']> {
   try {
     await getQueueStore().remove(request.id);
     return { success: true };
@@ -127,8 +127,8 @@ export async function handleQueueRemove(
  * Moves article to new position
  */
 export async function handleQueueReorder(
-  request: VoxPageProtocol['queue.reorder']['request'],
-): Promise<VoxPageProtocol['queue.reorder']['response']> {
+  request: ProsoProtocol['queue.reorder']['request'],
+): Promise<ProsoProtocol['queue.reorder']['response']> {
   try {
     const items = await getQueueStore().reorder(request.id, request.newPosition);
     return {
@@ -149,8 +149,8 @@ export async function handleQueueReorder(
  * Updates article reading status
  */
 export async function handleQueueUpdateStatus(
-  request: VoxPageProtocol['queue.updateStatus']['request'],
-): Promise<VoxPageProtocol['queue.updateStatus']['response']> {
+  request: ProsoProtocol['queue.updateStatus']['request'],
+): Promise<ProsoProtocol['queue.updateStatus']['response']> {
   try {
     await getQueueStore().updateStatus(request.id, request.status as QueueItemStatus);
     return { success: true };
@@ -167,8 +167,8 @@ export async function handleQueueUpdateStatus(
  * Updates reading progress for article
  */
 export async function handleQueueUpdateProgress(
-  request: VoxPageProtocol['queue.updateProgress']['request'],
-): Promise<VoxPageProtocol['queue.updateProgress']['response']> {
+  request: ProsoProtocol['queue.updateProgress']['request'],
+): Promise<ProsoProtocol['queue.updateProgress']['response']> {
   try {
     await getQueueStore().updateProgress(request.id, request.progress, request.lastParagraphIndex);
     return { success: true };
@@ -185,8 +185,8 @@ export async function handleQueueUpdateProgress(
  * Clears queue items by filter
  */
 export async function handleQueueClear(
-  request: VoxPageProtocol['queue.clear']['request'],
-): Promise<VoxPageProtocol['queue.clear']['response']> {
+  request: ProsoProtocol['queue.clear']['request'],
+): Promise<ProsoProtocol['queue.clear']['response']> {
   try {
     const removedCount = await getQueueStore().clear(request.filter);
     return {
@@ -207,8 +207,8 @@ export async function handleQueueClear(
  * Gets full queue state
  */
 export async function handleQueueGetState(
-  _request: VoxPageProtocol['queue.getState']['request'],
-): Promise<VoxPageProtocol['queue.getState']['response']> {
+  _request: ProsoProtocol['queue.getState']['request'],
+): Promise<ProsoProtocol['queue.getState']['response']> {
   const state = await getQueueStore().getState();
   return {
     metadata: state.metadata,
@@ -221,8 +221,8 @@ export async function handleQueueGetState(
  * Gets single queue item by ID
  */
 export async function handleQueueGetItem(
-  request: VoxPageProtocol['queue.getItem']['request'],
-): Promise<VoxPageProtocol['queue.getItem']['response']> {
+  request: ProsoProtocol['queue.getItem']['request'],
+): Promise<ProsoProtocol['queue.getItem']['response']> {
   const item = await getQueueStore().getItem(request.id);
 
   if (!item) {
@@ -243,8 +243,8 @@ export async function handleQueueGetItem(
  * Starts playing queue from first pending item
  */
 export async function handleQueuePlay(
-  request: VoxPageProtocol['queue.play']['request'],
-): Promise<VoxPageProtocol['queue.play']['response']> {
+  request: ProsoProtocol['queue.play']['request'],
+): Promise<ProsoProtocol['queue.play']['response']> {
   try {
     const currentItem = await getQueuePlayer().play(request.startFromId);
 
@@ -276,8 +276,8 @@ export async function handleQueuePlay(
  * Skips to next item in queue
  */
 export async function handleQueuePlayNext(
-  _request: VoxPageProtocol['queue.playNext']['request'],
-): Promise<VoxPageProtocol['queue.playNext']['response']> {
+  _request: ProsoProtocol['queue.playNext']['request'],
+): Promise<ProsoProtocol['queue.playNext']['response']> {
   try {
     const { item, hasMore } = await getQueuePlayer().playNext();
 
@@ -306,8 +306,8 @@ export async function handleQueuePlayNext(
  * Goes back to previous item
  */
 export async function handleQueuePlayPrevious(
-  _request: VoxPageProtocol['queue.playPrevious']['request'],
-): Promise<VoxPageProtocol['queue.playPrevious']['response']> {
+  _request: ProsoProtocol['queue.playPrevious']['request'],
+): Promise<ProsoProtocol['queue.playPrevious']['response']> {
   try {
     const item = await getQueuePlayer().playPrevious();
 

@@ -140,7 +140,7 @@ describe('UsageShipper', () => {
 
     it('initialize() loads persisted circuit state from storage', async () => {
       (browser.storage.local.get as unknown as AnyMock).mockResolvedValue({
-        voxpage_shipper_circuit_state: {
+        proso_shipper_circuit_state: {
           circuitOpen: true,
           consecutiveFailures: 3,
           circuitOpenedAt: Date.now(), // recent – circuit should stay open
@@ -157,7 +157,7 @@ describe('UsageShipper', () => {
     it('auto-closes circuit if cooldown has elapsed during load', async () => {
       const past = Date.now() - 200_000; // well past any cooldown
       (browser.storage.local.get as unknown as AnyMock).mockResolvedValue({
-        voxpage_shipper_circuit_state: {
+        proso_shipper_circuit_state: {
           circuitOpen: true,
           consecutiveFailures: 5,
           circuitOpenedAt: past,
@@ -435,7 +435,7 @@ describe('UsageShipper', () => {
       const lastCall = (browser.storage.local.set as unknown as AnyMock).mock.calls.at(-1) as [
         Record<string, unknown>,
       ];
-      const stored = lastCall[0]['voxpage_shipper_circuit_state'] as {
+      const stored = lastCall[0]['proso_shipper_circuit_state'] as {
         circuitOpen: boolean;
         consecutiveFailures: number;
       };

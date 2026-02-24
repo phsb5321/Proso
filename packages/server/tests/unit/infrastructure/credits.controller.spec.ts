@@ -3,7 +3,7 @@
 // usagePercent calculation, missing allocation, and authentication checks.
 
 import { HttpStatus } from '@nestjs/common';
-import { ErrorCode, TransactionType } from '@voxpage/shared';
+import { ErrorCode, TransactionType } from '@proso/shared';
 import { CreditsController } from '../../../src/infrastructure/controllers/credits.controller';
 import type {
   CreditAllocationRecord,

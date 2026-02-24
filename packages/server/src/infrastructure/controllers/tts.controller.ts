@@ -23,7 +23,7 @@ import {
   TTSProvider,
   SubscriptionTier,
   ErrorCode,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';
 import { CacheStorePort } from '../../ports/cache-store.port';

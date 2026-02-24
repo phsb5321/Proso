@@ -1,5 +1,5 @@
 /**
- * Global type definitions for VoxPage
+ * Global type definitions for Proso
  * References WXT auto-generated types
  */
 

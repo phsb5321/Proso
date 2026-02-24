@@ -1,4 +1,4 @@
-import { SubscriptionTier, SubscriptionStatus, isOk } from '@voxpage/shared';
+import { SubscriptionTier, SubscriptionStatus, isOk } from '@proso/shared';
 import { validateLicenseKey, type LicenseValidationDeps } from '../../../../src/core/subscription/license-validation.service';
 import type { UserRepositoryPort, UserRecord } from '../../../../src/ports/user-repository.port';
 import type { SubscriptionRepositoryPort, SubscriptionRecord } from '../../../../src/ports/subscription-repository.port';

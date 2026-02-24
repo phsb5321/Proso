@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Persistent Highlight Manager
@@ -171,7 +171,7 @@ export class PersistentHighlightManager {
       container instanceof HTMLElement ? container : container.parentElement;
 
     while (element) {
-      if (element.classList.contains('voxpage-persistent-highlight')) {
+      if (element.classList.contains('proso-persistent-highlight')) {
         return true;
       }
       element = element.parentElement;
@@ -228,69 +228,69 @@ export class PersistentHighlightManager {
    * Inject CSS styles for persistent highlights.
    */
   private injectHighlightStyles(): void {
-    if (document.getElementById('voxpage-persistent-highlight-styles')) {
+    if (document.getElementById('proso-persistent-highlight-styles')) {
       return;
     }
 
     const style = document.createElement('style');
-    style.id = 'voxpage-persistent-highlight-styles';
+    style.id = 'proso-persistent-highlight-styles';
     style.textContent = `
       /* Persistent Highlight Base Styles */
-      .voxpage-persistent-highlight {
+      .proso-persistent-highlight {
         cursor: pointer;
         border-radius: 2px;
         transition: background-color 0.2s ease, box-shadow 0.2s ease;
         position: relative;
       }
 
-      .voxpage-persistent-highlight:hover {
+      .proso-persistent-highlight:hover {
         box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
       }
 
       /* Color variants */
-      .voxpage-persistent-highlight[data-color="yellow"] {
+      .proso-persistent-highlight[data-color="yellow"] {
         background-color: ${HIGHLIGHT_COLOR_VALUES.yellow};
       }
-      .voxpage-persistent-highlight[data-color="green"] {
+      .proso-persistent-highlight[data-color="green"] {
         background-color: ${HIGHLIGHT_COLOR_VALUES.green};
       }
-      .voxpage-persistent-highlight[data-color="blue"] {
+      .proso-persistent-highlight[data-color="blue"] {
         background-color: ${HIGHLIGHT_COLOR_VALUES.blue};
       }
-      .voxpage-persistent-highlight[data-color="pink"] {
+      .proso-persistent-highlight[data-color="pink"] {
         background-color: ${HIGHLIGHT_COLOR_VALUES.pink};
       }
-      .voxpage-persistent-highlight[data-color="purple"] {
+      .proso-persistent-highlight[data-color="purple"] {
         background-color: ${HIGHLIGHT_COLOR_VALUES.purple};
       }
 
       /* Dark mode adjustments */
       @media (prefers-color-scheme: dark) {
-        .voxpage-persistent-highlight[data-color="yellow"] {
+        .proso-persistent-highlight[data-color="yellow"] {
           background-color: rgba(254, 240, 138, 0.4);
         }
-        .voxpage-persistent-highlight[data-color="green"] {
+        .proso-persistent-highlight[data-color="green"] {
           background-color: rgba(187, 247, 208, 0.4);
         }
-        .voxpage-persistent-highlight[data-color="blue"] {
+        .proso-persistent-highlight[data-color="blue"] {
           background-color: rgba(191, 219, 254, 0.4);
         }
-        .voxpage-persistent-highlight[data-color="pink"] {
+        .proso-persistent-highlight[data-color="pink"] {
           background-color: rgba(251, 207, 232, 0.4);
         }
-        .voxpage-persistent-highlight[data-color="purple"] {
+        .proso-persistent-highlight[data-color="purple"] {
           background-color: rgba(221, 214, 254, 0.4);
         }
       }
 
       /* Orphaned highlight (failed re-anchoring) */
-      .voxpage-persistent-highlight--orphaned {
+      .proso-persistent-highlight--orphaned {
         background-color: rgba(239, 68, 68, 0.2) !important;
         border: 1px dashed #ef4444;
       }
 
       /* Note indicator */
-      .voxpage-persistent-highlight--has-note::after {
+      .proso-persistent-highlight--has-note::after {
         content: "";
         position: absolute;
         top: -4px;
@@ -302,7 +302,7 @@ export class PersistentHighlightManager {
       }
 
       /* Context menu styles */
-      .voxpage-highlight-context-menu {
+      .proso-highlight-context-menu {
         position: fixed;
         background: white;
         border: 1px solid #e5e7eb;
@@ -313,7 +313,7 @@ export class PersistentHighlightManager {
         min-width: 140px;
       }
 
-      .voxpage-highlight-context-menu button {
+      .proso-highlight-context-menu button {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -328,19 +328,19 @@ export class PersistentHighlightManager {
         text-align: left;
       }
 
-      .voxpage-highlight-context-menu button:hover {
+      .proso-highlight-context-menu button:hover {
         background-color: #f3f4f6;
       }
 
-      .voxpage-highlight-context-menu button.danger {
+      .proso-highlight-context-menu button.danger {
         color: #ef4444;
       }
 
-      .voxpage-highlight-context-menu button.danger:hover {
+      .proso-highlight-context-menu button.danger:hover {
         background-color: #fef2f2;
       }
 
-      .voxpage-highlight-color-picker {
+      .proso-highlight-color-picker {
         display: flex;
         gap: 4px;
         padding: 8px 12px;
@@ -348,7 +348,7 @@ export class PersistentHighlightManager {
         margin-top: 4px;
       }
 
-      .voxpage-highlight-color-btn {
+      .proso-highlight-color-btn {
         width: 20px;
         height: 20px;
         border-radius: 50%;
@@ -357,32 +357,32 @@ export class PersistentHighlightManager {
         transition: transform 0.15s ease;
       }
 
-      .voxpage-highlight-color-btn:hover {
+      .proso-highlight-color-btn:hover {
         transform: scale(1.2);
       }
 
-      .voxpage-highlight-color-btn.active {
+      .proso-highlight-color-btn.active {
         border-color: #374151;
       }
 
       @media (prefers-color-scheme: dark) {
-        .voxpage-highlight-context-menu {
+        .proso-highlight-context-menu {
           background: #1f2937;
           border-color: #374151;
         }
 
-        .voxpage-highlight-context-menu button {
+        .proso-highlight-context-menu button {
           color: #e5e7eb;
         }
 
-        .voxpage-highlight-context-menu button:hover {
+        .proso-highlight-context-menu button:hover {
           background-color: #374151;
         }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .voxpage-persistent-highlight,
-        .voxpage-highlight-color-btn {
+        .proso-persistent-highlight,
+        .proso-highlight-color-btn {
           transition: none !important;
         }
       }
@@ -430,7 +430,7 @@ export class PersistentHighlightManager {
     }
 
     // Anchoring failed - render as orphaned placeholder
-    console.warn(`VoxPage: Failed to anchor highlight ${id}:`, anchorResult.error);
+    console.warn(`Proso: Failed to anchor highlight ${id}:`, anchorResult.error);
     return false;
   }
 
@@ -512,16 +512,16 @@ export class PersistentHighlightManager {
     orphaned: boolean,
   ): HTMLElement {
     const el = document.createElement('mark');
-    el.className = 'voxpage-persistent-highlight';
+    el.className = 'proso-persistent-highlight';
     el.dataset.highlightId = id;
     el.dataset.color = color;
 
     if (hasNote) {
-      el.classList.add('voxpage-persistent-highlight--has-note');
+      el.classList.add('proso-persistent-highlight--has-note');
     }
 
     if (orphaned) {
-      el.classList.add('voxpage-persistent-highlight--orphaned');
+      el.classList.add('proso-persistent-highlight--orphaned');
     }
 
     return el;
@@ -652,7 +652,7 @@ export class PersistentHighlightManager {
     if (rendered) {
       rendered.orphaned = true;
       for (const element of rendered.elements) {
-        element.classList.add('voxpage-persistent-highlight--orphaned');
+        element.classList.add('proso-persistent-highlight--orphaned');
       }
     }
   }
@@ -683,7 +683,7 @@ export class PersistentHighlightManager {
    */
   private createColorButton(color: HighlightColor): HTMLButtonElement {
     const button = document.createElement('button');
-    button.className = 'voxpage-highlight-color-btn';
+    button.className = 'proso-highlight-color-btn';
     button.dataset.action = 'color';
     button.dataset.color = color;
     button.style.backgroundColor = HIGHLIGHT_COLOR_VALUES[color];
@@ -699,7 +699,7 @@ export class PersistentHighlightManager {
     this.activeHighlightId = highlightId;
 
     const menu = document.createElement('div');
-    menu.className = 'voxpage-highlight-context-menu';
+    menu.className = 'proso-highlight-context-menu';
 
     // Add Note button
     const noteBtn = this.createMenuButton('Add Note', 'note');
@@ -711,7 +711,7 @@ export class PersistentHighlightManager {
 
     // Color picker section
     const colorPicker = document.createElement('div');
-    colorPicker.className = 'voxpage-highlight-color-picker';
+    colorPicker.className = 'proso-highlight-color-picker';
 
     const colors: HighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'purple'];
     for (const color of colors) {

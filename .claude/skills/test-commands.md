@@ -1,4 +1,4 @@
-# VoxPage Test Commands Quick Reference
+# Proso Test Commands Quick Reference
 
 ## Essential Commands
 

@@ -292,7 +292,7 @@ describe('Constants', () => {
   it('DEFAULT_BUFFER_CONFIG has sensible defaults', () => {
     expect(DEFAULT_BUFFER_CONFIG.maxBytes).toBe(10 * 1024 * 1024);
     expect(DEFAULT_BUFFER_CONFIG.maxAgeMs).toBe(14 * 24 * 60 * 60 * 1000);
-    expect(DEFAULT_BUFFER_CONFIG.dbName).toBe('voxpage_usage');
+    expect(DEFAULT_BUFFER_CONFIG.dbName).toBe('proso_usage');
     expect(DEFAULT_BUFFER_CONFIG.storeName).toBe('events');
   });
 

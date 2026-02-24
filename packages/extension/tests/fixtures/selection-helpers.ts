@@ -63,7 +63,7 @@ export function createParagraphDOMElements(
 
     el.textContent = para.text;
     el.dataset.paragraphIndex = String(para.index);
-    el.classList.add('voxpage-paragraph');
+    el.classList.add('proso-paragraph');
 
     parent.appendChild(el);
     elements.push(el);
@@ -150,8 +150,8 @@ export const selectionAssertions = {
    */
   isHighlighted(element: HTMLElement) {
     expect(
-      element.classList.contains('voxpage-highlight') ||
-        element.classList.contains('voxpage-active') ||
+      element.classList.contains('proso-highlight') ||
+        element.classList.contains('proso-active') ||
         element.getAttribute('data-highlighted') === 'true'
     ).toBe(true);
   },
@@ -161,8 +161,8 @@ export const selectionAssertions = {
    */
   isNotHighlighted(element: HTMLElement) {
     expect(
-      element.classList.contains('voxpage-highlight') ||
-        element.classList.contains('voxpage-active') ||
+      element.classList.contains('proso-highlight') ||
+        element.classList.contains('proso-active') ||
         element.getAttribute('data-highlighted') === 'true'
     ).toBe(false);
   },

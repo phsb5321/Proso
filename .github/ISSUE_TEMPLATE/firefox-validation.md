@@ -13,7 +13,7 @@ assignees: ''
 > **Quick checklist**: See [docs/firefox-manual-validation.md](../../docs/firefox-manual-validation.md) for abbreviated testing.
 
 **Firefox Version**: 
-**VoxPage Version**: 
+**Proso Version**: 
 **Date**: 
 **Tester**: 
 
@@ -25,9 +25,9 @@ assignees: ''
 
 ### Console Error Check
 - [ ] Open DevTools Console (F12)
-- [ ] Filter for VoxPage messages
+- [ ] Filter for Proso messages
 - [ ] Wait 30 seconds idle
-- [ ] No red (error) messages from VoxPage
+- [ ] No red (error) messages from Proso
 - [ ] No uncaught exceptions
 - [ ] No CSP violations
 

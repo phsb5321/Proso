@@ -1,6 +1,6 @@
 # Pull Request Template
 
-Use this template when creating PRs for VoxPage.
+Use this template when creating PRs for Proso.
 
 ## PR Body Format
 

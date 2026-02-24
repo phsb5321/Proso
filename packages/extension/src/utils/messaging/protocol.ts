@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Messaging Protocol
+ * Proso Messaging Protocol
  * Type-safe message protocol using @webext-core/messaging
  *
  * @module utils/messaging/protocol
@@ -82,11 +82,11 @@ export type FooterAction =
   | 'expand';
 
 /**
- * VoxPage Protocol Map
+ * Proso Protocol Map
  * Defines all message types with their request/response signatures
  * Compatible with @webext-core/messaging defineExtensionMessaging
  */
-export interface VoxPageProtocol {
+export interface ProsoProtocol {
   // ========== Playback Control Messages ==========
   'playback.start': {
     request: {

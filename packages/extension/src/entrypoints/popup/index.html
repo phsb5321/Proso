@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VoxPage</title>
+  <title>Proso</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="voxpage-popup" id="popup" data-testid="popup-container">
+  <div class="proso-popup" id="popup" data-testid="popup-container">
     <!-- Header -->
-    <header class="voxpage-popup__header">
-      <div class="voxpage-popup__title">
-        <img src="/icons/icon-32.png" alt="" class="voxpage-popup__icon" />
-        <h1>VoxPage</h1>
+    <header class="proso-popup__header">
+      <div class="proso-popup__title">
+        <img src="/icons/icon-32.png" alt="" class="proso-popup__icon" />
+        <h1>Proso</h1>
       </div>
       <button
         id="settings-btn"
-        class="voxpage-button voxpage-button--icon voxpage-button--ghost"
+        class="proso-button proso-button--icon proso-button--ghost"
         title="Settings"
         aria-label="Open settings"
         data-testid="popup-settings-btn"
@@ -29,10 +29,10 @@
     </header>
 
     <!-- Tab Navigation -->
-    <nav class="voxpage-popup__tabs" role="tablist" aria-label="Popup navigation">
+    <nav class="proso-popup__tabs" role="tablist" aria-label="Popup navigation">
       <button
         id="tab-player"
-        class="voxpage-popup__tab voxpage-popup__tab--active"
+        class="proso-popup__tab proso-popup__tab--active"
         role="tab"
         aria-selected="true"
         aria-controls="panel-player"
@@ -45,7 +45,7 @@
       </button>
       <button
         id="tab-tools"
-        class="voxpage-popup__tab"
+        class="proso-popup__tab"
         role="tab"
         aria-selected="false"
         aria-controls="panel-tools"
@@ -58,7 +58,7 @@
       </button>
       <button
         id="tab-queue"
-        class="voxpage-popup__tab"
+        class="proso-popup__tab"
         role="tab"
         aria-selected="false"
         aria-controls="panel-queue"
@@ -73,31 +73,31 @@
           <line x1="3" y1="18" x2="3.01" y2="18"></line>
         </svg>
         <span>Queue</span>
-        <span class="voxpage-popup__tab-badge" id="queue-tab-badge" hidden>0</span>
+        <span class="proso-popup__tab-badge" id="queue-tab-badge" hidden>0</span>
       </button>
     </nav>
 
     <!-- Tab Panels Container -->
-    <div class="voxpage-popup__panels">
+    <div class="proso-popup__panels">
       <!-- Player Panel -->
-      <div id="panel-player" class="voxpage-popup__panel voxpage-popup__panel--active" role="tabpanel" aria-labelledby="tab-player">
+      <div id="panel-player" class="proso-popup__panel proso-popup__panel--active" role="tabpanel" aria-labelledby="tab-player">
         <!-- Status Section -->
-        <section class="voxpage-popup__status" aria-live="polite" data-testid="popup-status-section">
-          <div class="voxpage-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">
-            <span class="voxpage-popup__status-dot" id="status-dot"></span>
-            <span class="voxpage-popup__status-text" id="status-text" aria-live="polite" data-testid="popup-status-text">Ready</span>
+        <section class="proso-popup__status" aria-live="polite" data-testid="popup-status-section">
+          <div class="proso-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">
+            <span class="proso-popup__status-dot" id="status-dot"></span>
+            <span class="proso-popup__status-text" id="status-text" aria-live="polite" data-testid="popup-status-text">Ready</span>
           </div>
-          <div class="voxpage-popup__paragraph" id="paragraph-info">
+          <div class="proso-popup__paragraph" id="paragraph-info">
             <span id="paragraph-current">-</span> / <span id="paragraph-total">-</span>
           </div>
         </section>
 
         <!-- Progress Bar -->
-        <div class="voxpage-popup__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-container">
-          <div class="voxpage-popup__progress-bar" id="progress-bar"></div>
+        <div class="proso-popup__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-container">
+          <div class="proso-popup__progress-bar" id="progress-bar"></div>
           <input
             type="range"
-            class="voxpage-popup__progress-seek"
+            class="proso-popup__progress-seek"
             id="progress-seek"
             min="0"
             max="100"
@@ -107,10 +107,10 @@
         </div>
 
         <!-- Playback Controls -->
-        <section class="voxpage-popup__controls">
+        <section class="proso-popup__controls">
           <button
             id="prev-btn"
-            class="voxpage-button voxpage-button--icon voxpage-button--secondary"
+            class="proso-button proso-button--icon proso-button--secondary"
             title="Previous paragraph"
             aria-label="Previous paragraph"
             data-testid="popup-prev-btn"
@@ -123,7 +123,7 @@
 
           <button
             id="play-pause-btn"
-            class="voxpage-button voxpage-button--icon voxpage-button--primary voxpage-popup__play-btn"
+            class="proso-button proso-button--icon proso-button--primary proso-popup__play-btn"
             title="Play"
             aria-label="Play"
             data-testid="popup-play-pause-btn"
@@ -139,7 +139,7 @@
 
           <button
             id="next-btn"
-            class="voxpage-button voxpage-button--icon voxpage-button--secondary"
+            class="proso-button proso-button--icon proso-button--secondary"
             title="Next paragraph"
             aria-label="Next paragraph"
             data-testid="popup-next-btn"
@@ -152,7 +152,7 @@
 
           <button
             id="stop-btn"
-            class="voxpage-button voxpage-button--icon voxpage-button--secondary"
+            class="proso-button proso-button--icon proso-button--secondary"
             title="Stop playback"
             aria-label="Stop playback"
             data-testid="popup-stop-btn"
@@ -164,14 +164,14 @@
         </section>
 
         <!-- Speed Control -->
-        <section class="voxpage-popup__speed">
-          <label for="speed-slider" class="voxpage-popup__speed-label">
+        <section class="proso-popup__speed">
+          <label for="speed-slider" class="proso-popup__speed-label">
             Speed: <span id="speed-value">1.0x</span>
           </label>
           <input
             type="range"
             id="speed-slider"
-            class="voxpage-popup__speed-slider"
+            class="proso-popup__speed-slider"
             min="0.5"
             max="2"
             step="0.1"
@@ -181,9 +181,9 @@
         </section>
 
         <!-- Provider Selection -->
-        <section class="voxpage-popup__provider">
-          <label for="provider-select" class="voxpage-popup__provider-label">Provider</label>
-          <select id="provider-select" class="voxpage-select" data-testid="popup-provider-select">
+        <section class="proso-popup__provider">
+          <label for="provider-select" class="proso-popup__provider-label">Provider</label>
+          <select id="provider-select" class="proso-select" data-testid="popup-provider-select">
             <option value="browser">Browser (Free)</option>
             <option value="elevenlabs">ElevenLabs</option>
             <option value="openai">OpenAI</option>
@@ -193,36 +193,36 @@
         </section>
 
         <!-- Cost Estimate Section -->
-        <section class="voxpage-popup__cost" id="cost-section">
-          <div class="voxpage-popup__cost-row">
-            <span class="voxpage-popup__cost-label">Estimated Cost:</span>
-            <span class="voxpage-popup__cost-value" id="cost-estimate">--</span>
+        <section class="proso-popup__cost" id="cost-section">
+          <div class="proso-popup__cost-row">
+            <span class="proso-popup__cost-label">Estimated Cost:</span>
+            <span class="proso-popup__cost-value" id="cost-estimate">--</span>
           </div>
-          <div class="voxpage-popup__cost-row voxpage-popup__cost-row--savings" id="cost-savings-row" hidden>
-            <span class="voxpage-popup__cost-label">Cache Savings:</span>
-            <span class="voxpage-popup__cost-value voxpage-popup__cost-value--savings" id="cost-savings">$0.00 (0%)</span>
+          <div class="proso-popup__cost-row proso-popup__cost-row--savings" id="cost-savings-row" hidden>
+            <span class="proso-popup__cost-label">Cache Savings:</span>
+            <span class="proso-popup__cost-value proso-popup__cost-value--savings" id="cost-savings">$0.00 (0%)</span>
           </div>
         </section>
 
         <!-- Credit Balance Section (T132) -->
-        <section class="voxpage-popup__credits" id="credits-section" hidden>
-          <div class="voxpage-popup__credits-row">
-            <span class="voxpage-popup__credits-label">Credits:</span>
-            <span class="voxpage-popup__credits-value" id="credits-remaining">--</span>
-            <span class="voxpage-popup__credits-total" id="credits-total">/ --</span>
+        <section class="proso-popup__credits" id="credits-section" hidden>
+          <div class="proso-popup__credits-row">
+            <span class="proso-popup__credits-label">Credits:</span>
+            <span class="proso-popup__credits-value" id="credits-remaining">--</span>
+            <span class="proso-popup__credits-total" id="credits-total">/ --</span>
           </div>
-          <div class="voxpage-popup__credits-bar">
-            <div class="voxpage-popup__credits-bar-fill" id="credits-bar-fill"></div>
+          <div class="proso-popup__credits-bar">
+            <div class="proso-popup__credits-bar-fill" id="credits-bar-fill"></div>
           </div>
-          <span class="voxpage-popup__credits-warning" id="credits-warning" hidden></span>
+          <span class="proso-popup__credits-warning" id="credits-warning" hidden></span>
         </section>
       </div>
 
       <!-- Tools Panel -->
-      <div id="panel-tools" class="voxpage-popup__panel" role="tabpanel" aria-labelledby="tab-tools" hidden>
+      <div id="panel-tools" class="proso-popup__panel" role="tabpanel" aria-labelledby="tab-tools" hidden>
         <!-- Summarize Section -->
-        <section class="voxpage-popup__tool-section" id="summarize-section">
-          <h3 class="voxpage-popup__tool-title">
+        <section class="proso-popup__tool-section" id="summarize-section">
+          <h3 class="proso-popup__tool-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -231,22 +231,22 @@
             </svg>
             AI Summary
           </h3>
-          <p class="voxpage-popup__tool-desc">Get key points from this article using AI</p>
+          <p class="proso-popup__tool-desc">Get key points from this article using AI</p>
           <button
             id="summarize-btn"
-            class="voxpage-button voxpage-button--secondary voxpage-popup__tool-btn"
+            class="proso-button proso-button--secondary proso-popup__tool-btn"
             title="Get AI summary of article"
             aria-label="Summarize article"
           >
             <span id="summarize-btn-text">Summarize</span>
           </button>
           <!-- Summary Display (hidden by default) -->
-          <div class="voxpage-popup__summary" id="summary-display" hidden>
-            <div class="voxpage-popup__summary-header">
-              <span class="voxpage-popup__summary-title">Summary</span>
+          <div class="proso-popup__summary" id="summary-display" hidden>
+            <div class="proso-popup__summary-header">
+              <span class="proso-popup__summary-title">Summary</span>
               <button
                 id="read-summary-btn"
-                class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
                 title="Read summary aloud"
                 aria-label="Read summary aloud"
               >
@@ -257,7 +257,7 @@
               </button>
               <button
                 id="close-summary-btn"
-                class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
                 title="Close summary"
                 aria-label="Close summary"
               >
@@ -267,13 +267,13 @@
                 </svg>
               </button>
             </div>
-            <ul class="voxpage-popup__summary-bullets" id="summary-bullets"></ul>
+            <ul class="proso-popup__summary-bullets" id="summary-bullets"></ul>
           </div>
         </section>
 
         <!-- OCR Section -->
-        <section class="voxpage-popup__tool-section" id="ocr-section">
-          <h3 class="voxpage-popup__tool-title">
+        <section class="proso-popup__tool-section" id="ocr-section">
+          <h3 class="proso-popup__tool-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
               <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -281,23 +281,23 @@
             </svg>
             Image Text (OCR)
           </h3>
-          <p class="voxpage-popup__tool-desc">Extract and read text from images on the page</p>
+          <p class="proso-popup__tool-desc">Extract and read text from images on the page</p>
           <button
             id="ocr-btn"
-            class="voxpage-button voxpage-button--secondary voxpage-popup__tool-btn"
+            class="proso-button proso-button--secondary proso-popup__tool-btn"
             title="Read text from screenshot"
             aria-label="Read text from screenshot"
           >
             <span id="ocr-btn-text">Capture & Read</span>
           </button>
           <!-- OCR Result Display (hidden by default) -->
-          <div class="voxpage-popup__ocr-result" id="ocr-result" hidden>
-            <div class="voxpage-popup__ocr-header">
-              <span class="voxpage-popup__ocr-title">Extracted Text</span>
-              <span class="voxpage-popup__ocr-confidence" id="ocr-confidence"></span>
+          <div class="proso-popup__ocr-result" id="ocr-result" hidden>
+            <div class="proso-popup__ocr-header">
+              <span class="proso-popup__ocr-title">Extracted Text</span>
+              <span class="proso-popup__ocr-confidence" id="ocr-confidence"></span>
               <button
                 id="read-ocr-btn"
-                class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
                 title="Read extracted text"
                 aria-label="Read extracted text"
               >
@@ -308,7 +308,7 @@
               </button>
               <button
                 id="close-ocr-btn"
-                class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
                 title="Close"
                 aria-label="Close OCR result"
               >
@@ -318,13 +318,13 @@
                 </svg>
               </button>
             </div>
-            <p class="voxpage-popup__ocr-text" id="ocr-text"></p>
+            <p class="proso-popup__ocr-text" id="ocr-text"></p>
           </div>
         </section>
 
         <!-- Highlights Section (T093-T095) -->
-        <section class="voxpage-popup__tool-section" id="highlights-section">
-          <h3 class="voxpage-popup__tool-title">
+        <section class="proso-popup__tool-section" id="highlights-section">
+          <h3 class="proso-popup__tool-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
               <path d="M2 17l10 5 10-5"></path>
@@ -332,27 +332,27 @@
             </svg>
             Highlights
           </h3>
-          <div class="voxpage-popup__highlight-info" id="highlight-info">
-            <span class="voxpage-popup__highlight-count">
+          <div class="proso-popup__highlight-info" id="highlight-info">
+            <span class="proso-popup__highlight-count">
               <span id="highlight-count">0</span> highlights on this page
             </span>
           </div>
           <!-- Selection indicator (shows when text selected) -->
-          <div class="voxpage-popup__highlight-selection" id="highlight-selection" hidden>
-            <p class="voxpage-popup__highlight-selection-text">
+          <div class="proso-popup__highlight-selection" id="highlight-selection" hidden>
+            <p class="proso-popup__highlight-selection-text">
               <strong>Selected:</strong> "<span id="selection-preview"></span>"
             </p>
-            <div class="voxpage-popup__highlight-actions">
-              <div class="voxpage-popup__color-picker" id="color-picker">
-                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--yellow" data-color="yellow" title="Yellow" aria-label="Yellow highlight"></button>
-                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--green" data-color="green" title="Green" aria-label="Green highlight"></button>
-                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--blue" data-color="blue" title="Blue" aria-label="Blue highlight"></button>
-                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--pink" data-color="pink" title="Pink" aria-label="Pink highlight"></button>
-                <button class="voxpage-popup__color-btn voxpage-popup__color-btn--purple" data-color="purple" title="Purple" aria-label="Purple highlight"></button>
+            <div class="proso-popup__highlight-actions">
+              <div class="proso-popup__color-picker" id="color-picker">
+                <button class="proso-popup__color-btn proso-popup__color-btn--yellow" data-color="yellow" title="Yellow" aria-label="Yellow highlight"></button>
+                <button class="proso-popup__color-btn proso-popup__color-btn--green" data-color="green" title="Green" aria-label="Green highlight"></button>
+                <button class="proso-popup__color-btn proso-popup__color-btn--blue" data-color="blue" title="Blue" aria-label="Blue highlight"></button>
+                <button class="proso-popup__color-btn proso-popup__color-btn--pink" data-color="pink" title="Pink" aria-label="Pink highlight"></button>
+                <button class="proso-popup__color-btn proso-popup__color-btn--purple" data-color="purple" title="Purple" aria-label="Purple highlight"></button>
               </div>
               <button
                 id="create-highlight-btn"
-                class="voxpage-button voxpage-button--primary voxpage-popup__tool-btn"
+                class="proso-button proso-button--primary proso-popup__tool-btn"
                 title="Create highlight from selection"
                 aria-label="Create highlight"
               >
@@ -361,12 +361,12 @@
             </div>
           </div>
           <!-- No selection message -->
-          <p class="voxpage-popup__tool-desc" id="no-selection-msg">Select text on the page to create a highlight</p>
+          <p class="proso-popup__tool-desc" id="no-selection-msg">Select text on the page to create a highlight</p>
         </section>
 
         <!-- Export Section -->
-        <section class="voxpage-popup__tool-section" id="export-section">
-          <h3 class="voxpage-popup__tool-title">
+        <section class="proso-popup__tool-section" id="export-section">
+          <h3 class="proso-popup__tool-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
@@ -374,22 +374,22 @@
             </svg>
             Export Audio
           </h3>
-          <p class="voxpage-popup__tool-desc">Download this article as an MP3 file</p>
+          <p class="proso-popup__tool-desc">Download this article as an MP3 file</p>
           <button
             id="export-btn"
-            class="voxpage-button voxpage-button--secondary voxpage-popup__tool-btn"
+            class="proso-button proso-button--secondary proso-popup__tool-btn"
             title="Download article as MP3"
             aria-label="Download article as MP3"
           >
             <span id="export-btn-text">Download MP3</span>
           </button>
           <!-- Export Progress (hidden by default) -->
-          <div class="voxpage-popup__export-progress" id="export-progress" hidden>
-            <div class="voxpage-popup__export-progress-bar" id="export-progress-bar"></div>
-            <span class="voxpage-popup__export-progress-text" id="export-progress-text" aria-live="polite">Preparing...</span>
+          <div class="proso-popup__export-progress" id="export-progress" hidden>
+            <div class="proso-popup__export-progress-bar" id="export-progress-bar"></div>
+            <span class="proso-popup__export-progress-text" id="export-progress-text" aria-live="polite">Preparing...</span>
             <button
               id="export-cancel-btn"
-              class="voxpage-button voxpage-button--icon voxpage-button--ghost voxpage-button--small"
+              class="proso-button proso-button--icon proso-button--ghost proso-button--small"
               title="Cancel export"
               aria-label="Cancel export"
             >
@@ -403,16 +403,16 @@
       </div>
 
       <!-- Queue Panel -->
-      <div id="panel-queue" class="voxpage-popup__panel" role="tabpanel" aria-labelledby="tab-queue" hidden>
-        <section class="voxpage-popup__queue" id="queue-section">
-          <div class="voxpage-popup__queue-header-bar">
-            <h3 class="voxpage-popup__queue-heading">Reading Queue</h3>
-            <span class="voxpage-popup__queue-count" id="queue-count">0 items</span>
+      <div id="panel-queue" class="proso-popup__panel" role="tabpanel" aria-labelledby="tab-queue" hidden>
+        <section class="proso-popup__queue" id="queue-section">
+          <div class="proso-popup__queue-header-bar">
+            <h3 class="proso-popup__queue-heading">Reading Queue</h3>
+            <span class="proso-popup__queue-count" id="queue-count">0 items</span>
           </div>
           
           <button
             id="add-to-queue-btn"
-            class="voxpage-button voxpage-button--secondary voxpage-popup__queue-add-btn"
+            class="proso-button proso-button--secondary proso-popup__queue-add-btn"
             title="Add current page to reading queue"
             aria-label="Add to reading queue"
           >
@@ -423,14 +423,14 @@
             <span id="add-queue-btn-text">Add Current Page</span>
           </button>
 
-          <div class="voxpage-popup__queue-list" id="queue-list" aria-live="polite">
-            <p class="voxpage-popup__queue-empty" id="queue-empty-message">Queue is empty. Add articles to listen later.</p>
+          <div class="proso-popup__queue-list" id="queue-list" aria-live="polite">
+            <p class="proso-popup__queue-empty" id="queue-empty-message">Queue is empty. Add articles to listen later.</p>
           </div>
 
-          <div class="voxpage-popup__queue-controls" id="queue-controls" hidden>
+          <div class="proso-popup__queue-controls" id="queue-controls" hidden>
             <button
               id="play-queue-btn"
-              class="voxpage-button voxpage-button--primary voxpage-popup__queue-play-btn"
+              class="proso-button proso-button--primary proso-popup__queue-play-btn"
               title="Play queue from start"
               aria-label="Play queue"
             >
@@ -441,7 +441,7 @@
             </button>
             <button
               id="clear-queue-btn"
-              class="voxpage-button voxpage-button--ghost voxpage-button--small"
+              class="proso-button proso-button--ghost proso-button--small"
               title="Clear completed items"
               aria-label="Clear completed items"
             >
@@ -453,9 +453,9 @@
     </div>
 
     <!-- Footer -->
-    <footer class="voxpage-popup__footer">
-      <a href="#" id="help-link" class="voxpage-popup__footer-link">Help</a>
-      <span class="voxpage-popup__version" id="version">v1.0.0</span>
+    <footer class="proso-popup__footer">
+      <a href="#" id="help-link" class="proso-popup__footer-link">Help</a>
+      <span class="proso-popup__version" id="version">v1.0.0</span>
     </footer>
   </div>
 

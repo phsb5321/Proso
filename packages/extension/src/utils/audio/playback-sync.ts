@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Playback Sync Module
+ * Proso Playback Sync Module
  * Manages synchronization state between audio playback and text highlighting
  *
  * @module utils/audio/playback-sync
@@ -120,7 +120,7 @@ export class PlaybackSyncState {
       this._pendingTimelineParagraph = -1;
     } else {
       console.warn(
-        `VoxPage: Ignoring TIMELINE_READY for paragraph ${paragraphIndex}, expected ${this._pendingTimelineParagraph}`,
+        `Proso: Ignoring TIMELINE_READY for paragraph ${paragraphIndex}, expected ${this._pendingTimelineParagraph}`,
       );
     }
   }
@@ -271,7 +271,7 @@ export class PlaybackSyncState {
       if (estimatedDuration > 0 && Math.abs(durationMs - estimatedDuration) > 100) {
         const scaleFactor = durationMs / estimatedDuration;
         console.log(
-          `VoxPage: Scaling word timings by ${scaleFactor.toFixed(2)} (${estimatedDuration}ms -> ${durationMs}ms)`,
+          `Proso: Scaling word timings by ${scaleFactor.toFixed(2)} (${estimatedDuration}ms -> ${durationMs}ms)`,
         );
 
         for (const word of this.wordTimeline) {
@@ -445,7 +445,7 @@ export class PlaybackSyncState {
 
         if (Math.abs(this._driftMs) > this._driftThresholdMs) {
           console.warn(
-            `VoxPage: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`,
+            `Proso: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`,
           );
           this._currentTimeMs = audioTimeMs;
           this._driftMs = 0;
@@ -468,7 +468,7 @@ export class PlaybackSyncState {
       this.syncToWord();
     } else if (this.hasWordTiming && !this._timelineReady) {
       if (this._perfLogging) {
-        console.debug('VoxPage: Skipping word sync - timeline not ready yet');
+        console.debug('Proso: Skipping word sync - timeline not ready yet');
       }
     }
 
@@ -482,7 +482,7 @@ export class PlaybackSyncState {
     }
     if (this._perfLogging && this._lastSyncDurationMs > 5) {
       console.warn(
-        `VoxPage: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`,
+        `Proso: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`,
       );
     }
 
@@ -592,7 +592,7 @@ export class PlaybackSyncState {
 export function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoundary {
   const usedLegacyFormat = rawTiming.startMs !== undefined || rawTiming.start !== undefined;
   if (usedLegacyFormat) {
-    console.debug('VoxPage: normalizeWordTiming converting legacy format', {
+    console.debug('Proso: normalizeWordTiming converting legacy format', {
       hasStartMs: rawTiming.startMs !== undefined,
       hasStart: rawTiming.start !== undefined,
       word: rawTiming.word,

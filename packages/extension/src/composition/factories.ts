@@ -17,7 +17,7 @@ import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { IApiClient } from '../ports/api-client.port';
 import type { ApiKeys } from './types';
-import { TTSProvider } from '@voxpage/shared';
+import { TTSProvider } from '@proso/shared';
 
 // Audio adapters
 import {
@@ -43,7 +43,7 @@ import { BrowserSettingsAdapter } from '../adapters/storage';
 import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapters/content';
 
 // API adapters
-import { VoxPageApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
+import { ProsoApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
 
 /**
  * Create an audio generator adapter based on provider.
@@ -85,7 +85,7 @@ export function createAudioGeneratorAdapter(
   }
 
   // No API key and no server — error
-  throw new Error(`${provider} API key is required (or configure VoxPage server for managed credits)`);
+  throw new Error(`${provider} API key is required (or configure Proso server for managed credits)`);
 }
 
 /**
@@ -217,10 +217,10 @@ export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): strin
 /**
  * Create an API client adapter.
  *
- * Returns VoxPageApiAdapter when serverUrl is configured,
+ * Returns ProsoApiAdapter when serverUrl is configured,
  * otherwise returns NoOpApiClientAdapter (BYOK-only mode).
  *
- * @param serverUrl - VoxPage server URL (null = not configured)
+ * @param serverUrl - Proso server URL (null = not configured)
  * @param licenseKey - User's license key (null = not configured)
  * @returns IApiClient adapter
  */
@@ -229,7 +229,7 @@ export function createApiClientAdapter(
   licenseKey: string | null,
 ): IApiClient {
   if (serverUrl) {
-    return new VoxPageApiAdapter(serverUrl, licenseKey);
+    return new ProsoApiAdapter(serverUrl, licenseKey);
   }
   return new NoOpApiClientAdapter();
 }

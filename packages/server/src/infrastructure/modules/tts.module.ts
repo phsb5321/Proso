@@ -6,7 +6,7 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TTSProvider } from '@voxpage/shared';
+import { TTSProvider } from '@proso/shared';
 import { InMemoryCacheAdapter } from '../../adapters/cache/in-memory-cache.adapter';
 import { ElevenLabsTTSAdapter } from '../../adapters/tts/elevenlabs-tts.adapter';
 import { GroqTTSAdapter } from '../../adapters/tts/groq-tts.adapter';

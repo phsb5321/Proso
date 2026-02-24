@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Permissions Utility
+ * Proso Permissions Utility
  *
  * Utilities for requesting and checking browser permissions.
  *
@@ -27,7 +27,7 @@ export async function hasHostPermission(url: string): Promise<boolean> {
 
     return result;
   } catch (error) {
-    console.error('[VoxPage:Permissions] Error checking host permission:', error);
+    console.error('[Proso:Permissions] Error checking host permission:', error);
     return false;
   }
 }
@@ -48,14 +48,14 @@ export async function requestHostPermission(url: string): Promise<boolean> {
     });
 
     if (granted) {
-      console.log(`[VoxPage:Permissions] Permission granted for ${origin}`);
+      console.log(`[Proso:Permissions] Permission granted for ${origin}`);
     } else {
-      console.log(`[VoxPage:Permissions] Permission denied for ${origin}`);
+      console.log(`[Proso:Permissions] Permission denied for ${origin}`);
     }
 
     return granted;
   } catch (error) {
-    console.error('[VoxPage:Permissions] Error requesting host permission:', error);
+    console.error('[Proso:Permissions] Error requesting host permission:', error);
     return false;
   }
 }
@@ -89,7 +89,7 @@ export async function hasActiveTabPermission(): Promise<boolean> {
     });
     return result;
   } catch (error) {
-    console.error('[VoxPage:Permissions] Error checking activeTab permission:', error);
+    console.error('[Proso:Permissions] Error checking activeTab permission:', error);
     return false;
   }
 }
@@ -106,7 +106,7 @@ export async function hasUnlimitedStoragePermission(): Promise<boolean> {
     });
     return result;
   } catch (error) {
-    console.error('[VoxPage:Permissions] Error checking unlimitedStorage permission:', error);
+    console.error('[Proso:Permissions] Error checking unlimitedStorage permission:', error);
     return false;
   }
 }
@@ -127,7 +127,7 @@ export async function getAllPermissions(): Promise<{
       origins: result.origins ?? [],
     };
   } catch (error) {
-    console.error('[VoxPage:Permissions] Error getting all permissions:', error);
+    console.error('[Proso:Permissions] Error getting all permissions:', error);
     return {
       permissions: [],
       origins: [],

@@ -1,12 +1,12 @@
 # E2E Testing on NixOS
 
-This guide explains how to run VoxPage E2E and visual tests on NixOS systems.
+This guide explains how to run Proso E2E and visual tests on NixOS systems.
 
 ## Overview
 
-Playwright's downloaded browsers don't work on NixOS due to dynamic linker incompatibilities. VoxPage tests are configured to automatically detect and use system browsers when available.
+Playwright's downloaded browsers don't work on NixOS due to dynamic linker incompatibilities. Proso tests are configured to automatically detect and use system browsers when available.
 
-**VoxPage is Firefox-first**, so Firefox visual tests are our primary testing target. Chromium extension tests serve as a proxy for extension functionality since Playwright doesn't support Firefox extension loading.
+**Proso is Firefox-first**, so Firefox visual tests are our primary testing target. Chromium extension tests serve as a proxy for extension functionality since Playwright doesn't support Firefox extension loading.
 
 ## Quick Start
 
@@ -261,5 +261,5 @@ Both jobs run in parallel after unit tests pass.
 ## Additional Resources
 
 - [Playwright NixOS Wiki](https://wiki.nixos.org/wiki/Playwright)
-- [VoxPage Firefox Manual Validation](./firefox-manual-validation.md)
+- [Proso Firefox Manual Validation](./firefox-manual-validation.md)
 - [Firefox Extension Testing Strategy](./firefox-extension-testing-strategy.md)

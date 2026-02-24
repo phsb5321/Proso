@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage IndexedDB Schema
+ * Proso IndexedDB Schema
  *
- * Database schema definition for VoxPage data persistence.
+ * Database schema definition for Proso data persistence.
  * Uses Dexie.js for IndexedDB abstraction.
  *
  * @module utils/db/schema
@@ -24,12 +24,12 @@ export const DB_VERSION = 1;
 /**
  * Database name
  */
-export const DB_NAME = 'voxpage';
+export const DB_NAME = 'proso';
 
 /**
- * VoxPage Database class extending Dexie
+ * Proso Database class extending Dexie
  */
-export class VoxPageDB extends Dexie {
+export class ProsoDB extends Dexie {
   /**
    * Highlights table - User-created text annotations
    *
@@ -67,14 +67,14 @@ export class VoxPageDB extends Dexie {
 /**
  * Singleton database instance
  */
-let dbInstance: VoxPageDB | null = null;
+let dbInstance: ProsoDB | null = null;
 
 /**
  * Get the database instance (singleton)
  */
-export function getDB(): VoxPageDB {
+export function getDB(): ProsoDB {
   if (!dbInstance) {
-    dbInstance = new VoxPageDB();
+    dbInstance = new ProsoDB();
   }
   return dbInstance;
 }

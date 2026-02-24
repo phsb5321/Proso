@@ -66,7 +66,7 @@ export interface LanguageValidationResponse {
 
 /**
  * Static provider metadata.
- * Matches existing VoxPage providers.
+ * Matches existing Proso providers.
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
   browser: {

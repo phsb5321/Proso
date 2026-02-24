@@ -1,16 +1,16 @@
 ---
-name: voxpage-git-workflow
-description: Creates atomic commits and PRs following VoxPage project conventions. Use when committing changes, pushing to remote, creating pull requests, or when asked about git workflow, commit format, or PR conventions.
+name: proso-git-workflow
+description: Creates atomic commits and PRs following Proso project conventions. Use when committing changes, pushing to remote, creating pull requests, or when asked about git workflow, commit format, or PR conventions.
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(npm:*), Read, Grep, Glob
 ---
 
-# VoxPage Git Workflow
+# Proso Git Workflow
 
-This skill guides Claude through VoxPage's git workflow conventions including atomic commits, push operations, and pull request creation.
+This skill guides Claude through Proso's git workflow conventions including atomic commits, push operations, and pull request creation.
 
-## VoxPage Project Context
+## Proso Project Context
 
-VoxPage is a Firefox WebExtension for text-to-speech. Key directories:
+Proso is a Firefox WebExtension for text-to-speech. Key directories:
 
 | Directory | Purpose |
 |-----------|---------|
@@ -52,7 +52,7 @@ type(scope): description
 | `chore` | Maintenance tasks | `chore(deps): Upgrade jest to v30` |
 | `perf` | Performance improvement | `perf(content): Optimize DOM element matching` |
 
-### Commit Scopes (VoxPage-specific)
+### Commit Scopes (Proso-specific)
 
 | Scope | When to use |
 |-------|-------------|
@@ -192,13 +192,13 @@ if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
 fi
 ```
 
-**Protected branches in VoxPage:**
+**Protected branches in Proso:**
 - `main` - Production branch, never push directly
 - `master` - Legacy name, same protection as main
 
 ### Branch Naming Convention
 
-VoxPage uses numbered feature branches:
+Proso uses numbered feature branches:
 
 ```
 ###-feature-name
@@ -460,7 +460,7 @@ git commit -m "type(scope): description"
 
 ## When to Use This Skill
 
-This skill provides guidance for VoxPage git workflow operations. Use it when:
+This skill provides guidance for Proso git workflow operations. Use it when:
 
 - **Committing changes**: Creating atomic commits with conventional format
 - **Pushing code**: Pushing to feature branches with proper tracking
@@ -473,7 +473,7 @@ This skill provides guidance for VoxPage git workflow operations. Use it when:
 - "Commit these changes"
 - "Push to the remote"
 - "Create a PR for this feature"
-- "What's the commit format for VoxPage?"
+- "What's the commit format for Proso?"
 - "How should I name my branch?"
 
 ## Frequently Asked Questions
@@ -533,7 +533,7 @@ gh auth login
 **`fatal: not a git repository`**
 
 You're not in a git repository. Either:
-- Navigate to the project root: `cd /path/to/VoxPage`
+- Navigate to the project root: `cd /path/to/Proso`
 - Initialize a new repo: `git init` (only for new projects)
 
 **Tests Failing Before Commit**
@@ -576,7 +576,7 @@ git push -u origin $(git rev-parse --abbrev-ref HEAD)
 gh pr create
 ```
 
-### VoxPage-Specific Examples
+### Proso-Specific Examples
 
 **Example: Adding a new TTS provider**
 

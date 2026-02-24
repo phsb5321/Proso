@@ -1,10 +1,10 @@
 {
-  "name": "voxpage",
+  "name": "proso",
   "version": "1.1.3",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.29.3",
-  "description": "VoxPage - Text-to-Speech for any webpage (monorepo)",
+  "description": "Proso - Text-to-Speech for any webpage (monorepo)",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",

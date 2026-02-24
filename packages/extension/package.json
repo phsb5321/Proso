@@ -1,9 +1,9 @@
 {
-  "name": "@voxpage/extension",
+  "name": "@proso/extension",
   "version": "1.1.3",
   "private": true,
   "type": "module",
-  "description": "VoxPage Firefox Extension - Text-to-Speech for any webpage",
+  "description": "Proso Firefox Extension - Text-to-Speech for any webpage",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -48,7 +48,7 @@
     "prerelease": "pnpm run test && pnpm run quality && pnpm run build:all"
   },
   "dependencies": {
-    "@voxpage/shared": "workspace:*",
+    "@proso/shared": "workspace:*",
     "@webext-core/messaging": "^2.3.0",
     "dexie": "^4.2.1",
     "franc-min": "^6.2.0",

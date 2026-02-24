@@ -81,13 +81,13 @@ async function enableSelectionMode(page) {
   await page.evaluate(() => {
     const paragraphs = document.querySelectorAll('p');
     paragraphs.forEach((p, index) => {
-      p.classList.add('voxpage-selectable');
-      p.dataset.voxpageSelectIndex = index.toString();
+      p.classList.add('proso-selectable');
+      p.dataset.prosoSelectIndex = index.toString();
 
       // Create play icon
       const icon = document.createElement('div');
-      icon.className = 'voxpage-play-icon';
-      icon.dataset.voxpagePlayIndex = index.toString();
+      icon.className = 'proso-play-icon';
+      icon.dataset.prosoPlayIndex = index.toString();
       icon.setAttribute('role', 'button');
       icon.setAttribute('aria-label', `Play from paragraph ${index + 1}`);
       p.appendChild(icon);
@@ -106,15 +106,15 @@ async function selectParagraph(page, index) {
     const paragraphs = document.querySelectorAll('p');
     paragraphs.forEach((p, i) => {
       if (i === idx) {
-        p.classList.add('voxpage-selected');
+        p.classList.add('proso-selected');
       } else {
-        p.classList.remove('voxpage-selected');
+        p.classList.remove('proso-selected');
       }
     });
   }, index);
 
   // Wait for selection styles to apply
-  await waitForLayoutStable(page, 'p.voxpage-selected', 50);
+  await waitForLayoutStable(page, 'p.proso-selected', 50);
 }
 
 test.describe('Hover Preview Visual Tests (T035)', () => {
@@ -210,8 +210,8 @@ test.describe('Hover Preview Visual Tests (T035)', () => {
     await waitForLayoutStable(page, '#p2', 50);
 
     // Then hover play icon specifically
-    await page.hover('#p2 .voxpage-play-icon');
-    await waitForLayoutStable(page, '#p2 .voxpage-play-icon', 50);
+    await page.hover('#p2 .proso-play-icon');
+    await waitForLayoutStable(page, '#p2 .proso-play-icon', 50);
 
     await expect(page).toHaveScreenshot('play-icon-hover-light.png', {
       maxDiffPixelRatio: 0.02

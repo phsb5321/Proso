@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Configuration Defaults
+ * Proso Configuration Defaults
  * SINGLE SOURCE OF TRUTH for all default configuration values
  *
  * @module utils/config/defaults
@@ -146,7 +146,7 @@ export const cacheDefaults: Readonly<CacheConfig> = Object.freeze({
 
   // IndexedDB settings
   persistToIndexedDB: true,
-  dbName: 'voxpage-audio-cache',
+  dbName: 'proso-audio-cache',
   storeName: 'audio-entries',
 });
 
