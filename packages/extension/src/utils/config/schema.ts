@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Configuration Schema
+ * Proso Configuration Schema
  * Zod-first TypeScript validation
  *
  * @module utils/config/schema
@@ -110,7 +110,7 @@ export const settingsSchema = z.object({
   // Telemetry enabled (045-pdf-removal-page-reader)
   telemetryEnabled: z.boolean().default(false),
 
-  // VoxPage server integration (064-monorepo-nestjs-dokku)
+  // Proso server integration (064-monorepo-nestjs-dokku)
   serverUrl: z.string().url().nullable().default(null),
   licenseKey: z.string().nullable().default(null),
 });

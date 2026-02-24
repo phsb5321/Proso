@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Playback Queue Module
@@ -497,4 +497,4 @@ export class PlaybackQueue {
  */
 export const playbackQueue = new PlaybackQueue();
 
-console.log('VoxPage: utils/playback/playback-queue.ts loaded');
+console.log('Proso: utils/playback/playback-queue.ts loaded');

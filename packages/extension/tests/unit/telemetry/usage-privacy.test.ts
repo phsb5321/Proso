@@ -131,9 +131,9 @@ describe('Privacy Redaction', () => {
     // ---- Non-sensitive data preserved ----
 
     it('does not redact non-sensitive data keys like "name", "count", "status"', () => {
-      const input = { name: 'VoxPage', count: 42, status: 'active' };
+      const input = { name: 'Proso', count: 42, status: 'active' };
       const result = redactSensitiveData(input) as Record<string, unknown>;
-      expect(result.name).toBe('VoxPage');
+      expect(result.name).toBe('Proso');
       expect(result.count).toBe(42);
       expect(result.status).toBe('active');
     });
@@ -236,12 +236,12 @@ describe('Privacy Redaction', () => {
       const result = sanitizeEventData({
         apiKey: 'secret-123',
         token: 'tok-abc',
-        name: 'VoxPage',
+        name: 'Proso',
       });
       expect(result).toBeDefined();
       expect(result!.apiKey).toBe('[REDACTED]');
       expect(result!.token).toBe('[REDACTED]');
-      expect(result!.name).toBe('VoxPage');
+      expect(result!.name).toBe('Proso');
     });
 
     it('redacts API key patterns in string values', () => {

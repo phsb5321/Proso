@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# query-session.sh - Query VoxPage telemetry logs by sessionId
+# query-session.sh - Query Proso telemetry logs by sessionId
 #
 # Usage:
 #   ./query-session.sh <sessionId> [time_range] [limit]
@@ -58,7 +58,7 @@ esac
 END_NS=$(( $(date +%s) * 1000000000 ))
 
 # LogQL query: filter by sessionId in JSON
-QUERY='{app="voxpage"} | json | sessionId="'"$SESSION_ID"'"'
+QUERY='{app="proso"} | json | sessionId="'"$SESSION_ID"'"'
 
 # Execute query
 echo "Querying Loki for sessionId: $SESSION_ID (last $TIME_RANGE)" >&2

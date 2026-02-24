@@ -6,7 +6,7 @@ import {
   SubscriptionTier,
   SubscriptionStatus,
   TIER_CREDITS,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import { WebhookController } from '../../../src/infrastructure/controllers/webhook.controller';
 import type { WebhookRequest } from '../../../src/infrastructure/guards/paddle-webhook.guard';
 import type { SubscriptionRecord } from '../../../src/ports/subscription-repository.port';

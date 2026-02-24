@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Background Script — Composition Root
+ * Proso Background Script — Composition Root
  *
  * This is the main entrypoint for the WXT extension background context.
  * All playback, settings, cache, footer, and provider logic is handled
@@ -152,7 +152,7 @@ const messageHandlers: Record<string, MessageHandler> = {
 // ============================================
 
 export default defineBackground(() => {
-  console.log('VoxPage background service worker started');
+  console.log('Proso background service worker started');
 
   // Seed telemetry gateway config from build-time constants on install/update
   browser.runtime.onInstalled.addListener(async (details) => {
@@ -370,7 +370,7 @@ export default defineBackground(() => {
     return;
   });
 
-  console.log('VoxPage: Message handlers registered');
+  console.log('Proso: Message handlers registered');
 
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {

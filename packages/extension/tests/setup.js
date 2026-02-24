@@ -1,5 +1,5 @@
 /**
- * Jest Setup File for VoxPage
+ * Jest Setup File for Proso
  * Additional setup after jest-webextension-mock
  */
 

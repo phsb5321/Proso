@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Provider Card Component
@@ -64,7 +64,7 @@ export function createProviderCard(
   header.className = 'provider-card__header';
 
   const badge = document.createElement('span');
-  badge.className = `voxpage-badge voxpage-badge--${config.id}`;
+  badge.className = `proso-badge proso-badge--${config.id}`;
   badge.textContent = config.name;
   header.appendChild(badge);
 
@@ -79,7 +79,7 @@ export function createProviderCard(
   const input = document.createElement('input');
   input.type = 'password';
   input.id = `${config.id}Key`;
-  input.className = 'voxpage-input provider-card__input';
+  input.className = 'proso-input provider-card__input';
   input.placeholder = config.keyPlaceholder;
   input.value = initialKey;
   input.autocomplete = 'off';
@@ -89,7 +89,7 @@ export function createProviderCard(
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
   toggleBtn.className =
-    'voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle';
+    'proso-button proso-button--ghost proso-button--icon provider-card__toggle';
   toggleBtn.setAttribute('aria-label', 'Toggle API key visibility');
   toggleBtn.dataset.target = input.id;
 
@@ -122,7 +122,7 @@ export function createProviderCard(
   if (config.testSupported) {
     const testBtn = document.createElement('button');
     testBtn.type = 'button';
-    testBtn.className = 'voxpage-button voxpage-button--secondary provider-card__test-btn';
+    testBtn.className = 'proso-button proso-button--secondary provider-card__test-btn';
     testBtn.textContent = 'Test';
     testBtn.dataset.provider = config.id;
 
@@ -159,7 +159,7 @@ export function createProviderCard(
   // Save button
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
-  saveBtn.className = 'voxpage-button voxpage-button--primary provider-card__save-btn';
+  saveBtn.className = 'proso-button proso-button--primary provider-card__save-btn';
   saveBtn.textContent = 'Save';
   saveBtn.dataset.provider = config.id;
 

@@ -2,8 +2,8 @@
 // Implemented by OpenAI, ElevenLabs, Groq adapters
 // ZERO NestJS imports — used as DI token via abstract class
 
-import type { Result } from '@voxpage/shared';
-import { TTSProvider } from '@voxpage/shared';
+import type { Result } from '@proso/shared';
+import { TTSProvider } from '@proso/shared';
 import type { TTSError } from '../core/shared/domain-errors.js';
 
 export interface TTSSynthesizeParams {

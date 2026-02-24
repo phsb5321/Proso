@@ -55,7 +55,7 @@ export const Entrypoint = {
 export type Entrypoint = (typeof Entrypoint)[keyof typeof Entrypoint];
 
 /**
- * TTS providers supported by VoxPage.
+ * TTS providers supported by Proso.
  * Used as Loki labels (low cardinality).
  */
 export const Provider = {
@@ -559,7 +559,7 @@ export interface TrackOptions {
  */
 export interface LokiLabels {
   /** Application identifier */
-  app: 'voxpage';
+  app: 'proso';
 
   /** Deployment environment */
   env: Environment;
@@ -643,7 +643,7 @@ export interface GatewayErrorResponse {
 export const DEFAULT_BUFFER_CONFIG: BufferConfig = {
   maxBytes: 10 * 1024 * 1024, // 10MB
   maxAgeMs: 14 * 24 * 60 * 60 * 1000, // 14 days
-  dbName: 'voxpage_usage',
+  dbName: 'proso_usage',
   storeName: 'events',
 };
 

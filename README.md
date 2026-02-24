@@ -1,14 +1,14 @@
-# VoxPage
+# Proso
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-[![CI](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/VoxPage/actions/workflows/ci.yml)
+[![CI](https://github.com/phsb5321/Proso/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/Proso/actions/workflows/ci.yml)
 [![Firefox 112+](https://img.shields.io/badge/Firefox-112%2B-orange.svg)](https://www.mozilla.org/firefox/)
 
 **Transform any webpage into an immersive audio experience**
 
-> **Firefox-First**: VoxPage is developed and optimized for Firefox. We leverage Firefox's native extension capabilities including event pages with DOM access, native `Audio` API in background scripts, and `speechSynthesis` for Browser TTS.
+> **Firefox-First**: Proso is developed and optimized for Firefox. We leverage Firefox's native extension capabilities including event pages with DOM access, native `Audio` API in background scripts, and `speechSynthesis` for Browser TTS.
 
-VoxPage is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with natural, expressive voices. Choose from premium AI voices (OpenAI, ElevenLabs) or use your browser's built-in speech synthesis.
+Proso is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with natural, expressive voices. Choose from premium AI voices (OpenAI, ElevenLabs) or use your browser's built-in speech synthesis.
 
 ## Features
 
@@ -25,7 +25,7 @@ VoxPage is a Firefox extension that uses AI-powered text-to-speech to read web p
 
 ### From GitHub Releases
 
-1. Go to the [Releases](https://github.com/phsb5321/VoxPage/releases) page
+1. Go to the [Releases](https://github.com/phsb5321/Proso/releases) page
 2. Download the latest `.xpi` file
 3. Open the file with Firefox to install
 
@@ -33,18 +33,18 @@ VoxPage is a Firefox extension that uses AI-powered text-to-speech to read web p
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/phsb5321/VoxPage.git
+   git clone https://github.com/phsb5321/Proso.git
    ```
 2. Open Firefox and navigate to `about:debugging`
 3. Click "This Firefox" in the sidebar
 4. Click "Load Temporary Add-on..."
-5. Select the `manifest.json` file from the VoxPage folder
+5. Select the `manifest.json` file from the Proso folder
 
 ## Setup
 
 ### API Keys
 
-VoxPage supports multiple TTS providers:
+Proso supports multiple TTS providers:
 
 | Provider | Quality | Cost | Setup |
 |----------|---------|------|-------|
@@ -53,7 +53,7 @@ VoxPage supports multiple TTS providers:
 | **Groq** | Good | Free tier available | [Get API Key](https://console.groq.com/keys) |
 | **Browser** | Good | Free | No setup needed |
 
-1. Click the VoxPage icon in your toolbar
+1. Click the Proso icon in your toolbar
 2. Click the gear icon to open Settings
 3. Enter your API key(s) for your preferred provider(s)
 4. Select your default provider
@@ -63,7 +63,7 @@ VoxPage supports multiple TTS providers:
 ### Basic Usage
 
 1. Navigate to any webpage
-2. Click the VoxPage icon in your toolbar
+2. Click the Proso icon in your toolbar
 3. Select your preferred voice and reading mode
 4. Click the play button
 
@@ -84,7 +84,7 @@ VoxPage supports multiple TTS providers:
 
 ### Context Menu
 
-Right-click any selected text and choose "Read with VoxPage" to read it aloud instantly.
+Right-click any selected text and choose "Read with Proso" to read it aloud instantly.
 
 ## Voice Options
 
@@ -104,7 +104,7 @@ Right-click any selected text and choose "Read with VoxPage" to read it aloud in
 
 ## Development
 
-VoxPage uses **WXT** (Web Extension Tools) with TypeScript for a modern development experience.
+Proso uses **WXT** (Web Extension Tools) with TypeScript for a modern development experience.
 
 ### Prerequisites
 
@@ -115,8 +115,8 @@ VoxPage uses **WXT** (Web Extension Tools) with TypeScript for a modern developm
 ### Setup
 
 ```bash
-git clone https://github.com/phsb5321/VoxPage.git
-cd VoxPage
+git clone https://github.com/phsb5321/Proso.git
+cd Proso
 npm install
 ```
 
@@ -174,7 +174,7 @@ The visual and E2E tests require a built extension. Run `npm run build:firefox` 
 ### Project Structure
 
 ```
-VoxPage/
+Proso/
 ├── src/                 # Source code (WXT srcDir)
 │   ├── entrypoints/     # WXT entry points (auto-discovered)
 │   │   ├── background.ts    # Service worker
@@ -207,7 +207,7 @@ VoxPage/
 
 ### Language Detection
 
-VoxPage automatically detects page language using **franc-min**:
+Proso automatically detects page language using **franc-min**:
 - Supports 82 languages
 - ~100% accuracy on typical web content
 - ISO 639-1 language codes (en, es, fr, de, etc.)
@@ -216,7 +216,7 @@ VoxPage automatically detects page language using **franc-min**:
 ## Privacy
 
 - **API keys are stored locally** in your browser's extension storage
-- **No data is collected** by VoxPage
+- **No data is collected** by Proso
 - Text is sent only to your selected TTS provider when reading
 - Browser TTS mode processes everything locally
 
@@ -234,7 +234,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ## License
 
-VoxPage is dual-licensed:
+Proso is dual-licensed:
 
 - **Open Source**: [AGPL-3.0](LICENSE) for personal use and open source projects
 - **Commercial**: [Commercial license](COMMERCIAL.md) for businesses

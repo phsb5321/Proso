@@ -1,7 +1,7 @@
 /**
  * API Client Port Interface
  *
- * Defines the contract for communication with the VoxPage backend server.
+ * Defines the contract for communication with the Proso backend server.
  * Used for license validation, subscription management, and managed TTS credits.
  *
  * @module ports/api-client
@@ -15,7 +15,7 @@ import type {
   CreditBalanceResponse,
   CreditHistoryResponse,
   TTSSynthesizeRequest,
-} from '@voxpage/shared';
+} from '@proso/shared';
 
 /**
  * TTS synthesis response from the server.
@@ -42,10 +42,10 @@ export type ApiClientError =
   | { type: 'not_configured'; message: string };
 
 /**
- * Port interface for VoxPage server communication.
+ * Port interface for Proso server communication.
  *
  * Adapters:
- * - VoxPageApiAdapter (HTTP client with retry and auth)
+ * - ProsoApiAdapter (HTTP client with retry and auth)
  * - NoOpApiClientAdapter (returns free-tier defaults, used when server URL not configured)
  */
 export interface IApiClient {

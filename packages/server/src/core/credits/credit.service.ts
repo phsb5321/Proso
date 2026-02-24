@@ -5,9 +5,9 @@
 //   INV-004: No credit expiration mid-billing cycle (expired allocation check)
 //   INV-006: Cached content never re-charges (caller responsibility — TTS service)
 
-import { ErrorCode } from '@voxpage/shared';
-import type { Result } from '@voxpage/shared';
-import { Ok, Err } from '@voxpage/shared';
+import { ErrorCode } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { Ok, Err } from '@proso/shared';
 import { creditError } from '../shared/domain-errors.js';
 import type { CreditError } from '../shared/domain-errors.js';
 import type {

@@ -10,7 +10,7 @@ import {
   ErrorCode,
   isOk,
   isErr,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import {
   handleSubscriptionCreated,
   handleSubscriptionUpdated,

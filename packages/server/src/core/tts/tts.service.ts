@@ -10,9 +10,9 @@ import {
   SubscriptionTier,
   ErrorCode,
   calculateCreditCost,
-} from '@voxpage/shared';
-import type { Result } from '@voxpage/shared';
-import { Ok, Err, isErr } from '@voxpage/shared';
+} from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { Ok, Err, isErr } from '@proso/shared';
 import { ttsError } from '../shared/domain-errors.js';
 import type { CreditError, TTSError } from '../shared/domain-errors.js';
 import { deductCredits } from '../credits/credit.service.js';

@@ -44,9 +44,9 @@ test.describe('Playback State Machine', () => {
 
     await page.goto(`file://${SIMPLE_PAGE_PATH}`);
 
-    // Simulate VoxPage state
+    // Simulate Proso state
     await page.evaluate(() => {
-      (window as unknown as Record<string, unknown>).voxpageState = {
+      (window as unknown as Record<string, unknown>).prosoState = {
         state: 'idle',
         currentIndex: -1,
         paragraphs: [],
@@ -54,7 +54,7 @@ test.describe('Playback State Machine', () => {
     });
 
     const state = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState?.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState?.state;
     });
 
     expect(state).toBe('idle');
@@ -67,14 +67,14 @@ test.describe('Playback State Machine', () => {
 
     // Initialize state machine
     await page.evaluate(() => {
-      interface VoxPageState {
+      interface ProsoState {
         state: string;
         currentIndex: number;
         paragraphs: string[];
         transition: (newState: string) => void;
       }
 
-      const voxpageState: VoxPageState = {
+      const prosoState: ProsoState = {
         state: 'idle',
         currentIndex: -1,
         paragraphs: [],
@@ -95,30 +95,30 @@ test.describe('Playback State Machine', () => {
         },
       };
 
-      (window as unknown as Record<string, VoxPageState>).voxpageState = voxpageState;
+      (window as unknown as Record<string, ProsoState>).prosoState = prosoState;
     });
 
     // Simulate playback start
     const transitionToLoading = await page.evaluate(() => {
-      const state = (window as unknown as Record<string, { state: string; transition: (s: string) => boolean }>).voxpageState;
+      const state = (window as unknown as Record<string, { state: string; transition: (s: string) => boolean }>).prosoState;
       return state.transition('loading');
     });
     expect(transitionToLoading).toBe(true);
 
     const stateAfterLoading = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState.state;
     });
     expect(stateAfterLoading).toBe('loading');
 
     // Simulate audio ready
     const transitionToPlaying = await page.evaluate(() => {
-      const state = (window as unknown as Record<string, { state: string; transition: (s: string) => boolean }>).voxpageState;
+      const state = (window as unknown as Record<string, { state: string; transition: (s: string) => boolean }>).prosoState;
       return state.transition('playing');
     });
     expect(transitionToPlaying).toBe(true);
 
     const finalState = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState.state;
     });
     expect(finalState).toBe('playing');
   });
@@ -130,12 +130,12 @@ test.describe('Playback State Machine', () => {
 
     // Initialize in playing state
     await page.evaluate(() => {
-      interface VoxPageState {
+      interface ProsoState {
         state: string;
         transition: (newState: string) => boolean;
       }
 
-      const voxpageState: VoxPageState = {
+      const prosoState: ProsoState = {
         state: 'playing',
         transition(newState: string) {
           const validTransitions: Record<string, string[]> = {
@@ -154,28 +154,28 @@ test.describe('Playback State Machine', () => {
         },
       };
 
-      (window as unknown as Record<string, VoxPageState>).voxpageState = voxpageState;
+      (window as unknown as Record<string, ProsoState>).prosoState = prosoState;
     });
 
     // Pause
     await page.evaluate(() => {
-      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).voxpageState;
+      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).prosoState;
       state.transition('paused');
     });
 
     let currentState = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState.state;
     });
     expect(currentState).toBe('paused');
 
     // Resume
     await page.evaluate(() => {
-      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).voxpageState;
+      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).prosoState;
       state.transition('playing');
     });
 
     currentState = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState.state;
     });
     expect(currentState).toBe('playing');
   });
@@ -186,12 +186,12 @@ test.describe('Playback State Machine', () => {
     await page.goto(`file://${SIMPLE_PAGE_PATH}`);
 
     await page.evaluate(() => {
-      interface VoxPageState {
+      interface ProsoState {
         state: string;
         transition: (newState: string) => boolean;
       }
 
-      const voxpageState: VoxPageState = {
+      const prosoState: ProsoState = {
         state: 'idle',
         transition(newState: string) {
           const validTransitions: Record<string, string[]> = {
@@ -210,19 +210,19 @@ test.describe('Playback State Machine', () => {
         },
       };
 
-      (window as unknown as Record<string, VoxPageState>).voxpageState = voxpageState;
+      (window as unknown as Record<string, ProsoState>).prosoState = prosoState;
     });
 
     // Try invalid transition: idle -> playing (should go through loading)
     const invalidTransition = await page.evaluate(() => {
-      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).voxpageState;
+      const state = (window as unknown as Record<string, { transition: (s: string) => boolean }>).prosoState;
       return state.transition('playing');
     });
 
     expect(invalidTransition).toBe(false);
 
     const stateUnchanged = await page.evaluate(() => {
-      return (window as unknown as Record<string, { state: string }>).voxpageState.state;
+      return (window as unknown as Record<string, { state: string }>).prosoState.state;
     });
     expect(stateUnchanged).toBe('idle');
   });

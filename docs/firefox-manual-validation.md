@@ -1,13 +1,13 @@
 # Firefox Manual Validation
 
-This guide covers manual testing of VoxPage in Firefox. Since Playwright doesn't support Firefox extension loading, Firefox validation is done manually using `web-ext`.
+This guide covers manual testing of Proso in Firefox. Since Playwright doesn't support Firefox extension loading, Firefox validation is done manually using `web-ext`.
 
 > **See also**: For comprehensive validation (80+ items), see [`specs/041-firefox-first-pivot/manual-validation.md`](../specs/041-firefox-first-pivot/manual-validation.md)
 
 ## Prerequisites
 
 - Firefox Developer Edition or standard Firefox (latest stable)
-- VoxPage extension built for Firefox: `pnpm build:firefox`
+- Proso extension built for Firefox: `pnpm build:firefox`
 - web-ext installed: `pnpm add -D web-ext` (already in devDependencies)
 
 ## Quick Start
@@ -38,11 +38,11 @@ Use this checklist when validating Firefox compatibility. Complete each section 
 
 1. Open Firefox DevTools (F12) on any webpage
 2. Navigate to Console tab
-3. Filter console: Type `VoxPage` or `-[third-party]` to filter noise
+3. Filter console: Type `Proso` or `-[third-party]` to filter noise
 4. Wait 30 seconds idle on page
 5. Check for errors:
 
-- [ ] No red (error) messages from VoxPage
+- [ ] No red (error) messages from Proso
 - [ ] No uncaught exceptions
 - [ ] No CSP violations
 - [ ] Warnings are acceptable (yellow)
@@ -158,7 +158,7 @@ Alternatively, use Firefox's multi-line console copy:
 **Symptoms**: Clicking paragraphs does nothing
 
 **Check**:
-- Open page console (F12) and look for VoxPage logs
+- Open page console (F12) and look for Proso logs
 - Check if content_scripts matches the URL pattern
 - Try refreshing the page
 - Check for CSP blocking script injection
@@ -178,7 +178,7 @@ Alternatively, use Firefox's multi-line console copy:
 **Symptoms**: Audio plays but no footer visible
 
 **Check**:
-- Look for `.voxpage-footer` in DOM inspector
+- Look for `.proso-footer` in DOM inspector
 - Check z-index conflicts with page CSS
 - Verify Shadow DOM is supported
 
@@ -187,7 +187,7 @@ Alternatively, use Firefox's multi-line console copy:
 When reporting Firefox-specific issues:
 
 1. **Include Firefox version**: Help → About Firefox
-2. **Include VoxPage version**: Extension preferences page
+2. **Include Proso version**: Extension preferences page
 3. **Attach console logs**: See "Log Export" section
 4. **Attach screenshots**: See "Screenshot Capture" section
 5. **Describe steps to reproduce**: Be specific about URLs and actions

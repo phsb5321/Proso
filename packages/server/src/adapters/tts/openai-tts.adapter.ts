@@ -3,7 +3,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Ok, Err, ErrorCode, TTSProvider } from '@voxpage/shared';
+import { Ok, Err, ErrorCode, TTSProvider } from '@proso/shared';
 import {
   TTSProviderPort,
   type TTSSynthesizeParams,
@@ -11,7 +11,7 @@ import {
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
 import { ttsError, type TTSError } from '../../core/shared/domain-errors';
-import type { Result } from '@voxpage/shared';
+import type { Result } from '@proso/shared';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 

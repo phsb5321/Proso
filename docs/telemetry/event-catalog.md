@@ -1,4 +1,4 @@
-# VoxPage Telemetry Event Catalog
+# Proso Telemetry Event Catalog
 
 Complete reference of all tracked telemetry events.
 
@@ -207,7 +207,7 @@ Console capture must be explicitly enabled via `installConsoleCapture()`.
 
 - **Rate limiting**: Max 100 messages per minute to prevent log flooding
 - **Truncation**: Messages longer than 2000 characters are truncated
-- **Self-filtering**: VoxPage internal logs (`[VoxPage]` prefix) are not re-captured
+- **Self-filtering**: Proso internal logs (`[Proso]` prefix) are not re-captured
 - **Passthrough**: Original console behavior is preserved by default
 - **Structured data**: Object arguments are extracted as structured data
 

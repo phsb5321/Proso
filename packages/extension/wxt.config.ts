@@ -2,7 +2,7 @@ import { defineConfig } from "wxt";
 import path from "node:path";
 
 /**
- * VoxPage - Text-to-Speech Extension for Web Pages
+ * Proso - Text-to-Speech Extension for Web Pages
  *
  * Chrome MV3-first architecture with Firefox compatibility:
  * - Service worker background (MV3) with Firefox event page fallback
@@ -13,7 +13,7 @@ import path from "node:path";
 export default defineConfig({
   srcDir: "src",
   manifest: {
-    name: "VoxPage",
+    name: "Proso",
     description: "Text-to-speech for web pages with word-level highlighting",
     version: "1.1.3",
     permissions: [
@@ -26,7 +26,7 @@ export default defineConfig({
     ],
     host_permissions: [
       "https://api.elevenlabs.io/*", // ElevenLabs TTS API
-      "https://voxpage-logs.home301server.com.br/*", // Telemetry gateway
+      "https://logs.proso.com/*", // Telemetry gateway
     ],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
@@ -41,7 +41,7 @@ export default defineConfig({
     // T132-T141: Popup UI - toolbar action with popup
     action: {
       default_popup: "popup/index.html",
-      default_title: "VoxPage - Text to Speech",
+      default_title: "Proso - Text to Speech",
       default_icon: {
         16: "icons/icon-16.png",
         32: "icons/icon-32.png",
@@ -52,7 +52,7 @@ export default defineConfig({
         id: "{41eb66cb-b520-4047-9b6c-63fdce6fca11}",
         strict_min_version: "109.0", // Firefox 109+ (AMO compat override to 109)
         // Self-hosted auto-update for unlisted extension (Firefox doesn't check AMO for unlisted)
-        update_url: "https://phsb5321.github.io/VoxPage/updates.json",
+        update_url: "https://proso.com/updates.json",
         // Required by AMO for all new extensions (mandatory since 2026).
         // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
         // @ts-expect-error - WXT types don't include this Firefox property yet
@@ -91,7 +91,7 @@ export default defineConfig({
     return {
     resolve: {
       alias: {
-        '@voxpage/shared': path.resolve(__dirname, '../shared/src'),
+        '@proso/shared': path.resolve(__dirname, '../shared/src'),
       },
     },
     // T001 (056): Build-time telemetry config injection
@@ -100,7 +100,7 @@ export default defineConfig({
     define: {
       __TELEMETRY_GATEWAY_URL__: JSON.stringify(
         process.env.TELEMETRY_GATEWAY_URL ||
-          "https://voxpage-logs.home301server.com.br/ingest",
+          "https://logs.proso.com/ingest",
       ),
       __TELEMETRY_GATEWAY_TOKEN__: JSON.stringify(
         process.env.TELEMETRY_GATEWAY_TOKEN || "",

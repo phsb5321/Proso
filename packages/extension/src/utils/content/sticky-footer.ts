@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Sticky Footer
+ * Proso Sticky Footer
  * A persistent footer player that appears at the bottom of the page during playback.
  * Replaces the floating controller with a more stable, accessible design.
  *
@@ -601,7 +601,7 @@ export class StickyFooter {
     if (this.position.x !== "center") footer.classList.add(String(this.position.x));
     if (isLoading) footer.classList.add("loading");
     footer.setAttribute("role", "toolbar");
-    footer.setAttribute("aria-label", "VoxPage playback controls");
+    footer.setAttribute("aria-label", "Proso playback controls");
     footer.setAttribute("tabindex", "0");
     this._footerEl = footer;
 
@@ -794,7 +794,7 @@ export class StickyFooter {
     }
 
     this.container = document.createElement("div");
-    this.container.id = "voxpage-sticky-footer";
+    this.container.id = "proso-sticky-footer";
     this.shadowRoot = this.container.attachShadow({ mode: "closed" });
 
     this._render();
@@ -810,7 +810,7 @@ export class StickyFooter {
       this._footerEl.focus();
     }
 
-    console.log("VoxPage: Sticky footer shown");
+    console.log("Proso: Sticky footer shown");
   }
 
   /**
@@ -840,7 +840,7 @@ export class StickyFooter {
     this._playPauseBtn = null;
     this._speedDropdown = null;
 
-    console.log("VoxPage: Sticky footer hidden");
+    console.log("Proso: Sticky footer hidden");
   }
 
   /**
@@ -923,7 +923,7 @@ export class StickyFooter {
    */
   showError(message: string, duration: number = ERROR_DISPLAY_DURATION_MS): void {
     if (!this.shadowRoot || !this._footerEl) {
-      console.error("[VoxPage:StickyFooter] Cannot show error - footer not visible:", message);
+      console.error("[Proso:StickyFooter] Cannot show error - footer not visible:", message);
       return;
     }
 
@@ -971,7 +971,7 @@ export class StickyFooter {
     // Announce to screen readers
     this._announce(`Error: ${message}`);
 
-    console.log("[VoxPage:StickyFooter] Showing error:", message);
+    console.log("[Proso:StickyFooter] Showing error:", message);
 
     // Auto-dismiss after duration (if duration > 0)
     if (duration > 0) {
@@ -1031,11 +1031,11 @@ export class StickyFooter {
           this.isMinimized = parsed.data.isMinimized;
           this.position = parsed.data.position;
         } else {
-          console.warn("VoxPage: Invalid footer state schema:", parsed.error);
+          console.warn("Proso: Invalid footer state schema:", parsed.error);
         }
       }
     } catch (e) {
-      console.warn("VoxPage: Failed to restore footer state:", e);
+      console.warn("Proso: Failed to restore footer state:", e);
     }
   }
 
@@ -1052,7 +1052,7 @@ export class StickyFooter {
         [FOOTER_STATE_KEY]: state,
       });
     } catch (e) {
-      console.warn("VoxPage: Failed to save footer state:", e);
+      console.warn("Proso: Failed to save footer state:", e);
     }
   }
 
@@ -1070,7 +1070,7 @@ export class StickyFooter {
         ...payload,
       })
       .catch((err) => {
-        console.error("VoxPage: Failed to send message:", err);
+        console.error("Proso: Failed to send message:", err);
       });
   }
 
@@ -1394,11 +1394,11 @@ export class StickyFooter {
     if (this._mutationObserver || !this.container) return;
     this._mutationObserver = new MutationObserver(() => {
       if (!document.body.contains(this.container!)) {
-        console.log("VoxPage: Footer was removed from DOM, re-attaching");
+        console.log("Proso: Footer was removed from DOM, re-attaching");
         try {
           document.body.appendChild(this.container!);
         } catch (e) {
-          console.warn("VoxPage: Failed to re-attach footer:", e);
+          console.warn("Proso: Failed to re-attach footer:", e);
         }
       }
     });

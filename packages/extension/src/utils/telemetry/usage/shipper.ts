@@ -17,7 +17,7 @@ import { DEFAULT_SHIPPER_CONFIG } from './types';
 /**
  * Storage key for persisted circuit state.
  */
-const CIRCUIT_STATE_KEY = 'voxpage_shipper_circuit_state';
+const CIRCUIT_STATE_KEY = 'proso_shipper_circuit_state';
 
 /**
  * Subset of state that persists across restarts.

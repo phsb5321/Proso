@@ -7,7 +7,7 @@ import {
   Err,
   isOk,
   isErr,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import {
   synthesize,
   type TTSServiceDeps,

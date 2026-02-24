@@ -10,7 +10,7 @@
  * @module handlers/credit
  */
 
-import type { CreditBalanceResponse, CreditHistoryResponse } from '@voxpage/shared';
+import type { CreditBalanceResponse, CreditHistoryResponse } from '@proso/shared';
 import type { ApiClientError, IApiClient } from '../ports/api-client.port';
 import type { HandlerRegistry } from './registry';
 

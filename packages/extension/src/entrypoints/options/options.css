@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later
- * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
- * Commercial licensing: https://voxpage.com/commercial
+ * Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+ * Commercial licensing: https://proso.com/commercial
  */
 /**
- * VoxPage Options Page Styles
+ * Proso Options Page Styles
  * Full-page settings layout with sidebar navigation
  *
  * @description FR-007, FR-009, FR-002, FR-003
@@ -155,7 +155,7 @@ body {
   gap: var(--spacing-sm);
 }
 
-.voxpage-select--compact {
+.proso-select--compact {
   width: auto;
   min-width: 100px;
   padding: var(--spacing-xs) var(--spacing-md);
@@ -207,7 +207,7 @@ body {
 }
 
 /* Section cards */
-.voxpage-card {
+.proso-card {
   scroll-margin-top: var(--spacing-xl);
 }
 
@@ -289,13 +289,13 @@ body {
 }
 
 /* Input wrapper for password + toggle + test button */
-.voxpage-input-wrapper {
+.proso-input-wrapper {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
 }
 
-.voxpage-input-wrapper .voxpage-input {
+.proso-input-wrapper .proso-input {
   flex: 1;
 }
 
@@ -482,7 +482,7 @@ kbd {
    DEVELOPER SECTION
    ======================================== */
 
-.voxpage-card--developer {
+.proso-card--developer {
   border-color: var(--color-warning);
   border-style: dashed;
 }
@@ -731,7 +731,7 @@ kbd {
 }
 
 /* Provider-specific brand colors */
-.voxpage-badge--elevenlabs {
+.proso-badge--elevenlabs {
   background: #5e5ce6;
   color: white;
 }
@@ -759,7 +759,7 @@ kbd {
 }
 
 /* Save success animation */
-.voxpage-button.save-success {
+.proso-button.save-success {
   animation: save-pulse 0.5s ease;
 }
 
@@ -816,7 +816,7 @@ kbd {
     gap: var(--spacing-md);
   }
 
-  .voxpage-card {
+  .proso-card {
     padding: var(--spacing-lg);
   }
 
@@ -843,7 +843,7 @@ kbd {
    Confirmation dialogs for reset and dangerous actions
    ======================================== */
 
-.voxpage-modal-overlay {
+.proso-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -858,15 +858,15 @@ kbd {
   transition: opacity var(--transition-normal);
 }
 
-.voxpage-modal-overlay--visible {
+.proso-modal-overlay--visible {
   opacity: 1;
 }
 
-.voxpage-modal-overlay--closing {
+.proso-modal-overlay--closing {
   opacity: 0;
 }
 
-.voxpage-modal {
+.proso-modal {
   background: var(--color-bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -877,38 +877,38 @@ kbd {
   transition: transform var(--transition-normal);
 }
 
-.voxpage-modal-overlay--visible .voxpage-modal {
+.proso-modal-overlay--visible .proso-modal {
   transform: scale(1);
 }
 
-.voxpage-modal-overlay--closing .voxpage-modal {
+.proso-modal-overlay--closing .proso-modal {
   transform: scale(0.95);
 }
 
-.voxpage-modal__header {
+.proso-modal__header {
   padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-md);
   border-bottom: 1px solid var(--color-border);
 }
 
-.voxpage-modal__title {
+.proso-modal__title {
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
-.voxpage-modal__body {
+.proso-modal__body {
   padding: var(--spacing-lg) var(--spacing-xl);
 }
 
-.voxpage-modal__message {
+.proso-modal__message {
   margin: 0;
   font-size: var(--font-size-md);
   color: var(--color-text-secondary);
   line-height: var(--line-height-relaxed);
 }
 
-.voxpage-modal__footer {
+.proso-modal__footer {
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-sm);
@@ -916,16 +916,16 @@ kbd {
 }
 
 /* Danger variant for destructive actions */
-.voxpage-button--danger {
+.proso-button--danger {
   background: var(--color-error);
   color: white;
 }
 
-.voxpage-button--danger:hover {
+.proso-button--danger:hover {
   background: #dc2626;
 }
 
-.voxpage-button--danger:focus-visible {
+.proso-button--danger:focus-visible {
   outline-color: var(--color-error);
 }
 
@@ -969,11 +969,11 @@ kbd {
   .header,
   .footer,
   .actions,
-  .voxpage-accordion__chevron {
+  .proso-accordion__chevron {
     display: none;
   }
 
-  .voxpage-accordion__content {
+  .proso-accordion__content {
     display: block !important;
   }
 }

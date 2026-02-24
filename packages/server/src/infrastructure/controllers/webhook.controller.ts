@@ -25,7 +25,7 @@ import {
   SubscriptionTier,
   SubscriptionStatus,
   TIER_CREDITS,
-} from '@voxpage/shared';
+} from '@proso/shared';
 
 /** Paddle webhook event type constants. */
 const PaddleEventType = {

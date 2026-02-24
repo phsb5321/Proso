@@ -1,5 +1,5 @@
 /**
- * VoxPage Landing Page — Progressive Enhancement
+ * Proso Landing Page — Progressive Enhancement
  * Pricing toggle, mobile navigation, hero animation, smooth scroll.
  * Site works fully without this file.
  */

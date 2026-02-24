@@ -125,7 +125,7 @@ describe('Credential Scanning', () => {
 
       const violations = scanForPattern(
         entrypointFiles,
-        /voxpage-logs\.home301server/,
+        /proso-logs\.home301server/,
         SRC_DIR,
       );
 

@@ -1,4 +1,4 @@
-import { SubscriptionTier, SubscriptionStatus } from '@voxpage/shared';
+import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
 import { Subscription, type SubscriptionProps } from '../../../../src/core/subscription/subscription.entity';
 
 function makeProps(overrides: Partial<SubscriptionProps> = {}): SubscriptionProps {

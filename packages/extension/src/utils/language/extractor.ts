@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Language Extractor
+ * Proso Language Extractor
  * Extracts page language from DOM metadata and text content
  *
  * @module utils/language/extractor
@@ -134,6 +134,6 @@ export async function sendLanguageDetectionRequest(): Promise<void> {
       payload: languageInfo,
     });
   } catch (error) {
-    console.warn('VoxPage: Failed to send language detection request:', error);
+    console.warn('Proso: Failed to send language detection request:', error);
   }
 }

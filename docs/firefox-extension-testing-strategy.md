@@ -1,6 +1,6 @@
 # Firefox Extension Testing Strategy
 
-Research document for VoxPage testing best practices.
+Research document for Proso testing best practices.
 
 **Last Updated:** 2026-01-09  
 **Status:** Research Complete
@@ -13,7 +13,7 @@ Research document for VoxPage testing best practices.
 4. [Flakiness Control](#4-flakiness-control)
 5. [Firefox-Specific Challenges](#5-firefox-specific-challenges)
 6. [CI/CD Integration](#6-cicd-integration)
-7. [VoxPage Recommendations](#7-voxpage-recommendations)
+7. [Proso Recommendations](#7-proso-recommendations)
 
 ---
 
@@ -118,9 +118,9 @@ client.start_session()
 client.install_addon('/path/to/extension.xpi', temp=True)
 ```
 
-### 1.4 VoxPage Current Approach (Recommended)
+### 1.4 Proso Current Approach (Recommended)
 
-VoxPage currently uses a **dual-browser strategy**:
+Proso currently uses a **dual-browser strategy**:
 
 | Test Type | Browser | Rationale |
 |-----------|---------|-----------|
@@ -147,7 +147,7 @@ test('content script injects on page load', async ({ extensionPage }) => {
   
   // Wait for content script marker
   const injected = await extensionPage.waitForSelector(
-    '[data-voxpage-injected]',
+    '[data-proso-injected]',
     { timeout: 5000, state: 'attached' }
   );
   
@@ -162,10 +162,10 @@ test('content script adds footer element', async ({ extensionPage }) => {
   await extensionPage.goto('https://example.com/article');
   
   // Content script should add footer
-  await expect(extensionPage.locator('.voxpage-footer')).toBeVisible();
+  await expect(extensionPage.locator('.proso-footer')).toBeVisible();
   
   // Footer should have play button
-  await expect(extensionPage.locator('.voxpage-play-btn')).toBeEnabled();
+  await expect(extensionPage.locator('.proso-play-btn')).toBeEnabled();
 });
 ```
 
@@ -174,7 +174,7 @@ test('content script adds footer element', async ({ extensionPage }) => {
 **Pattern: Use service worker URL to verify extension loaded**
 
 ```typescript
-// From VoxPage extension.fixture.ts
+// From Proso extension.fixture.ts
 extensionId: async ({ context }, use) => {
   let serviceWorker = context.serviceWorkers()[0];
   
@@ -198,7 +198,7 @@ test('background script responds to messages', async ({ extensionPage, extension
   await extensionPage.goto('https://example.com');
   
   // Trigger action that sends message to background
-  await extensionPage.click('.voxpage-play-btn');
+  await extensionPage.click('.proso-play-btn');
   
   // Verify response (e.g., audio state change)
   await expect(extensionPage.locator('[data-playing="true"]')).toBeVisible();
@@ -235,7 +235,7 @@ test('settings page saves preferences', async ({ context, extensionId }) => {
 
 ### 2.4 Testing PDF Viewer Interactions
 
-VoxPage has specific PDF handling. Test patterns:
+Proso has specific PDF handling. Test patterns:
 
 ```typescript
 test('PDF content extraction works', async ({ extensionPage }) => {
@@ -245,11 +245,11 @@ test('PDF content extraction works', async ({ extensionPage }) => {
   // Wait for PDF.js viewer to load
   await extensionPage.waitForSelector('.pdfViewer', { timeout: 10000 });
   
-  // Wait for VoxPage to process PDF
-  await extensionPage.waitForSelector('.voxpage-pdf-ready', { timeout: 15000 });
+  // Wait for Proso to process PDF
+  await extensionPage.waitForSelector('.proso-pdf-ready', { timeout: 15000 });
   
   // Verify text extraction worked
-  const textContent = await extensionPage.locator('.voxpage-extracted-text').textContent();
+  const textContent = await extensionPage.locator('.proso-extracted-text').textContent();
   expect(textContent).toContain('Expected PDF text');
 });
 ```
@@ -338,7 +338,7 @@ await expect(page).toHaveScreenshot('test.png', {
 2. **Disable animations:**
 
 ```typescript
-// VoxPage pattern from tests/helpers/disable-animations.js
+// Proso pattern from tests/helpers/disable-animations.js
 export async function disableAnimations(page) {
   await page.addStyleTag({
     content: `
@@ -375,7 +375,7 @@ await expect(page).toHaveScreenshot('page.png', {
 **Pattern: Wait for layout stability**
 
 ```typescript
-// VoxPage pattern
+// Proso pattern
 export async function waitForLayoutStable(page, selector, stableMs = 50) {
   const element = page.locator(selector);
   let lastBox = null;
@@ -409,7 +409,7 @@ export async function waitForLayoutStable(page, selector, stableMs = 50) {
 **Solution: Wait for service worker**
 
 ```typescript
-// From VoxPage fixture
+// From Proso fixture
 const SERVICE_WORKER_TIMEOUT = 30000;
 
 if (!serviceWorker) {
@@ -449,7 +449,7 @@ await expect(page.locator('.playing')).toBeVisible({ timeout: 5000 });
 // Wait for specific attribute change
 await page.click('.play-btn');
 await page.waitForFunction(() => {
-  const footer = document.querySelector('.voxpage-footer');
+  const footer = document.querySelector('.proso-footer');
   return footer?.getAttribute('data-state') === 'playing';
 }, { timeout: 5000 });
 ```
@@ -771,7 +771,7 @@ services:
 
 ### 6.3 NixOS-Specific Setup
 
-VoxPage has NixOS support documented in `docs/e2e-nixos.md`.
+Proso has NixOS support documented in `docs/e2e-nixos.md`.
 
 **Key points:**
 
@@ -830,7 +830,7 @@ VoxPage has NixOS support documented in `docs/e2e-nixos.md`.
 
 ---
 
-## 7. VoxPage Recommendations
+## 7. Proso Recommendations
 
 ### 7.1 Recommended Test Architecture
 
@@ -861,7 +861,7 @@ tests/
 | Test Type | Browser | Reason |
 |-----------|---------|--------|
 | Extension E2E | Chromium | Only browser with Playwright extension support |
-| Visual regression | Firefox | Target browser for VoxPage |
+| Visual regression | Firefox | Target browser for Proso |
 | PDF testing | Chromium (extension) | Full extension context needed |
 | Static validation | Firefox | Verify build artifacts |
 | Settings page | Both | Browser-agnostic functionality |
@@ -884,7 +884,7 @@ export async function waitForContentScriptReady(
   timeout = 5000
 ): Promise<boolean> {
   try {
-    await page.waitForSelector('[data-voxpage-ready]', { timeout, state: 'attached' });
+    await page.waitForSelector('[data-proso-ready]', { timeout, state: 'attached' });
     return true;
   } catch {
     return false;
@@ -939,7 +939,7 @@ export const test = base.extend<{
 
 ### 7.5 Recommended CI Configuration
 
-VoxPage's current `test.yml` is well-structured. Recommendations for enhancement:
+Proso's current `test.yml` is well-structured. Recommendations for enhancement:
 
 1. **Add Firefox-specific extension smoke test:**
    ```yaml
@@ -999,7 +999,7 @@ VoxPage's current `test.yml` is well-structured. Recommendations for enhancement
 - [web-ext Command Reference](https://extensionworkshop.com/documentation/develop/web-ext-command-reference/)
 - [MDN WebExtensions API](https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions)
 
-### VoxPage Existing Documentation
+### Proso Existing Documentation
 
 - `docs/e2e-nixos.md` - NixOS E2E testing setup
 - `tests/e2e/extension/fixtures/extension.fixture.ts` - Extension fixture implementation
@@ -1010,7 +1010,7 @@ VoxPage's current `test.yml` is well-structured. Recommendations for enhancement
 
 ## Summary
 
-VoxPage's current testing strategy is well-designed given Playwright's limitations with Firefox extensions. Key takeaways:
+Proso's current testing strategy is well-designed given Playwright's limitations with Firefox extensions. Key takeaways:
 
 1. **Chromium for extension E2E** - Playwright only supports extensions in Chromium
 2. **Firefox for visual regression** - CSS-only tests work without extension loading

@@ -25,7 +25,7 @@ async function bootstrap() {
   await app.listen(port);
 
   const logger = app.get(Logger);
-  logger.log(`VoxPage API server listening on port ${port}`);
+  logger.log(`Proso API server listening on port ${port}`);
 }
 
 bootstrap();

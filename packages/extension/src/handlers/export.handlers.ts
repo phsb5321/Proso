@@ -260,7 +260,7 @@ async function handleExportDownload(params: unknown): Promise<ExportDownloadResp
 
   try {
     const deps = getDependencies();
-    const filename = parsed.data.filename || `voxpage-export-${Date.now()}.mp3`;
+    const filename = parsed.data.filename || `proso-export-${Date.now()}.mp3`;
     await deps.downloadFile(job.blobUrl, filename);
 
     await deps.saveExportHistory({

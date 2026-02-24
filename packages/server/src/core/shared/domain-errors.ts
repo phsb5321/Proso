@@ -1,8 +1,8 @@
 // Domain error types — discriminated unions for each domain
 // ZERO NestJS imports — pure TypeScript
 
-import { ErrorCode } from '@voxpage/shared';
-import type { DomainError } from '@voxpage/shared';
+import { ErrorCode } from '@proso/shared';
+import type { DomainError } from '@proso/shared';
 
 export interface LicenseError extends DomainError {
   code:

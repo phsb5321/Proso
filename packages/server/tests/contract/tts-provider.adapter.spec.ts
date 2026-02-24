@@ -9,7 +9,7 @@
  */
 
 import type { ConfigService } from '@nestjs/config';
-import { ErrorCode, TTSProvider, isErr, isOk } from '@voxpage/shared';
+import { ErrorCode, TTSProvider, isErr, isOk } from '@proso/shared';
 import { ElevenLabsTTSAdapter } from '../../src/adapters/tts/elevenlabs-tts.adapter';
 import { GroqTTSAdapter } from '../../src/adapters/tts/groq-tts.adapter';
 import { OpenAITTSAdapter } from '../../src/adapters/tts/openai-tts.adapter';

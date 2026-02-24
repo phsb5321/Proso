@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Highlight Manager
+ * Proso Highlight Manager
  * Manages paragraph and word highlighting for TTS playback
  * Uses CSS Custom Highlight API for word-level highlighting
  *
@@ -129,7 +129,7 @@ export class HighlightManager {
     findElementByText?: (text: string) => Element | null,
   ): void {
     console.log(
-      `VoxPage: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs?.length || 0}`,
+      `Proso: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs?.length || 0}`,
     );
 
     this.clearParagraphHighlights();
@@ -140,7 +140,7 @@ export class HighlightManager {
       const latency = Date.now() - timestamp;
       if (latency > PARAGRAPH_LATENCY_THRESHOLD_MS) {
         console.warn(
-          `VoxPage: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`,
+          `Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`,
         );
 
         // Notify background for drift correction tracking
@@ -162,12 +162,12 @@ export class HighlightManager {
 
     if (element && element.nodeType === Node.ELEMENT_NODE) {
       console.log(
-        `VoxPage: Highlighting element at index ${index}:`,
+        `Proso: Highlighting element at index ${index}:`,
         element.tagName,
         element.textContent?.substring(0, 50),
       );
-      element.classList.add('voxpage-highlight');
-      (element as HTMLElement).dataset.voxpageIndex = String(index);
+      element.classList.add('proso-highlight');
+      (element as HTMLElement).dataset.prosoIndex = String(index);
       this.state.highlightElements.push(element);
       this.state.currentHighlightedElement = element;
 
@@ -175,7 +175,7 @@ export class HighlightManager {
       this.scrollToHighlight(element);
     } else {
       console.warn(
-        `VoxPage: No element found for highlight at index ${index}, text lookup: ${text ? 'yes' : 'no'}`,
+        `Proso: No element found for highlight at index ${index}, text lookup: ${text ? 'yes' : 'no'}`,
       );
       this.state.currentHighlightedElement = null;
     }
@@ -211,7 +211,7 @@ export class HighlightManager {
       const latency = Date.now() - timestamp;
       if (latency > WORD_LATENCY_THRESHOLD_MS) {
         console.warn(
-          `VoxPage: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`,
+          `Proso: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`,
         );
       }
     }
@@ -227,7 +227,7 @@ export class HighlightManager {
     // FR-004: Validate paragraph index matches current timeline
     if (paragraphIndex !== this.state.currentParagraphForWords) {
       console.warn(
-        `VoxPage: Paragraph mismatch (expected ${this.state.currentParagraphForWords}, got ${paragraphIndex}), ignoring highlightWord`,
+        `Proso: Paragraph mismatch (expected ${this.state.currentParagraphForWords}, got ${paragraphIndex}), ignoring highlightWord`,
       );
       return;
     }
@@ -251,10 +251,10 @@ export class HighlightManager {
 
       if (range) {
         const highlight = new ((window as unknown as Record<string, unknown>).Highlight as new (range: Range) => unknown)(range);
-        ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).set('voxpage-word', highlight);
+        ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).set('proso-word', highlight);
       }
     } catch (e) {
-      console.warn('VoxPage: Failed to create word highlight:', e);
+      console.warn('Proso: Failed to create word highlight:', e);
     }
   }
 
@@ -307,7 +307,7 @@ export class HighlightManager {
 
           return range;
         } catch (e) {
-          console.warn('VoxPage: Range creation failed:', e);
+          console.warn('Proso: Range creation failed:', e);
           return null;
         }
       }
@@ -396,12 +396,12 @@ export class HighlightManager {
    */
   clearParagraphHighlights(): void {
     this.state.highlightElements.forEach((el) => {
-      el.classList.remove('voxpage-highlight');
+      el.classList.remove('proso-highlight');
     });
     this.state.highlightElements = [];
 
-    document.querySelectorAll('.voxpage-highlight').forEach((el) => {
-      el.classList.remove('voxpage-highlight');
+    document.querySelectorAll('.proso-highlight').forEach((el) => {
+      el.classList.remove('proso-highlight');
     });
   }
 
@@ -411,7 +411,7 @@ export class HighlightManager {
    */
   clearWordHighlightVisual(): void {
     if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
-      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('voxpage-word');
+      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('proso-word');
     }
     // NOTE: Do NOT clear currentWordTimeline or currentParagraphForWords here
   }
@@ -422,7 +422,7 @@ export class HighlightManager {
    */
   clearWordHighlightFull(): void {
     if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
-      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('voxpage-word');
+      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('proso-word');
     }
     this.state.currentWordTimeline = null;
     this.state.currentParagraphForWords = -1;
@@ -486,7 +486,7 @@ export class HighlightManager {
           // Ignore send errors
         });
     } catch (e) {
-      console.warn('VoxPage: Failed to send TIMELINE_READY:', e);
+      console.warn('Proso: Failed to send TIMELINE_READY:', e);
     }
   }
 

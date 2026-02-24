@@ -1,13 +1,13 @@
 /**
  * Contract tests for MP3 Export Message Protocol
- * Verifies message format matches VoxPageProtocol specification
+ * Verifies message format matches ProsoProtocol specification
  *
  * @module tests/contract/mp3-export.test
  * @description API contract tests for MP3 export feature (US2)
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import type { VoxPageProtocol } from '../../src/utils/messaging/protocol';
+import type { ProsoProtocol } from '../../src/utils/messaging/protocol';
 import { ROADMAP_STORAGE_KEYS } from '../../src/utils/config/schema';
 
 // Mock browser APIs before importing handlers
@@ -67,7 +67,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('export.start', () => {
     it('request must have required fields', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'export-123',
         paragraphs: [
           { index: 0, text: 'First paragraph' },
@@ -88,7 +88,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('paragraphs must have index and text', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'export-123',
         paragraphs: [
           { index: 0, text: 'First paragraph' },
@@ -108,7 +108,7 @@ describe('MP3 Export Message Contract', () => {
 
     it('quality must be valid option', () => {
       const validQualities = ['128', '192', '256'];
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'export-123',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -120,7 +120,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('response must have success and jobId', async () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: `export-unique-${Date.now()}`,
         paragraphs: [{ index: 0, text: 'Test paragraph' }],
         provider: 'elevenlabs',
@@ -138,7 +138,7 @@ describe('MP3 Export Message Contract', () => {
 
     it('response should include error on failure', async () => {
       const jobId = `duplicate-job-${Date.now()}`;
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId,
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -160,7 +160,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('export.cancel', () => {
     it('request must have jobId', () => {
-      const request: VoxPageProtocol['export.cancel']['request'] = {
+      const request: ProsoProtocol['export.cancel']['request'] = {
         jobId: 'export-123',
       };
 
@@ -200,7 +200,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('export.getProgress', () => {
     it('request must have jobId', () => {
-      const request: VoxPageProtocol['export.getProgress']['request'] = {
+      const request: ProsoProtocol['export.getProgress']['request'] = {
         jobId: 'export-123',
       };
 
@@ -304,7 +304,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('export.download', () => {
     it('request must have jobId', () => {
-      const request: VoxPageProtocol['export.download']['request'] = {
+      const request: ProsoProtocol['export.download']['request'] = {
         jobId: 'export-123',
       };
 
@@ -313,7 +313,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('request may have optional filename', () => {
-      const request: VoxPageProtocol['export.download']['request'] = {
+      const request: ProsoProtocol['export.download']['request'] = {
         jobId: 'export-123',
         filename: 'my-article.mp3',
       };
@@ -421,7 +421,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('Quality Settings Contract', () => {
     it('128 kbps is valid quality', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'quality-128',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -433,7 +433,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('192 kbps is valid quality', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'quality-192',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -445,7 +445,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('256 kbps is valid quality', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'quality-256',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -459,7 +459,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('Speed Settings Contract', () => {
     it('speed must be a number', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'speed-test',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -471,7 +471,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('speed should be reasonable range (0.5-2.0)', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'speed-range',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -486,7 +486,7 @@ describe('MP3 Export Message Contract', () => {
 
   describe('Provider Settings Contract', () => {
     it('provider must be a string', () => {
-      const request: VoxPageProtocol['export.start']['request'] = {
+      const request: ProsoProtocol['export.start']['request'] = {
         jobId: 'provider-test',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -498,7 +498,7 @@ describe('MP3 Export Message Contract', () => {
     });
 
     it('voice is optional', () => {
-      const requestWithVoice: VoxPageProtocol['export.start']['request'] = {
+      const requestWithVoice: ProsoProtocol['export.start']['request'] = {
         jobId: 'voice-test-1',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',
@@ -507,7 +507,7 @@ describe('MP3 Export Message Contract', () => {
         quality: '192',
       };
 
-      const requestWithoutVoice: VoxPageProtocol['export.start']['request'] = {
+      const requestWithoutVoice: ProsoProtocol['export.start']['request'] = {
         jobId: 'voice-test-2',
         paragraphs: [{ index: 0, text: 'Test' }],
         provider: 'elevenlabs',

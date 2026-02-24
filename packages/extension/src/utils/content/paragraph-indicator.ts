@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Paragraph Indicator Module
@@ -37,10 +37,10 @@ export interface ParagraphIndicatorState {
 // Constants
 // ============================================================================
 
-const INDICATOR_CLASS = 'voxpage-indicator';
-const INDICATOR_CACHED_CLASS = 'voxpage-indicator--cached';
-const INDICATOR_LOADING_CLASS = 'voxpage-indicator--loading';
-const INDICATOR_ERROR_CLASS = 'voxpage-indicator--error';
+const INDICATOR_CLASS = 'proso-indicator';
+const INDICATOR_CACHED_CLASS = 'proso-indicator--cached';
+const INDICATOR_LOADING_CLASS = 'proso-indicator--loading';
+const INDICATOR_ERROR_CLASS = 'proso-indicator--error';
 
 // SVG namespace
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -83,7 +83,7 @@ function createLoadingIcon(): SVGSVGElement {
   svg.setAttribute('stroke-width', '2');
   svg.setAttribute('stroke-linecap', 'round');
   svg.setAttribute('stroke-linejoin', 'round');
-  svg.classList.add('voxpage-spin');
+  svg.classList.add('proso-spin');
 
   const circle = document.createElementNS(SVG_NS, 'circle');
   circle.setAttribute('cx', '12');
@@ -145,7 +145,7 @@ export class ParagraphIndicator {
     }
 
     // Update data attribute
-    indicator.dataset.voxpageStatus = status;
+    indicator.dataset.prosoStatus = status;
 
     // Update classes
     indicator.classList.remove(
@@ -249,7 +249,7 @@ export class ParagraphIndicator {
   getStatus(index: number): ParagraphStatus | null {
     const indicator = this.indicators.get(index);
     if (!indicator) return null;
-    return (indicator.dataset.voxpageStatus as ParagraphStatus) || 'none';
+    return (indicator.dataset.prosoStatus as ParagraphStatus) || 'none';
   }
 
   // ============================================================================
@@ -262,8 +262,8 @@ export class ParagraphIndicator {
   private createIndicatorElement(index: number, status: ParagraphStatus): HTMLElement {
     const indicator = document.createElement('span');
     indicator.className = INDICATOR_CLASS;
-    indicator.dataset.voxpageIndex = String(index);
-    indicator.dataset.voxpageStatus = status;
+    indicator.dataset.prosoIndex = String(index);
+    indicator.dataset.prosoStatus = status;
     indicator.setAttribute('role', 'status');
     indicator.setAttribute('aria-live', 'polite');
 
@@ -282,13 +282,13 @@ export class ParagraphIndicator {
    */
   private injectStyles(): void {
     if (this.styleInjected) return;
-    if (document.getElementById('voxpage-indicator-styles')) {
+    if (document.getElementById('proso-indicator-styles')) {
       this.styleInjected = true;
       return;
     }
 
     const style = document.createElement('style');
-    style.id = 'voxpage-indicator-styles';
+    style.id = 'proso-indicator-styles';
     style.textContent = `
       /* Paragraph Cache Status Indicator */
       .${INDICATOR_CLASS} {
@@ -309,7 +309,7 @@ export class ParagraphIndicator {
       }
 
       /* Show indicator on hover */
-      .voxpage-selectable:hover .${INDICATOR_CLASS},
+      .proso-selectable:hover .${INDICATOR_CLASS},
       .${INDICATOR_CLASS}.${INDICATOR_CACHED_CLASS} {
         opacity: 1 !important;
       }
@@ -331,7 +331,7 @@ export class ParagraphIndicator {
 
       .${INDICATOR_CLASS}.${INDICATOR_LOADING_CLASS} svg {
         stroke: #0D9488 !important;
-        animation: voxpage-indicator-spin 1s linear infinite !important;
+        animation: proso-indicator-spin 1s linear infinite !important;
       }
 
       /* Error indicator */
@@ -340,7 +340,7 @@ export class ParagraphIndicator {
         opacity: 1 !important;
       }
 
-      @keyframes voxpage-indicator-spin {
+      @keyframes proso-indicator-spin {
         from { transform: translateY(-50%) rotate(0deg); }
         to { transform: translateY(-50%) rotate(360deg); }
       }
@@ -390,4 +390,4 @@ export class ParagraphIndicator {
  */
 export const paragraphIndicator = new ParagraphIndicator();
 
-console.log('VoxPage: utils/content/paragraph-indicator.ts loaded');
+console.log('Proso: utils/content/paragraph-indicator.ts loaded');

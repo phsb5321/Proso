@@ -6,11 +6,11 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(./scripts/*), Read, Grep, Glob
 
 # Git Flow & Versioning Guide
 
-This skill provides guidance for VoxPage's Git Flow branching strategy, semantic versioning, and release process.
+This skill provides guidance for Proso's Git Flow branching strategy, semantic versioning, and release process.
 
 ## Branch Strategy
 
-VoxPage uses a modified Git Flow with protected branches:
+Proso uses a modified Git Flow with protected branches:
 
 ```
 main (protected)
@@ -59,7 +59,7 @@ release/1.2.0
 
 ## Semantic Versioning
 
-VoxPage follows [Semantic Versioning 2.0.0](https://semver.org/):
+Proso follows [Semantic Versioning 2.0.0](https://semver.org/):
 
 ```
 MAJOR.MINOR.PATCH[-PRERELEASE]

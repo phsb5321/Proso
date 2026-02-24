@@ -1,7 +1,7 @@
 /**
  * Server TTS Audio Adapter
  *
- * Routes audio generation through the VoxPage server proxy.
+ * Routes audio generation through the Proso server proxy.
  * Used for managed-credit users (INV-002: BYOK users use direct providers).
  *
  * @module adapters/audio/server-tts-audio
@@ -18,10 +18,10 @@ import type {
   Voice,
 } from '../../ports/audio-generator.port';
 import type { IApiClient } from '../../ports/api-client.port';
-import type { TTSProvider } from '@voxpage/shared';
+import type { TTSProvider } from '@proso/shared';
 
 /**
- * Audio adapter that proxies TTS requests through the VoxPage server.
+ * Audio adapter that proxies TTS requests through the Proso server.
  *
  * The server handles provider routing, credit deduction, and caching (INV-006).
  * This adapter maps between the extension's IAudioGenerator interface and

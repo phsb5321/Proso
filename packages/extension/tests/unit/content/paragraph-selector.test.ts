@@ -13,10 +13,10 @@ const mockSendMessage = jest.fn<() => Promise<void>>().mockResolvedValue(undefin
 
 // Constants matching paragraph-selector.ts
 const CLICK_DEBOUNCE_MS = 300;
-const SELECTABLE_CLASS = 'voxpage-selectable';
-const SELECTED_CLASS = 'voxpage-selected';
-const CACHED_CLASS = 'voxpage-cached';
-const PLAY_ICON_CLASS = 'voxpage-play-icon';
+const SELECTABLE_CLASS = 'proso-selectable';
+const SELECTED_CLASS = 'proso-selected';
+const CACHED_CLASS = 'proso-cached';
+const PLAY_ICON_CLASS = 'proso-play-icon';
 
 /**
  * Mock ParagraphSelector implementation for unit testing

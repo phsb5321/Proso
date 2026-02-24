@@ -13,7 +13,7 @@ Implement WCAG 2.1 AA compliance for the sticky footer: 4.5:1 text contrast, 3:1
 
 - WCAG 2.1 AA is the industry standard for web accessibility
 - 44x44px aligns with Apple HIG, Google Material, and Microsoft Fluent guidelines
-- VoxPage's tokens.css already has `prefers-reduced-motion` support
+- Proso's tokens.css already has `prefers-reduced-motion` support
 - Extensions should be usable by all users, including those with disabilities
 
 ---
@@ -29,7 +29,7 @@ Implement WCAG 2.1 AA compliance for the sticky footer: 4.5:1 text contrast, 3:1
 | UI components | 3:1 | 1.4.11 (AA) |
 | Graphical objects | 3:1 | 1.4.11 (AA) |
 
-### VoxPage Footer Colors
+### Proso Footer Colors
 
 | Element | Dark Theme | Light Theme | Contrast |
 |---------|------------|-------------|----------|
@@ -50,7 +50,7 @@ Implement WCAG 2.1 AA compliance for the sticky footer: 4.5:1 text contrast, 3:1
 | Apple HIG | 44x44 points | iOS guideline |
 | Material Design | 48x48 dp | Android guideline |
 
-**VoxPage Implementation**: 44x44px minimum via `--min-touch-target: 44px`
+**Proso Implementation**: 44x44px minimum via `--min-touch-target: 44px`
 
 ### Button Sizing
 
@@ -94,7 +94,7 @@ Implement WCAG 2.1 AA compliance for the sticky footer: 4.5:1 text contrast, 3:1
 
 ### Media Query Support
 
-VoxPage's `tokens.css` implements this correctly:
+Proso's `tokens.css` implements this correctly:
 
 ```css
 @media (prefers-reduced-motion: reduce) {

@@ -22,9 +22,9 @@ describe('Navigation Cleanup Lifecycle Handlers (T026)', () => {
       clearHighlights: jest.fn()
     };
 
-    // Mock VoxPage namespace
+    // Mock Proso namespace
     global.window = {
-      VoxPage: {
+      Proso: {
         floatingController: mockFloatingController,
         highlightManager: mockHighlightManager
       }
@@ -84,25 +84,25 @@ describe('Navigation Cleanup Lifecycle Handlers (T026)', () => {
 
   test('should hide floating controller on cleanup', () => {
     // Simulate cleanup logic
-    window.VoxPage?.floatingController?.hide();
+    window.Proso?.floatingController?.hide();
 
     expect(mockFloatingController.hide).toHaveBeenCalled();
   });
 
   test('should clear highlights on cleanup', () => {
     // Simulate cleanup logic
-    window.VoxPage?.highlightManager?.clearHighlights();
+    window.Proso?.highlightManager?.clearHighlights();
 
     expect(mockHighlightManager.clearHighlights).toHaveBeenCalled();
   });
 
-  test('should handle missing VoxPage modules gracefully', () => {
-    global.window.VoxPage = {};
+  test('should handle missing Proso modules gracefully', () => {
+    global.window.Proso = {};
 
     // Should not throw when modules are undefined
     expect(() => {
-      window.VoxPage?.floatingController?.hide();
-      window.VoxPage?.highlightManager?.clearHighlights();
+      window.Proso?.floatingController?.hide();
+      window.Proso?.highlightManager?.clearHighlights();
     }).not.toThrow();
   });
 
@@ -111,8 +111,8 @@ describe('Navigation Cleanup Lifecycle Handlers (T026)', () => {
 
     // Simulate full cleanup
     await browser.runtime.sendMessage({ action: 'stopPlayback', reason: 'navigation' });
-    window.VoxPage?.floatingController?.hide();
-    window.VoxPage?.highlightManager?.clearHighlights();
+    window.Proso?.floatingController?.hide();
+    window.Proso?.highlightManager?.clearHighlights();
 
     const elapsed = Date.now() - startTime;
     expect(elapsed).toBeLessThan(100);

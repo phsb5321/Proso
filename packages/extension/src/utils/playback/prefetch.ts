@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Prefetch Service Module
@@ -561,4 +561,4 @@ export class PrefetchService {
  */
 export const prefetchService = new PrefetchService();
 
-console.log("VoxPage: utils/playback/prefetch.ts loaded");
+console.log("Proso: utils/playback/prefetch.ts loaded");

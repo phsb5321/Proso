@@ -1,6 +1,6 @@
-# VoxPage Telemetry Debugging Guide
+# Proso Telemetry Debugging Guide
 
-This guide covers how to query and debug VoxPage telemetry using Loki and the provided scripts.
+This guide covers how to query and debug Proso telemetry using Loki and the provided scripts.
 
 ## Quick Start
 
@@ -33,15 +33,15 @@ For local development:
 export LOKI_URL="http://localhost:3100"
 ```
 
-See also: `.claude/skills/voxpage-loki-logs.md` for the Claude skill reference.
+See also: `.claude/skills/proso-loki-logs.md` for the Claude skill reference.
 
 ## LogQL Query Basics
 
-Loki uses LogQL for queries. VoxPage logs use these labels:
+Loki uses LogQL for queries. Proso logs use these labels:
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `app` | `voxpage` | Application identifier |
+| `app` | `proso` | Application identifier |
 | `env` | `dev`, `staging`, `prod` | Environment |
 | `entrypoint` | `background`, `popup`, `options`, `content` | Extension context |
 | `level` | `debug`, `info`, `warn`, `error` | Severity |
@@ -50,17 +50,17 @@ Loki uses LogQL for queries. VoxPage logs use these labels:
 ### Basic Queries
 
 ```logql
-# All VoxPage logs
-{app="voxpage"}
+# All Proso logs
+{app="proso"}
 
 # Production errors only
-{app="voxpage", env="prod", level="error"}
+{app="proso", env="prod", level="error"}
 
 # Popup events
-{app="voxpage", entrypoint="popup"}
+{app="proso", entrypoint="popup"}
 
 # Playback events
-{app="voxpage", eventGroup="playback"}
+{app="proso", eventGroup="playback"}
 ```
 
 ### JSON Filtering
@@ -69,29 +69,29 @@ High-cardinality fields are in the JSON body. Use `| json` to parse:
 
 ```logql
 # Find a specific session
-{app="voxpage"} | json | sessionId="550e8400-e29b-41d4-a716-446655440000"
+{app="proso"} | json | sessionId="550e8400-e29b-41d4-a716-446655440000"
 
 # Find a specific install
-{app="voxpage"} | json | installId="550e8400-e29b-41d4-a716-446655440000"
+{app="proso"} | json | installId="550e8400-e29b-41d4-a716-446655440000"
 
 # Find specific events
-{app="voxpage"} | json | event="playback.started"
+{app="proso"} | json | event="playback.started"
 
 # Filter by event pattern
-{app="voxpage"} | json | event=~"error\\..*"
+{app="proso"} | json | event=~"error\\..*"
 ```
 
 ### Aggregations
 
 ```logql
 # Count errors per hour
-count_over_time({app="voxpage", level="error"}[1h])
+count_over_time({app="proso", level="error"}[1h])
 
 # Count by event type
-sum by (event) (count_over_time({app="voxpage"} | json[1h]))
+sum by (event) (count_over_time({app="proso"} | json[1h]))
 
 # Count unique sessions
-count(count by (sessionId) ({app="voxpage"} | json))
+count(count by (sessionId) ({app="proso"} | json))
 ```
 
 ## Common Debugging Scenarios
@@ -108,7 +108,7 @@ count(count by (sessionId) ({app="voxpage"} | json))
 3. Look for error events:
 
 ```logql
-{app="voxpage"} 
+{app="proso"} 
 | json 
 | sessionId="<sessionId>" 
 | level="error"
@@ -117,7 +117,7 @@ count(count by (sessionId) ({app="voxpage"} | json))
 4. Trace the actionId to find related events:
 
 ```logql
-{app="voxpage"} 
+{app="proso"} 
 | json 
 | actionId="<actionId-from-error>"
 ```
@@ -126,10 +126,10 @@ count(count by (sessionId) ({app="voxpage"} | json))
 
 ```logql
 # Find TTS failures
-{app="voxpage"} | json | event=~"tts\\..*failed"
+{app="proso"} | json | event=~"tts\\..*failed"
 
 # Check TTS timing
-{app="voxpage"} 
+{app="proso"} 
 | json 
 | event="tts.request_completed" 
 | durationMs > 5000
@@ -139,32 +139,32 @@ count(count by (sessionId) ({app="voxpage"} | json))
 
 ```logql
 # PDF-related events
-{app="voxpage", eventGroup="pdf"}
+{app="proso", eventGroup="pdf"}
 
 # PDF failures
-{app="voxpage"} | json | event=~"pdf\\..*failed"
+{app="proso"} | json | event=~"pdf\\..*failed"
 ```
 
 ### Cache Issues
 
 ```logql
 # Cache hit rate (rough)
-{app="voxpage"} | json | event=~"tts\\.cache_.*"
+{app="proso"} | json | event=~"tts\\.cache_.*"
 
 # Cache store failures
-{app="voxpage"} | json | event="cache.store_failed"
+{app="proso"} | json | event="cache.store_failed"
 ```
 
 ### Extension Not Loading
 
 ```logql
 # Background startup events
-{app="voxpage", entrypoint="background"} 
+{app="proso", entrypoint="background"} 
 | json 
 | event="background.started"
 
 # Content script injection
-{app="voxpage"} | json | event="content.injected"
+{app="proso"} | json | event="content.injected"
 ```
 
 ## Debugging Telemetry Itself
@@ -173,33 +173,33 @@ count(count by (sessionId) ({app="voxpage"} | json))
 
 ```logql
 # Shipper health events
-{app="voxpage", eventGroup="shipper"}
+{app="proso", eventGroup="shipper"}
 
 # Successful flushes
-{app="voxpage"} | json | event="shipper.flush_completed"
+{app="proso"} | json | event="shipper.flush_completed"
 
 # Failed flushes
-{app="voxpage"} | json | event="shipper.flush_failed"
+{app="proso"} | json | event="shipper.flush_failed"
 
 # Circuit breaker state
-{app="voxpage"} | json | event=~"shipper\\.circuit_.*"
+{app="proso"} | json | event=~"shipper\\.circuit_.*"
 ```
 
 ### Check Gateway Health
 
 1. Query Loki for gateway logs (if logged separately):
    ```logql
-   {app="voxpage-log-gateway"}
+   {app="proso-log-gateway"}
    ```
 
 2. Check gateway health endpoint:
    ```bash
-   curl https://voxpage-logs.home301server.com.br/health
+   curl https://logs.proso.com/health
    ```
 
 3. Look for validation errors:
    ```logql
-   {app="voxpage-log-gateway"} |= "validation_error"
+   {app="proso-log-gateway"} |= "validation_error"
    ```
 
 ## Local Development Debugging
@@ -217,7 +217,7 @@ This logs all events to the browser console.
 
 1. Open DevTools in extension context
 2. Go to Application → IndexedDB
-3. Find `voxpage_usage` database
+3. Find `proso_usage` database
 4. Check `events` object store
 
 ### Test Gateway Connection
@@ -237,28 +237,28 @@ If using Grafana with Loki:
 ### Error Rate Panel
 
 ```logql
-sum(rate({app="voxpage", level="error"}[5m])) by (event)
+sum(rate({app="proso", level="error"}[5m])) by (event)
 ```
 
 ### Active Users (Last Hour)
 
 ```logql
-count(count by (installId) ({app="voxpage"}[1h] | json))
+count(count by (installId) ({app="proso"}[1h] | json))
 ```
 
 ### Event Volume
 
 ```logql
-sum(rate({app="voxpage"}[5m])) by (eventGroup)
+sum(rate({app="proso"}[5m])) by (eventGroup)
 ```
 
 ### Playback Success Rate
 
 ```logql
 # Success rate = completed / started
-sum(rate({app="voxpage"} | json | event="playback.completed"[1h]))
+sum(rate({app="proso"} | json | event="playback.completed"[1h]))
 /
-sum(rate({app="voxpage"} | json | event="playback.start_requested"[1h]))
+sum(rate({app="proso"} | json | event="playback.start_requested"[1h]))
 ```
 
 ## Troubleshooting

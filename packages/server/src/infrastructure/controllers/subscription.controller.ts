@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Req, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
 import type { Request } from 'express';
-import type { CheckoutRequest, CheckoutResponse, SubscriptionDetailsResponse } from '@voxpage/shared';
-import { SubscriptionTier, SubscriptionStatus } from '@voxpage/shared';
+import type { CheckoutRequest, CheckoutResponse, SubscriptionDetailsResponse } from '@proso/shared';
+import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';
 import { BillingGatewayPort } from '../../ports/billing-gateway.port';

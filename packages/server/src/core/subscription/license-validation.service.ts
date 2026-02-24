@@ -3,10 +3,10 @@
 //
 // Enforces INV-001: Free tier never requires account creation
 
-import { SubscriptionTier, SubscriptionStatus } from '@voxpage/shared';
-import type { LicenseValidateResponse } from '@voxpage/shared';
-import type { Result } from '@voxpage/shared';
-import { Ok } from '@voxpage/shared';
+import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
+import type { LicenseValidateResponse } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { Ok } from '@proso/shared';
 import { getFreeTierDefaults, getFeatureEntitlements } from './feature-gate.js';
 import type { LicenseError } from '../shared/domain-errors.js';
 import type { UserRepositoryPort, UserRecord } from '../../ports/user-repository.port.js';

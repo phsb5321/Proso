@@ -1,7 +1,7 @@
 /**
  * Extension Fixture for Playwright E2E Tests
  *
- * Provides a browser context with the VoxPage extension loaded.
+ * Provides a browser context with the Proso extension loaded.
  * Uses Chromium with launchPersistentContext() as per Playwright extension testing docs.
  *
  * @see https://playwright.dev/docs/chrome-extensions
@@ -222,14 +222,14 @@ export function isBlockedContext(url: string): boolean {
 
 /**
  * Wait for the extension content script to be injected
- * Checks for VoxPage footer element as indicator of injection
+ * Checks for Proso footer element as indicator of injection
  */
 export async function waitForContentScript(
   page: Page,
   timeout = 5000
 ): Promise<boolean> {
   try {
-    await page.waitForSelector('.voxpage-footer, [data-voxpage]', {
+    await page.waitForSelector('.proso-footer, [data-proso]', {
       timeout,
       state: 'attached',
     });

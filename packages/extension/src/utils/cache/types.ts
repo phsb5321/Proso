@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Cache Types Module
@@ -40,7 +40,7 @@ export const cacheConfigSchema = z.object({
   /** Whether to persist to IndexedDB */
   persistToIndexedDB: z.boolean().default(true),
   /** IndexedDB database name */
-  dbName: z.string().default("voxpage-audio-cache"),
+  dbName: z.string().default("proso-audio-cache"),
   /** IndexedDB store name */
   storeName: z.string().default("audio-entries"),
 });

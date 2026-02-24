@@ -33,15 +33,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm --filter @voxpage/extension lint
+        run: pnpm --filter @proso/extension lint
 
       - name: Unit Tests
-        run: pnpm --filter @voxpage/extension test:unit -- --coverage
+        run: pnpm --filter @proso/extension test:unit -- --coverage
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Build Firefox extension
-        run: pnpm --filter @voxpage/extension build:firefox
+        run: pnpm --filter @proso/extension build:firefox
 
       # ============================================
       # Firefox Build Validation (041-firefox-first-pivot T4.1)
@@ -193,7 +193,7 @@ jobs:
           echo "Extension size within limits"
 
       - name: Quality check
-        run: pnpm --filter @voxpage/extension quality
+        run: pnpm --filter @proso/extension quality
 
   # ============================================
   # Firefox Visual Tests (041-firefox-first-pivot T4.2)
@@ -220,7 +220,7 @@ jobs:
         run: npx playwright install firefox --with-deps
 
       - name: Run Firefox visual tests
-        run: pnpm --filter @voxpage/extension test:visual
+        run: pnpm --filter @proso/extension test:visual
         continue-on-error: true # Don't fail CI on snapshot differences
 
       - name: Upload visual test report
@@ -266,10 +266,10 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Build Firefox extension
-        run: pnpm --filter @voxpage/extension build:firefox
+        run: pnpm --filter @proso/extension build:firefox
 
       - name: Run extension E2E tests
-        run: pnpm --filter @voxpage/extension test:e2e:ext
+        run: pnpm --filter @proso/extension test:e2e:ext
 
       - name: Upload E2E test report
         uses: actions/upload-artifact@v4

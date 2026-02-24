@@ -256,9 +256,9 @@ export async function setupConsoleCapture(
 
   // Inject CSP violation listener (FR-003)
   await page.addInitScript(() => {
-    (window as any).__voxpageCspViolations = [];
+    (window as any).__prosoCspViolations = [];
     document.addEventListener('securitypolicyviolation', (e) => {
-      (window as any).__voxpageCspViolations.push({
+      (window as any).__prosoCspViolations.push({
         blockedURI: e.blockedURI,
         directive: e.violatedDirective,
         sourceFile: e.sourceFile,
@@ -276,7 +276,7 @@ export async function setupConsoleCapture(
 export async function getCspViolations(page: Page): Promise<CapturedError[]> {
   try {
     const violations = await page.evaluate(() => {
-      return (window as any).__voxpageCspViolations || [];
+      return (window as any).__prosoCspViolations || [];
     });
 
     return violations.map((v: any) => ({

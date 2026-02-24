@@ -1,6 +1,6 @@
 /**
  * Playwright Extension Loading Helper
- * Utilities for loading VoxPage extension in Firefox for visual testing
+ * Utilities for loading Proso extension in Firefox for visual testing
  */
 import { chromium, firefox } from '@playwright/test';
 import path from 'path';

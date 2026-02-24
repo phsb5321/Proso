@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Configuration Migrations
+ * Proso Configuration Migrations
  * Version-based migration logic for configuration changes
  *
  * @module utils/config/migrations
@@ -92,7 +92,7 @@ export const migrations: Migration[] = [
         _modeV2Migrated: true,
       };
       await save({ mode: defaults.mode, _modeV2Migrated: true });
-      console.log('VoxPage: Migrated mode to article');
+      console.log('Proso: Migrated mode to article');
       return updated;
     },
   },
@@ -107,7 +107,7 @@ export const migrations: Migration[] = [
     migrate: async (stored, save) => {
       // If user explicitly chose their mode, don't touch it
       if (stored._modeExplicit) {
-        console.log('VoxPage: Mode explicitly set by user, keeping:', stored.mode);
+        console.log('Proso: Mode explicitly set by user, keeping:', stored.mode);
         return stored;
       }
 
@@ -118,7 +118,7 @@ export const migrations: Migration[] = [
           mode: defaults.mode, // 'article'
         };
         await save({ mode: defaults.mode });
-        console.log('VoxPage: Fixed stuck mode from full to article');
+        console.log('Proso: Fixed stuck mode from full to article');
         return updated;
       }
 
@@ -155,7 +155,7 @@ export const migrations: Migration[] = [
 
       if (Object.keys(updates).length > 0) {
         await save(updates);
-        console.log('VoxPage: Added settings-ux-overhaul fields:', Object.keys(updates));
+        console.log('Proso: Added settings-ux-overhaul fields:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 
@@ -191,7 +191,7 @@ export const migrations: Migration[] = [
 
       if (Object.keys(updates).length > 0) {
         await save(updates);
-        console.log('VoxPage: Cleaned up orphaned provider data:', Object.keys(updates));
+        console.log('Proso: Cleaned up orphaned provider data:', Object.keys(updates));
         return { ...stored, ...updates };
       }
 
@@ -226,9 +226,9 @@ export async function applyMigrations(
   for (const migration of pendingMigrations) {
     try {
       current = await migration.migrate(current, save);
-      console.log(`VoxPage: Applied migration v${migration.version}: ${migration.description}`);
+      console.log(`Proso: Applied migration v${migration.version}: ${migration.description}`);
     } catch (error) {
-      console.error(`VoxPage: Migration v${migration.version} failed:`, error);
+      console.error(`Proso: Migration v${migration.version} failed:`, error);
       // Continue with other migrations
     }
   }

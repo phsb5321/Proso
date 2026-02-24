@@ -1,6 +1,6 @@
-# Contributing to VoxPage
+# Contributing to Proso
 
-Thank you for your interest in contributing to VoxPage! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Proso! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,16 +10,16 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 By submitting a pull request, you agree to the following terms:
 
-1. **License Grant**: You grant VoxPage a perpetual, worldwide, non-exclusive,
+1. **License Grant**: You grant Proso a perpetual, worldwide, non-exclusive,
    royalty-free license to use, reproduce, modify, and distribute your contribution.
 
-2. **Relicensing Rights**: You grant VoxPage the right to relicense your contribution
+2. **Relicensing Rights**: You grant Proso the right to relicense your contribution
    under commercial license terms for enterprise customers.
 
 3. **Original Work**: You represent that your contribution is your original work
    and you have the right to grant these permissions.
 
-4. **Open Source Commitment**: The open source version of VoxPage will always
+4. **Open Source Commitment**: The open source version of Proso will always
    remain available under AGPL-3.0.
 
 ## How to Contribute
@@ -28,7 +28,7 @@ By submitting a pull request, you agree to the following terms:
 
 Before submitting a bug report:
 
-1. Check the [existing issues](https://github.com/phsb5321/VoxPage/issues) to avoid duplicates
+1. Check the [existing issues](https://github.com/phsb5321/Proso/issues) to avoid duplicates
 2. Ensure you're using the latest version
 3. Collect relevant information (Firefox version, error messages, steps to reproduce)
 
@@ -54,7 +54,7 @@ Feature requests are welcome! Please:
 
 1. **Fork the repository**
    ```bash
-   gh repo fork phsb5321/VoxPage --clone
+   gh repo fork phsb5321/Proso --clone
    ```
 
 2. **Create a feature branch from `develop`**
@@ -92,7 +92,7 @@ Feature requests are welcome! Please:
 
 #### Branch Naming
 
-VoxPage uses numbered feature branches for traceability:
+Proso uses numbered feature branches for traceability:
 
 | Pattern | Use Case | Example |
 |---------|----------|---------|
@@ -128,7 +128,7 @@ type(scope): description
 | `chore` | Maintenance, dependencies |
 | `perf` | Performance improvements |
 
-**Scopes (VoxPage-specific):**
+**Scopes (Proso-specific):**
 
 | Scope | Directory/Area |
 |-------|----------------|
@@ -163,7 +163,7 @@ chore(deps): upgrade playwright to v1.40
 
 ## Git Flow & Versioning
 
-VoxPage uses a modified Git Flow branching strategy with semantic versioning.
+Proso uses a modified Git Flow branching strategy with semantic versioning.
 
 ### Branch Strategy
 
@@ -239,13 +239,13 @@ git commit -m "fix: description of fix"
 #### Architecture
 
 - **Background scripts**: ES modules in `background/`
-- **Content scripts**: `window.VoxPage` namespace pattern
+- **Content scripts**: `window.Proso` namespace pattern
 - **Popup**: ES modules in `popup/`
 - **Shared utilities**: `shared/` directory
 
 #### Testing
 
-VoxPage uses multiple test types to ensure quality:
+Proso uses multiple test types to ensure quality:
 
 ##### Test Types
 
@@ -339,8 +339,8 @@ test('component appearance', async ({ page }) => {
 
 1. Clone and install:
    ```bash
-   git clone https://github.com/phsb5321/VoxPage.git
-   cd VoxPage
+   git clone https://github.com/phsb5321/Proso.git
+   cd Proso
    npm install
    ```
 
@@ -374,10 +374,10 @@ pnpm run quality       # Full quality suite (deps + duplication + manifest lint)
 
 ## Getting Help
 
-- Open a [Discussion](https://github.com/phsb5321/VoxPage/discussions) for questions
+- Open a [Discussion](https://github.com/phsb5321/Proso/discussions) for questions
 - Check existing issues for similar problems
 - Join our community channels (if available)
 
 ## Recognition
 
-Contributors are recognized in our release notes and README. Thank you for helping make VoxPage better!
+Contributors are recognized in our release notes and README. Thank you for helping make Proso better!

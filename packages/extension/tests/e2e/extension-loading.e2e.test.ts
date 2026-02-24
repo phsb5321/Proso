@@ -1,7 +1,7 @@
 /**
  * Extension Loading E2E Tests
  *
- * Tests that the VoxPage extension loads correctly in Firefox
+ * Tests that the Proso extension loads correctly in Firefox
  * without errors in the browser console.
  *
  * @module tests/e2e/extension-loading
@@ -196,7 +196,7 @@ test.describe('Extension Loading', () => {
       expect(permissions).not.toContain(dangerous);
     }
 
-    // Expected permissions for VoxPage
+    // Expected permissions for Proso
     const expectedPermissions = ['storage', 'activeTab'];
     for (const expected of expectedPermissions) {
       expect(permissions).toContain(expected);
@@ -223,7 +223,7 @@ test.describe('Extension Runtime', () => {
     // 1. Load extension
     // 2. Navigate to a test page
     // 3. Verify content script injected
-    // 4. Check for VoxPage UI elements
+    // 4. Check for Proso UI elements
   });
 
   test.fixme('popup opens without errors', async () => {

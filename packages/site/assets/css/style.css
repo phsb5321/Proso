@@ -1,5 +1,5 @@
 /* ============================================================
-   VoxPage Landing Page — Design System
+   Proso Landing Page — Design System
    Dark-first, typography-forward, WCAG 2.1 AA
    Fraunces (headings) + Inter (body)
    ============================================================ */
@@ -944,7 +944,7 @@
     color: var(--accent-error);
   }
 
-  .comparison-table .voxpage-col {
+  .comparison-table .proso-col {
     background: rgba(6, 182, 212, 0.05);
     color: var(--accent-highlight);
     font-weight: 500;
