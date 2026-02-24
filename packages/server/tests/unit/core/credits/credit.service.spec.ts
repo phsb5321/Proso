@@ -1,4 +1,4 @@
-import { ErrorCode, isOk, isErr } from '@voxpage/shared';
+import { ErrorCode, isOk, isErr } from '@proso/shared';
 import {
   deductCredits,
   type CreditServiceDeps,

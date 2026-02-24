@@ -1,6 +1,6 @@
-# VoxPage Telemetry System
+# Proso Telemetry System
 
-This documentation covers the VoxPage usage telemetry system, which tracks anonymized usage events to help improve the extension.
+This documentation covers the Proso usage telemetry system, which tracks anonymized usage events to help improve the extension.
 
 ## Overview
 
@@ -12,7 +12,7 @@ The telemetry system consists of three main components:
 
 ```
 ┌─────────────────────┐     ┌──────────────────┐     ┌─────────────┐
-│ VoxPage Extension   │────▶│ Log Gateway      │────▶│ Loki        │
+│ Proso Extension   │────▶│ Log Gateway      │────▶│ Loki        │
 │ (UsageTracker)      │HTTP │ (Node.js/Dokku)  │     │             │
 └─────────────────────┘     └──────────────────┘     └─────────────┘
 ```
@@ -49,7 +49,7 @@ The telemetry system is designed with privacy as a core principle:
 
 ### Gateway Service
 
-Located at `services/voxpage-log-gateway/`:
+Located at `services/proso-log-gateway/`:
 
 - Express.js server deployed on Dokku
 - Bearer token authentication
@@ -126,7 +126,7 @@ Failed sends are retried with exponential backoff:
 
 1. Start the gateway in development mode:
    ```bash
-   cd services/voxpage-log-gateway
+   cd services/proso-log-gateway
    npm install
    npm run dev
    ```
@@ -178,10 +178,10 @@ Query logs using the scripts in `scripts/loki/`:
 
 ```bash
 # Create app
-dokku apps:create voxpage-log-gateway
+dokku apps:create proso-log-gateway
 
 # Set environment
-dokku config:set voxpage-log-gateway \
+dokku config:set proso-log-gateway \
   GATEWAY_TOKEN=<secure-token> \
   LOKI_URL=http://loki.web.1:3100 \
   NODE_ENV=production

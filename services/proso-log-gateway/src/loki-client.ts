@@ -156,7 +156,7 @@ export class LokiClient {
    */
   private extractLabels(event: UsageEvent): Record<string, string> {
     const labels: Record<string, string> = {
-      app: 'voxpage',
+      app: 'proso',
       entrypoint: event.entrypoint,
       event_group: event.eventGroup,
       level: event.level,

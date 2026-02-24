@@ -1,7 +1,7 @@
 {
-  "name": "voxpage-log-gateway",
+  "name": "proso-log-gateway",
   "version": "1.0.0",
-  "description": "Telemetry gateway for VoxPage extension - receives events and pushes to Loki",
+  "description": "Telemetry gateway for Proso extension - receives events and pushes to Loki",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

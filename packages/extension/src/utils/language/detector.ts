@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Language Detector
+ * Proso Language Detector
  * Detects page language from metadata and text content using franc-min
  *
  * @module utils/language/detector
@@ -87,7 +87,7 @@ export function detectLanguageFromText(text: string): { code: string; confidence
       confidence,
     };
   } catch (error) {
-    console.error('VoxPage: Text language detection failed:', error);
+    console.error('Proso: Text language detection failed:', error);
     return null;
   }
 }
@@ -167,7 +167,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
   // Check cache first
   const cached = await getCachedLanguage(url);
   if (cached) {
-    console.log(`VoxPage: Using cached language for ${url}: ${cached.code}`);
+    console.log(`Proso: Using cached language for ${url}: ${cached.code}`);
     return cached;
   }
 
@@ -179,7 +179,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     if (textResult && textResult.confidence >= 0.9) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
       console.log(
-        `VoxPage: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
+        `Proso: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
       );
     }
   }
@@ -189,7 +189,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const primary = normalizeLanguageCode(metadata);
     if (isLanguageSupported(primary)) {
       detected = createDetectedLanguage(metadata, 1.0, 'metadata');
-      console.log(`VoxPage: Using metadata language: ${detected.code}`);
+      console.log(`Proso: Using metadata language: ${detected.code}`);
     }
   }
 
@@ -199,7 +199,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     if (textResult && textResult.confidence >= 0.5) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
       console.log(
-        `VoxPage: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
+        `Proso: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
       );
     }
   }
@@ -207,7 +207,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
   // Fallback to English
   if (!detected) {
     detected = createDetectedLanguage('en', 0.5, 'fallback');
-    console.log('VoxPage: Fallback to English');
+    console.log('Proso: Fallback to English');
   }
 
   // Cache the result
@@ -236,7 +236,7 @@ async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> 
 
     return cached;
   } catch (error) {
-    console.warn('VoxPage: Failed to read language cache:', error);
+    console.warn('Proso: Failed to read language cache:', error);
     return null;
   }
 }
@@ -261,7 +261,7 @@ async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<v
     cache[url] = detected;
     await browser.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CACHE]: cache });
   } catch (error) {
-    console.warn('VoxPage: Failed to cache language:', error);
+    console.warn('Proso: Failed to cache language:', error);
   }
 }
 
@@ -313,7 +313,7 @@ export async function setLanguageOverride(languageCode: string): Promise<void> {
     [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
   });
 
-  console.log(`VoxPage: Language override set to: ${languageCode}`);
+  console.log(`Proso: Language override set to: ${languageCode}`);
 }
 
 /**
@@ -335,7 +335,7 @@ export async function clearLanguageOverride(): Promise<void> {
     [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
   });
 
-  console.log('VoxPage: Language override cleared');
+  console.log('Proso: Language override cleared');
 }
 
 /**
@@ -385,12 +385,12 @@ export function setupNavigationListener(): void {
         ] as LanguagePreference | undefined;
 
         if (preference?.currentOverride) {
-          console.log('VoxPage: Cross-domain navigation, clearing language override');
+          console.log('Proso: Cross-domain navigation, clearing language override');
           await clearLanguageOverride();
         }
       } catch (error) {
         // URL parsing failed - log but don't clear
-        console.warn('VoxPage: URL parsing failed in navigation listener:', error);
+        console.warn('Proso: URL parsing failed in navigation listener:', error);
       }
     }
   });
@@ -400,5 +400,5 @@ export function setupNavigationListener(): void {
     tabUrls.delete(tabId);
   });
 
-  console.log('VoxPage: Language navigation listener registered');
+  console.log('Proso: Language navigation listener registered');
 }

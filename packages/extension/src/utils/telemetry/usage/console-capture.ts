@@ -71,8 +71,8 @@ export interface ConsoleCaptureOptions {
   rateLimitWindowMs?: number;
 
   /**
-   * Prefix to identify VoxPage's own logs (these are not re-captured).
-   * @default '[VoxPage]'
+   * Prefix to identify Proso's own logs (these are not re-captured).
+   * @default '[Proso]'
    */
   selfLogPrefix?: string;
 
@@ -93,8 +93,8 @@ const DEFAULT_OPTIONS: Required<ConsoleCaptureOptions> = {
   captureWarn: true,
   captureError: true,
   ignorePatterns: [
-    // Ignore VoxPage internal logs to prevent infinite loops
-    /^\[VoxPage/,
+    // Ignore Proso internal logs to prevent infinite loops
+    /^\[Proso/,
     /^\[UsageTracker/,
     /^\[UsageShipper/,
     /^\[UsageBuffer/,
@@ -107,7 +107,7 @@ const DEFAULT_OPTIONS: Required<ConsoleCaptureOptions> = {
   maxMessageLength: 2000,
   maxMessagesPerWindow: 100,
   rateLimitWindowMs: 60000,
-  selfLogPrefix: '[VoxPage]',
+  selfLogPrefix: '[Proso]',
   passthrough: true,
 };
 
@@ -315,9 +315,9 @@ export function installConsoleCapture(
 
 /**
  * Create a prefixed logger that doesn't get re-captured.
- * Useful for internal VoxPage logging that should appear locally but not be shipped.
+ * Useful for internal Proso logging that should appear locally but not be shipped.
  */
-export function createInternalLogger(prefix = '[VoxPage]') {
+export function createInternalLogger(prefix = '[Proso]') {
   return {
     log: (...args: unknown[]) => console.log(prefix, ...args),
     debug: (...args: unknown[]) => console.debug(prefix, ...args),

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
 
 /**
  * Unit tests for footer message handlers.

@@ -281,7 +281,7 @@ describe('Manifest Validation', () => {
     const manifestPath = path.join(BUILD_DIR, 'manifest.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
 
-    // VoxPage targets Firefox MV2
+    // Proso targets Firefox MV2
     expect(manifest.manifest_version).toBe(2);
   });
 });

@@ -2,7 +2,7 @@
  * Usage Tracker
  *
  * Main tracker class orchestrating event collection, buffering, and shipping.
- * This is the primary API for tracking usage events in VoxPage.
+ * This is the primary API for tracking usage events in Proso.
  *
  * @module utils/telemetry/usage/tracker
  */

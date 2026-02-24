@@ -17,7 +17,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
                 target: 'pino-loki',
                 options: {
                   host: lokiHost,
-                  labels: { app: 'voxpage-api' },
+                  labels: { app: 'proso-api' },
                   batching: true,
                   interval: 5,
                 },

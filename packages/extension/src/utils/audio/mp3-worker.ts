@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * MP3 Encoding Web Worker for VoxPage
+ * MP3 Encoding Web Worker for Proso
  * Provides non-blocking MP3 encoding in a separate thread
  *
  * @module utils/audio/mp3-worker

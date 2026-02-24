@@ -1,7 +1,7 @@
 /**
  * Telemetry Event Delivery E2E Tests
  *
- * Verifies that the VoxPage telemetry system correctly generates,
+ * Verifies that the Proso telemetry system correctly generates,
  * buffers, and ships events to the gateway.
  *
  * Test Strategy:
@@ -284,14 +284,14 @@ test.describe('Telemetry Event Delivery', () => {
     // Wait for page to load
     await extensionPage.waitForLoadState('domcontentloaded');
 
-    // Check if content script injected (look for VoxPage footer or elements)
+    // Check if content script injected (look for Proso footer or elements)
     const contentInjected = await extensionPage.evaluate(() => {
-      // Check for VoxPage injected elements
+      // Check for Proso injected elements
       return (
-        document.querySelector('.voxpage-footer') !== null ||
-        document.querySelector('[data-voxpage]') !== null ||
-        // Check if VoxPage globals are present
-        typeof (window as unknown as Record<string, unknown>).__voxpage !== 'undefined'
+        document.querySelector('.proso-footer') !== null ||
+        document.querySelector('[data-proso]') !== null ||
+        // Check if Proso globals are present
+        typeof (window as unknown as Record<string, unknown>).__proso !== 'undefined'
       );
     });
 
@@ -527,7 +527,7 @@ async function waitForLokiEvents(
   const queryStart = startTime - 300000; // Look back 5 minutes
 
   while (Date.now() - startTime < timeoutMs) {
-    const query = `{app="voxpage"} | json | sessionId="${sessionId}"`;
+    const query = `{app="proso"} | json | sessionId="${sessionId}"`;
     const result = await queryLoki(query, queryStart, Date.now());
 
     if (result.error) {
@@ -607,7 +607,7 @@ describeLokiTests('Telemetry Loki Integration', () => {
     // 3. Verify events arrived
     //
     // For now, we validate that Loki is queryable
-    const query = '{app="voxpage"}';
+    const query = '{app="proso"}';
     const now = Date.now();
     const result = await queryLoki(query, now - 3600000, now, 10);
     
@@ -618,7 +618,7 @@ describeLokiTests('Telemetry Loki Integration', () => {
 
   test('session can be reconstructed from Loki', async () => {
     // Query for recent sessions
-    const query = '{app="voxpage", event_group="system"}';
+    const query = '{app="proso", event_group="system"}';
     const now = Date.now();
     const result = await queryLoki(query, now - 3600000, now, 100);
     

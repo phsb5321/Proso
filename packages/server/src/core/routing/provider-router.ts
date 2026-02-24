@@ -6,7 +6,7 @@
 //   Pro tier → cost-efficient first (Groq > OpenAI > ElevenLabs)
 //   Enterprise tier → premium quality first (ElevenLabs > OpenAI > Groq)
 
-import { TTSProvider, SubscriptionTier } from '@voxpage/shared';
+import { TTSProvider, SubscriptionTier } from '@proso/shared';
 import { TIER_PROVIDER_ORDER, buildFallbackChain } from './fallback-chain.js';
 
 export interface RoutingDecision {

@@ -1,4 +1,4 @@
-# VoxPage Development Guidelines
+# Proso Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-02-16
 
@@ -18,7 +18,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-16
 ### Workspace Structure
 
 ```
-VoxPage/
+Proso/
 ├── packages/
 │   ├── extension/        # Firefox browser extension (WXT)
 │   ├── server/           # NestJS backend (hexagonal architecture)
@@ -32,14 +32,14 @@ VoxPage/
 
 ```bash
 # Extension
-pnpm --filter @voxpage/extension dev        # Dev server with HMR
-pnpm --filter @voxpage/extension build:firefox  # Production build
-pnpm --filter @voxpage/extension test:unit  # Run extension tests (2300+)
+pnpm --filter @proso/extension dev        # Dev server with HMR
+pnpm --filter @proso/extension build:firefox  # Production build
+pnpm --filter @proso/extension test:unit  # Run extension tests (2300+)
 
 # Server
-pnpm --filter @voxpage/server dev           # Dev server (NestJS)
-pnpm --filter @voxpage/server build         # Production build
-pnpm --filter @voxpage/server test          # Run server tests (237+)
+pnpm --filter @proso/server dev           # Dev server (NestJS)
+pnpm --filter @proso/server build         # Production build
+pnpm --filter @proso/server test          # Run server tests (237+)
 
 # All packages
 pnpm install                                # Install all workspace deps
@@ -60,7 +60,7 @@ packages/server/src/
 └── infrastructure/ # NestJS modules, controllers, guards, config
 ```
 
-### Shared Package (`@voxpage/shared`)
+### Shared Package (`@proso/shared`)
 
 Exports used by both extension and server:
 - `SubscriptionTier`, `SubscriptionStatus`, `TTSProvider` enums
@@ -360,7 +360,7 @@ background/                      # Service worker modules (ES modules)
     browser-provider.js
     groq-timestamp-provider.js   # Whisper-based word timing
 
-content/                         # Content scripts (window.VoxPage namespace pattern)
+content/                         # Content scripts (window.Proso namespace pattern)
   index.js                       # Entry point - message listeners (008)
   content-extractor.js           # Text extraction logic (008)
   content-scorer.js              # Content scoring heuristics (008)
@@ -565,7 +565,7 @@ The codebase was refactored from monolithic files into focused modules:
 - `audio-generator.js` - TTS audio generation and caching
 - `ui-coordinator.js` - UI state sync to popup/content
 
-**Content Layer** (window.VoxPage namespace - content scripts don't support ES modules):
+**Content Layer** (window.Proso namespace - content scripts don't support ES modules):
 - `index.js` - Message listeners, event handlers
 - `content-extractor.js` - Text extraction with wiki/article priority
 - `content-scorer.js` - Trafilatura-inspired content scoring
@@ -580,7 +580,7 @@ The codebase was refactored from monolithic files into focused modules:
 
 - **Handler Registry**: `message-router.js` uses `register(type, handler)` pattern
 - **Dependency Injection**: `createRouter()`, `createPlaybackController()` factories
-- **Namespace Pattern**: Content scripts use `window.VoxPage.*` for cross-file access
+- **Namespace Pattern**: Content scripts use `window.Proso.*` for cross-file access
 - **Module Headers**: All modules have JSDoc headers describing responsibility
 
 ### Quality Metrics
@@ -681,7 +681,7 @@ loggingDefaults = {
 {
   "streams": [{
     "stream": {
-      "app": "voxpage",
+      "app": "proso",
       "version": "1.0.0",
       "session": "abc123",
       "level": "error",
@@ -773,7 +773,7 @@ const UNWANTED_CONFIG = {
 
 - Matching completes in <50ms for 200 paragraphs
 - Pre-filtering completes in <20ms for 500 elements
-- Performance stats logged: `VoxPage: Matching stats - extracted: X, candidates: Y, filtered: Z, matched: W, time: Nms`
+- Performance stats logged: `Proso: Matching stats - extracted: X, candidates: Y, filtered: Z, matched: W, time: Nms`
 
 ### Testing
 
@@ -789,7 +789,7 @@ pnpm test
 
 ### Overview (017-git-workflow-automation)
 
-Claude Code hooks and skills to automate git workflows including atomic commits, push operations, and pull request creation. Uses Stop hooks for workflow suggestions and model-invoked skills for teaching VoxPage-specific conventions.
+Claude Code hooks and skills to automate git workflows including atomic commits, push operations, and pull request creation. Uses Stop hooks for workflow suggestions and model-invoked skills for teaching Proso-specific conventions.
 
 ### File Structure
 
@@ -797,7 +797,7 @@ Claude Code hooks and skills to automate git workflows including atomic commits,
 .claude/
 ├── settings.json                     # Hook configuration (Stop, PostToolUse)
 ├── skills/
-│   └── voxpage-git-workflow/
+│   └── proso-git-workflow/
 │       ├── SKILL.md                  # Main skill with workflow guidance
 │       └── pr-template.md            # PR body template reference
 └── hooks/
@@ -840,7 +840,7 @@ The SKILL.md file provides guidance for:
 | `chore` | Maintenance tasks |
 | `perf` | Performance improvement |
 
-### VoxPage Scopes
+### Proso Scopes
 
 | Scope | Directory |
 |-------|-----------|
@@ -1161,7 +1161,7 @@ Cached audio works fully offline. IndexedDB persists across browser sessions. Un
 
 ### Overview (031-source-code-protection)
 
-Multi-layer source code protection for VoxPage Firefox extension through:
+Multi-layer source code protection for Proso Firefox extension through:
 1. GitHub repository access restriction (private visibility + branch protection)
 2. AMO-compliant production build hardening (minification + source map removal + debug statement stripping)
 3. Legal documentation (Terms of Service, NDA template)

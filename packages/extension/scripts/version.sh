@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version Management Script for VoxPage
+# Version Management Script for Proso
 # Manages semantic versioning across package.json and manifest.json
 #
 # Usage:
@@ -115,7 +115,7 @@ bump_version() {
 # Show help
 show_help() {
     cat << EOF
-VoxPage Version Management
+Proso Version Management
 
 Usage:
   ./scripts/version.sh                    Show current version

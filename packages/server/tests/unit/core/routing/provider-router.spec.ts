@@ -1,4 +1,4 @@
-import { TTSProvider, SubscriptionTier } from '@voxpage/shared';
+import { TTSProvider, SubscriptionTier } from '@proso/shared';
 import { selectProvider } from '../../../../src/core/routing/provider-router';
 import {
   buildFallbackChain,

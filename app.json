@@ -1,6 +1,6 @@
 {
-  "name": "voxpage-api",
-  "description": "VoxPage backend API server",
+  "name": "proso-api",
+  "description": "Proso backend API server",
   "scripts": {
     "dokku": {
       "predeploy": "sh /app/scripts/predeploy.sh"

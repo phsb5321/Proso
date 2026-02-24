@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Dexie Database Schema - Smart Audio Cache
@@ -24,12 +24,12 @@ export const AUDIO_CACHE_SCHEMA = {
   // Other fields are indexed for efficient queries
   schema: '&cacheKey, url, lastAccessedAt, createdAt, [provider+voice]',
   name: 'audioCache',
-  dbName: 'VoxPageAudioCache',
+  dbName: 'ProsoAudioCache',
   version: 1,
 } as const;
 
 /**
- * VoxPage Audio Cache Database
+ * Proso Audio Cache Database
  *
  * Single table for storing cached audio entries.
  * Indexes:
@@ -39,7 +39,7 @@ export const AUDIO_CACHE_SCHEMA = {
  * - createdAt: For age-based cleanup
  * - [provider+voice]: Compound index for provider clearing
  */
-export class VoxPageCacheDB extends Dexie {
+export class ProsoCacheDB extends Dexie {
   audioCache!: Table<CachedAudioEntry>;
 
   constructor() {
@@ -56,15 +56,15 @@ export class VoxPageCacheDB extends Dexie {
  * Singleton database instance
  * Lazy initialization - connection opens on first use
  */
-let dbInstance: VoxPageCacheDB | null = null;
+let dbInstance: ProsoCacheDB | null = null;
 
 /**
  * Get the database instance
  * Creates a new instance if one doesn't exist
  */
-export function getDatabase(): VoxPageCacheDB {
+export function getDatabase(): ProsoCacheDB {
   if (!dbInstance) {
-    dbInstance = new VoxPageCacheDB();
+    dbInstance = new ProsoCacheDB();
   }
   return dbInstance;
 }
@@ -96,11 +96,11 @@ export async function deleteDatabase(): Promise<void> {
 export async function isIndexedDBAvailable(): Promise<boolean> {
   try {
     // Try to open a test database
-    const testDb = new Dexie('VoxPageTestDB');
+    const testDb = new Dexie('ProsoTestDB');
     testDb.version(1).stores({ test: '++id' });
     await testDb.open();
     testDb.close();
-    await Dexie.delete('VoxPageTestDB');
+    await Dexie.delete('ProsoTestDB');
     return true;
   } catch {
     // IndexedDB not available (Private Browsing, disabled, etc.)

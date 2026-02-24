@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark light">
-  <title>VoxPage Settings</title>
+  <title>Proso Settings</title>
   <link rel="stylesheet" href="../styles/tokens.css">
   <link rel="stylesheet" href="../styles/components.css">
   <link rel="stylesheet" href="./options/options.css">
@@ -19,13 +19,13 @@
     <header class="header">
       <div class="logo">
         <img src="/icons/icon-32.png" alt="" class="logo-icon">
-        <h1 class="logo-text">VoxPage Settings</h1>
+        <h1 class="logo-text">Proso Settings</h1>
       </div>
 
       <!-- Theme selector (027-settings-ux-overhaul) -->
       <div class="theme-selector">
         <label for="themeMode" class="sr-only">Theme</label>
-        <select id="themeMode" class="voxpage-select voxpage-select--compact" aria-label="Select theme">
+        <select id="themeMode" class="proso-select proso-select--compact" aria-label="Select theme">
           <option value="system">System</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
@@ -111,7 +111,7 @@
 
     <main id="main-content" class="main-content" data-testid="settings-main">
       <!-- Quick Settings Section (027-settings-ux-overhaul FR-014) -->
-      <section id="quick-settings" class="voxpage-card quick-settings-section" data-section="quick-settings" data-testid="settings-quick-settings-section">
+      <section id="quick-settings" class="proso-card quick-settings-section" data-section="quick-settings" data-testid="settings-quick-settings-section">
         <h2 class="section-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 3v2M12 19v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M3 12h2M19 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -124,7 +124,7 @@
         </p>
 
         <div class="section-actions">
-          <button type="button" class="voxpage-button voxpage-button--ghost section-reset-btn" data-section="quick-settings" aria-label="Reset Quick Settings to defaults">
+          <button type="button" class="proso-button proso-button--ghost section-reset-btn" data-section="quick-settings" aria-label="Reset Quick Settings to defaults">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
@@ -136,7 +136,7 @@
         <div class="quick-settings-grid">
           <div class="form-group">
             <label for="quickProvider" class="form-label">Provider</label>
-            <select id="quickProvider" class="voxpage-select" aria-describedby="quickProviderHint" data-testid="settings-provider-select">
+            <select id="quickProvider" class="proso-select" aria-describedby="quickProviderHint" data-testid="settings-provider-select">
               <option value="browser">Browser TTS (Free)</option>
               <option value="elevenlabs">ElevenLabs</option>
             </select>
@@ -145,7 +145,7 @@
 
           <div class="form-group">
             <label for="quickVoice" class="form-label">Voice</label>
-            <select id="quickVoice" class="voxpage-select" aria-describedby="quickVoiceHint" data-testid="settings-voice-select">
+            <select id="quickVoice" class="proso-select" aria-describedby="quickVoiceHint" data-testid="settings-voice-select">
               <option value="">Default Voice</option>
             </select>
             <p id="quickVoiceHint" class="form-hint">Voice options vary by provider</p>
@@ -154,7 +154,7 @@
           <div class="form-group">
             <label for="quickSpeed" class="form-label">Speed</label>
             <div class="range-wrapper">
-              <input type="range" id="quickSpeed" class="voxpage-slider" min="0.5" max="2" step="0.1" value="1" aria-describedby="quickSpeedHint" data-testid="settings-speed-slider">
+              <input type="range" id="quickSpeed" class="proso-slider" min="0.5" max="2" step="0.1" value="1" aria-describedby="quickSpeedHint" data-testid="settings-speed-slider">
               <span id="quickSpeedValue" class="range-value">1.0x</span>
             </div>
             <p id="quickSpeedHint" class="form-hint">Adjust playback speed (0.5x - 2.0x)</p>
@@ -163,19 +163,19 @@
       </section>
 
       <!-- API Keys Section (027-settings-ux-overhaul: Provider Cards) -->
-      <section id="api-keys" class="voxpage-card voxpage-accordion" data-section="api-keys" data-testid="settings-api-keys-section">
-        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
+      <section id="api-keys" class="proso-card proso-accordion" data-section="api-keys" data-testid="settings-api-keys-section">
+        <button class="proso-accordion__header" aria-expanded="true" aria-controls="api-keys-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
             </svg>
             API Keys
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="api-keys-content" class="voxpage-accordion__content">
+        <div id="api-keys-content" class="proso-accordion__content">
           <p class="section-description">
             Configure your API keys to enable AI-powered text-to-speech. Your keys are stored locally and never sent anywhere except to the respective API providers.
           </p>
@@ -184,18 +184,18 @@
             <!-- Browser TTS Provider Card -->
             <div class="provider-card" data-provider="browser" style="--provider-color: #10b981;">
               <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--browser">Browser TTS</span>
-                <span class="voxpage-badge voxpage-badge--free">Free</span>
+                <span class="proso-badge proso-badge--browser">Browser TTS</span>
+                <span class="proso-badge proso-badge--free">Free</span>
               </div>
               <p class="provider-card__description">Built-in browser text-to-speech. No API key required.</p>
               <div class="form-group" style="margin-bottom: var(--space-2, 0.5rem);">
                 <label for="browserVoice" class="form-label">Voice</label>
-                <select id="browserVoice" class="voxpage-select">
+                <select id="browserVoice" class="proso-select">
                   <option value="">Default Voice</option>
                 </select>
               </div>
               <div class="provider-card__actions">
-                <button type="button" id="testBrowserTts" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="browser">Test Voice</button>
+                <button type="button" id="testBrowserTts" class="proso-button proso-button--secondary provider-card__test-btn" data-provider="browser">Test Voice</button>
               </div>
               <div id="browserTtsStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="browser"></div>
             </div>
@@ -203,12 +203,12 @@
             <!-- ElevenLabs Provider Card -->
             <div class="provider-card" data-provider="elevenlabs" style="--provider-color: #5e5ce6;">
               <div class="provider-card__header">
-                <span class="voxpage-badge voxpage-badge--elevenlabs">ElevenLabs</span>
+                <span class="proso-badge proso-badge--elevenlabs">ElevenLabs</span>
               </div>
               <p class="provider-card__description">Premium voice cloning and multilingual support</p>
               <div class="provider-card__input-wrapper">
-                <input type="password" id="elevenlabsKey" class="voxpage-input provider-card__input" placeholder="xi-..." autocomplete="off" spellcheck="false">
-                <button type="button" class="voxpage-button voxpage-button--ghost voxpage-button--icon provider-card__toggle toggle-visibility" data-target="elevenlabsKey" aria-label="Toggle API key visibility">
+                <input type="password" id="elevenlabsKey" class="proso-input provider-card__input" placeholder="xi-..." autocomplete="off" spellcheck="false">
+                <button type="button" class="proso-button proso-button--ghost proso-button--icon provider-card__toggle toggle-visibility" data-target="elevenlabsKey" aria-label="Toggle API key visibility">
                   <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -216,8 +216,8 @@
                 </button>
               </div>
               <div class="provider-card__actions">
-                <button type="button" id="testElevenlabsKey" class="voxpage-button voxpage-button--secondary provider-card__test-btn" data-provider="elevenlabs">Test</button>
-                <button type="button" class="voxpage-button voxpage-button--primary provider-card__save-btn" data-provider="elevenlabs">Save</button>
+                <button type="button" id="testElevenlabsKey" class="proso-button proso-button--secondary provider-card__test-btn" data-provider="elevenlabs">Test</button>
+                <button type="button" class="proso-button proso-button--primary provider-card__save-btn" data-provider="elevenlabs">Save</button>
               </div>
               <div id="elevenlabsKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="elevenlabs"></div>
               <a class="provider-card__docs-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
@@ -227,8 +227,8 @@
       </section>
 
       <!-- Appearance Section (018-ui-redesign: Collapsible) -->
-      <section id="appearance" class="voxpage-card voxpage-accordion" data-section="appearance" data-testid="settings-appearance-section">
-        <button class="voxpage-accordion__header" aria-expanded="true" aria-controls="appearance-content">
+      <section id="appearance" class="proso-card proso-accordion" data-section="appearance" data-testid="settings-appearance-section">
+        <button class="proso-accordion__header" aria-expanded="true" aria-controls="appearance-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="5"/>
@@ -243,13 +243,13 @@
             </svg>
             Appearance
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="appearance-content" class="voxpage-accordion__content">
+        <div id="appearance-content" class="proso-accordion__content">
           <div class="section-actions">
-            <button type="button" class="voxpage-button voxpage-button--ghost section-reset-btn" data-section="appearance" aria-label="Reset Appearance settings to defaults">
+            <button type="button" class="proso-button proso-button--ghost section-reset-btn" data-section="appearance" aria-label="Reset Appearance settings to defaults">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
@@ -259,26 +259,26 @@
           </div>
 
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="highlightEnabled" class="voxpage-toggle__input" checked data-testid="settings-highlight-toggle">
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Highlight text while reading</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="highlightEnabled" class="proso-toggle__input" checked data-testid="settings-highlight-toggle">
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Highlight text while reading</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="autoScroll" class="voxpage-toggle__input" checked data-testid="settings-autoscroll-toggle">
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Auto-scroll to current paragraph</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="autoScroll" class="proso-toggle__input" checked data-testid="settings-autoscroll-toggle">
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Auto-scroll to current paragraph</span>
           </label>
         </div>
 
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="showCostEstimate" class="voxpage-toggle__input" checked>
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Show cost estimates in popup</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="showCostEstimate" class="proso-toggle__input" checked>
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Show cost estimates in popup</span>
           </label>
           <p class="form-hint">Display estimated API costs and cache savings when using paid TTS providers</p>
         </div>
@@ -286,21 +286,21 @@
       </section>
 
       <!-- Cache Settings Section (028-smart-audio-cache T063-T064) -->
-      <section id="cache" class="voxpage-card voxpage-accordion" data-section="cache">
-        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="cache-content">
+      <section id="cache" class="proso-card proso-accordion" data-section="cache">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="cache-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
             Audio Cache
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="cache-content" class="voxpage-accordion__content" hidden>
+        <div id="cache-content" class="proso-accordion__content" hidden>
           <p class="section-description">
-            VoxPage caches generated audio to reduce API costs and improve playback performance. Cached audio is stored locally and automatically managed.
+            Proso caches generated audio to reduce API costs and improve playback performance. Cached audio is stored locally and automatically managed.
           </p>
 
           <!-- Cache Statistics Display -->
@@ -332,7 +332,7 @@
           </div>
 
           <div class="form-group cache-actions">
-            <button id="clearCacheBtn" class="voxpage-button voxpage-button--secondary">
+            <button id="clearCacheBtn" class="proso-button proso-button--secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -341,7 +341,7 @@
               </svg>
               Clear Cache
             </button>
-            <button id="refreshCacheStatsBtn" class="voxpage-button voxpage-button--ghost">
+            <button id="refreshCacheStatsBtn" class="proso-button proso-button--ghost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="23 4 23 10 17 10"/>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -358,8 +358,8 @@
       </section>
 
       <!-- Queue Settings Section (T079) -->
-      <section id="reading-queue" class="voxpage-card voxpage-accordion" data-section="queue">
-        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="queue-content">
+      <section id="reading-queue" class="proso-card proso-accordion" data-section="queue">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="queue-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <line x1="8" y1="6" x2="21" y2="6"/>
@@ -371,13 +371,13 @@
             </svg>
             Reading Queue
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="queue-content" class="voxpage-accordion__content" hidden>
+        <div id="queue-content" class="proso-accordion__content" hidden>
           <div class="section-actions">
-            <button type="button" class="voxpage-button voxpage-button--ghost section-reset-btn" data-section="reading-queue" aria-label="Reset Reading Queue settings to defaults">
+            <button type="button" class="proso-button proso-button--ghost section-reset-btn" data-section="reading-queue" aria-label="Reset Reading Queue settings to defaults">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
@@ -391,17 +391,17 @@
         </p>
 
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="queueAutoPlayNext" class="voxpage-toggle__input" checked>
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Auto-play next article</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="queueAutoPlayNext" class="proso-toggle__input" checked>
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Auto-play next article</span>
           </label>
           <p class="form-hint">Automatically start the next article when the current one finishes</p>
         </div>
 
         <div class="form-group">
           <label for="queueMaxItems" class="form-label">Maximum Queue Size</label>
-          <select id="queueMaxItems" class="voxpage-select">
+          <select id="queueMaxItems" class="proso-select">
             <option value="100">100 items</option>
             <option value="200">200 items</option>
             <option value="300" selected>300 items (Default)</option>
@@ -411,19 +411,19 @@
         </div>
 
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="queueSaveProgress" class="voxpage-toggle__input" checked>
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Save reading progress</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="queueSaveProgress" class="proso-toggle__input" checked>
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Save reading progress</span>
           </label>
           <p class="form-hint">Remember where you left off in each article</p>
         </div>
 
         <div class="form-group queue-actions">
-          <button id="clearCompletedQueue" class="voxpage-button voxpage-button--secondary">
+          <button id="clearCompletedQueue" class="proso-button proso-button--secondary">
             Clear Completed
           </button>
-          <button id="clearAllQueue" class="voxpage-button voxpage-button--ghost">
+          <button id="clearAllQueue" class="proso-button proso-button--ghost">
             Clear All
           </button>
           <span id="queueStatus" class="queue-status"></span>
@@ -432,8 +432,8 @@
       </section>
 
       <!-- Keyboard Shortcuts Section (018-ui-redesign: Collapsible) -->
-      <section id="keyboard-shortcuts" class="voxpage-card voxpage-accordion" data-section="shortcuts">
-        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="shortcuts-content">
+      <section id="keyboard-shortcuts" class="proso-card proso-accordion" data-section="shortcuts">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="shortcuts-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
@@ -441,11 +441,11 @@
             </svg>
             Keyboard Shortcuts
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="shortcuts-content" class="voxpage-accordion__content" hidden>
+        <div id="shortcuts-content" class="proso-accordion__content" hidden>
         <p class="section-description">Use these shortcuts to control playback:</p>
 
         <div class="shortcuts-list">
@@ -470,8 +470,8 @@
       </section>
 
       <!-- Developer Settings Section (014-loki-remote-logging, 018-ui-redesign: Collapsible) -->
-      <section id="developer" class="voxpage-card voxpage-card--developer voxpage-accordion" data-section="developer">
-        <button class="voxpage-accordion__header" aria-expanded="false" aria-controls="developer-content">
+      <section id="developer" class="proso-card proso-card--developer proso-accordion" data-section="developer">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="developer-content">
           <h2 class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -482,33 +482,33 @@
             </svg>
             Developer Settings
           </h2>
-          <svg class="voxpage-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div id="developer-content" class="voxpage-accordion__content" hidden>
+        <div id="developer-content" class="proso-accordion__content" hidden>
         <p class="section-description">
           Configure developer options and privacy settings.
         </p>
 
         <!-- Usage Telemetry Toggle (T018) -->
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="telemetryEnabled" class="voxpage-toggle__input" checked>
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Allow anonymous usage telemetry</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="telemetryEnabled" class="proso-toggle__input" checked>
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Allow anonymous usage telemetry</span>
           </label>
-          <p class="form-hint">Help improve VoxPage by sending anonymous usage data (no personal data or content is collected)</p>
+          <p class="form-hint">Help improve Proso by sending anonymous usage data (no personal data or content is collected)</p>
         </div>
 
         <hr class="form-divider">
 
         <!-- Remote Logging Section -->
         <div class="form-group">
-          <label class="voxpage-toggle">
-            <input type="checkbox" id="loggingEnabled" class="voxpage-toggle__input" checked>
-            <span class="voxpage-toggle__switch"></span>
-            <span class="voxpage-toggle__text">Send diagnostic logs to help fix issues</span>
+          <label class="proso-toggle">
+            <input type="checkbox" id="loggingEnabled" class="proso-toggle__input" checked>
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Send diagnostic logs to help fix issues</span>
           </label>
           <p class="form-hint">Logs are sent to our secure server and contain no personal data.</p>
         </div>
@@ -517,28 +517,28 @@
         <div class="log-viewer-section" style="margin-top: var(--space-4);">
           <h3 class="log-viewer-title">Log Buffer</h3>
           <div class="log-viewer-actions">
-            <button id="viewLogsBtn" class="voxpage-button voxpage-button--secondary">
+            <button id="viewLogsBtn" class="proso-button proso-button--secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
               View Logs
             </button>
-            <button id="flushLogsBtn" class="voxpage-button voxpage-button--secondary">
+            <button id="flushLogsBtn" class="proso-button proso-button--secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="23 4 23 10 17 10"/>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
               </svg>
               Flush Now
             </button>
-            <button id="clearLogsBtn" class="voxpage-button voxpage-button--ghost">
+            <button id="clearLogsBtn" class="proso-button proso-button--ghost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
               </svg>
               Clear
             </button>
-            <button id="exportLogsBtn" class="voxpage-button voxpage-button--ghost">
+            <button id="exportLogsBtn" class="proso-button proso-button--ghost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
@@ -546,7 +546,7 @@
               </svg>
               Export JSON
             </button>
-            <button id="copyLogsBtn" class="voxpage-button voxpage-button--ghost">
+            <button id="copyLogsBtn" class="proso-button proso-button--ghost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -564,7 +564,7 @@
 
       <!-- Save Button -->
       <div class="actions">
-        <button id="saveBtn" class="voxpage-button voxpage-button--primary" data-testid="settings-save-btn">
+        <button id="saveBtn" class="proso-button proso-button--primary" data-testid="settings-save-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
@@ -578,11 +578,11 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>VoxPage v1.0.0 - AI-Powered Page Reader</p>
+      <p>Proso v1.0.0 - AI-Powered Page Reader</p>
       <p>
-        <a href="https://github.com/yourusername/voxpage" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/phsb5321/Proso" target="_blank" rel="noopener">GitHub</a>
         &middot;
-        <a href="https://github.com/yourusername/voxpage/issues" target="_blank" rel="noopener">Report Issue</a>
+        <a href="https://github.com/phsb5321/Proso/issues" target="_blank" rel="noopener">Report Issue</a>
       </p>
     </footer>
   </div>

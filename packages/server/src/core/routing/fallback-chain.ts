@@ -4,7 +4,7 @@
 // Pro tier: cost-efficient first (Groq > OpenAI > ElevenLabs)
 // Enterprise tier: premium quality first (ElevenLabs > OpenAI > Groq)
 
-import { TTSProvider, SubscriptionTier } from '@voxpage/shared';
+import { TTSProvider, SubscriptionTier } from '@proso/shared';
 
 /** Default provider ordering by tier */
 export const TIER_PROVIDER_ORDER: Record<SubscriptionTier, TTSProvider[]> = {

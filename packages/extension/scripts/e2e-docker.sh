@@ -17,7 +17,7 @@ set -e
 
 # Configuration
 PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION:-1.52.0}"
-CONTAINER_NAME="voxpage-playwright-server"
+CONTAINER_NAME="proso-playwright-server"
 PLAYWRIGHT_PORT="${PLAYWRIGHT_PORT:-3000}"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 

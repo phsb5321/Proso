@@ -13,7 +13,7 @@
  * Keys that should be redacted from logged data.
  */
 const SENSITIVE_KEYS = new Set([
-  // VoxPage API keys
+  // Proso API keys
   'elevenlabsApiKey',
   // Generic sensitive keys
   'apiKey',

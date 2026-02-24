@@ -1,15 +1,15 @@
-# VoxPage Current Architecture
+# Proso Current Architecture
 
 **Last Updated**: 2026-01-20
 **Feature Branch**: `047-architecture-ui-polish`
 
-This document describes VoxPage's current architecture, enabling developers to understand message flows and state ownership within 10 minutes.
+This document describes Proso's current architecture, enabling developers to understand message flows and state ownership within 10 minutes.
 
 ---
 
 ## Overview
 
-VoxPage is a Firefox browser extension for text-to-speech (TTS) with three main execution contexts:
+Proso is a Firefox browser extension for text-to-speech (TTS) with three main execution contexts:
 
 ```mermaid
 flowchart LR
@@ -34,7 +34,7 @@ flowchart LR
 
 **Size**: 2,371 LOC | **Role**: Central orchestrator
 
-The background script is the "brain" of VoxPage:
+The background script is the "brain" of Proso:
 - **State Ownership**: Playback state, API keys, audio cache
 - **TTS Generation**: Calls ElevenLabs API, manages audio cache
 - **Message Routing**: Handles 60+ message types via Strangler Fig pattern
@@ -81,7 +81,7 @@ Ephemeral UI that opens on toolbar icon click:
 
 ## Hexagonal Architecture (~90% Complete)
 
-VoxPage follows hexagonal (ports & adapters) architecture:
+Proso follows hexagonal (ports & adapters) architecture:
 
 ```mermaid
 flowchart TB

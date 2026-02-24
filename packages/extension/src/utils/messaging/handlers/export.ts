@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * Export Message Handlers for VoxPage
+ * Export Message Handlers for Proso
  * Handles MP3 export requests from popup/content
  *
  * @module utils/messaging/handlers/export
  */
 
-import type { VoxPageProtocol, ExportJobStatus } from '../protocol';
+import type { ProsoProtocol, ExportJobStatus } from '../protocol';
 import { Mp3Encoder, type EncodingResult } from '../../audio/mp3-encoder';
 import { ROADMAP_STORAGE_KEYS } from '../../config/schema';
 import { createAudioUrl, revokeAudioUrl } from '../../audio/audio-url';
@@ -38,8 +38,8 @@ const activeJobs = new Map<string, ExportJob>();
  * Starts MP3 export job for article paragraphs
  */
 export async function handleExportStart(
-  request: VoxPageProtocol['export.start']['request'],
-): Promise<VoxPageProtocol['export.start']['response']> {
+  request: ProsoProtocol['export.start']['request'],
+): Promise<ProsoProtocol['export.start']['response']> {
   const { jobId, paragraphs, provider, voice, speed, quality } = request;
 
   // Check if job already exists
@@ -79,8 +79,8 @@ export async function handleExportStart(
  * Cancels an ongoing export job
  */
 export async function handleExportCancel(
-  request: VoxPageProtocol['export.cancel']['request'],
-): Promise<VoxPageProtocol['export.cancel']['response']> {
+  request: ProsoProtocol['export.cancel']['request'],
+): Promise<ProsoProtocol['export.cancel']['response']> {
   const { jobId } = request;
   const job = activeJobs.get(jobId);
 
@@ -112,8 +112,8 @@ export async function handleExportCancel(
  * Returns current progress of export job
  */
 export async function handleExportGetProgress(
-  request: VoxPageProtocol['export.getProgress']['request'],
-): Promise<VoxPageProtocol['export.getProgress']['response']> {
+  request: ProsoProtocol['export.getProgress']['request'],
+): Promise<ProsoProtocol['export.getProgress']['response']> {
   const { jobId } = request;
   const job = activeJobs.get(jobId);
 
@@ -144,8 +144,8 @@ export async function handleExportGetProgress(
  * Triggers download of completed export
  */
 export async function handleExportDownload(
-  request: VoxPageProtocol['export.download']['request'],
-): Promise<VoxPageProtocol['export.download']['response']> {
+  request: ProsoProtocol['export.download']['request'],
+): Promise<ProsoProtocol['export.download']['response']> {
   const { jobId, filename } = request;
   const job = activeJobs.get(jobId);
 
@@ -158,7 +158,7 @@ export async function handleExportDownload(
 
   try {
     // Trigger download using downloads API
-    const downloadFilename = filename || `voxpage-export-${Date.now()}.mp3`;
+    const downloadFilename = filename || `proso-export-${Date.now()}.mp3`;
 
     await browser.downloads.download({
       url: job.blobUrl,

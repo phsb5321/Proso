@@ -5,13 +5,13 @@
 
 ## Decision
 
-Extend VoxPage's existing `tokens.css` with component-specific tokens following the established semantic naming pattern. No architectural changes needed.
+Extend Proso's existing `tokens.css` with component-specific tokens following the established semantic naming pattern. No architectural changes needed.
 
 ---
 
 ## Rationale
 
-- VoxPage already has a well-structured token system
+- Proso already has a well-structured token system
 - Existing pattern uses semantic naming (`--color-text-primary`)
 - Theme switching via `prefers-color-scheme` and `data-theme` already implemented
 - Adding tokens is additive, low-risk change
@@ -33,7 +33,7 @@ Extend VoxPage's existing `tokens.css` with component-specific tokens following 
 
 ## Token Categories
 
-VoxPage's `tokens.css` defines tokens in these categories:
+Proso's `tokens.css` defines tokens in these categories:
 
 ### Colors
 

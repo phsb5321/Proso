@@ -3,7 +3,7 @@
 **Last Updated**: 2026-01-20
 **Feature Branch**: `047-architecture-ui-polish`
 
-This document specifies the VoxPage sticky footer component design, including visual hierarchy, accessibility requirements, and responsive behavior.
+This document specifies the Proso sticky footer component design, including visual hierarchy, accessibility requirements, and responsive behavior.
 
 ---
 

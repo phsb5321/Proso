@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Content Script - Entry Point
+ * Proso Content Script - Entry Point
  * Handles text extraction and highlighting on web pages.
  * Initializes all content modules and sets up message listeners.
  *
@@ -41,15 +41,15 @@ import type { HighlightColor } from '../utils/schemas/highlight.schema';
  * Required because WXT css[] property doesn't work reliably for all setups
  */
 function injectContentStyles(): void {
-  if (document.getElementById('voxpage-content-styles')) {
+  if (document.getElementById('proso-content-styles')) {
     return; // Already injected
   }
 
   const style = document.createElement('style');
-  style.id = 'voxpage-content-styles';
+  style.id = 'proso-content-styles';
   style.textContent = `
-    /* VoxPage Highlight Styles */
-    .voxpage-highlight {
+    /* Proso Highlight Styles */
+    .proso-highlight {
       background: linear-gradient(
         135deg,
         rgba(13, 148, 136, 0.15) 0%,
@@ -65,17 +65,17 @@ function injectContentStyles(): void {
       scroll-margin-bottom: 20px !important;
     }
 
-    @keyframes voxpage-pulse {
+    @keyframes proso-pulse {
       0%, 100% { box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1); }
       50% { box-shadow: 0 2px 16px rgba(13, 148, 136, 0.25); }
     }
 
-    .voxpage-highlight {
-      animation: voxpage-pulse 2s ease-in-out infinite;
+    .proso-highlight {
+      animation: proso-pulse 2s ease-in-out infinite;
     }
 
     @media (prefers-color-scheme: dark) {
-      .voxpage-highlight {
+      .proso-highlight {
         background: linear-gradient(
           135deg,
           rgba(13, 148, 136, 0.25) 0%,
@@ -85,61 +85,61 @@ function injectContentStyles(): void {
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .voxpage-highlight {
+      .proso-highlight {
         animation: none !important;
         transition: none !important;
       }
     }
 
     /* Word-level highlighting using CSS Custom Highlight API */
-    ::highlight(voxpage-word) {
+    ::highlight(proso-word) {
       background-color: rgba(13, 148, 136, 0.4);
       color: inherit;
     }
 
     @media (prefers-color-scheme: dark) {
-      ::highlight(voxpage-word) {
+      ::highlight(proso-word) {
         background-color: rgba(20, 184, 166, 0.5);
       }
     }
 
     /* Paragraph Selection Mode Styles */
-    .voxpage-selectable {
+    .proso-selectable {
       position: relative;
       cursor: pointer;
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
       border-radius: 4px;
     }
 
-    .voxpage-selectable:hover {
+    .proso-selectable:hover {
       background-color: rgba(13, 148, 136, 0.08) !important;
       box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
     }
 
     /* T008: Focus-within state for keyboard navigation (035-selection-tts-hardening) */
-    .voxpage-selectable:focus-within {
+    .proso-selectable:focus-within {
       background-color: rgba(13, 148, 136, 0.08) !important;
       outline: 2px solid rgba(13, 148, 136, 0.5);
       outline-offset: 2px;
     }
 
-    .voxpage-selectable:hover .voxpage-play-icon,
-    .voxpage-selectable:focus-within .voxpage-play-icon {
+    .proso-selectable:hover .proso-play-icon,
+    .proso-selectable:focus-within .proso-play-icon {
       opacity: 1;
       transform: scale(1);
     }
 
-    .voxpage-selected {
+    .proso-selected {
       background-color: rgba(13, 148, 136, 0.15) !important;
       box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.4) !important;
     }
 
-    .voxpage-cached {
+    .proso-cached {
       border-left: 3px solid #10B981 !important;
       padding-left: 8px !important;
     }
 
-    .voxpage-cached::before {
+    .proso-cached::before {
       content: "✓";
       position: absolute;
       left: -20px;
@@ -149,7 +149,7 @@ function injectContentStyles(): void {
       font-weight: bold;
     }
 
-    .voxpage-play-icon {
+    .proso-play-icon {
       position: absolute;
       left: -32px;
       top: 50%;
@@ -169,7 +169,7 @@ function injectContentStyles(): void {
       z-index: 10;
     }
 
-    .voxpage-play-icon::before {
+    .proso-play-icon::before {
       content: "";
       width: 0;
       height: 0;
@@ -179,29 +179,29 @@ function injectContentStyles(): void {
       margin-left: 2px;
     }
 
-    .voxpage-play-icon:hover {
+    .proso-play-icon:hover {
       background: #0F766E;
       transform: translateY(-50%) scale(1.1);
     }
 
     /* T008: Focus state for play icon (035-selection-tts-hardening) */
-    .voxpage-play-icon:focus {
+    .proso-play-icon:focus {
       opacity: 1;
       background: #14B8A6;
     }
 
-    .voxpage-play-icon:focus-visible {
+    .proso-play-icon:focus-visible {
       opacity: 1;
       outline: 2px solid #0D9488;
       outline-offset: 2px;
       box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
-    .voxpage-play-icon:focus:not(:focus-visible) {
+    .proso-play-icon:focus:not(:focus-visible) {
       outline: none;
     }
 
-    .voxpage-play-icon--inline {
+    .proso-play-icon--inline {
       position: relative;
       left: 0;
       top: 0;
@@ -213,68 +213,68 @@ function injectContentStyles(): void {
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
-    .voxpage-selectable:hover .voxpage-play-icon--inline,
-    .voxpage-selectable:focus-within .voxpage-play-icon--inline {
+    .proso-selectable:hover .proso-play-icon--inline,
+    .proso-selectable:focus-within .proso-play-icon--inline {
       opacity: 1;
     }
 
-    .voxpage-play-icon--inline:hover {
+    .proso-play-icon--inline:hover {
       transform: scale(1.1);
     }
 
-    .voxpage-play-icon--inline:focus-visible {
+    .proso-play-icon--inline:focus-visible {
       opacity: 1;
       outline: 2px solid #0D9488;
       outline-offset: 2px;
     }
 
     @media (prefers-color-scheme: dark) {
-      .voxpage-selectable:hover {
+      .proso-selectable:hover {
         background-color: rgba(20, 184, 166, 0.12) !important;
         box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.3);
       }
 
       /* T008: Focus-within in dark mode */
-      .voxpage-selectable:focus-within {
+      .proso-selectable:focus-within {
         background-color: rgba(20, 184, 166, 0.12) !important;
         outline-color: rgba(20, 184, 166, 0.6);
       }
 
-      .voxpage-selected {
+      .proso-selected {
         background-color: rgba(20, 184, 166, 0.2) !important;
         box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.5) !important;
       }
 
-      .voxpage-play-icon {
+      .proso-play-icon {
         background: #14B8A6;
       }
 
-      .voxpage-play-icon:hover {
+      .proso-play-icon:hover {
         background: #0D9488;
       }
 
       /* T008: Focus states in dark mode */
-      .voxpage-play-icon:focus,
-      .voxpage-play-icon:focus-visible {
+      .proso-play-icon:focus,
+      .proso-play-icon:focus-visible {
         background: #2DD4BF;
       }
 
-      .voxpage-play-icon:focus-visible {
+      .proso-play-icon:focus-visible {
         outline-color: #14B8A6;
         box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.4), 0 2px 4px rgba(0, 0, 0, 0.4);
       }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .voxpage-selectable,
-      .voxpage-play-icon {
+      .proso-selectable,
+      .proso-play-icon {
         transition: none !important;
       }
     }
   `;
 
   document.head.appendChild(style);
-  console.log('VoxPage: Content styles injected');
+  console.log('Proso: Content styles injected');
 }
 
 // ============================================================================
@@ -282,10 +282,10 @@ function injectContentStyles(): void {
 // ============================================================================
 
 /**
- * VoxPage namespace on the window object.
+ * Proso namespace on the window object.
  * Used for backward compatibility with legacy code and cross-module communication.
  */
-interface VoxPageNamespace {
+interface ProsoNamespace {
   _contentInitialized?: boolean;
   paragraphSelector?: ParagraphSelector;
   paragraphIndicator?: ParagraphIndicator;
@@ -298,11 +298,11 @@ interface VoxPageNamespace {
 }
 
 /**
- * Window with VoxPage audio element for content-script-based playback.
+ * Window with Proso audio element for content-script-based playback.
  */
-interface VoxPageWindow {
-  VoxPage?: VoxPageNamespace;
-  __voxpageAudio?: HTMLAudioElement | null;
+interface ProsoWindow {
+  Proso?: ProsoNamespace;
+  __prosoAudio?: HTMLAudioElement | null;
 }
 
 /**
@@ -394,7 +394,7 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   main() {
-    console.log('VoxPage: Content script starting (WXT TypeScript)');
+    console.log('Proso: Content script starting (WXT TypeScript)');
 
     // Inject highlight CSS into page
     injectContentStyles();
@@ -410,15 +410,15 @@ export default defineContentScript({
     let persistentHighlightManager: PersistentHighlightManager | null = null;
 
     // Prevent re-initialization
-    const voxWindow = window as unknown as VoxPageWindow;
-    if (voxWindow.VoxPage?._contentInitialized) {
-      console.log('VoxPage: Content script already initialized, skipping');
+    const voxWindow = window as unknown as ProsoWindow;
+    if (voxWindow.Proso?._contentInitialized) {
+      console.log('Proso: Content script already initialized, skipping');
       return;
     }
 
-    // Initialize VoxPage namespace for backward compatibility
-    voxWindow.VoxPage = voxWindow.VoxPage || {};
-    voxWindow.VoxPage._contentInitialized = true;
+    // Initialize Proso namespace for backward compatibility
+    voxWindow.Proso = voxWindow.Proso || {};
+    voxWindow.Proso._contentInitialized = true;
 
     // Initialize modules
     try {
@@ -429,11 +429,11 @@ export default defineContentScript({
       persistentHighlightManager = createPersistentHighlightManager();
 
       // Expose modules on namespace for legacy code
-      voxWindow.VoxPage!.paragraphSelector = paragraphSelector;
-      voxWindow.VoxPage!.paragraphIndicator = paragraphIndicator;
-      voxWindow.VoxPage!.persistentHighlightManager = persistentHighlightManager;
+      voxWindow.Proso!.paragraphSelector = paragraphSelector;
+      voxWindow.Proso!.paragraphIndicator = paragraphIndicator;
+      voxWindow.Proso!.persistentHighlightManager = persistentHighlightManager;
 
-      console.log('VoxPage: Modules initialized successfully', {
+      console.log('Proso: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
         hasHighlightManager: !!highlightManager,
         hasStickyFooter: !!stickyFooter,
@@ -448,7 +448,7 @@ export default defineContentScript({
       // T017: Initialize telemetry for content script
       initContentTelemetry();
     } catch (error) {
-      console.error('VoxPage: Failed to initialize modules:', error);
+      console.error('Proso: Failed to initialize modules:', error);
       return;
     }
 
@@ -469,7 +469,7 @@ export default defineContentScript({
           index: index,
         })
         .catch((err) => {
-          console.error('VoxPage: Failed to jump to paragraph:', err);
+          console.error('Proso: Failed to jump to paragraph:', err);
         });
     }
 
@@ -486,25 +486,25 @@ export default defineContentScript({
         const target = event.target as HTMLElement;
 
         // Ignore clicks on play icons (they have their own handlers)
-        if (target.closest('.voxpage-play-icon')) {
+        if (target.closest('.proso-play-icon')) {
           return;
         }
 
         // Check if we clicked on a selectable paragraph (selection mode)
-        const selectableEl = target.closest('.voxpage-selectable') as HTMLElement;
-        if (selectableEl && voxWindow.VoxPage?.paragraphSelector?.isActive?.()) {
-          const index = Number.parseInt(selectableEl.dataset.voxpageSelectIndex || '', 10);
+        const selectableEl = target.closest('.proso-selectable') as HTMLElement;
+        if (selectableEl && voxWindow.Proso?.paragraphSelector?.isActive?.()) {
+          const index = Number.parseInt(selectableEl.dataset.prosoSelectIndex || '', 10);
           if (!isNaN(index)) {
             // Selection mode: just select visually, don't play
-            voxWindow.VoxPage?.paragraphSelector?.selectParagraph?.(index);
+            voxWindow.Proso?.paragraphSelector?.selectParagraph?.(index);
           }
           return;
         }
 
         // Check if we clicked on an active highlight (during playback)
-        const highlightedEl = target.closest('.voxpage-highlight') as HTMLElement;
+        const highlightedEl = target.closest('.proso-highlight') as HTMLElement;
         if (highlightedEl) {
-          const index = Number.parseInt(highlightedEl.dataset.voxpageIndex || '', 10);
+          const index = Number.parseInt(highlightedEl.dataset.prosoIndex || '', 10);
           if (!isNaN(index)) {
             // During playback: jump to the clicked paragraph
             jumpToClickedParagraph(index);
@@ -619,7 +619,7 @@ export default defineContentScript({
           url: langData.url,
         })
         .catch((err) => {
-          console.error('VoxPage: Failed to send language detection:', err);
+          console.error('Proso: Failed to send language detection:', err);
         });
     }
 
@@ -665,11 +665,11 @@ export default defineContentScript({
               .then((response: { success: boolean }) => {
                 if (response.success) {
                   manager.removeHighlight(highlightId);
-                  console.log('VoxPage: Highlight deleted:', highlightId);
+                  console.log('Proso: Highlight deleted:', highlightId);
                 }
               })
               .catch((err) => {
-                console.error('VoxPage: Failed to delete highlight:', err);
+                console.error('Proso: Failed to delete highlight:', err);
               });
             break;
 
@@ -684,7 +684,7 @@ export default defineContentScript({
                   note: note,
                 })
                 .catch((err) => {
-                  console.error('VoxPage: Failed to add note:', err);
+                  console.error('Proso: Failed to add note:', err);
                 });
             }
             break;
@@ -701,11 +701,11 @@ export default defineContentScript({
               .then((response: { success: boolean }) => {
                 if (response.success) {
                   manager.updateHighlightColor(highlightId, color);
-                  console.log('VoxPage: Highlight color changed:', highlightId, color);
+                  console.log('Proso: Highlight color changed:', highlightId, color);
                 }
               })
               .catch((err) => {
-                console.error('VoxPage: Failed to change color:', err);
+                console.error('Proso: Failed to change color:', err);
               });
             break;
           }
@@ -713,7 +713,7 @@ export default defineContentScript({
       });
 
       // Expose function to get current selection
-      voxWindow.VoxPage!.getCurrentSelection = () => currentSelection;
+      voxWindow.Proso!.getCurrentSelection = () => currentSelection;
     }
 
     /**
@@ -744,7 +744,7 @@ export default defineContentScript({
           return;
         }
 
-        console.log(`VoxPage: Loading ${response.highlights.length} highlights for page`);
+        console.log(`Proso: Loading ${response.highlights.length} highlights for page`);
 
         // Convert to format expected by reanchorHighlights
         const highlightsToRender = response.highlights.map((h) => ({
@@ -768,7 +768,7 @@ export default defineContentScript({
           .map(([id]) => id);
 
         if (orphanedIds.length > 0) {
-          console.warn(`VoxPage: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
+          console.warn(`Proso: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
           // Notify background about orphaned highlights
           browser.runtime
             .sendMessage({
@@ -781,7 +781,7 @@ export default defineContentScript({
             });
         }
       } catch (error) {
-        console.error('VoxPage: Failed to load page highlights:', error);
+        console.error('Proso: Failed to load page highlights:', error);
       }
     }
 
@@ -835,7 +835,7 @@ export default defineContentScript({
         });
       } catch (error) {
         // Silently fail - telemetry should never break the extension
-        console.debug('[VoxPage] Telemetry init failed:', error);
+        console.debug('[Proso] Telemetry init failed:', error);
       }
     }
 
@@ -855,15 +855,15 @@ export default defineContentScript({
     // Message Listener
     // ========================================================================
 
-    console.log('VoxPage: Setting up message listener');
+    console.log('Proso: Setting up message listener');
 
     browser.runtime.onMessage.addListener((message: LegacyMessage & { type?: string }) => {
       // Support both 'action' (legacy) and 'type' (new protocol) fields
       const messageKey = message.action || message.type;
-      console.log('VoxPage: Received message:', messageKey);
+      console.log('Proso: Received message:', messageKey);
 
       if (!highlightManager || !stickyFooter) {
-        console.warn('VoxPage: Modules not initialized, ignoring message');
+        console.warn('Proso: Modules not initialized, ignoring message');
         return;
       }
 
@@ -880,7 +880,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators
           if (paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('VoxPage: Failed to enable selection mode:', err);
+              console.warn('Proso: Failed to enable selection mode:', err);
             });
           }
 
@@ -905,7 +905,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators (only on fresh extraction)
           if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('VoxPage: Failed to enable selection mode:', err);
+              console.warn('Proso: Failed to enable selection mode:', err);
             });
           }
 
@@ -929,7 +929,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators (only on fresh extraction)
           if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('VoxPage: Failed to enable selection mode:', err);
+              console.warn('Proso: Failed to enable selection mode:', err);
             });
           }
 
@@ -963,7 +963,7 @@ export default defineContentScript({
               return result;
             })
             .catch((error) => {
-              console.error('VoxPage: Article extraction failed:', error);
+              console.error('Proso: Article extraction failed:', error);
               return {
                 success: false,
                 error: error.message || 'Article extraction failed',
@@ -982,7 +982,7 @@ export default defineContentScript({
             })
             .then((result) => result)
             .catch((error) => {
-              console.error('VoxPage: Article check failed:', error);
+              console.error('Proso: Article check failed:', error);
               return { success: false, isArticle: false };
             });
         }
@@ -1021,7 +1021,7 @@ export default defineContentScript({
             startTimeMs: item.startMs,
             endTimeMs: item.endMs,
           }));
-          console.log('VoxPage: Setting word timeline with', convertedTimeline.length, 'words');
+          console.log('Proso: Setting word timeline with', convertedTimeline.length, 'words');
           highlightManager.setWordTimeline(convertedTimeline, msg.paragraphIndex);
           break;
         }
@@ -1046,7 +1046,7 @@ export default defineContentScript({
                 wordIndex,
               })
               .catch((err) => {
-                console.error('VoxPage: Failed to jump to word:', err);
+                console.error('Proso: Failed to jump to word:', err);
               });
           }
           break;
@@ -1106,7 +1106,7 @@ export default defineContentScript({
             message: string;
             provider?: string;
           };
-          console.error(`[VoxPage] Playback error (${errorMsg.provider}):`, errorMsg.message);
+          console.error(`[Proso] Playback error (${errorMsg.provider}):`, errorMsg.message);
 
           // Show error notification in sticky footer if visible, otherwise show alert
           if (stickyFooter && stickyFooter.isFooterVisible()) {
@@ -1343,7 +1343,7 @@ export default defineContentScript({
 
           return new Promise<{ success: boolean }>((resolve) => {
             if (typeof speechSynthesis === 'undefined') {
-              console.error('VoxPage: Web Speech API not available');
+              console.error('Proso: Web Speech API not available');
               resolve({ success: false });
               return;
             }
@@ -1362,18 +1362,18 @@ export default defineContentScript({
             }
 
             utterance.onend = () => {
-              console.log('VoxPage: Speech ended');
+              console.log('Proso: Speech ended');
               resolve({ success: true });
             };
 
             utterance.onerror = (event) => {
               if (event.error !== 'canceled') {
-                console.error('VoxPage: Speech error:', event.error);
+                console.error('Proso: Speech error:', event.error);
               }
               resolve({ success: false });
             };
 
-            console.log('VoxPage: Speaking text of length', text.length);
+            console.log('Proso: Speaking text of length', text.length);
             speechSynthesis.speak(utterance);
           });
         }
@@ -1381,7 +1381,7 @@ export default defineContentScript({
         case 'stopSpeech': {
           if (typeof speechSynthesis !== 'undefined') {
             speechSynthesis.cancel();
-            console.log('VoxPage: Speech cancelled');
+            console.log('Proso: Speech cancelled');
           }
           return Promise.resolve({ success: true });
         }
@@ -1396,40 +1396,40 @@ export default defineContentScript({
 
           // Validate audio URL before attempting to play
           if (!audioUrl || audioUrl.trim() === '') {
-            console.error('VoxPage: Invalid audio URL: empty or undefined');
+            console.error('Proso: Invalid audio URL: empty or undefined');
             return Promise.resolve({ success: false });
           }
 
           return new Promise<{ success: boolean }>((resolve) => {
             // Stop any existing audio
             // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-            if (voxWindow.__voxpageAudio) {
-              const existingAudio = voxWindow.__voxpageAudio;
+            if (voxWindow.__prosoAudio) {
+              const existingAudio = voxWindow.__prosoAudio;
               existingAudio.pause();
               existingAudio.removeAttribute('src');
               existingAudio.load();
-              voxWindow.__voxpageAudio = null;
+              voxWindow.__prosoAudio = null;
             }
 
             const audio = new Audio(audioUrl);
-            voxWindow.__voxpageAudio = audio;
+            voxWindow.__prosoAudio = audio;
             audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
 
             audio.onended = () => {
-              console.log('VoxPage: Audio playback ended');
-              voxWindow.__voxpageAudio = null;
+              console.log('Proso: Audio playback ended');
+              voxWindow.__prosoAudio = null;
               resolve({ success: true });
             };
 
             audio.onerror = (event) => {
-              console.error('VoxPage: Audio playback error:', event);
-              voxWindow.__voxpageAudio = null;
+              console.error('Proso: Audio playback error:', event);
+              voxWindow.__prosoAudio = null;
               resolve({ success: false });
             };
 
-            console.log('VoxPage: Playing audio, speed:', speed);
+            console.log('Proso: Playing audio, speed:', speed);
             audio.play().catch((err) => {
-              console.error('VoxPage: Audio play() failed:', err);
+              console.error('Proso: Audio play() failed:', err);
               resolve({ success: false });
             });
           });
@@ -1437,13 +1437,13 @@ export default defineContentScript({
 
         case 'stopAudio': {
           // T027: Use proper cleanup to avoid Invalid URI / CSP errors (035-selection-tts-hardening)
-          if (voxWindow.__voxpageAudio) {
-            const audio = voxWindow.__voxpageAudio;
+          if (voxWindow.__prosoAudio) {
+            const audio = voxWindow.__prosoAudio;
             audio.pause();
             audio.removeAttribute('src');
             audio.load();
-            voxWindow.__voxpageAudio = null;
-            console.log('VoxPage: Audio stopped');
+            voxWindow.__prosoAudio = null;
+            console.log('Proso: Audio stopped');
           }
           return Promise.resolve({ success: true });
         }
@@ -1458,7 +1458,7 @@ export default defineContentScript({
         }
 
         default:
-          console.warn('VoxPage: Unknown message action:', message.action);
+          console.warn('Proso: Unknown message action:', message.action);
       }
     });
 
@@ -1483,8 +1483,8 @@ export default defineContentScript({
         }
         scrollListenerDebounce = window.setTimeout(() => {
           // Notify highlight manager of user scroll
-          if (voxWindow.VoxPage?.highlightManager?.onUserScroll) {
-            voxWindow.VoxPage.highlightManager.onUserScroll();
+          if (voxWindow.Proso?.highlightManager?.onUserScroll) {
+            voxWindow.Proso.highlightManager.onUserScroll();
           }
           scrollListenerDebounce = null;
         }, 100); // 100ms debounce for scroll events
@@ -1503,17 +1503,17 @@ export default defineContentScript({
      * T023: Enhanced cleanup for blob URLs and audio (035-selection-tts-hardening)
      */
     function executeCleanup(reason: string): void {
-      console.log(`VoxPage: Executing cleanup (reason: ${reason})`);
+      console.log(`Proso: Executing cleanup (reason: ${reason})`);
 
       // T023: Stop and cleanup content script audio first
-      if (voxWindow.__voxpageAudio) {
-        const audio = voxWindow.__voxpageAudio;
+      if (voxWindow.__prosoAudio) {
+        const audio = voxWindow.__prosoAudio;
         audio.pause();
         // Use proper cleanup to avoid Invalid URI errors
         audio.removeAttribute('src');
         audio.load();
-        voxWindow.__voxpageAudio = null;
-        console.log('[VoxPage:Cleanup] Content script audio stopped and cleaned');
+        voxWindow.__prosoAudio = null;
+        console.log('[Proso:Cleanup] Content script audio stopped and cleaned');
       }
 
       // T023: Stop browser TTS if active
@@ -1551,7 +1551,7 @@ export default defineContentScript({
         try {
           cb(reason);
         } catch (e) {
-          console.warn('VoxPage: Cleanup callback failed:', e);
+          console.warn('Proso: Cleanup callback failed:', e);
         }
       });
     }
@@ -1566,7 +1566,7 @@ export default defineContentScript({
     }
 
     // Expose cleanup registration on namespace
-    voxWindow.VoxPage!.registerCleanupCallback = registerCleanupCallback;
+    voxWindow.Proso!.registerCleanupCallback = registerCleanupCallback;
 
     /**
      * Handle pagehide event (primary navigation handler)
@@ -1601,10 +1601,10 @@ export default defineContentScript({
             const resyncDuration = performance.now() - resyncStart;
             if (resyncDuration > 500) {
               console.warn(
-                `VoxPage: Resync took ${resyncDuration.toFixed(0)}ms, exceeds 500ms target (FR-005)`,
+                `Proso: Resync took ${resyncDuration.toFixed(0)}ms, exceeds 500ms target (FR-005)`,
               );
             } else {
-              console.log(`VoxPage: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`);
+              console.log(`Proso: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`);
             }
           })
           .catch(() => {
@@ -1668,7 +1668,7 @@ export default defineContentScript({
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         sendLanguageDetectionRequest();
-        console.log('VoxPage: Sent initial language detection request');
+        console.log('Proso: Sent initial language detection request');
       }, 100);
     }
 
@@ -1686,6 +1686,6 @@ export default defineContentScript({
       window.addEventListener('load', () => loadPageHighlights(), { once: true });
     }
 
-    console.log('VoxPage content script fully loaded and message listener registered');
+    console.log('Proso content script fully loaded and message listener registered');
   },
 });

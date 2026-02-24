@@ -67,7 +67,7 @@ async function setupTestPage(page, options = {}) {
           margin: 0;
         }
         p { margin: 1em 0; }
-        .voxpage-sticky-footer {
+        .proso-sticky-footer {
           position: fixed;
           bottom: 0;
           left: 50%;
@@ -83,15 +83,15 @@ async function setupTestPage(page, options = {}) {
           gap: 16px;
           z-index: 10000;
         }
-        .voxpage-sticky-footer.minimized {
+        .proso-sticky-footer.minimized {
           width: auto;
           padding: 8px 12px;
           gap: 8px;
         }
-        .voxpage-sticky-footer.minimized .voxpage-footer__progress {
+        .proso-sticky-footer.minimized .proso-footer__progress {
           display: none;
         }
-        .voxpage-footer__drag-handle {
+        .proso-footer__drag-handle {
           width: 40px;
           height: 4px;
           background: ${dragHandleBg};
@@ -102,12 +102,12 @@ async function setupTestPage(page, options = {}) {
           transform: translateX(-50%);
           cursor: grab;
         }
-        .voxpage-footer__controls {
+        .proso-footer__controls {
           display: flex;
           align-items: center;
           gap: 8px;
         }
-        .voxpage-footer__btn {
+        .proso-footer__btn {
           display: flex;
           align-items: center;
           justify-content: center;
@@ -119,49 +119,49 @@ async function setupTestPage(page, options = {}) {
           color: ${btnColor};
           cursor: pointer;
         }
-        .voxpage-footer__btn:hover {
+        .proso-footer__btn:hover {
           background: ${btnHover};
         }
-        .voxpage-footer__btn--play-pause {
+        .proso-footer__btn--play-pause {
           width: 44px;
           height: 44px;
           background: #3b82f6;
           color: white;
         }
-        .voxpage-footer__btn--play-pause:hover {
+        .proso-footer__btn--play-pause:hover {
           background: #2563eb;
         }
-        .voxpage-footer__btn--play-pause.playing {
+        .proso-footer__btn--play-pause.playing {
           background: #ef4444;
         }
-        .voxpage-footer__progress {
+        .proso-footer__progress {
           flex: 1;
           display: flex;
           align-items: center;
           gap: 8px;
         }
-        .voxpage-footer__time {
+        .proso-footer__time {
           font-size: 12px;
           color: ${timeColor};
           min-width: 32px;
         }
-        .voxpage-footer__progress-bar {
+        .proso-footer__progress-bar {
           flex: 1;
           height: 4px;
           background: ${progressBg};
           border-radius: 2px;
           cursor: pointer;
         }
-        .voxpage-footer__progress-fill {
+        .proso-footer__progress-fill {
           height: 100%;
           background: #3b82f6;
           border-radius: 2px;
         }
-        .voxpage-footer__actions {
+        .proso-footer__actions {
           display: flex;
           align-items: center;
         }
-        .voxpage-footer__btn--close {
+        .proso-footer__btn--close {
           background: transparent;
         }
       </style>
@@ -172,28 +172,28 @@ async function setupTestPage(page, options = {}) {
       <p>Second paragraph of test content.</p>
       <p>Third paragraph of test content.</p>
 
-      <div class="voxpage-sticky-footer ${minimizedClass}" data-testid="sticky-footer">
-        <div class="voxpage-footer__drag-handle"></div>
-        <div class="voxpage-footer__controls">
-          <button class="voxpage-footer__btn voxpage-footer__btn--prev" data-testid="footer-prev-btn" aria-label="Previous">
+      <div class="proso-sticky-footer ${minimizedClass}" data-testid="sticky-footer">
+        <div class="proso-footer__drag-handle"></div>
+        <div class="proso-footer__controls">
+          <button class="proso-footer__btn proso-footer__btn--prev" data-testid="footer-prev-btn" aria-label="Previous">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12L19 4V20Z"></path><rect x="5" y="4" width="3" height="16"></rect></svg>
           </button>
-          <button class="voxpage-footer__btn voxpage-footer__btn--play-pause ${playingClass}" data-testid="footer-play-pause-btn" aria-label="${playPauseLabel}">
+          <button class="proso-footer__btn proso-footer__btn--play-pause ${playingClass}" data-testid="footer-play-pause-btn" aria-label="${playPauseLabel}">
             ${playPauseIcon}
           </button>
-          <button class="voxpage-footer__btn voxpage-footer__btn--next" data-testid="footer-next-btn" aria-label="Next">
+          <button class="proso-footer__btn proso-footer__btn--next" data-testid="footer-next-btn" aria-label="Next">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4L15 12L5 20V4Z"></path><rect x="16" y="4" width="3" height="16"></rect></svg>
           </button>
         </div>
-        <div class="voxpage-footer__progress">
-          <span class="voxpage-footer__time">0:00</span>
-          <div class="voxpage-footer__progress-bar" data-testid="footer-progress-bar">
-            <div class="voxpage-footer__progress-fill" style="width: ${progress}%"></div>
+        <div class="proso-footer__progress">
+          <span class="proso-footer__time">0:00</span>
+          <div class="proso-footer__progress-bar" data-testid="footer-progress-bar">
+            <div class="proso-footer__progress-fill" style="width: ${progress}%"></div>
           </div>
-          <span class="voxpage-footer__time">3:45</span>
+          <span class="proso-footer__time">3:45</span>
         </div>
-        <div class="voxpage-footer__actions">
-          <button class="voxpage-footer__btn voxpage-footer__btn--close" data-testid="footer-close-btn" aria-label="Close">
+        <div class="proso-footer__actions">
+          <button class="proso-footer__btn proso-footer__btn--close" data-testid="footer-close-btn" aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -204,7 +204,7 @@ async function setupTestPage(page, options = {}) {
 
   await page.setContent(htmlContent);
   await disableAnimations(page);
-  await waitForLayoutStable(page, '.voxpage-sticky-footer', 50);
+  await waitForLayoutStable(page, '.proso-sticky-footer', 50);
 
   return page;
 }

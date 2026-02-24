@@ -25,7 +25,7 @@ fi
 # Check if this is an implementation file (not test, config, or docs)
 IS_IMPLEMENTATION=false
 
-# Implementation directories for VoxPage
+# Implementation directories for Proso
 IMPL_PATTERNS=(
   "background/"
   "content/"

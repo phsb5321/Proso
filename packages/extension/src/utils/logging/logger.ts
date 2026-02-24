@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Remote Logger
+ * Proso Remote Logger
  * Sends logs to Loki endpoint with batching, buffering, and retry
  *
  * @module utils/logging/logger
@@ -51,8 +51,8 @@ const LOG_LEVEL_VALUES: Record<LogLevel, number> = {
 /**
  * Storage key for logging configuration
  */
-const STORAGE_KEY_CONFIG = 'voxpage_logging_config';
-const STORAGE_KEY_RETRY = 'voxpage_log_retry_queue';
+const STORAGE_KEY_CONFIG = 'proso_logging_config';
+const STORAGE_KEY_RETRY = 'proso_log_retry_queue';
 
 /**
  * Remote logger class for sending logs to Loki
@@ -210,7 +210,7 @@ export class RemoteLogger {
         const [level, component] = key.split(':');
         return {
           stream: {
-            app: 'voxpage',
+            app: 'proso',
             version: this.version || 'unknown',
             session: this.sessionId || 'unknown',
             level,

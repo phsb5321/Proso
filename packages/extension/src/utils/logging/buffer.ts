@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Log Buffer
+ * Proso Log Buffer
  * Circular buffer for storing log entries before transmission
  *
  * @module utils/logging/buffer
@@ -49,7 +49,7 @@ export type BufferOptions = z.infer<typeof bufferOptionsSchema>;
 /**
  * Storage key for log buffer
  */
-const STORAGE_KEY = 'voxpage_log_buffer';
+const STORAGE_KEY = 'proso_log_buffer';
 
 /**
  * Default logging configuration

@@ -1,5 +1,5 @@
 /**
- * OCR Reading Contract Tests for VoxPage
+ * OCR Reading Contract Tests for Proso
  * Verifies message contracts for OCR/screenshot reading feature
  *
  * @module tests/contract/ocr-reading.test.ts

@@ -41,13 +41,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared (if build script exists)
-        run: pnpm --filter @voxpage/shared run --if-present build
+        run: pnpm --filter @proso/shared run --if-present build
 
       - name: Lint server
-        run: pnpm --filter @voxpage/server lint
+        run: pnpm --filter @proso/server lint
 
       - name: Test server
-        run: pnpm --filter @voxpage/server test
+        run: pnpm --filter @proso/server test
 
       - name: Build server
-        run: pnpm --filter @voxpage/server build
+        run: pnpm --filter @proso/server build

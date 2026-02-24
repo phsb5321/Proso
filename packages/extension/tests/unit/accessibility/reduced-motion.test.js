@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Accessibility Unit Tests - Reduced Motion Support
@@ -280,19 +280,19 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
 
       // Create elements with highlight class
       const element1 = document.createElement('p');
-      element1.classList.add('voxpage-highlight');
+      element1.classList.add('proso-highlight');
       document.body.appendChild(element1);
 
       const element2 = document.createElement('p');
-      element2.classList.add('voxpage-highlight');
+      element2.classList.add('proso-highlight');
       document.body.appendChild(element2);
 
       // Clear highlights
       manager.clearParagraphHighlights();
 
       // Elements should no longer have the highlight class
-      expect(element1.classList.contains('voxpage-highlight')).toBe(false);
-      expect(element2.classList.contains('voxpage-highlight')).toBe(false);
+      expect(element1.classList.contains('proso-highlight')).toBe(false);
+      expect(element2.classList.contains('proso-highlight')).toBe(false);
 
       // Cleanup
       document.body.removeChild(element1);
@@ -304,7 +304,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
 
       // Mock CSS.highlights
       const mockHighlights = new Map();
-      mockHighlights.set('voxpage-word', {});
+      mockHighlights.set('proso-word', {});
       global.CSS = {
         highlights: mockHighlights,
       };
@@ -317,17 +317,17 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
 
       // Add a paragraph highlight
       const element = document.createElement('p');
-      element.classList.add('voxpage-highlight');
+      element.classList.add('proso-highlight');
       document.body.appendChild(element);
 
       // Clear all highlights
       manager.clearHighlights();
 
       // Paragraph highlight should be removed
-      expect(element.classList.contains('voxpage-highlight')).toBe(false);
+      expect(element.classList.contains('proso-highlight')).toBe(false);
 
       // Word highlight should be deleted
-      expect(mockHighlights.has('voxpage-word')).toBe(false);
+      expect(mockHighlights.has('proso-word')).toBe(false);
 
       // Cleanup
       document.body.removeChild(element);
@@ -407,9 +407,9 @@ describe('CSS Reduced Motion Media Query (T055)', () => {
     // This test documents expected CSS behavior
     // Actual CSS testing happens in visual regression tests
     const expectedReducedMotionRules = [
-      '.voxpage-highlight { animation: none !important; transition: none !important; }',
-      '.voxpage-selectable { transition: none !important; }',
-      '.voxpage-play-icon { transition: none !important; }',
+      '.proso-highlight { animation: none !important; transition: none !important; }',
+      '.proso-selectable { transition: none !important; }',
+      '.proso-play-icon { transition: none !important; }',
     ];
 
     expect(expectedReducedMotionRules.length).toBe(3);
@@ -419,8 +419,8 @@ describe('CSS Reduced Motion Media Query (T055)', () => {
     // Components should also respect reduced motion
     const expectedReducedMotionRules = [
       '.toast { animation: none !important; transition: none !important; }',
-      '.voxpage-accordion__chevron { animation: none !important; transition: none !important; }',
-      '.voxpage-accordion__content { animation: none !important; transition: none !important; }',
+      '.proso-accordion__chevron { animation: none !important; transition: none !important; }',
+      '.proso-accordion__content { animation: none !important; transition: none !important; }',
     ];
 
     expect(expectedReducedMotionRules.length).toBe(3);

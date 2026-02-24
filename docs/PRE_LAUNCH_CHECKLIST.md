@@ -1,6 +1,6 @@
-# VoxPage Pre-Launch Checklist
+# Proso Pre-Launch Checklist
 
-A comprehensive checklist for launching VoxPage as a commercial browser extension product.
+A comprehensive checklist for launching Proso as a commercial browser extension product.
 
 **Last Updated**: 2026-01-05
 **Current License**: GPL-3.0 (in LICENSE file) vs MIT (in package.json) - CONFLICT TO RESOLVE
@@ -91,15 +91,15 @@ A comprehensive checklist for launching VoxPage as a commercial browser extensio
 **Critical Requirements**:
 - [OpenAI TTS](https://openai.com/policies/usage-policies/): **MUST disclose AI-generated voice to end users**
 - [ElevenLabs](https://elevenlabs.io/terms-of-use): Free plan = non-commercial only; Paid plan = commercial allowed
-- Users with free ElevenLabs accounts cannot use VoxPage commercially
+- Users with free ElevenLabs accounts cannot use Proso commercially
 
 ### Trademark
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Trademark search for "VoxPage" | **[SHOULD]** | S | None | [ ] |
+| Trademark search for "Proso" | **[SHOULD]** | S | None | [ ] |
 | Register trademark (if clear) | **[NICE]** | M | Trademark search, Business entity | [ ] |
-| Domain registration (voxpage.com etc.) | **[SHOULD]** | S | None | [ ] |
+| Domain registration (proso.com etc.) | **[SHOULD]** | S | None | [ ] |
 
 ---
 
@@ -425,7 +425,7 @@ A comprehensive checklist for launching VoxPage as a commercial browser extensio
 | prefers-reduced-motion support | **[SHOULD]** | S | None | [~] |
 | Touch target sizes (44x44px) | **[SHOULD]** | S | None | [~] |
 
-**Note**: VoxPage already has accessibility features (see CLAUDE.md Feature 018). Needs formal audit.
+**Note**: Proso already has accessibility features (see CLAUDE.md Feature 018). Needs formal audit.
 
 ### Performance Testing
 
@@ -455,7 +455,7 @@ A comprehensive checklist for launching VoxPage as a commercial browser extensio
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Email support (support@voxpage.com) | **[MUST]** | S | Domain | [ ] |
+| Email support (support@proso.com) | **[MUST]** | S | Domain | [ ] |
 | Help desk integration | **[SHOULD]** | M | Email | [ ] |
 | Community Discord/forum | **[NICE]** | M | None | [ ] |
 | In-app feedback widget | **[SHOULD]** | M | None | [ ] |

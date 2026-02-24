@@ -10,8 +10,8 @@ import {
   SubscriptionTier,
   FEATURE_MATRIX,
   TIER_CREDITS,
-} from '@voxpage/shared';
-import type { FeatureEntitlements, CreditBalance } from '@voxpage/shared';
+} from '@proso/shared';
+import type { FeatureEntitlements, CreditBalance } from '@proso/shared';
 
 export type Feature = keyof FeatureEntitlements;
 

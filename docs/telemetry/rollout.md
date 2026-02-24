@@ -1,6 +1,6 @@
-# VoxPage Telemetry Rollout Plan
+# Proso Telemetry Rollout Plan
 
-This document outlines the gradual rollout strategy for VoxPage's usage telemetry system.
+This document outlines the gradual rollout strategy for Proso's usage telemetry system.
 
 ## Overview
 

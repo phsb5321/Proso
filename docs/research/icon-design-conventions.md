@@ -9,7 +9,7 @@ This document summarizes icon design conventions for browser extensions, derived
 
 ## Executive Summary
 
-VoxPage's toolbar icon must be:
+Proso's toolbar icon must be:
 - **Recognizable at 16px**: Simple silhouette, 2-3 tones max
 - **Consistent with platform**: Follow Firefox Photon icon guidelines
 - **Accessible**: 3:1 contrast ratio for essential elements
@@ -63,7 +63,7 @@ VoxPage's toolbar icon must be:
 | Dark theme | `#FFFFFF` | Monochrome icon |
 | Light theme | `#20123A` | Monochrome icon |
 | Accent | `#0060DF` | Firefox blue (avoid unless partnered) |
-| VoxPage accent | `#0D9488` | Teal - our brand color |
+| Proso accent | `#0D9488` | Teal - our brand color |
 
 ### Do's and Don'ts
 
@@ -112,7 +112,7 @@ VoxPage's toolbar icon must be:
 
 ---
 
-## VoxPage Icon Concept
+## Proso Icon Concept
 
 ### Current Design
 

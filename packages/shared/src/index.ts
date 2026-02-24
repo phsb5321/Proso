@@ -1,4 +1,4 @@
-// @voxpage/shared — barrel export for all shared domain types, constants, and utilities
+// @proso/shared — barrel export for all shared domain types, constants, and utilities
 
 // Result type
 export {

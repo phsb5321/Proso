@@ -22,7 +22,7 @@ import {
   type CreditTransaction,
   TransactionType,
   ErrorCode,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import { CreditRepositoryPort, type CreditTransactionRecord } from '../../ports/credit-repository.port';
 
 /** Maximum number of transactions a client can request in one page. */

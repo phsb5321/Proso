@@ -22,7 +22,7 @@ export async function createTestPrismaService(): Promise<PrismaService> {
 
   // Start PostgreSQL container
   container = await new PostgreSqlContainer('postgres:16-alpine')
-    .withDatabase('voxpage_test')
+    .withDatabase('proso_test')
     .withUsername('test')
     .withPassword('test')
     .start();

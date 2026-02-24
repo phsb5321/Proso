@@ -76,7 +76,7 @@ describe('Paragraph Selector - Hover State Management (T034)', () => {
 
     // Simulate hover state update
     selectionState.hoveredParagraphIndex = 0;
-    mockParagraphs[0].classList.add('voxpage-selectable');
+    mockParagraphs[0].classList.add('proso-selectable');
 
     const elapsed = Date.now() - startTime;
     expect(elapsed).toBeLessThan(50);

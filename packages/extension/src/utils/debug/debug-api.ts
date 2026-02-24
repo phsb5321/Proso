@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Debug API
+ * Proso Debug API
  *
  * Development-only diagnostic API that exposes internal state for debugging.
  * Wrapped in a process.env.NODE_ENV !== 'production' guard so Vite/esbuild

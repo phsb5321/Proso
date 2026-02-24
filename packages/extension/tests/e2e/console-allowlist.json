@@ -1,7 +1,7 @@
 {
   "$schema": "../../../specs/038-browser-e2e-hardening/contracts/console-allowlist.schema.json",
   "version": "1.0.0",
-  "description": "Console error allowlist for VoxPage E2E tests. Entries here will not cause test failure.",
+  "description": "Console error allowlist for Proso E2E tests. Entries here will not cause test failure.",
   "entries": [
     {
       "id": "resize-observer-loop",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Sidebar Navigation Component
@@ -50,26 +50,26 @@ export function createSidebar(options: SidebarOptions): HTMLElement {
 
   // Create sidebar element
   const sidebar = document.createElement('aside');
-  sidebar.className = 'voxpage-sidebar';
+  sidebar.className = 'proso-sidebar';
   sidebar.setAttribute('role', 'navigation');
   sidebar.setAttribute('aria-label', 'Settings navigation');
 
   // Create nav element
   const nav = document.createElement('nav');
-  nav.className = 'voxpage-sidebar__nav';
+  nav.className = 'proso-sidebar__nav';
 
   // Create nav list
   const navList = document.createElement('ul');
-  navList.className = 'voxpage-sidebar__list';
+  navList.className = 'proso-sidebar__list';
   navList.setAttribute('role', 'list');
 
   // Create nav items
   sections.forEach((section, index) => {
     const listItem = document.createElement('li');
-    listItem.className = 'voxpage-sidebar__item';
+    listItem.className = 'proso-sidebar__item';
 
     const link = document.createElement('a');
-    link.className = 'voxpage-sidebar__link';
+    link.className = 'proso-sidebar__link';
     link.href = `#${section.id}`;
     link.textContent = section.label;
     link.setAttribute('data-section', section.id);
@@ -107,7 +107,7 @@ export function createSidebar(options: SidebarOptions): HTMLElement {
  * Update sidebar active state
  */
 export function updateSidebarActive(sectionId: string): void {
-  const links = document.querySelectorAll('.voxpage-sidebar__link');
+  const links = document.querySelectorAll('.proso-sidebar__link');
 
   links.forEach((link) => {
     const linkSection = link.getAttribute('data-section');
@@ -123,12 +123,12 @@ export function updateSidebarActive(sectionId: string): void {
  * FR-029 - Keyboard navigation support
  */
 export function setupSidebarKeyboardNav(): void {
-  const sidebar = document.querySelector('.voxpage-sidebar__list');
+  const sidebar = document.querySelector('.proso-sidebar__list');
   if (!sidebar) return;
 
   sidebar.addEventListener('keydown', (e: Event) => {
     const event = e as KeyboardEvent;
-    const links = Array.from(sidebar.querySelectorAll('.voxpage-sidebar__link')) as HTMLElement[];
+    const links = Array.from(sidebar.querySelectorAll('.proso-sidebar__link')) as HTMLElement[];
     const currentIndex = links.findIndex((link) => link === document.activeElement);
 
     if (currentIndex === -1) return;

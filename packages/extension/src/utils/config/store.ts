@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Settings Store
+ * Proso Settings Store
  * Centralized settings management with validation and persistence
  *
  * @module utils/config/store
@@ -62,7 +62,7 @@ export class SettingsStore {
       this._initialized = true;
       return { ...validated };
     } catch (error) {
-      console.error('VoxPage: Failed to load settings:', error);
+      console.error('Proso: Failed to load settings:', error);
       this._cache = { ...defaults };
       return { ...defaults };
     }
@@ -162,7 +162,7 @@ export class SettingsStore {
     // Notify subscribers
     this._notifySubscribers(Object.keys(defaults));
 
-    console.log('VoxPage: Settings reset to defaults');
+    console.log('Proso: Settings reset to defaults');
   }
 
   /**
@@ -190,7 +190,7 @@ export class SettingsStore {
       try {
         callback(currentSettings, changedKeys);
       } catch (error) {
-        console.error('VoxPage: Subscriber callback error:', error);
+        console.error('Proso: Subscriber callback error:', error);
       }
     }
   }

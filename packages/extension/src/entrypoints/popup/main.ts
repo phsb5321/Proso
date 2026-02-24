@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
- * VoxPage Popup Main Entry Point
+ * Proso Popup Main Entry Point
  *
  * Handles popup UI interactions and communicates with background script
  * for playback control.
@@ -266,13 +266,13 @@ function switchTab(tabId: TabId): void {
   // Deactivate all tabs and panels
   tabs.forEach((tab) => {
     if (tab) {
-      tab.classList.remove('voxpage-popup__tab--active');
+      tab.classList.remove('proso-popup__tab--active');
       tab.setAttribute('aria-selected', 'false');
     }
   });
   panels.forEach((panel) => {
     if (panel) {
-      panel.classList.remove('voxpage-popup__panel--active');
+      panel.classList.remove('proso-popup__panel--active');
       panel.hidden = true;
     }
   });
@@ -280,11 +280,11 @@ function switchTab(tabId: TabId): void {
   // Activate the selected tab and panel
   const selected = tabMap[tabId];
   if (selected.tab) {
-    selected.tab.classList.add('voxpage-popup__tab--active');
+    selected.tab.classList.add('proso-popup__tab--active');
     selected.tab.setAttribute('aria-selected', 'true');
   }
   if (selected.panel) {
-    selected.panel.classList.add('voxpage-popup__panel--active');
+    selected.panel.classList.add('proso-popup__panel--active');
     selected.panel.hidden = false;
   }
 
@@ -590,7 +590,7 @@ function handleSettingsClick(): void {
 function handleHelpClick(event: Event): void {
   event.preventDefault();
   browser.tabs.create({
-    url: 'https://github.com/phsb5321/VoxPage#usage',
+    url: 'https://github.com/phsb5321/Proso#usage',
   });
   window.close();
 }
@@ -832,12 +832,12 @@ function renderQueueItems(items: QueueItem[]): void {
 
   items.forEach((item) => {
     const itemEl = document.createElement('div');
-    itemEl.className = `voxpage-popup__queue-item voxpage-popup__queue-item--${item.status}`;
+    itemEl.className = `proso-popup__queue-item proso-popup__queue-item--${item.status}`;
     itemEl.dataset.id = item.id;
 
     // Status icon
     const statusIcon = document.createElement('span');
-    statusIcon.className = 'voxpage-popup__queue-item-status';
+    statusIcon.className = 'proso-popup__queue-item-status';
     if (item.status === 'completed') {
       statusIcon.textContent = '✓';
     } else if (item.status === 'reading') {
@@ -848,15 +848,15 @@ function renderQueueItems(items: QueueItem[]): void {
 
     // Info section
     const infoEl = document.createElement('div');
-    infoEl.className = 'voxpage-popup__queue-item-info';
+    infoEl.className = 'proso-popup__queue-item-info';
 
     const titleEl = document.createElement('span');
-    titleEl.className = 'voxpage-popup__queue-item-title';
+    titleEl.className = 'proso-popup__queue-item-title';
     titleEl.textContent = item.title.length > 40 ? item.title.substring(0, 40) + '...' : item.title;
     titleEl.title = item.title;
 
     const domainEl = document.createElement('span');
-    domainEl.className = 'voxpage-popup__queue-item-domain';
+    domainEl.className = 'proso-popup__queue-item-domain';
     domainEl.textContent = item.domain;
 
     infoEl.appendChild(titleEl);
@@ -865,14 +865,14 @@ function renderQueueItems(items: QueueItem[]): void {
     // Progress bar (for reading items)
     if (item.status === 'reading' && item.progress > 0) {
       const progressEl = document.createElement('div');
-      progressEl.className = 'voxpage-popup__queue-item-progress';
+      progressEl.className = 'proso-popup__queue-item-progress';
       progressEl.style.setProperty('--progress', `${item.progress}%`);
       infoEl.appendChild(progressEl);
     }
 
     // Remove button
     const removeBtn = document.createElement('button');
-    removeBtn.className = 'voxpage-popup__queue-item-remove';
+    removeBtn.className = 'proso-popup__queue-item-remove';
     removeBtn.title = 'Remove from queue';
     removeBtn.setAttribute('aria-label', 'Remove from queue');
     removeBtn.textContent = '×';
@@ -1215,31 +1215,31 @@ function updateCreditDisplay(balance: CreditBalanceResult['balance']): void {
 
   // Remove previous level classes
   elements.creditsBarFill.classList.remove(
-    'voxpage-popup__credits-bar-fill--normal',
-    'voxpage-popup__credits-bar-fill--warning',
-    'voxpage-popup__credits-bar-fill--critical',
-    'voxpage-popup__credits-bar-fill--exhausted',
+    'proso-popup__credits-bar-fill--normal',
+    'proso-popup__credits-bar-fill--warning',
+    'proso-popup__credits-bar-fill--critical',
+    'proso-popup__credits-bar-fill--exhausted',
   );
-  elements.creditsBarFill.classList.add(`voxpage-popup__credits-bar-fill--${level}`);
+  elements.creditsBarFill.classList.add(`proso-popup__credits-bar-fill--${level}`);
 
   // Update warning text (T133)
   elements.creditsWarning.classList.remove(
-    'voxpage-popup__credits-warning--warning',
-    'voxpage-popup__credits-warning--critical',
-    'voxpage-popup__credits-warning--exhausted',
+    'proso-popup__credits-warning--warning',
+    'proso-popup__credits-warning--critical',
+    'proso-popup__credits-warning--exhausted',
   );
 
   if (level === 'exhausted') {
     elements.creditsWarning.textContent = 'Credits exhausted \u2014 upgrade to continue';
-    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--exhausted');
+    elements.creditsWarning.classList.add('proso-popup__credits-warning--exhausted');
     elements.creditsWarning.hidden = false;
   } else if (level === 'critical') {
     elements.creditsWarning.textContent = `Low credits \u2014 ${formatCredits(remaining)} remaining`;
-    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--critical');
+    elements.creditsWarning.classList.add('proso-popup__credits-warning--critical');
     elements.creditsWarning.hidden = false;
   } else if (level === 'warning') {
     elements.creditsWarning.textContent = `${formatCredits(remaining)} credits remaining`;
-    elements.creditsWarning.classList.add('voxpage-popup__credits-warning--warning');
+    elements.creditsWarning.classList.add('proso-popup__credits-warning--warning');
     elements.creditsWarning.hidden = false;
   } else {
     elements.creditsWarning.hidden = true;

@@ -1,12 +1,12 @@
-# VoxPage Loki Query Scripts
+# Proso Loki Query Scripts
 
-Shell scripts for querying VoxPage telemetry data from Loki. These scripts are designed for debugging, support, and analysis of extension usage patterns.
+Shell scripts for querying Proso telemetry data from Loki. These scripts are designed for debugging, support, and analysis of extension usage patterns.
 
 ## Prerequisites
 
 - `curl` - for HTTP requests to Loki
 - `jq` - for JSON parsing and formatting
-- Access to a Loki instance with VoxPage telemetry data
+- Access to a Loki instance with Proso telemetry data
 
 ## Configuration
 
@@ -99,29 +99,29 @@ These scripts use LogQL (Loki Query Language). For custom queries, use `curl` di
 ```bash
 # Query by event type
 curl -G "$LOKI_URL/loki/api/v1/query_range" \
-  --data-urlencode 'query={app="voxpage", eventGroup="playback"}' \
+  --data-urlencode 'query={app="proso", eventGroup="playback"}' \
   --data-urlencode "start=$(date -d '1 hour ago' +%s)000000000" \
   --data-urlencode "end=$(date +%s)000000000" \
   | jq '.data.result[].values[] | .[1] | fromjson'
 
 # Query by entrypoint
 curl -G "$LOKI_URL/loki/api/v1/query_range" \
-  --data-urlencode 'query={app="voxpage", entrypoint="popup"}' \
+  --data-urlencode 'query={app="proso", entrypoint="popup"}' \
   | jq '.'
 
 # Count errors per hour
 curl -G "$LOKI_URL/loki/api/v1/query_range" \
-  --data-urlencode 'query=count_over_time({app="voxpage", level="error"}[1h])' \
+  --data-urlencode 'query=count_over_time({app="proso", level="error"}[1h])' \
   | jq '.'
 ```
 
-## VoxPage Log Labels
+## Proso Log Labels
 
 Low-cardinality labels (efficient for filtering):
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `app` | `voxpage` | Application identifier |
+| `app` | `proso` | Application identifier |
 | `env` | `dev`, `staging`, `prod` | Environment |
 | `entrypoint` | `background`, `popup`, `options`, `content` | Extension context |
 | `level` | `debug`, `info`, `warn`, `error` | Log severity |

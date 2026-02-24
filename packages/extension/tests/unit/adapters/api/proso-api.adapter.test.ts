@@ -1,17 +1,17 @@
 /**
- * VoxPageApiAdapter Unit Tests
+ * ProsoApiAdapter Unit Tests
  *
  * Tests HTTP client behavior: success responses, error handling,
  * retry logic, auth headers, and timeout handling.
  *
- * @module tests/unit/adapters/api/voxpage-api.adapter
+ * @module tests/unit/adapters/api/proso-api.adapter
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { VoxPageApiAdapter } from '../../../../src/adapters/api/voxpage-api.adapter';
+import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
 import { isOk, isErr } from '../../../../src/core/shared/result';
-import type { LicenseValidateResponse, SubscriptionDetailsResponse } from '@voxpage/shared';
-import { SubscriptionTier, SubscriptionStatus } from '@voxpage/shared';
+import type { LicenseValidateResponse, SubscriptionDetailsResponse } from '@proso/shared';
+import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
 
 // Mock fetch globally
 const mockFetch = jest.fn<typeof fetch>();
@@ -42,7 +42,7 @@ function errorResponse(status: number, error = 'error', message = 'Something wen
   return jsonResponse({ error, message }, status);
 }
 
-const SERVER_URL = 'https://api.voxpage.app';
+const SERVER_URL = 'https://api.proso.com';
 
 const mockLicenseResponse: LicenseValidateResponse = {
   valid: true,
@@ -69,11 +69,11 @@ const mockSubscriptionResponse: SubscriptionDetailsResponse = {
   currentPeriodEnd: '2026-02-01T00:00:00Z',
 };
 
-describe('VoxPageApiAdapter', () => {
-  let adapter: VoxPageApiAdapter;
+describe('ProsoApiAdapter', () => {
+  let adapter: ProsoApiAdapter;
 
   beforeEach(() => {
-    adapter = new VoxPageApiAdapter(SERVER_URL, 'test-license-key');
+    adapter = new ProsoApiAdapter(SERVER_URL, 'test-license-key');
     mockFetch.mockReset();
   });
 
@@ -83,7 +83,7 @@ describe('VoxPageApiAdapter', () => {
     });
 
     it('returns false when server URL is empty', () => {
-      const empty = new VoxPageApiAdapter('');
+      const empty = new ProsoApiAdapter('');
       expect(empty.isConfigured).toBe(false);
     });
   });
@@ -149,7 +149,7 @@ describe('VoxPageApiAdapter', () => {
     });
 
     it('returns not_configured error when no license key', async () => {
-      const noKey = new VoxPageApiAdapter(SERVER_URL);
+      const noKey = new ProsoApiAdapter(SERVER_URL);
 
       const result = await noKey.getSubscription();
 
@@ -162,7 +162,7 @@ describe('VoxPageApiAdapter', () => {
 
   describe('getCreditBalance', () => {
     it('returns not_configured error when no license key', async () => {
-      const noKey = new VoxPageApiAdapter(SERVER_URL);
+      const noKey = new ProsoApiAdapter(SERVER_URL);
 
       const result = await noKey.getCreditBalance();
 
@@ -185,7 +185,7 @@ describe('VoxPageApiAdapter', () => {
     });
 
     it('returns not_configured error when no license key', async () => {
-      const noKey = new VoxPageApiAdapter(SERVER_URL);
+      const noKey = new ProsoApiAdapter(SERVER_URL);
 
       const result = await noKey.createCheckout('pro');
 
@@ -306,13 +306,13 @@ describe('VoxPageApiAdapter', () => {
 
   describe('URL normalization', () => {
     it('strips trailing slashes from base URL', async () => {
-      const adapterWithSlash = new VoxPageApiAdapter('https://api.voxpage.app/', 'key');
+      const adapterWithSlash = new ProsoApiAdapter('https://api.proso.com/', 'key');
       mockFetch.mockResolvedValueOnce(jsonResponse(mockLicenseResponse));
 
       await adapterWithSlash.validateLicense('key');
 
       const [url] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.voxpage.app/api/v1/license/validate');
+      expect(url).toBe('https://api.proso.com/api/v1/license/validate');
     });
   });
 });

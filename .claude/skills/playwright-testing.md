@@ -1,10 +1,10 @@
-# VoxPage Playwright Testing Skill
+# Proso Playwright Testing Skill
 
-This skill provides guidance for running and writing Playwright E2E tests for the VoxPage Firefox extension.
+This skill provides guidance for running and writing Playwright E2E tests for the Proso Firefox extension.
 
 ## Test Architecture
 
-VoxPage uses three test types with Playwright:
+Proso uses three test types with Playwright:
 
 | Project | Directory | Browser | Purpose |
 |---------|-----------|---------|---------|
@@ -70,7 +70,7 @@ Key environment variables set by shell.nix:
 
 ### Extension Fixture (`tests/e2e/extension/fixtures/extension.fixture.ts`)
 
-Provides browser context with VoxPage extension loaded:
+Provides browser context with Proso extension loaded:
 
 ```typescript
 import { test, expect } from '../fixtures/extension.fixture';
@@ -121,13 +121,13 @@ test.describe('My Feature', () => {
     await extensionPage.goto('https://example.com');
     
     // Wait for content script injection
-    await extensionPage.waitForSelector('[data-voxpage]', { timeout: 5000 });
+    await extensionPage.waitForSelector('[data-proso]', { timeout: 5000 });
     
     // Interact with extension UI
-    await extensionPage.click('.voxpage-play-button');
+    await extensionPage.click('.proso-play-button');
     
     // Assert expected behavior
-    await expect(extensionPage.locator('.voxpage-footer')).toBeVisible();
+    await expect(extensionPage.locator('.proso-footer')).toBeVisible();
   });
 });
 ```
@@ -153,7 +153,7 @@ import { test, expect, openExtensionSettings } from './fixtures/extension.fixtur
 test('settings page loads', async ({ context, extensionId }) => {
   const settings = await openExtensionSettings(context, extensionId);
   
-  await expect(settings.locator('h1')).toHaveText('VoxPage Settings');
+  await expect(settings.locator('h1')).toHaveText('Proso Settings');
 });
 ```
 

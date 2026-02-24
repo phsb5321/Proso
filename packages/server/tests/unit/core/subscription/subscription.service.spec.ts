@@ -3,7 +3,7 @@ import {
   SubscriptionStatus,
   isOk,
   isErr,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import {
   validateLicense,
   type PersistedLicenseKey,

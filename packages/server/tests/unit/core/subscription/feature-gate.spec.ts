@@ -2,7 +2,7 @@ import {
   SubscriptionTier,
   FEATURE_MATRIX,
   TIER_CREDITS,
-} from '@voxpage/shared';
+} from '@proso/shared';
 import {
   isFeatureEnabled,
   getFeatureEntitlements,

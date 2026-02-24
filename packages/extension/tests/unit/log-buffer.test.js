@@ -267,7 +267,7 @@ describe('LogBuffer', () => {
 
       expect(browser.storage.local.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          voxpage_log_buffer: expect.objectContaining({
+          proso_log_buffer: expect.objectContaining({
             entries: expect.any(Array),
             totalBytes: expect.any(Number),
           }),
@@ -283,7 +283,7 @@ describe('LogBuffer', () => {
       });
 
       browser.storage.local.get.mockResolvedValueOnce({
-        voxpage_log_buffer: {
+        proso_log_buffer: {
           entries: [savedEntry],
           totalBytes: 100,
           consecutiveFailures: 2,

@@ -1,5 +1,5 @@
 /**
- * Unit tests for VoxPage Design Token Consistency
+ * Unit tests for Proso Design Token Consistency
  * Verifies that tokens are properly synchronized across all surfaces:
  * - styles/tokens.css (source of truth)
  * - styles/components.css (component library)
@@ -57,7 +57,7 @@ function parseStickyFooterTokens(content) {
   const hostMatch = stylesContent.match(/:host\s*{([^}]+)}/);
   if (hostMatch) {
     const hostBlock = hostMatch[1];
-    const varRegex = /(--voxpage-[\w-]+)\s*:\s*([^;/*]+)/g;
+    const varRegex = /(--proso-[\w-]+)\s*:\s*([^;/*]+)/g;
     let match;
     while ((match = varRegex.exec(hostBlock)) !== null) {
       tokens.dark.set(match[1].trim(), match[2].trim());
@@ -68,7 +68,7 @@ function parseStickyFooterTokens(content) {
   const lightMatch = stylesContent.match(/@media\s*\(prefers-color-scheme:\s*light\)\s*{\s*:host\s*{([^}]+)}/);
   if (lightMatch) {
     const lightBlock = lightMatch[1];
-    const varRegex = /(--voxpage-[\w-]+)\s*:\s*([^;/*]+)/g;
+    const varRegex = /(--proso-[\w-]+)\s*:\s*([^;/*]+)/g;
     let match;
     while ((match = varRegex.exec(lightBlock)) !== null) {
       tokens.light.set(match[1].trim(), match[2].trim());
@@ -319,10 +319,10 @@ describe('Design Token Consistency (012-frontend-redesign)', () => {
     });
 
     it('should use semantic color tokens for status banners', () => {
-      expect(componentsCSS).toMatch(/\.voxpage-banner--success[\s\S]*?var\(--color-success\)/);
-      expect(componentsCSS).toMatch(/\.voxpage-banner--warning[\s\S]*?var\(--color-warning\)/);
-      expect(componentsCSS).toMatch(/\.voxpage-banner--error[\s\S]*?var\(--color-error\)/);
-      expect(componentsCSS).toMatch(/\.voxpage-banner--info[\s\S]*?var\(--color-info\)/);
+      expect(componentsCSS).toMatch(/\.proso-banner--success[\s\S]*?var\(--color-success\)/);
+      expect(componentsCSS).toMatch(/\.proso-banner--warning[\s\S]*?var\(--color-warning\)/);
+      expect(componentsCSS).toMatch(/\.proso-banner--error[\s\S]*?var\(--color-error\)/);
+      expect(componentsCSS).toMatch(/\.proso-banner--info[\s\S]*?var\(--color-info\)/);
     });
 
     it('should use disabled tokens for disabled states', () => {
@@ -355,13 +355,13 @@ describe('Design Token Consistency (012-frontend-redesign)', () => {
     });
 
     it('should have BEM naming convention for all components', () => {
-      // Check that component classes follow .voxpage-* pattern
-      const componentClasses = componentsCSS.match(/\.voxpage-[\w-]+/g) || [];
+      // Check that component classes follow .proso-* pattern
+      const componentClasses = componentsCSS.match(/\.proso-[\w-]+/g) || [];
       expect(componentClasses.length).toBeGreaterThan(20);
 
       // Check for BEM modifiers (--) and elements (__)
-      const modifiers = componentsCSS.match(/\.voxpage-[\w]+--([\w-]+)/g) || [];
-      const elements = componentsCSS.match(/\.voxpage-[\w]+__([\w-]+)/g) || [];
+      const modifiers = componentsCSS.match(/\.proso-[\w]+--([\w-]+)/g) || [];
+      const elements = componentsCSS.match(/\.proso-[\w]+__([\w-]+)/g) || [];
 
       expect(modifiers.length).toBeGreaterThan(5);
       expect(elements.length).toBeGreaterThan(3);

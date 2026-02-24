@@ -1,7 +1,7 @@
-# VoxPage - AI-Powered Page Reader
+# Proso - AI-Powered Page Reader
 
 ## Project Overview
-VoxPage is a Firefox extension that transforms web pages into immersive audio experiences using AI-powered text-to-speech technology. It supports multiple TTS providers (OpenAI, ElevenLabs, and browser native) with a sleek, modern interface.
+Proso is a Firefox extension that transforms web pages into immersive audio experiences using AI-powered text-to-speech technology. It supports multiple TTS providers (OpenAI, ElevenLabs, and browser native) with a sleek, modern interface.
 
 ## Tech Stack
 - **Platform**: Firefox WebExtension (Manifest V3)
@@ -13,7 +13,7 @@ VoxPage is a Firefox extension that transforms web pages into immersive audio ex
 
 ## Project Structure
 ```
-VoxPage/
+Proso/
 ├── manifest.json          # Extension manifest (MV3)
 ├── background/
 │   └── background.js      # Service worker for TTS handling
@@ -57,7 +57,7 @@ convert -background none icons/icon.svg -resize 96x96 icons/icon-96.png
 convert -background none icons/icon.svg -resize 128x128 icons/icon-128.png
 
 # Package for distribution
-cd VoxPage && zip -r ../voxpage.xpi *
+cd Proso && zip -r ../proso.xpi *
 ```
 
 ## API Configuration

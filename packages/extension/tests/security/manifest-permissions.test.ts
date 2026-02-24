@@ -61,7 +61,7 @@ describe('Manifest Permissions', () => {
 
   describe('Required permissions only', () => {
     /**
-     * Allowed permissions for VoxPage.
+     * Allowed permissions for Proso.
      * In MV2 Firefox, host_permissions are merged into permissions.
      * Any permission NOT in this list is a violation.
      */
@@ -73,7 +73,7 @@ describe('Manifest Permissions', () => {
       'contextMenus', // Right-click menu integration
       'scripting', // Programmatic content script injection
       'https://api.elevenlabs.io/*', // ElevenLabs TTS API
-      'https://voxpage-logs.home301server.com.br/*', // Telemetry gateway
+      'https://logs.proso.com/*', // Telemetry gateway
     ];
 
     it('should only declare allowed permissions', () => {
@@ -113,7 +113,7 @@ describe('Manifest Permissions', () => {
       const content = fs.readFileSync(WXT_CONFIG_PATH, 'utf-8');
 
       // The placeholder ID that must be replaced
-      expect(content).not.toContain('voxpage@example.com');
+      expect(content).not.toContain('proso@example.com');
     });
 
     it('should have a real gecko ID in built manifest', () => {
@@ -130,7 +130,7 @@ describe('Manifest Permissions', () => {
 
       expect(gecko).toBeDefined();
       expect(gecko?.id).toBeDefined();
-      expect(gecko?.id).not.toBe('voxpage@example.com');
+      expect(gecko?.id).not.toBe('proso@example.com');
       // Should look like a valid extension ID (email-style or UUID-style)
       expect(gecko?.id).toMatch(/(@|\{[0-9a-f-]+\})/i);
     });

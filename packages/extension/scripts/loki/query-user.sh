@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# query-user.sh - Query VoxPage telemetry logs by installId
+# query-user.sh - Query Proso telemetry logs by installId
 #
 # Usage:
 #   ./query-user.sh <installId> [time_range] [event_filter] [limit]
@@ -61,7 +61,7 @@ esac
 END_NS=$(( $(date +%s) * 1000000000 ))
 
 # Build LogQL query
-QUERY='{app="voxpage"} | json | installId="'"$INSTALL_ID"'"'
+QUERY='{app="proso"} | json | installId="'"$INSTALL_ID"'"'
 if [[ -n "$EVENT_FILTER" ]]; then
   QUERY="$QUERY | event=~\".*$EVENT_FILTER.*\""
 fi

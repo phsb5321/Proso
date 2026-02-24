@@ -91,7 +91,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
     // Expand API keys section if collapsed
     const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
     if ((await apiKeysSection.count()) > 0) {
-      const header = apiKeysSection.locator('.voxpage-accordion__header');
+      const header = apiKeysSection.locator('.proso-accordion__header');
       const isExpanded = (await header.getAttribute('aria-expanded')) === 'true';
       if (!isExpanded) {
         await header.click();
@@ -116,7 +116,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
     // Expand appearance section if collapsed
     const appearanceSection = page.locator('[data-testid="settings-appearance-section"]');
     if ((await appearanceSection.count()) > 0) {
-      const header = appearanceSection.locator('.voxpage-accordion__header');
+      const header = appearanceSection.locator('.proso-accordion__header');
       const isExpanded = (await header.getAttribute('aria-expanded')) === 'true';
       if (!isExpanded) {
         await header.click();
@@ -156,7 +156,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
 
     const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
     if ((await apiKeysSection.count()) > 0) {
-      const header = apiKeysSection.locator('.voxpage-accordion__header');
+      const header = apiKeysSection.locator('.proso-accordion__header');
       const isExpanded = (await header.getAttribute('aria-expanded')) === 'true';
       if (!isExpanded) {
         await header.click();

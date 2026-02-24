@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
-// Commercial licensing: https://voxpage.com/commercial
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com/commercial
 
 /**
  * Content Extractor
@@ -212,7 +212,7 @@ interface ContentScorer {
  * In the future, this will be replaced with direct imports
  */
 function getScorer(): ContentScorer {
-  return ((window as Record<string, unknown>).VoxPage as Record<string, unknown> | undefined)?.contentScorer as ContentScorer || {};
+  return ((window as Record<string, unknown>).Proso as Record<string, unknown> | undefined)?.contentScorer as ContentScorer || {};
 }
 
 // ============================================================================
@@ -248,7 +248,7 @@ export function setExtractedParagraphs(paragraphs: Element[]): void {
  * Extract text from the page based on mode
  */
 export function extractText(mode: ExtractionMode): string {
-  console.log(`VoxPage: extractText() called with mode: "${mode}"`);
+  console.log(`Proso: extractText() called with mode: "${mode}"`);
 
   switch (mode) {
     case "selection":
@@ -257,7 +257,7 @@ export function extractText(mode: ExtractionMode): string {
       return extractArticle();
     case "full":
     default:
-      console.log("VoxPage: Using full page extraction (consider using article mode)");
+      console.log("Proso: Using full page extraction (consider using article mode)");
       return extractFullPage();
   }
 }
@@ -321,7 +321,7 @@ export function extractSelection(): string {
 
   // Log for debugging
   console.log(
-    `VoxPage: Selection extracted ${text.length} chars, ${extractedParagraphs.length} DOM elements`,
+    `Proso: Selection extracted ${text.length} chars, ${extractedParagraphs.length} DOM elements`,
   );
 
   return text;
@@ -332,22 +332,22 @@ export function extractSelection(): string {
  * Falls back to heuristics if Readability fails
  */
 export function extractArticle(): string {
-  console.log("VoxPage: extractArticle() called");
-  console.log("VoxPage: Readability available:", typeof window.Readability);
-  console.log("VoxPage: isProbablyReaderable available:", typeof window.isProbablyReaderable);
+  console.log("Proso: extractArticle() called");
+  console.log("Proso: Readability available:", typeof window.Readability);
+  console.log("Proso: isProbablyReaderable available:", typeof window.isProbablyReaderable);
 
   // Try Mozilla Readability first (best content extraction)
   const readabilityResult = tryReadabilityExtraction();
   if (readabilityResult) {
-    console.log("VoxPage: Used Readability for extraction");
-    console.log("VoxPage: Extracted paragraphs count:", extractedParagraphs.length);
+    console.log("Proso: Used Readability for extraction");
+    console.log("Proso: Extracted paragraphs count:", extractedParagraphs.length);
     return readabilityResult;
   }
 
   // Fallback to manual heuristics
-  console.log("VoxPage: Readability failed, using heuristic extraction");
+  console.log("Proso: Readability failed, using heuristic extraction");
   const result = extractArticleHeuristic();
-  console.log("VoxPage: Heuristic extracted paragraphs count:", extractedParagraphs.length);
+  console.log("Proso: Heuristic extracted paragraphs count:", extractedParagraphs.length);
   return result;
 }
 
@@ -529,7 +529,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
   try {
     const unwantedElements = docClone.querySelectorAll(combinedSelector);
     console.log(
-      `VoxPage: Pre-filter found ${unwantedElements.length} potentially unwanted elements`,
+      `Proso: Pre-filter found ${unwantedElements.length} potentially unwanted elements`,
     );
 
     for (const el of unwantedElements) {
@@ -547,7 +547,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
       const paragraphCount = el.querySelectorAll("p").length;
       if (paragraphCount > 10) {
         // This might be a main content area, skip it
-        console.log(`VoxPage: Skipping removal of element with ${paragraphCount} paragraphs`);
+        console.log(`Proso: Skipping removal of element with ${paragraphCount} paragraphs`);
         continue;
       }
 
@@ -568,9 +568,9 @@ function preFilterDocumentForReadability(docClone: Document): number {
       }
     }
 
-    console.log(`VoxPage: Pre-filter removed ${removedCount} unwanted elements`);
+    console.log(`Proso: Pre-filter removed ${removedCount} unwanted elements`);
   } catch (e) {
-    console.error("VoxPage: Pre-filter error:", e);
+    console.error("Proso: Pre-filter error:", e);
   }
 
   return removedCount;
@@ -597,14 +597,14 @@ function tryReadabilityExtraction(): string | null {
   try {
     // Check if Readability is available
     if (typeof window.Readability !== "function") {
-      console.log("VoxPage: Readability not available");
+      console.log("Proso: Readability not available");
       return null;
     }
 
     // Check if page is probably readable
     if (typeof window.isProbablyReaderable === "function") {
       if (!window.isProbablyReaderable(document)) {
-        console.log("VoxPage: Page not suitable for Readability");
+        console.log("Proso: Page not suitable for Readability");
         return null;
       }
     }
@@ -615,7 +615,7 @@ function tryReadabilityExtraction(): string | null {
     // Feature 015: Pre-filter BEFORE Readability to remove cards/infoboxes
     // This ensures audio content doesn't include card text
     const removedCount = preFilterDocumentForReadability(documentClone);
-    console.log(`VoxPage: Pre-filtered ${removedCount} elements before Readability`);
+    console.log(`Proso: Pre-filtered ${removedCount} elements before Readability`);
 
     // Parse with Readability
     const reader = new window.Readability(documentClone, {
@@ -626,16 +626,16 @@ function tryReadabilityExtraction(): string | null {
     const article = reader.parse();
 
     if (!article || !article.textContent || article.textContent.trim().length < 100) {
-      console.log("VoxPage: Readability returned insufficient content");
+      console.log("Proso: Readability returned insufficient content");
       return null;
     }
 
     // Extract the article title for TTS to read first
     const articleTitle = article.title?.trim() || "";
-    console.log(`VoxPage: Article title: "${articleTitle}"`);
+    console.log(`Proso: Article title: "${articleTitle}"`);
 
     console.log(
-      `VoxPage: Readability extracted ${article.textContent.length} chars (after pre-filtering)`,
+      `Proso: Readability extracted ${article.textContent.length} chars (after pre-filtering)`,
     );
 
     // Find paragraphs from the parsed content
@@ -684,7 +684,7 @@ function tryReadabilityExtraction(): string | null {
           (h1Text.length > 10 && normalizedTitle.startsWith(h1Text.substring(0, 20)))
         ) {
           titleElement = h1;
-          console.log("VoxPage: Found title h1 element:", h1Text.substring(0, 50));
+          console.log("Proso: Found title h1 element:", h1Text.substring(0, 50));
           break;
         }
       }
@@ -711,7 +711,7 @@ function tryReadabilityExtraction(): string | null {
               normalizedTitle.includes(elText)
             ) {
               titleElement = el;
-              console.log("VoxPage: Found title element via selector:", selector);
+              console.log("Proso: Found title element via selector:", selector);
               break;
             }
           }
@@ -722,16 +722,16 @@ function tryReadabilityExtraction(): string | null {
       // Prepend title element to extractedParagraphs if found and not already included
       if (titleElement && !extractedParagraphs.includes(titleElement)) {
         extractedParagraphs = [titleElement, ...extractedParagraphs];
-        console.log("VoxPage: Prepended title element for highlighting");
+        console.log("Proso: Prepended title element for highlighting");
       } else if (!titleElement) {
         // No DOM element found for title - create a virtual entry by logging
         // The title text will still be included in the returned text below
-        console.log("VoxPage: Title element not found in DOM, but title text will be read");
+        console.log("Proso: Title element not found in DOM, but title text will be read");
       }
     }
 
     console.log(
-      `VoxPage: Found ${extractedParagraphs.length} paragraphs for highlighting (including title)`,
+      `Proso: Found ${extractedParagraphs.length} paragraphs for highlighting (including title)`,
     );
 
     // Feature 015: Return ONLY the text from matched DOM paragraphs
@@ -754,28 +754,28 @@ function tryReadabilityExtraction(): string | null {
           !titleNormalized.includes(firstParagraphText)
         ) {
           filteredText = `${articleTitle}\n\n${filteredText}`;
-          console.log("VoxPage: Prepended title text to output:", articleTitle.substring(0, 50));
+          console.log("Proso: Prepended title text to output:", articleTitle.substring(0, 50));
         } else {
-          console.log("VoxPage: Title already present in first paragraph");
+          console.log("Proso: Title already present in first paragraph");
         }
       }
 
       console.log(
-        `VoxPage: Returning filtered text (${filteredText.length} chars) from ${extractedParagraphs.length} matched paragraphs`,
+        `Proso: Returning filtered text (${filteredText.length} chars) from ${extractedParagraphs.length} matched paragraphs`,
       );
       return filteredText;
     }
 
     // Fallback: prepend title to article textContent if we have a title
     if (articleTitle) {
-      console.log("VoxPage: Using fallback with title prepended");
+      console.log("Proso: Using fallback with title prepended");
       return `${articleTitle}\n\n${article.textContent}`;
     }
 
     // Final fallback to article textContent if no paragraphs matched
     return article.textContent;
   } catch (e) {
-    console.error("VoxPage: Readability extraction failed:", e);
+    console.error("Proso: Readability extraction failed:", e);
     return null;
   }
 }
@@ -898,7 +898,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   });
 
   console.log(
-    `VoxPage: Searching ${filteredDomParagraphs.length} DOM elements for matches (wiki container: ${isKnownContentContainer}, filtered from ${domParagraphs.length})`,
+    `Proso: Searching ${filteredDomParagraphs.length} DOM elements for matches (wiki container: ${isKnownContentContainer}, filtered from ${domParagraphs.length})`,
   );
 
   // Build a map of fingerprint -> all matching DOM elements
@@ -964,7 +964,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
 
   // If matching failed, fall back to direct DOM extraction
   if (matchedElements.length === 0 && extractedEls.length > 0) {
-    console.log("VoxPage: Readability matching failed, using direct DOM extraction");
+    console.log("Proso: Readability matching failed, using direct DOM extraction");
     return extractParagraphsDirectlyFromDOM();
   }
 
@@ -975,7 +975,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   const endTime = performance.now();
   const matchTime = (endTime - startTime).toFixed(2);
   console.log(
-    `VoxPage: Matching stats - extracted: ${extractedEls.length}, ` +
+    `Proso: Matching stats - extracted: ${extractedEls.length}, ` +
       `candidates: ${domParagraphs.length}, filtered: ${filteredDomParagraphs.length}, ` +
       `matched: ${matchedElements.length}, time: ${matchTime}ms`,
   );
@@ -1008,7 +1008,7 @@ function findWikiContentContainer(): Element | null {
   for (const selector of wikiContainerSelectors) {
     const container = document.querySelector(selector);
     if (container && (container.textContent?.length || 0) > 200) {
-      console.log(`VoxPage: Found wiki container: ${selector}`);
+      console.log(`Proso: Found wiki container: ${selector}`);
       return container;
     }
   }
@@ -1136,13 +1136,13 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     !!wikiContainer || container.tagName === "ARTICLE" || container.tagName === "MAIN";
 
   console.log(
-    `VoxPage: Direct extraction from container: ${container.tagName}${container.id ? "#" + container.id : ""} (known: ${isKnownContentContainer})`,
+    `Proso: Direct extraction from container: ${container.tagName}${container.id ? "#" + container.id : ""} (known: ${isKnownContentContainer})`,
   );
 
   // Get all paragraph-like elements
   const candidates = container.querySelectorAll("p, h1, h2, h3, h4, h5, h6, blockquote");
 
-  console.log(`VoxPage: Found ${candidates.length} candidate elements`);
+  console.log(`Proso: Found ${candidates.length} candidate elements`);
 
   for (const el of candidates) {
     // If we're in a known content container, only check for unwanted sub-containers
@@ -1212,7 +1212,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     paragraphs.push(el);
   }
 
-  console.log(`VoxPage: Direct extraction found ${paragraphs.length} paragraphs`);
+  console.log(`Proso: Direct extraction found ${paragraphs.length} paragraphs`);
   return paragraphs;
 }
 
@@ -1551,4 +1551,4 @@ export function splitTextIntoParagraphs(text: string): string[] {
 // Console Log
 // ============================================================================
 
-console.log("VoxPage: utils/content/extractor.ts loaded");
+console.log("Proso: utils/content/extractor.ts loaded");

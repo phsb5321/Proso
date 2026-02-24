@@ -17,9 +17,9 @@ describe('DOM Element Matching', () => {
       document.body.appendChild(doc.body.firstChild);
     }
 
-    // Initialize VoxPage namespace
-    window.VoxPage = window.VoxPage || {};
-    window.VoxPage.contentScorer = {
+    // Initialize Proso namespace
+    window.Proso = window.Proso || {};
+    window.Proso.contentScorer = {
       isInsideUnwantedElement: () => false,
       isNavigationText: () => false,
       isNavigationElement: () => false,

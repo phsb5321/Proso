@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later
- * Copyright (c) 2024-2026 VoxPage Contributors. All rights reserved.
- * Commercial licensing: https://voxpage.com/commercial
+ * Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+ * Commercial licensing: https://proso.com/commercial
  */
 /**
- * VoxPage Design Tokens
+ * Proso Design Tokens
  * Shared CSS custom properties for theming, spacing, typography, and animation
  */
 
@@ -58,12 +58,12 @@
   --color-border: rgba(255, 255, 255, 0.1);
   --color-focus-ring: rgba(13, 148, 136, 0.5); /* Accessibility: visible focus indicator */
 
-  /* Button colors - used by .voxpage-button */
+  /* Button colors - used by .proso-button */
   --color-button-bg: rgba(255, 255, 255, 0.05);
   --color-button-bg-hover: rgba(255, 255, 255, 0.1);
   --color-button-text: var(--color-text-secondary);
 
-  /* Input colors - used by .voxpage-input, .voxpage-select */
+  /* Input colors - used by .proso-input, .proso-select */
   --color-input-bg: var(--color-bg-secondary);
   --color-input-border: var(--color-border);
 
