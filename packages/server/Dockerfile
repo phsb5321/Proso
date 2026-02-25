@@ -1,4 +1,4 @@
-# Multi-stage build for VoxPage API server
+# Multi-stage build for Proso API server
 # Optimized for Dokku deployment with pnpm workspaces
 
 # Stage 1: Base with pnpm
@@ -11,7 +11,7 @@ FROM base AS deps
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
-RUN pnpm install --frozen-lockfile --filter @voxpage/server...
+RUN pnpm install --frozen-lockfile --filter @proso/server...
 
 # Stage 3: Build
 FROM deps AS build
@@ -19,11 +19,11 @@ COPY packages/shared/ packages/shared/
 COPY packages/server/ packages/server/
 COPY tsconfig.base.json ./
 # Build shared package first (produces CJS in packages/shared/dist/)
-RUN pnpm --filter @voxpage/shared run build
-RUN pnpm --filter @voxpage/server exec prisma generate
-RUN pnpm --filter @voxpage/server run build
+RUN pnpm --filter @proso/shared run build
+RUN pnpm --filter @proso/server exec prisma generate
+RUN pnpm --filter @proso/server run build
 # Create a pruned production deployment
-RUN pnpm --filter @voxpage/server deploy --prod --legacy /app/pruned
+RUN pnpm --filter @proso/server deploy --prod --legacy /app/pruned
 
 # Stage 4: Production
 FROM node:22-slim AS production

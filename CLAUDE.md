@@ -332,6 +332,8 @@ const service = new PlaybackService({
 - N/A (static document, no data persistence) (066-standalone-tos)
 - YAML (GitHub Actions workflows), HTML5, CSS3, Markdown + `actions/deploy-pages@v4`, `actions/upload-pages-artifact@v3`, `actions/configure-pages@v5` (067-ghpages-private-deploy)
 - N/A (static site, no persistence) (067-ghpages-private-deploy)
+- Bash (SSH commands, CLI tools), YAML (cloudflared config), Dockerfile edits + Dokku, cloudflared, Cloudflare API, GitHub CLI (`gh`), Docker (068-proso-infra-rebrand)
+- PostgreSQL (`voxpage-db` -- NOT renamed), Redis (`voxpage-cache` -- NOT renamed) (068-proso-infra-rebrand)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -487,9 +489,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 068-proso-infra-rebrand: Added Bash (SSH commands, CLI tools), YAML (cloudflared config), Dockerfile edits + Dokku, cloudflared, Cloudflare API, GitHub CLI (`gh`), Docker
 - 067-ghpages-private-deploy: Added YAML (GitHub Actions workflows), HTML5, CSS3, Markdown + `actions/deploy-pages@v4`, `actions/upload-pages-artifact@v3`, `actions/configure-pages@v5`
 - 066-standalone-tos: Added HTML5, CSS3 (no JavaScript) + None (pure static HTML+CSS, system fonts only)
-- 065-landing-page: Added HTML5, CSS3 (custom properties, grid, `@layer`), JavaScript ES2022+ (vanilla, no dependencies) + Google Fonts (Fraunces, Inter) — loaded via CDN, no npm packages
 
 
 <!-- MANUAL ADDITIONS START -->

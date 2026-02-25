@@ -1,4 +1,4 @@
-# VoxPage Migration Status
+# Proso Migration Status
 
 **Last Updated**: 2026-01-09
 **Version**: 1.0.0
@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The VoxPage browser extension has successfully completed its migration from vanilla JavaScript to TypeScript with a hexagonal architecture. All legacy code has been removed and the codebase is now fully TypeScript.
+The Proso browser extension has successfully completed its migration from vanilla JavaScript to TypeScript with a hexagonal architecture. All legacy code has been removed and the codebase is now fully TypeScript.
 
 ## Current Architecture
 
