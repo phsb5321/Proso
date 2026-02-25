@@ -1,4 +1,4 @@
-# VoxPage Development Guidelines
+# Proso Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-01-09
 
@@ -35,7 +35,7 @@ TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionType
 
 ## Firefox-First Guidelines
 
-VoxPage is developed Firefox-first. Key architectural decisions:
+Proso is developed Firefox-first. Key architectural decisions:
 
 1. **Background scripts use event pages** (not service workers) - DOM access available
 2. **Native `Audio` API** in background scripts - no offscreen documents needed
