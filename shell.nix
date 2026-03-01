@@ -1,4 +1,4 @@
-# shell.nix - NixOS development environment for VoxPage
+# shell.nix - NixOS development environment for Proso
 #
 # Usage:
 #   nix-shell              # Enter development shell
@@ -14,7 +14,7 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
-  name = "voxpage-dev";
+  name = "proso-dev";
 
   buildInputs = with pkgs; [
     # Node.js and package manager
@@ -56,7 +56,7 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "VoxPage Development Environment"
+    echo "Proso Development Environment"
     echo "================================"
     echo ""
     echo "Browsers available:"
