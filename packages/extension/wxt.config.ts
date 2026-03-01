@@ -26,7 +26,7 @@ export default defineConfig({
     ],
     host_permissions: [
       "https://api.elevenlabs.io/*", // ElevenLabs TTS API
-      "https://logs.proso.com/*", // Telemetry gateway
+      "https://logs.proso.com.br/*", // Telemetry gateway
     ],
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
@@ -52,7 +52,7 @@ export default defineConfig({
         id: "{41eb66cb-b520-4047-9b6c-63fdce6fca11}",
         strict_min_version: "109.0", // Firefox 109+ (AMO compat override to 109)
         // Self-hosted auto-update for unlisted extension (Firefox doesn't check AMO for unlisted)
-        update_url: "https://proso.com/updates.json",
+        update_url: "https://proso.com.br/updates.json",
         // Required by AMO for all new extensions (mandatory since 2026).
         // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
         // @ts-expect-error - WXT types don't include this Firefox property yet
@@ -100,7 +100,7 @@ export default defineConfig({
     define: {
       __TELEMETRY_GATEWAY_URL__: JSON.stringify(
         process.env.TELEMETRY_GATEWAY_URL ||
-          "https://logs.proso.com/ingest",
+          "https://logs.proso.com.br/ingest",
       ),
       __TELEMETRY_GATEWAY_TOKEN__: JSON.stringify(
         process.env.TELEMETRY_GATEWAY_TOKEN || "",

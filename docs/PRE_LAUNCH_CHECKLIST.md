@@ -99,7 +99,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 |------|----------|--------|--------------|--------|
 | Trademark search for "Proso" | **[SHOULD]** | S | None | [ ] |
 | Register trademark (if clear) | **[NICE]** | M | Trademark search, Business entity | [ ] |
-| Domain registration (proso.com etc.) | **[SHOULD]** | S | None | [ ] |
+| Domain registration (proso.com.br etc.) | **[SHOULD]** | S | None | [ ] |
 
 ---
 
@@ -455,7 +455,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Email support (support@proso.com) | **[MUST]** | S | Domain | [ ] |
+| Email support (support@proso.com.br) | **[MUST]** | S | Domain | [ ] |
 | Help desk integration | **[SHOULD]** | M | Email | [ ] |
 | Community Discord/forum | **[NICE]** | M | None | [ ] |
 | In-app feedback widget | **[SHOULD]** | M | None | [ ] |

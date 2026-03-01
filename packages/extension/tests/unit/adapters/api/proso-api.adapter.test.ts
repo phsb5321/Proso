@@ -42,7 +42,7 @@ function errorResponse(status: number, error = 'error', message = 'Something wen
   return jsonResponse({ error, message }, status);
 }
 
-const SERVER_URL = 'https://api.proso.com';
+const SERVER_URL = 'https://api.proso.com.br';
 
 const mockLicenseResponse: LicenseValidateResponse = {
   valid: true,
@@ -306,13 +306,13 @@ describe('ProsoApiAdapter', () => {
 
   describe('URL normalization', () => {
     it('strips trailing slashes from base URL', async () => {
-      const adapterWithSlash = new ProsoApiAdapter('https://api.proso.com/', 'key');
+      const adapterWithSlash = new ProsoApiAdapter('https://api.proso.com.br/', 'key');
       mockFetch.mockResolvedValueOnce(jsonResponse(mockLicenseResponse));
 
       await adapterWithSlash.validateLicense('key');
 
       const [url] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.proso.com/api/v1/license/validate');
+      expect(url).toBe('https://api.proso.com.br/api/v1/license/validate');
     });
   });
 });

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://proso.com/sitemap.xml
+Sitemap: https://proso.com.br/sitemap.xml
