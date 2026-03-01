@@ -1,6 +1,6 @@
 # Proso Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-16
+Auto-generated from all feature plans. Last updated: 2026-03-01
 
 ## MANDATORY: Playwright Must Use Docker
 
