@@ -194,7 +194,7 @@ count(count by (sessionId) ({app="proso"} | json))
 
 2. Check gateway health endpoint:
    ```bash
-   curl https://logs.proso.com/health
+   curl https://logs.proso.com.br/health
    ```
 
 3. Look for validation errors:

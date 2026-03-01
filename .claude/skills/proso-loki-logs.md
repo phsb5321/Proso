@@ -14,7 +14,7 @@ This skill guides Claude through querying Proso telemetry logs from the producti
 |---------|-----|---------|
 | Loki | https://loki.home301server.com.br | Log storage and query API |
 | Grafana | https://grafana.home301server.com.br | Log visualization UI |
-| Proso Gateway | https://logs.proso.com | Log ingestion endpoint |
+| Proso Gateway | https://logs.proso.com.br | Log ingestion endpoint |
 | Prometheus | https://prometheus.home301server.com.br | Metrics (not logs) |
 
 ## Quick Reference

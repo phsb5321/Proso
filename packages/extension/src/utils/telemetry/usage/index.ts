@@ -8,7 +8,7 @@
  * import { usageTracker } from './utils/telemetry/usage';
  *
  * await usageTracker.initialize({
- *   gatewayUrl: 'https://telemetry.proso.com/ingest',
+ *   gatewayUrl: 'https://telemetry.proso.com.br/ingest',
  *   gatewayToken: process.env.TELEMETRY_TOKEN,
  * });
  *

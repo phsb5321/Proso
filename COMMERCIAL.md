@@ -19,10 +19,10 @@ You need a commercial license if you want to:
 
 | Tier | Use Case | Contact |
 |------|----------|---------|
-| Startup | Companies <$1M ARR | commercial@proso.com |
-| Business | Companies $1M-$10M ARR | commercial@proso.com |
-| Enterprise | Companies >$10M ARR | commercial@proso.com |
-| OEM | White-label/embedding | commercial@proso.com |
+| Startup | Companies <$1M ARR | commercial@proso.com.br |
+| Business | Companies $1M-$10M ARR | commercial@proso.com.br |
+| Enterprise | Companies >$10M ARR | commercial@proso.com.br |
+| OEM | White-label/embedding | commercial@proso.com.br |
 
 ## What's Included
 
@@ -66,5 +66,5 @@ A: Yes, Enterprise and OEM tiers include custom integration support.
 
 ## Contact
 
-Email: commercial@proso.com
-Website: https://proso.com/commercial
+Email: commercial@proso.com.br
+Website: https://proso.com.br/commercial

@@ -73,7 +73,7 @@ describe('Manifest Permissions', () => {
       'contextMenus', // Right-click menu integration
       'scripting', // Programmatic content script injection
       'https://api.elevenlabs.io/*', // ElevenLabs TTS API
-      'https://logs.proso.com/*', // Telemetry gateway
+      'https://logs.proso.com.br/*', // Telemetry gateway
     ];
 
     it('should only declare allowed permissions', () => {
