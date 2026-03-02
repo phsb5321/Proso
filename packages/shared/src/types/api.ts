@@ -45,6 +45,20 @@ export interface TTSSynthesizeRequest {
   provider?: TTSProvider;
   voice?: string;
   language?: string;
+  /** User's own API key for the requested provider. Used for single-request synthesis only; never persisted server-side. */
+  byokApiKey?: string;
+}
+
+export interface TTSTestKeyRequest {
+  provider: string;
+  apiKey: string;
+}
+
+export interface TTSTestKeyResponse {
+  success: boolean;
+  provider: string;
+  error?: string;
+  latencyMs?: number;
 }
 
 export interface TTSSynthesizeHeaders {

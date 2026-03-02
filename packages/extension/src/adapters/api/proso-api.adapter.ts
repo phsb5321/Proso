@@ -23,6 +23,7 @@ import type {
   CreditHistoryResponse,
   ErrorResponse,
   TTSSynthesizeRequest,
+  TTSTestKeyResponse,
 } from '@proso/shared';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -99,10 +100,21 @@ export class ProsoApiAdapter implements IApiClient {
   async synthesize(
     request: TTSSynthesizeRequest,
   ): Promise<Result<SynthesizeResponse, ApiClientError>> {
-    if (!this.licenseKey) {
+    // BYOK requests can proceed without a license key (INV-002)
+    if (!this.licenseKey && !request.byokApiKey) {
       return Err(apiClientError.notConfigured('No license key configured'));
     }
     return this.requestBinary('/api/v1/tts/synthesize', request);
+  }
+
+  async testApiKey(
+    provider: string,
+    apiKey: string,
+  ): Promise<Result<TTSTestKeyResponse, ApiClientError>> {
+    return this.post<TTSTestKeyResponse>('/api/v1/tts/test-key', {
+      provider,
+      apiKey,
+    });
   }
 
   // ── HTTP helpers ──

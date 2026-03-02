@@ -21,6 +21,11 @@ export const PROVIDER_COSTS: Record<Exclude<TTSProvider, TTSProvider.Browser>, P
     costPer1000Chars: 500, // 0.5x multiplier (cost-efficient)
     description: 'Groq — fast, cost-efficient',
   },
+  [TTSProvider.Cartesia]: {
+    provider: TTSProvider.Cartesia,
+    costPer1000Chars: 1500, // 1.5x multiplier (BYOK-only on server)
+    description: 'Cartesia — high quality, BYOK only',
+  },
 };
 
 /** Calculate credit cost for a given text length and provider */

@@ -11,6 +11,8 @@ export interface TTSSynthesizeParams {
   voice?: string;
   language?: string;
   speed?: number;
+  /** User-provided BYOK API key — used for this request only, never persisted. */
+  byokApiKey?: string;
 }
 
 export interface TTSSynthesizeResult {

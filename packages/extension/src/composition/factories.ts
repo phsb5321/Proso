@@ -23,10 +23,6 @@ import { TTSProvider } from '@proso/shared';
 import {
   AudioUrlAdapter,
   BrowserTtsAudioAdapter,
-  CartesiaAudioAdapter,
-  ElevenLabsAudioAdapter,
-  GroqAudioAdapter,
-  OpenAiAudioAdapter,
   ServerTtsAudioAdapter,
 } from '../adapters/audio';
 
@@ -48,16 +44,18 @@ import { ProsoApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
 /**
  * Create an audio generator adapter based on provider.
  *
- * INV-002: BYOK is always available. If apiClient is configured and provider
- * is not 'browser' (INV-005: browser TTS always client-side) and no BYOK
- * API key is set, routes through server proxy for managed credits.
+ * All premium TTS routes through the server (ServerTtsAudioAdapter).
+ * BYOK keys are forwarded to the server in the request body.
+ *
+ * INV-005: Browser TTS is always client-side, unlimited.
+ * INV-002: BYOK is always available — keys forwarded to server for single-request use.
  *
  * @param provider - Provider to create adapter for
- * @param apiKey - API key for the provider (null for browser)
- * @param apiClient - Optional API client for server proxy routing
+ * @param apiKey - BYOK API key for the provider (null = managed credits)
+ * @param apiClient - API client for server proxy routing
  * @returns IAudioGenerator adapter
  *
- * @throws Error if provider is unknown or API key is missing (for non-browser providers without server)
+ * @throws Error if no server is configured for non-browser providers
  */
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
@@ -69,45 +67,26 @@ export function createAudioGeneratorAdapter(
     return new BrowserTtsAudioAdapter();
   }
 
-  // INV-002: If user has a BYOK API key, use direct provider adapter
-  if (apiKey) {
-    return createDirectProviderAdapter(provider, apiKey);
-  }
-
-  // If server is configured, route through server proxy (managed credits)
+  // All premium providers route through the server
   if (apiClient?.isConfigured) {
     const providerMap: Record<string, TTSProvider> = {
       openai: TTSProvider.OpenAI,
       elevenlabs: TTSProvider.ElevenLabs,
       groq: TTSProvider.Groq,
+      cartesia: TTSProvider.Cartesia,
     };
-    return new ServerTtsAudioAdapter(apiClient, providerMap[provider]);
+    // Pass BYOK key (if any) to server adapter for forwarding
+    return new ServerTtsAudioAdapter(
+      apiClient,
+      providerMap[provider],
+      apiKey ?? undefined,
+    );
   }
 
-  // No API key and no server — error
-  throw new Error(`${provider} API key is required (or configure Proso server for managed credits)`);
-}
-
-/**
- * Create a direct (BYOK) provider adapter.
- */
-function createDirectProviderAdapter(provider: ProviderId, apiKey: string): IAudioGenerator {
-  switch (provider) {
-    case 'elevenlabs':
-      return new ElevenLabsAudioAdapter(apiKey);
-
-    case 'openai':
-      return new OpenAiAudioAdapter(apiKey);
-
-    case 'groq':
-      return new GroqAudioAdapter(apiKey);
-
-    case 'cartesia':
-      return new CartesiaAudioAdapter(apiKey);
-
-    default:
-      throw new Error(`Unknown audio provider: ${provider as string}`);
-  }
+  // No server configured — error
+  throw new Error(
+    `Proso server is required for ${provider} TTS. Configure server URL in settings.`,
+  );
 }
 
 /**

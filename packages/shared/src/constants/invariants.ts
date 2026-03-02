@@ -13,7 +13,7 @@ export const BUSINESS_INVARIANTS = {
   'INV-002': {
     id: 'INV-002',
     rule: 'BYOK always available on all tiers',
-    enforcement: 'TTS proxy only used for managed credits; BYOK goes direct from extension',
+    enforcement: 'BYOK keys forwarded to server for single-request use; never persisted server-side',
   },
 
   /** INV-003: Word-level sync always free */

@@ -35,7 +35,7 @@ export class GroqTTSAdapter extends TTSProviderPort {
   async synthesize(
     request: TTSSynthesizeParams,
   ): Promise<Result<TTSSynthesizeResult, TTSError>> {
-    const apiKey = this.config.get<string>('GROQ_API_KEY');
+    const apiKey = request.byokApiKey || this.config.get<string>('GROQ_API_KEY');
     if (!apiKey) {
       return Err(
         ttsError(

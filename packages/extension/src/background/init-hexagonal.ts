@@ -31,6 +31,7 @@ import {
   setHighlightSync,
   setLanguageDependencies,
   setLoggingDependencies,
+  setSettingsApiClient,
   setSettingsStore,
 } from '../handlers';
 import { detectLanguageFromText } from '../utils/language/detector';
@@ -113,6 +114,9 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
 
     // T132: Wire API client for credit handlers
     setCreditApiClient(container.adapters.apiClient);
+
+    // 069: Wire API client for settings handlers (TTS key validation via server)
+    setSettingsApiClient(container.adapters.apiClient);
 
     // T001: Wire highlight sync for footer handlers
     setHighlightSync(container.adapters.highlightSync);

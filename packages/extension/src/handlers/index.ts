@@ -88,6 +88,7 @@ export {
 export {
   registerSettingsHandlers,
   setSettingsStore,
+  setSettingsApiClient,
   type SettingsHandlerError,
   type SettingsGetResponse,
   type SettingsUpdateResponse,

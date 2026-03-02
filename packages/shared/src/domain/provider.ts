@@ -4,6 +4,7 @@ export enum TTSProvider {
   OpenAI = 'openai',
   ElevenLabs = 'elevenlabs',
   Groq = 'groq',
+  Cartesia = 'cartesia',
   Browser = 'browser',
 }
 

@@ -25,7 +25,6 @@ export default defineConfig({
       "scripting", // For programmatic content script injection
     ],
     host_permissions: [
-      "https://api.elevenlabs.io/*", // ElevenLabs TTS API
       "https://logs.proso.com.br/*", // Telemetry gateway
     ],
     content_security_policy: {
