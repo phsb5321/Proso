@@ -140,7 +140,7 @@
       <section>
         <h2>7. API Keys and Third-Party Services</h2>
         <h3>Your API Keys (BYOK)</h3>
-        <p>API keys for third-party TTS providers (OpenAI, ElevenLabs, Groq, Cartesia) are stored locally in your browser using <code>browser.storage.local</code>. Your keys are never transmitted to Proso servers. You are responsible for keeping your API keys secure and for any charges incurred from third-party services.</p>
+        <p>API keys for third-party TTS providers (OpenAI, ElevenLabs, Groq, Cartesia) are cached locally in your browser using <code>browser.storage.local</code>. When you generate audio, your key is forwarded securely over HTTPS to the Proso server for a single synthesis request and immediately discarded. Keys are never permanently stored on Proso servers. You are responsible for keeping your API keys secure and for any charges incurred from third-party services.</p>
 
         <h3>Third-Party Service Terms</h3>
         <p>Proso integrates with third-party TTS providers. Your use of these services is subject to their respective terms of service, privacy policies, and usage limits. Proso is not responsible for the availability, accuracy, quality, pricing, or changes to third-party services.</p>

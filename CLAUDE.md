@@ -334,6 +334,10 @@ const service = new PlaybackService({
 - N/A (static site, no persistence) (067-ghpages-private-deploy)
 - Bash (SSH commands, CLI tools), YAML (cloudflared config), Dockerfile edits + Dokku, cloudflared, Cloudflare API, GitHub CLI (`gh`), Docker (068-proso-infra-rebrand)
 - PostgreSQL (`voxpage-db` -- NOT renamed), Redis (`voxpage-cache` -- NOT renamed) (068-proso-infra-rebrand)
+- TypeScript 5.x (strict mode) for all three packages (069-server-tts-centralization)
+- PostgreSQL (server), IndexedDB (extension audio cache), browser.storage.local (extension settings) (069-server-tts-centralization)
+- HTML5, CSS3 (no JavaScript changes) + None (static HTML files, no build step for site/legal packages) (070-byok-copy-legal-update)
+- N/A (no data persistence changes) (070-byok-copy-legal-update)
 
 - JavaScript ES2022+ (WebExtension Manifest V3) + Web Audio API, Fetch API with streaming, browser.storage API (001-realtime-tts-api)
 
@@ -489,9 +493,9 @@ pnpm run quality
 - **No `any`**: Use proper types or `unknown` with type guards
 
 ## Recent Changes
+- 070-byok-copy-legal-update: Added HTML5, CSS3 (no JavaScript changes) + None (static HTML files, no build step for site/legal packages)
+- 069-server-tts-centralization: Added TypeScript 5.x (strict mode) for all three packages
 - 068-proso-infra-rebrand: Added Bash (SSH commands, CLI tools), YAML (cloudflared config), Dockerfile edits + Dokku, cloudflared, Cloudflare API, GitHub CLI (`gh`), Docker
-- 067-ghpages-private-deploy: Added YAML (GitHub Actions workflows), HTML5, CSS3, Markdown + `actions/deploy-pages@v4`, `actions/upload-pages-artifact@v3`, `actions/configure-pages@v5`
-- 066-standalone-tos: Added HTML5, CSS3 (no JavaScript) + None (pure static HTML+CSS, system fonts only)
 
 
 <!-- MANUAL ADDITIONS START -->

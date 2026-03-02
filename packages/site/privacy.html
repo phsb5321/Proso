@@ -56,13 +56,13 @@
         <h3>Extension Data (All Users)</h3>
         <ul>
           <li><strong>Text extraction</strong>: When you activate Proso on a webpage, the extension extracts text content directly in your browser. This text never leaves your device unless sent to a TTS provider for audio generation.</li>
-          <li><strong>API keys</strong>: If you use Bring Your Own Key (BYOK), your API keys are stored locally in your browser using <code>browser.storage.local</code>. They are never transmitted to Proso servers or any party other than your selected TTS provider.</li>
+          <li><strong>API keys</strong>: If you use Bring Your Own Key (BYOK), your API keys are cached locally in your browser using <code>browser.storage.local</code>. When you generate audio, your key is forwarded over HTTPS to the Proso server, which uses it for a single API request to your selected TTS provider and immediately discards it. Keys are never persisted, logged, or stored on the server.</li>
           <li><strong>Audio cache</strong>: Generated audio is cached locally in your browser's IndexedDB storage to avoid redundant API calls. This data stays on your device.</li>
           <li><strong>Settings and preferences</strong>: Your playback speed, voice selection, and other preferences are stored locally in your browser.</li>
         </ul>
 
         <h3>Data Sent to TTS Providers</h3>
-        <p>When you generate audio, the text content of the paragraphs you listen to is sent to your selected TTS provider (OpenAI, ElevenLabs, Groq, Cartesia, or your browser's built-in engine). This transmission is direct from your browser to the provider. Proso does not proxy, log, or store this data. Each provider's privacy policy governs how they handle your text data.</p>
+        <p>When you generate audio, the text content of the paragraphs you listen to is sent to your selected TTS provider (OpenAI, ElevenLabs, Groq, Cartesia, or your browser&rsquo;s built-in engine). For managed credit users and BYOK users, this text is transmitted through the Proso server, which forwards it to the provider and does not store it. For browser-native TTS, all processing occurs entirely in your browser with no server involvement. Each provider&rsquo;s privacy policy governs how they handle your text data.</p>
       </section>
 
       <section>
@@ -94,7 +94,7 @@
           <li><strong>Right to object</strong>: Object to processing of your personal data for certain purposes.</li>
           <li><strong>Right to withdraw consent</strong>: Withdraw your consent at any time where processing is based on consent.</li>
         </ul>
-        <p>For BYOK users (free tier): We hold no personal data about you. Your API keys and preferences are stored only in your browser. There is nothing for us to delete or provide.</p>
+        <p>For BYOK users (free tier): We do not permanently store any personal data about you. Your API keys and preferences are stored locally in your browser. During synthesis requests, your API key is processed ephemerally in server memory (never written to disk, logs, or database) and discarded immediately. To stop all processing, simply remove your API keys from the extension settings.</p>
         <p>For managed credit users: Contact us at <a href="mailto:privacy@proso.com.br">privacy@proso.com.br</a> to exercise any of these rights. We will respond within 30 days.</p>
       </section>
 
