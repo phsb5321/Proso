@@ -10,6 +10,7 @@
 import { browser } from 'wxt/browser';
 import type { ProviderId } from '../core/shared/errors';
 import type { ISettingsStore, Settings } from '../ports/settings-store.port';
+import type { IApiClient } from '../ports/api-client.port';
 import type { HandlerRegistry } from './registry';
 
 // ============================================
@@ -90,6 +91,7 @@ interface ApiKeyParams {
 // ============================================
 
 let settingsStore: ISettingsStore | null = null;
+let settingsApiClient: IApiClient | null = null;
 
 /**
  * Set the settings store instance for handlers.
@@ -97,6 +99,14 @@ let settingsStore: ISettingsStore | null = null;
  */
 export function setSettingsStore(store: ISettingsStore): void {
   settingsStore = store;
+}
+
+/**
+ * Set the API client instance for settings handlers.
+ * Used to route TTS API key validation through the server.
+ */
+export function setSettingsApiClient(client: IApiClient): void {
+  settingsApiClient = client;
 }
 
 /**
@@ -187,8 +197,19 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
 }
 
 /**
- * API test endpoints for each provider.
- * Uses minimal API calls to validate credentials.
+ * TTS providers that are validated via the Proso server's test-key endpoint.
+ * These providers no longer make direct API calls from the extension.
+ */
+const SERVER_VALIDATED_TTS_PROVIDERS = new Set([
+  'elevenlabs',
+  'openai',
+  'groq',
+  'cartesia',
+]);
+
+/**
+ * API test endpoints for non-TTS providers (tested directly from extension).
+ * TTS providers are validated via the server's POST /api/v1/tts/test-key endpoint.
  */
 const API_TEST_ENDPOINTS: Record<
   string,
@@ -199,13 +220,6 @@ const API_TEST_ENDPOINTS: Record<
     body?: unknown;
   }
 > = {
-  elevenlabs: {
-    url: 'https://api.elevenlabs.io/v1/user',
-    method: 'GET',
-    headers: (apiKey) => ({
-      'xi-api-key': apiKey,
-    }),
-  },
   anthropic: {
     url: 'https://api.anthropic.com/v1/messages',
     method: 'POST',
@@ -249,8 +263,8 @@ async function handleTestApiKey(
     apiKey?.length,
   );
 
-  // Validate provider - 'elevenlabs' for TTS, 'anthropic' for AI summarization
-  const validProviders = ['elevenlabs', 'anthropic'];
+  // Validate provider — TTS providers route through server, anthropic uses direct fetch
+  const validProviders = [...SERVER_VALIDATED_TTS_PROVIDERS, 'anthropic'];
   if (!validProviders.includes(provider)) {
     console.error('[Settings] Invalid provider:', provider);
     return { success: false, error: `Invalid provider: ${provider}` };
@@ -261,17 +275,18 @@ async function handleTestApiKey(
   if (!keyToTest || keyToTest.trim().length === 0) {
     console.log('[Settings] No key in params, checking storage...');
     try {
-      // Try using the settings store first
       const store = getSettingsStore();
       keyToTest = await store.getApiKey(provider as ProviderId);
       console.log('[Settings] Key from storage via store:', keyToTest ? 'found' : 'not found');
     } catch (_storeError) {
-      // Fallback: access browser.storage.local directly if store isn't initialized
       console.warn(
         '[Settings] Settings store not available, falling back to direct storage access',
       );
       const storageKeyMap: Record<string, string> = {
         elevenlabs: 'elevenlabsApiKey',
+        openai: 'openaiApiKey',
+        groq: 'groqApiKey',
+        cartesia: 'cartesiaApiKey',
         anthropic: 'anthropic:apiKey',
       };
       const storageKey = storageKeyMap[provider];
@@ -292,6 +307,33 @@ async function handleTestApiKey(
     return { success: false, error: 'No API key provided' };
   }
 
+  const trimmedKey = keyToTest.trim();
+
+  // TTS providers: validate via the Proso server's test-key endpoint
+  if (SERVER_VALIDATED_TTS_PROVIDERS.has(provider)) {
+    if (!settingsApiClient || !settingsApiClient.isConfigured) {
+      return { success: false, error: 'Proso server not configured. Cannot validate TTS API keys.' };
+    }
+    try {
+      console.log('[Settings] Testing TTS key for', provider, 'via server');
+      const result = await settingsApiClient.testApiKey(provider, trimmedKey);
+      if (result.ok) {
+        if (result.value.success) {
+          return { success: true, message: 'API key is valid' };
+        }
+        return { success: false, error: result.value.error ?? 'Key validation failed' };
+      }
+      // API client error (network, timeout, etc.)
+      const err = result.error;
+      return { success: false, error: 'message' in err ? err.message : 'Server request failed' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      console.error('[Settings] Server test-key error for', provider, ':', message);
+      return { success: false, error: message };
+    }
+  }
+
+  // Non-TTS providers (anthropic): validate via direct fetch
   const endpoint = API_TEST_ENDPOINTS[provider];
   if (!endpoint) {
     console.error('[Settings] No test endpoint for provider:', provider);
@@ -299,7 +341,6 @@ async function handleTestApiKey(
   }
 
   try {
-    const trimmedKey = keyToTest.trim();
     console.log(
       '[Settings] Testing API key for',
       provider,
@@ -326,12 +367,11 @@ async function handleTestApiKey(
     try {
       const errorBody = await response.text();
       console.log('[Settings] API error response body:', errorBody);
-      errorDetail = errorBody.substring(0, 200); // Limit to first 200 chars
+      errorDetail = errorBody.substring(0, 200);
     } catch {
       // Ignore if we can't read the body
     }
 
-    // Handle specific error codes
     if (response.status === 401 || response.status === 403) {
       console.error(
         '[Settings] Authentication failed for',

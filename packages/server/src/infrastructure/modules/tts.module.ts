@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { TTSProvider } from '@proso/shared';
 import { InMemoryCacheAdapter } from '../../adapters/cache/in-memory-cache.adapter';
 import { ElevenLabsTTSAdapter } from '../../adapters/tts/elevenlabs-tts.adapter';
+import { CartesiaTTSAdapter } from '../../adapters/tts/cartesia-tts.adapter';
 import { GroqTTSAdapter } from '../../adapters/tts/groq-tts.adapter';
 import { OpenAITTSAdapter } from '../../adapters/tts/openai-tts.adapter';
 import { CacheStorePort } from '../../ports/cache-store.port';
@@ -28,8 +29,10 @@ import { SubscriptionModule } from './subscription.module';
     OpenAITTSAdapter,
     ElevenLabsTTSAdapter,
     GroqTTSAdapter,
+    CartesiaTTSAdapter,
 
     // Dynamic provider map — only includes adapters with configured API keys
+    // Cartesia is always registered (BYOK-only, no server key needed)
     {
       provide: 'TTS_PROVIDERS',
       useFactory: (
@@ -37,6 +40,7 @@ import { SubscriptionModule } from './subscription.module';
         openai: OpenAITTSAdapter,
         elevenlabs: ElevenLabsTTSAdapter,
         groq: GroqTTSAdapter,
+        cartesia: CartesiaTTSAdapter,
       ): Map<TTSProvider, TTSProviderPort> => {
         const providers = new Map<TTSProvider, TTSProviderPort>();
 
@@ -52,9 +56,12 @@ import { SubscriptionModule } from './subscription.module';
           providers.set(TTSProvider.Groq, groq);
         }
 
+        // Cartesia is always available for BYOK users (INV-002)
+        providers.set(TTSProvider.Cartesia, cartesia);
+
         return providers;
       },
-      inject: [ConfigService, OpenAITTSAdapter, ElevenLabsTTSAdapter, GroqTTSAdapter],
+      inject: [ConfigService, OpenAITTSAdapter, ElevenLabsTTSAdapter, GroqTTSAdapter, CartesiaTTSAdapter],
     },
   ],
   exports: [CacheStorePort],

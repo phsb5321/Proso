@@ -56,6 +56,8 @@ export type {
   LicenseActivateRequest,
   TTSSynthesizeRequest,
   TTSSynthesizeHeaders,
+  TTSTestKeyRequest,
+  TTSTestKeyResponse,
   Voice,
   VoiceListResponse,
   CreditBalanceResponse,

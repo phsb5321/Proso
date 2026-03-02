@@ -20,6 +20,7 @@ import type {
   CreditBalanceResponse,
   CreditHistoryResponse,
   TTSSynthesizeRequest,
+  TTSTestKeyResponse,
 } from '@proso/shared';
 
 const NOT_CONFIGURED = apiClientError.notConfigured(
@@ -65,6 +66,13 @@ export class NoOpApiClientAdapter implements IApiClient {
   async synthesize(
     _request: TTSSynthesizeRequest,
   ): Promise<Result<SynthesizeResponse, ApiClientError>> {
+    return Err(NOT_CONFIGURED);
+  }
+
+  async testApiKey(
+    _provider: string,
+    _apiKey: string,
+  ): Promise<Result<TTSTestKeyResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 }

@@ -1,15 +1,16 @@
 /**
  * Settings Handlers Unit Tests
  *
- * Tests all 5 settings handler functions:
+ * Tests all settings handler functions:
  *   - settings.get
  *   - settings.update
  *   - settings.getApiKey
  *   - settings.setApiKey
- *   - settings.testApiKey
+ *   - settings.testApiKey (TTS providers → server, anthropic → direct fetch)
  *
  * Uses ESM mocking via jest.unstable_mockModule for wxt/browser.
- * Injects a mock ISettingsStore via setSettingsStore().
+ * Injects a mock ISettingsStore via setSettingsStore() and
+ * a mock IApiClient via setSettingsApiClient().
  *
  * @module tests/unit/handlers/settings.handlers
  */
@@ -32,7 +33,7 @@ jest.unstable_mockModule('wxt/browser', () => ({
 
 // Dynamic imports after mock registration
 const { browser } = await import('wxt/browser');
-const { registerSettingsHandlers, setSettingsStore } = await import(
+const { registerSettingsHandlers, setSettingsStore, setSettingsApiClient } = await import(
   '../../../src/handlers/settings.handlers'
 );
 const { HandlerRegistry } = await import('../../../src/handlers/registry');
@@ -57,6 +58,24 @@ function createMockStore(): MockSettingsStore {
     setApiKey: jest.fn<(provider: string, key: string) => Promise<void>>(),
     subscribe: jest.fn<(cb: (settings: unknown) => void) => () => void>(),
   };
+}
+
+// ============================================
+// Mock IApiClient for TTS key validation
+// ============================================
+
+function createMockApiClient(overrides: Record<string, unknown> = {}) {
+  return {
+    isConfigured: true,
+    validateLicense: jest.fn(),
+    getSubscription: jest.fn(),
+    getCreditBalance: jest.fn(),
+    getCreditHistory: jest.fn(),
+    createCheckout: jest.fn(),
+    synthesize: jest.fn(),
+    testApiKey: jest.fn(),
+    ...overrides,
+  } as any;
 }
 
 // ============================================
@@ -106,12 +125,15 @@ function createMockResponse(body: string, init: { status: number }): Response {
 describe('Settings Handlers', () => {
   let registry: InstanceType<typeof HandlerRegistry>;
   let mockStore: MockSettingsStore;
+  let mockApiClient: ReturnType<typeof createMockApiClient>;
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
     registry = new HandlerRegistry();
     mockStore = createMockStore();
+    mockApiClient = createMockApiClient();
     setSettingsStore(mockStore as never);
+    setSettingsApiClient(mockApiClient);
     registerSettingsHandlers(registry);
     originalFetch = globalThis.fetch;
     jest.clearAllMocks();
@@ -126,12 +148,15 @@ describe('Settings Handlers', () => {
   // ------------------------------------------
 
   describe('registration', () => {
-    it('should register all 5 settings handlers', () => {
+    it('should register all settings handlers', () => {
       expect(registry.has('settings.get')).toBe(true);
       expect(registry.has('settings.update')).toBe(true);
       expect(registry.has('settings.getApiKey')).toBe(true);
       expect(registry.has('settings.setApiKey')).toBe(true);
       expect(registry.has('settings.testApiKey')).toBe(true);
+      expect(registry.has('settings.getTheme')).toBe(true);
+      expect(registry.has('settings.setTheme')).toBe(true);
+      expect(registry.has('settings.resetSection')).toBe(true);
     });
   });
 
@@ -356,14 +381,15 @@ describe('Settings Handlers', () => {
   });
 
   // ------------------------------------------
-  // settings.testApiKey
+  // settings.testApiKey — TTS providers via server
   // ------------------------------------------
 
-  describe('settings.testApiKey', () => {
-    it('should return success when fetch responds OK', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({ user: {} }), { status: 200 }),
-      );
+  describe('settings.testApiKey (TTS providers via server)', () => {
+    it('should route elevenlabs through settingsApiClient.testApiKey', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'elevenlabs', latencyMs: 120 },
+      });
 
       const result = await registry.dispatch('settings.testApiKey', {
         provider: 'elevenlabs',
@@ -376,19 +402,63 @@ describe('Settings Handlers', () => {
         expect(response.success).toBe(true);
         expect(response.message).toBe('API key is valid');
       }
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://api.elevenlabs.io/v1/user',
-        expect.objectContaining({
-          method: 'GET',
-          headers: { 'xi-api-key': 'sk-valid-key' },
-        }),
-      );
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-valid-key');
     });
 
-    it('should return failure on 401 response', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Unauthorized', { status: 401 }),
-      );
+    it('should route openai through settingsApiClient.testApiKey', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'openai', latencyMs: 80 },
+      });
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'openai',
+        apiKey: 'sk-openai-key',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; message?: string };
+        expect(response.success).toBe(true);
+      }
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('openai', 'sk-openai-key');
+    });
+
+    it('should route groq through settingsApiClient.testApiKey', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'groq' },
+      });
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'groq',
+        apiKey: 'gsk-groq-key',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('groq', 'gsk-groq-key');
+    });
+
+    it('should route cartesia through settingsApiClient.testApiKey', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'cartesia' },
+      });
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'cartesia',
+        apiKey: 'cart-key',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('cartesia', 'cart-key');
+    });
+
+    it('should return failure when server reports invalid key', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: false, provider: 'elevenlabs', error: 'Invalid API key' },
+      });
 
       const result = await registry.dispatch('settings.testApiKey', {
         provider: 'elevenlabs',
@@ -403,28 +473,11 @@ describe('Settings Handlers', () => {
       }
     });
 
-    it('should return failure on 403 response', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Forbidden', { status: 403 }),
-      );
-
-      const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-        apiKey: 'sk-forbidden-key',
+    it('should return failure when api client returns Err', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: false,
+        error: { type: 'network', message: 'Network error' },
       });
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('Invalid API key');
-      }
-    });
-
-    it('should return failure on network error', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockRejectedValue(
-        new Error('Failed to fetch'),
-      );
 
       const result = await registry.dispatch('settings.testApiKey', {
         provider: 'elevenlabs',
@@ -435,13 +488,15 @@ describe('Settings Handlers', () => {
       if (result.ok) {
         const response = result.value as { success: boolean; error?: string };
         expect(response.success).toBe(false);
-        expect(response.error).toBe('Failed to fetch');
+        expect(response.error).toBe('Network error');
       }
     });
 
-    it('should return failure for invalid provider', async () => {
+    it('should return failure when settingsApiClient is not configured', async () => {
+      setSettingsApiClient(createMockApiClient({ isConfigured: false }));
+
       const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'openai',
+        provider: 'elevenlabs',
         apiKey: 'sk-key',
       });
 
@@ -449,47 +504,31 @@ describe('Settings Handlers', () => {
       if (result.ok) {
         const response = result.value as { success: boolean; error?: string };
         expect(response.success).toBe(false);
-        expect(response.error).toContain('Invalid provider');
+        expect(response.error).toContain('Proso server not configured');
       }
     });
 
-    it('should return failure when no API key is provided or stored', async () => {
-      mockStore.getApiKey.mockResolvedValue(null);
+    it('should return failure when settingsApiClient is null', async () => {
+      setSettingsApiClient(null as any);
 
       const result = await registry.dispatch('settings.testApiKey', {
         provider: 'elevenlabs',
+        apiKey: 'sk-key',
       });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
         const response = result.value as { success: boolean; error?: string };
         expect(response.success).toBe(false);
-        expect(response.error).toBe('No API key provided');
+        expect(response.error).toContain('Proso server not configured');
       }
     });
 
-    it('should handle rate limiting (429)', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Rate limited', { status: 429 }),
-      );
-
-      const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-        apiKey: 'sk-valid-key',
+    it('should handle wrapped data format for TTS provider', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'elevenlabs' },
       });
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Rate limited');
-      }
-    });
-
-    it('should handle wrapped data format', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({}), { status: 200 }),
-      );
 
       const result = await registry.dispatch('settings.testApiKey', {
         provider: '',
@@ -501,14 +540,49 @@ describe('Settings Handlers', () => {
         const response = result.value as { success: boolean; message?: string };
         expect(response.success).toBe(true);
       }
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://api.elevenlabs.io/v1/user',
-        expect.objectContaining({
-          headers: { 'xi-api-key': 'sk-wrapped-key' },
-        }),
-      );
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-wrapped-key');
     });
 
+    it('should trim whitespace from API key before testing via server', async () => {
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'elevenlabs' },
+      });
+
+      await registry.dispatch('settings.testApiKey', {
+        provider: 'elevenlabs',
+        apiKey: '  sk-spaced-key  ',
+      });
+
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-spaced-key');
+    });
+
+    it('should fall back to storage when no key in params', async () => {
+      mockStore.getApiKey.mockResolvedValue('sk-stored-key');
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'elevenlabs' },
+      });
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'elevenlabs',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; message?: string };
+        expect(response.success).toBe(true);
+      }
+      expect(mockStore.getApiKey).toHaveBeenCalledWith('elevenlabs');
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-stored-key');
+    });
+  });
+
+  // ------------------------------------------
+  // settings.testApiKey — Non-TTS providers (anthropic) via direct fetch
+  // ------------------------------------------
+
+  describe('settings.testApiKey (anthropic via direct fetch)', () => {
     it('should test anthropic provider with POST and correct headers', async () => {
       globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
         createMockResponse(JSON.stringify({}), { status: 200 }),
@@ -536,86 +610,72 @@ describe('Settings Handlers', () => {
           body: expect.any(String),
         }),
       );
+      // Should NOT go through settingsApiClient for anthropic
+      expect(mockApiClient.testApiKey).not.toHaveBeenCalled();
     });
 
-    it('should fall back to storage when no key in params and store available', async () => {
-      mockStore.getApiKey.mockResolvedValue('sk-stored-key');
+    it('should return failure on anthropic 401 response', async () => {
       globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({}), { status: 200 }),
+        createMockResponse('Unauthorized', { status: 401 }),
       );
 
       const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
+        provider: 'anthropic',
+        apiKey: 'ant-bad-key',
       });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
+        const response = result.value as { success: boolean; error?: string };
+        expect(response.success).toBe(false);
+        expect(response.error).toBe('Invalid API key');
       }
-      expect(mockStore.getApiKey).toHaveBeenCalledWith('elevenlabs');
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://api.elevenlabs.io/v1/user',
-        expect.objectContaining({
-          headers: { 'xi-api-key': 'sk-stored-key' },
-        }),
-      );
     });
 
-    it('should fall back to browser.storage.local when store throws', async () => {
-      // Make store.getApiKey reject to trigger the fallback path
-      // (getSettingsStore() succeeds since store is set, but getApiKey rejects,
-      // which is caught and falls through to browser.storage.local)
-      mockStore.getApiKey.mockRejectedValue(new Error('Store broken'));
-
-      const mockGet = browser.storage.local.get as unknown as jest.Mock<
-        (keys: string | string[]) => Promise<Record<string, unknown>>
-      >;
-      mockGet.mockResolvedValue({ elevenlabsApiKey: 'sk-browser-key' });
-
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({}), { status: 200 }),
+    it('should return failure on anthropic network error', async () => {
+      globalThis.fetch = jest.fn<typeof fetch>().mockRejectedValue(
+        new Error('Failed to fetch'),
       );
 
       const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-        // no apiKey, key, or data.apiKey — forces the storage lookup
+        provider: 'anthropic',
+        apiKey: 'ant-key',
       });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
+        const response = result.value as { success: boolean; error?: string };
+        expect(response.success).toBe(false);
+        expect(response.error).toBe('Failed to fetch');
       }
-      expect(mockGet).toHaveBeenCalledWith('elevenlabsApiKey');
     });
 
-    it('should trim whitespace from API key before testing', async () => {
+    it('should handle anthropic rate limiting (429)', async () => {
       globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({}), { status: 200 }),
+        createMockResponse('Rate limited', { status: 429 }),
       );
 
-      await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-        apiKey: '  sk-spaced-key  ',
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'anthropic',
+        apiKey: 'ant-key',
       });
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: { 'xi-api-key': 'sk-spaced-key' },
-        }),
-      );
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; error?: string };
+        expect(response.success).toBe(false);
+        expect(response.error).toContain('Rate limited');
+      }
     });
 
-    it('should handle unexpected HTTP status codes', async () => {
+    it('should handle anthropic unexpected HTTP status codes', async () => {
       globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
         createMockResponse('Server Error', { status: 500 }),
       );
 
       const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-        apiKey: 'sk-key',
+        provider: 'anthropic',
+        apiKey: 'ant-key',
       });
 
       expect(result.ok).toBe(true);
@@ -628,13 +688,72 @@ describe('Settings Handlers', () => {
   });
 
   // ------------------------------------------
+  // settings.testApiKey — Common behavior
+  // ------------------------------------------
+
+  describe('settings.testApiKey (common)', () => {
+    it('should return failure for completely invalid provider', async () => {
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'invalid-provider',
+        apiKey: 'sk-key',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; error?: string };
+        expect(response.success).toBe(false);
+        expect(response.error).toContain('Invalid provider');
+      }
+    });
+
+    it('should return failure when no API key is provided or stored', async () => {
+      mockStore.getApiKey.mockResolvedValue(null);
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'elevenlabs',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; error?: string };
+        expect(response.success).toBe(false);
+        expect(response.error).toBe('No API key provided');
+      }
+    });
+
+    it('should fall back to browser.storage.local when store throws', async () => {
+      mockStore.getApiKey.mockRejectedValue(new Error('Store broken'));
+
+      const mockGet = browser.storage.local.get as unknown as jest.Mock<
+        (keys: string | string[]) => Promise<Record<string, unknown>>
+      >;
+      mockGet.mockResolvedValue({ elevenlabsApiKey: 'sk-browser-key' });
+
+      mockApiClient.testApiKey.mockResolvedValue({
+        ok: true,
+        value: { success: true, provider: 'elevenlabs' },
+      });
+
+      const result = await registry.dispatch('settings.testApiKey', {
+        provider: 'elevenlabs',
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const response = result.value as { success: boolean; message?: string };
+        expect(response.success).toBe(true);
+      }
+      expect(mockGet).toHaveBeenCalledWith('elevenlabsApiKey');
+      expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-browser-key');
+    });
+  });
+
+  // ------------------------------------------
   // Store not initialized
   // ------------------------------------------
 
   describe('store not initialized', () => {
     it('should surface initialization error via execution_failed', async () => {
-      // Since the module-level store is already set, simulate the error by
-      // having the store reject with the same message getSettingsStore() throws.
       const freshRegistry = new HandlerRegistry();
       mockStore.getSettings.mockRejectedValue(
         new Error('Settings store not initialized. Call setSettingsStore() first.'),

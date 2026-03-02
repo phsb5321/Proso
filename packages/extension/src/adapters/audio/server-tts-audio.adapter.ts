@@ -36,6 +36,7 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
   constructor(
     private readonly apiClient: IApiClient,
     private readonly preferredProvider?: TTSProvider,
+    private readonly byokApiKey?: string,
   ) {}
 
   async generateAudio(request: AudioRequest): Promise<Result<AudioResponse, AudioError>> {
@@ -44,6 +45,7 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
       provider: this.preferredProvider,
       voice: request.voice ?? undefined,
       language: request.language ?? undefined,
+      byokApiKey: this.byokApiKey,
     });
 
     if (!result.ok) {

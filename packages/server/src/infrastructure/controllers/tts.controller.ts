@@ -3,6 +3,7 @@
 //
 // Routes:
 //   POST /api/v1/tts/synthesize — generate audio from text
+//   POST /api/v1/tts/test-key   — validate a BYOK API key (rate-limited)
 //   GET  /api/v1/tts/voices/:provider — list voices for a provider
 
 import {
@@ -17,13 +18,16 @@ import {
   HttpStatus,
   BadRequestException,
   Inject,
+  UseGuards,
 } from '@nestjs/common';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   TTSProvider,
   SubscriptionTier,
   ErrorCode,
 } from '@proso/shared';
+import type { TTSTestKeyResponse } from '@proso/shared';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';
 import { CacheStorePort } from '../../ports/cache-store.port';
@@ -41,6 +45,8 @@ interface SynthesizeBody {
   provider?: string;
   voice?: string;
   language?: string;
+  /** User's own API key — used for single-request synthesis, never persisted. */
+  byokApiKey?: string;
 }
 
 @Controller('api/v1/tts')
@@ -61,8 +67,11 @@ export class TTSController {
     @Body() body: SynthesizeBody,
   ): Promise<void> {
     // --- Authentication ---
+    // BYOK requests (with byokApiKey) are allowed without strict authentication (INV-002)
     const userId = (req as Request & { userId?: string }).userId;
-    if (!userId) {
+    const isByok = !!body.byokApiKey;
+
+    if (!userId && !isByok) {
       res.status(HttpStatus.UNAUTHORIZED).json({
         error: 'Authentication required',
         code: ErrorCode.Unauthorized,
@@ -94,22 +103,32 @@ export class TTSController {
       provider = body.provider as TTSProvider;
     }
 
+    // BYOK must specify a provider
+    if (isByok && !provider) {
+      throw new BadRequestException('BYOK requests must specify a provider');
+    }
+
     // --- Look up subscription tier ---
-    const subscription =
-      await this.subscriptionRepository.findActiveByUserId(userId);
-    const tier = subscription
-      ? (subscription.tier as SubscriptionTier)
-      : SubscriptionTier.Free;
+    // For BYOK without userId, default to Free tier (INV-002: BYOK available on all tiers)
+    let tier = SubscriptionTier.Free;
+    if (userId) {
+      const subscription =
+        await this.subscriptionRepository.findActiveByUserId(userId);
+      tier = subscription
+        ? (subscription.tier as SubscriptionTier)
+        : SubscriptionTier.Free;
+    }
 
     // --- Call core synthesize service ---
     const result = await synthesize(
       {
-        userId,
+        userId: userId ?? 'byok-anonymous',
         text: body.text,
         provider,
         voice: body.voice,
         language: body.language,
         tier,
+        byokApiKey: body.byokApiKey,
       },
       {
         cacheStore: this.cacheStore,
@@ -140,6 +159,51 @@ export class TTSController {
     res.setHeader('Content-Type', value.contentType);
 
     res.send(value.audio);
+  }
+
+  @Post('test-key')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  async testKey(
+    @Body() body: { provider?: string; apiKey?: string },
+  ): Promise<TTSTestKeyResponse> {
+    if (!body.provider || !body.apiKey) {
+      throw new BadRequestException('provider and apiKey are required');
+    }
+
+    if (!VALID_PROVIDERS.has(body.provider as TTSProvider)) {
+      throw new BadRequestException(
+        `Invalid provider: ${body.provider}. Valid providers: ${Array.from(VALID_PROVIDERS).join(', ')}`,
+      );
+    }
+
+    const provider = body.provider as TTSProvider;
+    const adapter = this.providers.get(provider);
+
+    if (!adapter) {
+      return { success: false, provider: body.provider, error: 'Provider not available on this server' };
+    }
+
+    // Validate the key via a minimal synthesis call (1 character)
+    // BYOK key is passed through the adapter and NOT logged or persisted
+    const start = Date.now();
+    const result = await adapter.synthesize({
+      text: 'a',
+      byokApiKey: body.apiKey,
+    });
+    const latencyMs = Date.now() - start;
+
+    if (result.ok) {
+      return { success: true, provider: body.provider, latencyMs };
+    }
+
+    return {
+      success: false,
+      provider: body.provider,
+      error: result.error.message,
+      latencyMs,
+    };
   }
 
   @Get('voices/:provider')
