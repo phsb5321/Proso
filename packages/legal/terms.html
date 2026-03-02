@@ -107,7 +107,7 @@
         <dd>Managed TTS character credits allocated to your account based on your subscription tier. Credits are consumed when text is processed through the Proso managed server.</dd>
 
         <dt>&ldquo;BYOK&rdquo; (Bring Your Own Key)</dt>
-        <dd>A feature that allows you to connect your own API keys from third-party TTS providers, enabling premium voice synthesis without using managed credits.</dd>
+        <dd>A feature that allows you to use your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server for synthesis, enabling premium voice synthesis without using managed credits.</dd>
 
         <dt>&ldquo;Free Tier&rdquo;</dt>
         <dd>The always-free usage tier that provides unlimited browser-native TTS, word-level highlighting, and BYOK support without requiring account creation.</dd>
@@ -134,7 +134,7 @@
       <ul>
         <li><strong>Browser TTS</strong>: Uses your browser&rsquo;s built-in speech synthesis engine. Browser TTS is always unlimited and free on all tiers.</li>
         <li><strong>Managed TTS</strong>: Uses Proso&rsquo;s server to process text through premium TTS providers. Managed TTS consumes credits from your subscription.</li>
-        <li><strong>BYOK</strong>: Uses your own API keys from third-party TTS providers. BYOK is always available on all tiers, always free, and your API keys never leave your browser.</li>
+        <li><strong>BYOK</strong>: Uses your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server. BYOK is always available on all tiers and always free. Your keys are never stored on Proso servers.</li>
       </ul>
 
       <h3>Core Guarantees</h3>
@@ -321,13 +321,22 @@
     <section id="byok">
       <h2>9. API Keys &amp; BYOK</h2>
 
-      <p>BYOK (Bring Your Own Key) lets you connect your own API keys from third-party TTS providers to access premium voice synthesis directly, without using Proso managed credits.</p>
+      <p>BYOK (Bring Your Own Key) lets you use your own API keys from third-party TTS providers for premium voice synthesis, without using Proso managed credits. Your keys are forwarded securely through Proso&rsquo;s server and never stored.</p>
 
       <h3>Availability</h3>
       <p>BYOK is available on all subscription tiers, including the Free Tier, at no additional cost. You do not need an account to use BYOK.</p>
 
-      <h3>Local Storage</h3>
-      <p>Your API keys are stored exclusively in your browser&rsquo;s local storage (<code>browser.storage.local</code>). Proso never transmits your API keys to Proso servers. API key data flows only between your browser and the third-party provider you have selected.</p>
+      <h3>Key Handling</h3>
+      <p>Your API keys are cached in your browser&rsquo;s local storage (<code>browser.storage.local</code>) so you don&rsquo;t need to re-enter them. When you use a BYOK key for text-to-speech synthesis, the key is transmitted over HTTPS to the Proso server, which uses it for a single API request to your selected provider and immediately discards it.</p>
+      <p>Proso never persists, logs, or stores your BYOK API keys on the server. Keys exist in server memory only for the duration of a single synthesis request.</p>
+      <p><strong>Data flow:</strong></p>
+      <ol>
+        <li>Your key is read from browser local storage</li>
+        <li>Transmitted over HTTPS to the Proso server</li>
+        <li>Used for one provider API call</li>
+        <li>Discarded from server memory</li>
+      </ol>
+      <p>You may delete your locally stored keys at any time through the extension settings.</p>
 
       <h3>Your Responsibilities</h3>
       <p>When using BYOK, you are responsible for:</p>
@@ -338,7 +347,7 @@
       </ul>
 
       <h3>Liability</h3>
-      <p>Proso is not liable for charges, service interruptions, or data processing that occurs between your browser and your third-party provider when using BYOK. If a BYOK provider is unavailable, Proso falls back to browser-native TTS.</p>
+      <p>Proso is not liable for charges, service interruptions, or data processing that occurs between Proso&rsquo;s server and your third-party provider when using BYOK. Proso&rsquo;s role is limited to securely forwarding your key for a single request. If a BYOK provider is unavailable, Proso falls back to browser-native TTS.</p>
     </section>
 
     <!-- ============================================================
@@ -485,7 +494,7 @@
       <ul>
         <li>Your browsing history or the URLs of pages you visit</li>
         <li>The text content of pages you read or convert to speech</li>
-        <li>Your BYOK API keys (these are stored locally in your browser and never transmitted to Proso servers)</li>
+        <li>Your BYOK API keys are not permanently stored on Proso servers. Keys are cached locally in your browser and forwarded to the server only during synthesis requests, where they are used once and immediately discarded.</li>
         <li>Any data from Free Tier users who have not created an account</li>
       </ul>
 
