@@ -15,6 +15,7 @@ import type {
   CreditBalanceResponse,
   CreditHistoryResponse,
   TTSSynthesizeRequest,
+  TTSTestKeyResponse,
 } from '@proso/shared';
 
 /**
@@ -89,12 +90,20 @@ export interface IApiClient {
    * Synthesize text to audio via the server TTS proxy.
    * Returns audio blob with metadata (credits used, cache hit, provider).
    *
-   * INV-002: This is only called for managed-credit users.
-   * BYOK users call provider APIs directly from the extension.
+   * When TTSSynthesizeRequest.byokApiKey is present, the server uses the
+   * user's key for that single request without deducting managed credits.
    *
-   * @param request - Text, provider, voice, and language params
+   * @param request - Text, provider, voice, language, and optional byokApiKey
    */
   synthesize(request: TTSSynthesizeRequest): Promise<Result<SynthesizeResponse, ApiClientError>>;
+
+  /**
+   * Validate a BYOK API key via the server's test-key endpoint.
+   *
+   * @param provider - TTS provider to test against
+   * @param apiKey - API key to validate
+   */
+  testApiKey(provider: string, apiKey: string): Promise<Result<TTSTestKeyResponse, ApiClientError>>;
 
   /**
    * Check if the API client is configured with a server URL.

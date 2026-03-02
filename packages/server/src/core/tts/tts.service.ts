@@ -37,6 +37,8 @@ export interface TTSRequest {
   voice?: string;
   language?: string;
   tier: SubscriptionTier;
+  /** User-provided BYOK API key — skips credit deduction and provider routing when present. */
+  byokApiKey?: string;
 }
 
 export interface TTSResult {
@@ -80,8 +82,9 @@ async function tryProvider(
   voice?: string,
   language?: string,
   speed?: number,
+  byokApiKey?: string,
 ): Promise<Result<TTSSynthesizeResult, TTSError>> {
-  return provider.synthesize({ text, voice, language, speed });
+  return provider.synthesize({ text, voice, language, speed, byokApiKey });
 }
 
 /**
@@ -102,6 +105,12 @@ export async function synthesize(
   request: TTSRequest,
   deps: TTSServiceDeps,
 ): Promise<Result<TTSResult, CreditError | TTSError>> {
+  // --- BYOK path: user-provided API key, skip credit deduction and routing ---
+  if (request.byokApiKey) {
+    return synthesizeByok({ ...request, byokApiKey: request.byokApiKey }, deps);
+  }
+
+  // --- Managed-credit path (existing flow, unchanged) ---
   const availableProviders = Array.from(deps.providers.keys());
 
   // Step 1-2: Route to determine primary provider (needed for cache key)
@@ -244,5 +253,90 @@ export async function synthesize(
     cacheHit: false,
     creditsUsed: creditCost,
     creditsRemaining: updatedAllocation?.remainingCredits ?? 0,
+  });
+}
+
+/**
+ * BYOK synthesis path — user provides their own API key.
+ *
+ * Differences from managed-credit path:
+ * - Uses requested provider directly (no tier-based routing)
+ * - Skips credit deduction (user pays provider directly)
+ * - No fallback chain (BYOK key is provider-specific)
+ * - Cache still applies (INV-006)
+ */
+async function synthesizeByok(
+  request: TTSRequest & { byokApiKey: string },
+  deps: TTSServiceDeps,
+): Promise<Result<TTSResult, TTSError>> {
+  const requestedProvider = request.provider;
+  if (!requestedProvider || requestedProvider === TTSProvider.Browser) {
+    return Err(
+      ttsError(
+        ErrorCode.ProviderUnavailable,
+        'BYOK requests must specify a valid non-browser provider',
+        {},
+      ),
+    );
+  }
+
+  // Check cache (INV-006: cached content never re-charges — and for BYOK, never re-calls provider)
+  const cacheKey = buildCacheKey(
+    request.text,
+    requestedProvider,
+    request.voice,
+    request.language,
+  );
+
+  const cached = await deps.cacheStore.get(cacheKey);
+  if (cached) {
+    return Ok({
+      audio: cached,
+      contentType: 'audio/mpeg',
+      provider: requestedProvider,
+      cacheHit: true,
+      creditsUsed: 0,
+      creditsRemaining: 0,
+    });
+  }
+
+  // Look up adapter for the requested provider
+  const adapter = deps.providers.get(requestedProvider);
+  if (!adapter) {
+    return Err(
+      ttsError(
+        ErrorCode.ProviderUnavailable,
+        `Provider ${requestedProvider} is not registered`,
+        { provider: requestedProvider },
+      ),
+    );
+  }
+
+  // Synthesize with user's BYOK key — no fallback chain
+  const synthesisResult = await tryProvider(
+    adapter,
+    request.text,
+    request.voice,
+    request.language,
+    undefined,
+    request.byokApiKey,
+  );
+
+  if (!synthesisResult.ok) {
+    return Err(synthesisResult.error);
+  }
+
+  const result = synthesisResult.value;
+
+  // Store in cache (fire-and-forget) — same audio benefits both BYOK and managed users
+  await deps.cacheStore.set(cacheKey, result.audio);
+
+  return Ok({
+    audio: result.audio,
+    contentType: result.contentType,
+    provider: result.provider,
+    cacheHit: false,
+    creditsUsed: 0,
+    creditsRemaining: 0,
   });
 }

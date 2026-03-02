@@ -55,8 +55,9 @@ export interface Voice {
 /**
  * Port interface for TTS audio generation.
  *
- * Implementation:
- * - ElevenLabsAudioAdapter - ElevenLabs API
+ * Implementations:
+ * - BrowserTtsAudioAdapter - Browser native TTS (client-side, INV-005)
+ * - ServerTtsAudioAdapter - Server-proxied TTS (all premium providers)
  */
 export interface IAudioGenerator {
   /**
