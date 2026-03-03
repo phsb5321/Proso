@@ -14,7 +14,7 @@ import { normalizeLanguageCode } from './codes';
 /**
  * Provider ID type
  */
-export type ProviderId = 'elevenlabs' | 'browser';
+export type ProviderId = 'elevenlabs' | 'openai' | 'groq' | 'cartesia';
 
 /**
  * Language mapping entry with provider-specific codes
@@ -23,7 +23,6 @@ export interface LanguageMapping {
   bcp47: string;
   providers: {
     elevenlabs: string | null; // null = use default/English
-    browser: string | null; // BCP 47 code used by speechSynthesis
   };
   displayName: string;
   iso639_1: string;
@@ -46,181 +45,181 @@ export interface Voice {
 export const LANGUAGE_MAPPINGS: Record<string, LanguageMapping> = Object.freeze({
   en: {
     bcp47: 'en',
-    providers: { elevenlabs: null, browser: 'en' },
+    providers: { elevenlabs: null },
     displayName: 'English',
     iso639_1: 'en',
   },
   es: {
     bcp47: 'es',
-    providers: { elevenlabs: 'es', browser: 'es' },
+    providers: { elevenlabs: 'es' },
     displayName: 'Spanish',
     iso639_1: 'es',
   },
   fr: {
     bcp47: 'fr',
-    providers: { elevenlabs: 'fr', browser: 'fr' },
+    providers: { elevenlabs: 'fr' },
     displayName: 'French',
     iso639_1: 'fr',
   },
   de: {
     bcp47: 'de',
-    providers: { elevenlabs: 'de', browser: 'de' },
+    providers: { elevenlabs: 'de' },
     displayName: 'German',
     iso639_1: 'de',
   },
   it: {
     bcp47: 'it',
-    providers: { elevenlabs: 'it', browser: 'it' },
+    providers: { elevenlabs: 'it' },
     displayName: 'Italian',
     iso639_1: 'it',
   },
   pt: {
     bcp47: 'pt',
-    providers: { elevenlabs: 'pt', browser: 'pt' },
+    providers: { elevenlabs: 'pt' },
     displayName: 'Portuguese',
     iso639_1: 'pt',
   },
   pl: {
     bcp47: 'pl',
-    providers: { elevenlabs: 'pl', browser: 'pl' },
+    providers: { elevenlabs: 'pl' },
     displayName: 'Polish',
     iso639_1: 'pl',
   },
   tr: {
     bcp47: 'tr',
-    providers: { elevenlabs: 'tr', browser: 'tr' },
+    providers: { elevenlabs: 'tr' },
     displayName: 'Turkish',
     iso639_1: 'tr',
   },
   ru: {
     bcp47: 'ru',
-    providers: { elevenlabs: 'ru', browser: 'ru' },
+    providers: { elevenlabs: 'ru' },
     displayName: 'Russian',
     iso639_1: 'ru',
   },
   nl: {
     bcp47: 'nl',
-    providers: { elevenlabs: 'nl', browser: 'nl' },
+    providers: { elevenlabs: 'nl' },
     displayName: 'Dutch',
     iso639_1: 'nl',
   },
   cs: {
     bcp47: 'cs',
-    providers: { elevenlabs: 'cs', browser: 'cs' },
+    providers: { elevenlabs: 'cs' },
     displayName: 'Czech',
     iso639_1: 'cs',
   },
   ar: {
     bcp47: 'ar',
-    providers: { elevenlabs: 'ar', browser: 'ar' },
+    providers: { elevenlabs: 'ar' },
     displayName: 'Arabic',
     iso639_1: 'ar',
   },
   zh: {
     bcp47: 'zh',
-    providers: { elevenlabs: 'zh-cn', browser: 'zh' },
+    providers: { elevenlabs: 'zh-cn' },
     displayName: 'Chinese',
     iso639_1: 'zh',
   },
   hu: {
     bcp47: 'hu',
-    providers: { elevenlabs: 'hu', browser: 'hu' },
+    providers: { elevenlabs: 'hu' },
     displayName: 'Hungarian',
     iso639_1: 'hu',
   },
   ko: {
     bcp47: 'ko',
-    providers: { elevenlabs: 'ko', browser: 'ko' },
+    providers: { elevenlabs: 'ko' },
     displayName: 'Korean',
     iso639_1: 'ko',
   },
   ja: {
     bcp47: 'ja',
-    providers: { elevenlabs: 'ja', browser: 'ja' },
+    providers: { elevenlabs: 'ja' },
     displayName: 'Japanese',
     iso639_1: 'ja',
   },
   hi: {
     bcp47: 'hi',
-    providers: { elevenlabs: 'hi', browser: 'hi' },
+    providers: { elevenlabs: 'hi' },
     displayName: 'Hindi',
     iso639_1: 'hi',
   },
   sv: {
     bcp47: 'sv',
-    providers: { elevenlabs: 'sv', browser: 'sv' },
+    providers: { elevenlabs: 'sv' },
     displayName: 'Swedish',
     iso639_1: 'sv',
   },
   id: {
     bcp47: 'id',
-    providers: { elevenlabs: 'id', browser: 'id' },
+    providers: { elevenlabs: 'id' },
     displayName: 'Indonesian',
     iso639_1: 'id',
   },
   uk: {
     bcp47: 'uk',
-    providers: { elevenlabs: 'uk', browser: 'uk' },
+    providers: { elevenlabs: 'uk' },
     displayName: 'Ukrainian',
     iso639_1: 'uk',
   },
   el: {
     bcp47: 'el',
-    providers: { elevenlabs: 'el', browser: 'el' },
+    providers: { elevenlabs: 'el' },
     displayName: 'Greek',
     iso639_1: 'el',
   },
   fi: {
     bcp47: 'fi',
-    providers: { elevenlabs: 'fi', browser: 'fi' },
+    providers: { elevenlabs: 'fi' },
     displayName: 'Finnish',
     iso639_1: 'fi',
   },
   ro: {
     bcp47: 'ro',
-    providers: { elevenlabs: 'ro', browser: 'ro' },
+    providers: { elevenlabs: 'ro' },
     displayName: 'Romanian',
     iso639_1: 'ro',
   },
   da: {
     bcp47: 'da',
-    providers: { elevenlabs: 'da', browser: 'da' },
+    providers: { elevenlabs: 'da' },
     displayName: 'Danish',
     iso639_1: 'da',
   },
   bg: {
     bcp47: 'bg',
-    providers: { elevenlabs: 'bg', browser: 'bg' },
+    providers: { elevenlabs: 'bg' },
     displayName: 'Bulgarian',
     iso639_1: 'bg',
   },
   ms: {
     bcp47: 'ms',
-    providers: { elevenlabs: 'ms', browser: 'ms' },
+    providers: { elevenlabs: 'ms' },
     displayName: 'Malay',
     iso639_1: 'ms',
   },
   sk: {
     bcp47: 'sk',
-    providers: { elevenlabs: 'sk', browser: 'sk' },
+    providers: { elevenlabs: 'sk' },
     displayName: 'Slovak',
     iso639_1: 'sk',
   },
   hr: {
     bcp47: 'hr',
-    providers: { elevenlabs: 'hr', browser: 'hr' },
+    providers: { elevenlabs: 'hr' },
     displayName: 'Croatian',
     iso639_1: 'hr',
   },
   ta: {
     bcp47: 'ta',
-    providers: { elevenlabs: 'ta', browser: 'ta' },
+    providers: { elevenlabs: 'ta' },
     displayName: 'Tamil',
     iso639_1: 'ta',
   },
   fil: {
     bcp47: 'fil',
-    providers: { elevenlabs: 'fil', browser: 'fil' },
+    providers: { elevenlabs: 'fil' },
     displayName: 'Filipino',
     iso639_1: 'fil',
   },
@@ -250,7 +249,12 @@ export function getProviderLanguageCode(
 ): string | null {
   const mapping = getLanguageMapping(languageCode);
   if (!mapping) return null;
-  return mapping.providers[providerId];
+  // ElevenLabs has explicit language codes; other providers use auto-detection
+  if (providerId === 'elevenlabs') {
+    return mapping.providers.elevenlabs;
+  }
+  // OpenAI auto-detects; Groq/Cartesia are English-only
+  return mapping.bcp47;
 }
 
 /**
@@ -285,7 +289,7 @@ export function providerSupportsLanguage(_providerId: ProviderId, languageCode: 
  * @returns Array of provider IDs
  */
 export function getProvidersForLanguage(languageCode: string): ProviderId[] {
-  const providers: ProviderId[] = ['elevenlabs', 'browser'];
+  const providers: ProviderId[] = ['elevenlabs', 'openai', 'groq', 'cartesia'];
   return providers.filter((providerId) => providerSupportsLanguage(providerId, languageCode));
 }
 

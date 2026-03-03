@@ -51,7 +51,6 @@ export const defaults: Readonly<Settings> = Object.freeze({
  */
 export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.freeze({
   elevenlabs: null,
-  browser: null,
   openai: null,
   groq: null,
   cartesia: null,

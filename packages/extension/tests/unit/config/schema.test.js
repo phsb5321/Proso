@@ -55,15 +55,18 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
     });
 
     test('validates valid providers', () => {
-      // Post-056: ElevenLabs and Browser TTS are supported
+      // Post-071: 4 providers supported (browser removed)
       expect(settingsSchema.parse({ provider: 'elevenlabs' }).provider).toBe('elevenlabs');
-      expect(settingsSchema.parse({ provider: 'browser' }).provider).toBe('browser');
+      expect(settingsSchema.parse({ provider: 'openai' }).provider).toBe('openai');
+      expect(settingsSchema.parse({ provider: 'groq' }).provider).toBe('groq');
+      expect(settingsSchema.parse({ provider: 'cartesia' }).provider).toBe('cartesia');
     });
 
     test('throws for invalid providers', () => {
-      // Post-063: 5 providers valid; google and empty string are invalid
+      // Post-071: 4 providers valid; browser, google and empty string are invalid
       expect(() => settingsSchema.parse({ provider: 'google' })).toThrow();
       expect(() => settingsSchema.parse({ provider: 'amazon' })).toThrow();
+      expect(() => settingsSchema.parse({ provider: 'browser' })).toThrow();
       expect(() => settingsSchema.parse({ provider: '' })).toThrow();
     });
 
@@ -119,13 +122,12 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
 
   describe('PROVIDERS constant', () => {
     test('contains all TTS providers', () => {
-      // Post-063: All 5 providers supported via hexagonal adapters
+      // Post-071: 4 providers (browser removed)
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toContain('browser');
       expect(PROVIDERS).toContain('openai');
       expect(PROVIDERS).toContain('groq');
       expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toHaveLength(5);
+      expect(PROVIDERS).toHaveLength(4);
     });
 
     test('default provider is in PROVIDERS', () => {

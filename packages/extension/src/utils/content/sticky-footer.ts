@@ -15,6 +15,7 @@
 
 import { z } from "zod";
 import { browser } from "wxt/browser";
+import { SUPPORTED_LANGUAGES } from "../language/codes";
 
 // ============================================================================
 // Zod Schemas (SSOT for type definitions)
@@ -60,6 +61,8 @@ export const playbackStateSchema = z.object({
   currentParagraph: z.number().int().nonnegative(),
   totalParagraphs: z.number().int().nonnegative(),
   speed: z.number().min(0.5).max(2.0),
+  languageCode: z.string().default("en"),
+  isAutoDetected: z.boolean().default(true),
 });
 
 /**
@@ -464,9 +467,19 @@ function getStyles(): string {
     .speed-option { display: block; width: 100%; padding: 8px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: center; cursor: pointer; border-radius: 4px; }
     .speed-option:hover { background: rgba(255, 255, 255, 0.1); }
     .speed-option.active { background: var(--footer-accent); color: white; }
+    .language-control { position: relative; }
+    .lang-btn { font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 4px; min-width: 48px; gap: 4px; }
+    .lang-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+    .lang-code { font-size: 12px; }
+    .language-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg); border: 1px solid var(--footer-border); border-radius: 8px; box-shadow: var(--footer-shadow); padding: 4px; display: none; min-width: 160px; max-height: 300px; overflow-y: auto; margin-bottom: 4px; }
+    .language-dropdown.open { display: block; }
+    .language-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+    .language-option:hover { background: rgba(255, 255, 255, 0.1); }
+    .language-option.active { background: var(--footer-accent); color: white; }
     .footer.minimized .progress-section,
     .footer.minimized .controls .btn:not(.btn-play-pause),
     .footer.minimized .speed-control,
+    .footer.minimized .language-control,
     .footer.minimized .btn-minimize { display: none; }
     .footer.minimized .controls { justify-content: center; flex: 1; }
     .actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -542,6 +555,8 @@ export class StickyFooter {
     currentParagraph: 0,
     totalParagraphs: 0,
     speed: 1.0,
+    languageCode: "en",
+    isAutoDetected: true,
   };
 
   private _originalBodyPadding: string | null = null;
@@ -562,6 +577,8 @@ export class StickyFooter {
   private _playPauseBtn: HTMLButtonElement | null = null;
   private _speedBtn: HTMLButtonElement | null = null; // T046: Store speed button for updates
   private _speedDropdown: HTMLDivElement | null = null;
+  private _langBtn: HTMLButtonElement | null = null;
+  private _langDropdown: HTMLDivElement | null = null;
 
   // Bound event handlers
   private readonly _onDragStart: (e: MouseEvent | TouchEvent) => void;
@@ -725,6 +742,83 @@ export class StickyFooter {
     speedControl.appendChild(speedDropdown);
     footer.appendChild(speedControl);
 
+    // Language control
+    const langControl = document.createElement("div");
+    langControl.className = "language-control";
+
+    const langBtn = createButton({
+      className: "btn lang-btn",
+      ariaLabel: `Language: ${this.playbackState.isAutoDetected ? "Auto-detected" : ""} ${this.playbackState.languageCode.toUpperCase()}`,
+      action: "toggleLanguage",
+      text: this.playbackState.languageCode.toUpperCase(),
+    });
+
+    // Add globe icon before text
+    const globeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    globeSvg.setAttribute("viewBox", "0 0 24 24");
+    globeSvg.setAttribute("width", "14");
+    globeSvg.setAttribute("height", "14");
+    globeSvg.setAttribute("aria-hidden", "true");
+    const globeCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    globeCircle.setAttribute("cx", "12");
+    globeCircle.setAttribute("cy", "12");
+    globeCircle.setAttribute("r", "10");
+    const globeLine1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    globeLine1.setAttribute("x1", "2");
+    globeLine1.setAttribute("y1", "12");
+    globeLine1.setAttribute("x2", "22");
+    globeLine1.setAttribute("y2", "12");
+    const globePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    globePath.setAttribute("d", "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z");
+    globeSvg.appendChild(globeCircle);
+    globeSvg.appendChild(globeLine1);
+    globeSvg.appendChild(globePath);
+
+    // Insert globe before text content
+    const langText = document.createElement("span");
+    langText.className = "lang-code";
+    langText.textContent = this.playbackState.languageCode.toUpperCase();
+    langBtn.textContent = "";
+    langBtn.appendChild(globeSvg);
+    langBtn.appendChild(langText);
+
+    this._langBtn = langBtn;
+    langControl.appendChild(langBtn);
+
+    const langDropdown = document.createElement("div");
+    langDropdown.className = "language-dropdown";
+    langDropdown.setAttribute("role", "listbox");
+    langDropdown.setAttribute("aria-label", "Select language");
+    this._langDropdown = langDropdown;
+
+    // Auto-detect option
+    const autoOption = document.createElement("button");
+    autoOption.className = "language-option";
+    if (this.playbackState.isAutoDetected) autoOption.classList.add("active");
+    autoOption.setAttribute("role", "option");
+    autoOption.setAttribute("aria-selected", String(this.playbackState.isAutoDetected));
+    autoOption.setAttribute("tabindex", "0");
+    autoOption.dataset.lang = "auto";
+    autoOption.textContent = "Auto-detect";
+    langDropdown.appendChild(autoOption);
+
+    // Language options
+    for (const [code, name] of Object.entries(SUPPORTED_LANGUAGES)) {
+      const option = document.createElement("button");
+      option.className = "language-option";
+      const isActive = !this.playbackState.isAutoDetected && this.playbackState.languageCode === code;
+      if (isActive) option.classList.add("active");
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(isActive));
+      option.setAttribute("tabindex", "0");
+      option.dataset.lang = code;
+      option.textContent = `${name} (${code.toUpperCase()})`;
+      langDropdown.appendChild(option);
+    }
+
+    langControl.appendChild(langDropdown);
+    footer.appendChild(langControl);
+
     // Paragraph indicator
     const indicator = document.createElement("span");
     indicator.className = "paragraph-indicator";
@@ -839,6 +933,8 @@ export class StickyFooter {
     this._liveRegion = null;
     this._playPauseBtn = null;
     this._speedDropdown = null;
+    this._langBtn = null;
+    this._langDropdown = null;
 
     console.log("Proso: Sticky footer hidden");
   }
@@ -885,6 +981,18 @@ export class StickyFooter {
       if (this._speedBtn && state.speed !== undefined) {
         this._speedBtn.textContent = `${this.playbackState.speed}x`;
         this._speedBtn.setAttribute("aria-label", `Playback speed ${this.playbackState.speed}x`);
+      }
+
+      // Update language button display
+      if (this._langBtn && (state.languageCode !== undefined || state.isAutoDetected !== undefined)) {
+        const langCode = this._langBtn.querySelector(".lang-code");
+        if (langCode) {
+          langCode.textContent = this.playbackState.languageCode.toUpperCase();
+        }
+        this._langBtn.setAttribute(
+          "aria-label",
+          `Language: ${this.playbackState.isAutoDetected ? "Auto-detected" : ""} ${this.playbackState.languageCode.toUpperCase()}`,
+        );
       }
 
       // Update play/pause button if status changed
@@ -1174,6 +1282,24 @@ export class StickyFooter {
         this._closeSpeedDropdown();
       });
     });
+
+    const langOptions = this.shadowRoot.querySelectorAll(".language-option");
+    langOptions.forEach((option) => {
+      option.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const lang = (option as HTMLElement).dataset.lang;
+        if (lang === "auto") {
+          this.playbackState.isAutoDetected = true;
+          this._sendMessage("language.clearOverride");
+        } else if (lang) {
+          this.playbackState.isAutoDetected = false;
+          this.playbackState.languageCode = lang;
+          this._sendMessage("language.setOverride", { languageCode: lang });
+        }
+        this._closeLanguageDropdown();
+        this._render();
+      });
+    });
   }
 
   /**
@@ -1221,6 +1347,11 @@ export class StickyFooter {
         break;
       case "toggleSpeed":
         this._toggleSpeedDropdown();
+        this._closeLanguageDropdown();
+        break;
+      case "toggleLanguage":
+        this._toggleLanguageDropdown();
+        this._closeSpeedDropdown();
         break;
       case "toggleMinimize":
         this.isMinimized = !this.isMinimized;
@@ -1256,6 +1387,24 @@ export class StickyFooter {
   private _closeSpeedDropdown(): void {
     if (this._speedDropdown) {
       this._speedDropdown.classList.remove("open");
+    }
+  }
+
+  /**
+   * Toggle language dropdown
+   */
+  private _toggleLanguageDropdown(): void {
+    if (this._langDropdown) {
+      this._langDropdown.classList.toggle("open");
+    }
+  }
+
+  /**
+   * Close language dropdown
+   */
+  private _closeLanguageDropdown(): void {
+    if (this._langDropdown) {
+      this._langDropdown.classList.remove("open");
     }
   }
 

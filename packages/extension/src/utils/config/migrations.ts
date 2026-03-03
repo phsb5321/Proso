@@ -17,7 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 6;
+export const CURRENT_CONFIG_VERSION = 7;
 
 /**
  * Storage object with migration flags
@@ -169,7 +169,7 @@ export const migrations: Migration[] = [
       'Remove orphaned provider data from removed providers (OpenAI, Groq, Cartesia, Anthropic)',
     /**
      * Clean up orphaned API keys from removed providers and reset
-     * provider to 'browser' if user had a removed provider configured.
+     * provider to 'elevenlabs' if user had a removed provider configured.
      */
     migrate: async (stored, save) => {
       const removedProviders = ['openai', 'groq', 'cartesia', 'anthropic'];
@@ -182,9 +182,9 @@ export const migrations: Migration[] = [
         }
       }
 
-      // Reset provider to 'browser' if it was a removed provider
+      // Reset provider to 'elevenlabs' if it was a removed provider
       if (removedProviders.includes(stored.provider as string)) {
-        updates.provider = 'browser';
+        updates.provider = 'elevenlabs';
         updates.voice = null;
         updates.voiceId = null;
       }
@@ -195,6 +195,28 @@ export const migrations: Migration[] = [
         return { ...stored, ...updates };
       }
 
+      return stored;
+    },
+  },
+  {
+    version: 7,
+    key: 'provider-browser-removal',
+    description: 'Remove browser TTS provider — migrate users to ElevenLabs',
+    /**
+     * Browser TTS has been removed due to poor quality.
+     * Migrate any user with provider='browser' to 'elevenlabs'.
+     */
+    migrate: async (stored, save) => {
+      if (stored.provider === 'browser') {
+        const updates: Record<string, unknown> = {
+          provider: 'elevenlabs',
+          voice: null,
+          voiceId: null,
+        };
+        await save(updates);
+        console.log('Proso: Migrated from browser TTS to ElevenLabs');
+        return { ...stored, ...updates };
+      }
       return stored;
     },
   },
