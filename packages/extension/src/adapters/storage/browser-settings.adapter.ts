@@ -16,7 +16,6 @@ import { settingsStore } from '../../utils/config/store';
  * API key storage keys for each provider.
  */
 const API_KEY_STORAGE: Record<ProviderId, string> = {
-  browser: '', // Browser TTS doesn't require an API key
   elevenlabs: 'elevenlabsApiKey',
   openai: 'openaiApiKey',
   groq: 'groqApiKey',
@@ -62,10 +61,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
   }
 
   async getApiKey(provider: ProviderId): Promise<string | null> {
-    if (provider === 'browser') {
-      return null; // Browser TTS doesn't need API key
-    }
-
     const storageKey = API_KEY_STORAGE[provider];
     if (!storageKey) {
       return null;
@@ -80,10 +75,6 @@ export class BrowserSettingsAdapter implements ISettingsStore {
   }
 
   async setApiKey(provider: ProviderId, key: string): Promise<void> {
-    if (provider === 'browser') {
-      return; // Browser TTS doesn't need API key
-    }
-
     const storageKey = API_KEY_STORAGE[provider];
     if (!storageKey) {
       return;

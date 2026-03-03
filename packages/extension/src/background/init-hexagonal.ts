@@ -76,7 +76,7 @@ async function loadAppConfig(): Promise<AppConfig> {
   ]);
 
   return {
-    provider: (stored.provider as AppConfig['provider']) || 'browser',
+    provider: (stored.provider as AppConfig['provider']) || 'elevenlabs',
     cacheType: (stored.cacheType as 'indexeddb' | 'memory') || 'indexeddb',
     serverUrl: (stored.serverUrl as string) || null,
     licenseKey: (stored.licenseKey as string) || null,
@@ -99,6 +99,13 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   }
 
   console.log('[Hexagonal] Initializing composition container...');
+
+  // Register all handlers FIRST on the GLOBAL registry (defense-in-depth).
+  // Handlers call getPlaybackService() lazily at dispatch time and already
+  // handle missing services gracefully. This ensures no "Unknown message type"
+  // spam even if container init fails below.
+  const registry = getGlobalInstrumentedRegistry();
+  registerAllHandlers(registry);
 
   try {
     // Load configuration
@@ -209,26 +216,18 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
       setActiveTabId(activeInfo.tabId);
     });
 
-    // Register all handlers on the GLOBAL registry
-    // This is critical - dispatchToHexagonal() uses getGlobalInstrumentedRegistry()
-    const registry = getGlobalInstrumentedRegistry();
-
-    // Populate the global registry with all handlers
-    registerAllHandlers(registry);
-
     console.log('[Hexagonal] Container initialized with config:', {
       provider: config.provider,
       cacheType: config.cacheType,
       hasElevenLabsKey: !!apiKeys.elevenlabs,
       registeredHandlers: registry.getHandlerNames().length,
     });
-
-    return registry;
   } catch (error) {
     console.error('[Hexagonal] Failed to initialize container:', error);
-    // Return the global registry - it may be empty, but legacy handlers will work
-    return getGlobalInstrumentedRegistry();
+    console.warn('[Hexagonal] Handlers are still registered — dispatches will use graceful fallbacks');
   }
+
+  return registry;
 }
 
 /**

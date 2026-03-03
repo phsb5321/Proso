@@ -22,7 +22,6 @@ import { TTSProvider } from '@proso/shared';
 // Audio adapters
 import {
   AudioUrlAdapter,
-  BrowserTtsAudioAdapter,
   ServerTtsAudioAdapter,
 } from '../adapters/audio';
 
@@ -47,7 +46,6 @@ import { ProsoApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
  * All premium TTS routes through the server (ServerTtsAudioAdapter).
  * BYOK keys are forwarded to the server in the request body.
  *
- * INV-005: Browser TTS is always client-side, unlimited.
  * INV-002: BYOK is always available — keys forwarded to server for single-request use.
  *
  * @param provider - Provider to create adapter for
@@ -55,19 +53,14 @@ import { ProsoApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
  * @param apiClient - API client for server proxy routing
  * @returns IAudioGenerator adapter
  *
- * @throws Error if no server is configured for non-browser providers
+ * @throws Error if no server is configured
  */
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
   apiKey: string | null,
   apiClient?: IApiClient,
 ): IAudioGenerator {
-  // INV-005: Browser TTS is always client-side, unlimited
-  if (provider === 'browser') {
-    return new BrowserTtsAudioAdapter();
-  }
-
-  // All premium providers route through the server
+  // All providers route through the server
   if (apiClient?.isConfigured) {
     const providerMap: Record<string, TTSProvider> = {
       openai: TTSProvider.OpenAI,

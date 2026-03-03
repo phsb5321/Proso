@@ -9,6 +9,8 @@
 
 import { ContentExtractionService } from '../core/content-extraction/extraction-service';
 import { PlaybackService } from '../core/playback/playback-service';
+import { NoOpAudioGeneratorAdapter } from '../adapters/audio';
+import type { IAudioGenerator } from '../ports/audio-generator.port';
 import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
 import {
@@ -43,7 +45,16 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   const apiClient = createApiClientAdapter(config.serverUrl ?? null, config.licenseKey ?? null);
 
   // Audio generator — routes through server proxy for managed credits (INV-002)
-  const audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
+  // Falls back to NoOp if server is not configured, preventing cascade failure
+  let audioGenerator: ContainerAdapters['audioGenerator'];
+  try {
+    audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
+  } catch (error) {
+    console.warn('[Container] Audio generator failed, using no-op fallback:', error);
+    audioGenerator = new NoOpAudioGeneratorAdapter(
+      error instanceof Error ? error.message : 'Server not configured',
+    );
+  }
 
   // Audio URL provider (no fallback needed - always works)
   const audioUrlProvider = createAudioUrlAdapter();
@@ -209,11 +220,19 @@ export function reconfigureAudioGenerator(
     throw new Error('Container not initialized');
   }
 
-  const newAudioGenerator = createAudioGeneratorAdapter(
-    provider,
-    apiKey,
-    containerInstance.adapters.apiClient,
-  );
+  let newAudioGenerator: IAudioGenerator;
+  try {
+    newAudioGenerator = createAudioGeneratorAdapter(
+      provider,
+      apiKey,
+      containerInstance.adapters.apiClient,
+    );
+  } catch (error) {
+    console.warn('[Container] Audio generator reconfigure failed, using no-op fallback:', error);
+    newAudioGenerator = new NoOpAudioGeneratorAdapter(
+      error instanceof Error ? error.message : 'Server not configured',
+    );
+  }
 
   // Create new container with updated audio generator
   containerInstance = {

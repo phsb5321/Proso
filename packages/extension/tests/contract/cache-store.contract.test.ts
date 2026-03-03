@@ -30,7 +30,7 @@ export function runCacheStoreContractTests(
     const testKey: CacheKey = {
       urlHash: 'test-url-hash',
       paragraphIndex: 0,
-      provider: 'browser',
+      provider: 'elevenlabs',
       voice: 'default',
       contentHash: 'test-content-hash',
     };

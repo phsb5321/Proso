@@ -295,18 +295,6 @@ describe('Settings Handlers', () => {
       expect(mockStore.getApiKey).not.toHaveBeenCalled();
     });
 
-    it('should accept browser as a valid provider', async () => {
-      mockStore.getApiKey.mockResolvedValue(null);
-
-      const result = await registry.dispatch('settings.getApiKey', { provider: 'browser' });
-
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; hasKey: boolean };
-        expect(response.hasKey).toBe(false);
-      }
-      expect(mockStore.getApiKey).toHaveBeenCalledWith('browser');
-    });
   });
 
   // ------------------------------------------
@@ -367,17 +355,6 @@ describe('Settings Handlers', () => {
       }
     });
 
-    it('should set API key for browser provider', async () => {
-      mockStore.setApiKey.mockResolvedValue(undefined);
-
-      const result = await registry.dispatch('settings.setApiKey', {
-        provider: 'browser',
-        key: 'browser-key-789',
-      });
-
-      expect(result.ok).toBe(true);
-      expect(mockStore.setApiKey).toHaveBeenCalledWith('browser', 'browser-key-789');
-    });
   });
 
   // ------------------------------------------

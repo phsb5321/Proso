@@ -186,11 +186,6 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
         // For now, we validate the current container's audio generator
         const audioGenerator = container.adapters.audioGenerator;
 
-        // Browser TTS doesn't need credentials
-        if (audioGenerator.providerId === 'browser') {
-          return Ok({ valid: true, message: 'Browser TTS does not require API key' });
-        }
-
         const valid = await audioGenerator.validateCredentials();
 
         return Ok({

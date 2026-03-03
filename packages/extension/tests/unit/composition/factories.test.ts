@@ -3,8 +3,7 @@
  *
  * Tests for createAudioGeneratorAdapter and related factory functions.
  *
- * Post-069 simplification: All non-browser providers route through
- * ServerTtsAudioAdapter. Direct provider adapters have been removed.
+ * All providers route through ServerTtsAudioAdapter via the Proso server.
  *
  * Uses jest.unstable_mockModule to mock heavy transitive dependencies
  * (cache, content, messaging, storage adapters, and the audio barrel)
@@ -14,7 +13,7 @@
  * @module tests/unit/composition/factories
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -23,9 +22,6 @@ const __dirname = dirname(__filename);
 const srcDir = resolve(__dirname, '../../../src');
 
 // Pre-import the real audio adapters we need (these don't depend on chrome)
-const { BrowserTtsAudioAdapter } = await import(
-  '../../../src/adapters/audio/browser-tts-audio.adapter'
-);
 const { AudioUrlAdapter } = await import(
   '../../../src/adapters/audio/audio-url.adapter'
 );
@@ -35,7 +31,6 @@ const { ServerTtsAudioAdapter } = await import(
 
 // Mock the audio barrel to avoid importing offscreen.adapter.ts (uses chrome.* types)
 jest.unstable_mockModule(resolve(srcDir, 'adapters/audio'), () => ({
-  BrowserTtsAudioAdapter,
   AudioUrlAdapter,
   ServerTtsAudioAdapter,
   OffscreenAudioAdapter: jest.fn(),
@@ -73,28 +68,6 @@ const { createAudioGeneratorAdapter, getApiKeyForProvider } = await import(
   '../../../src/composition/factories'
 );
 
-// Mock speechSynthesis for BrowserTtsAudioAdapter
-beforeEach(() => {
-  (global as Record<string, unknown>).speechSynthesis = {
-    getVoices: jest.fn<() => unknown[]>(() => []),
-    speak: jest.fn(),
-    cancel: jest.fn(),
-    speaking: false,
-    pending: false,
-    paused: false,
-  };
-  (global as Record<string, unknown>).SpeechSynthesisUtterance = jest
-    .fn<(...args: unknown[]) => Record<string, unknown>>()
-    .mockImplementation((...args: unknown[]) => ({
-      text: (args[0] as string) ?? '',
-      voice: null,
-      rate: 1,
-      lang: '',
-      onend: null,
-      onerror: null,
-    }));
-});
-
 // Mock IApiClient for server routing tests (cast as any for test convenience)
 const mockApiClient = {
   isConfigured: true,
@@ -119,23 +92,7 @@ const unconfiguredApiClient = {
 } as any;
 
 describe('createAudioGeneratorAdapter', () => {
-  // ── Browser TTS (INV-005: always client-side) ──
-
-  it('should return BrowserTtsAudioAdapter for provider "browser"', () => {
-    const adapter = createAudioGeneratorAdapter('browser', null);
-    expect(adapter).toBeInstanceOf(BrowserTtsAudioAdapter);
-    expect(adapter.providerId).toBe('browser');
-  });
-
-  it('should not require API key for browser provider', () => {
-    expect(() => createAudioGeneratorAdapter('browser', null)).not.toThrow();
-  });
-
-  it('should not require apiClient for browser provider', () => {
-    expect(() => createAudioGeneratorAdapter('browser', null, undefined)).not.toThrow();
-  });
-
-  // ── Server routing (all premium providers) ──
+  // ── Server routing (all providers) ──
 
   it('should return ServerTtsAudioAdapter for "openai" with apiClient', () => {
     const adapter = createAudioGeneratorAdapter('openai', null, mockApiClient);
@@ -162,7 +119,6 @@ describe('createAudioGeneratorAdapter', () => {
   it('should pass BYOK apiKey to ServerTtsAudioAdapter constructor', () => {
     const adapter = createAudioGeneratorAdapter('openai', 'sk-byok-key', mockApiClient);
     expect(adapter).toBeInstanceOf(ServerTtsAudioAdapter);
-    // The adapter is constructed with the BYOK key for forwarding to server
   });
 
   it('should pass null apiKey as undefined to ServerTtsAudioAdapter', () => {
@@ -172,13 +128,13 @@ describe('createAudioGeneratorAdapter', () => {
 
   // ── Error cases ──
 
-  it('should throw when non-browser provider has no apiClient', () => {
+  it('should throw when provider has no apiClient', () => {
     expect(() => createAudioGeneratorAdapter('openai', null)).toThrow(
       'Proso server is required',
     );
   });
 
-  it('should throw when non-browser provider has unconfigured apiClient', () => {
+  it('should throw when provider has unconfigured apiClient', () => {
     expect(() => createAudioGeneratorAdapter('openai', null, unconfiguredApiClient)).toThrow(
       'Proso server is required',
     );
@@ -210,11 +166,6 @@ describe('getApiKeyForProvider', () => {
   it('should return cartesia key for cartesia provider', () => {
     const keys = { elevenlabs: null, openai: null, groq: null, cartesia: 'cartesia-key' };
     expect(getApiKeyForProvider(keys, 'cartesia')).toBe('cartesia-key');
-  });
-
-  it('should return null for browser provider', () => {
-    const keys = { elevenlabs: 'test-key', openai: null, groq: null, cartesia: null };
-    expect(getApiKeyForProvider(keys, 'browser')).toBeNull();
   });
 
   it('should return null for elevenlabs when key is null', () => {

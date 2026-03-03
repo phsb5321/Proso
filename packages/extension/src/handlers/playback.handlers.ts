@@ -19,6 +19,7 @@ import {
   playbackSeekParamsSchema,
   paragraphClickedParamsSchema,
 } from './schemas/playback.schemas';
+import { tabLanguageStates } from './language.handlers';
 
 /**
  * Get the active tab in the current window.
@@ -260,6 +261,15 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
             progress: 0,
             speed: state.speed,
           },
+        });
+
+        // Send initial language state to footer
+        const langState = tabLanguageStates.get(tabId);
+        const langOverride = langState?.override;
+        await sendToContentScript(tabId, {
+          action: 'FOOTER_LANGUAGE_UPDATE',
+          languageCode: langOverride ?? langState?.detected?.code ?? 'en',
+          isAutoDetected: !langOverride,
         });
 
         // Step 4: Start PlaybackService
@@ -634,6 +644,15 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
               progress: (paragraphIndex / paragraphs.length) * 100,
               speed: currentState.speed,
             },
+          });
+
+          // Send initial language state to footer
+          const pLangState = tabLanguageStates.get(tab.id);
+          const pLangOverride = pLangState?.override;
+          await sendToContentScript(tab.id, {
+            action: 'FOOTER_LANGUAGE_UPDATE',
+            languageCode: pLangOverride ?? pLangState?.detected?.code ?? 'en',
+            isAutoDetected: !pLangOverride,
           });
 
           // Start PlaybackService with extracted paragraphs

@@ -62,7 +62,6 @@ export function createPricingModel(
  */
 export const ProviderPricing = Object.freeze({
   elevenlabs: createPricingModel(PricingType.PER_CHARACTER, 0.3, 1000),
-  browser: createPricingModel(PricingType.FREE, 0, 1),
   openai: createPricingModel(PricingType.PER_CHARACTER, 0.015, 1000),
   groq: createPricingModel(PricingType.FREE, 0, 1),
   cartesia: createPricingModel(PricingType.PER_CHARACTER, 0.05, 1000),
