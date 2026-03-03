@@ -63,10 +63,6 @@ interface OptionsElements {
   elevenlabsKey: HTMLInputElement;
   elevenlabsKeyStatus: HTMLElement;
 
-  // Browser TTS elements
-  browserVoice: HTMLSelectElement;
-  browserTtsStatus: HTMLElement;
-
   // Settings inputs
   highlightEnabled: HTMLInputElement;
   autoScroll: HTMLInputElement;
@@ -98,6 +94,15 @@ interface OptionsElements {
 
   // Telemetry elements (T018)
   telemetryEnabled: HTMLInputElement;
+
+  // Server status elements
+  serverStatusDot: HTMLElement;
+  serverStatusText: HTMLElement;
+  serverStatusRefresh: HTMLButtonElement;
+  serverDetailUrl: HTMLElement;
+  serverDetailVersion: HTMLElement;
+  serverDetailUptime: HTMLElement;
+  serverDetailError: HTMLElement;
 }
 
 let elements: OptionsElements | null = null;
@@ -133,10 +138,6 @@ function getElements(): OptionsElements {
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
 
-    // Browser TTS elements
-    browserVoice: getElement<HTMLSelectElement>('browserVoice'),
-    browserTtsStatus: getElement<HTMLElement>('browserTtsStatus'),
-
     // Settings inputs
     highlightEnabled: getElement<HTMLInputElement>('highlightEnabled'),
     autoScroll: getElement<HTMLInputElement>('autoScroll'),
@@ -162,6 +163,15 @@ function getElements(): OptionsElements {
 
     // Telemetry elements (T018)
     telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
+
+    // Server status elements
+    serverStatusDot: getElement<HTMLElement>('serverStatusDot'),
+    serverStatusText: getElement<HTMLElement>('serverStatusText'),
+    serverStatusRefresh: getElement<HTMLButtonElement>('serverStatusRefresh'),
+    serverDetailUrl: getElement<HTMLElement>('serverDetailUrl'),
+    serverDetailVersion: getElement<HTMLElement>('serverDetailVersion'),
+    serverDetailUptime: getElement<HTMLElement>('serverDetailUptime'),
+    serverDetailError: getElement<HTMLElement>('serverDetailError'),
   };
 }
 
@@ -185,7 +195,6 @@ export async function initOptionsPage(): Promise<void> {
   setupQuickSettingsEventListeners();
   setupEventListeners();
   setupProviderCardEventListeners();
-  setupBrowserTtsVoices();
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupCacheEventListeners();
@@ -195,6 +204,10 @@ export async function initOptionsPage(): Promise<void> {
   setupSidebarNavigation();
   setupThemeEventListener();
   setupResetButtons();
+  setupServerStatusListeners();
+
+  // Check server status on page load (non-blocking)
+  void checkServerStatus();
 }
 
 // ========================================
@@ -289,6 +302,14 @@ function setupQuickSettingsEventListeners(): void {
 
     // Auto-save provider
     await saveQuickSetting('provider', provider);
+
+    // Notify background to reconfigure audio generator
+    try {
+      await browser.runtime.sendMessage({ type: 'provider.select', provider });
+    } catch {
+      // Background may not be ready yet — storage change listener will pick it up
+    }
+
     toast.success('Provider updated');
   });
 
@@ -746,11 +767,7 @@ function setupProviderCardEventListeners(): void {
       const provider = button.dataset.provider;
       if (!provider) return;
 
-      if (provider === 'browser') {
-        await handleBrowserTtsTest(button);
-      } else {
-        await handleProviderTest(provider, button);
-      }
+      await handleProviderTest(provider, button);
     });
   });
 
@@ -777,94 +794,6 @@ function setupProviderCardEventListeners(): void {
   });
 }
 
-// ========================================
-// BROWSER TTS (056-production-readiness-sprint T021)
-// ========================================
-
-/**
- * Populate the Browser TTS voice dropdown with available system voices
- */
-function loadBrowserVoices(): void {
-  if (!elements) return;
-
-  const voiceSelect = elements.browserVoice;
-  const voices = window.speechSynthesis?.getVoices() || [];
-
-  // Clear existing options (keep default)
-  while (voiceSelect.options.length > 1) {
-    voiceSelect.remove(1);
-  }
-
-  // Add available voices
-  voices.forEach((voice) => {
-    const option = document.createElement('option');
-    option.value = voice.name;
-    option.textContent = `${voice.name} (${voice.lang})`;
-    voiceSelect.appendChild(option);
-  });
-}
-
-/**
- * Setup Browser TTS voice loading
- * Voices may load asynchronously, so we listen for the voiceschanged event
- */
-function setupBrowserTtsVoices(): void {
-  // Load voices immediately (may be empty on first call)
-  loadBrowserVoices();
-
-  // Listen for voices to become available (async loading in some browsers)
-  if (window.speechSynthesis) {
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-      loadBrowserVoices();
-    });
-  }
-}
-
-/**
- * Handle Browser TTS test button — speaks a test phrase
- */
-async function handleBrowserTtsTest(button: HTMLButtonElement): Promise<void> {
-  const statusEl = document.querySelector(
-    '.provider-card__status[data-provider="browser"]',
-  ) as HTMLElement | null;
-
-  // Cancel any ongoing speech
-  window.speechSynthesis.cancel();
-
-  button.disabled = true;
-  button.textContent = 'Speaking...';
-  showProviderCardStatus(statusEl, 'Testing...', 'loading');
-
-  try {
-    const utterance = new SpeechSynthesisUtterance('Hello! Proso Browser TTS is working.');
-    utterance.rate = 1.0;
-
-    // Apply selected voice if any
-    if (elements?.browserVoice.value) {
-      const voices = window.speechSynthesis.getVoices();
-      const selectedVoice = voices.find((v) => v.name === elements?.browserVoice.value);
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-      }
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      utterance.onend = () => resolve();
-      utterance.onerror = (e) => reject(new Error(e.error || 'Speech synthesis failed'));
-      window.speechSynthesis.speak(utterance);
-    });
-
-    showProviderCardStatus(statusEl, '✓ Working', 'success');
-    toast.success('Browser TTS is working');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Test failed';
-    showProviderCardStatus(statusEl, `✗ ${errorMessage}`, 'error');
-    toast.error(`Browser TTS test failed: ${errorMessage}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = 'Test Voice';
-  }
-}
 
 /**
  * Handle provider API key test
@@ -1020,7 +949,6 @@ function showProviderCardStatus(
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
     elevenlabs: 'ElevenLabs',
-    browser: 'Browser TTS',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
@@ -1821,4 +1749,108 @@ function setupCacheEventListeners(): void {
       void loadCacheStats();
     });
   }
+}
+
+// ========================================
+// SERVER STATUS INDICATOR
+// ========================================
+
+const SERVER_HEALTH_TIMEOUT_MS = 5000;
+
+/**
+ * Check server health and update the status indicator
+ */
+async function checkServerStatus(): Promise<void> {
+  if (!elements) return;
+
+  const { serverDetailUrl, serverDetailVersion, serverDetailUptime, serverDetailError } = elements;
+
+  // Read serverUrl from storage
+  const result = await browser.storage.local.get('serverUrl');
+  const serverUrl = result.serverUrl as string | undefined;
+
+  // Clear detail rows
+  serverDetailUrl.textContent = '';
+  serverDetailVersion.textContent = '';
+  serverDetailUptime.textContent = '';
+  serverDetailError.textContent = '';
+
+  if (!serverUrl) {
+    setServerStatusState('not-configured', 'Not configured');
+    return;
+  }
+
+  serverDetailUrl.textContent = `URL: ${serverUrl}`;
+  setServerStatusState('checking', 'Checking...');
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SERVER_HEALTH_TIMEOUT_MS);
+
+    const response = await fetch(`${serverUrl.replace(/\/+$/, '')}/health`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      setServerStatusState('disconnected', 'Disconnected');
+      serverDetailError.textContent = `Error: HTTP ${response.status}`;
+      return;
+    }
+
+    const data = await response.json();
+
+    setServerStatusState('connected', 'Connected');
+    if (data.version) {
+      serverDetailVersion.textContent = `Version: ${data.version}`;
+    }
+    if (data.uptime != null) {
+      serverDetailUptime.textContent = `Uptime: ${formatUptime(data.uptime)}`;
+    }
+  } catch (error) {
+    setServerStatusState('disconnected', 'Disconnected');
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    serverDetailError.textContent = `Error: ${msg.includes('abort') ? 'Timeout' : msg}`;
+  }
+}
+
+/**
+ * Set the visual state of the server status indicator
+ */
+function setServerStatusState(state: 'connected' | 'disconnected' | 'checking' | 'not-configured', label: string): void {
+  if (!elements) return;
+
+  elements.serverStatusDot.className = `server-status__dot server-status__dot--${state}`;
+  elements.serverStatusText.textContent = label;
+}
+
+/**
+ * Format uptime seconds into a human-readable string
+ */
+function formatUptime(seconds: number): string {
+  if (seconds < 60) return `${Math.floor(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
+}
+
+/**
+ * Setup server status refresh button listener
+ */
+function setupServerStatusListeners(): void {
+  if (!elements) return;
+
+  elements.serverStatusRefresh.addEventListener('click', async () => {
+    if (!elements) return;
+
+    // Add spin animation
+    elements.serverStatusRefresh.classList.add('server-status__refresh--spinning');
+
+    await checkServerStatus();
+
+    // Remove spin after animation completes
+    setTimeout(() => {
+      elements?.serverStatusRefresh.classList.remove('server-status__refresh--spinning');
+    }, 800);
+  });
 }
