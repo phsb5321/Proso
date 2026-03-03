@@ -100,15 +100,9 @@ describe('Pricing Model Utility', () => {
   describe('ProviderPricing', () => {
     it('has pricing for all providers', () => {
       expect(ProviderPricing.elevenlabs).toBeDefined();
-      expect(ProviderPricing.browser).toBeDefined();
       expect(ProviderPricing.openai).toBeDefined();
       expect(ProviderPricing.groq).toBeDefined();
       expect(ProviderPricing.cartesia).toBeDefined();
-    });
-
-    it('browser is free', () => {
-      expect(ProviderPricing.browser.type).toBe('free');
-      expect(ProviderPricing.browser.rate).toBe(0);
     });
 
     it('groq is free', () => {
@@ -138,7 +132,7 @@ describe('Pricing Model Utility', () => {
 
   describe('calculateCost', () => {
     it('returns 0 for free pricing', () => {
-      expect(calculateCost('hello world', ProviderPricing.browser)).toBe(0);
+      expect(calculateCost('hello world', ProviderPricing.groq)).toBe(0);
     });
 
     it('calculates per-character cost correctly', () => {
@@ -225,7 +219,6 @@ describe('Pricing Model Utility', () => {
 
   describe('getPricingSummary', () => {
     it('returns "Free" for free providers', () => {
-      expect(getPricingSummary(ProviderPricing.browser)).toBe('Free');
       expect(getPricingSummary(ProviderPricing.groq)).toBe('Free');
     });
 

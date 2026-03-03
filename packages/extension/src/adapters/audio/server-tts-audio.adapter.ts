@@ -29,7 +29,6 @@ import type { TTSProvider } from '@proso/shared';
  */
 export class ServerTtsAudioAdapter implements IAudioGenerator {
   readonly providerId = 'openai' as const; // Default; server chooses actual provider
-  readonly playbackMode = 'blob' as const;
   readonly supportsWordTiming = false; // Server proxy doesn't return word timings yet
   readonly supportedLanguages: readonly string[] = []; // All languages (server handles routing)
 

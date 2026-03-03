@@ -1088,6 +1088,18 @@ export default defineContentScript({
           break;
         }
 
+        case 'FOOTER_LANGUAGE_UPDATE': {
+          const langMsg = message as LegacyMessage & {
+            languageCode?: string;
+            isAutoDetected?: boolean;
+          };
+          stickyFooter.updateState({
+            languageCode: langMsg.languageCode ?? 'en',
+            isAutoDetected: langMsg.isAutoDetected ?? true,
+          });
+          break;
+        }
+
         case 'TOGGLE_FOOTER_SETTINGS': {
           // If footer is visible, do nothing (settings are part of the footer)
           // If footer is hidden, show it

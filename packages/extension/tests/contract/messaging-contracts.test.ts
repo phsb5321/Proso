@@ -127,7 +127,7 @@ describe('Messaging Contracts', () => {
           totalParagraphs: 0,
           progress: 0,
           speed: 1.0,
-          provider: 'browser',
+          provider: 'elevenlabs',
           voice: null,
         };
 
@@ -141,7 +141,7 @@ describe('Messaging Contracts', () => {
           totalParagraphs: 0,
           progress: 0,
           speed: 1.0,
-          provider: 'browser',
+          provider: 'elevenlabs',
           voice: null,
         };
 
@@ -323,7 +323,7 @@ describe('Messaging Contracts', () => {
 
       it('should validate minimal settings', () => {
         const settings = {
-          provider: 'browser',
+          provider: 'elevenlabs',
           voice: null,
           speed: 1.0,
           mode: 'selection',
@@ -334,7 +334,7 @@ describe('Messaging Contracts', () => {
 
       it('should reject invalid mode', () => {
         const settings = {
-          provider: 'browser',
+          provider: 'elevenlabs',
           voice: null,
           speed: 1.0,
           mode: 'invalid',
@@ -345,7 +345,7 @@ describe('Messaging Contracts', () => {
 
       it('should reject speed below minimum', () => {
         const settings = {
-          provider: 'browser',
+          provider: 'elevenlabs',
           voice: null,
           speed: 0.3, // < 0.5
           mode: 'article',

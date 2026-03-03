@@ -69,13 +69,6 @@ export interface LanguageValidationResponse {
  * Matches existing Proso providers.
  */
 const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
-  browser: {
-    name: 'Browser TTS',
-    description: 'Built-in browser text-to-speech',
-    supportsWordTiming: false,
-    requiresApiKey: false,
-    supportedLanguages: [],
-  },
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
@@ -109,7 +102,7 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
 /**
  * Providers that support all languages (empty array means all).
  */
-const _MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'browser', 'openai'];
+const _MULTILINGUAL_PROVIDERS: ProviderId[] = ['elevenlabs', 'openai'];
 
 /**
  * Register provider message handlers on the registry.
@@ -164,7 +157,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'Invalid provider. Must be one of: elevenlabs, browser, openai, groq, cartesia',
+          message: 'Invalid provider. Must be one of: elevenlabs, openai, groq, cartesia',
         });
       }
 

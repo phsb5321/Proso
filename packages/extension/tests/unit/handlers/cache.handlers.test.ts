@@ -56,7 +56,10 @@ jest.unstable_mockModule(resolve(srcDir, 'utils/cache/cost-estimator'), () => ({
     if (provider === 'elevenlabs') {
       return { pricePerKiloChar: 0.18, name: 'ElevenLabs' };
     }
-    return { pricePerKiloChar: 0, name: 'Browser' };
+    if (provider === 'openai') {
+      return { pricePerKiloChar: 0.015, name: 'OpenAI' };
+    }
+    return { pricePerKiloChar: 0, name: 'Groq' };
   }),
 }));
 
@@ -298,7 +301,7 @@ describe('Cache Handlers', () => {
     const validKey = {
       urlHash: 'abc123',
       paragraphIndex: 0,
-      provider: 'browser',
+      provider: 'elevenlabs',
       voice: '',
       contentHash: 'hash1',
     };
@@ -335,7 +338,7 @@ describe('Cache Handlers', () => {
 
       const dispatchResult = await registry.dispatch('cache.has', {
         paragraphIndex: 0,
-        provider: 'browser',
+        provider: 'elevenlabs',
         voice: '',
         contentHash: 'h',
       });
@@ -353,7 +356,7 @@ describe('Cache Handlers', () => {
       const dispatchResult = await registry.dispatch('cache.has', {
         urlHash: 'abc',
         paragraphIndex: 'not-a-number',
-        provider: 'browser',
+        provider: 'elevenlabs',
         voice: '',
         contentHash: 'h',
       });
@@ -409,7 +412,7 @@ describe('Cache Handlers', () => {
     const validKey = {
       urlHash: 'abc123',
       paragraphIndex: 2,
-      provider: 'browser',
+      provider: 'elevenlabs',
       voice: '',
       contentHash: 'hash2',
     };
@@ -584,7 +587,7 @@ describe('Cache Handlers', () => {
 
       const dispatchResult = await registry.dispatch('cache.getCachedParagraphs', {
         url: 'https://example.com/article',
-        provider: 'browser',
+        provider: 'elevenlabs',
         voice: 'default',
         totalParagraphs: 5,
       });
@@ -604,7 +607,7 @@ describe('Cache Handlers', () => {
       });
       expect(mockCacheStoreInstance.getCachedParagraphs).toHaveBeenCalledWith(
         'https://example.com',
-        'browser',
+        'elevenlabs',
         '',
       );
     });
@@ -733,7 +736,7 @@ describe('Cache Handlers', () => {
       const dispatchResult = await registry.dispatch('cost.estimate', {
         url: 'https://example.com',
         paragraphs: [],
-        provider: 'browser',
+        provider: 'elevenlabs',
       });
       const inner = (dispatchResult as { ok: true; value: Result<CostEstimateResponse, CacheHandlerError> }).value;
       expect(inner.ok).toBe(true);
@@ -799,7 +802,7 @@ describe('Cache Handlers', () => {
       }
     });
 
-    it('should default to browser provider and empty voice', async () => {
+    it('should default to elevenlabs provider and empty voice', async () => {
       mockCacheStoreInstance.getCachedParagraphs.mockReturnValue([]);
 
       const dispatchResult = await registry.dispatch('cost.estimate', {
@@ -809,9 +812,9 @@ describe('Cache Handlers', () => {
       const inner = (dispatchResult as { ok: true; value: Result<CostEstimateResponse, CacheHandlerError> }).value;
       expect(inner.ok).toBe(true);
       if (inner.ok) {
-        expect(inner.value.provider).toBe('browser');
-        expect(inner.value.pricePerKiloChar).toBe(0);
-        expect(inner.value.actualCost).toBe(0);
+        expect(inner.value.provider).toBe('elevenlabs');
+        expect(inner.value.pricePerKiloChar).toBe(0.18);
+        expect(inner.value.actualCost).toBeCloseTo((4 / 1000) * 0.18);
       }
     });
 

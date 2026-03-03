@@ -149,7 +149,7 @@ const {
 // --- Test data ---
 
 const defaultConfig = {
-  provider: 'browser' as const,
+  provider: 'elevenlabs' as const,
   cacheType: 'memory' as const,
   serverUrl: null,
   licenseKey: null,

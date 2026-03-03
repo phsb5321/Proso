@@ -69,7 +69,7 @@ describe('Migration v6: provider-consolidation', () => {
     expect(saveArg.apiKey_anthropic).toBeUndefined();
   });
 
-  it('should reset provider to "browser" if current provider was removed', async () => {
+  it('should reset provider to "elevenlabs" if current provider was removed', async () => {
     const stored = {
       _configVersion: 5,
       provider: 'groq',
@@ -78,13 +78,13 @@ describe('Migration v6: provider-consolidation', () => {
 
     const result = await migrationV6.migrate(stored, saveFn);
 
-    expect(result.provider).toBe('browser');
+    expect(result.provider).toBe('elevenlabs');
     expect(result.voice).toBeNull();
     expect(result.voiceId).toBeNull();
 
     expect(saveFn).toHaveBeenCalledTimes(1);
     const saveArg = saveFn.mock.calls[0][0] as Record<string, unknown>;
-    expect(saveArg.provider).toBe('browser');
+    expect(saveArg.provider).toBe('elevenlabs');
   });
 
   it('should reset provider for each removed provider type', async () => {
@@ -97,7 +97,7 @@ describe('Migration v6: provider-consolidation', () => {
 
       const result = await migrationV6.migrate(stored, mockSave);
 
-      expect(result.provider).toBe('browser');
+      expect(result.provider).toBe('elevenlabs');
     }
   });
 
@@ -174,8 +174,8 @@ describe('Migration v6: provider-consolidation', () => {
 
     const result = await migrationV6.migrate(stored, saveFn);
 
-    // Provider-specific fields should change
-    expect(result.provider).toBe('browser');
+    // Provider-specific fields should change (cartesia is a removed provider)
+    expect(result.provider).toBe('elevenlabs');
 
     // All other settings should be preserved
     expect(result.speed).toBe(1.5);
@@ -201,6 +201,101 @@ describe('Migration v6: provider-consolidation', () => {
 
     // No orphaned keys, provider is valid — no save needed
     expect(saveFn).not.toHaveBeenCalled();
+  });
+});
+
+describe('Migration v7: provider-browser-removal', () => {
+  const migrationV7 = migrations.find((m) => m.version === 7);
+
+  if (!migrationV7) {
+    throw new Error('Migration v7 not found — ensure it is defined in migrations.ts');
+  }
+
+  let saveFn: jest.Mock<SaveFunction>;
+
+  beforeEach(() => {
+    saveFn = createSaveMock();
+  });
+
+  it('should exist with correct metadata', () => {
+    expect(migrationV7.version).toBe(7);
+    expect(migrationV7.key).toBe('provider-browser-removal');
+    expect(migrationV7.description).toBeTruthy();
+  });
+
+  it('should migrate provider from "browser" to "elevenlabs"', async () => {
+    const stored = {
+      _configVersion: 6,
+      provider: 'browser',
+      voice: 'en-voice',
+    };
+
+    const result = await migrationV7.migrate(stored, saveFn);
+
+    expect(result.provider).toBe('elevenlabs');
+    expect(result.voice).toBeNull();
+    expect(result.voiceId).toBeNull();
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+    const saveArg = saveFn.mock.calls[0][0] as Record<string, unknown>;
+    expect(saveArg.provider).toBe('elevenlabs');
+    expect(saveArg.voice).toBeNull();
+    expect(saveArg.voiceId).toBeNull();
+  });
+
+  it('should not modify provider if already "elevenlabs"', async () => {
+    const stored = {
+      _configVersion: 6,
+      provider: 'elevenlabs',
+      voice: 'rachel',
+    };
+
+    const result = await migrationV7.migrate(stored, saveFn);
+
+    expect(result.provider).toBe('elevenlabs');
+    expect(result.voice).toBe('rachel');
+    expect(saveFn).not.toHaveBeenCalled();
+  });
+
+  it('should preserve all other settings during migration', async () => {
+    const stored = {
+      _configVersion: 6,
+      provider: 'browser',
+      voice: 'en-voice',
+      speed: 1.5,
+      mode: 'article',
+      cacheEnabled: true,
+      maxCacheSize: 100,
+      wordSyncEnabled: true,
+      themeMode: 'dark',
+    };
+
+    const result = await migrationV7.migrate(stored, saveFn);
+
+    expect(result.provider).toBe('elevenlabs');
+    expect(result.speed).toBe(1.5);
+    expect(result.mode).toBe('article');
+    expect(result.cacheEnabled).toBe(true);
+    expect(result.maxCacheSize).toBe(100);
+    expect(result.wordSyncEnabled).toBe(true);
+    expect(result.themeMode).toBe('dark');
+  });
+
+  it('should be idempotent — running twice produces same result', async () => {
+    const stored = {
+      _configVersion: 6,
+      provider: 'browser',
+      voice: 'en-voice',
+    };
+
+    const firstResult = await migrationV7.migrate(stored, saveFn);
+
+    const secondSave = createSaveMock();
+    const secondResult = await migrationV7.migrate(firstResult, secondSave);
+
+    expect(secondResult.provider).toBe(firstResult.provider);
+    // Second run should not need to save (provider is already 'elevenlabs')
+    expect(secondSave).not.toHaveBeenCalled();
   });
 });
 
@@ -233,12 +328,12 @@ describe('applyMigrations()', () => {
 
     await applyMigrations(stored, saveFn);
 
-    // Only migration v6 should run (not v2, v3, v5)
+    // Only migrations v6 and v7 should run (not v2, v3, v5)
     // save should be called for version update at minimum
     const saveCalls = saveFn.mock.calls;
-    // Check that the version is updated to 6
+    // Check that the version is updated to 7
     const versionUpdate = saveCalls.find(
-      (call) => (call[0] as Record<string, unknown>)._configVersion === 6,
+      (call) => (call[0] as Record<string, unknown>)._configVersion === 7,
     );
     expect(versionUpdate).toBeTruthy();
   });
@@ -272,8 +367,8 @@ describe('applyMigrations()', () => {
 });
 
 describe('CURRENT_CONFIG_VERSION', () => {
-  it('should be 6', () => {
-    expect(CURRENT_CONFIG_VERSION).toBe(6);
+  it('should be 7', () => {
+    expect(CURRENT_CONFIG_VERSION).toBe(7);
   });
 
   it('should match the highest migration version', () => {
@@ -293,9 +388,9 @@ describe('getPendingMigrationCount()', () => {
     expect(count).toBe(migrations.length);
   });
 
-  it('should return 1 when at version 5 (only v6 pending)', () => {
+  it('should return 2 when at version 5 (v6 and v7 pending)', () => {
     const count = getPendingMigrationCount({ _configVersion: 5 });
-    expect(count).toBe(1);
+    expect(count).toBe(2);
   });
 
   it('should return all migrations for missing version', () => {

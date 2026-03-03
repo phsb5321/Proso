@@ -47,10 +47,6 @@ export class PlaybackService {
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
 
-  // Direct playback tracking (Browser TTS via speechSynthesis)
-  private directPlaybackTimer: ReturnType<typeof setInterval> | null = null;
-  private isDirectPlayback = false;
-
   // Detected page language (set externally via setLanguage)
   private detectedLanguage: string | null = null;
 
@@ -123,13 +119,7 @@ export class PlaybackService {
       return Err(playbackError.playbackFailed('Cannot pause: not playing'));
     }
 
-    if (this.isDirectPlayback) {
-      // Browser TTS: pause via speechSynthesis
-      try { speechSynthesis.pause(); } catch { /* ignore if unavailable */ }
-      this.stopDirectPlaybackTimer();
-    } else {
-      this.audioElement?.pause();
-    }
+    this.audioElement?.pause();
 
     this.state = playbackStateTransitions.pause(this.state);
 
@@ -147,14 +137,7 @@ export class PlaybackService {
       return Err(playbackError.playbackFailed('Cannot resume: not paused'));
     }
 
-    if (this.isDirectPlayback) {
-      // Browser TTS: resume via speechSynthesis
-      try { speechSynthesis.resume(); } catch { /* ignore if unavailable */ }
-      // Re-start progress timer (approximate remaining time)
-      // We don't know exact remaining time, so we won't restart the timer here
-    } else {
-      this.audioElement?.play();
-    }
+    this.audioElement?.play();
 
     this.state = playbackStateTransitions.resume(this.state);
 
@@ -168,14 +151,7 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
-    // Stop direct playback (Browser TTS)
-    if (this.isDirectPlayback) {
-      try { speechSynthesis.cancel(); } catch { /* ignore if unavailable */ }
-      this.stopDirectPlaybackTimer();
-      this.isDirectPlayback = false;
-    }
-
-    // Stop audio element playback (ElevenLabs)
+    // Stop audio element playback
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.src = '';
@@ -357,7 +333,6 @@ export class PlaybackService {
    */
   dispose(): void {
     this.unsubscribeFromSettings();
-    this.stopDirectPlaybackTimer();
     this.stop();
     this.audioElement = null;
   }
@@ -413,32 +388,22 @@ export class PlaybackService {
 
       audioResponse = generateResult.value;
 
-      // T029: Skip caching for direct playback (Browser TTS) — 0-byte blobs are useless
-      if (!audioResponse.playedDirectly) {
-        const cacheEntry: CacheEntry = {
-          audioBlob: audioResponse.audioBlob,
-          durationMs: audioResponse.durationMs,
-          wordTimings: audioResponse.wordTimings,
-          createdAt: Date.now(),
-          lastAccessedAt: Date.now(),
-          accessCount: 1,
-          sizeBytes: audioResponse.audioBlob.size,
-        };
+      // Cache the generated audio
+      const cacheEntry: CacheEntry = {
+        audioBlob: audioResponse.audioBlob,
+        durationMs: audioResponse.durationMs,
+        wordTimings: audioResponse.wordTimings,
+        createdAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        accessCount: 1,
+        sizeBytes: audioResponse.audioBlob.size,
+      };
 
-        await this.deps.cacheStore.set(cacheKey, cacheEntry);
-      }
+      await this.deps.cacheStore.set(cacheKey, cacheEntry);
     }
 
-    // Play the audio
-    if (audioResponse.playedDirectly) {
-      // Direct playback (Browser TTS) — audio already played by the adapter
-      this.isDirectPlayback = true;
-      this.trackDirectPlayback(audioResponse.durationMs, audioResponse.onEndPromise);
-    } else {
-      // Blob playback (ElevenLabs) — play via HTMLAudioElement
-      this.isDirectPlayback = false;
-      await this.playAudio(audioResponse.audioBlob);
-    }
+    // Play the audio via HTMLAudioElement
+    await this.playAudio(audioResponse.audioBlob);
 
     // Update state to playing
     this.state = playbackStateTransitions.startPlaying(this.state);
@@ -453,63 +418,6 @@ export class PlaybackService {
     await this.updateFooterState();
 
     return Ok(this.state);
-  }
-
-  /**
-   * Track progress for direct playback (Browser TTS via speechSynthesis).
-   * T028: Timer only drives progress bar; actual paragraph advancement
-   * uses onEndPromise from the speech synthesis adapter.
-   */
-  private trackDirectPlayback(durationMs: number, onEndPromise?: Promise<void>): void {
-    this.stopDirectPlaybackTimer();
-
-    const startTime = Date.now();
-    const updateInterval = 250; // Update 4x/second
-
-    // Progress timer — only updates the progress bar, does NOT advance paragraphs
-    this.directPlaybackTimer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(1, elapsed / durationMs);
-
-      this.state = playbackStateTransitions.updateProgress(this.state, progress);
-      this.updateFooterState();
-    }, updateInterval);
-
-    // Paragraph advancement — wait for actual speech completion
-    if (onEndPromise) {
-      onEndPromise.then(() => {
-        this.stopDirectPlaybackTimer();
-        this.isDirectPlayback = false;
-        this.next();
-      }).catch(() => {
-        // Speech synthesis error — stop playback
-        this.stopDirectPlaybackTimer();
-        this.isDirectPlayback = false;
-      });
-    } else {
-      // Fallback: no onEndPromise — use timer-based advancement (legacy behavior)
-      const fallbackTimer = setTimeout(() => {
-        this.stopDirectPlaybackTimer();
-        this.isDirectPlayback = false;
-        this.next();
-      }, durationMs);
-      // Store reference so it can be cleaned up on stop
-      const originalStop = this.stopDirectPlaybackTimer.bind(this);
-      this.stopDirectPlaybackTimer = () => {
-        originalStop();
-        clearTimeout(fallbackTimer);
-      };
-    }
-  }
-
-  /**
-   * Stop the direct playback progress timer.
-   */
-  private stopDirectPlaybackTimer(): void {
-    if (this.directPlaybackTimer) {
-      clearInterval(this.directPlaybackTimer);
-      this.directPlaybackTimer = null;
-    }
   }
 
   /**

@@ -126,6 +126,21 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
         totalTime: state.totalTime,
         speed: state.speed,
       });
+
+      // Broadcast to popup for bidirectional sync (popup may not be open)
+      browser.runtime.sendMessage({
+        type: 'playbackStateUpdate',
+        state: {
+          status: state.status,
+          currentParagraph: state.currentIndex,
+          totalParagraphs: state.totalParagraphs,
+          progress: Math.round(state.progress * 100),
+          speed: state.speed,
+        },
+      }).catch(() => {
+        // Popup not open — ignore
+      });
+
       return Ok(undefined);
     } catch (error) {
       return Err(this.toHighlightError(tabId, error));
