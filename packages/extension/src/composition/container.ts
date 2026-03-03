@@ -49,6 +49,9 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   let audioGenerator: ContainerAdapters['audioGenerator'];
   try {
     audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
+    console.log('[Container] Audio generator:', audioGenerator.constructor.name,
+      'apiClient configured:', apiClient.isConfigured,
+      'serverUrl:', config.serverUrl);
   } catch (error) {
     console.warn('[Container] Audio generator failed, using no-op fallback:', error);
     audioGenerator = new NoOpAudioGeneratorAdapter(
