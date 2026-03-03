@@ -17,7 +17,7 @@ import { defaults } from './defaults';
  * Current configuration version
  * Increment when adding new migrations
  */
-export const CURRENT_CONFIG_VERSION = 7;
+export const CURRENT_CONFIG_VERSION = 8;
 
 /**
  * Storage object with migration flags
@@ -33,6 +33,7 @@ interface StoredSettings extends Record<string, unknown> {
   themeMode?: string;
   highlightEnabled?: boolean;
   autoScroll?: boolean;
+  serverUrl?: string | null;
 }
 
 /**
@@ -215,6 +216,25 @@ export const migrations: Migration[] = [
         };
         await save(updates);
         console.log('Proso: Migrated from browser TTS to ElevenLabs');
+        return { ...stored, ...updates };
+      }
+      return stored;
+    },
+  },
+  {
+    version: 8,
+    key: 'serverUrl',
+    description: 'Set default server URL for existing installs (071-settings-api-keys)',
+    /**
+     * All TTS now routes through the Proso server. Existing installs
+     * have serverUrl=null which breaks audio generation. Set the
+     * production server URL for any install that hasn't configured one.
+     */
+    migrate: async (stored, save) => {
+      if (!stored.serverUrl) {
+        const updates = { serverUrl: defaults.serverUrl };
+        await save(updates);
+        console.log('Proso: Set default server URL:', defaults.serverUrl);
         return { ...stored, ...updates };
       }
       return stored;
