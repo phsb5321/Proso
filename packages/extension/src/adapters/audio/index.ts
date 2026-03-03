@@ -9,8 +9,8 @@
  */
 
 // TTS Generator Adapters (IAudioGenerator)
-export { BrowserTtsAudioAdapter } from './browser-tts-audio.adapter';
 export { ServerTtsAudioAdapter } from './server-tts-audio.adapter';
+export { NoOpAudioGeneratorAdapter } from './noop-audio-generator.adapter';
 export { AudioUrlAdapter } from './audio-url.adapter';
 
 // Playback Adapters (IAudioPlayer)
