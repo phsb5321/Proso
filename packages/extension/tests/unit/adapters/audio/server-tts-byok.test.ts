@@ -161,10 +161,10 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
     expect(result.error.type).toBe('network');
   });
 
-  it('maps not_configured error to network error', async () => {
+  it('maps not_configured error to provider_error with original message', async () => {
     const failClient = createMockApiClient({
       synthesize: jest.fn<IApiClient['synthesize']>().mockResolvedValue(
-        Err({ type: 'not_configured', message: 'Server not configured' }),
+        Err({ type: 'not_configured', message: 'API key required' }),
       ),
     });
     const adapter = new ServerTtsAudioAdapter(failClient, TTSProvider.OpenAI);
@@ -173,7 +173,8 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.type).toBe('network');
+    expect(result.error.type).toBe('provider_error');
+    expect((result.error as { message: string }).message).toBe('API key required');
   });
 
   // ── validateCredentials ──
