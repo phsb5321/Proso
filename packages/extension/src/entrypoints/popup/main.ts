@@ -55,9 +55,6 @@ const elements = {
   speedSlider: document.getElementById('speed-slider') as HTMLInputElement,
   speedValue: document.getElementById('speed-value') as HTMLSpanElement,
 
-  // Provider
-  providerSelect: document.getElementById('provider-select') as HTMLSelectElement,
-
   // Summarize
   summarizeBtn: document.getElementById('summarize-btn') as HTMLButtonElement,
   summarizeBtnText: document.getElementById('summarize-btn-text') as HTMLSpanElement,
@@ -135,7 +132,7 @@ let currentState: PlaybackState = {
   totalParagraphs: 0,
   progress: 0,
   speed: 1.0,
-  provider: 'browser',
+  provider: 'elevenlabs',
 };
 
 // Export state
@@ -238,13 +235,6 @@ function updateSpeed(speed: number): void {
   elements.speedValue.textContent = `${speed.toFixed(1)}x`;
 }
 
-/**
- * Update provider selection
- */
-function updateProvider(provider: string): void {
-  elements.providerSelect.value = provider;
-}
-
 // ============================================
 // Tab Navigation Functions
 // ============================================
@@ -344,8 +334,9 @@ function applyState(state: PlaybackState): void {
   updatePlayPauseButton(state.status === 'playing');
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
   updateProgress(state.progress);
-  updateSpeed(state.speed);
-  updateProvider(state.provider);
+  if (typeof state.speed === 'number') {
+    updateSpeed(state.speed);
+  }
 }
 
 // ============================================
@@ -403,7 +394,6 @@ async function fetchSettings(): Promise<void> {
       currentState.speed = result.speed;
     }
     if (typeof result.provider === 'string') {
-      updateProvider(result.provider);
       currentState.provider = result.provider;
     }
   } catch (error) {
@@ -516,41 +506,6 @@ async function handleSpeedChange(event: Event): Promise<void> {
     await sendMessage('playback.setSpeed', { speed });
   } catch (error) {
     console.error('[Popup] Speed change error:', error);
-  }
-}
-
-/**
- * Handle provider selection change
- */
-async function handleProviderChange(event: Event): Promise<void> {
-  const target = event.target as HTMLSelectElement;
-  const provider = target.value;
-
-  currentState.provider = provider;
-
-  // Track provider change
-  usageTracker.track('settings.provider_changed', {
-    provider,
-    source: 'popup',
-  });
-
-  try {
-    await browser.storage.local.set({ provider });
-    await sendMessage('settings.update', { provider });
-    await sendMessage('provider.select', { providerId: provider });
-
-    // FR-009: Warn about language-limited providers on non-English pages
-    if (provider === 'groq' || provider === 'cartesia') {
-      const langResponse = await sendMessage<{ effective?: string }>('language.getState');
-      const lang = langResponse?.effective;
-      if (lang && !lang.startsWith('en')) {
-        elements.statusText.textContent = `${provider === 'groq' ? 'Groq' : 'Cartesia'}: English only`;
-        elements.statusText.title =
-          'This provider only supports English. Consider switching to Browser, ElevenLabs, or OpenAI for other languages.';
-      }
-    }
-  } catch (error) {
-    console.error('[Popup] Provider change error:', error);
   }
 }
 
@@ -1281,7 +1236,9 @@ async function fetchCreditBalance(): Promise<void> {
 function setupMessageListener(): void {
   browser.runtime.onMessage.addListener((message) => {
     if (message.type === 'playbackStateUpdate' && message.state) {
-      applyState(message.state as PlaybackState);
+      // Merge broadcast state with current state (broadcast may not include all fields)
+      const merged: PlaybackState = { ...currentState, ...message.state };
+      applyState(merged);
     }
     // Handle queue updates from cross-tab sync
     if (message.type === 'queue.updated') {
@@ -1307,9 +1264,6 @@ function setupEventListeners(): void {
 
   // Speed control
   elements.speedSlider.addEventListener('input', handleSpeedChange);
-
-  // Provider selection
-  elements.providerSelect.addEventListener('change', handleProviderChange);
 
   // Progress seek
   elements.progressSeek.addEventListener('input', handleProgressSeek);
