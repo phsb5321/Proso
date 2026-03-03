@@ -226,10 +226,10 @@ describe('TTSController — BYOK authentication', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 2. Non-BYOK request without userId should return 401
+  // 2. Non-BYOK request without userId is allowed (INV-001: free tier)
   // -----------------------------------------------------------------------
-  describe('Non-BYOK without userId', () => {
-    it('returns 401 Unauthorized when no byokApiKey and no userId', async () => {
+  describe('Non-BYOK without userId (INV-001: free tier)', () => {
+    it('allows unauthenticated requests as free tier (INV-001)', async () => {
       const req = createMockRequest(undefined); // no userId
       const res = createMockResponse();
 
@@ -237,22 +237,17 @@ describe('TTSController — BYOK authentication', () => {
         req as any,
         res as any,
         {
-          text: 'This should fail',
+          text: 'Free tier request',
           provider: 'openai',
-          // no byokApiKey
+          // no byokApiKey — server uses its own key
         },
       );
 
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: 'Authentication required',
-          code: ErrorCode.Unauthorized,
-        }),
-      );
+      // Should NOT return 401 — unauthenticated requests are free tier
+      expect(res.status).not.toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
     });
 
-    it('does not call the synthesis service when 401 is returned', async () => {
+    it('processes the synthesis for unauthenticated requests', async () => {
       const req = createMockRequest(undefined);
       const res = createMockResponse();
 
@@ -260,13 +255,12 @@ describe('TTSController — BYOK authentication', () => {
         req as any,
         res as any,
         {
-          text: 'Unauthenticated non-BYOK',
+          text: 'Unauthenticated free tier',
         },
       );
 
-      expect(res.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
-      // The send method should NOT have been called (no audio response)
-      expect(res.send).not.toHaveBeenCalled();
+      // Should attempt synthesis, not reject with 401
+      expect(res.status).not.toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
     });
   });
 

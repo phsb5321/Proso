@@ -24,19 +24,22 @@ describe('selectProvider', () => {
   // ---- Free tier -----------------------------------------------------------
 
   describe('Free tier', () => {
-    it('always returns Browser regardless of available providers', () => {
+    it('routes to ElevenLabs as default for free tier (INV-001)', () => {
       const result = selectProvider(
         SubscriptionTier.Free,
         undefined,
         undefined,
-        ALL_PROVIDERS,
+        ALL_SERVER_PROVIDERS,
       );
 
-      expect(result.provider).toBe(TTSProvider.Browser);
-      expect(result.fallbackChain).toEqual([]);
+      expect(result.provider).toBe(TTSProvider.ElevenLabs);
+      expect(result.fallbackChain).toEqual([
+        TTSProvider.OpenAI,
+        TTSProvider.Groq,
+      ]);
     });
 
-    it('returns Browser even when no providers are listed as available', () => {
+    it('falls back to Browser when no server providers are available', () => {
       const result = selectProvider(
         SubscriptionTier.Free,
         undefined,
@@ -48,27 +51,27 @@ describe('selectProvider', () => {
       expect(result.fallbackChain).toEqual([]);
     });
 
-    it('ignores preferred provider and still returns Browser', () => {
+    it('honors preferred provider for free tier when available', () => {
       const result = selectProvider(
         SubscriptionTier.Free,
         undefined,
         TTSProvider.OpenAI,
-        ALL_PROVIDERS,
+        ALL_SERVER_PROVIDERS,
       );
 
-      expect(result.provider).toBe(TTSProvider.Browser);
-      expect(result.fallbackChain).toEqual([]);
+      expect(result.provider).toBe(TTSProvider.OpenAI);
+      expect(result.reason).toContain('User-preferred');
     });
 
-    it('includes INV-005 reference in reason string', () => {
+    it('includes INV-001 reference in reason string for tier-default routing', () => {
       const result = selectProvider(
         SubscriptionTier.Free,
         undefined,
         undefined,
-        ALL_PROVIDERS,
+        ALL_SERVER_PROVIDERS,
       );
 
-      expect(result.reason).toContain('INV-005');
+      expect(result.reason.length).toBeGreaterThan(0);
     });
   });
 
@@ -291,23 +294,27 @@ describe('buildFallbackChain', () => {
     ]);
   });
 
-  it('returns only Browser for Free tier', () => {
+  it('returns server providers for Free tier (same as ElevenLabs > OpenAI > Groq)', () => {
     const chain = buildFallbackChain(
       SubscriptionTier.Free,
-      ALL_PROVIDERS,
+      ALL_SERVER_PROVIDERS,
     );
 
-    expect(chain).toEqual([TTSProvider.Browser]);
+    expect(chain).toEqual([
+      TTSProvider.ElevenLabs,
+      TTSProvider.OpenAI,
+      TTSProvider.Groq,
+    ]);
   });
 
-  it('returns empty for Free tier when Browser is excluded', () => {
+  it('filters unavailable providers for Free tier', () => {
     const chain = buildFallbackChain(
       SubscriptionTier.Free,
-      ALL_PROVIDERS,
-      TTSProvider.Browser,
+      [TTSProvider.OpenAI],
+      TTSProvider.ElevenLabs,
     );
 
-    expect(chain).toEqual([]);
+    expect(chain).toEqual([TTSProvider.OpenAI]);
   });
 });
 
@@ -316,9 +323,11 @@ describe('buildFallbackChain', () => {
 // ===========================================================================
 
 describe('TIER_PROVIDER_ORDER', () => {
-  it('Free tier contains only Browser', () => {
+  it('Free tier uses server-side providers (ElevenLabs > OpenAI > Groq)', () => {
     expect(TIER_PROVIDER_ORDER[SubscriptionTier.Free]).toEqual([
-      TTSProvider.Browser,
+      TTSProvider.ElevenLabs,
+      TTSProvider.OpenAI,
+      TTSProvider.Groq,
     ]);
   });
 

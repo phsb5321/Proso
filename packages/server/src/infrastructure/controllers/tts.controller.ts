@@ -67,17 +67,11 @@ export class TTSController {
     @Body() body: SynthesizeBody,
   ): Promise<void> {
     // --- Authentication ---
-    // BYOK requests (with byokApiKey) are allowed without strict authentication (INV-002)
+    // INV-001: Free tier never requires account creation.
+    // Unauthenticated requests are allowed and treated as free tier
+    // (server uses its own API keys). BYOK requests forward the user's key.
     const userId = (req as Request & { userId?: string }).userId;
     const isByok = !!body.byokApiKey;
-
-    if (!userId && !isByok) {
-      res.status(HttpStatus.UNAUTHORIZED).json({
-        error: 'Authentication required',
-        code: ErrorCode.Unauthorized,
-      });
-      return;
-    }
 
     // --- Input validation ---
     if (!body.text || typeof body.text !== 'string' || body.text.trim().length === 0) {
