@@ -377,22 +377,17 @@ describe('TTSService.synthesize', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 8. Browser TTS rejected (INV-005)
+  // 8. Free tier uses server-side providers (INV-001)
   // -----------------------------------------------------------------------
-  describe('Browser TTS rejected (INV-005: browser TTS is client-side only)', () => {
-    it('returns TTSError when Free tier routes to Browser provider', async () => {
-      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
-      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
-
-      // Free tier routes to Browser, which cannot be synthesized server-side
+  describe('Free tier uses server-side providers (INV-001)', () => {
+    it('synthesizes successfully for free tier without credit deduction', async () => {
+      // Free tier now routes to server-side providers and skips credit deduction
       const request = makeDefaultRequest({ tier: SubscriptionTier.Free });
       const result = await synthesize(request, deps);
 
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
-      expect(result.error.code).toBe(ErrorCode.AllProvidersUnavailable);
-      expect(result.error.message).toContain('Browser TTS');
-      expect(result.error.message).toContain('client-side');
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.creditsUsed).toBe(0);
     });
   });
 
