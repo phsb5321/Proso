@@ -159,26 +159,29 @@ export async function synthesize(
     });
   }
 
-  // Step 3-4: Calculate credit cost
-  const creditCost = calculateCreditCost(
-    request.text.length,
-    resolvedProvider as Exclude<TTSProvider, TTSProvider.Browser>,
-  );
+  // Step 3-4: Calculate credit cost and deduct (skip for free tier — INV-001)
+  let creditCost = 0;
+  if (request.tier !== SubscriptionTier.Free) {
+    creditCost = calculateCreditCost(
+      request.text.length,
+      resolvedProvider as Exclude<TTSProvider, TTSProvider.Browser>,
+    );
 
-  // Step 5: Deduct credits BEFORE synthesis (fail fast)
-  const deductionResult = await deductCredits(
-    request.userId,
-    creditCost,
-    {
-      provider: resolvedProvider,
-      characterCount: request.text.length,
-      description: `TTS synthesis via ${resolvedProvider}`,
-    },
-    { creditRepository: deps.creditRepository },
-  );
+    // Step 5: Deduct credits BEFORE synthesis (fail fast)
+    const deductionResult = await deductCredits(
+      request.userId,
+      creditCost,
+      {
+        provider: resolvedProvider,
+        characterCount: request.text.length,
+        description: `TTS synthesis via ${resolvedProvider}`,
+      },
+      { creditRepository: deps.creditRepository },
+    );
 
-  if (isErr(deductionResult)) {
-    return deductionResult;
+    if (isErr(deductionResult)) {
+      return deductionResult;
+    }
   }
 
   // Step 6: Attempt synthesis with primary provider

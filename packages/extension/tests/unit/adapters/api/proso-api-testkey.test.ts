@@ -200,17 +200,16 @@ describe('ProsoApiAdapter.synthesize — BYOK without license key', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('still rejects synthesize without both license key and byokApiKey', async () => {
+  it('sends synthesize request to server even without license key or byokApiKey (INV-001)', async () => {
+    mockFetch.mockResolvedValueOnce(blobResponse());
+
     const result = await adapter.synthesize({
       text: 'Hello world',
     });
 
-    expect(isErr(result)).toBe(true);
-    if (isErr(result)) {
-      expect(result.error.type).toBe('not_configured');
-    }
-    // fetch should not have been called
-    expect(mockFetch).not.toHaveBeenCalled();
+    // Request should go through — server uses its own API keys for free tier
+    expect(isOk(result)).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('sends byokApiKey in the request body', async () => {

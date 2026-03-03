@@ -2,7 +2,7 @@
 // ZERO NestJS imports — pure TypeScript business logic
 //
 // Routing strategy:
-//   Free tier → Browser only (INV-005: Browser TTS always unlimited)
+//   Free tier → server-side providers (ElevenLabs > OpenAI > Groq) — INV-001
 //   Pro tier → cost-efficient first (Groq > OpenAI > ElevenLabs)
 //   Enterprise tier → premium quality first (ElevenLabs > OpenAI > Groq)
 
@@ -35,14 +35,8 @@ export function selectProvider(
   preferredProvider: TTSProvider | undefined,
   availableProviders: TTSProvider[],
 ): RoutingDecision {
-  // Free tier: Browser only (INV-005)
-  if (tier === SubscriptionTier.Free) {
-    return {
-      provider: TTSProvider.Browser,
-      fallbackChain: [],
-      reason: 'Free tier routes to browser-only TTS (INV-005)',
-    };
-  }
+  // Free tier: use server-side providers (Browser TTS removed)
+  // INV-001: Free tier never requires account creation — server uses its own API keys.
 
   // If user has a preferred provider and it is available, use it
   if (preferredProvider && availableProviders.includes(preferredProvider)) {
