@@ -78,7 +78,7 @@ async function loadAppConfig(): Promise<AppConfig> {
   return {
     provider: (stored.provider as AppConfig['provider']) || 'elevenlabs',
     cacheType: (stored.cacheType as 'indexeddb' | 'memory') || 'indexeddb',
-    serverUrl: (stored.serverUrl as string) || null,
+    serverUrl: (stored.serverUrl as string) || 'https://api.proso.com.br',
     licenseKey: (stored.licenseKey as string) || null,
   };
 }
