@@ -55,7 +55,7 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
         case 'timeout':
           return Err(audioError.network(`Server request timed out (${error.timeoutMs}ms)`));
         case 'not_configured':
-          return Err(audioError.network('Server not configured'));
+          return Err(audioError.providerError('not_configured', error.message));
         default:
           return Err(
             audioError.network('message' in error ? error.message : 'Server request failed'),

@@ -102,7 +102,9 @@ export class ProsoApiAdapter implements IApiClient {
   ): Promise<Result<SynthesizeResponse, ApiClientError>> {
     // BYOK requests can proceed without a license key (INV-002)
     if (!this.licenseKey && !request.byokApiKey) {
-      return Err(apiClientError.notConfigured('No license key configured'));
+      return Err(apiClientError.notConfigured(
+        'API key required. Add your API key in Settings \u2192 Developer \u2192 API Keys.',
+      ));
     }
     return this.requestBinary('/api/v1/tts/synthesize', request);
   }
