@@ -434,8 +434,16 @@ async function handlePlayPause(): Promise<void> {
       trackClick('playback.play_clicked');
       console.log('[Popup] Starting web page playback');
       usageTracker.track('popup.web_playback_starting');
-      await sendMessage('playback.start');
       updateStatus('loading');
+      const result = await sendMessage<Record<string, unknown>>('playback.start');
+
+      // If playback.start returned an error, reset to stopped
+      if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
+        const errorMsg = String(result.error || 'Playback failed');
+        console.warn('[Popup] Playback start failed:', errorMsg);
+        updateStatus('stopped');
+        elements.statusText.textContent = 'Error: ' + errorMsg;
+      }
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -444,6 +452,7 @@ async function handlePlayPause(): Promise<void> {
       stack: error instanceof Error ? error.stack : undefined,
     });
     console.error('[Popup] Play/pause error:', error);
+    updateStatus('stopped');
   }
 }
 

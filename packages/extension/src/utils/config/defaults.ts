@@ -40,7 +40,7 @@ export const defaults: Readonly<Settings> = Object.freeze({
   maxCacheSizeMb: 500,
   telemetryEnabled: false,
   // 064-monorepo-nestjs-dokku
-  serverUrl: null,
+  serverUrl: 'https://api.proso.com.br',
   licenseKey: null,
 });
 

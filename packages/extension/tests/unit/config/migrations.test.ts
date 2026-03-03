@@ -331,9 +331,9 @@ describe('applyMigrations()', () => {
     // Only migrations v6 and v7 should run (not v2, v3, v5)
     // save should be called for version update at minimum
     const saveCalls = saveFn.mock.calls;
-    // Check that the version is updated to 7
+    // Check that the version is updated to 8
     const versionUpdate = saveCalls.find(
-      (call) => (call[0] as Record<string, unknown>)._configVersion === 7,
+      (call) => (call[0] as Record<string, unknown>)._configVersion === 8,
     );
     expect(versionUpdate).toBeTruthy();
   });
@@ -367,8 +367,8 @@ describe('applyMigrations()', () => {
 });
 
 describe('CURRENT_CONFIG_VERSION', () => {
-  it('should be 7', () => {
-    expect(CURRENT_CONFIG_VERSION).toBe(7);
+  it('should be 8', () => {
+    expect(CURRENT_CONFIG_VERSION).toBe(8);
   });
 
   it('should match the highest migration version', () => {
@@ -388,9 +388,9 @@ describe('getPendingMigrationCount()', () => {
     expect(count).toBe(migrations.length);
   });
 
-  it('should return 2 when at version 5 (v6 and v7 pending)', () => {
+  it('should return 3 when at version 5 (v6, v7, and v8 pending)', () => {
     const count = getPendingMigrationCount({ _configVersion: 5 });
-    expect(count).toBe(2);
+    expect(count).toBe(3);
   });
 
   it('should return all migrations for missing version', () => {
