@@ -378,9 +378,11 @@ export class PlaybackService {
         language: this.detectedLanguage,
       };
 
+      console.log('[PlaybackService] Generating audio with:', this.audioGenerator.constructor.name);
       const generateResult = await this.audioGenerator.generateAudio(request);
 
       if (isErr(generateResult)) {
+        console.error('[PlaybackService] Audio generation failed:', generateResult.error);
         const error = this.convertAudioError(generateResult.error);
         this.state = playbackStateTransitions.setError(this.state, error);
         return Err(error);
@@ -501,10 +503,15 @@ export class PlaybackService {
     switch (error.type) {
       case 'invalid_credentials':
         return playbackError.providerUnavailable(this.state.provider);
+      case 'provider_error':
+        return playbackError.audioGeneration(
+          this.state.provider,
+          error.message || `Provider error: ${error.code}`,
+        );
       default:
         return playbackError.audioGeneration(
           this.state.provider,
-          error.type === 'network' ? error.message : `Provider error: ${error.type}`,
+          'message' in error ? error.message : `Audio error: ${error.type}`,
         );
     }
   }
