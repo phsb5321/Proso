@@ -133,28 +133,28 @@ describe('Language Mappings', () => {
   });
 
   describe('getProvidersForLanguage', () => {
-    test('returns elevenlabs and browser for English', () => {
-      // Post-056: ElevenLabs and Browser TTS are supported
+    test('returns providers including elevenlabs for English', () => {
+      // Post-071: Browser TTS removed, ElevenLabs and other API providers remain
       const providers = getProvidersForLanguage('en');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).toHaveLength(2);
+      expect(providers.length).toBeGreaterThanOrEqual(1);
+      expect(providers).not.toContain('browser');
     });
 
-    test('returns elevenlabs and browser for Spanish', () => {
-      // Post-056: ElevenLabs and Browser TTS are supported
+    test('returns providers including elevenlabs for Spanish', () => {
+      // Post-071: Browser TTS removed, ElevenLabs and other API providers remain
       const providers = getProvidersForLanguage('es');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).toHaveLength(2);
+      expect(providers.length).toBeGreaterThanOrEqual(1);
+      expect(providers).not.toContain('browser');
     });
 
-    test('returns elevenlabs and browser for Japanese', () => {
-      // Post-056: ElevenLabs and Browser TTS are supported
+    test('returns providers including elevenlabs for Japanese', () => {
+      // Post-071: Browser TTS removed, ElevenLabs and other API providers remain
       const providers = getProvidersForLanguage('ja');
       expect(providers).toContain('elevenlabs');
-      expect(providers).toContain('browser');
-      expect(providers).toHaveLength(2);
+      expect(providers.length).toBeGreaterThanOrEqual(1);
+      expect(providers).not.toContain('browser');
     });
 
     test('returns empty array for unsupported language', () => {

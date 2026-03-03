@@ -80,7 +80,7 @@ describe('Provider Handlers', () => {
     registry = new HandlerRegistry();
     mockIsContainerInitialized.mockReturnValue(true);
     mockGetContainer.mockReturnValue({
-      config: { provider: 'browser' as const, cacheType: 'indexeddb' as const },
+      config: { provider: 'elevenlabs' as const, cacheType: 'indexeddb' as const },
     });
     registerProviderHandlers(registry);
   });
@@ -117,7 +117,7 @@ describe('Provider Handlers', () => {
   // provider.getList
   // -------------------------------------------------------------------------
   describe('provider.getList', () => {
-    it('should return list of providers with browser and elevenlabs', async () => {
+    it('should return list of providers with elevenlabs, openai, groq, cartesia', async () => {
       const result = await dispatchHandler<ProviderListResponse>(
         registry,
         'provider.getList',
@@ -127,23 +127,15 @@ describe('Provider Handlers', () => {
       if (!isOk(result)) return;
 
       const { providers, currentProvider } = result.value;
-      expect(currentProvider).toBe('browser');
-      expect(providers).toHaveLength(5);
+      expect(currentProvider).toBe('elevenlabs');
+      expect(providers).toHaveLength(4);
 
       const ids = providers.map((p) => p.id);
-      expect(ids).toContain('browser');
       expect(ids).toContain('elevenlabs');
       expect(ids).toContain('openai');
       expect(ids).toContain('groq');
       expect(ids).toContain('cartesia');
-
-      const browserProvider = providers.find((p) => p.id === 'browser');
-      expect(browserProvider).toMatchObject({
-        id: 'browser',
-        name: 'Browser TTS',
-        supportsWordTiming: false,
-        requiresApiKey: false,
-      });
+      expect(ids).not.toContain('browser');
 
       const elevenProvider = providers.find((p) => p.id === 'elevenlabs');
       expect(elevenProvider).toMatchObject({
@@ -234,25 +226,25 @@ describe('Provider Handlers', () => {
       expect(mockStorageSet).toHaveBeenCalledWith({ provider: 'elevenlabs' });
     });
 
-    it('should select browser provider with null API key when none stored', async () => {
+    it('should select groq provider with null API key when none stored', async () => {
       mockStorageGet.mockResolvedValue({});
       mockStorageSet.mockResolvedValue(undefined);
 
       const result = await dispatchHandler<ProviderSelectResponse>(
         registry,
         'provider.select',
-        { provider: 'browser' },
+        { provider: 'groq' },
       );
       expect(isOk(result)).toBe(true);
       if (!isOk(result)) return;
 
       expect(result.value).toEqual({
         success: true,
-        provider: 'browser',
+        provider: 'groq',
       });
 
-      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('browser', null);
-      expect(mockStorageSet).toHaveBeenCalledWith({ provider: 'browser' });
+      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('groq', null);
+      expect(mockStorageSet).toHaveBeenCalledWith({ provider: 'groq' });
     });
 
     it('should return invalid_params error for invalid provider', async () => {
@@ -286,7 +278,7 @@ describe('Provider Handlers', () => {
       const result = await dispatchHandler<ProviderSelectResponse>(
         registry,
         'provider.select',
-        { provider: 'browser' },
+        { provider: 'elevenlabs' },
       );
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
@@ -310,7 +302,7 @@ describe('Provider Handlers', () => {
       const result = await dispatchHandler<ProviderSelectResponse>(
         registry,
         'provider.select',
-        { provider: 'browser' },
+        { provider: 'openai' },
       );
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
@@ -327,7 +319,7 @@ describe('Provider Handlers', () => {
   // -------------------------------------------------------------------------
   describe('provider.validateLanguage', () => {
     it('should report language as supported for multilingual provider', async () => {
-      // Both providers have empty supportedLanguages => all languages supported
+      // ElevenLabs has empty supportedLanguages => all languages supported
       const result = await dispatchHandler<LanguageValidationResponse>(
         registry,
         'provider.validateLanguage',
@@ -338,7 +330,7 @@ describe('Provider Handlers', () => {
 
       expect(result.value).toEqual({
         supported: true,
-        provider: 'browser',
+        provider: 'elevenlabs',
         language: 'fr-FR',
       });
     });

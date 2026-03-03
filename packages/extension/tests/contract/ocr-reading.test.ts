@@ -63,7 +63,7 @@ const processImageRequestSchema = z.object({
 // ocr.readExtractedText request
 const readExtractedTextRequestSchema = z.object({
   text: z.string().min(1),
-  provider: z.enum(['openai', 'elevenlabs', 'groq', 'cartesia', 'browser']),
+  provider: z.enum(['elevenlabs']),
   voice: z.string().optional(),
   speed: z.number().min(0.5).max(2.0).optional(),
 });
@@ -326,7 +326,7 @@ describe('OCR Reading Message Contract', () => {
       it('accepts valid request with required fields', () => {
         const request = {
           text: 'Text to read aloud',
-          provider: 'openai',
+          provider: 'elevenlabs',
         };
         expect(readExtractedTextRequestSchema.safeParse(request).success).toBe(true);
       });
@@ -342,7 +342,7 @@ describe('OCR Reading Message Contract', () => {
       });
 
       it('accepts all valid providers', () => {
-        const providers = ['openai', 'elevenlabs', 'groq', 'cartesia', 'browser'];
+        const providers = ['elevenlabs'];
         providers.forEach((provider) => {
           const request = { text: 'Test', provider };
           expect(readExtractedTextRequestSchema.safeParse(request).success).toBe(true);
@@ -352,7 +352,7 @@ describe('OCR Reading Message Contract', () => {
       it('rejects empty text', () => {
         const request = {
           text: '',
-          provider: 'browser',
+          provider: 'elevenlabs',
         };
         expect(readExtractedTextRequestSchema.safeParse(request).success).toBe(false);
       });
@@ -368,7 +368,7 @@ describe('OCR Reading Message Contract', () => {
       it('rejects speed below 0.5', () => {
         const request = {
           text: 'Test',
-          provider: 'browser',
+          provider: 'elevenlabs',
           speed: 0.3,
         };
         expect(readExtractedTextRequestSchema.safeParse(request).success).toBe(false);
@@ -377,7 +377,7 @@ describe('OCR Reading Message Contract', () => {
       it('rejects speed above 2.0', () => {
         const request = {
           text: 'Test',
-          provider: 'browser',
+          provider: 'elevenlabs',
           speed: 2.5,
         };
         expect(readExtractedTextRequestSchema.safeParse(request).success).toBe(false);

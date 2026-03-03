@@ -98,13 +98,12 @@ describe('Configuration Defaults', () => {
     });
 
     test('contains all TTS providers', () => {
-      // Post-063: All 5 providers supported via hexagonal adapters
+      // Post-071: 4 providers (browser removed)
       expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toContain('browser');
       expect(PROVIDERS).toContain('openai');
       expect(PROVIDERS).toContain('groq');
       expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toHaveLength(5);
+      expect(PROVIDERS).toHaveLength(4);
     });
 
     test('default provider is in PROVIDERS', () => {

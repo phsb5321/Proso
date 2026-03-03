@@ -8,6 +8,7 @@
  * @module handlers/language
  */
 
+import { browser } from 'wxt/browser';
 import type { HandlerRegistry } from './registry';
 import {
   languageDetectParamsSchema,
@@ -198,6 +199,27 @@ async function handleLanguageGetState(params: unknown): Promise<LanguageStateRes
 }
 
 /**
+ * Broadcast language state to the active tab's footer.
+ */
+async function broadcastLanguageToFooter(
+  languageCode: string,
+  isAutoDetected: boolean,
+): Promise<void> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      await browser.tabs.sendMessage(tab.id, {
+        type: 'FOOTER_LANGUAGE_UPDATE',
+        languageCode,
+        isAutoDetected,
+      });
+    }
+  } catch {
+    // Tab may not have content script — ignore
+  }
+}
+
+/**
  * Set a language override.
  */
 async function handleLanguageSetOverride(params: unknown): Promise<LanguageSetOverrideResponse> {
@@ -209,6 +231,8 @@ async function handleLanguageSetOverride(params: unknown): Promise<LanguageSetOv
   const code = parsed.data.languageCode.substring(0, 2).toLowerCase();
   globalOverride = code;
 
+  broadcastLanguageToFooter(code, false);
+
   return { success: true, languageCode: code };
 }
 
@@ -217,6 +241,22 @@ async function handleLanguageSetOverride(params: unknown): Promise<LanguageSetOv
  */
 async function handleLanguageClearOverride(): Promise<LanguageClearOverrideResponse> {
   globalOverride = null;
+
+  // Determine effective language from detected state
+  let effectiveCode = 'en';
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (tab?.id) {
+      const tabState = tabLanguageStates.get(tab.id);
+      effectiveCode = tabState?.detected?.code ?? 'en';
+    }
+  } catch {
+    // Ignore — use default
+  }
+
+  broadcastLanguageToFooter(effectiveCode, true);
+
   return { success: true };
 }
 

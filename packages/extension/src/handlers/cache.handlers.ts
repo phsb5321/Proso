@@ -340,7 +340,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
 
       try {
         const cacheStore = getCacheStore();
-        const provider = parsed.data.provider || 'browser';
+        const provider = parsed.data.provider || 'elevenlabs';
         const voice = parsed.data.voice || '';
 
         if (!cacheStore.isInitialized) {
@@ -375,7 +375,7 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
       }
 
       const paragraphs = parsed.data.paragraphs ?? [];
-      const provider = parsed.data.provider || 'browser';
+      const provider = parsed.data.provider || 'elevenlabs';
       const voice = parsed.data.voice || '';
       const startParagraph = parsed.data.startParagraph ?? 0;
       const endParagraph = parsed.data.endParagraph ?? paragraphs.length;

@@ -25,7 +25,7 @@ describe('PlaybackState', () => {
       expect(initialPlaybackState.paragraphs).toEqual([]);
       expect(initialPlaybackState.progress).toBe(0);
       expect(initialPlaybackState.speed).toBe(1.0);
-      expect(initialPlaybackState.provider).toBe('browser');
+      expect(initialPlaybackState.provider).toBe('elevenlabs');
       expect(initialPlaybackState.voice).toBeNull();
       expect(initialPlaybackState.mode).toBe('article');
       expect(initialPlaybackState.activeTabId).toBeNull();
@@ -549,7 +549,7 @@ describe('PlaybackState', () => {
         // Verify specific fields
         expect(resetState.status).toBe('idle');
         expect(resetState.paragraphs).toEqual([]);
-        expect(resetState.provider).toBe('browser');
+        expect(resetState.provider).toBe('elevenlabs');
       });
 
       it('should always return same initial state shape', () => {
@@ -581,7 +581,7 @@ describe('PlaybackState', () => {
       const resetState = playbackStateTransitions.reset();
 
       expect(resetState.status).toBe('idle');
-      expect(resetState.provider).toBe('browser');
+      expect(resetState.provider).toBe('elevenlabs');
     });
     });
 

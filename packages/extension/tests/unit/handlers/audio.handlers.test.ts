@@ -266,20 +266,6 @@ describe('audio.handlers', () => {
       expect(result.value!.message).toBe('API key validation failed');
     });
 
-    it('should short-circuit for browser provider without calling validateCredentials', async () => {
-      mockAudioGenerator.providerId = 'browser';
-
-      const result = (await dispatchOk(registry, 'audio.validateCredentials', {})) as {
-        ok: boolean;
-        value?: { valid: boolean; message?: string };
-      };
-
-      expect(result.ok).toBe(true);
-      expect(result.value!.valid).toBe(true);
-      expect(result.value!.message).toBe('Browser TTS does not require API key');
-      expect(mockAudioGenerator.validateCredentials).not.toHaveBeenCalled();
-    });
-
     it('should return container_not_initialized when container is not ready', async () => {
       mockIsContainerInitialized.mockReturnValue(false);
 
