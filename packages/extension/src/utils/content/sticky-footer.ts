@@ -139,7 +139,7 @@ const FOOTER_STATE_KEY = "footerState";
 const FOOTER_HEIGHT = 64;
 const FOOTER_HEIGHT_MINIMIZED = 48;
 const FOOTER_PILL_WIDTH = 160;
-const FOOTER_MAX_WIDTH = 600;
+const FOOTER_MAX_WIDTH = 720;
 const Z_INDEX = 2147483647;
 
 // Speed options
@@ -169,7 +169,9 @@ function createSvgIcon(name: IconName): SVGElement {
   const icons: Record<IconName, () => void> = {
     play: () => {
       const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "5 3 19 12 5 21 5 3");
+      polygon.setAttribute("points", "6 3 20 12 6 21 6 3");
+      polygon.setAttribute("fill", "currentColor");
+      polygon.setAttribute("stroke", "none");
       svg.appendChild(polygon);
     },
     pause: () => {
@@ -178,11 +180,17 @@ function createSvgIcon(name: IconName): SVGElement {
       rect1.setAttribute("y", "4");
       rect1.setAttribute("width", "4");
       rect1.setAttribute("height", "16");
+      rect1.setAttribute("fill", "currentColor");
+      rect1.setAttribute("stroke", "none");
+      rect1.setAttribute("rx", "1");
       const rect2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       rect2.setAttribute("x", "14");
       rect2.setAttribute("y", "4");
       rect2.setAttribute("width", "4");
       rect2.setAttribute("height", "16");
+      rect2.setAttribute("fill", "currentColor");
+      rect2.setAttribute("stroke", "none");
+      rect2.setAttribute("rx", "1");
       svg.appendChild(rect1);
       svg.appendChild(rect2);
     },
@@ -394,18 +402,20 @@ function getStyles(): string {
       width: 100%;
       max-width: var(--footer-max-width);
       height: var(--footer-height);
-      background: var(--footer-bg);
+      background: color-mix(in srgb, var(--footer-bg) 92%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border-top: 1px solid var(--footer-border);
       border-left: 1px solid var(--footer-border);
       border-right: 1px solid var(--footer-border);
-      border-radius: 12px 12px 0 0;
+      border-radius: 16px 16px 0 0;
       box-shadow: var(--footer-shadow);
       color: var(--footer-text);
-      padding: 8px 16px;
+      padding: 8px 20px;
       box-sizing: border-box;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       transition: height 200ms ease-out, width 200ms ease-out, border-radius 200ms ease-out;
     }
     .footer.minimized {
@@ -421,13 +431,16 @@ function getStyles(): string {
       top: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 40px;
-      height: 4px;
+      width: 36px;
+      height: 3px;
       background: var(--footer-border);
-      border-radius: 2px;
+      border-radius: 1.5px;
       cursor: grab;
-      margin-top: 4px;
+      margin-top: 5px;
+      opacity: 0.6;
+      transition: opacity 150ms ease;
     }
+    .drag-handle:hover { opacity: 1; }
     .drag-handle:active { cursor: grabbing; }
     .btn {
       min-width: var(--min-touch-target);
@@ -450,32 +463,49 @@ function getStyles(): string {
     .btn:focus-visible { outline: 2px solid var(--footer-accent); outline-offset: 2px; box-shadow: 0 0 0 4px var(--footer-focus-ring); }
     .btn:focus:not(:focus-visible) { outline: none; }
     .btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
-    .btn-play-pause { width: 48px; height: 48px; background: var(--footer-accent); color: white; }
-    .btn-play-pause:hover { background: var(--footer-accent-hover); }
-    .btn-play-pause svg { width: 24px; height: 24px; }
+    .btn-play-pause {
+      width: 44px;
+      height: 44px;
+      background: var(--footer-accent);
+      color: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+    }
+    .btn-play-pause:hover { background: var(--footer-accent-hover); box-shadow: 0 2px 12px rgba(13, 148, 136, 0.5); }
+    .btn-play-pause svg { width: 20px; height: 20px; }
     .btn-sm { width: var(--footer-button-size-sm); height: var(--footer-button-size-sm); }
     .btn-sm svg { width: 16px; height: 16px; }
     .controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .progress-section { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
-    .progress-bar { flex: 1; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; cursor: pointer; overflow: hidden; min-width: 60px; }
-    .progress-fill { height: 100%; background: var(--footer-accent); border-radius: 3px; transition: width 100ms linear; width: 0%; }
-    .time-display { font-size: 12px; color: var(--footer-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .progress-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      cursor: pointer;
+      overflow: hidden;
+      min-width: 80px;
+      transition: height 150ms ease;
+    }
+    .progress-bar:hover { height: 6px; }
+    .progress-fill { height: 100%; background: var(--footer-accent); border-radius: 2px; transition: width 100ms linear; width: 0%; }
+    .time-display { font-size: 11px; color: var(--footer-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 32px; text-align: center; }
     .speed-control { position: relative; }
-    .speed-btn { font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 4px; min-width: 48px; }
-    .speed-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg); border: 1px solid var(--footer-border); border-radius: 8px; box-shadow: var(--footer-shadow); padding: 4px; display: none; min-width: 60px; margin-bottom: 4px; }
+    .speed-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; min-width: 48px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+    .speed-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 68px; margin-bottom: 8px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .speed-dropdown.open { display: block; }
-    .speed-option { display: block; width: 100%; padding: 8px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: center; cursor: pointer; border-radius: 4px; }
+    .speed-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: center; cursor: pointer; border-radius: 6px; font-variant-numeric: tabular-nums; transition: background 100ms ease; }
     .speed-option:hover { background: rgba(255, 255, 255, 0.1); }
-    .speed-option.active { background: var(--footer-accent); color: white; }
+    .speed-option.active { background: var(--footer-accent); color: white; font-weight: 600; }
     .language-control { position: relative; }
-    .lang-btn { font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 4px; min-width: 48px; gap: 4px; }
+    .lang-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; min-width: 48px; gap: 5px; }
     .lang-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
     .lang-code { font-size: 12px; }
-    .language-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg); border: 1px solid var(--footer-border); border-radius: 8px; box-shadow: var(--footer-shadow); padding: 4px; display: none; min-width: 160px; max-height: 300px; overflow-y: auto; margin-bottom: 4px; }
+    .language-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 160px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .language-dropdown.open { display: block; }
-    .language-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+    .language-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 6px; white-space: nowrap; transition: background 100ms ease; }
     .language-option:hover { background: rgba(255, 255, 255, 0.1); }
-    .language-option.active { background: var(--footer-accent); color: white; }
+    .language-option.active { background: var(--footer-accent); color: white; font-weight: 600; }
     .footer.minimized .progress-section,
     .footer.minimized .controls .btn:not(.btn-play-pause),
     .footer.minimized .speed-control,
@@ -483,7 +513,7 @@ function getStyles(): string {
     .footer.minimized .btn-minimize { display: none; }
     .footer.minimized .controls { justify-content: center; flex: 1; }
     .actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-    .paragraph-indicator { font-size: 11px; color: var(--footer-text-muted); white-space: nowrap; }
+    .paragraph-indicator { font-size: 11px; color: var(--footer-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; opacity: 0.8; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .live-region { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .loading .btn-play-pause svg { animation: pulse 1s ease-in-out infinite; }
