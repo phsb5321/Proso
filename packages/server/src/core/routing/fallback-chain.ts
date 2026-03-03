@@ -8,7 +8,11 @@ import { TTSProvider, SubscriptionTier } from '@proso/shared';
 
 /** Default provider ordering by tier */
 export const TIER_PROVIDER_ORDER: Record<SubscriptionTier, TTSProvider[]> = {
-  [SubscriptionTier.Free]: [TTSProvider.Browser],
+  [SubscriptionTier.Free]: [
+    TTSProvider.ElevenLabs,
+    TTSProvider.OpenAI,
+    TTSProvider.Groq,
+  ],
   [SubscriptionTier.Pro]: [
     TTSProvider.Groq,
     TTSProvider.OpenAI,
