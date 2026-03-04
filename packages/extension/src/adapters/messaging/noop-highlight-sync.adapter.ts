@@ -34,6 +34,21 @@ export class NoOpHighlightSyncAdapter implements IHighlightSynchronizer {
     return Ok(undefined);
   }
 
+  async setWordTimeline(
+    _tabId: number,
+    _paragraphIndex: number,
+    _wordTimeline: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }>,
+  ): Promise<Result<void, HighlightError>> {
+    // No-op: silently succeed
+    return Ok(undefined);
+  }
+
   async highlightWord(
     _tabId: number,
     _paragraphIndex: number,

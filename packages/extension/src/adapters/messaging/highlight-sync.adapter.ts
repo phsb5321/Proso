@@ -61,6 +61,35 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     }
   }
 
+  async setWordTimeline(
+    tabId: number,
+    paragraphIndex: number,
+    wordTimeline: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }>,
+  ): Promise<Result<void, HighlightError>> {
+    try {
+      await this.sendToContentScript(tabId, {
+        type: 'setWordTimeline',
+        paragraphIndex,
+        wordTimeline: wordTimeline.map((w) => ({
+          word: w.word,
+          charOffset: w.charOffset,
+          charLength: w.charLength,
+          startMs: w.startTimeMs,
+          endMs: w.endTimeMs,
+        })),
+      });
+      return Ok(undefined);
+    } catch (error) {
+      return Err(this.toHighlightError(tabId, error));
+    }
+  }
+
   async highlightWord(
     tabId: number,
     paragraphIndex: number,
@@ -128,18 +157,20 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
       });
 
       // Broadcast to popup for bidirectional sync (popup may not be open)
-      browser.runtime.sendMessage({
-        type: 'playbackStateUpdate',
-        state: {
-          status: state.status,
-          currentParagraph: state.currentIndex,
-          totalParagraphs: state.totalParagraphs,
-          progress: Math.round(state.progress * 100),
-          speed: state.speed,
-        },
-      }).catch(() => {
-        // Popup not open — ignore
-      });
+      browser.runtime
+        .sendMessage({
+          type: 'playbackStateUpdate',
+          state: {
+            status: state.status,
+            currentParagraph: state.currentIndex,
+            totalParagraphs: state.totalParagraphs,
+            progress: Math.round(state.progress * 100),
+            speed: state.speed,
+          },
+        })
+        .catch(() => {
+          // Popup not open — ignore
+        });
 
       return Ok(undefined);
     } catch (error) {
