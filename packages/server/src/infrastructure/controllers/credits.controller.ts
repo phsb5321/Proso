@@ -5,25 +5,19 @@
 //   GET /api/v1/credits/balance  — current credit balance for authenticated user
 //   GET /api/v1/credits/history  — paginated credit transaction history
 
-import {
-  Controller,
-  Get,
-  Req,
-  Query,
-  HttpCode,
-  HttpStatus,
-  Logger,
-  Res,
-} from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Controller, Get, HttpCode, HttpStatus, Logger, Query, Req, Res } from '@nestjs/common';
 import {
   type CreditBalanceResponse,
   type CreditHistoryResponse,
   type CreditTransaction,
-  TransactionType,
   ErrorCode,
+  type TransactionType,
 } from '@proso/shared';
-import { CreditRepositoryPort, type CreditTransactionRecord } from '../../ports/credit-repository.port';
+import type { Request, Response } from 'express';
+import type {
+  CreditRepositoryPort,
+  CreditTransactionRecord,
+} from '../../ports/credit-repository.port';
 
 /** Maximum number of transactions a client can request in one page. */
 const MAX_HISTORY_LIMIT = 100;
@@ -35,18 +29,13 @@ const DEFAULT_HISTORY_LIMIT = 50;
 export class CreditsController {
   private readonly logger = new Logger(CreditsController.name);
 
-  constructor(
-    private readonly creditRepository: CreditRepositoryPort,
-  ) {}
+  constructor(private readonly creditRepository: CreditRepositoryPort) {}
 
   // ─── GET /balance ─────────────────────────────────────────────────
 
   @Get('balance')
   @HttpCode(HttpStatus.OK)
-  async getBalance(
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
+  async getBalance(@Req() req: Request, @Res() res: Response): Promise<void> {
     const userId = (req as Request & { userId?: string }).userId;
     if (!userId) {
       res.status(HttpStatus.UNAUTHORIZED).json({
@@ -72,8 +61,7 @@ export class CreditsController {
     const usagePercent =
       allocation.totalCredits > 0
         ? Math.round(
-            ((allocation.totalCredits - allocation.remainingCredits) /
-              allocation.totalCredits) *
+            ((allocation.totalCredits - allocation.remainingCredits) / allocation.totalCredits) *
               100,
           )
         : 0;
@@ -120,16 +108,16 @@ export class CreditsController {
       this.creditRepository.getTransactionCount(userId),
     ]);
 
-    const transactions: CreditTransaction[] = records.map(
-      (record: CreditTransactionRecord) => ({
-        id: record.id,
-        type: record.type as TransactionType,
-        amount: record.amount,
-        ...(record.provider != null ? { provider: record.provider as CreditTransaction['provider'] } : {}),
-        ...(record.characterCount != null ? { characterCount: record.characterCount } : {}),
-        createdAt: record.createdAt.toISOString(),
-      }),
-    );
+    const transactions: CreditTransaction[] = records.map((record: CreditTransactionRecord) => ({
+      id: record.id,
+      type: record.type as TransactionType,
+      amount: record.amount,
+      ...(record.provider != null
+        ? { provider: record.provider as CreditTransaction['provider'] }
+        : {}),
+      ...(record.characterCount != null ? { characterCount: record.characterCount } : {}),
+      createdAt: record.createdAt.toISOString(),
+    }));
 
     const response: CreditHistoryResponse = { transactions, total };
     res.status(HttpStatus.OK).json(response);

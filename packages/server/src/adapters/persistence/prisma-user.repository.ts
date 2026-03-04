@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/modules/prisma.module';
-import { UserRepositoryPort, type UserRecord } from '../../ports/user-repository.port';
+import type { PrismaService } from '../../infrastructure/modules/prisma.module';
+import { type UserRecord, UserRepositoryPort } from '../../ports/user-repository.port';
 
 @Injectable()
 export class PrismaUserRepository extends UserRepositoryPort {
@@ -43,13 +43,15 @@ export class PrismaUserRepository extends UserRepositoryPort {
     return this.toRecord(updated);
   }
 
-  private toRecord(user: {
-    id: string;
-    email: string | null;
-    licenseKey: string;
-    createdAt: Date;
-    updatedAt: Date;
-  } & Record<string, unknown>): UserRecord {
+  private toRecord(
+    user: {
+      id: string;
+      email: string | null;
+      licenseKey: string;
+      createdAt: Date;
+      updatedAt: Date;
+    } & Record<string, unknown>,
+  ): UserRecord {
     return {
       id: user.id,
       email: user.email ?? undefined,

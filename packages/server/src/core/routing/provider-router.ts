@@ -6,7 +6,7 @@
 //   Pro tier → cost-efficient first (Groq > OpenAI > ElevenLabs)
 //   Enterprise tier → premium quality first (ElevenLabs > OpenAI > Groq)
 
-import { TTSProvider, SubscriptionTier } from '@proso/shared';
+import { SubscriptionTier, TTSProvider } from '@proso/shared';
 import { TIER_PROVIDER_ORDER, buildFallbackChain } from './fallback-chain.js';
 
 export interface RoutingDecision {
@@ -40,11 +40,7 @@ export function selectProvider(
 
   // If user has a preferred provider and it is available, use it
   if (preferredProvider && availableProviders.includes(preferredProvider)) {
-    const fallbackChain = buildFallbackChain(
-      tier,
-      availableProviders,
-      preferredProvider,
-    );
+    const fallbackChain = buildFallbackChain(tier, availableProviders, preferredProvider);
 
     return {
       provider: preferredProvider,
@@ -55,9 +51,7 @@ export function selectProvider(
 
   // Default: use tier-based ordering filtered by availability
   const tierOrder = TIER_PROVIDER_ORDER[tier] ?? TIER_PROVIDER_ORDER[SubscriptionTier.Free];
-  const availableInOrder = tierOrder.filter((p) =>
-    availableProviders.includes(p),
-  );
+  const availableInOrder = tierOrder.filter((p) => availableProviders.includes(p));
 
   if (availableInOrder.length === 0) {
     // No server providers available — fall back to Browser

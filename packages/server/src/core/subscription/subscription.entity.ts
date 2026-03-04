@@ -3,7 +3,7 @@
 // Enforces:
 //   INV-004: No credit expiration mid-billing cycle
 
-import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
+import { SubscriptionStatus, type SubscriptionTier } from '@proso/shared';
 
 export interface SubscriptionProps {
   id: string;

@@ -36,10 +36,10 @@ export {
   type CreditTransaction,
 } from './domain/credits.js';
 
-export {
-  type LicenseValidationRequest,
-  type LicenseValidationResponse,
-  type LicenseActivationRequest,
+export type {
+  LicenseValidationRequest,
+  LicenseValidationResponse,
+  LicenseActivationRequest,
 } from './domain/license.js';
 
 // Constants
@@ -72,3 +72,23 @@ export type {
 
 // Error types
 export { ErrorCode, type DomainError } from './types/errors.js';
+
+// Zod validation schemas
+export {
+  TTSSynthesizeRequestSchema,
+  type TTSSynthesizeRequestParsed,
+  TTSTestKeyRequestSchema,
+  type TTSTestKeyRequestParsed,
+} from './schemas/tts.js';
+
+export {
+  LicenseValidateRequestSchema,
+  type LicenseValidateRequestParsed,
+  LicenseActivateRequestSchema,
+  type LicenseActivateRequestParsed,
+} from './schemas/license.js';
+
+export {
+  CreditHistoryParamsSchema,
+  type CreditHistoryParamsParsed,
+} from './schemas/credits.js';

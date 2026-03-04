@@ -251,6 +251,37 @@ const service = new PlaybackService({
 - 1051 tests passing
 - Contract tests verify adapter interchangeability
 
+### Testing Patterns (073)
+
+**Contract tests** (per-adapter, shared port interface):
+```typescript
+// tests/contract/my-adapter.contract.test.ts
+import { MyAdapter } from '../../src/adapters/my-adapter';
+// Each adapter implementing the same port should pass the same contract tests.
+// Verify: correct return types, error handling, interface conformance.
+```
+
+**Handler tests** (registry + mock dependencies):
+```typescript
+// tests/unit/handlers/my.handlers.test.ts
+import { HandlerRegistry } from '../../src/handlers/registry';
+import { registerMyHandlers } from '../../src/handlers/my.handlers';
+const registry = new HandlerRegistry();
+registerMyHandlers(registry);
+// Verify: handlers registered, dispatch returns expected Result<T,E>
+```
+
+**Integration tests** (composition root verification):
+```typescript
+// tests/integration/composition-root.test.ts
+import { createContainer, getContainer, resetContainer } from '../../src/composition/container';
+// Verify: singleton guarantee, all adapters bound, services available
+```
+
+**Scaffold script**: `./scripts/scaffold-test.sh <source-file>` generates test boilerplate based on file type (adapter → contract, handler → handler, core → unit).
+
+**Zod validation**: Server endpoints use `ZodValidationPipe` with schemas from `@proso/shared/schemas/`. Schemas are the source of truth; controllers keep manual checks as defense-in-depth for direct-call safety.
+
 ---
 
 ## Active Technologies (by feature)

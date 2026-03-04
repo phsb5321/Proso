@@ -83,7 +83,10 @@ export class AudioVisualizer {
       }
 
       // Create audio context
-      this.audioContext = new (window.AudioContext || (window as Record<string, unknown>).webkitAudioContext as typeof AudioContext)();
+      this.audioContext = new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+      )();
 
       // Create analyser node
       this.analyserNode = this.audioContext.createAnalyser();

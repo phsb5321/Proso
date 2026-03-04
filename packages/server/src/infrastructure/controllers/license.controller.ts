@@ -1,12 +1,13 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { Public } from '../guards/license-key.guard';
-import type { LicenseValidateRequest, LicenseValidateResponse } from '@proso/shared';
-import { isOk } from '@proso/shared';
-import { UserRepositoryPort } from '../../ports/user-repository.port';
-import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
-import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import * as crypto from 'node:crypto';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import type { LicenseValidateRequestParsed, LicenseValidateResponse } from '@proso/shared';
+import { LicenseValidateRequestSchema, isOk } from '@proso/shared';
 import { validateLicenseKey } from '../../core/subscription/license-validation.service';
-import * as crypto from 'crypto';
+import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import type { UserRepositoryPort } from '../../ports/user-repository.port';
+import { Public } from '../guards/license-key.guard';
+import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 
 @Controller('api/v1/license')
 export class LicenseController {
@@ -19,11 +20,10 @@ export class LicenseController {
   @Post('validate')
   @Public()
   @HttpCode(HttpStatus.OK)
-  async validate(@Body() body: LicenseValidateRequest): Promise<LicenseValidateResponse> {
-    const keyHash = crypto
-      .createHash('sha256')
-      .update(body.licenseKey)
-      .digest('hex');
+  async validate(
+    @Body(new ZodValidationPipe(LicenseValidateRequestSchema)) body: LicenseValidateRequestParsed,
+  ): Promise<LicenseValidateResponse> {
+    const keyHash = crypto.createHash('sha256').update(body.licenseKey).digest('hex');
 
     const result = await validateLicenseKey(keyHash, {
       userRepository: this.userRepository,

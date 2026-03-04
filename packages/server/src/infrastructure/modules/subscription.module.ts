@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { SubscriptionController } from '../controllers/subscription.controller';
-import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
-import { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import { BillingGatewayPort } from '../../ports/billing-gateway.port';
-import { PrismaSubscriptionRepository } from '../../adapters/persistence/prisma-subscription.repository';
-import { PrismaCreditRepository } from '../../adapters/persistence/prisma-credit.repository';
 import { PaddleAdapter } from '../../adapters/billing/paddle.adapter';
+import { PrismaCreditRepository } from '../../adapters/persistence/prisma-credit.repository';
+import { PrismaSubscriptionRepository } from '../../adapters/persistence/prisma-subscription.repository';
+import { BillingGatewayPort } from '../../ports/billing-gateway.port';
+import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import { SubscriptionController } from '../controllers/subscription.controller';
 
 @Module({
   controllers: [SubscriptionController],

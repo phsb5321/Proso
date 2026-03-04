@@ -1,14 +1,11 @@
 // Domain error types — discriminated unions for each domain
 // ZERO NestJS imports — pure TypeScript
 
-import { ErrorCode } from '@proso/shared';
+import type { ErrorCode } from '@proso/shared';
 import type { DomainError } from '@proso/shared';
 
 export interface LicenseError extends DomainError {
-  code:
-    | ErrorCode.LicenseInvalid
-    | ErrorCode.LicenseExpired
-    | ErrorCode.LicenseDeviceLimitReached;
+  code: ErrorCode.LicenseInvalid | ErrorCode.LicenseExpired | ErrorCode.LicenseDeviceLimitReached;
 }
 
 export interface SubscriptionError extends DomainError {
@@ -20,10 +17,7 @@ export interface CreditError extends DomainError {
 }
 
 export interface TTSError extends DomainError {
-  code:
-    | ErrorCode.ProviderUnavailable
-    | ErrorCode.AllProvidersUnavailable
-    | ErrorCode.TextTooLong;
+  code: ErrorCode.ProviderUnavailable | ErrorCode.AllProvidersUnavailable | ErrorCode.TextTooLong;
 }
 
 // Factory helpers for creating typed errors

@@ -7,14 +7,11 @@
  * @module tests/mocks/mock-highlight-sync
  */
 
-import type {
-  IHighlightSynchronizer,
-  FooterState,
-} from '../../src/ports/highlight-sync.port';
-import type { Result } from '../../src/core/shared/result';
 import type { HighlightError } from '../../src/core/shared/errors';
-import { Ok, Err } from '../../src/core/shared/result';
 import { highlightError } from '../../src/core/shared/errors';
+import type { Result } from '../../src/core/shared/result';
+import { Err, Ok } from '../../src/core/shared/result';
+import type { FooterState, IHighlightSynchronizer } from '../../src/ports/highlight-sync.port';
 
 /**
  * Configuration for mock highlight synchronizer.
@@ -128,10 +125,36 @@ export class MockHighlightSync implements IHighlightSynchronizer {
     return Ok(undefined);
   }
 
+  async setWordTimeline(
+    tabId: number,
+    paragraphIndex: number,
+    _wordTimeline: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }>,
+  ): Promise<Result<void, HighlightError>> {
+    await this.simulateLatency();
+
+    if (this.forceError) {
+      return Err(this.forceError);
+    }
+
+    const tabError = this.validateTabId(tabId);
+    if (tabError) {
+      return Err(tabError);
+    }
+
+    this.currentParagraphIndex.set(tabId, paragraphIndex);
+    return Ok(undefined);
+  }
+
   async highlightWord(
     tabId: number,
     paragraphIndex: number,
-    wordIndex: number
+    wordIndex: number,
   ): Promise<Result<void, HighlightError>> {
     this.highlightWordCalls.push({
       tabId,
@@ -213,7 +236,7 @@ export class MockHighlightSync implements IHighlightSynchronizer {
 
   async updateFooterState(
     tabId: number,
-    state: FooterState
+    state: FooterState,
   ): Promise<Result<void, HighlightError>> {
     this.updateFooterStateCalls.push({
       tabId,
@@ -315,8 +338,6 @@ export class MockHighlightSync implements IHighlightSynchronizer {
 /**
  * Create a mock highlight synchronizer with default configuration.
  */
-export function createMockHighlightSync(
-  config?: MockHighlightSyncConfig
-): MockHighlightSync {
+export function createMockHighlightSync(config?: MockHighlightSyncConfig): MockHighlightSync {
   return new MockHighlightSync(config);
 }

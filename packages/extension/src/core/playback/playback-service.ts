@@ -50,6 +50,16 @@ export class PlaybackService {
   // Detected page language (set externally via setLanguage)
   private detectedLanguage: string | null = null;
 
+  // Word-level sync state
+  private currentWordTimings: Array<{
+    word: string;
+    charOffset: number;
+    charLength: number;
+    startTimeMs: number;
+    endTimeMs: number;
+  }> = [];
+  private currentWordIndex = -1;
+
   // Mutable audio generator reference (updated on provider switch)
   private audioGenerator: IAudioGenerator;
 
@@ -100,7 +110,13 @@ export class PlaybackService {
 
     // Show footer and highlight first paragraph
     await this.deps.highlightSync.showFooter(tabId);
-    await this.deps.highlightSync.highlightParagraph(tabId, 0, true, paragraphs[0] ?? '', Date.now());
+    await this.deps.highlightSync.highlightParagraph(
+      tabId,
+      0,
+      true,
+      paragraphs[0] ?? '',
+      Date.now(),
+    );
 
     // Generate audio for first paragraph
     const result = await this.generateAndPlayParagraph(0);
@@ -160,6 +176,9 @@ export class PlaybackService {
     // Revoke object URL (no-op for data URLs)
     this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
     this.currentAudioUrl = null;
+
+    // Clear word timings
+    this.clearWordTimings();
 
     // Clear highlights and hide footer
     if (this.state.activeTabId !== null) {
@@ -340,11 +359,106 @@ export class PlaybackService {
   // Private methods
 
   /**
+   * Estimate word timings by distributing duration proportionally by character count.
+   */
+  private estimateWordTimings(
+    text: string,
+    durationMs: number,
+  ): Array<{
+    word: string;
+    charOffset: number;
+    charLength: number;
+    startTimeMs: number;
+    endTimeMs: number;
+  }> {
+    const words: Array<{ word: string; charOffset: number; charLength: number }> = [];
+    const regex = /\S+/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      words.push({
+        word: match[0],
+        charOffset: match.index,
+        charLength: match[0].length,
+      });
+    }
+
+    if (words.length === 0) return [];
+
+    const totalChars = words.reduce((sum, w) => sum + w.charLength, 0);
+    if (totalChars === 0) return [];
+
+    const timings: Array<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }> = [];
+    let currentTimeMs = 0;
+
+    for (const w of words) {
+      const wordDurationMs = (w.charLength / totalChars) * durationMs;
+      timings.push({
+        word: w.word,
+        charOffset: w.charOffset,
+        charLength: w.charLength,
+        startTimeMs: currentTimeMs,
+        endTimeMs: currentTimeMs + wordDurationMs,
+      });
+      currentTimeMs += wordDurationMs;
+    }
+
+    return timings;
+  }
+
+  /**
+   * Binary search for the word index at a given playback time.
+   */
+  private findWordIndexAtTime(timeMs: number): number {
+    const timings = this.currentWordTimings;
+    if (timings.length === 0) return -1;
+
+    // If before first word, return -1
+    if (timeMs < timings[0]!.startTimeMs) return -1;
+    // If at or past last word start, return last
+    if (timeMs >= timings[timings.length - 1]!.startTimeMs) return timings.length - 1;
+
+    let lo = 0;
+    let hi = timings.length - 1;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      const entry = timings[mid]!;
+      if (timeMs >= entry.startTimeMs && timeMs < entry.endTimeMs) {
+        return mid;
+      }
+      if (timeMs < entry.startTimeMs) {
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+
+    return lo < timings.length ? lo : timings.length - 1;
+  }
+
+  /**
+   * Clear word sync state.
+   */
+  private clearWordTimings(): void {
+    this.currentWordTimings = [];
+    this.currentWordIndex = -1;
+  }
+
+  /**
    * Generate audio for a paragraph and start playing.
    */
   private async generateAndPlayParagraph(
     index: number,
   ): Promise<Result<PlaybackState, PlaybackError>> {
+    // Clear previous word timings on paragraph transition
+    this.clearWordTimings();
+
     const text = this.state.paragraphs[index];
     if (!text) {
       return Err(playbackError.invalidParagraphIndex(index, this.state.totalParagraphs));
@@ -413,7 +527,28 @@ export class PlaybackService {
     // Update highlights
     if (this.state.activeTabId !== null) {
       const paragraphText = this.state.paragraphs[index] ?? '';
-      await this.deps.highlightSync.highlightParagraph(this.state.activeTabId, index, true, paragraphText, Date.now());
+      await this.deps.highlightSync.highlightParagraph(
+        this.state.activeTabId,
+        index,
+        true,
+        paragraphText,
+        Date.now(),
+      );
+
+      // Estimate word timings and send to content script for word-level highlighting
+      const audioDurationMs = this.audioElement?.duration
+        ? this.audioElement.duration * 1000
+        : (audioResponse.durationMs ?? 0);
+
+      if (audioDurationMs > 0) {
+        const wordTimings = this.estimateWordTimings(paragraphText, audioDurationMs);
+        this.currentWordTimings = wordTimings;
+        this.currentWordIndex = -1;
+
+        if (wordTimings.length > 0) {
+          await this.deps.highlightSync.setWordTimeline(this.state.activeTabId, index, wordTimings);
+        }
+      }
     }
 
     // Update footer state
@@ -454,6 +589,20 @@ export class PlaybackService {
         const progress = this.audioElement.currentTime / this.audioElement.duration;
         this.state = playbackStateTransitions.updateProgress(this.state, progress);
         this.updateFooterState();
+
+        // Word-level sync: find current word by playback time
+        if (this.currentWordTimings.length > 0 && this.state.activeTabId !== null) {
+          const currentTimeMs = this.audioElement.currentTime * 1000;
+          const wordIndex = this.findWordIndexAtTime(currentTimeMs);
+          if (wordIndex !== this.currentWordIndex && wordIndex >= 0) {
+            this.currentWordIndex = wordIndex;
+            this.deps.highlightSync.highlightWord(
+              this.state.activeTabId,
+              this.state.currentParagraphIndex,
+              wordIndex,
+            );
+          }
+        }
       }
     });
 

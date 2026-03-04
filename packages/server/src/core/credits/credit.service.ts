@@ -7,14 +7,14 @@
 
 import { ErrorCode } from '@proso/shared';
 import type { Result } from '@proso/shared';
-import { Ok, Err } from '@proso/shared';
-import { creditError } from '../shared/domain-errors.js';
-import type { CreditError } from '../shared/domain-errors.js';
+import { Err, Ok } from '@proso/shared';
 import type {
-  CreditRepositoryPort,
   CreditDeductionMetadata,
+  CreditRepositoryPort,
   CreditTransactionRecord,
 } from '../../ports/credit-repository.port.js';
+import { creditError } from '../shared/domain-errors.js';
+import type { CreditError } from '../shared/domain-errors.js';
 
 export interface CreditServiceDeps {
   creditRepository: CreditRepositoryPort;
@@ -76,11 +76,7 @@ export async function deductCredits(
   }
 
   // All checks pass — perform deduction
-  const transaction = await deps.creditRepository.deductCredits(
-    allocation.id,
-    amount,
-    metadata,
-  );
+  const transaction = await deps.creditRepository.deductCredits(allocation.id, amount, metadata);
 
   return Ok(transaction);
 }

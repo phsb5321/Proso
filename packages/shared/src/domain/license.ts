@@ -1,6 +1,11 @@
 // License domain types — shared between extension and server
 
-import type { CreditBalance, FeatureEntitlements, SubscriptionStatus, SubscriptionTier } from './subscription.js';
+import type {
+  CreditBalance,
+  FeatureEntitlements,
+  SubscriptionStatus,
+  SubscriptionTier,
+} from './subscription.js';
 
 export interface LicenseValidationRequest {
   licenseKey: string;

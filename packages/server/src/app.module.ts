@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { LoggingModule } from './infrastructure/modules/logging.module';
+import appConfig from './infrastructure/config/app.config';
+import { BillingModule } from './infrastructure/modules/billing.module';
+import { CreditsModule } from './infrastructure/modules/credits.module';
 import { HealthModule } from './infrastructure/modules/health.module';
-import { PrismaModule } from './infrastructure/modules/prisma.module';
 import { LicenseModule } from './infrastructure/modules/license.module';
+import { LoggingModule } from './infrastructure/modules/logging.module';
+import { PrismaModule } from './infrastructure/modules/prisma.module';
 import { SubscriptionModule } from './infrastructure/modules/subscription.module';
 import { TTSModule } from './infrastructure/modules/tts.module';
-import { CreditsModule } from './infrastructure/modules/credits.module';
-import { BillingModule } from './infrastructure/modules/billing.module';
-import appConfig from './infrastructure/config/app.config';
 
 @Module({
   imports: [

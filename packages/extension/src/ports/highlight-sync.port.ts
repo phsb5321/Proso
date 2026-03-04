@@ -52,6 +52,24 @@ export interface IHighlightSynchronizer {
   ): Promise<Result<void, HighlightError>>;
 
   /**
+   * Send word timeline to content script for word-level highlighting.
+   * @param tabId - Tab to send timeline to
+   * @param paragraphIndex - Paragraph index the timeline belongs to
+   * @param wordTimeline - Array of word timing entries
+   */
+  setWordTimeline(
+    tabId: number,
+    paragraphIndex: number,
+    wordTimeline: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }>,
+  ): Promise<Result<void, HighlightError>>;
+
+  /**
    * Highlight a word within the current paragraph.
    * @param tabId - Tab to highlight in
    * @param paragraphIndex - Paragraph index

@@ -4,20 +4,21 @@
 // Enforces:
 //   INV-001: Free tier never requires account creation (unknown keys → free tier defaults)
 
-import {
-  SubscriptionTier,
-  SubscriptionStatus,
-  ErrorCode,
-  TIER_CREDITS,
-} from '@proso/shared';
+import { ErrorCode, SubscriptionStatus, type SubscriptionTier, TIER_CREDITS } from '@proso/shared';
 import type { LicenseValidateResponse } from '@proso/shared';
 import type { Result } from '@proso/shared';
-import { Ok, Err } from '@proso/shared';
-import { getFreeTierDefaults, getFeatureEntitlements } from './feature-gate.js';
+import { Err, Ok } from '@proso/shared';
+import type {
+  CreditAllocationRecord,
+  CreditRepositoryPort,
+} from '../../ports/credit-repository.port.js';
+import type {
+  SubscriptionRecord,
+  SubscriptionRepositoryPort,
+} from '../../ports/subscription-repository.port.js';
 import type { LicenseError, SubscriptionError } from '../shared/domain-errors.js';
 import { subscriptionError } from '../shared/domain-errors.js';
-import type { SubscriptionRepositoryPort, SubscriptionRecord } from '../../ports/subscription-repository.port.js';
-import type { CreditRepositoryPort, CreditAllocationRecord } from '../../ports/credit-repository.port.js';
+import { getFeatureEntitlements, getFreeTierDefaults } from './feature-gate.js';
 
 /**
  * Subscription data as stored in persistence layer.
@@ -91,14 +92,8 @@ export function validateLicense(
   const sub = licenseKey.subscription;
 
   // Expired subscription → return free tier but signal expiry
-  if (
-    sub.status === SubscriptionStatus.Expired ||
-    sub.status === SubscriptionStatus.Cancelled
-  ) {
-    if (
-      sub.status === SubscriptionStatus.Cancelled &&
-      isInGracePeriod(sub)
-    ) {
+  if (sub.status === SubscriptionStatus.Expired || sub.status === SubscriptionStatus.Cancelled) {
+    if (sub.status === SubscriptionStatus.Cancelled && isInGracePeriod(sub)) {
       // Cancel-at-period-end: still active until period ends (INV-004)
       return Ok(buildActiveResponse(sub));
     }
@@ -201,7 +196,12 @@ export interface RenewalParams {
 export async function handleSubscriptionCreated(
   params: SubscriptionCreatedParams,
   deps: WebhookDeps,
-): Promise<Result<{ subscription: SubscriptionRecord; allocation: CreditAllocationRecord }, SubscriptionError>> {
+): Promise<
+  Result<
+    { subscription: SubscriptionRecord; allocation: CreditAllocationRecord },
+    SubscriptionError
+  >
+> {
   const now = new Date();
 
   const subscription = await deps.subscriptionRepository.save({
@@ -321,7 +321,12 @@ export async function handleSubscriptionCanceled(
 export async function handleRenewal(
   params: RenewalParams,
   deps: WebhookDeps,
-): Promise<Result<{ subscription: SubscriptionRecord; allocation: CreditAllocationRecord }, SubscriptionError>> {
+): Promise<
+  Result<
+    { subscription: SubscriptionRecord; allocation: CreditAllocationRecord },
+    SubscriptionError
+  >
+> {
   const existing = await deps.subscriptionRepository.findByPaddleId(params.paddleSubscriptionId);
 
   if (!existing) {

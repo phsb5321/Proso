@@ -2,16 +2,16 @@
 // Returns Result<TTSSynthesizeResult, TTSError> for all fallible operations
 
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Ok, Err, ErrorCode, TTSProvider } from '@proso/shared';
+import type { ConfigService } from '@nestjs/config';
+import { Err, ErrorCode, Ok, TTSProvider } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { type TTSError, ttsError } from '../../core/shared/domain-errors';
 import {
   TTSProviderPort,
   type TTSSynthesizeParams,
   type TTSSynthesizeResult,
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
-import { ttsError, type TTSError } from '../../core/shared/domain-errors';
-import type { Result } from '@proso/shared';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 
@@ -34,17 +34,13 @@ export class OpenAITTSAdapter extends TTSProviderPort {
     super();
   }
 
-  async synthesize(
-    request: TTSSynthesizeParams,
-  ): Promise<Result<TTSSynthesizeResult, TTSError>> {
+  async synthesize(request: TTSSynthesizeParams): Promise<Result<TTSSynthesizeResult, TTSError>> {
     const apiKey = request.byokApiKey || this.config.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
       return Err(
-        ttsError(
-          ErrorCode.ProviderUnavailable,
-          'OpenAI API key not configured',
-          { provider: this.providerId },
-        ),
+        ttsError(ErrorCode.ProviderUnavailable, 'OpenAI API key not configured', {
+          provider: this.providerId,
+        }),
       );
     }
 
@@ -66,15 +62,12 @@ export class OpenAITTSAdapter extends TTSProviderPort {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'unknown');
-        this.logger.warn(
-          `OpenAI TTS API returned ${response.status}: ${errorBody}`,
-        );
+        this.logger.warn(`OpenAI TTS API returned ${response.status}: ${errorBody}`);
         return Err(
-          ttsError(
-            ErrorCode.ProviderUnavailable,
-            `OpenAI TTS API error: ${response.status}`,
-            { status: response.status, body: errorBody },
-          ),
+          ttsError(ErrorCode.ProviderUnavailable, `OpenAI TTS API error: ${response.status}`, {
+            status: response.status,
+            body: errorBody,
+          }),
         );
       }
 
@@ -85,8 +78,7 @@ export class OpenAITTSAdapter extends TTSProviderPort {
         provider: TTSProvider.OpenAI,
       });
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown network error';
+      const message = error instanceof Error ? error.message : 'Unknown network error';
       this.logger.error(`OpenAI TTS network failure: ${message}`);
       return Err(
         ttsError(ErrorCode.ProviderUnavailable, `OpenAI TTS failed: ${message}`, {
@@ -96,9 +88,7 @@ export class OpenAITTSAdapter extends TTSProviderPort {
     }
   }
 
-  async getVoices(
-    _language?: string,
-  ): Promise<Result<VoiceInfo[], TTSError>> {
+  async getVoices(_language?: string): Promise<Result<VoiceInfo[], TTSError>> {
     // OpenAI voices are static and language-agnostic (auto-detect)
     return Ok(STATIC_VOICES);
   }
