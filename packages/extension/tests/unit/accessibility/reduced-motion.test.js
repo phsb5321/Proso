@@ -15,7 +15,7 @@
  * @module tests/unit/accessibility/reduced-motion.test
  */
 
-import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
   let originalMatchMedia;
@@ -75,31 +75,23 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
       window.matchMedia = createMatchMediaMock(true);
 
       // Import fresh module after setting up mock
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
       // The manager should have detected reduced motion preference
-      expect(window.matchMedia).toHaveBeenCalledWith(
-        '(prefers-reduced-motion: reduce)'
-      );
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
     });
 
     test('should detect when reduced motion is NOT preferred', async () => {
       // Mock matchMedia to return no reduced motion preference
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
-      expect(window.matchMedia).toHaveBeenCalledWith(
-        '(prefers-reduced-motion: reduce)'
-      );
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
     });
   });
 
@@ -108,9 +100,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
       // Mock matchMedia to return reduced motion preference
       window.matchMedia = createMatchMediaMock(true);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -132,9 +122,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
       // Mock matchMedia to return no reduced motion preference
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -157,9 +145,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     test('should pause auto-scroll when user scrolls', async () => {
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -176,9 +162,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     test('should re-enable auto-scroll after debounce period', async () => {
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -201,9 +185,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     test('should allow manual enable/disable of auto-scroll', async () => {
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -236,9 +218,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
         highlights: new Map(),
       };
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -255,9 +235,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
       const originalCSS = global.CSS;
       global.CSS = undefined;
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -272,9 +250,7 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     test('should clear paragraph highlights', async () => {
       window.matchMedia = createMatchMediaMock(false);
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -302,16 +278,13 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     test('should clear all highlights on stop', async () => {
       window.matchMedia = createMatchMediaMock(false);
 
-      // Mock CSS.highlights
+      // Mock CSS.highlights (for wordHighlightSupported detection)
       const mockHighlights = new Map();
-      mockHighlights.set('proso-word', {});
       global.CSS = {
         highlights: mockHighlights,
       };
 
-      const { HighlightManager } = await import(
-        '../../../src/utils/content/highlight'
-      );
+      const { HighlightManager } = await import('../../../src/utils/content/highlight');
 
       const manager = new HighlightManager();
 
@@ -326,8 +299,8 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
       // Paragraph highlight should be removed
       expect(element.classList.contains('proso-highlight')).toBe(false);
 
-      // Word highlight should be deleted
-      expect(mockHighlights.has('proso-word')).toBe(false);
+      // Word spans should be cleaned up (no active spans remain)
+      expect(document.querySelectorAll('.proso-w--active').length).toBe(0);
 
       // Cleanup
       document.body.removeChild(element);
@@ -367,9 +340,7 @@ describe('ARIA Labels Verification (T058)', () => {
 
   test('status section should have aria-live for screen readers', () => {
     // The status section should announce changes to screen readers
-    const expectedLiveRegions = [
-      { id: 'popup-status-section', ariaLive: 'polite' },
-    ];
+    const expectedLiveRegions = [{ id: 'popup-status-section', ariaLive: 'polite' }];
 
     expect(expectedLiveRegions.length).toBeGreaterThan(0);
   });

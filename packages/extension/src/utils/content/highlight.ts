@@ -51,8 +51,9 @@ export interface HighlightState {
   autoScrollEnabled: boolean;
   userScrollTimestamp: number;
   prefersReducedMotion: boolean;
-  // rAF word sync state
-  wordRanges: (Range | null)[];
+  // rAF word sync state — span-based
+  wordSpans: HTMLSpanElement[];
+  originalNodes: { parent: Node; nodes: Node[] }[] | null; // for unwrapping
   currentActiveWordIndex: number;
   audioTimeAnchorMs: number;
   audioTimeAnchorTimestamp: number;
@@ -73,10 +74,6 @@ const WORD_LEAD_OFFSET_MS = 80; // Highlight word slightly ahead for natural rea
 const WINDOW_BEFORE = 1; // 1 word trailing (fading out)
 const WINDOW_AFTER = 2; // 2 words ahead (fading in)
 
-// CSS Highlight API type helpers
-type HighlightCtor = new (...ranges: Range[]) => unknown;
-type HighlightMap = Map<string, unknown>;
-
 /**
  * HighlightManager class for managing text highlighting during playback
  */
@@ -95,7 +92,8 @@ export class HighlightManager {
       autoScrollEnabled: true,
       userScrollTimestamp: 0,
       prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-      wordRanges: [],
+      wordSpans: [],
+      originalNodes: null,
       currentActiveWordIndex: -1,
       audioTimeAnchorMs: 0,
       audioTimeAnchorTimestamp: 0,
@@ -207,31 +205,169 @@ export class HighlightManager {
 
   /**
    * Set word timeline for the current paragraph.
-   * Pre-computes Range objects for each word for fast highlight updates.
+   * Wraps each word in a <span> for animatable CSS styling (border-radius, transition).
    * Sends TIMELINE_READY acknowledgment (FR-002, FR-023).
    */
   setWordTimeline(wordTimeline: WordTiming[], paragraphIndex: number): void {
+    // Clean up previous span wrapping
+    this.unwrapWordSpans();
+
     this.state.currentWordTimeline = wordTimeline;
     this.state.currentParagraphForWords = paragraphIndex;
     this.state.currentActiveWordIndex = -1;
+    this.state.wordSpans = [];
 
-    // Pre-compute Range objects for each word using the highlighted DOM element
-    this.state.wordRanges = [];
     const element = this.state.currentHighlightedElement;
     if (element && wordTimeline.length > 0) {
-      for (const wt of wordTimeline) {
-        const charOffset = wt.charOffset ?? 0;
-        const charLength = wt.charLength ?? wt.word?.length ?? 1;
-        const range = this.createWordRange(element, charOffset, charLength);
-        this.state.wordRanges.push(range);
-      }
+      this.wrapWordsInSpans(element as HTMLElement);
       console.log(
-        `Proso: Pre-computed ${this.state.wordRanges.filter(Boolean).length}/${wordTimeline.length} word ranges`,
+        `Proso: Wrapped ${this.state.wordSpans.length}/${wordTimeline.length} words in spans`,
       );
     }
 
     // FR-002, FR-023: Send acknowledgment that timeline is ready
     this.sendTimelineReady(paragraphIndex);
+  }
+
+  /**
+   * Wrap words in the highlighted paragraph element with <span class="proso-w"> elements.
+   * Walks all text nodes and splits them at word boundaries, matching against the timeline.
+   */
+  private wrapWordsInSpans(element: HTMLElement): void {
+    const timeline = this.state.currentWordTimeline;
+    if (!timeline || timeline.length === 0) return;
+
+    // Collect all text nodes in document order
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      textNodes.push(n as Text);
+    }
+    if (textNodes.length === 0) return;
+
+    // Build flat text from all text nodes
+    const flatText = textNodes.map((tn) => tn.textContent || '').join('');
+
+    // Match timeline words against flat text to get char offsets in the flat string
+    // (provider charOffset is relative to extracted text which may differ from DOM text)
+    const wordPositions: { start: number; end: number; timelineIdx: number }[] = [];
+    let searchFrom = 0;
+    for (let i = 0; i < timeline.length; i++) {
+      const w = timeline[i]!.word.trim();
+      if (!w) continue;
+      const idx = flatText.indexOf(w, searchFrom);
+      if (idx >= 0) {
+        wordPositions.push({ start: idx, end: idx + w.length, timelineIdx: i });
+        searchFrom = idx + w.length;
+      }
+    }
+
+    if (wordPositions.length === 0) return;
+
+    // Map flat offsets back to text nodes
+    // Build offset map: for each text node, its start offset in the flat string
+    const nodeOffsets: number[] = [];
+    let cumulative = 0;
+    for (const tn of textNodes) {
+      nodeOffsets.push(cumulative);
+      cumulative += tn.textContent?.length || 0;
+    }
+
+    // For each word position, find which text node(s) it falls in and wrap with span
+    // Process in reverse order to avoid invalidating offsets
+    const spans: HTMLSpanElement[] = new Array(timeline.length);
+
+    for (let wi = wordPositions.length - 1; wi >= 0; wi--) {
+      const wp = wordPositions[wi]!;
+      // Find the text node containing the start of this word
+      let nodeIdx = -1;
+      for (let ni = 0; ni < textNodes.length; ni++) {
+        const nodeStart = nodeOffsets[ni]!;
+        const nodeEnd = nodeStart + (textNodes[ni]!.textContent?.length || 0);
+        if (wp.start >= nodeStart && wp.start < nodeEnd) {
+          nodeIdx = ni;
+          break;
+        }
+      }
+      if (nodeIdx < 0) continue;
+
+      const textNode = textNodes[nodeIdx]!;
+      const nodeStart = nodeOffsets[nodeIdx]!;
+      const localStart = wp.start - nodeStart;
+      const localEnd = Math.min(wp.end - nodeStart, textNode.textContent?.length || 0);
+
+      // Only handle words that fit within a single text node for simplicity
+      if (wp.end <= nodeStart + (textNode.textContent?.length || 0)) {
+        try {
+          // Split text node to isolate the word
+          const wordNode = textNode.splitText(localStart);
+          const afterWord = wordNode.splitText(localEnd - localStart);
+
+          // Create span wrapper
+          const span = document.createElement('span');
+          span.className = 'proso-w';
+          span.dataset.wi = String(wp.timelineIdx);
+          wordNode.parentNode!.replaceChild(span, wordNode);
+          span.appendChild(wordNode);
+
+          spans[wp.timelineIdx] = span;
+
+          // Update text nodes array and offsets (splitting changed things)
+          // Replace the original text node entry with the parts
+          const newNodes: Text[] = [];
+          if (textNode.textContent?.length) newNodes.push(textNode);
+          // wordNode is now inside span
+          if (afterWord.textContent?.length) newNodes.push(afterWord);
+          textNodes.splice(nodeIdx, 1, ...newNodes);
+
+          // Rebuild offsets from this point forward
+          let off = nodeOffsets[nodeIdx]!;
+          for (let j = nodeIdx; j < textNodes.length; j++) {
+            nodeOffsets[j] = off;
+            off += textNodes[j]!.textContent?.length || 0;
+          }
+          // Ensure length matches
+          while (nodeOffsets.length > textNodes.length) nodeOffsets.pop();
+          while (nodeOffsets.length < textNodes.length) nodeOffsets.push(off);
+        } catch (e) {
+          console.warn('Proso: Span wrapping failed for word', wp.timelineIdx, e);
+        }
+      }
+    }
+
+    this.state.wordSpans = spans.filter(Boolean);
+    // Store element reference so we can unwrap later
+    this.state.originalNodes = [{ parent: element, nodes: [] }];
+  }
+
+  /**
+   * Remove all word spans and restore original text nodes.
+   */
+  private unwrapWordSpans(): void {
+    if (this.state.wordSpans.length === 0) return;
+
+    for (const span of this.state.wordSpans) {
+      if (!span || !span.parentNode) continue;
+      // Move children out of span
+      const parent = span.parentNode;
+      while (span.firstChild) {
+        parent.insertBefore(span.firstChild, span);
+      }
+      parent.removeChild(span);
+    }
+
+    // Normalize text nodes (merge adjacent)
+    if (this.state.originalNodes) {
+      for (const entry of this.state.originalNodes) {
+        if (entry.parent && (entry.parent as HTMLElement).normalize) {
+          (entry.parent as HTMLElement).normalize();
+        }
+      }
+    }
+
+    this.state.wordSpans = [];
+    this.state.originalNodes = null;
   }
 
   /**
@@ -292,83 +428,58 @@ export class HighlightManager {
 
   /**
    * Sync word highlight at the given interpolated time using binary search.
-   * Uses CSS Custom Highlight API with multiple named highlights for a sliding window.
+   * Toggles CSS classes on pre-wrapped <span> elements for a sliding window effect.
+   * Classes: .proso-w--active (spoken), .proso-w--near (±1), .proso-w--far (±2)
    */
   private syncWordAtTime(timeMs: number): void {
     const timeline = this.state.currentWordTimeline;
     if (!timeline || timeline.length === 0) return;
-    if (!this.state.wordHighlightSupported) return;
+    if (this.state.wordSpans.length === 0) return;
 
     const adjustedTime = timeMs + WORD_LEAD_OFFSET_MS;
     const wordIndex = this.findWordIndexAtTime(timeline, adjustedTime);
 
     if (wordIndex === this.state.currentActiveWordIndex) return;
+    const prevIndex = this.state.currentActiveWordIndex;
     this.state.currentActiveWordIndex = wordIndex;
 
-    const highlights = (CSS as unknown as Record<string, unknown>).highlights as
-      | HighlightMap
-      | undefined;
-    if (!highlights) return;
+    // Remove classes from previous window
+    if (prevIndex >= 0) {
+      for (let d = -WINDOW_BEFORE - 1; d <= WINDOW_AFTER; d++) {
+        const span = this.getWordSpan(prevIndex + d);
+        if (span) {
+          span.classList.remove('proso-w--active', 'proso-w--near', 'proso-w--far');
+        }
+      }
+    }
 
-    const HighlightClass = (window as unknown as Record<string, unknown>).Highlight as
-      | HighlightCtor
-      | undefined;
-    if (!HighlightClass) return;
-
-    // Collect ranges for each highlight level
-    const activeRanges: Range[] = [];
-    const nearRanges: Range[] = [];
-    const farRanges: Range[] = [];
-
+    // Apply classes to new window
     if (wordIndex >= 0) {
       // Active word
-      const activeRange = this.state.wordRanges[wordIndex];
-      if (activeRange) activeRanges.push(activeRange);
+      const activeSpan = this.getWordSpan(wordIndex);
+      if (activeSpan) activeSpan.classList.add('proso-w--active');
 
-      // Near words (±1)
+      // Near (±1)
       for (const offset of [-1, 1]) {
-        const i = wordIndex + offset;
-        if (i >= 0 && i < this.state.wordRanges.length) {
-          const range = this.state.wordRanges[i];
-          if (range) nearRanges.push(range);
-        }
+        const span = this.getWordSpan(wordIndex + offset);
+        if (span) span.classList.add('proso-w--near');
       }
 
-      // Far words (−2 trailing, +2 ahead)
+      // Far (−2, +2)
       for (const offset of [-WINDOW_BEFORE - 1, WINDOW_AFTER]) {
-        const i = wordIndex + offset;
-        if (i >= 0 && i < this.state.wordRanges.length) {
-          const range = this.state.wordRanges[i];
-          if (range) farRanges.push(range);
-        }
+        const span = this.getWordSpan(wordIndex + offset);
+        if (span) span.classList.add('proso-w--far');
       }
     }
+  }
 
-    // Update CSS Highlights (create new Highlight objects — they're lightweight)
-    if (activeRanges.length > 0) {
-      highlights.set('proso-word-active', new HighlightClass(...activeRanges));
-    } else {
-      highlights.delete('proso-word-active');
-    }
-
-    if (nearRanges.length > 0) {
-      highlights.set('proso-word-near', new HighlightClass(...nearRanges));
-    } else {
-      highlights.delete('proso-word-near');
-    }
-
-    if (farRanges.length > 0) {
-      highlights.set('proso-word-far', new HighlightClass(...farRanges));
-    } else {
-      highlights.delete('proso-word-far');
-    }
-
-    // Also set the legacy 'proso-word' for backward compat with existing ::highlight(proso-word)
-    if (activeRanges.length > 0) {
-      highlights.set('proso-word', new HighlightClass(...activeRanges));
-    } else {
-      highlights.delete('proso-word');
-    }
+  /**
+   * Get a word span by timeline index, or null if out of bounds.
+   */
+  private getWordSpan(timelineIndex: number): HTMLSpanElement | null {
+    if (timelineIndex < 0) return null;
+    // Find span with matching data-wi attribute
+    return this.state.wordSpans.find((s) => s.dataset.wi === String(timelineIndex)) ?? null;
   }
 
   /**
@@ -406,8 +517,8 @@ export class HighlightManager {
   }
 
   /**
-   * Highlight a specific word using CSS Custom Highlight API (legacy/fallback).
-   * Called when the rAF loop is not active (e.g., from direct highlightWord messages).
+   * Highlight a specific word (legacy/fallback, called from direct highlightWord messages).
+   * Uses span-based approach if available, falls back to CSS Highlight API.
    */
   highlightWord(paragraphIndex: number, wordIndex: number, timestamp?: number): void {
     // FR-002: Validate timestamp and measure latency
@@ -418,10 +529,6 @@ export class HighlightManager {
           `Proso: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`,
         );
       }
-    }
-
-    if (!this.state.wordHighlightSupported) {
-      return;
     }
 
     if (!this.state.currentWordTimeline || this.state.currentWordTimeline.length === 0) {
@@ -440,37 +547,13 @@ export class HighlightManager {
       return;
     }
 
-    // If we have pre-computed ranges, use the sliding window via syncWordAtTime
-    if (this.state.wordRanges.length > 0) {
+    // Use span-based sliding window if spans are available
+    if (this.state.wordSpans.length > 0) {
       const entry = this.state.currentWordTimeline[wordIndex];
       if (entry) {
         this.syncWordAtTime((entry.startTimeMs ?? 0) + 1);
       }
       return;
-    }
-
-    // Fallback: single-word highlight via Range
-    const wordData = this.state.currentWordTimeline[wordIndex];
-    const element = this.state.currentHighlightedElement;
-
-    if (!element || !wordData) {
-      return;
-    }
-
-    try {
-      const charOffset = wordData.charOffset ?? 0;
-      const charLength = wordData.charLength ?? wordData.word?.length ?? 5;
-
-      const range = this.createWordRange(element, charOffset, charLength);
-
-      if (range) {
-        const HighlightClass = (window as unknown as Record<string, unknown>)
-          .Highlight as HighlightCtor;
-        const highlights = (CSS as unknown as Record<string, unknown>).highlights as HighlightMap;
-        highlights.set('proso-word', new HighlightClass(range));
-      }
-    } catch (e) {
-      console.warn('Proso: Failed to create word highlight:', e);
     }
   }
 
@@ -604,27 +687,23 @@ export class HighlightManager {
   clearWordHighlightVisual(): void {
     this.state.currentActiveWordIndex = -1;
 
-    if (
-      this.state.wordHighlightSupported &&
-      (CSS as unknown as Record<string, unknown>).highlights
-    ) {
-      const highlights = (CSS as unknown as Record<string, unknown>).highlights as HighlightMap;
-      highlights.delete('proso-word');
-      highlights.delete('proso-word-active');
-      highlights.delete('proso-word-near');
-      highlights.delete('proso-word-far');
+    // Remove CSS classes from all word spans
+    for (const span of this.state.wordSpans) {
+      if (span) {
+        span.classList.remove('proso-w--active', 'proso-w--near', 'proso-w--far');
+      }
     }
   }
 
   /**
-   * Clear word highlight fully (visual + data)
+   * Clear word highlight fully (visual + data + spans)
    */
   clearWordHighlightFull(): void {
     this.stopWordSyncLoop();
     this.clearWordHighlightVisual();
+    this.unwrapWordSpans();
     this.state.currentWordTimeline = null;
     this.state.currentParagraphForWords = -1;
-    this.state.wordRanges = [];
     this.state.audioIsPlaying = false;
   }
 
