@@ -8,9 +8,11 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "postinstall": "lefthook install"
   },
   "devDependencies": {
+    "lefthook": "^2.1.2",
     "typescript": "^5.9.3"
   },
   "keywords": [

@@ -1,0 +1,20 @@
+# Lefthook pre-commit hooks for Proso monorepo
+# Runs Biome lint and TypeScript type-checking in parallel on staged files
+# Skip with: git commit --no-verify
+
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "packages/**/*.{ts,tsx,js,jsx,json}"
+      exclude: "packages/server/src/generated/**"
+      run: npx biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    tsc-extension:
+      glob: "packages/extension/**/*.{ts,tsx}"
+      run: pnpm --filter @proso/extension exec tsc --noEmit
+    tsc-server:
+      glob: "packages/server/**/*.ts"
+      run: pnpm --filter @proso/server exec tsc --noEmit
+    tsc-shared:
+      glob: "packages/shared/**/*.ts"
+      run: pnpm --filter @proso/shared exec tsc --noEmit
