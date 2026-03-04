@@ -56,69 +56,58 @@
 /* ============================================
  * Word-level highlighting — Liquid flow effect
  *
- * 5-level gradient sliding window creates a "flowing liquid"
- * sensation as words are spoken. Asymmetric transitions:
- *   fade-in:  100ms  (fast — words rush into highlight)
- *   fade-out: 400ms  (slow — liquid trail lingers behind)
+ * ZERO layout impact: no padding, margin, or border-radius changes.
+ * Only background-color transitions — text stays exactly where it is.
+ * Adjacent highlighted spans merge visually into one continuous blob.
+ *
+ * Asymmetric transitions:
+ *   fade-in:  80ms   (words rush into highlight)
+ *   fade-out: 450ms  (liquid trail lingers behind)
  *
  * Levels: active → glow (±1) → near (±2) → far (±3)
  * ============================================ */
 
-/* Base word span — invisible, enables slow fade-out (the "trail") */
+/* Base word span — zero layout impact, slow fade-out (liquid trail) */
 .proso-w {
   background-color: transparent !important;
-  border-radius: 4px !important;
-  padding: 2px 1px !important;
   /* Slow fade-out = liquid trail draining away */
-  transition: background-color 400ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 400ms
-    cubic-bezier(0.4, 0, 0.2, 1), border-radius 200ms ease !important;
+  transition: background-color 450ms cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-decoration-break: clone !important;
   -webkit-box-decoration-break: clone !important;
 }
 
-/* Active word — the spoken word, bright blob */
+/* Active word — the spoken word, brightest */
 .proso-w--active {
-  background-color: rgba(13, 148, 136, 0.5) !important;
-  border-radius: 8px !important;
-  padding: 2px 3px !important;
-  box-shadow: 0 0 12px rgba(13, 148, 136, 0.35), 0 0 4px rgba(13, 148, 136, 0.2) !important;
+  background-color: rgba(13, 148, 136, 0.48) !important;
   /* Fast fade-in = word snaps into focus */
-  transition: background-color 80ms ease-out, box-shadow 120ms ease-out, border-radius 100ms ease !important;
+  transition: background-color 80ms ease-out !important;
 }
 
-/* Glow (±1) — bright halo, almost merges with active */
+/* Glow (±1) — bright, blends into active for continuous blob */
 .proso-w--glow {
   background-color: rgba(13, 148, 136, 0.3) !important;
-  border-radius: 6px !important;
-  padding: 2px 2px !important;
-  box-shadow: 0 0 6px rgba(13, 148, 136, 0.15) !important;
-  transition: background-color 100ms ease-out, box-shadow 150ms ease-out, border-radius 100ms ease !important;
+  transition: background-color 100ms ease-out !important;
 }
 
 /* Near (±2) — medium trail */
 .proso-w--near {
   background-color: rgba(13, 148, 136, 0.16) !important;
-  border-radius: 5px !important;
-  padding: 2px 1px !important;
-  transition: background-color 150ms ease-out, box-shadow 200ms ease-out !important;
+  transition: background-color 160ms ease-out !important;
 }
 
-/* Far (±3) — faint mist, barely visible */
+/* Far (±3) — faint mist at the edges */
 .proso-w--far {
-  background-color: rgba(13, 148, 136, 0.06) !important;
-  border-radius: 4px !important;
-  transition: background-color 200ms ease-out !important;
+  background-color: rgba(13, 148, 136, 0.07) !important;
+  transition: background-color 220ms ease-out !important;
 }
 
-/* Dark mode — boost all levels for visibility on dark backgrounds */
+/* Dark mode — boost all levels */
 @media (prefers-color-scheme: dark) {
   .proso-w--active {
-    background-color: rgba(20, 184, 166, 0.55) !important;
-    box-shadow: 0 0 16px rgba(20, 184, 166, 0.4), 0 0 6px rgba(20, 184, 166, 0.25) !important;
+    background-color: rgba(20, 184, 166, 0.52) !important;
   }
   .proso-w--glow {
     background-color: rgba(20, 184, 166, 0.32) !important;
-    box-shadow: 0 0 8px rgba(20, 184, 166, 0.2) !important;
   }
   .proso-w--near {
     background-color: rgba(20, 184, 166, 0.18) !important;
