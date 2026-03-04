@@ -58,6 +58,16 @@ export class NoOpHighlightSyncAdapter implements IHighlightSynchronizer {
     return Ok(undefined);
   }
 
+  async sendAudioPosition(
+    _tabId: number,
+    _currentTimeMs: number,
+    _isPlaying: boolean,
+    _speed: number,
+  ): Promise<Result<void, HighlightError>> {
+    // No-op: silently succeed
+    return Ok(undefined);
+  }
+
   async clearHighlights(_tabId: number): Promise<Result<void, HighlightError>> {
     // No-op: silently succeed
     return Ok(undefined);

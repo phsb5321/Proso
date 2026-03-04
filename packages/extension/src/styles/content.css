@@ -50,16 +50,48 @@
   }
 }
 
-/* Word-level highlighting using CSS Custom Highlight API (T049) */
-::highlight(proso-word) {
-  background-color: rgba(13, 148, 136, 0.4);
+/* ============================================
+ * Word-level highlighting — CSS Custom Highlight API
+ * Sliding window: active + near (±1) + far (±2)
+ * ============================================ */
+
+/* Active word — the spoken word, brightest */
+::highlight(proso-word-active) {
+  background-color: rgba(13, 148, 136, 0.50);
   color: inherit;
 }
 
-/* Dark mode support for word highlighting */
+/* Near words (±1) — medium intensity */
+::highlight(proso-word-near) {
+  background-color: rgba(13, 148, 136, 0.22);
+  color: inherit;
+}
+
+/* Far words (±2) — subtle tint */
+::highlight(proso-word-far) {
+  background-color: rgba(13, 148, 136, 0.10);
+  color: inherit;
+}
+
+/* Legacy single-word fallback */
+::highlight(proso-word) {
+  background-color: rgba(13, 148, 136, 0.50);
+  color: inherit;
+}
+
+/* Dark mode — boost all levels */
 @media (prefers-color-scheme: dark) {
+  ::highlight(proso-word-active) {
+    background-color: rgba(20, 184, 166, 0.60);
+  }
+  ::highlight(proso-word-near) {
+    background-color: rgba(20, 184, 166, 0.28);
+  }
+  ::highlight(proso-word-far) {
+    background-color: rgba(20, 184, 166, 0.14);
+  }
   ::highlight(proso-word) {
-    background-color: rgba(20, 184, 166, 0.5);
+    background-color: rgba(20, 184, 166, 0.60);
   }
 }
 
