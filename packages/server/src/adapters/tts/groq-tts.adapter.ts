@@ -2,16 +2,16 @@
 // Returns Result<TTSSynthesizeResult, TTSError> for all fallible operations
 
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Ok, Err, ErrorCode, TTSProvider } from '@proso/shared';
+import type { ConfigService } from '@nestjs/config';
+import { Err, ErrorCode, Ok, TTSProvider } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { type TTSError, ttsError } from '../../core/shared/domain-errors';
 import {
   TTSProviderPort,
   type TTSSynthesizeParams,
   type TTSSynthesizeResult,
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
-import { ttsError, type TTSError } from '../../core/shared/domain-errors';
-import type { Result } from '@proso/shared';
 
 const GROQ_TTS_URL = 'https://api.groq.com/openai/v1/audio/speech';
 
@@ -32,17 +32,13 @@ export class GroqTTSAdapter extends TTSProviderPort {
     super();
   }
 
-  async synthesize(
-    request: TTSSynthesizeParams,
-  ): Promise<Result<TTSSynthesizeResult, TTSError>> {
+  async synthesize(request: TTSSynthesizeParams): Promise<Result<TTSSynthesizeResult, TTSError>> {
     const apiKey = request.byokApiKey || this.config.get<string>('GROQ_API_KEY');
     if (!apiKey) {
       return Err(
-        ttsError(
-          ErrorCode.ProviderUnavailable,
-          'Groq API key not configured',
-          { provider: this.providerId },
-        ),
+        ttsError(ErrorCode.ProviderUnavailable, 'Groq API key not configured', {
+          provider: this.providerId,
+        }),
       );
     }
 
@@ -63,15 +59,12 @@ export class GroqTTSAdapter extends TTSProviderPort {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'unknown');
-        this.logger.warn(
-          `Groq TTS API returned ${response.status}: ${errorBody}`,
-        );
+        this.logger.warn(`Groq TTS API returned ${response.status}: ${errorBody}`);
         return Err(
-          ttsError(
-            ErrorCode.ProviderUnavailable,
-            `Groq TTS API error: ${response.status}`,
-            { status: response.status, body: errorBody },
-          ),
+          ttsError(ErrorCode.ProviderUnavailable, `Groq TTS API error: ${response.status}`, {
+            status: response.status,
+            body: errorBody,
+          }),
         );
       }
 
@@ -82,8 +75,7 @@ export class GroqTTSAdapter extends TTSProviderPort {
         provider: TTSProvider.Groq,
       });
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown network error';
+      const message = error instanceof Error ? error.message : 'Unknown network error';
       this.logger.error(`Groq TTS network failure: ${message}`);
       return Err(
         ttsError(ErrorCode.ProviderUnavailable, `Groq TTS failed: ${message}`, {
@@ -93,9 +85,7 @@ export class GroqTTSAdapter extends TTSProviderPort {
     }
   }
 
-  async getVoices(
-    _language?: string,
-  ): Promise<Result<VoiceInfo[], TTSError>> {
+  async getVoices(_language?: string): Promise<Result<VoiceInfo[], TTSError>> {
     // Groq voices are static and English-only
     return Ok(STATIC_VOICES);
   }

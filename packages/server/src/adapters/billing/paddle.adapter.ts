@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import {
   BillingGatewayPort,
-  type CheckoutParams,
   type BillingSubscription,
+  type CheckoutParams,
   type WebhookEvent,
 } from '../../ports/billing-gateway.port';
 
@@ -48,7 +48,7 @@ export class PaddleAdapter extends BillingGatewayPort {
     this.logger.warn(`Paddle cancelSubscription(${subscriptionId}) not yet implemented`);
   }
 
-  async verifyWebhookSignature(rawBody: Buffer, signature: string): Promise<WebhookEvent> {
+  async verifyWebhookSignature(_rawBody: Buffer, _signature: string): Promise<WebhookEvent> {
     const webhookSecret = this.config.get<string>('PADDLE_WEBHOOK_SECRET');
     if (!webhookSecret) {
       throw new Error('PADDLE_WEBHOOK_SECRET not configured');

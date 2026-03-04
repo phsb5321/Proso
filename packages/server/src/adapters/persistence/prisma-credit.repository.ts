@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/modules/prisma.module';
+import type { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
   type CreditAllocationRecord,
   type CreditDeductionMetadata,

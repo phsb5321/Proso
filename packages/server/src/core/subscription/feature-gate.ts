@@ -6,12 +6,8 @@
 //   INV-002: BYOK always available on all tiers
 //   INV-005: Browser TTS always unlimited
 
-import {
-  SubscriptionTier,
-  FEATURE_MATRIX,
-  TIER_CREDITS,
-} from '@proso/shared';
-import type { FeatureEntitlements, CreditBalance } from '@proso/shared';
+import { FEATURE_MATRIX, SubscriptionTier, TIER_CREDITS } from '@proso/shared';
+import type { CreditBalance, FeatureEntitlements } from '@proso/shared';
 
 export type Feature = keyof FeatureEntitlements;
 

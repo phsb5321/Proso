@@ -3,13 +3,13 @@
 // and attaches parsed WebhookEvent to the request object for downstream use.
 
 import {
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { BillingGatewayPort, type WebhookEvent } from '../../ports/billing-gateway.port';
+import type { BillingGatewayPort, WebhookEvent } from '../../ports/billing-gateway.port';
 
 /** Extended Request type with webhook event and raw body attached. */
 export interface WebhookRequest extends Request {
