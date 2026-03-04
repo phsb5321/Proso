@@ -82,6 +82,20 @@ export interface IHighlightSynchronizer {
   ): Promise<Result<void, HighlightError>>;
 
   /**
+   * Send audio position update for content-script-side word sync.
+   * @param tabId - Tab to update
+   * @param currentTimeMs - Current playback time in milliseconds
+   * @param isPlaying - Whether audio is currently playing
+   * @param speed - Playback speed multiplier
+   */
+  sendAudioPosition(
+    tabId: number,
+    currentTimeMs: number,
+    isPlaying: boolean,
+    speed: number,
+  ): Promise<Result<void, HighlightError>>;
+
+  /**
    * Clear all highlights.
    * @param tabId - Tab to clear highlights in
    */

@@ -4,8 +4,15 @@
 
 /**
  * Proso Highlight Manager
- * Manages paragraph and word highlighting for TTS playback
- * Uses CSS Custom Highlight API for word-level highlighting
+ * Manages paragraph and word highlighting for TTS playback.
+ *
+ * Word highlighting uses CSS Custom Highlight API with pre-computed Ranges
+ * and a 60fps rAF sync loop driven by interpolated audio position.
+ *
+ * Three named highlights create a sliding-window reading guide:
+ *   ::highlight(proso-word-active) — the spoken word (brightest)
+ *   ::highlight(proso-word-near)   — ±1 word  (medium)
+ *   ::highlight(proso-word-far)    — ±2 words (subtle)
  *
  * Implements:
  * - FR-001: Paragraph highlight within 200ms latency
@@ -44,6 +51,14 @@ export interface HighlightState {
   autoScrollEnabled: boolean;
   userScrollTimestamp: number;
   prefersReducedMotion: boolean;
+  // rAF word sync state
+  wordRanges: (Range | null)[];
+  currentActiveWordIndex: number;
+  audioTimeAnchorMs: number;
+  audioTimeAnchorTimestamp: number;
+  audioSpeed: number;
+  audioIsPlaying: boolean;
+  rafId: number | null;
 }
 
 /**
@@ -52,6 +67,15 @@ export interface HighlightState {
 const SCROLL_DEBOUNCE_MS = 2000; // Pause auto-scroll for 2s after user scroll
 const PARAGRAPH_LATENCY_THRESHOLD_MS = 200; // FR-001
 const WORD_LATENCY_THRESHOLD_MS = 100; // FR-002
+const WORD_LEAD_OFFSET_MS = 80; // Highlight word slightly ahead for natural reading feel
+
+// Sliding window: number of words before/after the active word
+const WINDOW_BEFORE = 1; // 1 word trailing (fading out)
+const WINDOW_AFTER = 2; // 2 words ahead (fading in)
+
+// CSS Highlight API type helpers
+type HighlightCtor = new (...ranges: Range[]) => unknown;
+type HighlightMap = Map<string, unknown>;
 
 /**
  * HighlightManager class for managing text highlighting during playback
@@ -66,10 +90,18 @@ export class HighlightManager {
       currentWordTimeline: null,
       currentParagraphForWords: -1,
       wordHighlightSupported:
-        typeof CSS !== 'undefined' && typeof (CSS as unknown as Record<string, unknown>).highlights !== 'undefined',
+        typeof CSS !== 'undefined' &&
+        typeof (CSS as unknown as Record<string, unknown>).highlights !== 'undefined',
       autoScrollEnabled: true,
       userScrollTimestamp: 0,
       prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      wordRanges: [],
+      currentActiveWordIndex: -1,
+      audioTimeAnchorMs: 0,
+      audioTimeAnchorTimestamp: 0,
+      audioSpeed: 1,
+      audioIsPlaying: false,
+      rafId: null,
     };
 
     // Listen for user scroll events to pause auto-scroll
@@ -114,12 +146,6 @@ export class HighlightManager {
   /**
    * Highlight the current paragraph being read
    * Implements FR-001: Paragraph highlight within 200ms
-   *
-   * @param index - Paragraph index (fallback)
-   * @param text - Text content to match (preferred)
-   * @param timestamp - Timestamp for sync verification
-   * @param extractedParagraphs - Array of extracted paragraph elements
-   * @param findElementByText - Function to find element by text content
    */
   highlightParagraph(
     index: number,
@@ -139,9 +165,7 @@ export class HighlightManager {
     if (timestamp) {
       const latency = Date.now() - timestamp;
       if (latency > PARAGRAPH_LATENCY_THRESHOLD_MS) {
-        console.warn(
-          `Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`,
-        );
+        console.warn(`Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`);
 
         // Notify background for drift correction tracking
         this.reportDrift(latency, index);
@@ -182,28 +206,208 @@ export class HighlightManager {
   }
 
   /**
-   * Set word timeline for the current paragraph
-   * Sends TIMELINE_READY acknowledgment (FR-002, FR-023)
-   *
-   * @param wordTimeline - Array of word timing data
-   * @param paragraphIndex - Paragraph index
+   * Set word timeline for the current paragraph.
+   * Pre-computes Range objects for each word for fast highlight updates.
+   * Sends TIMELINE_READY acknowledgment (FR-002, FR-023).
    */
   setWordTimeline(wordTimeline: WordTiming[], paragraphIndex: number): void {
     this.state.currentWordTimeline = wordTimeline;
     this.state.currentParagraphForWords = paragraphIndex;
+    this.state.currentActiveWordIndex = -1;
+
+    // Pre-compute Range objects for each word using the highlighted DOM element
+    this.state.wordRanges = [];
+    const element = this.state.currentHighlightedElement;
+    if (element && wordTimeline.length > 0) {
+      for (const wt of wordTimeline) {
+        const charOffset = wt.charOffset ?? 0;
+        const charLength = wt.charLength ?? wt.word?.length ?? 1;
+        const range = this.createWordRange(element, charOffset, charLength);
+        this.state.wordRanges.push(range);
+      }
+      console.log(
+        `Proso: Pre-computed ${this.state.wordRanges.filter(Boolean).length}/${wordTimeline.length} word ranges`,
+      );
+    }
 
     // FR-002, FR-023: Send acknowledgment that timeline is ready
     this.sendTimelineReady(paragraphIndex);
   }
 
   /**
-   * Highlight a specific word using CSS Custom Highlight API
-   * Implements FR-002: Word highlight within 100ms
-   * Implements FR-004: Paragraph index validation
-   *
-   * @param paragraphIndex - Paragraph index
-   * @param wordIndex - Word index
-   * @param timestamp - Timestamp for sync verification
+   * Update audio position from background script.
+   * Called at ~4Hz from timeupdate events.
+   */
+  updateAudioPosition(currentTimeMs: number, isPlaying: boolean, speed: number): void {
+    this.state.audioTimeAnchorMs = currentTimeMs;
+    this.state.audioTimeAnchorTimestamp = performance.now();
+    this.state.audioSpeed = speed;
+    this.state.audioIsPlaying = isPlaying;
+
+    if (isPlaying && this.state.currentWordTimeline && this.state.currentWordTimeline.length > 0) {
+      this.startWordSyncLoop();
+    } else if (!isPlaying) {
+      this.stopWordSyncLoop();
+    }
+  }
+
+  /**
+   * Start the rAF-based word sync loop for 60fps highlighting.
+   */
+  startWordSyncLoop(): void {
+    if (this.state.rafId !== null) return; // Already running
+
+    const tick = () => {
+      if (!this.state.audioIsPlaying || !this.state.currentWordTimeline) {
+        this.stopWordSyncLoop();
+        return;
+      }
+
+      const interpolatedTime = this.interpolateTime();
+      this.syncWordAtTime(interpolatedTime);
+
+      this.state.rafId = requestAnimationFrame(tick);
+    };
+
+    this.state.rafId = requestAnimationFrame(tick);
+  }
+
+  /**
+   * Stop the rAF-based word sync loop.
+   */
+  stopWordSyncLoop(): void {
+    if (this.state.rafId !== null) {
+      cancelAnimationFrame(this.state.rafId);
+      this.state.rafId = null;
+    }
+  }
+
+  /**
+   * Interpolate current audio time between background updates.
+   */
+  private interpolateTime(): number {
+    const elapsed = performance.now() - this.state.audioTimeAnchorTimestamp;
+    return this.state.audioTimeAnchorMs + elapsed * this.state.audioSpeed;
+  }
+
+  /**
+   * Sync word highlight at the given interpolated time using binary search.
+   * Uses CSS Custom Highlight API with multiple named highlights for a sliding window.
+   */
+  private syncWordAtTime(timeMs: number): void {
+    const timeline = this.state.currentWordTimeline;
+    if (!timeline || timeline.length === 0) return;
+    if (!this.state.wordHighlightSupported) return;
+
+    const adjustedTime = timeMs + WORD_LEAD_OFFSET_MS;
+    const wordIndex = this.findWordIndexAtTime(timeline, adjustedTime);
+
+    if (wordIndex === this.state.currentActiveWordIndex) return;
+    this.state.currentActiveWordIndex = wordIndex;
+
+    const highlights = (CSS as unknown as Record<string, unknown>).highlights as
+      | HighlightMap
+      | undefined;
+    if (!highlights) return;
+
+    const HighlightClass = (window as unknown as Record<string, unknown>).Highlight as
+      | HighlightCtor
+      | undefined;
+    if (!HighlightClass) return;
+
+    // Collect ranges for each highlight level
+    const activeRanges: Range[] = [];
+    const nearRanges: Range[] = [];
+    const farRanges: Range[] = [];
+
+    if (wordIndex >= 0) {
+      // Active word
+      const activeRange = this.state.wordRanges[wordIndex];
+      if (activeRange) activeRanges.push(activeRange);
+
+      // Near words (±1)
+      for (const offset of [-1, 1]) {
+        const i = wordIndex + offset;
+        if (i >= 0 && i < this.state.wordRanges.length) {
+          const range = this.state.wordRanges[i];
+          if (range) nearRanges.push(range);
+        }
+      }
+
+      // Far words (−2 trailing, +2 ahead)
+      for (const offset of [-WINDOW_BEFORE - 1, WINDOW_AFTER]) {
+        const i = wordIndex + offset;
+        if (i >= 0 && i < this.state.wordRanges.length) {
+          const range = this.state.wordRanges[i];
+          if (range) farRanges.push(range);
+        }
+      }
+    }
+
+    // Update CSS Highlights (create new Highlight objects — they're lightweight)
+    if (activeRanges.length > 0) {
+      highlights.set('proso-word-active', new HighlightClass(...activeRanges));
+    } else {
+      highlights.delete('proso-word-active');
+    }
+
+    if (nearRanges.length > 0) {
+      highlights.set('proso-word-near', new HighlightClass(...nearRanges));
+    } else {
+      highlights.delete('proso-word-near');
+    }
+
+    if (farRanges.length > 0) {
+      highlights.set('proso-word-far', new HighlightClass(...farRanges));
+    } else {
+      highlights.delete('proso-word-far');
+    }
+
+    // Also set the legacy 'proso-word' for backward compat with existing ::highlight(proso-word)
+    if (activeRanges.length > 0) {
+      highlights.set('proso-word', new HighlightClass(...activeRanges));
+    } else {
+      highlights.delete('proso-word');
+    }
+  }
+
+  /**
+   * Binary search for the word index at a given time in the timeline.
+   */
+  private findWordIndexAtTime(timeline: WordTiming[], timeMs: number): number {
+    if (timeline.length === 0) return -1;
+
+    const startMs = timeline[0]!.startTimeMs ?? 0;
+    if (timeMs < startMs) return -1;
+
+    const lastStart = timeline[timeline.length - 1]!.startTimeMs ?? 0;
+    if (timeMs >= lastStart) return timeline.length - 1;
+
+    let lo = 0;
+    let hi = timeline.length - 1;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      const entry = timeline[mid]!;
+      const entryStart = entry.startTimeMs ?? 0;
+      const entryEnd = entry.endTimeMs ?? entryStart;
+
+      if (timeMs >= entryStart && timeMs < entryEnd) {
+        return mid;
+      }
+      if (timeMs < entryStart) {
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+
+    return lo < timeline.length ? lo : timeline.length - 1;
+  }
+
+  /**
+   * Highlight a specific word using CSS Custom Highlight API (legacy/fallback).
+   * Called when the rAF loop is not active (e.g., from direct highlightWord messages).
    */
   highlightWord(paragraphIndex: number, wordIndex: number, timestamp?: number): void {
     // FR-002: Validate timestamp and measure latency
@@ -236,6 +440,16 @@ export class HighlightManager {
       return;
     }
 
+    // If we have pre-computed ranges, use the sliding window via syncWordAtTime
+    if (this.state.wordRanges.length > 0) {
+      const entry = this.state.currentWordTimeline[wordIndex];
+      if (entry) {
+        this.syncWordAtTime((entry.startTimeMs ?? 0) + 1);
+      }
+      return;
+    }
+
+    // Fallback: single-word highlight via Range
     const wordData = this.state.currentWordTimeline[wordIndex];
     const element = this.state.currentHighlightedElement;
 
@@ -250,8 +464,10 @@ export class HighlightManager {
       const range = this.createWordRange(element, charOffset, charLength);
 
       if (range) {
-        const highlight = new ((window as unknown as Record<string, unknown>).Highlight as new (range: Range) => unknown)(range);
-        ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).set('proso-word', highlight);
+        const HighlightClass = (window as unknown as Record<string, unknown>)
+          .Highlight as HighlightCtor;
+        const highlights = (CSS as unknown as Record<string, unknown>).highlights as HighlightMap;
+        highlights.set('proso-word', new HighlightClass(range));
       }
     } catch (e) {
       console.warn('Proso: Failed to create word highlight:', e);
@@ -259,13 +475,8 @@ export class HighlightManager {
   }
 
   /**
-   * Create a Range object for a word within an element
-   * Handles word spanning multiple text nodes
-   *
-   * @param element - Container element
-   * @param charOffset - Character offset
-   * @param charLength - Character length
-   * @returns DOM Range or null if failed
+   * Create a Range object for a word within an element.
+   * Walks text nodes to find the character offset within the DOM tree.
    */
   createWordRange(element: Element, charOffset: number, charLength: number): Range | null {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
@@ -320,9 +531,7 @@ export class HighlightManager {
 
   /**
    * Scroll to keep highlighted element visible
-   * Implements FR-006 through FR-010: Auto-scroll with reduced-motion and header handling
-   *
-   * @param element - Element to scroll to
+   * Implements FR-006 through FR-010
    */
   scrollToHighlight(element: Element): void {
     if (!element) return;
@@ -331,58 +540,41 @@ export class HighlightManager {
     if (!this.state.autoScrollEnabled) {
       const timeSinceUserScroll = Date.now() - this.state.userScrollTimestamp;
       if (timeSinceUserScroll < SCROLL_DEBOUNCE_MS) {
-        // Still in debounce period, skip auto-scroll
         return;
       }
-      // Debounce expired, re-enable auto-scroll
       this.state.autoScrollEnabled = true;
     }
 
     // FR-008: Respect prefers-reduced-motion
     const scrollBehavior: ScrollBehavior = this.state.prefersReducedMotion ? 'instant' : 'smooth';
 
-    // FR-006, FR-007: Scroll to center with smooth behavior
-    // FR-009: scroll-margin-top in CSS handles fixed headers
     try {
       element.scrollIntoView({
         behavior: scrollBehavior,
         block: 'center',
       });
     } catch (_e) {
-      // Fallback for older browsers
       element.scrollIntoView(true);
     }
   }
 
   /**
    * Handle user scroll event - temporarily pause auto-scroll
-   * Implements FR-010: Pause auto-scroll when user manually scrolls
    */
   onUserScroll(): void {
     this.state.userScrollTimestamp = Date.now();
     this.state.autoScrollEnabled = false;
-
-    // Notify background of scroll state
     this.reportScrollState(this.state.userScrollTimestamp);
   }
 
-  /**
-   * Enable auto-scroll
-   */
   enableAutoScroll(): void {
     this.state.autoScrollEnabled = true;
   }
 
-  /**
-   * Disable auto-scroll
-   */
   disableAutoScroll(): void {
     this.state.autoScrollEnabled = false;
   }
 
-  /**
-   * Check if auto-scroll is currently enabled
-   */
   isAutoScrollEnabled(): boolean {
     if (!this.state.autoScrollEnabled) {
       const timeSinceUserScroll = Date.now() - this.state.userScrollTimestamp;
@@ -410,42 +602,45 @@ export class HighlightManager {
    * Does NOT clear timeline data - used during paragraph transitions
    */
   clearWordHighlightVisual(): void {
-    if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
-      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('proso-word');
+    this.state.currentActiveWordIndex = -1;
+
+    if (
+      this.state.wordHighlightSupported &&
+      (CSS as unknown as Record<string, unknown>).highlights
+    ) {
+      const highlights = (CSS as unknown as Record<string, unknown>).highlights as HighlightMap;
+      highlights.delete('proso-word');
+      highlights.delete('proso-word-active');
+      highlights.delete('proso-word-near');
+      highlights.delete('proso-word-far');
     }
-    // NOTE: Do NOT clear currentWordTimeline or currentParagraphForWords here
   }
 
   /**
    * Clear word highlight fully (visual + data)
-   * Use this only when stopping playback completely
    */
   clearWordHighlightFull(): void {
-    if (this.state.wordHighlightSupported && (CSS as unknown as Record<string, unknown>).highlights) {
-      ((CSS as unknown as Record<string, unknown>).highlights as Map<string, unknown>).delete('proso-word');
-    }
+    this.stopWordSyncLoop();
+    this.clearWordHighlightVisual();
     this.state.currentWordTimeline = null;
     this.state.currentParagraphForWords = -1;
+    this.state.wordRanges = [];
+    this.state.audioIsPlaying = false;
   }
 
   /**
    * Clear all highlights (for complete stop)
    */
   clearHighlights(): void {
+    this.stopWordSyncLoop();
     this.clearParagraphHighlights();
     this.clearWordHighlightFull();
   }
 
-  /**
-   * Get highlight elements array
-   */
   getHighlightElements(): Element[] {
     return this.state.highlightElements;
   }
 
-  /**
-   * Filter highlight elements to only those still in DOM
-   */
   filterValidHighlightElements(): void {
     this.state.highlightElements = this.state.highlightElements.filter((el) =>
       document.body.contains(el),
@@ -463,9 +658,7 @@ export class HighlightManager {
           latencyMs,
           paragraphIndex,
         })
-        .catch(() => {
-          // Ignore send errors
-        });
+        .catch(() => {});
     } catch (_e) {
       // Ignore
     }
@@ -482,9 +675,7 @@ export class HighlightManager {
           paragraphIndex,
           timestamp: Date.now(),
         })
-        .catch(() => {
-          // Ignore send errors
-        });
+        .catch(() => {});
     } catch (e) {
       console.warn('Proso: Failed to send TIMELINE_READY:', e);
     }
@@ -500,9 +691,7 @@ export class HighlightManager {
           action: 'reportScrollState',
           userScrolledAt,
         })
-        .catch(() => {
-          // Ignore send errors
-        });
+        .catch(() => {});
     } catch (_e) {
       // Ignore
     }
