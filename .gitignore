@@ -55,3 +55,6 @@ coverage/
 # ESLint cache
 .eslintcache
 .opencode/
+
+# TypeScript build info (incremental compilation)
+*.tsbuildinfo

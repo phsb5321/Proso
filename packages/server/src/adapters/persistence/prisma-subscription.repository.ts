@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/modules/prisma.module';
+import type { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
-  SubscriptionRepositoryPort,
   type SubscriptionRecord,
+  SubscriptionRepositoryPort,
 } from '../../ports/subscription-repository.port';
 
 @Injectable()
@@ -62,10 +62,12 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     const updateData: Record<string, unknown> = {};
     if (data.tier !== undefined) updateData.tier = data.tier;
     if (data.status !== undefined) updateData.status = data.status;
-    if (data.currentPeriodStart !== undefined) updateData.currentPeriodStart = data.currentPeriodStart;
+    if (data.currentPeriodStart !== undefined)
+      updateData.currentPeriodStart = data.currentPeriodStart;
     if (data.currentPeriodEnd !== undefined) updateData.currentPeriodEnd = data.currentPeriodEnd;
     if (data.cancelledAt !== undefined) updateData.cancelledAt = data.cancelledAt;
-    if (data.paddleSubscriptionId !== undefined) updateData.paddleSubscriptionId = data.paddleSubscriptionId;
+    if (data.paddleSubscriptionId !== undefined)
+      updateData.paddleSubscriptionId = data.paddleSubscriptionId;
 
     const sub = await this.prisma.subscription.update({
       where: { id },

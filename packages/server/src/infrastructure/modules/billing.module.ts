@@ -21,10 +21,7 @@ import { SubscriptionModule } from './subscription.module';
     SubscriptionModule,
   ],
   controllers: [WebhookController],
-  providers: [
-    PaddleWebhookGuard,
-    IdempotencyService,
-  ],
+  providers: [PaddleWebhookGuard, IdempotencyService],
   exports: [IdempotencyService],
 })
 export class BillingModule {}

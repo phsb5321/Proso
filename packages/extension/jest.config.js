@@ -13,28 +13,26 @@
 // Shared configuration for all projects
 const sharedConfig = {
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: [
-    'jest-webextension-mock',
-    '<rootDir>/tests/setup.js'
-  ],
+  setupFilesAfterEnv: ['jest-webextension-mock', '<rootDir>/tests/setup.js'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^(\\.{1,2}/.*)\\.ts$': '$1',
     '^@/(.*)$': '<rootDir>/src/utils/$1',
     '^@proso/shared$': '<rootDir>/../shared/src/index.ts',
-    '^@proso/shared/(.*)$': '<rootDir>/../shared/src/$1'
+    '^@proso/shared/(.*)$': '<rootDir>/../shared/src/$1',
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
-      useESM: true,
-      tsconfig: '<rootDir>/tsconfig.json',
-      diagnostics: false
-    }]
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: '<rootDir>/tsconfig.json',
+        diagnostics: false,
+      },
+    ],
   },
   extensionsToTreatAsEsm: ['.ts'],
-  transformIgnorePatterns: [
-    '/node_modules/(?!(lamejs|tesseract-wasm)/)'
-  ],
+  transformIgnorePatterns: ['/node_modules/(?!(lamejs|tesseract-wasm)/)'],
 };
 
 export default {
@@ -43,55 +41,39 @@ export default {
     {
       ...sharedConfig,
       displayName: 'unit',
-      testMatch: [
-        '<rootDir>/tests/unit/**/*.test.js',
-        '<rootDir>/tests/unit/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/tests/unit/**/*.test.js', '<rootDir>/tests/unit/**/*.test.ts'],
     },
     {
       ...sharedConfig,
       displayName: 'contract',
-      testMatch: [
-        '<rootDir>/tests/contract/**/*.test.js',
-        '<rootDir>/tests/contract/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/tests/contract/**/*.test.js', '<rootDir>/tests/contract/**/*.test.ts'],
     },
     {
       ...sharedConfig,
       displayName: 'integration',
-      testMatch: [
-        '<rootDir>/tests/integration/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
     },
     {
       ...sharedConfig,
       displayName: 'security',
-      testMatch: [
-        '<rootDir>/tests/security/**/*.test.ts',
-      ],
+      testMatch: ['<rootDir>/tests/security/**/*.test.ts'],
     },
     {
       ...sharedConfig,
       displayName: 'regression',
-      testMatch: [
-        '<rootDir>/tests/regression/**/*.test.js',
-      ],
+      testMatch: ['<rootDir>/tests/regression/**/*.test.js'],
     },
   ],
 
   // Coverage configuration
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!**/node_modules/**'
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!**/node_modules/**'],
   coverageThreshold: {
     global: {
-      statements: 35,
-      branches: 30,
-      functions: 40,
-      lines: 35
-    }
+      statements: 60,
+      branches: 50,
+      functions: 55,
+      lines: 60,
+    },
   },
-  verbose: true
+  verbose: true,
 };

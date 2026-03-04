@@ -7,47 +7,45 @@
 //   GET  /api/v1/tts/voices/:provider — list voices for a provider
 
 import {
-  Controller,
-  Post,
-  Get,
+  BadRequestException,
   Body,
-  Param,
-  Req,
-  Res,
+  Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   Inject,
+  Param,
+  Post,
+  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
-  TTSProvider,
-  SubscriptionTier,
   ErrorCode,
+  SubscriptionTier,
+  TTSProvider,
+  TTSSynthesizeRequestSchema,
+  TTSTestKeyRequestSchema,
 } from '@proso/shared';
-import type { TTSTestKeyResponse } from '@proso/shared';
-import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
-import { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import { CacheStorePort } from '../../ports/cache-store.port';
-import { TTSProviderPort } from '../../ports/tts-provider.port';
+import type {
+  TTSSynthesizeRequestParsed,
+  TTSTestKeyRequestParsed,
+  TTSTestKeyResponse,
+} from '@proso/shared';
+import type { Request, Response } from 'express';
 import { synthesize } from '../../core/tts/tts.service';
+import type { CacheStorePort } from '../../ports/cache-store.port';
+import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import type { TTSProviderPort } from '../../ports/tts-provider.port';
+import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 
 /** Maximum text length accepted by the synthesize endpoint (characters). */
 const MAX_TEXT_LENGTH = 5000;
 
 /** Valid TTSProvider values for parameter validation. */
 const VALID_PROVIDERS = new Set(Object.values(TTSProvider));
-
-interface SynthesizeBody {
-  text: string;
-  provider?: string;
-  voice?: string;
-  language?: string;
-  /** User's own API key — used for single-request synthesis, never persisted. */
-  byokApiKey?: string;
-}
 
 @Controller('api/v1/tts')
 export class TTSController {
@@ -64,7 +62,7 @@ export class TTSController {
   async synthesizeAudio(
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: SynthesizeBody,
+    @Body(new ZodValidationPipe(TTSSynthesizeRequestSchema)) body: TTSSynthesizeRequestParsed,
   ): Promise<void> {
     // --- Authentication ---
     // INV-001: Free tier never requires account creation.
@@ -73,7 +71,7 @@ export class TTSController {
     const userId = (req as Request & { userId?: string }).userId;
     const isByok = !!body.byokApiKey;
 
-    // --- Input validation ---
+    // --- Input validation (defense-in-depth; Zod pipe handles HTTP layer) ---
     if (!body.text || typeof body.text !== 'string' || body.text.trim().length === 0) {
       throw new BadRequestException('Text is required and must be non-empty');
     }
@@ -86,7 +84,7 @@ export class TTSController {
       return;
     }
 
-    // Validate provider if specified
+    // Validate provider if specified (defense-in-depth)
     let provider: TTSProvider | undefined;
     if (body.provider) {
       if (!VALID_PROVIDERS.has(body.provider as TTSProvider)) {
@@ -106,11 +104,8 @@ export class TTSController {
     // For BYOK without userId, default to Free tier (INV-002: BYOK available on all tiers)
     let tier = SubscriptionTier.Free;
     if (userId) {
-      const subscription =
-        await this.subscriptionRepository.findActiveByUserId(userId);
-      tier = subscription
-        ? (subscription.tier as SubscriptionTier)
-        : SubscriptionTier.Free;
+      const subscription = await this.subscriptionRepository.findActiveByUserId(userId);
+      tier = subscription ? (subscription.tier as SubscriptionTier) : SubscriptionTier.Free;
     }
 
     // --- Call core synthesize service ---
@@ -160,8 +155,9 @@ export class TTSController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async testKey(
-    @Body() body: { provider?: string; apiKey?: string },
+    @Body(new ZodValidationPipe(TTSTestKeyRequestSchema)) body: TTSTestKeyRequestParsed,
   ): Promise<TTSTestKeyResponse> {
+    // Defense-in-depth: Zod pipe validates at HTTP boundary; manual checks for direct calls
     if (!body.provider || !body.apiKey) {
       throw new BadRequestException('provider and apiKey are required');
     }
@@ -176,7 +172,11 @@ export class TTSController {
     const adapter = this.providers.get(provider);
 
     if (!adapter) {
-      return { success: false, provider: body.provider, error: 'Provider not available on this server' };
+      return {
+        success: false,
+        provider: body.provider,
+        error: 'Provider not available on this server',
+      };
     }
 
     // Validate the key via a minimal synthesis call (1 character)
@@ -216,9 +216,7 @@ export class TTSController {
     const adapter = this.providers.get(provider);
 
     if (!adapter) {
-      throw new BadRequestException(
-        `Provider ${provider} is not configured on this server`,
-      );
+      throw new BadRequestException(`Provider ${provider} is not configured on this server`);
     }
 
     const result = await adapter.getVoices();

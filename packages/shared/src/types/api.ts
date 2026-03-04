@@ -1,8 +1,13 @@
 // API request/response types matching contracts/api-v1.yaml schemas
 
-import type { CreditBalance, SubscriptionTier, SubscriptionStatus, FeatureEntitlements } from '../domain/subscription.js';
 import type { CreditTransaction } from '../domain/credits.js';
 import type { TTSProvider } from '../domain/provider.js';
+import type {
+  CreditBalance,
+  FeatureEntitlements,
+  SubscriptionStatus,
+  SubscriptionTier,
+} from '../domain/subscription.js';
 
 // Health
 export interface HealthResponse {

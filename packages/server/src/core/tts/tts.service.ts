@@ -5,24 +5,16 @@
 //   INV-005: Browser TTS always unlimited (routed client-side, never reaches here)
 //   INV-006: Cached content never re-charges (cache check before credit deduction)
 
-import {
-  TTSProvider,
-  SubscriptionTier,
-  ErrorCode,
-  calculateCreditCost,
-} from '@proso/shared';
+import { ErrorCode, SubscriptionTier, TTSProvider, calculateCreditCost } from '@proso/shared';
 import type { Result } from '@proso/shared';
-import { Ok, Err, isErr } from '@proso/shared';
-import { ttsError } from '../shared/domain-errors.js';
-import type { CreditError, TTSError } from '../shared/domain-errors.js';
-import { deductCredits } from '../credits/credit.service.js';
-import { selectProvider } from '../routing/provider-router.js';
+import { Err, Ok, isErr } from '@proso/shared';
 import type { CacheStorePort } from '../../ports/cache-store.port.js';
 import type { CreditRepositoryPort } from '../../ports/credit-repository.port.js';
-import type {
-  TTSProviderPort,
-  TTSSynthesizeResult,
-} from '../../ports/tts-provider.port.js';
+import type { TTSProviderPort, TTSSynthesizeResult } from '../../ports/tts-provider.port.js';
+import { deductCredits } from '../credits/credit.service.js';
+import { selectProvider } from '../routing/provider-router.js';
+import { ttsError } from '../shared/domain-errors.js';
+import type { CreditError, TTSError } from '../shared/domain-errors.js';
 
 export interface TTSServiceDeps {
   cacheStore: CacheStorePort;
@@ -135,20 +127,13 @@ export async function synthesize(
   }
 
   // Step 2: Check cache (INV-006: cached content never re-charges)
-  const cacheKey = buildCacheKey(
-    request.text,
-    resolvedProvider,
-    request.voice,
-    request.language,
-  );
+  const cacheKey = buildCacheKey(request.text, resolvedProvider, request.voice, request.language);
 
   const cached = await deps.cacheStore.get(cacheKey);
   if (cached) {
     // INV-006: Cache hit — return without charging credits
     // We need to look up remaining credits for the response
-    const allocation = await deps.creditRepository.findCurrentAllocation(
-      request.userId,
-    );
+    const allocation = await deps.creditRepository.findCurrentAllocation(request.userId);
     return Ok({
       audio: cached,
       contentType: 'audio/mpeg',
@@ -188,11 +173,9 @@ export async function synthesize(
   const primaryAdapter = deps.providers.get(resolvedProvider);
   if (!primaryAdapter) {
     return Err(
-      ttsError(
-        ErrorCode.ProviderUnavailable,
-        `Provider ${resolvedProvider} is not registered`,
-        { provider: resolvedProvider },
-      ),
+      ttsError(ErrorCode.ProviderUnavailable, `Provider ${resolvedProvider} is not registered`, {
+        provider: resolvedProvider,
+      }),
     );
   }
 
@@ -228,15 +211,11 @@ export async function synthesize(
   const finalResult = synthesisResult;
   if (!finalResult.ok) {
     return Err(
-      ttsError(
-        ErrorCode.AllProvidersUnavailable,
-        'All TTS providers failed to synthesize audio',
-        {
-          primary: resolvedProvider,
-          fallbackChain: routing.fallbackChain,
-          lastError: finalResult.error.message,
-        },
-      ),
+      ttsError(ErrorCode.AllProvidersUnavailable, 'All TTS providers failed to synthesize audio', {
+        primary: resolvedProvider,
+        fallbackChain: routing.fallbackChain,
+        lastError: finalResult.error.message,
+      }),
     );
   }
 
@@ -246,8 +225,7 @@ export async function synthesize(
   await deps.cacheStore.set(cacheKey, result.audio);
 
   // Step 9: Get updated remaining credits after deduction
-  const updatedAllocation =
-    await deps.creditRepository.findCurrentAllocation(request.userId);
+  const updatedAllocation = await deps.creditRepository.findCurrentAllocation(request.userId);
 
   return Ok({
     audio: result.audio,
@@ -284,12 +262,7 @@ async function synthesizeByok(
   }
 
   // Check cache (INV-006: cached content never re-charges — and for BYOK, never re-calls provider)
-  const cacheKey = buildCacheKey(
-    request.text,
-    requestedProvider,
-    request.voice,
-    request.language,
-  );
+  const cacheKey = buildCacheKey(request.text, requestedProvider, request.voice, request.language);
 
   const cached = await deps.cacheStore.get(cacheKey);
   if (cached) {
@@ -307,11 +280,9 @@ async function synthesizeByok(
   const adapter = deps.providers.get(requestedProvider);
   if (!adapter) {
     return Err(
-      ttsError(
-        ErrorCode.ProviderUnavailable,
-        `Provider ${requestedProvider} is not registered`,
-        { provider: requestedProvider },
-      ),
+      ttsError(ErrorCode.ProviderUnavailable, `Provider ${requestedProvider} is not registered`, {
+        provider: requestedProvider,
+      }),
     );
   }
 

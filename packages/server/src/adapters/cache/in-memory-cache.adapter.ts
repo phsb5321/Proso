@@ -42,8 +42,7 @@ export class InMemoryCacheAdapter extends CacheStorePort {
       this.evictOldest();
     }
 
-    const expiresAt =
-      ttlSeconds !== undefined ? Date.now() + ttlSeconds * 1000 : null;
+    const expiresAt = ttlSeconds !== undefined ? Date.now() + ttlSeconds * 1000 : null;
 
     this.store.set(key, {
       data,

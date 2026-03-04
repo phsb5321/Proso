@@ -8,8 +8,8 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TTSProvider } from '@proso/shared';
 import { InMemoryCacheAdapter } from '../../adapters/cache/in-memory-cache.adapter';
-import { ElevenLabsTTSAdapter } from '../../adapters/tts/elevenlabs-tts.adapter';
 import { CartesiaTTSAdapter } from '../../adapters/tts/cartesia-tts.adapter';
+import { ElevenLabsTTSAdapter } from '../../adapters/tts/elevenlabs-tts.adapter';
 import { GroqTTSAdapter } from '../../adapters/tts/groq-tts.adapter';
 import { OpenAITTSAdapter } from '../../adapters/tts/openai-tts.adapter';
 import { CacheStorePort } from '../../ports/cache-store.port';
@@ -62,7 +62,13 @@ import { SubscriptionModule } from './subscription.module';
 
         return providers;
       },
-      inject: [ConfigService, OpenAITTSAdapter, ElevenLabsTTSAdapter, GroqTTSAdapter, CartesiaTTSAdapter],
+      inject: [
+        ConfigService,
+        OpenAITTSAdapter,
+        ElevenLabsTTSAdapter,
+        GroqTTSAdapter,
+        CartesiaTTSAdapter,
+      ],
     },
   ],
   exports: [CacheStorePort],

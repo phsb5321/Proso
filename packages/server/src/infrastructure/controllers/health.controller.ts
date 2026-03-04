@@ -1,10 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
-import {
-  HealthCheck,
-  HealthCheckService,
-  MemoryHealthIndicator,
-} from '@nestjs/terminus';
-import { PrismaHealthIndicator } from '../health/prisma.health';
+import { HealthCheck, type HealthCheckService, type MemoryHealthIndicator } from '@nestjs/terminus';
+import type { PrismaHealthIndicator } from '../health/prisma.health';
 
 // Read version from package.json at startup
 const APP_VERSION = process.env.npm_package_version || '1.0.0';
