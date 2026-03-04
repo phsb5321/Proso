@@ -83,13 +83,13 @@ export function createScrollSpy(options: ScrollSpyOptions): ScrollSpyInstance {
     // Find the most visible section
     let mostVisible: IntersectionObserverEntry | null = null;
 
-    entries.forEach((entry) => {
+    for (const entry of entries) {
       if (entry.isIntersecting) {
         if (!mostVisible || entry.intersectionRatio > mostVisible.intersectionRatio) {
           mostVisible = entry;
         }
       }
-    });
+    }
 
     if (mostVisible) {
       const sectionId = (mostVisible.target as HTMLElement).id;

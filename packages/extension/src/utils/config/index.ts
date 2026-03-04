@@ -27,6 +27,7 @@ export {
   type Mode,
   type Provider,
   type DetectionSource,
+  type QueueSettings,
 } from './schema';
 
 // Export defaults

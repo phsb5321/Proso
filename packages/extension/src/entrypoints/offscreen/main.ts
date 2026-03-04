@@ -101,43 +101,41 @@ function init(): void {
  * Handle incoming messages from background script
  */
 chrome.runtime.onMessage.addListener(
-  (
-    message: AudioMessage,
-    _sender: chrome.runtime.MessageSender,
-    sendResponse: (response: unknown) => void,
-  ) => {
+  (message: unknown, _sender: unknown, sendResponse: unknown) => {
+    const msg = message as AudioMessage;
+    const respond = sendResponse as (response: unknown) => void;
     // Handle message based on type
-    switch (message.type) {
+    switch (msg.type) {
       case 'LOAD_AUDIO':
-        handleLoadAudio(message.data, sendResponse);
+        handleLoadAudio(msg.data, respond);
         return true; // Async response
 
       case 'PLAY':
-        handlePlayCommand(sendResponse);
+        handlePlayCommand(respond);
         return true;
 
       case 'PAUSE':
-        handlePauseCommand(sendResponse);
+        handlePauseCommand(respond);
         return true;
 
       case 'STOP':
-        handleStopCommand(sendResponse);
+        handleStopCommand(respond);
         return true;
 
       case 'SEEK':
-        handleSeekCommand(message.data.positionMs, sendResponse);
+        handleSeekCommand(msg.data.positionMs, respond);
         return true;
 
       case 'SET_SPEED':
-        handleSetSpeedCommand(message.data.speed, sendResponse);
+        handleSetSpeedCommand(msg.data.speed, respond);
         return true;
 
       case 'GET_STATE':
-        handleGetStateCommand(sendResponse);
+        handleGetStateCommand(respond);
         return true;
 
       default:
-        sendResponse({ success: false, error: 'Unknown message type' });
+        respond({ success: false, error: 'Unknown message type' });
         return false;
     }
   },
@@ -394,11 +392,14 @@ function handleLoadedMetadata(): void {
  */
 function sendEventToBackground(eventType: string, data: Record<string, unknown>): void {
   try {
-    chrome.runtime.sendMessage({
-      type: 'OFFSCREEN_EVENT',
-      eventType,
-      data,
-    });
+    chrome.runtime.sendMessage(
+      {
+        type: 'OFFSCREEN_EVENT',
+        eventType,
+        data,
+      },
+      () => {},
+    );
   } catch (_error) {
     // Ignore send errors (background may not be listening)
   }

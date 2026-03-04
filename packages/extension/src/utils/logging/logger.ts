@@ -279,7 +279,10 @@ export class RemoteLogger {
    */
   private handleConfigChange(newConfig: unknown): void {
     const wasEnabled = this.config.enabled;
-    this.config = loggingConfigSchema.parse({ ...this.config, ...newConfig });
+    this.config = loggingConfigSchema.parse({
+      ...this.config,
+      ...(newConfig as Record<string, unknown>),
+    });
 
     // Reset circuit breaker on config save (user action)
     this.buffer.resetCircuitBreaker();

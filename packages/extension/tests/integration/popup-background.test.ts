@@ -10,14 +10,10 @@
  * @module tests/integration/popup-background
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import {
-  HandlerRegistry,
-  createHandlerRegistry,
-} from '../../src/handlers/registry';
-import { Ok, Err } from '../../src/core/shared/result';
-import type { Result } from '../../src/core/shared/result';
+import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
+import { Err, Ok } from '../../src/core/shared/result';
+import { type HandlerRegistry, createHandlerRegistry } from '../../src/handlers/registry';
 
 /**
  * Simulates the background.ts dispatchMessage() function:
@@ -37,7 +33,10 @@ async function simulateDispatch(
     const result = await registry.dispatch(type, data);
 
     if (!result.ok) {
-      return { success: false, error: result.error.message || String(result.error) };
+      return {
+        success: false,
+        error: (result.error as { message?: string }).message || String(result.error),
+      };
     }
 
     // Unwrap inner Result if present
@@ -372,12 +371,7 @@ describe('Popup ↔ Background Round-Trip Integration', () => {
 
   describe('response schema', () => {
     it('should return structured error for unknown message', async () => {
-      const result = await simulateDispatch(
-        registry,
-        legacyHandlers,
-        'completely.unknown',
-        {},
-      );
+      const result = await simulateDispatch(registry, legacyHandlers, 'completely.unknown', {});
 
       const response = result as { success: boolean; error: string; code: string };
       expect(response.success).toBe(false);
@@ -447,7 +441,7 @@ describe('Popup ↔ Background Round-Trip Integration', () => {
       expect(response.logs).toEqual([]);
 
       // Clean up
-      delete legacyHandlers['getLogs'];
+      legacyHandlers['getLogs'] = undefined as unknown as (typeof legacyHandlers)[string];
     });
 
     it('should prefer hexagonal handler over legacy', async () => {
@@ -465,7 +459,7 @@ describe('Popup ↔ Background Round-Trip Integration', () => {
       expect(response.source).toBe('hexagonal');
 
       // Clean up
-      delete legacyHandlers['settings.get'];
+      legacyHandlers['settings.get'] = undefined as unknown as (typeof legacyHandlers)[string];
     });
   });
 });

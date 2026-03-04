@@ -34,8 +34,16 @@ const loggingDefaults = {
 // Type definitions
 type LoggingConfig = typeof loggingDefaults;
 type LogViewerResponse = {
-  logs: Array<{ timestamp: number; level: string; message: string }>;
+  logs: Array<{
+    timestamp: number;
+    level: string;
+    message: string;
+    date?: string;
+    component?: string;
+    metadata?: Record<string, unknown>;
+  }>;
   total: number;
+  status?: { bufferBytes: number };
 };
 
 import { saveApiKey, testApiKey } from '../../utils/options/api-key-tester';
@@ -794,7 +802,6 @@ function setupProviderCardEventListeners(): void {
   });
 }
 
-
 /**
  * Handle provider API key test
  * T033: Test button with loading state
@@ -1114,7 +1121,7 @@ async function viewLogs(): Promise<void> {
       });
 
       elements.logViewerContainer.style.display = 'block';
-      updateLogViewerStatus(`${logs.length} logs in buffer (${status.bufferBytes} bytes)`);
+      updateLogViewerStatus(`${logs.length} logs in buffer (${status?.bufferBytes ?? 0} bytes)`);
     } else {
       updateLogViewerStatus('Failed to load logs');
     }
@@ -1817,7 +1824,10 @@ async function checkServerStatus(): Promise<void> {
 /**
  * Set the visual state of the server status indicator
  */
-function setServerStatusState(state: 'connected' | 'disconnected' | 'checking' | 'not-configured', label: string): void {
+function setServerStatusState(
+  state: 'connected' | 'disconnected' | 'checking' | 'not-configured',
+  label: string,
+): void {
   if (!elements) return;
 
   elements.serverStatusDot.className = `server-status__dot server-status__dot--${state}`;
@@ -1830,7 +1840,8 @@ function setServerStatusState(state: 'connected' | 'disconnected' | 'checking' |
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  if (seconds < 86400)
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
   return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
 }
 
