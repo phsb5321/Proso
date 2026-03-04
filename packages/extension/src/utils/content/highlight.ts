@@ -71,8 +71,9 @@ const WORD_LATENCY_THRESHOLD_MS = 100; // FR-002
 const WORD_LEAD_OFFSET_MS = 80; // Highlight word slightly ahead for natural reading feel
 
 // Sliding window: number of words before/after the active word
-const WINDOW_BEFORE = 1; // 1 word trailing (fading out)
-const WINDOW_AFTER = 2; // 2 words ahead (fading in)
+// Wider window + more gradient levels = liquid flow effect
+const WINDOW_BEFORE = 3; // 3 words trailing (slow fade-out = liquid trail)
+const WINDOW_AFTER = 3; // 3 words ahead (fast fade-in = approaching wave)
 
 /**
  * HighlightManager class for managing text highlighting during playback
@@ -426,10 +427,22 @@ export class HighlightManager {
     return this.state.audioTimeAnchorMs + elapsed * this.state.audioSpeed;
   }
 
+  /** All CSS classes used on word spans, ordered by intensity. */
+  private static readonly WORD_CLASSES = [
+    'proso-w--active',
+    'proso-w--glow',
+    'proso-w--near',
+    'proso-w--far',
+    'proso-w--mist',
+  ] as const;
+
   /**
    * Sync word highlight at the given interpolated time using binary search.
-   * Toggles CSS classes on pre-wrapped <span> elements for a sliding window effect.
-   * Classes: .proso-w--active (spoken), .proso-w--near (±1), .proso-w--far (±2)
+   * Toggles CSS classes on pre-wrapped <span> elements for a liquid flow effect.
+   *
+   * 5-level gradient: active → glow (±1) → near (±2) → far (±3) → mist (±4)
+   * Asymmetric CSS transitions (fast fade-in, slow fade-out) create the
+   * sensation of highlights flowing into each other like liquid.
    */
   private syncWordAtTime(timeMs: number): void {
     const timeline = this.state.currentWordTimeline;
@@ -443,33 +456,36 @@ export class HighlightManager {
     const prevIndex = this.state.currentActiveWordIndex;
     this.state.currentActiveWordIndex = wordIndex;
 
-    // Remove classes from previous window
+    // Remove classes from previous window (wider sweep to catch mist edges)
     if (prevIndex >= 0) {
-      for (let d = -WINDOW_BEFORE - 1; d <= WINDOW_AFTER; d++) {
+      for (let d = -(WINDOW_BEFORE + 1); d <= WINDOW_AFTER + 1; d++) {
         const span = this.getWordSpan(prevIndex + d);
-        if (span) {
-          span.classList.remove('proso-w--active', 'proso-w--near', 'proso-w--far');
-        }
+        if (span) span.classList.remove(...HighlightManager.WORD_CLASSES);
       }
     }
 
-    // Apply classes to new window
-    if (wordIndex >= 0) {
-      // Active word
-      const activeSpan = this.getWordSpan(wordIndex);
-      if (activeSpan) activeSpan.classList.add('proso-w--active');
+    if (wordIndex < 0) return;
 
-      // Near (±1)
-      for (const offset of [-1, 1]) {
-        const span = this.getWordSpan(wordIndex + offset);
-        if (span) span.classList.add('proso-w--near');
-      }
+    // Active word — the spoken word
+    const activeSpan = this.getWordSpan(wordIndex);
+    if (activeSpan) activeSpan.classList.add('proso-w--active');
 
-      // Far (−2, +2)
-      for (const offset of [-WINDOW_BEFORE - 1, WINDOW_AFTER]) {
-        const span = this.getWordSpan(wordIndex + offset);
-        if (span) span.classList.add('proso-w--far');
-      }
+    // Glow (±1) — brightest halo, merges visually with active
+    for (const d of [-1, 1]) {
+      const s = this.getWordSpan(wordIndex + d);
+      if (s) s.classList.add('proso-w--glow');
+    }
+
+    // Near (±2) — medium intensity
+    for (const d of [-2, 2]) {
+      const s = this.getWordSpan(wordIndex + d);
+      if (s) s.classList.add('proso-w--near');
+    }
+
+    // Far (±3) — subtle trail/lead
+    for (const d of [-3, 3]) {
+      const s = this.getWordSpan(wordIndex + d);
+      if (s) s.classList.add('proso-w--far');
     }
   }
 
@@ -690,7 +706,7 @@ export class HighlightManager {
     // Remove CSS classes from all word spans
     for (const span of this.state.wordSpans) {
       if (span) {
-        span.classList.remove('proso-w--active', 'proso-w--near', 'proso-w--far');
+        span.classList.remove(...HighlightManager.WORD_CLASSES);
       }
     }
   }
