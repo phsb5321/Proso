@@ -91,40 +91,56 @@ function injectContentStyles(): void {
       }
     }
 
-    /* Word-level highlighting — Span-based sliding window */
+    /* Word-level highlighting — Liquid flow effect */
     .proso-w {
       background-color: transparent;
       border-radius: 4px;
-      padding: 1px 0;
-      transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
+      padding: 2px 1px;
+      transition: background-color 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                  border-radius 200ms ease;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
     .proso-w--active {
-      background-color: rgba(13, 148, 136, 0.45);
+      background-color: rgba(13, 148, 136, 0.50);
+      border-radius: 8px;
+      padding: 2px 3px;
+      box-shadow: 0 0 12px rgba(13, 148, 136, 0.35), 0 0 4px rgba(13, 148, 136, 0.2);
+      transition: background-color 80ms ease-out, box-shadow 120ms ease-out, border-radius 100ms ease;
+    }
+    .proso-w--glow {
+      background-color: rgba(13, 148, 136, 0.30);
       border-radius: 6px;
       padding: 2px 2px;
-      box-shadow: 0 0 8px rgba(13, 148, 136, 0.3);
+      box-shadow: 0 0 6px rgba(13, 148, 136, 0.15);
+      transition: background-color 100ms ease-out, box-shadow 150ms ease-out, border-radius 100ms ease;
     }
     .proso-w--near {
-      background-color: rgba(13, 148, 136, 0.18);
-      border-radius: 4px;
-      padding: 1px 1px;
+      background-color: rgba(13, 148, 136, 0.16);
+      border-radius: 5px;
+      padding: 2px 1px;
+      transition: background-color 150ms ease-out, box-shadow 200ms ease-out;
     }
     .proso-w--far {
-      background-color: rgba(13, 148, 136, 0.08);
-      border-radius: 3px;
+      background-color: rgba(13, 148, 136, 0.06);
+      border-radius: 4px;
+      transition: background-color 200ms ease-out;
     }
     @media (prefers-color-scheme: dark) {
       .proso-w--active {
         background-color: rgba(20, 184, 166, 0.55);
-        box-shadow: 0 0 12px rgba(20, 184, 166, 0.4);
+        box-shadow: 0 0 16px rgba(20, 184, 166, 0.4), 0 0 6px rgba(20, 184, 166, 0.25);
       }
-      .proso-w--near { background-color: rgba(20, 184, 166, 0.22); }
-      .proso-w--far { background-color: rgba(20, 184, 166, 0.10); }
+      .proso-w--glow {
+        background-color: rgba(20, 184, 166, 0.32);
+        box-shadow: 0 0 8px rgba(20, 184, 166, 0.2);
+      }
+      .proso-w--near { background-color: rgba(20, 184, 166, 0.18); }
+      .proso-w--far { background-color: rgba(20, 184, 166, 0.08); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .proso-w { transition: none; }
+      .proso-w, .proso-w--active, .proso-w--glow, .proso-w--near, .proso-w--far { transition: none; }
     }
 
     /* Paragraph Selection Mode Styles */
