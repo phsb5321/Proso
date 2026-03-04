@@ -3,27 +3,62 @@
 // Returns Result<TTSSynthesizeResult, TTSError> for all fallible operations
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Ok, Err, ErrorCode, TTSProvider } from '@proso/shared';
+import { Err, ErrorCode, Ok, TTSProvider } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { type TTSError, ttsError } from '../../core/shared/domain-errors';
 import {
   TTSProviderPort,
   type TTSSynthesizeParams,
   type TTSSynthesizeResult,
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
-import { ttsError, type TTSError } from '../../core/shared/domain-errors';
-import type { Result } from '@proso/shared';
 
 const CARTESIA_TTS_URL = 'https://api.cartesia.ai/tts/bytes';
 
 const STATIC_VOICES: VoiceInfo[] = [
-  { id: 'a0e99841-438c-4a64-b679-ae501e7d6091', name: 'Barbershop Man', language: 'en', gender: 'male' },
-  { id: '156fb8d2-335b-4950-9cb3-a2d33f8c717e', name: 'British Lady', language: 'en', gender: 'female' },
-  { id: 'c45bc5ec-dc68-4feb-8829-6e6b2748095d', name: 'Confident British Man', language: 'en', gender: 'male' },
-  { id: 'e00d0480-4cb5-4c47-99df-d85b3b0465c1', name: 'Female Narrator', language: 'en', gender: 'female' },
+  {
+    id: 'a0e99841-438c-4a64-b679-ae501e7d6091',
+    name: 'Barbershop Man',
+    language: 'en',
+    gender: 'male',
+  },
+  {
+    id: '156fb8d2-335b-4950-9cb3-a2d33f8c717e',
+    name: 'British Lady',
+    language: 'en',
+    gender: 'female',
+  },
+  {
+    id: 'c45bc5ec-dc68-4feb-8829-6e6b2748095d',
+    name: 'Confident British Man',
+    language: 'en',
+    gender: 'male',
+  },
+  {
+    id: 'e00d0480-4cb5-4c47-99df-d85b3b0465c1',
+    name: 'Female Narrator',
+    language: 'en',
+    gender: 'female',
+  },
   { id: '41534e16-2966-4c6b-9670-111411def906', name: 'Newsman', language: 'en', gender: 'male' },
-  { id: 'bf991597-6c13-47e4-8411-91ec2de5c466', name: 'Nonfiction Man', language: 'en', gender: 'male' },
-  { id: 'b7d50908-b89b-4ec4-b157-2d0df75e1f33', name: 'Reflective Woman', language: 'en', gender: 'female' },
-  { id: '79a125e8-cd45-4c13-8a67-188112f4dd22', name: 'Reading Man', language: 'en', gender: 'male' },
+  {
+    id: 'bf991597-6c13-47e4-8411-91ec2de5c466',
+    name: 'Nonfiction Man',
+    language: 'en',
+    gender: 'male',
+  },
+  {
+    id: 'b7d50908-b89b-4ec4-b157-2d0df75e1f33',
+    name: 'Reflective Woman',
+    language: 'en',
+    gender: 'female',
+  },
+  {
+    id: '79a125e8-cd45-4c13-8a67-188112f4dd22',
+    name: 'Reading Man',
+    language: 'en',
+    gender: 'male',
+  },
 ];
 
 @Injectable()
@@ -32,9 +67,7 @@ export class CartesiaTTSAdapter extends TTSProviderPort {
   readonly providerId = TTSProvider.Cartesia;
   readonly supportedLanguages = ['en'];
 
-  async synthesize(
-    request: TTSSynthesizeParams,
-  ): Promise<Result<TTSSynthesizeResult, TTSError>> {
+  async synthesize(request: TTSSynthesizeParams): Promise<Result<TTSSynthesizeResult, TTSError>> {
     const apiKey = request.byokApiKey;
     if (!apiKey) {
       return Err(
@@ -74,15 +107,12 @@ export class CartesiaTTSAdapter extends TTSProviderPort {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'unknown');
-        this.logger.warn(
-          `Cartesia TTS API returned ${response.status}: ${errorBody}`,
-        );
+        this.logger.warn(`Cartesia TTS API returned ${response.status}: ${errorBody}`);
         return Err(
-          ttsError(
-            ErrorCode.ProviderUnavailable,
-            `Cartesia TTS API error: ${response.status}`,
-            { status: response.status, body: errorBody },
-          ),
+          ttsError(ErrorCode.ProviderUnavailable, `Cartesia TTS API error: ${response.status}`, {
+            status: response.status,
+            body: errorBody,
+          }),
         );
       }
 
@@ -93,8 +123,7 @@ export class CartesiaTTSAdapter extends TTSProviderPort {
         provider: TTSProvider.Cartesia,
       });
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown network error';
+      const message = error instanceof Error ? error.message : 'Unknown network error';
       this.logger.error(`Cartesia TTS network failure: ${message}`);
       return Err(
         ttsError(ErrorCode.ProviderUnavailable, `Cartesia TTS failed: ${message}`, {
@@ -104,9 +133,7 @@ export class CartesiaTTSAdapter extends TTSProviderPort {
     }
   }
 
-  async getVoices(
-    _language?: string,
-  ): Promise<Result<VoiceInfo[], TTSError>> {
+  async getVoices(_language?: string): Promise<Result<VoiceInfo[], TTSError>> {
     return Ok(STATIC_VOICES);
   }
 }

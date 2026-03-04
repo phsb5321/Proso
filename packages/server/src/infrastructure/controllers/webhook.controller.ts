@@ -7,25 +7,13 @@
 // Security: PaddleWebhookGuard verifies signature before handler executes.
 // Idempotency: Duplicate eventIds return 200 OK (safe to retry).
 
-import {
-  Controller,
-  Post,
-  Req,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Logger,
-} from '@nestjs/common';
+import { Controller, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } from '@nestjs/common';
+import { SubscriptionStatus, SubscriptionTier, TIER_CREDITS } from '@proso/shared';
+import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { Public } from '../guards/license-key.guard';
 import { PaddleWebhookGuard, type WebhookRequest } from '../guards/paddle-webhook.guard';
-import { IdempotencyService } from '../services/idempotency.service';
-import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
-import { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import {
-  SubscriptionTier,
-  SubscriptionStatus,
-  TIER_CREDITS,
-} from '@proso/shared';
+import type { IdempotencyService } from '../services/idempotency.service';
 
 /** Paddle webhook event type constants. */
 const PaddleEventType = {
@@ -49,9 +37,7 @@ export class WebhookController {
   @Public()
   @UseGuards(PaddleWebhookGuard)
   @HttpCode(HttpStatus.OK)
-  async handlePaddleWebhook(
-    @Req() req: WebhookRequest,
-  ): Promise<{ received: true }> {
+  async handlePaddleWebhook(@Req() req: WebhookRequest): Promise<{ received: true }> {
     const event = req.webhookEvent;
 
     // --- Idempotency check ---
@@ -61,9 +47,7 @@ export class WebhookController {
       return { received: true };
     }
 
-    this.logger.log(
-      `Processing webhook: type=${event.eventType} id=${event.eventId}`,
-    );
+    this.logger.log(`Processing webhook: type=${event.eventType} id=${event.eventId}`);
 
     // --- Route by event type ---
     try {
@@ -153,9 +137,7 @@ export class WebhookController {
     const existing = await this.subscriptionRepository.findByPaddleId(paddleSubscriptionId);
 
     if (!existing) {
-      this.logger.warn(
-        `Subscription update for unknown Paddle ID: ${paddleSubscriptionId}`,
-      );
+      this.logger.warn(`Subscription update for unknown Paddle ID: ${paddleSubscriptionId}`);
       return;
     }
 
@@ -172,9 +154,7 @@ export class WebhookController {
       updatedAt: new Date(),
     });
 
-    this.logger.log(
-      `Subscription updated: user=${existing.userId} tier=${tier} status=${status}`,
-    );
+    this.logger.log(`Subscription updated: user=${existing.userId} tier=${tier} status=${status}`);
   }
 
   /**
@@ -186,9 +166,7 @@ export class WebhookController {
     const existing = await this.subscriptionRepository.findByPaddleId(paddleSubscriptionId);
 
     if (!existing) {
-      this.logger.warn(
-        `Subscription cancel for unknown Paddle ID: ${paddleSubscriptionId}`,
-      );
+      this.logger.warn(`Subscription cancel for unknown Paddle ID: ${paddleSubscriptionId}`);
       return;
     }
 
@@ -217,17 +195,13 @@ export class WebhookController {
 
     const existing = await this.subscriptionRepository.findByPaddleId(subscriptionId);
     if (!existing) {
-      this.logger.warn(
-        `Transaction completed for unknown Paddle subscription: ${subscriptionId}`,
-      );
+      this.logger.warn(`Transaction completed for unknown Paddle subscription: ${subscriptionId}`);
       return;
     }
 
     // Update subscription period and status to active
     const billingPeriod = data['billing_period'] as Record<string, string> | undefined;
-    const periodStart = billingPeriod?.starts_at
-      ? new Date(billingPeriod.starts_at)
-      : new Date();
+    const periodStart = billingPeriod?.starts_at ? new Date(billingPeriod.starts_at) : new Date();
     const periodEnd = billingPeriod?.ends_at
       ? new Date(billingPeriod.ends_at)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // fallback 30 days
@@ -312,11 +286,7 @@ export class WebhookController {
    * Extract a nested date field from webhook data.
    * e.g., extractDate(data, 'current_billing_period', 'starts_at')
    */
-  private extractDate(
-    data: Record<string, unknown>,
-    parentKey: string,
-    childKey: string,
-  ): Date {
+  private extractDate(data: Record<string, unknown>, parentKey: string, childKey: string): Date {
     const parent = data[parentKey] as Record<string, string> | undefined;
     if (parent?.[childKey]) {
       return new Date(parent[childKey]);

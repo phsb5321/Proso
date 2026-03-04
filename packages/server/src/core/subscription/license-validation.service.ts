@@ -3,15 +3,18 @@
 //
 // Enforces INV-001: Free tier never requires account creation
 
-import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
+import { SubscriptionStatus, type SubscriptionTier } from '@proso/shared';
 import type { LicenseValidateResponse } from '@proso/shared';
 import type { Result } from '@proso/shared';
 import { Ok } from '@proso/shared';
-import { getFreeTierDefaults, getFeatureEntitlements } from './feature-gate.js';
-import type { LicenseError } from '../shared/domain-errors.js';
-import type { UserRepositoryPort, UserRecord } from '../../ports/user-repository.port.js';
-import type { SubscriptionRepositoryPort, SubscriptionRecord } from '../../ports/subscription-repository.port.js';
 import type { CreditRepositoryPort } from '../../ports/credit-repository.port.js';
+import type {
+  SubscriptionRecord,
+  SubscriptionRepositoryPort,
+} from '../../ports/subscription-repository.port.js';
+import type { UserRecord, UserRepositoryPort } from '../../ports/user-repository.port.js';
+import type { LicenseError } from '../shared/domain-errors.js';
+import { getFeatureEntitlements, getFreeTierDefaults } from './feature-gate.js';
 
 export interface LicenseValidationDeps {
   userRepository: UserRepositoryPort;

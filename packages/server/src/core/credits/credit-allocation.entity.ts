@@ -76,9 +76,7 @@ export class CreditAllocation {
   get usagePercent(): number {
     if (this.props.totalCredits === 0) return 0;
     return Math.round(
-      ((this.props.totalCredits - this.props.remainingCredits) /
-        this.props.totalCredits) *
-        100,
+      ((this.props.totalCredits - this.props.remainingCredits) / this.props.totalCredits) * 100,
     );
   }
 
