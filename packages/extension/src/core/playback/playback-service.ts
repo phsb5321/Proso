@@ -359,7 +359,90 @@ export class PlaybackService {
   // Private methods
 
   /**
-   * Estimate word timings by distributing duration proportionally by character count.
+   * Convert provider word timings (startMs/endMs) to internal format with charOffset/charLength.
+   * Matches each provider word against the paragraph text sequentially.
+   */
+  private convertProviderTimings(
+    providerTimings: readonly { word: string; startMs: number; endMs: number }[],
+    paragraphText: string,
+  ): Array<{
+    word: string;
+    charOffset: number;
+    charLength: number;
+    startTimeMs: number;
+    endTimeMs: number;
+  }> {
+    const result: Array<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }> = [];
+
+    let searchFrom = 0;
+
+    for (const wt of providerTimings) {
+      const wordClean = wt.word.trim();
+      if (!wordClean) continue;
+
+      const idx = paragraphText.indexOf(wordClean, searchFrom);
+      if (idx >= 0) {
+        result.push({
+          word: wordClean,
+          charOffset: idx,
+          charLength: wordClean.length,
+          startTimeMs: wt.startMs,
+          endTimeMs: wt.endMs,
+        });
+        searchFrom = idx + wordClean.length;
+      } else {
+        result.push({
+          word: wordClean,
+          charOffset: searchFrom,
+          charLength: wordClean.length,
+          startTimeMs: wt.startMs,
+          endTimeMs: wt.endMs,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Count syllables in a word using vowel cluster heuristic.
+   */
+  private countSyllables(word: string): number {
+    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+    if (!clean) return 1;
+
+    const vowelClusters = clean.match(/[aeiouy]+/g);
+    let count = vowelClusters ? vowelClusters.length : 1;
+
+    // Subtract silent 'e' at end (but not for short words like "the")
+    if (clean.length > 3 && clean.endsWith('e') && !/[aeiouy]e$/i.test(clean.slice(-2))) {
+      count = Math.max(1, count - 1);
+    }
+
+    return Math.max(1, count);
+  }
+
+  /**
+   * Check if text contains primarily Latin-script characters.
+   */
+  private isLatinScript(text: string): boolean {
+    const latinChars = text.replace(/[^a-zA-Z\u00C0-\u024F]/g, '').length;
+    const totalAlpha = text.replace(
+      /[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/g,
+      '',
+    ).length;
+    return totalAlpha === 0 || latinChars / totalAlpha > 0.5;
+  }
+
+  /**
+   * Estimate word timings by distributing duration proportionally by syllable count (Latin)
+   * or character count (non-Latin).
    */
   private estimateWordTimings(
     text: string,
@@ -384,8 +467,10 @@ export class PlaybackService {
 
     if (words.length === 0) return [];
 
-    const totalChars = words.reduce((sum, w) => sum + w.charLength, 0);
-    if (totalChars === 0) return [];
+    const useSyllables = this.isLatinScript(text);
+    const weights = words.map((w) => (useSyllables ? this.countSyllables(w.word) : w.charLength));
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight === 0) return [];
 
     const timings: Array<{
       word: string;
@@ -396,8 +481,9 @@ export class PlaybackService {
     }> = [];
     let currentTimeMs = 0;
 
-    for (const w of words) {
-      const wordDurationMs = (w.charLength / totalChars) * durationMs;
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i]!;
+      const wordDurationMs = (weights[i]! / totalWeight) * durationMs;
       timings.push({
         word: w.word,
         charOffset: w.charOffset,
@@ -535,13 +621,27 @@ export class PlaybackService {
         Date.now(),
       );
 
-      // Estimate word timings and send to content script for word-level highlighting
+      // Use real provider word timings when available, else estimate
       const audioDurationMs = this.audioElement?.duration
         ? this.audioElement.duration * 1000
         : (audioResponse.durationMs ?? 0);
 
       if (audioDurationMs > 0) {
-        const wordTimings = this.estimateWordTimings(paragraphText, audioDurationMs);
+        let wordTimings: Array<{
+          word: string;
+          charOffset: number;
+          charLength: number;
+          startTimeMs: number;
+          endTimeMs: number;
+        }>;
+
+        if (audioResponse.wordTimings && audioResponse.wordTimings.length > 0) {
+          // Use real provider timestamps (e.g. ElevenLabs, cached entries)
+          wordTimings = this.convertProviderTimings(audioResponse.wordTimings, paragraphText);
+        } else {
+          wordTimings = this.estimateWordTimings(paragraphText, audioDurationMs);
+        }
+
         this.currentWordTimings = wordTimings;
         this.currentWordIndex = -1;
 
@@ -590,18 +690,15 @@ export class PlaybackService {
         this.state = playbackStateTransitions.updateProgress(this.state, progress);
         this.updateFooterState();
 
-        // Word-level sync: find current word by playback time
-        if (this.currentWordTimings.length > 0 && this.state.activeTabId !== null) {
+        // Send audio position to content script for rAF-based word sync
+        if (this.state.activeTabId !== null) {
           const currentTimeMs = this.audioElement.currentTime * 1000;
-          const wordIndex = this.findWordIndexAtTime(currentTimeMs);
-          if (wordIndex !== this.currentWordIndex && wordIndex >= 0) {
-            this.currentWordIndex = wordIndex;
-            this.deps.highlightSync.highlightWord(
-              this.state.activeTabId,
-              this.state.currentParagraphIndex,
-              wordIndex,
-            );
-          }
+          this.deps.highlightSync.sendAudioPosition(
+            this.state.activeTabId,
+            currentTimeMs,
+            !this.audioElement.paused,
+            this.state.speed,
+          );
         }
       }
     });

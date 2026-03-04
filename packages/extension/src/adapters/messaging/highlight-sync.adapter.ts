@@ -107,6 +107,25 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     }
   }
 
+  async sendAudioPosition(
+    tabId: number,
+    currentTimeMs: number,
+    isPlaying: boolean,
+    speed: number,
+  ): Promise<Result<void, HighlightError>> {
+    try {
+      await this.sendToContentScript(tabId, {
+        type: 'audioPositionUpdate',
+        currentTimeMs,
+        isPlaying,
+        speed,
+      });
+      return Ok(undefined);
+    } catch (error) {
+      return Err(this.toHighlightError(tabId, error));
+    }
+  }
+
   async clearHighlights(tabId: number): Promise<Result<void, HighlightError>> {
     try {
       await this.sendToContentScript(tabId, {
