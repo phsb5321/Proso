@@ -179,6 +179,41 @@ export class MockHighlightSync implements IHighlightSynchronizer {
     return Ok(undefined);
   }
 
+  public sendAudioPositionCalls: Array<{
+    tabId: number;
+    currentTimeMs: number;
+    isPlaying: boolean;
+    speed: number;
+    timestamp: number;
+  }> = [];
+
+  async sendAudioPosition(
+    tabId: number,
+    currentTimeMs: number,
+    isPlaying: boolean,
+    speed: number,
+  ): Promise<Result<void, HighlightError>> {
+    this.sendAudioPositionCalls.push({
+      tabId,
+      currentTimeMs,
+      isPlaying,
+      speed,
+      timestamp: Date.now(),
+    });
+    await this.simulateLatency();
+
+    if (this.forceError) {
+      return Err(this.forceError);
+    }
+
+    const tabError = this.validateTabId(tabId);
+    if (tabError) {
+      return Err(tabError);
+    }
+
+    return Ok(undefined);
+  }
+
   async clearHighlights(tabId: number): Promise<Result<void, HighlightError>> {
     this.clearHighlightsCalls.push(tabId);
     await this.simulateLatency();
@@ -267,6 +302,7 @@ export class MockHighlightSync implements IHighlightSynchronizer {
   reset(): void {
     this.highlightParagraphCalls = [];
     this.highlightWordCalls = [];
+    this.sendAudioPositionCalls = [];
     this.clearHighlightsCalls = [];
     this.showFooterCalls = [];
     this.hideFooterCalls = [];

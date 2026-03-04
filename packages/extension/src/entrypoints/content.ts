@@ -14,23 +14,23 @@
  */
 
 import { browser } from 'wxt/browser';
+import type { TextQuoteSelector } from '../core/highlight';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
-import {
-  StickyFooter,
-  type StorageState,
-  type PlaybackState,
-  type PlaybackStatus,
-} from '../utils/content/sticky-footer';
-import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
-import { usageTracker, hashUrlSync } from '../utils/telemetry/usage';
+import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
   type PersistentHighlightManager,
   createPersistentHighlightManager,
 } from '../utils/content/persistent-highlight';
-import type { TextQuoteSelector } from '../core/highlight';
+import {
+  type PlaybackState,
+  type PlaybackStatus,
+  StickyFooter,
+  type StorageState,
+} from '../utils/content/sticky-footer';
 import type { HighlightColor } from '../utils/schemas/highlight.schema';
+import { hashUrlSync, usageTracker } from '../utils/telemetry/usage';
 
 // ============================================================================
 // CSS Injection
@@ -91,16 +91,28 @@ function injectContentStyles(): void {
       }
     }
 
-    /* Word-level highlighting using CSS Custom Highlight API */
-    ::highlight(proso-word) {
-      background-color: rgba(13, 148, 136, 0.4);
+    /* Word-level highlighting — CSS Custom Highlight API sliding window */
+    ::highlight(proso-word-active) {
+      background-color: rgba(13, 148, 136, 0.50);
       color: inherit;
     }
-
+    ::highlight(proso-word-near) {
+      background-color: rgba(13, 148, 136, 0.22);
+      color: inherit;
+    }
+    ::highlight(proso-word-far) {
+      background-color: rgba(13, 148, 136, 0.10);
+      color: inherit;
+    }
+    ::highlight(proso-word) {
+      background-color: rgba(13, 148, 136, 0.50);
+      color: inherit;
+    }
     @media (prefers-color-scheme: dark) {
-      ::highlight(proso-word) {
-        background-color: rgba(20, 184, 166, 0.5);
-      }
+      ::highlight(proso-word-active) { background-color: rgba(20, 184, 166, 0.60); }
+      ::highlight(proso-word-near) { background-color: rgba(20, 184, 166, 0.28); }
+      ::highlight(proso-word-far) { background-color: rgba(20, 184, 166, 0.14); }
+      ::highlight(proso-word) { background-color: rgba(20, 184, 166, 0.60); }
     }
 
     /* Paragraph Selection Mode Styles */
@@ -760,7 +772,8 @@ export default defineContentScript({
         }));
 
         // Render highlights and track orphans
-        const orphanStatus = await persistentHighlightManager.reanchorHighlights(highlightsToRender);
+        const orphanStatus =
+          await persistentHighlightManager.reanchorHighlights(highlightsToRender);
 
         // Report orphaned highlights to background for status update
         const orphanedIds = Array.from(orphanStatus.entries())
@@ -1029,6 +1042,16 @@ export default defineContentScript({
         case 'highlightWord': {
           const msg = message as WordHighlightMessage;
           highlightManager.highlightWord(msg.paragraphIndex, msg.wordIndex, msg.timestamp);
+          break;
+        }
+
+        case 'audioPositionUpdate': {
+          const msg = message as LegacyMessage & {
+            currentTimeMs: number;
+            isPlaying: boolean;
+            speed: number;
+          };
+          highlightManager.updateAudioPosition(msg.currentTimeMs, msg.isPlaying, msg.speed);
           break;
         }
 
