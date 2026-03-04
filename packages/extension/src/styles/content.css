@@ -48,50 +48,61 @@
     animation: none !important;
     transition: none !important;
   }
+  .proso-w {
+    transition: none !important;
+  }
 }
 
 /* ============================================
- * Word-level highlighting — CSS Custom Highlight API
- * Sliding window: active + near (±1) + far (±2)
+ * Word-level highlighting — Span-based sliding window
+ * .proso-w        — base wrapper (invisible)
+ * .proso-w--active — the spoken word (brightest, pill shape)
+ * .proso-w--near   — ±1 words (medium glow)
+ * .proso-w--far    — ±2 words (subtle tint)
  * ============================================ */
 
-/* Active word — the spoken word, brightest */
-::highlight(proso-word-active) {
-  background-color: rgba(13, 148, 136, 0.50);
-  color: inherit;
+/* Base word span — invisible, just enables transitions */
+.proso-w {
+  background-color: transparent !important;
+  border-radius: 4px !important;
+  padding: 1px 0 !important;
+  transition: background-color 150ms ease-out, box-shadow 150ms ease-out !important;
+  box-decoration-break: clone !important;
+  -webkit-box-decoration-break: clone !important;
+}
+
+/* Active word — spoken word, bright pill */
+.proso-w--active {
+  background-color: rgba(13, 148, 136, 0.45) !important;
+  border-radius: 6px !important;
+  padding: 2px 2px !important;
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.3) !important;
 }
 
 /* Near words (±1) — medium intensity */
-::highlight(proso-word-near) {
-  background-color: rgba(13, 148, 136, 0.22);
-  color: inherit;
+.proso-w--near {
+  background-color: rgba(13, 148, 136, 0.18) !important;
+  border-radius: 4px !important;
+  padding: 1px 1px !important;
 }
 
 /* Far words (±2) — subtle tint */
-::highlight(proso-word-far) {
-  background-color: rgba(13, 148, 136, 0.10);
-  color: inherit;
-}
-
-/* Legacy single-word fallback */
-::highlight(proso-word) {
-  background-color: rgba(13, 148, 136, 0.50);
-  color: inherit;
+.proso-w--far {
+  background-color: rgba(13, 148, 136, 0.08) !important;
+  border-radius: 3px !important;
 }
 
 /* Dark mode — boost all levels */
 @media (prefers-color-scheme: dark) {
-  ::highlight(proso-word-active) {
-    background-color: rgba(20, 184, 166, 0.60);
+  .proso-w--active {
+    background-color: rgba(20, 184, 166, 0.55) !important;
+    box-shadow: 0 0 12px rgba(20, 184, 166, 0.4) !important;
   }
-  ::highlight(proso-word-near) {
-    background-color: rgba(20, 184, 166, 0.28);
+  .proso-w--near {
+    background-color: rgba(20, 184, 166, 0.22) !important;
   }
-  ::highlight(proso-word-far) {
-    background-color: rgba(20, 184, 166, 0.14);
-  }
-  ::highlight(proso-word) {
-    background-color: rgba(20, 184, 166, 0.60);
+  .proso-w--far {
+    background-color: rgba(20, 184, 166, 0.1) !important;
   }
 }
 

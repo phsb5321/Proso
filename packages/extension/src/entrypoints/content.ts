@@ -91,28 +91,40 @@ function injectContentStyles(): void {
       }
     }
 
-    /* Word-level highlighting — CSS Custom Highlight API sliding window */
-    ::highlight(proso-word-active) {
-      background-color: rgba(13, 148, 136, 0.50);
-      color: inherit;
+    /* Word-level highlighting — Span-based sliding window */
+    .proso-w {
+      background-color: transparent;
+      border-radius: 4px;
+      padding: 1px 0;
+      transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
-    ::highlight(proso-word-near) {
-      background-color: rgba(13, 148, 136, 0.22);
-      color: inherit;
+    .proso-w--active {
+      background-color: rgba(13, 148, 136, 0.45);
+      border-radius: 6px;
+      padding: 2px 2px;
+      box-shadow: 0 0 8px rgba(13, 148, 136, 0.3);
     }
-    ::highlight(proso-word-far) {
-      background-color: rgba(13, 148, 136, 0.10);
-      color: inherit;
+    .proso-w--near {
+      background-color: rgba(13, 148, 136, 0.18);
+      border-radius: 4px;
+      padding: 1px 1px;
     }
-    ::highlight(proso-word) {
-      background-color: rgba(13, 148, 136, 0.50);
-      color: inherit;
+    .proso-w--far {
+      background-color: rgba(13, 148, 136, 0.08);
+      border-radius: 3px;
     }
     @media (prefers-color-scheme: dark) {
-      ::highlight(proso-word-active) { background-color: rgba(20, 184, 166, 0.60); }
-      ::highlight(proso-word-near) { background-color: rgba(20, 184, 166, 0.28); }
-      ::highlight(proso-word-far) { background-color: rgba(20, 184, 166, 0.14); }
-      ::highlight(proso-word) { background-color: rgba(20, 184, 166, 0.60); }
+      .proso-w--active {
+        background-color: rgba(20, 184, 166, 0.55);
+        box-shadow: 0 0 12px rgba(20, 184, 166, 0.4);
+      }
+      .proso-w--near { background-color: rgba(20, 184, 166, 0.22); }
+      .proso-w--far { background-color: rgba(20, 184, 166, 0.10); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .proso-w { transition: none; }
     }
 
     /* Paragraph Selection Mode Styles */
