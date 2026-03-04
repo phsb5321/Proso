@@ -93,35 +93,35 @@ function injectContentStyles(): void {
 
     /* Word-level highlighting — Liquid flow (zero layout impact) */
     .proso-w {
-      background-color: transparent;
-      transition: background-color 450ms cubic-bezier(0.4, 0, 0.2, 1);
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
+      background-color: transparent !important;
+      transition: background-color 450ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+      box-decoration-break: clone !important;
+      -webkit-box-decoration-break: clone !important;
     }
     .proso-w--active {
-      background-color: rgba(13, 148, 136, 0.48);
-      transition: background-color 80ms ease-out;
+      background-color: rgba(13, 148, 136, 0.48) !important;
+      transition: background-color 80ms ease-out !important;
     }
     .proso-w--glow {
-      background-color: rgba(13, 148, 136, 0.30);
-      transition: background-color 100ms ease-out;
+      background-color: rgba(13, 148, 136, 0.30) !important;
+      transition: background-color 100ms ease-out !important;
     }
     .proso-w--near {
-      background-color: rgba(13, 148, 136, 0.16);
-      transition: background-color 160ms ease-out;
+      background-color: rgba(13, 148, 136, 0.16) !important;
+      transition: background-color 160ms ease-out !important;
     }
     .proso-w--far {
-      background-color: rgba(13, 148, 136, 0.07);
-      transition: background-color 220ms ease-out;
+      background-color: rgba(13, 148, 136, 0.07) !important;
+      transition: background-color 220ms ease-out !important;
     }
     @media (prefers-color-scheme: dark) {
-      .proso-w--active { background-color: rgba(20, 184, 166, 0.52); }
-      .proso-w--glow { background-color: rgba(20, 184, 166, 0.32); }
-      .proso-w--near { background-color: rgba(20, 184, 166, 0.18); }
-      .proso-w--far { background-color: rgba(20, 184, 166, 0.08); }
+      .proso-w--active { background-color: rgba(20, 184, 166, 0.52) !important; }
+      .proso-w--glow { background-color: rgba(20, 184, 166, 0.32) !important; }
+      .proso-w--near { background-color: rgba(20, 184, 166, 0.18) !important; }
+      .proso-w--far { background-color: rgba(20, 184, 166, 0.08) !important; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .proso-w, .proso-w--active, .proso-w--glow, .proso-w--near, .proso-w--far { transition: none; }
+      .proso-w, .proso-w--active, .proso-w--glow, .proso-w--near, .proso-w--far { transition: none !important; }
     }
 
     /* Paragraph Selection Mode Styles */
