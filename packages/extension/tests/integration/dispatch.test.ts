@@ -8,14 +8,10 @@
  * @module tests/integration/dispatch
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import {
-  HandlerRegistry,
-  createHandlerRegistry,
-} from '../../src/handlers/registry';
-import { Ok, Err } from '../../src/core/shared/result';
-import type { Result } from '../../src/core/shared/result';
+import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 import { z } from 'zod';
+import { Err, Ok } from '../../src/core/shared/result';
+import { type HandlerRegistry, createHandlerRegistry } from '../../src/handlers/registry';
 
 describe('Hexagonal Dispatch Integration', () => {
   let registry: HandlerRegistry;
@@ -165,7 +161,7 @@ describe('Hexagonal Dispatch Integration', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.type).toBe('execution_failed');
-        expect(result.error.message).toContain('Unexpected error');
+        expect((result.error as { message?: string }).message).toContain('Unexpected error');
       }
     });
 
@@ -179,7 +175,7 @@ describe('Hexagonal Dispatch Integration', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error.type).toBe('execution_failed');
-        expect(result.error.message).toContain('plain string error');
+        expect((result.error as { message?: string }).message).toContain('plain string error');
       }
     });
   });

@@ -3,13 +3,13 @@
  * @module tests/unit/core/shared/errors
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
-  playbackError,
-  contentError,
-  cacheError,
   audioError,
+  cacheError,
+  contentError,
   highlightError,
+  playbackError,
 } from '../../../../src/core/shared/errors';
 
 describe('Domain Error Factories', () => {
@@ -26,7 +26,7 @@ describe('Domain Error Factories', () => {
 
     it('creates noContent for selection mode', () => {
       const err = playbackError.noContent('selection');
-      expect(err.mode).toBe('selection');
+      expect((err as { mode: string }).mode).toBe('selection');
     });
 
     it('creates invalidParagraphIndex error', () => {
@@ -118,7 +118,11 @@ describe('Domain Error Factories', () => {
 
     it('creates providerError error', () => {
       const err = audioError.providerError('500', 'Internal server error');
-      expect(err).toEqual({ type: 'provider_error', code: '500', message: 'Internal server error' });
+      expect(err).toEqual({
+        type: 'provider_error',
+        code: '500',
+        message: 'Internal server error',
+      });
     });
   });
 
@@ -129,7 +133,9 @@ describe('Domain Error Factories', () => {
     });
 
     it('creates contentScriptNotLoaded error', () => {
-      expect(highlightError.contentScriptNotLoaded()).toEqual({ type: 'content_script_not_loaded' });
+      expect(highlightError.contentScriptNotLoaded()).toEqual({
+        type: 'content_script_not_loaded',
+      });
     });
 
     it('creates messageFailed error', () => {
@@ -145,7 +151,7 @@ describe('Domain Error Factories', () => {
         playbackError.noContent('article').type,
         playbackError.invalidParagraphIndex(0, 0).type,
         playbackError.tabNotFound(0).type,
-        playbackError.providerUnavailable('browser').type,
+        playbackError.providerUnavailable('openai').type,
         playbackError.playbackFailed('').type,
       ];
       expect(new Set(types).size).toBe(types.length);
