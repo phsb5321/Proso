@@ -1,53 +1,195 @@
 # Proso Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-09
-
-## Active Technologies
-- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13 (build framework), Zod (schema validation), PDF.js (bundled with Firefox) (041-firefox-first-pivot)
-- IndexedDB (audio cache), browser.storage.local (settings), browser.storage.session (transient state) (041-firefox-first-pivot)
-- Playwright (E2E testing), esbuild (build-time code stripping) (039-extension-debug-testing)
-- Rust 1.75+ (backend), TypeScript 5.x (frontend) + Tauri 2.x, PDF.js v5.4.x, Rust `tts` crate v0.26 (044-tauri-pdf-reader)
-- SQLite via `tauri-plugin-sql` (highlights, library, settings) (044-tauri-pdf-reader)
-- TypeScript 5.9.3 (strict mode: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`) + WXT 0.20.13 (build framework), Zod 3.25.76 (validation), Dexie 4.2.1 (IndexedDB), @webext-core/messaging 2.3.0, franc-min 6.2.0 (language detection), lamejs 1.2.1 (MP3 encoding) (056-production-readiness-sprint)
-- IndexedDB via Dexie (audio cache, highlights), browser.storage.local (settings, provider config) (056-production-readiness-sprint)
-- TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter) (063-extension-quality-sprint)
-- IndexedDB (audio cache via Dexie), browser.storage.local (settings) (063-extension-quality-sprint)
+Proso is a Firefox-first WebExtension for text-to-speech. Monorepo managed by pnpm.
 
 ## Project Structure
 
 ```text
-src/
-tests/
+packages/
+  extension/     # Firefox WXT browser extension (primary package)
+  server/        # NestJS backend (Hono HTTP, TTS adapters, credit system)
+  shared/        # Domain types, Zod schemas, Result type, constants
+  site/          # Landing page
+services/
+  proso-log-gateway/  # Standalone logging service
+```
+
+Extension follows hexagonal architecture:
+```text
+packages/extension/src/
+  core/          # Pure domain logic — ZERO framework imports
+  ports/         # Abstract interfaces (IReader, ICacheStore, IAudioGenerator)
+  adapters/      # Concrete implementations of ports
+  composition/   # Manual DI wiring (createContainer())
+  handlers/      # Message handlers
+  utils/         # Shared utilities
+  entrypoints/   # UI entrypoints (popup, options, background, content)
 ```
 
 ## Commands
 
-npm test && npm run lint
+### Build
+```bash
+pnpm -r build                         # Build all packages
+pnpm --filter @proso/extension build   # Build extension (Firefox default)
+pnpm --filter @proso/extension build:chrome
+pnpm --filter @proso/server build      # Build server (nest build)
+```
+
+### Test
+```bash
+pnpm -r test                           # All packages (lint + tests)
+pnpm --filter @proso/extension test    # Extension: lint then jest
+pnpm --filter @proso/extension test:unit          # Jest unit tests only
+pnpm --filter @proso/extension test:contract      # Contract tests only
+pnpm --filter @proso/extension test:integration   # Integration tests
+pnpm --filter @proso/extension test:security      # Security tests
+pnpm --filter @proso/extension test:regression    # Regression tests
+pnpm --filter @proso/extension test:coverage      # Jest with coverage
+pnpm --filter @proso/server test                  # Server jest tests
+```
+
+**Run a single test file:**
+```bash
+# Extension (requires --experimental-vm-modules for ESM)
+NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit -- path/to/file.test.ts
+# Server
+npx jest -- path/to/file.spec.ts
+```
+
+**Run tests matching a pattern:**
+```bash
+NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit -t "test name pattern"
+```
+
+### Lint & Format
+```bash
+pnpm --filter @proso/extension lint       # biome lint .
+pnpm --filter @proso/extension lint:fix   # biome lint --write .
+pnpm --filter @proso/extension format     # biome format --write .
+pnpm --filter @proso/extension check      # biome check . (lint + format)
+pnpm --filter @proso/server lint          # biome check src/
+pnpm -r lint                              # All packages
+```
+
+### E2E & Visual Tests (Playwright)
+```bash
+pnpm --filter @proso/extension test:e2e         # Firefox E2E
+pnpm --filter @proso/extension test:e2e:ext     # Chromium extension E2E
+pnpm --filter @proso/extension test:visual      # Firefox visual regression
+```
+
+### Quality
+```bash
+pnpm --filter @proso/extension quality    # Circular deps + duplication + manifest lint
+pnpm --filter @proso/extension deps:check # Circular dependency check (madge)
+```
 
 ## Code Style
 
-TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes): Follow standard conventions
+### TypeScript Strict Mode
+- `strict: true`, `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`
+- Never use `any` — use `unknown` and narrow with type guards
+- Use `readonly` on interface properties and `as const` for constant objects
 
-## Recent Changes
-- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
-- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
-- 063-extension-quality-sprint: Added TypeScript 5.x (strict mode: strictNullChecks, noImplicitAny, strictFunctionTypes) + WXT 0.20.13, @webext-core/messaging 2.3.0, Zod 3.23.8, franc-min 6.2.0, Dexie 4.2.1, Jest 29.x, Biome (linter)
+### Formatting (Biome 1.9.4)
+- 2-space indentation, 100-char line width, single quotes
+- `useConst: error` — always use `const` over `let` when possible
+- Organize imports automatically (Biome handles this)
+
+### Import Conventions
+- **Order**: external packages, then `@proso/shared`, then internal by layer depth
+- **Type-only imports**: always use separate `import type` statements
+- **Extensions**: `.js` in shared/server (Node ESM); omit in extension (bundled by WXT)
+- **Path aliases**: `@/*` maps to `src/utils/*`, `@proso/shared` maps to `../shared/src`
+
+```typescript
+// Correct — separate value and type imports
+import { ErrorCode } from '@proso/shared';
+import type { Result } from '@proso/shared';
+import { Err, Ok } from '@proso/shared';
+import type { CreditRepositoryPort } from '../../ports/credit-repository.port.js';
+import { creditError } from '../shared/domain-errors.js';
+```
+
+### Naming Conventions
+| Category | Convention | Example |
+|---|---|---|
+| Files | `kebab-case.suffix.ts` | `credit.service.ts`, `highlight.entity.ts` |
+| File suffixes | Role-based | `.port.ts`, `.adapter.ts`, `.service.ts`, `.spec.ts`, `.test.ts` |
+| Port interfaces | `I` prefix (extension) | `IReader`, `ICacheStore`, `IAudioGenerator` |
+| Port abstracts | `Port` suffix (server) | `TTSProviderPort`, `CreditRepositoryPort` |
+| Types/Interfaces | `PascalCase` | `PlaybackState`, `CreditAllocation` |
+| Enums | `PascalCase` members | `ErrorCode.InsufficientCredits` |
+| Constants | `SCREAMING_SNAKE` | `PROVIDER_COSTS`, `TIER_CREDITS` |
+| Functions | `camelCase` | `deductCredits()`, `selectProvider()` |
+| Factory functions | `create*` prefix | `createContainer()`, `createHighlight()` |
+| Zod schemas | `PascalCase` + `Schema` | `TTSSynthesizeRequestSchema` |
+| Inferred Zod types | `PascalCase` + `Parsed` | `TTSSynthesizeRequestParsed` |
+| Unused params | `_` prefix | `_language`, `_removed` |
+
+### Exports
+- **Named exports only** — no `export default` anywhere
+- Barrel exports via `index.ts` at each directory level
+
+### Error Handling
+- **`Result<T, E>` pattern** for all fallible operations — no thrown exceptions in domain logic
+- Discriminated union error types with `type` (extension) or `code` (server) discriminant
+- Error factory helpers per domain: `cacheError.storageFull()`, `ttsError(code, msg)`
+- `try/catch` only at adapter boundaries, converting to `Err()`
+- Extract error messages from `unknown`: `error instanceof Error ? error.message : String(error)`
+
+```typescript
+// Domain: returns Result, never throws
+async function deductCredits(...): Promise<Result<CreditTransactionRecord, CreditError>> {
+  if (!allocation) return Err(creditError(ErrorCode.NoActiveAllocation, 'No active allocation'));
+  return Ok(transaction);
+}
+
+// Adapter boundary: catches and converts
+try {
+  const response = await fetch(url, opts);
+  if (!response.ok) return Err(ttsError(ErrorCode.ProviderUnavailable, `API error: ${response.status}`));
+  return Ok({ audio: Buffer.from(arrayBuffer) });
+} catch (error: unknown) {
+  return Err(ttsError(ErrorCode.ProviderUnavailable, error instanceof Error ? error.message : String(error)));
+}
+```
+
+### Test Conventions
+- Extension tests: `*.test.ts` in `tests/unit/`, `tests/contract/`, `tests/integration/`, etc.
+- Server tests: `*.spec.ts` mirroring source structure
+- Top-level `describe` named after function/module, nested `describe` per scenario
+- Factory helpers: `makeMock*()` for test data, `MockX implements IX` for mock ports
+- Assert Results with type narrowing: `expect(isOk(result)).toBe(true); if (!isOk(result)) return;`
+- Reference business invariants in test names: `'returns Err when period expired (INV-004)'`
+
+## Architecture Rules
+- **Core layer**: ZERO framework imports — pure TypeScript domain logic only
+- **Ports**: Abstract interfaces/classes defining contracts
+- **Adapters**: Implement ports; every adapter has a NoOp/InMemory fallback
+- **Validation**: Zod schemas at boundaries, domain types internally
+- **State**: Immutable state + pure transition functions
 
 ## Firefox-First Guidelines
+1. Background scripts use **event pages** (not service workers) — DOM access available
+2. Native **`Audio` API** in background — no offscreen documents needed
+3. Native **`speechSynthesis`** for Browser TTS — direct API access
+4. **Minimum Firefox version**: 109.0 (see manifest.json gecko settings)
 
-Proso is developed Firefox-first. Key architectural decisions:
+## Git Workflow
+- **Branch naming**: `NNN-feature-name` (e.g., `017-git-workflow-automation`), `hotfix/NNN-desc`, `release/X.Y.Z`
+- **Protected branches**: `main`, `develop` — never push directly
+- **Conventional Commits**: `type(scope): description` — imperative mood, first line ≤72 chars
+- **Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`
+- **Scopes**: `background`, `content`, `popup`, `options`, `config`, `styles`, `deps`
+- **Atomic commits**: one logical change per commit, tests accompany implementation
+- **Pre-commit hooks** (lefthook): `biome check` + `tsc --noEmit` for extension/server/shared
+- **PR title format**: `type: description`
 
-1. **Background scripts use event pages** (not service workers) - DOM access available
-2. **Native `Audio` API** in background scripts - no offscreen documents needed
-3. **Native `speechSynthesis`** for Browser TTS - direct API access
-4. **Data URLs for audio** - service worker compatible pattern
-5. **Minimum Firefox version**: 112.0 (see `manifest.json` gecko settings)
+## Active Technologies
+- TypeScript 5.9.3, ES2020 build target + WXT ^0.20.13, Vite ^5.4.21, UnoCSS (to be added), Biome 1.9.4 (075-unocss-integration)
+- N/A (build-time tooling only — no runtime storage changes) (075-unocss-integration)
 
-### Firefox Manual Validation
-
-Before releases, run the manual validation checklist:
-- Quick checklist: `docs/firefox-manual-validation.md`
-- Comprehensive checklist: `specs/041-firefox-first-pivot/manual-validation.md`
-
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+## Recent Changes
+- 075-unocss-integration: Added TypeScript 5.9.3, ES2020 build target + WXT ^0.20.13, Vite ^5.4.21, UnoCSS (to be added), Biome 1.9.4
