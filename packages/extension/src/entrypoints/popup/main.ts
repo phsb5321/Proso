@@ -11,6 +11,7 @@
  * @see T132-T141 Phase 7 (US5) Popup UI Implementation
  */
 
+import 'virtual:uno.css';
 import { browser } from 'wxt/browser';
 import { usageTracker } from '../../utils/telemetry/usage';
 

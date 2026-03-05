@@ -10,7 +10,7 @@
  */
 
 import { franc } from 'franc-min';
-import { normalizeLanguageCode, isLanguageSupported } from './codes';
+import { isLanguageSupported, normalizeLanguageCode } from './codes';
 import type { LanguageDetectionResult, PageLanguage } from './types';
 
 /**

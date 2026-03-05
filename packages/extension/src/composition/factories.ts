@@ -7,7 +7,9 @@
  * @module composition/factories
  */
 
+import { TTSProvider } from '@proso/shared';
 import type { ProviderId } from '../core/shared/errors';
+import type { IApiClient } from '../ports/api-client.port';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
 import type { IAudioUrlProvider } from '../ports/audio-url.port';
 import type { ICacheStore } from '../ports/cache-store.port';
@@ -15,15 +17,10 @@ import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
-import type { IApiClient } from '../ports/api-client.port';
 import type { ApiKeys } from './types';
-import { TTSProvider } from '@proso/shared';
 
 // Audio adapters
-import {
-  AudioUrlAdapter,
-  ServerTtsAudioAdapter,
-} from '../adapters/audio';
+import { AudioUrlAdapter, ServerTtsAudioAdapter } from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -38,7 +35,7 @@ import { BrowserSettingsAdapter } from '../adapters/storage';
 import { ReadabilityExtractorAdapter, TrafilaturaScorerAdapter } from '../adapters/content';
 
 // API adapters
-import { ProsoApiAdapter, NoOpApiClientAdapter } from '../adapters/api';
+import { NoOpApiClientAdapter, ProsoApiAdapter } from '../adapters/api';
 
 /**
  * Create an audio generator adapter based on provider.
@@ -69,11 +66,7 @@ export function createAudioGeneratorAdapter(
       cartesia: TTSProvider.Cartesia,
     };
     // Pass BYOK key (if any) to server adapter for forwarding
-    return new ServerTtsAudioAdapter(
-      apiClient,
-      providerMap[provider],
-      apiKey ?? undefined,
-    );
+    return new ServerTtsAudioAdapter(apiClient, providerMap[provider], apiKey ?? undefined);
   }
 
   // No server configured — error

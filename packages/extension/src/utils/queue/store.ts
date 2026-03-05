@@ -9,18 +9,18 @@
  * @module utils/queue/store
  */
 
+import { queueDefaults } from '../config/defaults';
 import {
+  type AddItemRequest,
+  QUEUE_STORAGE_KEYS,
   type QueueItem,
+  type QueueItemStatus,
   type QueueMetadata,
   type QueueState,
-  type AddItemRequest,
-  type QueueItemStatus,
   type QueueUpdateEvent,
   queueItemSchema,
   queueMetadataSchema,
-  QUEUE_STORAGE_KEYS,
 } from './types';
-import { queueDefaults } from '../config/defaults';
 
 /**
  * Queue Store class

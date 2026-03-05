@@ -65,13 +65,17 @@ export const highlightDeleteByUrlParamsSchema = z.object({
 
 // ========== Prefetch Schemas ==========
 
-export const prefetchStartParamsSchema = z.object({
-  currentIndex: z.number().int().nonnegative().optional(),
-}).optional();
+export const prefetchStartParamsSchema = z
+  .object({
+    currentIndex: z.number().int().nonnegative().optional(),
+  })
+  .optional();
 
-export const prefetchClearBufferParamsSchema = z.object({
-  keepIndices: z.array(z.number().int().nonnegative()).optional(),
-}).optional();
+export const prefetchClearBufferParamsSchema = z
+  .object({
+    keepIndices: z.array(z.number().int().nonnegative()).optional(),
+  })
+  .optional();
 
 // ========== Reader Schemas ==========
 

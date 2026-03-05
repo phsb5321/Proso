@@ -14,15 +14,8 @@
  * @module utils/content/persistent-highlight
  */
 
-import {
-  createFromSelection,
-  anchor,
-  type TextQuoteSelector,
-} from '../../core/highlight';
-import {
-  type HighlightColor,
-  HIGHLIGHT_COLOR_VALUES,
-} from '../../utils/schemas/highlight.schema';
+import { type TextQuoteSelector, anchor, createFromSelection } from '../../core/highlight';
+import { HIGHLIGHT_COLOR_VALUES, type HighlightColor } from '../../utils/schemas/highlight.schema';
 
 /**
  * Rendered highlight in the DOM
@@ -167,8 +160,7 @@ export class PersistentHighlightManager {
     const container = range.commonAncestorContainer;
 
     // Check if any parent element is a highlight
-    let element =
-      container instanceof HTMLElement ? container : container.parentElement;
+    let element = container instanceof HTMLElement ? container : container.parentElement;
 
     while (element) {
       if (element.classList.contains('proso-persistent-highlight')) {
@@ -664,11 +656,7 @@ export class PersistentHighlightManager {
   /**
    * Create a menu button element.
    */
-  private createMenuButton(
-    text: string,
-    action: string,
-    isDanger = false,
-  ): HTMLButtonElement {
+  private createMenuButton(text: string, action: string, isDanger = false): HTMLButtonElement {
     const button = document.createElement('button');
     button.dataset.action = action;
     if (isDanger) {

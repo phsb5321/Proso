@@ -15,10 +15,10 @@ import type { AudioRequest, Voice } from '../ports/audio-generator.port';
 import { createAudioUrl } from '../utils/audio/audio-url';
 import type { HandlerRegistry } from './registry';
 import {
+  audioGenerateParamsSchema,
   audioGetVoicesParamsSchema,
   audioSetVoiceParamsSchema,
   audioValidateCredentialsParamsSchema,
-  audioGenerateParamsSchema,
 } from './schemas/misc.schemas';
 
 /**
@@ -96,7 +96,10 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = audioGetVoicesParamsSchema.safeParse(params ?? {});
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {
@@ -134,7 +137,10 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = audioSetVoiceParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {
@@ -162,15 +168,15 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
   /**
    * Validate API credentials for the current provider.
    */
-  registry.register<
-    unknown,
-    Result<ValidateCredentialsResponse, AudioHandlerError>
-  >(
+  registry.register<unknown, Result<ValidateCredentialsResponse, AudioHandlerError>>(
     'audio.validateCredentials',
     async (params) => {
       const parsedCreds = audioValidateCredentialsParamsSchema.safeParse(params ?? {});
       if (!parsedCreds.success) {
-        return Err({ type: 'invalid_params', message: parsedCreds.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsedCreds.error.issues.map((i) => i.message).join('; '),
+        });
       }
       if (!isContainerInitialized()) {
         return Err({
@@ -209,7 +215,10 @@ export function registerAudioHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = audioGenerateParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {

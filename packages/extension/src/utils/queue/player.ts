@@ -9,8 +9,8 @@
  * @module utils/queue/player
  */
 
-import type { QueueItem } from './types';
 import type { QueueStore } from './store';
+import type { QueueItem } from './types';
 
 /**
  * Playback state

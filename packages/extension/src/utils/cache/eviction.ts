@@ -11,8 +11,8 @@
  * @module utils/cache/eviction
  */
 
-import type { CacheIndexEntry, CacheConfig, EvictionResult, CleanupResult } from './types';
 import { cacheDefaults } from '../config/defaults';
+import type { CacheConfig, CacheIndexEntry, CleanupResult, EvictionResult } from './types';
 
 /**
  * Eviction candidate with computed score

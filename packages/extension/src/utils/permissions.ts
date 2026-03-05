@@ -146,7 +146,13 @@ export function isAccessibleUrl(url: string): boolean {
     const urlObj = new URL(url);
 
     // Restricted protocols
-    const restrictedProtocols = ['chrome:', 'chrome-extension:', 'moz-extension:', 'about:', 'file:'];
+    const restrictedProtocols = [
+      'chrome:',
+      'chrome-extension:',
+      'moz-extension:',
+      'about:',
+      'file:',
+    ];
 
     if (restrictedProtocols.includes(urlObj.protocol)) {
       return false;

@@ -7,17 +7,17 @@
  * @module handlers/footer
  */
 
-import type { IHighlightSynchronizer, FooterState } from '../ports/highlight-sync.port';
-import { isErr } from '../core/shared/result';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
+import { isErr } from '../core/shared/result';
+import type { FooterState, IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import type { HandlerRegistry } from './registry';
 import {
-  footerShowParamsSchema,
-  footerHideParamsSchema,
-  footerStateUpdateParamsSchema,
   footerActionParamsSchema,
-  footerVisibilityParamsSchema,
+  footerHideParamsSchema,
   footerPositionParamsSchema,
+  footerShowParamsSchema,
+  footerStateUpdateParamsSchema,
+  footerVisibilityParamsSchema,
 } from './schemas/footer.schemas';
 
 // ============================================
@@ -99,7 +99,10 @@ function getHighlightSync(): IHighlightSynchronizer {
 async function handleFooterShow(params: unknown): Promise<FooterOperationResponse> {
   const parsed = footerShowParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   const sync = getHighlightSync();
@@ -124,7 +127,10 @@ async function handleFooterShow(params: unknown): Promise<FooterOperationRespons
 async function handleFooterHide(params: unknown): Promise<FooterOperationResponse> {
   const parsed = footerHideParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   const sync = getHighlightSync();
@@ -146,12 +152,13 @@ async function handleFooterHide(params: unknown): Promise<FooterOperationRespons
 /**
  * Update footer state in content script.
  */
-async function handleFooterStateUpdate(
-  params: unknown,
-): Promise<FooterOperationResponse> {
+async function handleFooterStateUpdate(params: unknown): Promise<FooterOperationResponse> {
   const parsed = footerStateUpdateParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   const sync = getHighlightSync();
@@ -187,7 +194,10 @@ async function handleFooterStateUpdate(
 async function handleFooterAction(params: unknown): Promise<FooterActionResponse> {
   const parsed = footerActionParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   console.log('[Footer] Action received:', parsed.data.action, parsed.data.value);
@@ -241,12 +251,13 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
  * Handle footer visibility change (minimize/expand).
  * This is informational - the footer handles its own state.
  */
-async function handleFooterVisibilityChanged(
-  params: unknown,
-): Promise<FooterOperationResponse> {
+async function handleFooterVisibilityChanged(params: unknown): Promise<FooterOperationResponse> {
   const parsed = footerVisibilityParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   console.log('[Footer] Visibility changed:', parsed.data);
@@ -258,12 +269,13 @@ async function handleFooterVisibilityChanged(
  * Handle footer position change (drag).
  * This is informational - the footer persists its own position.
  */
-async function handleFooterPositionChanged(
-  params: unknown,
-): Promise<FooterOperationResponse> {
+async function handleFooterPositionChanged(params: unknown): Promise<FooterOperationResponse> {
   const parsed = footerPositionParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
 
   console.log('[Footer] Position changed:', parsed.data);

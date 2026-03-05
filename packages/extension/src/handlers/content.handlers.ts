@@ -145,10 +145,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
   /**
    * Extract content from HTML.
    */
-  registry.register<
-    unknown,
-    Result<ContentExtractResponse, ContentHandlerError>
-  >(
+  registry.register<unknown, Result<ContentExtractResponse, ContentHandlerError>>(
     'content.extract',
     async (params) => {
       if (!isContentExtractionServiceAvailable()) {
@@ -162,7 +159,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -229,7 +226,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -303,7 +300,7 @@ export function registerContentHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 

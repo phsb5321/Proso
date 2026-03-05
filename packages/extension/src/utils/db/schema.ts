@@ -12,8 +12,8 @@
  */
 
 import Dexie, { type Table } from 'dexie';
-import type { Highlight } from '../schemas/highlight.schema';
 import type { AudioChunk } from '../schemas/audio-chunk.schema';
+import type { Highlight } from '../schemas/highlight.schema';
 
 /**
  * Database version history:

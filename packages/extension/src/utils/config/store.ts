@@ -12,8 +12,8 @@
  */
 
 import { defaults } from './defaults';
-import { settingsSchema, type Settings } from './schema';
 import { applyMigrations } from './migrations';
+import { type Settings, settingsSchema } from './schema';
 
 /**
  * Callback function for settings changes

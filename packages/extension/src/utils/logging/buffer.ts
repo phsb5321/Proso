@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { type LogEntry, validateLogEntry, getEntrySize, loggingConstants } from './entry';
+import { type LogEntry, getEntrySize, loggingConstants, validateLogEntry } from './entry';
 
 /**
  * Log buffer state schema
