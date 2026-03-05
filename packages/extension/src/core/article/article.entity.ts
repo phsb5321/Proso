@@ -11,7 +11,7 @@
  * @module core/article/article.entity
  */
 
-import { ArticleSchema, ParagraphSchema, type Paragraph } from '../../utils/schemas/article.schema';
+import { ArticleSchema, type Paragraph, ParagraphSchema } from '../../utils/schemas/article.schema';
 
 // Re-export Paragraph type for convenience
 export type { Paragraph };

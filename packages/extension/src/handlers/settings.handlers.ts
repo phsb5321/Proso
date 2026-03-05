@@ -9,8 +9,8 @@
 
 import { browser } from 'wxt/browser';
 import type { ProviderId } from '../core/shared/errors';
-import type { ISettingsStore, Settings } from '../ports/settings-store.port';
 import type { IApiClient } from '../ports/api-client.port';
+import type { ISettingsStore, Settings } from '../ports/settings-store.port';
 import type { HandlerRegistry } from './registry';
 
 // ============================================
@@ -198,12 +198,7 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
  * TTS providers that are validated via the Proso server's test-key endpoint.
  * These providers no longer make direct API calls from the extension.
  */
-const SERVER_VALIDATED_TTS_PROVIDERS = new Set([
-  'elevenlabs',
-  'openai',
-  'groq',
-  'cartesia',
-]);
+const SERVER_VALIDATED_TTS_PROVIDERS = new Set(['elevenlabs', 'openai', 'groq', 'cartesia']);
 
 /**
  * API test endpoints for non-TTS providers (tested directly from extension).
@@ -310,7 +305,10 @@ async function handleTestApiKey(
   // TTS providers: validate via the Proso server's test-key endpoint
   if (SERVER_VALIDATED_TTS_PROVIDERS.has(provider)) {
     if (!settingsApiClient || !settingsApiClient.isConfigured) {
-      return { success: false, error: 'Proso server not configured. Cannot validate TTS API keys.' };
+      return {
+        success: false,
+        error: 'Proso server not configured. Cannot validate TTS API keys.',
+      };
     }
     try {
       console.log('[Settings] Testing TTS key for', provider, 'via server');

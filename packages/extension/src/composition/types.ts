@@ -9,6 +9,7 @@
 import type { ContentExtractionService } from '../core/content-extraction/extraction-service';
 import type { PlaybackService } from '../core/playback/playback-service';
 import type { ProviderId } from '../core/shared/errors';
+import type { IApiClient } from '../ports/api-client.port';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
 import type { IAudioUrlProvider } from '../ports/audio-url.port';
 import type { ICacheStore } from '../ports/cache-store.port';
@@ -16,7 +17,6 @@ import type { IContentScorer } from '../ports/content-scorer.port';
 import type { IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import type { ISettingsStore } from '../ports/settings-store.port';
 import type { ITextExtractor } from '../ports/text-extractor.port';
-import type { IApiClient } from '../ports/api-client.port';
 
 /**
  * Application configuration for container initialization.

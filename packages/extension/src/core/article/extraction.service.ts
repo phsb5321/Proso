@@ -12,9 +12,9 @@
  * @module core/article/extraction.service
  */
 
-import type { ReaderError, IReader } from '../../ports/reader.port';
+import type { IReader, ReaderError } from '../../ports/reader.port';
 import type { Result } from '../shared/result';
-import { Ok, Err, isErr } from '../shared/result';
+import { Err, Ok, isErr } from '../shared/result';
 import type { Article } from './article.entity';
 import { createArticle } from './article.entity';
 
@@ -95,7 +95,10 @@ export class ArticleExtractionService {
       }
 
       // Log the primary extraction failure for debugging
-      console.log('[ArticleExtractionService] Primary extraction failed, trying fallback:', primaryResult.error);
+      console.log(
+        '[ArticleExtractionService] Primary extraction failed, trying fallback:',
+        primaryResult.error,
+      );
     }
 
     // FR-006: Fallback to visible text extraction

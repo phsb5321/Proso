@@ -9,7 +9,15 @@
  */
 
 // Schema and database instance
-export { ProsoDB, getDB, closeDB, deleteDB, isIndexedDBAvailable, DB_NAME, DB_VERSION } from './schema';
+export {
+  ProsoDB,
+  getDB,
+  closeDB,
+  deleteDB,
+  isIndexedDBAvailable,
+  DB_NAME,
+  DB_VERSION,
+} from './schema';
 
 // Initialization and utilities
 export {

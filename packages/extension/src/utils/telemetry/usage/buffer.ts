@@ -11,7 +11,7 @@
  * @module utils/telemetry/usage/buffer
  */
 
-import type { UsageEvent, BufferStats, BufferConfig, StoredEvent } from './types';
+import type { BufferConfig, BufferStats, StoredEvent, UsageEvent } from './types';
 import { DEFAULT_BUFFER_CONFIG } from './types';
 
 /**

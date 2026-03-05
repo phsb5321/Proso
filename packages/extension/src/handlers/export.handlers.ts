@@ -10,10 +10,10 @@
 
 import type { HandlerRegistry } from './registry';
 import {
-  exportStartParamsSchema,
   exportCancelParamsSchema,
-  exportProgressParamsSchema,
   exportDownloadParamsSchema,
+  exportProgressParamsSchema,
+  exportStartParamsSchema,
 } from './schemas/export.schemas';
 
 // ============================================
@@ -148,7 +148,11 @@ function getDependencies(): ExportDependencies {
 async function handleExportStart(params: unknown): Promise<ExportStartResponse> {
   const parsed = exportStartParamsSchema.safeParse(params);
   if (!parsed.success) {
-    return { success: false, jobId: '', error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+    return {
+      success: false,
+      jobId: '',
+      error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+    };
   }
   const p = parsed.data;
 

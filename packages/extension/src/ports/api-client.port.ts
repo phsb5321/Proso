@@ -7,16 +7,16 @@
  * @module ports/api-client
  */
 
-import type { Result } from '../core/shared/result';
 import type {
-  LicenseValidateResponse,
-  SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
   CreditHistoryResponse,
+  LicenseValidateResponse,
+  SubscriptionDetailsResponse,
   TTSSynthesizeRequest,
   TTSTestKeyResponse,
 } from '@proso/shared';
+import type { Result } from '../core/shared/result';
 
 /**
  * TTS synthesis response from the server.
@@ -77,7 +77,10 @@ export interface IApiClient {
    * @param limit - Max number of transactions to return (default 50)
    * @param offset - Number of transactions to skip (default 0)
    */
-  getCreditHistory(limit?: number, offset?: number): Promise<Result<CreditHistoryResponse, ApiClientError>>;
+  getCreditHistory(
+    limit?: number,
+    offset?: number,
+  ): Promise<Result<CreditHistoryResponse, ApiClientError>>;
 
   /**
    * Generate a checkout URL for upgrading to a paid tier.

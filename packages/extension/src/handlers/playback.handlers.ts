@@ -11,15 +11,15 @@ import { browser } from 'wxt/browser';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
+import { tabLanguageStates } from './language.handlers';
 import type { HandlerRegistry } from './registry';
 import {
-  playbackStartParamsSchema,
+  paragraphClickedParamsSchema,
+  playbackSeekParamsSchema,
   playbackSeekToParagraphParamsSchema,
   playbackSetSpeedParamsSchema,
-  playbackSeekParamsSchema,
-  paragraphClickedParamsSchema,
+  playbackStartParamsSchema,
 } from './schemas/playback.schemas';
-import { tabLanguageStates } from './language.handlers';
 
 /**
  * Get the active tab in the current window.

@@ -11,8 +11,8 @@
  * @module utils/cache/cache-index
  */
 
-import type { CacheIndexEntry, CacheIndex, CacheConfig, CacheStats } from './types';
 import { cacheDefaults } from '../config/defaults';
+import type { CacheConfig, CacheIndex, CacheIndexEntry, CacheStats } from './types';
 
 /**
  * Default empty cache index

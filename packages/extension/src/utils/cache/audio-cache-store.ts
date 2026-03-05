@@ -13,8 +13,8 @@
 
 import type {
   CacheConfig,
-  CachedAudioEntry,
   CacheStats,
+  CachedAudioEntry,
   CleanupResult,
   EvictionResult,
 } from './types';
