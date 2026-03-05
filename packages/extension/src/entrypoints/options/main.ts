@@ -7,8 +7,9 @@
  * WXT TypeScript migration - Phase 4
  */
 
-import { initOptionsPage } from './controller';
+import 'virtual:uno.css';
 import { getThemeManager } from '../../utils/options/theme-manager';
+import { initOptionsPage } from './controller';
 
 // T056: Initialize ThemeManager early to prevent flash of wrong theme
 const themeManager = getThemeManager();
