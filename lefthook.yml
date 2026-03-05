@@ -5,9 +5,15 @@
 pre-commit:
   parallel: true
   commands:
-    biome:
-      glob: "packages/**/*.{ts,tsx,js,jsx,json}"
+    biome-extension:
+      glob: "packages/extension/**/*.{ts,tsx,js,jsx,json}"
+      run: npx biome check --config-path packages/extension --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    biome-server:
+      glob: "packages/server/**/*.{ts,tsx,js,jsx,json}"
       exclude: "packages/server/src/generated/**"
+      run: npx biome check --config-path packages/server --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    biome-shared:
+      glob: "packages/shared/**/*.{ts,tsx,js,jsx,json}"
       run: npx biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
     tsc-extension:
       glob: "packages/extension/**/*.{ts,tsx}"
