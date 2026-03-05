@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PrismaService } from '../../infrastructure/modules/prisma.module';
+import { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
   type SubscriptionRecord,
   SubscriptionRepositoryPort,
