@@ -7,21 +7,21 @@
  * @module utils/telemetry/usage/tracker
  */
 
+import { UsageBuffer } from './buffer';
+import { ContextProvider, type UsageContext } from './context';
+import { hashUrlSync, sanitizeEventData } from './redaction';
+import { UsageShipper } from './shipper';
 import type {
-  UsageEvent,
-  UsageTrackerConfig,
-  UsageTrackerInitConfig,
-  TrackerStats,
+  Entrypoint,
   LogLevel,
   Provider,
   TrackOptions,
-  Entrypoint,
+  TrackerStats,
+  UsageEvent,
+  UsageTrackerConfig,
+  UsageTrackerInitConfig,
 } from './types';
-import { DEFAULT_TRACKER_CONFIG, getEventGroup, getDefaultLogLevel } from './types';
-import { ContextProvider, type UsageContext } from './context';
-import { UsageBuffer } from './buffer';
-import { UsageShipper } from './shipper';
-import { sanitizeEventData, hashUrlSync } from './redaction';
+import { DEFAULT_TRACKER_CONFIG, getDefaultLogLevel, getEventGroup } from './types';
 
 /**
  * Usage Tracker orchestrates event collection and shipping.

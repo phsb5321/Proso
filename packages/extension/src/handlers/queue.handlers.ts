@@ -11,27 +11,27 @@ import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import {
   handleQueueAdd,
-  handleQueueRemove,
-  handleQueueReorder,
-  handleQueueUpdateStatus,
-  handleQueueUpdateProgress,
   handleQueueClear,
-  handleQueueGetState,
   handleQueueGetItem,
+  handleQueueGetState,
   handleQueuePlay,
   handleQueuePlayNext,
   handleQueuePlayPrevious,
+  handleQueueRemove,
+  handleQueueReorder,
+  handleQueueUpdateProgress,
+  handleQueueUpdateStatus,
 } from '../utils/messaging/handlers/queue';
 import type { HandlerRegistry } from './registry';
 import {
   queueAddParamsSchema,
-  queueRemoveParamsSchema,
-  queueReorderParamsSchema,
-  queueUpdateStatusParamsSchema,
-  queueUpdateProgressParamsSchema,
   queueClearParamsSchema,
   queueGetItemParamsSchema,
   queuePlayParamsSchema,
+  queueRemoveParamsSchema,
+  queueReorderParamsSchema,
+  queueUpdateProgressParamsSchema,
+  queueUpdateStatusParamsSchema,
 } from './schemas/queue.schemas';
 
 /**
@@ -228,7 +228,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -272,7 +272,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -305,7 +305,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -343,7 +343,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -379,7 +379,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -416,7 +416,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -474,7 +474,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 
@@ -509,7 +509,7 @@ export function registerQueueHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: parsed.error.issues.map(i => i.message).join('; '),
+          message: parsed.error.issues.map((i) => i.message).join('; '),
         });
       }
 

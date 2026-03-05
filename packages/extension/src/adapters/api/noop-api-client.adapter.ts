@@ -9,19 +9,19 @@
  * @module adapters/api/noop-api-client
  */
 
-import type { Result } from '../../core/shared/result';
-import { Err } from '../../core/shared/result';
-import type { IApiClient, ApiClientError, SynthesizeResponse } from '../../ports/api-client.port';
-import { apiClientError } from '../../ports/api-client.port';
 import type {
-  LicenseValidateResponse,
-  SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
   CreditHistoryResponse,
+  LicenseValidateResponse,
+  SubscriptionDetailsResponse,
   TTSSynthesizeRequest,
   TTSTestKeyResponse,
 } from '@proso/shared';
+import type { Result } from '../../core/shared/result';
+import { Err } from '../../core/shared/result';
+import type { ApiClientError, IApiClient, SynthesizeResponse } from '../../ports/api-client.port';
+import { apiClientError } from '../../ports/api-client.port';
 
 const NOT_CONFIGURED = apiClientError.notConfigured(
   'Server URL not configured. Extension operates in BYOK-only mode.',
@@ -57,9 +57,7 @@ export class NoOpApiClientAdapter implements IApiClient {
     return Err(NOT_CONFIGURED);
   }
 
-  async createCheckout(
-    _tier: string,
-  ): Promise<Result<CheckoutResponse, ApiClientError>> {
+  async createCheckout(_tier: string): Promise<Result<CheckoutResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 

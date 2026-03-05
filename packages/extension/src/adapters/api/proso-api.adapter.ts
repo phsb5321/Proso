@@ -7,24 +7,20 @@
  * @module adapters/api/proso-api
  */
 
-import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
 import type {
-  IApiClient,
-  ApiClientError,
-  SynthesizeResponse,
-} from '../../ports/api-client.port';
-import { apiClientError } from '../../ports/api-client.port';
-import type {
-  LicenseValidateResponse,
-  SubscriptionDetailsResponse,
   CheckoutResponse,
   CreditBalanceResponse,
   CreditHistoryResponse,
   ErrorResponse,
+  LicenseValidateResponse,
+  SubscriptionDetailsResponse,
   TTSSynthesizeRequest,
   TTSTestKeyResponse,
 } from '@proso/shared';
+import type { Result } from '../../core/shared/result';
+import { Err, Ok } from '../../core/shared/result';
+import type { ApiClientError, IApiClient, SynthesizeResponse } from '../../ports/api-client.port';
+import { apiClientError } from '../../ports/api-client.port';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
@@ -88,9 +84,7 @@ export class ProsoApiAdapter implements IApiClient {
     );
   }
 
-  async createCheckout(
-    tier: string,
-  ): Promise<Result<CheckoutResponse, ApiClientError>> {
+  async createCheckout(tier: string): Promise<Result<CheckoutResponse, ApiClientError>> {
     if (!this.licenseKey) {
       return Err(apiClientError.notConfigured('No license key configured'));
     }

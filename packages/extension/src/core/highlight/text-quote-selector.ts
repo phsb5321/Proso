@@ -58,17 +58,16 @@ export interface CreateSelectorParams {
  * @throws ZodError if validation fails
  */
 export function createTextQuoteSelector(params: CreateSelectorParams): TextQuoteSelector {
-  const contextLength = Math.min(params.contextLength ?? DEFAULT_CONTEXT_LENGTH, MAX_CONTEXT_LENGTH);
+  const contextLength = Math.min(
+    params.contextLength ?? DEFAULT_CONTEXT_LENGTH,
+    MAX_CONTEXT_LENGTH,
+  );
 
   // Extract prefix (last N characters before selection)
-  const prefix = params.textBefore
-    ? params.textBefore.slice(-contextLength)
-    : undefined;
+  const prefix = params.textBefore ? params.textBefore.slice(-contextLength) : undefined;
 
   // Extract suffix (first N characters after selection)
-  const suffix = params.textAfter
-    ? params.textAfter.slice(0, contextLength)
-    : undefined;
+  const suffix = params.textAfter ? params.textAfter.slice(0, contextLength) : undefined;
 
   const selector: TextQuoteSelector = {
     type: 'TextQuoteSelector',
@@ -169,11 +168,7 @@ export function buildSearchPattern(selector: TextQuoteSelector): string {
  * Used for range estimation during re-anchoring.
  */
 export function getExpectedLength(selector: TextQuoteSelector): number {
-  return (
-    (selector.prefix?.length ?? 0) +
-    selector.exact.length +
-    (selector.suffix?.length ?? 0)
-  );
+  return (selector.prefix?.length ?? 0) + selector.exact.length + (selector.suffix?.length ?? 0);
 }
 
 /**

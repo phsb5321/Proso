@@ -91,4 +91,3 @@ export type FooterActionParams = z.infer<typeof schemas.footerActionParamsSchema
 
 export type LoggingLogRemoteParams = z.infer<typeof schemas.loggingLogRemoteParamsSchema>;
 export type LoggingStateResponse = z.infer<typeof schemas.loggingStateResponseSchema>;
-

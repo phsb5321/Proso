@@ -119,7 +119,10 @@ export class ParagraphSelector {
    * @param paragraphElements - Array of DOM elements representing paragraphs
    * @param cachedIndices - Array of paragraph indices that are cached
    */
-  async enableSelectionMode(paragraphElements: Element[], cachedIndices: number[] = []): Promise<void> {
+  async enableSelectionMode(
+    paragraphElements: Element[],
+    cachedIndices: number[] = [],
+  ): Promise<void> {
     if (this.state.isActive) {
       console.log('Proso: Selection mode already active');
       return;
@@ -416,13 +419,17 @@ export class ParagraphSelector {
 
     // T019: Debounce - ignore rapid clicks within 300ms
     if (now - this.lastClickTime < CLICK_DEBOUNCE_MS) {
-      console.log(`[Proso:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`);
+      console.log(
+        `[Proso:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`,
+      );
       return;
     }
 
     // T021: Deduplication - ignore clicks on paragraph already playing
     if (this.currentlyPlayingIndex === index) {
-      console.log(`[Proso:Selection] Ignored duplicate click on paragraph ${index} (already playing)`);
+      console.log(
+        `[Proso:Selection] Ignored duplicate click on paragraph ${index} (already playing)`,
+      );
       return;
     }
 

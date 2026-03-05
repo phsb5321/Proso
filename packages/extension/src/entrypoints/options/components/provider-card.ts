@@ -88,8 +88,7 @@ export function createProviderCard(
   // Toggle visibility button
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
-  toggleBtn.className =
-    'proso-button proso-button--ghost proso-button--icon provider-card__toggle';
+  toggleBtn.className = 'proso-button proso-button--ghost proso-button--icon provider-card__toggle';
   toggleBtn.setAttribute('aria-label', 'Toggle API key visibility');
   toggleBtn.dataset.target = input.id;
 

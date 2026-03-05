@@ -9,10 +9,10 @@
  * @module utils/messaging/handlers/queue
  */
 
-import type { ProsoProtocol } from '../protocol';
-import { type QueueStore, createQueueStore } from '../../queue/store';
 import { type QueuePlayer, createQueuePlayer } from '../../queue/player';
+import { type QueueStore, createQueueStore } from '../../queue/store';
 import type { QueueItemStatus } from '../../queue/types';
+import type { ProsoProtocol } from '../protocol';
 
 // Singleton instances
 let queueStore: QueueStore | null = null;

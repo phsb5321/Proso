@@ -65,10 +65,7 @@ export interface IReader {
    * @param url - Page URL
    * @returns Result with paragraphs or error
    */
-  extractVisibleText(
-    document: Document,
-    url: string,
-  ): Promise<Result<Paragraph[], ReaderError>>;
+  extractVisibleText(document: Document, url: string): Promise<Result<Paragraph[], ReaderError>>;
 
   /**
    * Check if the page is likely to have readable article content.
