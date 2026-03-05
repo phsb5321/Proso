@@ -11,18 +11,18 @@
  * @module handlers/highlight
  */
 
-import type { HandlerRegistry } from './registry';
-import type { IHighlightRepository } from '../ports/highlight-repository.port';
-import { createHighlight, type HighlightColor } from '../core/highlight/highlight.entity';
-import { isOk } from '../core/shared/result';
 import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
+import { type HighlightColor, createHighlight } from '../core/highlight/highlight.entity';
+import { isOk } from '../core/shared/result';
+import type { IHighlightRepository } from '../ports/highlight-repository.port';
+import type { HandlerRegistry } from './registry';
 import {
   highlightCreateParamsSchema,
+  highlightDeleteByUrlParamsSchema,
+  highlightDeleteParamsSchema,
   highlightGetParamsSchema,
   highlightListParamsSchema,
   highlightUpdateParamsSchema,
-  highlightDeleteParamsSchema,
-  highlightDeleteByUrlParamsSchema,
 } from './schemas/misc.schemas';
 
 /**
@@ -125,49 +125,58 @@ export function setHighlightRepository(repo: IHighlightRepository): void {
  */
 export function registerHighlightHandlers(registry: HandlerRegistry): void {
   // CREATE
-  registry.register('highlight.create', async (params: unknown): Promise<HighlightCreateResponse> => {
-    const parsed = highlightCreateParamsSchema.safeParse(params);
-    if (!parsed.success) {
-      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
-    }
-
-    try {
-      const repo = getRepository();
-
-      // Create highlight entity
-      const highlight = createHighlight({
-        url: parsed.data.url,
-        exact: parsed.data.exact,
-        prefix: parsed.data.prefix,
-        suffix: parsed.data.suffix,
-        color: (parsed.data.color as HighlightColor) ?? 'yellow',
-        note: parsed.data.note,
-      });
-
-      // Save to repository
-      const result = await repo.create(highlight);
-
-      if (isOk(result)) {
-        return { success: true, id: result.value.id };
+  registry.register(
+    'highlight.create',
+    async (params: unknown): Promise<HighlightCreateResponse> => {
+      const parsed = highlightCreateParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+        };
       }
 
-      return {
-        success: false,
-        error: formatError(result.error),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
+      try {
+        const repo = getRepository();
+
+        // Create highlight entity
+        const highlight = createHighlight({
+          url: parsed.data.url,
+          exact: parsed.data.exact,
+          prefix: parsed.data.prefix,
+          suffix: parsed.data.suffix,
+          color: (parsed.data.color as HighlightColor) ?? 'yellow',
+          note: parsed.data.note,
+        });
+
+        // Save to repository
+        const result = await repo.create(highlight);
+
+        if (isOk(result)) {
+          return { success: true, id: result.value.id };
+        }
+
+        return {
+          success: false,
+          error: formatError(result.error),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+  );
 
   // GET
   registry.register('highlight.get', async (params: unknown): Promise<HighlightGetResponse> => {
     const parsed = highlightGetParamsSchema.safeParse(params);
     if (!parsed.success) {
-      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+      return {
+        success: false,
+        error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+      };
     }
 
     try {
@@ -208,7 +217,11 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   registry.register('highlight.list', async (params: unknown): Promise<HighlightListResponse> => {
     const parsed = highlightListParamsSchema.safeParse(params);
     if (!parsed.success) {
-      return { success: false, highlights: [], error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
+      return {
+        success: false,
+        highlights: [],
+        error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+      };
     }
 
     try {
@@ -239,79 +252,98 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   });
 
   // UPDATE
-  registry.register('highlight.update', async (params: unknown): Promise<HighlightUpdateResponse> => {
-    const parsed = highlightUpdateParamsSchema.safeParse(params);
-    if (!parsed.success) {
-      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
-    }
-
-    try {
-      const repo = getRepository();
-
-      const result = await repo.update(parsed.data.id, {
-        color: parsed.data.color as HighlightColor | undefined,
-        note: parsed.data.note,
-      });
-
-      if (isOk(result)) {
-        return { success: true };
+  registry.register(
+    'highlight.update',
+    async (params: unknown): Promise<HighlightUpdateResponse> => {
+      const parsed = highlightUpdateParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+        };
       }
 
-      return { success: false, error: formatError(result.error) };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
+      try {
+        const repo = getRepository();
+
+        const result = await repo.update(parsed.data.id, {
+          color: parsed.data.color as HighlightColor | undefined,
+          note: parsed.data.note,
+        });
+
+        if (isOk(result)) {
+          return { success: true };
+        }
+
+        return { success: false, error: formatError(result.error) };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+  );
 
   // DELETE
-  registry.register('highlight.delete', async (params: unknown): Promise<HighlightDeleteResponse> => {
-    const parsed = highlightDeleteParamsSchema.safeParse(params);
-    if (!parsed.success) {
-      return { success: false, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
-    }
-
-    try {
-      const repo = getRepository();
-      const result = await repo.delete(parsed.data.id);
-
-      if (isOk(result)) {
-        return { success: true };
+  registry.register(
+    'highlight.delete',
+    async (params: unknown): Promise<HighlightDeleteResponse> => {
+      const parsed = highlightDeleteParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          success: false,
+          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+        };
       }
 
-      return { success: false, error: formatError(result.error) };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
+      try {
+        const repo = getRepository();
+        const result = await repo.delete(parsed.data.id);
+
+        if (isOk(result)) {
+          return { success: true };
+        }
+
+        return { success: false, error: formatError(result.error) };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+  );
 
   // DELETE BY URL
-  registry.register('highlight.deleteByUrl', async (params: unknown): Promise<HighlightDeleteByUrlResponse> => {
-    const parsed = highlightDeleteByUrlParamsSchema.safeParse(params);
-    if (!parsed.success) {
-      return { success: false, deletedCount: 0, error: 'Validation error: ' + parsed.error.issues.map(i => i.message).join('; ') };
-    }
-
-    try {
-      const repo = getRepository();
-      const result = await repo.deleteByUrl(parsed.data.url);
-
-      if (isOk(result)) {
-        return { success: true, deletedCount: result.value };
+  registry.register(
+    'highlight.deleteByUrl',
+    async (params: unknown): Promise<HighlightDeleteByUrlResponse> => {
+      const parsed = highlightDeleteByUrlParamsSchema.safeParse(params);
+      if (!parsed.success) {
+        return {
+          success: false,
+          deletedCount: 0,
+          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
+        };
       }
 
-      return { success: false, deletedCount: 0, error: formatError(result.error) };
-    } catch (error) {
-      return {
-        success: false,
-        deletedCount: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
+      try {
+        const repo = getRepository();
+        const result = await repo.deleteByUrl(parsed.data.url);
+
+        if (isOk(result)) {
+          return { success: true, deletedCount: result.value };
+        }
+
+        return { success: false, deletedCount: 0, error: formatError(result.error) };
+      } catch (error) {
+        return {
+          success: false,
+          deletedCount: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    },
+  );
 }

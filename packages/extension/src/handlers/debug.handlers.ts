@@ -13,7 +13,7 @@ import {
   getHexagonalDispatchSummary,
   resetHexagonalDispatchStats,
 } from '../background/init-hexagonal';
-import { isPlaybackServiceAvailable, isContentExtractionServiceAvailable } from '../composition';
+import { isContentExtractionServiceAvailable, isPlaybackServiceAvailable } from '../composition';
 import type { Result } from '../core/shared/result';
 import { Ok } from '../core/shared/result';
 import type { DispatchStats, DispatchSummary } from '../utils/telemetry';

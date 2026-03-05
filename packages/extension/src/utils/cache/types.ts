@@ -11,7 +11,7 @@
  * @module utils/cache/types
  */
 
-import { z } from "zod";
+import { z } from 'zod';
 
 // ============================================================================
 // Configuration Types
@@ -40,9 +40,9 @@ export const cacheConfigSchema = z.object({
   /** Whether to persist to IndexedDB */
   persistToIndexedDB: z.boolean().default(true),
   /** IndexedDB database name */
-  dbName: z.string().default("proso-audio-cache"),
+  dbName: z.string().default('proso-audio-cache'),
   /** IndexedDB store name */
-  storeName: z.string().default("audio-entries"),
+  storeName: z.string().default('audio-entries'),
 });
 
 export type CacheConfig = z.infer<typeof cacheConfigSchema>;

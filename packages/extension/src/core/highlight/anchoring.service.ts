@@ -12,9 +12,9 @@
  * @module core/highlight/anchoring.service
  */
 
-import type { Result } from '../shared/result';
-import { Ok, Err, isErr } from '../shared/result';
 import type { TextQuoteSelector } from '../../utils/schemas/highlight.schema';
+import type { Result } from '../shared/result';
+import { Err, Ok, isErr } from '../shared/result';
 import { normalizeText } from './text-quote-selector';
 
 /**
@@ -113,9 +113,9 @@ export function levenshteinDistance(a: string, b: string): number {
       const cost = shorter[i - 1] === longer[j - 1] ? 0 : 1;
 
       currRow[i] = Math.min(
-        prevRow[i] + 1,      // deletion
-        currRow[i - 1] + 1,  // insertion
-        prevRow[i - 1] + cost // substitution
+        prevRow[i] + 1, // deletion
+        currRow[i - 1] + 1, // insertion
+        prevRow[i - 1] + cost, // substitution
       );
     }
 
@@ -196,7 +196,7 @@ function deduplicateCandidates(candidates: MatchCandidate[]): MatchCandidate[] {
   for (const candidate of sorted) {
     // Check if overlaps with any kept candidate
     const overlaps = kept.some(
-      (k) => !(candidate.endOffset <= k.startOffset || candidate.startOffset >= k.endOffset)
+      (k) => !(candidate.endOffset <= k.startOffset || candidate.startOffset >= k.endOffset),
     );
 
     if (!overlaps) {
@@ -222,7 +222,7 @@ function scoreWithContext(
   if (selector.prefix) {
     const textBefore = fullText.slice(
       Math.max(0, candidate.startOffset - selector.prefix.length),
-      candidate.startOffset
+      candidate.startOffset,
     );
     const prefixSim = similarityRatio(textBefore, selector.prefix);
     score += prefixSim * contextWeight;
@@ -231,14 +231,15 @@ function scoreWithContext(
   if (selector.suffix) {
     const textAfter = fullText.slice(
       candidate.endOffset,
-      candidate.endOffset + selector.suffix.length
+      candidate.endOffset + selector.suffix.length,
     );
     const suffixSim = similarityRatio(textAfter, selector.suffix);
     score += suffixSim * contextWeight;
   }
 
   // Normalize score
-  const maxScore = 1 + (selector.prefix ? contextWeight : 0) + (selector.suffix ? contextWeight : 0);
+  const maxScore =
+    1 + (selector.prefix ? contextWeight : 0) + (selector.suffix ? contextWeight : 0);
   return score / maxScore;
 }
 
@@ -278,12 +279,7 @@ export function anchorToText(
 
   // Fuzzy match with context
   const windowSize = Math.ceil(selector.exact.length * 0.2); // 20% tolerance
-  const candidates = findFuzzyMatches(
-    text,
-    selector.exact,
-    cfg.minSimilarity,
-    windowSize,
-  );
+  const candidates = findFuzzyMatches(text, selector.exact, cfg.minSimilarity, windowSize);
 
   if (candidates.length === 0) {
     return Err({
@@ -346,11 +342,7 @@ export function createRangeFromPosition(
 ): Result<Range, AnchoringError> {
   try {
     const range = document.createRange();
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null,
-    );
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
 
     let currentOffset = 0;
     let startNode: Text | null = null;
@@ -465,8 +457,7 @@ export function createAnchoringService(config: Partial<AnchoringConfig> = {}) {
     anchor: (document: Document, container: Element, selector: TextQuoteSelector) =>
       anchor(document, container, selector, cfg),
 
-    anchorToText: (text: string, selector: TextQuoteSelector) =>
-      anchorToText(text, selector, cfg),
+    anchorToText: (text: string, selector: TextQuoteSelector) => anchorToText(text, selector, cfg),
 
     anchorAll: (document: Document, container: Element, selectors: TextQuoteSelector[]) =>
       anchorAll(document, container, selectors, cfg),

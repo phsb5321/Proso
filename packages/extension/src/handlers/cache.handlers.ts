@@ -17,8 +17,8 @@ import type { HandlerRegistry } from './registry';
 import {
   cacheClearParamsSchema,
   cacheKeyParamsSchema,
-  getCachedParagraphsParamsSchema,
   costEstimateParamsSchema,
+  getCachedParagraphsParamsSchema,
 } from './schemas/cache.schemas';
 
 /**
@@ -168,7 +168,10 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = cacheClearParamsSchema.safeParse(params ?? {});
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {
@@ -212,7 +215,10 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = cacheKeyParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {
@@ -251,7 +257,10 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = cacheKeyParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       if (!isContainerInitialized()) {
@@ -335,7 +344,10 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = getCachedParagraphsParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       try {
@@ -371,7 +383,10 @@ export function registerCacheHandlers(registry: HandlerRegistry): void {
     async (params) => {
       const parsed = costEstimateParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return Err({ type: 'invalid_params', message: parsed.error.issues.map(i => i.message).join('; ') });
+        return Err({
+          type: 'invalid_params',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        });
       }
 
       const paragraphs = parsed.data.paragraphs ?? [];

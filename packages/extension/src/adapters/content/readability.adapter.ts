@@ -12,10 +12,14 @@
  */
 
 import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
-import type { IReader, ReaderError, ExtractionOptions } from '../../ports/reader.port';
+import { Err, Ok } from '../../core/shared/result';
+import type { ExtractionOptions, IReader, ReaderError } from '../../ports/reader.port';
 import type { Article } from '../../utils/schemas/article.schema';
-import { ArticleSchema, splitIntoParagraphs, type Paragraph } from '../../utils/schemas/article.schema';
+import {
+  ArticleSchema,
+  type Paragraph,
+  splitIntoParagraphs,
+} from '../../utils/schemas/article.schema';
 
 /**
  * Readability article result structure

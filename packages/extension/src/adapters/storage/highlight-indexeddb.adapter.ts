@@ -12,16 +12,16 @@
  */
 
 import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
+import { Err, Ok } from '../../core/shared/result';
 import type {
-  IHighlightRepository,
-  HighlightRepositoryError,
   HighlightQuery,
+  HighlightRepositoryError,
   HighlightUpdate,
+  IHighlightRepository,
 } from '../../ports/highlight-repository.port';
+import { getDB } from '../../utils/db/schema';
 import type { Highlight } from '../../utils/schemas/highlight.schema';
 import { HighlightSchema } from '../../utils/schemas/highlight.schema';
-import { getDB } from '../../utils/db/schema';
 
 /**
  * HighlightIndexedDBAdapter - IndexedDB-based highlight storage.

@@ -11,9 +11,9 @@
  * @module utils/cache/cost-estimator
  */
 
-import type { CostEstimate, ParagraphCost } from './types';
 import { getCacheStore } from './audio-cache-store';
 import { generateCacheKey, generateContentHash } from './cache-key';
+import type { CostEstimate, ParagraphCost } from './types';
 
 /**
  * Provider pricing configuration (per 1000 characters)

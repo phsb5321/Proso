@@ -7,8 +7,8 @@
  * @module utils/telemetry/usage/error-capture
  */
 
-import type { UsageTracker } from './tracker';
 import { redactError } from './redaction';
+import type { UsageTracker } from './tracker';
 
 /**
  * Options for error capture installation.

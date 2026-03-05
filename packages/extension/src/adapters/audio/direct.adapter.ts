@@ -12,10 +12,10 @@
  */
 
 import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
+import { Err, Ok } from '../../core/shared/result';
 import type {
-  IAudioPlayer,
   AudioPlayerError,
+  IAudioPlayer,
   PlaybackEvent,
   PlaybackEventListener,
 } from '../../ports/audio-player.port';

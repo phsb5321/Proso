@@ -7,18 +7,18 @@
  * @module adapters/audio/server-tts-audio
  */
 
+import type { TTSProvider } from '@proso/shared';
 import type { AudioError } from '../../core/shared/errors';
 import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
-import { Ok, Err } from '../../core/shared/result';
+import { Err, Ok } from '../../core/shared/result';
+import type { IApiClient } from '../../ports/api-client.port';
 import type {
-  IAudioGenerator,
   AudioRequest,
   AudioResponse,
+  IAudioGenerator,
   Voice,
 } from '../../ports/audio-generator.port';
-import type { IApiClient } from '../../ports/api-client.port';
-import type { TTSProvider } from '@proso/shared';
 
 /**
  * Audio adapter that proxies TTS requests through the Proso server.

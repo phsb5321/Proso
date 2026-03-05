@@ -14,8 +14,8 @@
 import {
   type Highlight,
   type HighlightColor,
-  type TextQuoteSelector,
   HighlightSchema,
+  type TextQuoteSelector,
   createHighlight as createHighlightFromSchema,
 } from '../../utils/schemas/highlight.schema';
 

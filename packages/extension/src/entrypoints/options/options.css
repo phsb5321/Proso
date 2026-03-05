@@ -643,8 +643,13 @@ kbd {
 }
 
 @keyframes status-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .server-status__text {
@@ -686,8 +691,12 @@ kbd {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .server-status__detail {
@@ -700,7 +709,7 @@ kbd {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg, 0 4px 12px rgba(0,0,0,0.15));
+  box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.15));
   z-index: 10;
   font-size: var(--font-size-xs);
   line-height: var(--line-height-relaxed);

@@ -143,11 +143,7 @@ async function handleLanguageDetect(params: unknown): Promise<LanguageDetectResp
   if (p.metadata && p.metadata.length >= 2) {
     const code = p.metadata.substring(0, 2).toLowerCase();
     result = { code, confidence: 0.9, source: 'metadata', isReliable: true };
-  } else if (
-    p.textSample &&
-    p.textSample.length >= MIN_DETECTION_TEXT_LENGTH &&
-    dependencies
-  ) {
+  } else if (p.textSample && p.textSample.length >= MIN_DETECTION_TEXT_LENGTH && dependencies) {
     const detectedCode = dependencies.detectLanguage(p.textSample);
 
     // franc returns 'und' for undetermined

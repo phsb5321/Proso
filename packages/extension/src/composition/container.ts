@@ -7,12 +7,12 @@
  * @module composition/container
  */
 
-import { ContentExtractionService } from '../core/content-extraction/extraction-service';
-import { PlaybackService } from '../core/playback/playback-service';
 import { NoOpAudioGeneratorAdapter } from '../adapters/audio';
-import type { IAudioGenerator } from '../ports/audio-generator.port';
 import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
+import { ContentExtractionService } from '../core/content-extraction/extraction-service';
+import { PlaybackService } from '../core/playback/playback-service';
+import type { IAudioGenerator } from '../ports/audio-generator.port';
 import {
   createApiClientAdapter,
   createAudioGeneratorAdapter,
@@ -49,9 +49,14 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   let audioGenerator: ContainerAdapters['audioGenerator'];
   try {
     audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
-    console.log('[Container] Audio generator:', audioGenerator.constructor.name,
-      'apiClient configured:', apiClient.isConfigured,
-      'serverUrl:', config.serverUrl);
+    console.log(
+      '[Container] Audio generator:',
+      audioGenerator.constructor.name,
+      'apiClient configured:',
+      apiClient.isConfigured,
+      'serverUrl:',
+      config.serverUrl,
+    );
   } catch (error) {
     console.warn('[Container] Audio generator failed, using no-op fallback:', error);
     audioGenerator = new NoOpAudioGeneratorAdapter(

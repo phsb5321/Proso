@@ -15,9 +15,9 @@ import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
 import { Err } from '../../core/shared/result';
 import type {
-  IAudioGenerator,
   AudioRequest,
   AudioResponse,
+  IAudioGenerator,
   Voice,
 } from '../../ports/audio-generator.port';
 

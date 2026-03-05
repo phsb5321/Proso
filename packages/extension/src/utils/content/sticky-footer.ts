@@ -13,9 +13,9 @@
  * @module utils/content/sticky-footer
  */
 
-import { z } from "zod";
-import { browser } from "wxt/browser";
-import { SUPPORTED_LANGUAGES } from "../language/codes";
+import { browser } from 'wxt/browser';
+import { z } from 'zod';
+import { SUPPORTED_LANGUAGES } from '../language/codes';
 
 // ============================================================================
 // Zod Schemas (SSOT for type definitions)
@@ -27,7 +27,7 @@ import { SUPPORTED_LANGUAGES } from "../language/codes";
  * yOffset: vertical offset from bottom in pixels (0 to window.innerHeight / 3)
  */
 export const footerPositionSchema = z.object({
-  x: z.union([z.literal("center"), z.literal("left"), z.literal("right"), z.number()]),
+  x: z.union([z.literal('center'), z.literal('left'), z.literal('right'), z.number()]),
   yOffset: z.number().min(0),
 });
 
@@ -48,7 +48,7 @@ export const footerStateSchema = z.object({
 /**
  * Playback status schema
  */
-export const playbackStatusSchema = z.enum(["stopped", "loading", "playing", "paused"]);
+export const playbackStatusSchema = z.enum(['stopped', 'loading', 'playing', 'paused']);
 
 /**
  * Internal playback state schema (used by StickyFooter class)
@@ -61,7 +61,7 @@ export const playbackStateSchema = z.object({
   currentParagraph: z.number().int().nonnegative(),
   totalParagraphs: z.number().int().nonnegative(),
   speed: z.number().min(0.5).max(2.0),
-  languageCode: z.string().default("en"),
+  languageCode: z.string().default('en'),
   isAutoDetected: z.boolean().default(true),
 });
 
@@ -81,29 +81,29 @@ export const buttonOptionsSchema = z.object({
  * Icon name schema
  */
 export const iconNameSchema = z.enum([
-  "play",
-  "pause",
-  "skip-back",
-  "skip-forward",
-  "minimize-2",
-  "maximize-2",
-  "x",
-  "queue", // T077: Add to queue icon
+  'play',
+  'pause',
+  'skip-back',
+  'skip-forward',
+  'minimize-2',
+  'maximize-2',
+  'x',
+  'queue', // T077: Add to queue icon
 ]);
 
 /**
  * Footer action schema (for message passing)
  */
 export const footerActionSchema = z.enum([
-  "play",
-  "pause",
-  "prev",
-  "next",
-  "seek",
-  "speed",
-  "stop",
-  "close",
-  "addToQueue", // T077: Add to queue action
+  'play',
+  'pause',
+  'prev',
+  'next',
+  'seek',
+  'speed',
+  'stop',
+  'close',
+  'addToQueue', // T077: Add to queue action
 ]);
 
 /**
@@ -133,7 +133,7 @@ export type StorageState = z.infer<typeof storageStateSchema>;
 
 // Storage key for footer state
 // NOTE: Must match StorageKey.FOOTER_STATE in background/constants.js
-const FOOTER_STATE_KEY = "footerState";
+const FOOTER_STATE_KEY = 'footerState';
 
 // Footer dimensions (matches styles/tokens.css)
 const FOOTER_HEIGHT = 64;
@@ -156,152 +156,152 @@ const ERROR_DISPLAY_DURATION_MS = 5000;
  * Create an SVG element from path data
  */
 function createSvgIcon(name: IconName): SVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "20");
-  svg.setAttribute("height", "20");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
 
   const icons: Record<IconName, () => void> = {
     play: () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "6 3 20 12 6 21 6 3");
-      polygon.setAttribute("fill", "currentColor");
-      polygon.setAttribute("stroke", "none");
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '6 3 20 12 6 21 6 3');
+      polygon.setAttribute('fill', 'currentColor');
+      polygon.setAttribute('stroke', 'none');
       svg.appendChild(polygon);
     },
     pause: () => {
-      const rect1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect1.setAttribute("x", "6");
-      rect1.setAttribute("y", "4");
-      rect1.setAttribute("width", "4");
-      rect1.setAttribute("height", "16");
-      rect1.setAttribute("fill", "currentColor");
-      rect1.setAttribute("stroke", "none");
-      rect1.setAttribute("rx", "1");
-      const rect2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect2.setAttribute("x", "14");
-      rect2.setAttribute("y", "4");
-      rect2.setAttribute("width", "4");
-      rect2.setAttribute("height", "16");
-      rect2.setAttribute("fill", "currentColor");
-      rect2.setAttribute("stroke", "none");
-      rect2.setAttribute("rx", "1");
+      const rect1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect1.setAttribute('x', '6');
+      rect1.setAttribute('y', '4');
+      rect1.setAttribute('width', '4');
+      rect1.setAttribute('height', '16');
+      rect1.setAttribute('fill', 'currentColor');
+      rect1.setAttribute('stroke', 'none');
+      rect1.setAttribute('rx', '1');
+      const rect2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect2.setAttribute('x', '14');
+      rect2.setAttribute('y', '4');
+      rect2.setAttribute('width', '4');
+      rect2.setAttribute('height', '16');
+      rect2.setAttribute('fill', 'currentColor');
+      rect2.setAttribute('stroke', 'none');
+      rect2.setAttribute('rx', '1');
       svg.appendChild(rect1);
       svg.appendChild(rect2);
     },
-    "skip-back": () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "19 20 9 12 19 4 19 20");
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "5");
-      line.setAttribute("y1", "19");
-      line.setAttribute("x2", "5");
-      line.setAttribute("y2", "5");
+    'skip-back': () => {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '19 20 9 12 19 4 19 20');
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '5');
+      line.setAttribute('y1', '19');
+      line.setAttribute('x2', '5');
+      line.setAttribute('y2', '5');
       svg.appendChild(polygon);
       svg.appendChild(line);
     },
-    "skip-forward": () => {
-      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      polygon.setAttribute("points", "5 4 15 12 5 20 5 4");
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "19");
-      line.setAttribute("y1", "5");
-      line.setAttribute("x2", "19");
-      line.setAttribute("y2", "19");
+    'skip-forward': () => {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '5 4 15 12 5 20 5 4');
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '19');
+      line.setAttribute('y1', '5');
+      line.setAttribute('x2', '19');
+      line.setAttribute('y2', '19');
       svg.appendChild(polygon);
       svg.appendChild(line);
     },
-    "minimize-2": () => {
-      const pl1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl1.setAttribute("points", "4 14 10 14 10 20");
-      const pl2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl2.setAttribute("points", "20 10 14 10 14 4");
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "14");
-      l1.setAttribute("y1", "10");
-      l1.setAttribute("x2", "21");
-      l1.setAttribute("y2", "3");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "3");
-      l2.setAttribute("y1", "21");
-      l2.setAttribute("x2", "10");
-      l2.setAttribute("y2", "14");
+    'minimize-2': () => {
+      const pl1 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl1.setAttribute('points', '4 14 10 14 10 20');
+      const pl2 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl2.setAttribute('points', '20 10 14 10 14 4');
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '14');
+      l1.setAttribute('y1', '10');
+      l1.setAttribute('x2', '21');
+      l1.setAttribute('y2', '3');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '3');
+      l2.setAttribute('y1', '21');
+      l2.setAttribute('x2', '10');
+      l2.setAttribute('y2', '14');
       svg.appendChild(pl1);
       svg.appendChild(pl2);
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
-    "maximize-2": () => {
-      const pl1 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl1.setAttribute("points", "15 3 21 3 21 9");
-      const pl2 = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      pl2.setAttribute("points", "9 21 3 21 3 15");
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "21");
-      l1.setAttribute("y1", "3");
-      l1.setAttribute("x2", "14");
-      l1.setAttribute("y2", "10");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "3");
-      l2.setAttribute("y1", "21");
-      l2.setAttribute("x2", "10");
-      l2.setAttribute("y2", "14");
+    'maximize-2': () => {
+      const pl1 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl1.setAttribute('points', '15 3 21 3 21 9');
+      const pl2 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      pl2.setAttribute('points', '9 21 3 21 3 15');
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '21');
+      l1.setAttribute('y1', '3');
+      l1.setAttribute('x2', '14');
+      l1.setAttribute('y2', '10');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '3');
+      l2.setAttribute('y1', '21');
+      l2.setAttribute('x2', '10');
+      l2.setAttribute('y2', '14');
       svg.appendChild(pl1);
       svg.appendChild(pl2);
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
     x: () => {
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "18");
-      l1.setAttribute("y1", "6");
-      l1.setAttribute("x2", "6");
-      l1.setAttribute("y2", "18");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "6");
-      l2.setAttribute("y1", "6");
-      l2.setAttribute("x2", "18");
-      l2.setAttribute("y2", "18");
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '18');
+      l1.setAttribute('y1', '6');
+      l1.setAttribute('x2', '6');
+      l1.setAttribute('y2', '18');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '6');
+      l2.setAttribute('y1', '6');
+      l2.setAttribute('x2', '18');
+      l2.setAttribute('y2', '18');
       svg.appendChild(l1);
       svg.appendChild(l2);
     },
     queue: () => {
       // List icon with plus for "add to queue"
-      const l1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l1.setAttribute("x1", "8");
-      l1.setAttribute("y1", "6");
-      l1.setAttribute("x2", "21");
-      l1.setAttribute("y2", "6");
-      const l2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l2.setAttribute("x1", "8");
-      l2.setAttribute("y1", "12");
-      l2.setAttribute("x2", "21");
-      l2.setAttribute("y2", "12");
-      const l3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      l3.setAttribute("x1", "8");
-      l3.setAttribute("y1", "18");
-      l3.setAttribute("x2", "21");
-      l3.setAttribute("y2", "18");
-      const d1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d1.setAttribute("x1", "3");
-      d1.setAttribute("y1", "6");
-      d1.setAttribute("x2", "3.01");
-      d1.setAttribute("y2", "6");
-      const d2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d2.setAttribute("x1", "3");
-      d2.setAttribute("y1", "12");
-      d2.setAttribute("x2", "3.01");
-      d2.setAttribute("y2", "12");
-      const d3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      d3.setAttribute("x1", "3");
-      d3.setAttribute("y1", "18");
-      d3.setAttribute("x2", "3.01");
-      d3.setAttribute("y2", "18");
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '8');
+      l1.setAttribute('y1', '6');
+      l1.setAttribute('x2', '21');
+      l1.setAttribute('y2', '6');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '8');
+      l2.setAttribute('y1', '12');
+      l2.setAttribute('x2', '21');
+      l2.setAttribute('y2', '12');
+      const l3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l3.setAttribute('x1', '8');
+      l3.setAttribute('y1', '18');
+      l3.setAttribute('x2', '21');
+      l3.setAttribute('y2', '18');
+      const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d1.setAttribute('x1', '3');
+      d1.setAttribute('y1', '6');
+      d1.setAttribute('x2', '3.01');
+      d1.setAttribute('y2', '6');
+      const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d2.setAttribute('x1', '3');
+      d2.setAttribute('y1', '12');
+      d2.setAttribute('x2', '3.01');
+      d2.setAttribute('y2', '12');
+      const d3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d3.setAttribute('x1', '3');
+      d3.setAttribute('y1', '18');
+      d3.setAttribute('x2', '3.01');
+      d3.setAttribute('y2', '18');
       svg.appendChild(l1);
       svg.appendChild(l2);
       svg.appendChild(l3);
@@ -323,17 +323,17 @@ function createSvgIcon(name: IconName): SVGElement {
  * Create a button element with proper ARIA attributes
  */
 function createButton(options: ButtonOptions): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.className = options.className || "btn";
-  btn.setAttribute("aria-label", options.ariaLabel || "");
-  btn.setAttribute("tabindex", "0");
+  const btn = document.createElement('button');
+  btn.className = options.className || 'btn';
+  btn.setAttribute('aria-label', options.ariaLabel || '');
+  btn.setAttribute('tabindex', '0');
 
   if (options.action) {
     btn.dataset.action = options.action;
   }
 
   if (options.ariaPressed !== undefined) {
-    btn.setAttribute("aria-pressed", String(options.ariaPressed));
+    btn.setAttribute('aria-pressed', String(options.ariaPressed));
   }
 
   if (options.icon) {
@@ -572,20 +572,20 @@ export class StickyFooter {
   private shadowRoot: ShadowRoot | null = null;
   private isVisible = false;
   private isMinimized = false;
-  private position: FooterPosition = { x: "center", yOffset: 0 };
+  private position: FooterPosition = { x: 'center', yOffset: 0 };
   private isDragging = false;
   private dragStartY = 0;
   private dragStartOffset = 0;
 
   private playbackState: PlaybackState = {
-    status: "stopped",
+    status: 'stopped',
     progress: 0,
-    currentTime: "0:00",
-    totalTime: "0:00",
+    currentTime: '0:00',
+    totalTime: '0:00',
     currentParagraph: 0,
     totalParagraphs: 0,
     speed: 1.0,
-    languageCode: "en",
+    languageCode: 'en',
     isAutoDetected: true,
   };
 
@@ -633,106 +633,113 @@ export class StickyFooter {
    * Build the footer DOM structure using safe DOM methods
    */
   private _buildDOM(): DocumentFragment {
-    const { status, progress, currentTime, totalTime, currentParagraph: _currentParagraph, totalParagraphs, speed } =
-      this.playbackState;
-    const isPlaying = status === "playing";
-    const isLoading = status === "loading";
+    const {
+      status,
+      progress,
+      currentTime,
+      totalTime,
+      currentParagraph: _currentParagraph,
+      totalParagraphs,
+      speed,
+    } = this.playbackState;
+    const isPlaying = status === 'playing';
+    const isLoading = status === 'loading';
 
     const fragment = document.createDocumentFragment();
 
     // Footer container
-    const footer = document.createElement("div");
-    footer.className = "footer";
-    footer.dataset.testid = "sticky-footer";
-    if (this.isMinimized) footer.classList.add("minimized");
-    if (this.position.x !== "center") footer.classList.add(String(this.position.x));
-    if (isLoading) footer.classList.add("loading");
-    footer.setAttribute("role", "toolbar");
-    footer.setAttribute("aria-label", "Proso playback controls");
-    footer.setAttribute("tabindex", "0");
+    const footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.dataset.testid = 'sticky-footer';
+    if (this.isMinimized) footer.classList.add('minimized');
+    if (this.position.x !== 'center') footer.classList.add(String(this.position.x));
+    if (isLoading) footer.classList.add('loading');
+    footer.setAttribute('role', 'toolbar');
+    footer.setAttribute('aria-label', 'Proso playback controls');
+    footer.setAttribute('tabindex', '0');
     this._footerEl = footer;
 
     // Drag handle
-    const dragHandle = document.createElement("div");
-    dragHandle.className = "drag-handle";
-    dragHandle.setAttribute("aria-hidden", "true");
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.setAttribute('aria-hidden', 'true');
     footer.appendChild(dragHandle);
 
     // Live region
-    const liveRegion = document.createElement("div");
-    liveRegion.className = "live-region";
-    liveRegion.setAttribute("role", "status");
-    liveRegion.setAttribute("aria-live", "polite");
-    liveRegion.setAttribute("aria-atomic", "true");
+    const liveRegion = document.createElement('div');
+    liveRegion.className = 'live-region';
+    liveRegion.setAttribute('role', 'status');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.setAttribute('aria-atomic', 'true');
     this._liveRegion = liveRegion;
     footer.appendChild(liveRegion);
 
     // Controls
-    const controls = document.createElement("div");
-    controls.className = "controls";
+    const controls = document.createElement('div');
+    controls.className = 'controls';
 
     const prevBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Previous paragraph",
-      action: "prev",
-      icon: "skip-back",
+      className: 'btn btn-sm',
+      ariaLabel: 'Previous paragraph',
+      action: 'prev',
+      icon: 'skip-back',
     });
-    prevBtn.dataset.testid = "footer-prev-btn";
+    prevBtn.dataset.testid = 'footer-prev-btn';
     controls.appendChild(prevBtn);
 
     const playPauseBtn = createButton({
-      className: "btn btn-play-pause",
-      ariaLabel: isPlaying ? "Pause" : "Play",
+      className: 'btn btn-play-pause',
+      ariaLabel: isPlaying ? 'Pause' : 'Play',
       ariaPressed: isPlaying,
-      action: "playPause",
-      icon: isPlaying ? "pause" : "play",
+      action: 'playPause',
+      icon: isPlaying ? 'pause' : 'play',
     });
-    playPauseBtn.dataset.testid = "footer-play-pause-btn";
+    playPauseBtn.dataset.testid = 'footer-play-pause-btn';
     this._playPauseBtn = playPauseBtn;
     controls.appendChild(playPauseBtn);
 
     const nextBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Next paragraph",
-      action: "next",
-      icon: "skip-forward",
+      className: 'btn btn-sm',
+      ariaLabel: 'Next paragraph',
+      action: 'next',
+      icon: 'skip-forward',
     });
-    nextBtn.dataset.testid = "footer-next-btn";
+    nextBtn.dataset.testid = 'footer-next-btn';
     controls.appendChild(nextBtn);
 
     footer.appendChild(controls);
 
     // Progress section
-    const progressSection = document.createElement("div");
-    progressSection.className = "progress-section";
+    const progressSection = document.createElement('div');
+    progressSection.className = 'progress-section';
 
-    const currentTimeEl = document.createElement("span");
-    currentTimeEl.className = "time-display";
+    const currentTimeEl = document.createElement('span');
+    currentTimeEl.className = 'time-display';
     currentTimeEl.textContent = currentTime;
     progressSection.appendChild(currentTimeEl);
 
-    const progressBar = document.createElement("div");
-    progressBar.className = "progress-bar";
-    progressBar.setAttribute("role", "slider");
-    progressBar.setAttribute("aria-label", "Playback progress");
-    progressBar.setAttribute("aria-valuenow", String(Math.round(progress)));
-    progressBar.setAttribute("aria-valuemin", "0");
-    progressBar.setAttribute("aria-valuemax", "100");
-    progressBar.setAttribute("aria-valuetext", `${Math.round(progress)}% complete`);
-    progressBar.setAttribute("tabindex", "0");
-    progressBar.dataset.action = "seek";
-    progressBar.dataset.testid = "footer-progress-bar";
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+    progressBar.setAttribute('role', 'slider');
+    progressBar.setAttribute('aria-label', 'Playback progress');
+    progressBar.setAttribute('aria-valuenow', String(Math.round(progress)));
+    progressBar.setAttribute('aria-valuemin', '0');
+    progressBar.setAttribute('aria-valuemax', '100');
+    progressBar.setAttribute('aria-valuetext', `${Math.round(progress)}% complete`);
+    progressBar.setAttribute('tabindex', '0');
+    progressBar.dataset.action = 'seek';
+    progressBar.dataset.testid = 'footer-progress-bar';
     this._progressBar = progressBar;
 
-    const progressFill = document.createElement("div");
-    progressFill.className = "progress-fill";
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
     progressFill.style.width = `${progress}%`;
     this._progressFill = progressFill;
     progressBar.appendChild(progressFill);
     progressSection.appendChild(progressBar);
 
-    const totalTimeEl = document.createElement("span");
-    totalTimeEl.className = "time-display";
+    const totalTimeEl = document.createElement('span');
+    totalTimeEl.className = 'time-display';
     totalTimeEl.textContent = totalTime;
     progressSection.appendChild(totalTimeEl);
 
@@ -740,31 +747,31 @@ export class StickyFooter {
     footer.appendChild(progressSection);
 
     // Speed control
-    const speedControl = document.createElement("div");
-    speedControl.className = "speed-control";
+    const speedControl = document.createElement('div');
+    speedControl.className = 'speed-control';
 
     const speedBtn = createButton({
-      className: "btn speed-btn",
+      className: 'btn speed-btn',
       ariaLabel: `Playback speed ${speed}x`,
-      action: "toggleSpeed",
+      action: 'toggleSpeed',
       text: `${speed}x`,
     });
     this._speedBtn = speedBtn; // T046: Store reference for updates
     speedControl.appendChild(speedBtn);
 
-    const speedDropdown = document.createElement("div");
-    speedDropdown.className = "speed-dropdown";
-    speedDropdown.setAttribute("role", "listbox");
-    speedDropdown.setAttribute("aria-label", "Select playback speed");
+    const speedDropdown = document.createElement('div');
+    speedDropdown.className = 'speed-dropdown';
+    speedDropdown.setAttribute('role', 'listbox');
+    speedDropdown.setAttribute('aria-label', 'Select playback speed');
     this._speedDropdown = speedDropdown;
 
     SPEED_OPTIONS.forEach((s) => {
-      const option = document.createElement("button");
-      option.className = "speed-option";
-      if (s === speed) option.classList.add("active");
-      option.setAttribute("role", "option");
-      option.setAttribute("aria-selected", String(s === speed));
-      option.setAttribute("tabindex", "0");
+      const option = document.createElement('button');
+      option.className = 'speed-option';
+      if (s === speed) option.classList.add('active');
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(s === speed));
+      option.setAttribute('tabindex', '0');
       option.dataset.speed = String(s);
       option.textContent = `${s}x`;
       speedDropdown.appendChild(option);
@@ -773,74 +780,78 @@ export class StickyFooter {
     footer.appendChild(speedControl);
 
     // Language control
-    const langControl = document.createElement("div");
-    langControl.className = "language-control";
+    const langControl = document.createElement('div');
+    langControl.className = 'language-control';
 
     const langBtn = createButton({
-      className: "btn lang-btn",
-      ariaLabel: `Language: ${this.playbackState.isAutoDetected ? "Auto-detected" : ""} ${this.playbackState.languageCode.toUpperCase()}`,
-      action: "toggleLanguage",
+      className: 'btn lang-btn',
+      ariaLabel: `Language: ${this.playbackState.isAutoDetected ? 'Auto-detected' : ''} ${this.playbackState.languageCode.toUpperCase()}`,
+      action: 'toggleLanguage',
       text: this.playbackState.languageCode.toUpperCase(),
     });
 
     // Add globe icon before text
-    const globeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    globeSvg.setAttribute("viewBox", "0 0 24 24");
-    globeSvg.setAttribute("width", "14");
-    globeSvg.setAttribute("height", "14");
-    globeSvg.setAttribute("aria-hidden", "true");
-    const globeCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    globeCircle.setAttribute("cx", "12");
-    globeCircle.setAttribute("cy", "12");
-    globeCircle.setAttribute("r", "10");
-    const globeLine1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    globeLine1.setAttribute("x1", "2");
-    globeLine1.setAttribute("y1", "12");
-    globeLine1.setAttribute("x2", "22");
-    globeLine1.setAttribute("y2", "12");
-    const globePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    globePath.setAttribute("d", "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z");
+    const globeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    globeSvg.setAttribute('viewBox', '0 0 24 24');
+    globeSvg.setAttribute('width', '14');
+    globeSvg.setAttribute('height', '14');
+    globeSvg.setAttribute('aria-hidden', 'true');
+    const globeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    globeCircle.setAttribute('cx', '12');
+    globeCircle.setAttribute('cy', '12');
+    globeCircle.setAttribute('r', '10');
+    const globeLine1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    globeLine1.setAttribute('x1', '2');
+    globeLine1.setAttribute('y1', '12');
+    globeLine1.setAttribute('x2', '22');
+    globeLine1.setAttribute('y2', '12');
+    const globePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    globePath.setAttribute(
+      'd',
+      'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    );
     globeSvg.appendChild(globeCircle);
     globeSvg.appendChild(globeLine1);
     globeSvg.appendChild(globePath);
 
     // Insert globe before text content
-    const langText = document.createElement("span");
-    langText.className = "lang-code";
+    const langText = document.createElement('span');
+    langText.className = 'lang-code';
     langText.textContent = this.playbackState.languageCode.toUpperCase();
-    langBtn.textContent = "";
+    langBtn.textContent = '';
     langBtn.appendChild(globeSvg);
     langBtn.appendChild(langText);
 
     this._langBtn = langBtn;
     langControl.appendChild(langBtn);
 
-    const langDropdown = document.createElement("div");
-    langDropdown.className = "language-dropdown";
-    langDropdown.setAttribute("role", "listbox");
-    langDropdown.setAttribute("aria-label", "Select language");
+    const langDropdown = document.createElement('div');
+    langDropdown.className = 'language-dropdown';
+    langDropdown.setAttribute('role', 'listbox');
+    langDropdown.setAttribute('aria-label', 'Select language');
     this._langDropdown = langDropdown;
 
     // Auto-detect option
-    const autoOption = document.createElement("button");
-    autoOption.className = "language-option";
-    if (this.playbackState.isAutoDetected) autoOption.classList.add("active");
-    autoOption.setAttribute("role", "option");
-    autoOption.setAttribute("aria-selected", String(this.playbackState.isAutoDetected));
-    autoOption.setAttribute("tabindex", "0");
-    autoOption.dataset.lang = "auto";
-    autoOption.textContent = "Auto-detect";
+    const autoOption = document.createElement('button');
+    autoOption.className = 'language-option';
+    if (this.playbackState.isAutoDetected) autoOption.classList.add('active');
+    autoOption.setAttribute('role', 'option');
+    autoOption.setAttribute('aria-selected', String(this.playbackState.isAutoDetected));
+    autoOption.setAttribute('tabindex', '0');
+    autoOption.dataset.lang = 'auto';
+    autoOption.textContent = 'Auto-detect';
     langDropdown.appendChild(autoOption);
 
     // Language options
     for (const [code, name] of Object.entries(SUPPORTED_LANGUAGES)) {
-      const option = document.createElement("button");
-      option.className = "language-option";
-      const isActive = !this.playbackState.isAutoDetected && this.playbackState.languageCode === code;
-      if (isActive) option.classList.add("active");
-      option.setAttribute("role", "option");
-      option.setAttribute("aria-selected", String(isActive));
-      option.setAttribute("tabindex", "0");
+      const option = document.createElement('button');
+      option.className = 'language-option';
+      const isActive =
+        !this.playbackState.isAutoDetected && this.playbackState.languageCode === code;
+      if (isActive) option.classList.add('active');
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(isActive));
+      option.setAttribute('tabindex', '0');
       option.dataset.lang = code;
       option.textContent = `${name} (${code.toUpperCase()})`;
       langDropdown.appendChild(option);
@@ -850,9 +861,9 @@ export class StickyFooter {
     footer.appendChild(langControl);
 
     // Paragraph indicator
-    const indicator = document.createElement("span");
-    indicator.className = "paragraph-indicator";
-    indicator.setAttribute("aria-label", "Current position");
+    const indicator = document.createElement('span');
+    indicator.className = 'paragraph-indicator';
+    indicator.setAttribute('aria-label', 'Current position');
     if (totalParagraphs > 0) {
       indicator.textContent = this._formatPositionIndicator();
     }
@@ -860,16 +871,16 @@ export class StickyFooter {
     footer.appendChild(indicator);
 
     // Actions
-    const actions = document.createElement("div");
-    actions.className = "actions";
+    const actions = document.createElement('div');
+    actions.className = 'actions';
 
     const closeBtn = createButton({
-      className: "btn btn-sm",
-      ariaLabel: "Close player",
-      action: "close",
-      icon: "x",
+      className: 'btn btn-sm',
+      ariaLabel: 'Close player',
+      action: 'close',
+      icon: 'x',
     });
-    closeBtn.dataset.testid = "footer-close-btn";
+    closeBtn.dataset.testid = 'footer-close-btn';
     actions.appendChild(closeBtn);
     footer.appendChild(actions);
 
@@ -889,7 +900,7 @@ export class StickyFooter {
     }
 
     // Add styles
-    const style = document.createElement("style");
+    const style = document.createElement('style');
     style.textContent = getStyles();
     this.shadowRoot.appendChild(style);
 
@@ -912,14 +923,14 @@ export class StickyFooter {
 
     if (initialState) {
       this.isMinimized = initialState.isMinimized || false;
-      this.position = initialState.position || { x: "center", yOffset: 0 };
+      this.position = initialState.position || { x: 'center', yOffset: 0 };
     } else {
       await this._restoreState();
     }
 
-    this.container = document.createElement("div");
-    this.container.id = "proso-sticky-footer";
-    this.shadowRoot = this.container.attachShadow({ mode: "closed" });
+    this.container = document.createElement('div');
+    this.container.id = 'proso-sticky-footer';
+    this.shadowRoot = this.container.attachShadow({ mode: 'closed' });
 
     this._render();
     document.body.appendChild(this.container);
@@ -934,7 +945,7 @@ export class StickyFooter {
       this._footerEl.focus();
     }
 
-    console.log("Proso: Sticky footer shown");
+    console.log('Proso: Sticky footer shown');
   }
 
   /**
@@ -966,7 +977,7 @@ export class StickyFooter {
     this._langBtn = null;
     this._langDropdown = null;
 
-    console.log("Proso: Sticky footer hidden");
+    console.log('Proso: Sticky footer hidden');
   }
 
   /**
@@ -993,11 +1004,11 @@ export class StickyFooter {
       // Update progress bar ARIA
       if (this._progressBar) {
         this._progressBar.setAttribute(
-          "aria-valuenow",
+          'aria-valuenow',
           String(Math.round(this.playbackState.progress)),
         );
         this._progressBar.setAttribute(
-          "aria-valuetext",
+          'aria-valuetext',
           `${Math.round(this.playbackState.progress)}% complete`,
         );
       }
@@ -1010,25 +1021,28 @@ export class StickyFooter {
       // T046: Update speed button display
       if (this._speedBtn && state.speed !== undefined) {
         this._speedBtn.textContent = `${this.playbackState.speed}x`;
-        this._speedBtn.setAttribute("aria-label", `Playback speed ${this.playbackState.speed}x`);
+        this._speedBtn.setAttribute('aria-label', `Playback speed ${this.playbackState.speed}x`);
       }
 
       // Update language button display
-      if (this._langBtn && (state.languageCode !== undefined || state.isAutoDetected !== undefined)) {
-        const langCode = this._langBtn.querySelector(".lang-code");
+      if (
+        this._langBtn &&
+        (state.languageCode !== undefined || state.isAutoDetected !== undefined)
+      ) {
+        const langCode = this._langBtn.querySelector('.lang-code');
         if (langCode) {
           langCode.textContent = this.playbackState.languageCode.toUpperCase();
         }
         this._langBtn.setAttribute(
-          "aria-label",
-          `Language: ${this.playbackState.isAutoDetected ? "Auto-detected" : ""} ${this.playbackState.languageCode.toUpperCase()}`,
+          'aria-label',
+          `Language: ${this.playbackState.isAutoDetected ? 'Auto-detected' : ''} ${this.playbackState.languageCode.toUpperCase()}`,
         );
       }
 
       // Update play/pause button if status changed
       if (previousStatus !== this.playbackState.status) {
         this._render();
-        this._announce(this.playbackState.status === "playing" ? "Playing" : "Paused");
+        this._announce(this.playbackState.status === 'playing' ? 'Playing' : 'Paused');
       }
 
       // Announce paragraph change
@@ -1061,7 +1075,7 @@ export class StickyFooter {
    */
   showError(message: string, duration: number = ERROR_DISPLAY_DURATION_MS): void {
     if (!this.shadowRoot || !this._footerEl) {
-      console.error("[Proso:StickyFooter] Cannot show error - footer not visible:", message);
+      console.error('[Proso:StickyFooter] Cannot show error - footer not visible:', message);
       return;
     }
 
@@ -1073,10 +1087,10 @@ export class StickyFooter {
 
     // Create error element if it doesn't exist
     if (!this._errorElement) {
-      this._errorElement = document.createElement("div");
-      this._errorElement.className = "error-notification";
-      this._errorElement.setAttribute("role", "alert");
-      this._errorElement.setAttribute("aria-live", "assertive");
+      this._errorElement = document.createElement('div');
+      this._errorElement.className = 'error-notification';
+      this._errorElement.setAttribute('role', 'alert');
+      this._errorElement.setAttribute('aria-live', 'assertive');
       this._footerEl.appendChild(this._errorElement);
     }
 
@@ -1086,30 +1100,30 @@ export class StickyFooter {
     }
 
     // Add message text using textContent (safe from XSS)
-    const messageSpan = document.createElement("span");
+    const messageSpan = document.createElement('span');
     messageSpan.textContent = message;
     this._errorElement.appendChild(messageSpan);
 
     // Add dismiss button
-    const dismissBtn = document.createElement("button");
-    dismissBtn.className = "error-notification-dismiss";
-    dismissBtn.textContent = "Dismiss";
-    dismissBtn.setAttribute("aria-label", "Dismiss error");
-    dismissBtn.addEventListener("click", () => this.hideError());
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'error-notification-dismiss';
+    dismissBtn.textContent = 'Dismiss';
+    dismissBtn.setAttribute('aria-label', 'Dismiss error');
+    dismissBtn.addEventListener('click', () => this.hideError());
     this._errorElement.appendChild(dismissBtn);
 
     // Show the notification
     // Use requestAnimationFrame to ensure CSS transition triggers
     requestAnimationFrame(() => {
       if (this._errorElement) {
-        this._errorElement.classList.add("visible");
+        this._errorElement.classList.add('visible');
       }
     });
 
     // Announce to screen readers
     this._announce(`Error: ${message}`);
 
-    console.log("[Proso:StickyFooter] Showing error:", message);
+    console.log('[Proso:StickyFooter] Showing error:', message);
 
     // Auto-dismiss after duration (if duration > 0)
     if (duration > 0) {
@@ -1129,7 +1143,7 @@ export class StickyFooter {
     }
 
     if (this._errorElement) {
-      this._errorElement.classList.remove("visible");
+      this._errorElement.classList.remove('visible');
     }
   }
 
@@ -1142,13 +1156,13 @@ export class StickyFooter {
    */
   private _adjustBodyPadding(show: boolean): void {
     if (show) {
-      this._originalBodyPadding = document.body.style.paddingBottom || "";
+      this._originalBodyPadding = document.body.style.paddingBottom || '';
       const computedPadding =
         Number.parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
       const footerHeight = this.isMinimized ? FOOTER_HEIGHT_MINIMIZED : FOOTER_HEIGHT;
       document.body.style.paddingBottom = `${computedPadding + footerHeight + 16}px`;
     } else {
-      document.body.style.paddingBottom = this._originalBodyPadding || "";
+      document.body.style.paddingBottom = this._originalBodyPadding || '';
       this._originalBodyPadding = null;
     }
   }
@@ -1169,11 +1183,11 @@ export class StickyFooter {
           this.isMinimized = parsed.data.isMinimized;
           this.position = parsed.data.position;
         } else {
-          console.warn("Proso: Invalid footer state schema:", parsed.error);
+          console.warn('Proso: Invalid footer state schema:', parsed.error);
         }
       }
     } catch (e) {
-      console.warn("Proso: Failed to restore footer state:", e);
+      console.warn('Proso: Failed to restore footer state:', e);
     }
   }
 
@@ -1190,7 +1204,7 @@ export class StickyFooter {
         [FOOTER_STATE_KEY]: state,
       });
     } catch (e) {
-      console.warn("Proso: Failed to save footer state:", e);
+      console.warn('Proso: Failed to save footer state:', e);
     }
   }
 
@@ -1208,7 +1222,7 @@ export class StickyFooter {
         ...payload,
       })
       .catch((err) => {
-        console.error("Proso: Failed to send message:", err);
+        console.error('Proso: Failed to send message:', err);
       });
   }
 
@@ -1220,7 +1234,7 @@ export class StickyFooter {
       this._liveRegion.textContent = message;
       setTimeout(() => {
         if (this._liveRegion) {
-          this._liveRegion.textContent = "";
+          this._liveRegion.textContent = '';
         }
       }, 1000);
     }
@@ -1258,21 +1272,21 @@ export class StickyFooter {
   private _setupEventListeners(): void {
     if (!this.shadowRoot) return;
 
-    const dragHandle = this.shadowRoot.querySelector(".drag-handle");
+    const dragHandle = this.shadowRoot.querySelector('.drag-handle');
     if (dragHandle) {
-      dragHandle.addEventListener("mousedown", this._onDragStart as EventListener);
-      dragHandle.addEventListener("touchstart", this._onDragStart as EventListener, {
+      dragHandle.addEventListener('mousedown', this._onDragStart as EventListener);
+      dragHandle.addEventListener('touchstart', this._onDragStart as EventListener, {
         passive: false,
       });
     }
 
-    document.addEventListener("mousemove", this._onDragMove as EventListener);
-    document.addEventListener("mouseup", this._onDragEnd);
-    document.addEventListener("touchmove", this._onDragMove as EventListener, { passive: false });
-    document.addEventListener("touchend", this._onDragEnd);
+    document.addEventListener('mousemove', this._onDragMove as EventListener);
+    document.addEventListener('mouseup', this._onDragEnd);
+    document.addEventListener('touchmove', this._onDragMove as EventListener, { passive: false });
+    document.addEventListener('touchend', this._onDragEnd);
 
     if (this._footerEl) {
-      this._footerEl.addEventListener("keydown", this._onKeyDown);
+      this._footerEl.addEventListener('keydown', this._onKeyDown);
     }
 
     this._attachButtonListeners();
@@ -1284,9 +1298,9 @@ export class StickyFooter {
   private _attachButtonListeners(): void {
     if (!this.shadowRoot) return;
 
-    const buttons = this.shadowRoot.querySelectorAll("[data-action]");
+    const buttons = this.shadowRoot.querySelectorAll('[data-action]');
     buttons.forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const action = (btn as HTMLElement).dataset.action;
         if (action) {
@@ -1296,35 +1310,35 @@ export class StickyFooter {
     });
 
     if (this._progressBar) {
-      this._progressBar.addEventListener("click", (e: MouseEvent) => {
+      this._progressBar.addEventListener('click', (e: MouseEvent) => {
         const rect = this._progressBar!.getBoundingClientRect();
         const percent = ((e.clientX - rect.left) / rect.width) * 100;
-        this._handleAction("seek", { value: Math.max(0, Math.min(100, percent)) });
+        this._handleAction('seek', { value: Math.max(0, Math.min(100, percent)) });
       });
     }
 
-    const speedOptions = this.shadowRoot.querySelectorAll(".speed-option");
+    const speedOptions = this.shadowRoot.querySelectorAll('.speed-option');
     speedOptions.forEach((option) => {
-      option.addEventListener("click", (e) => {
+      option.addEventListener('click', (e) => {
         e.stopPropagation();
-        const speed = Number.parseFloat((option as HTMLElement).dataset.speed || "1.0");
-        this._handleAction("speed", { value: speed });
+        const speed = Number.parseFloat((option as HTMLElement).dataset.speed || '1.0');
+        this._handleAction('speed', { value: speed });
         this._closeSpeedDropdown();
       });
     });
 
-    const langOptions = this.shadowRoot.querySelectorAll(".language-option");
+    const langOptions = this.shadowRoot.querySelectorAll('.language-option');
     langOptions.forEach((option) => {
-      option.addEventListener("click", (e) => {
+      option.addEventListener('click', (e) => {
         e.stopPropagation();
         const lang = (option as HTMLElement).dataset.lang;
-        if (lang === "auto") {
+        if (lang === 'auto') {
           this.playbackState.isAutoDetected = true;
-          this._sendMessage("language.clearOverride");
+          this._sendMessage('language.clearOverride');
         } else if (lang) {
           this.playbackState.isAutoDetected = false;
           this.playbackState.languageCode = lang;
-          this._sendMessage("language.setOverride", { languageCode: lang });
+          this._sendMessage('language.setOverride', { languageCode: lang });
         }
         this._closeLanguageDropdown();
         this._render();
@@ -1336,10 +1350,10 @@ export class StickyFooter {
    * Remove event listeners
    */
   private _removeEventListeners(): void {
-    document.removeEventListener("mousemove", this._onDragMove as EventListener);
-    document.removeEventListener("mouseup", this._onDragEnd);
-    document.removeEventListener("touchmove", this._onDragMove as EventListener);
-    document.removeEventListener("touchend", this._onDragEnd);
+    document.removeEventListener('mousemove', this._onDragMove as EventListener);
+    document.removeEventListener('mouseup', this._onDragEnd);
+    document.removeEventListener('touchmove', this._onDragMove as EventListener);
+    document.removeEventListener('touchend', this._onDragEnd);
   }
 
   // ==========================================================================
@@ -1351,53 +1365,53 @@ export class StickyFooter {
    */
   private _handleAction(action: string, data: Event | { value?: number } = {}): void {
     switch (action) {
-      case "playPause":
+      case 'playPause':
         {
-          const actualAction = this.playbackState.status === "playing" ? "pause" : "play";
-          this._sendMessage("footer.action", { action: actualAction });
+          const actualAction = this.playbackState.status === 'playing' ? 'pause' : 'play';
+          this._sendMessage('footer.action', { action: actualAction });
         }
         break;
-      case "prev":
-      case "next":
-      case "stop":
-        this._sendMessage("footer.action", { action });
+      case 'prev':
+      case 'next':
+      case 'stop':
+        this._sendMessage('footer.action', { action });
         break;
-      case "seek":
-        if ("value" in data) {
-          this._sendMessage("footer.action", { action: "seek", value: data.value });
+      case 'seek':
+        if ('value' in data) {
+          this._sendMessage('footer.action', { action: 'seek', value: data.value });
         }
         break;
-      case "speed":
-        if ("value" in data && typeof data.value === "number") {
+      case 'speed':
+        if ('value' in data && typeof data.value === 'number') {
           this.playbackState.speed = data.value;
-          this._sendMessage("footer.action", { action: "speed", value: data.value });
+          this._sendMessage('footer.action', { action: 'speed', value: data.value });
           this._render();
           this._announce(`Speed ${data.value}x`);
         }
         break;
-      case "toggleSpeed":
+      case 'toggleSpeed':
         this._toggleSpeedDropdown();
         this._closeLanguageDropdown();
         break;
-      case "toggleLanguage":
+      case 'toggleLanguage':
         this._toggleLanguageDropdown();
         this._closeSpeedDropdown();
         break;
-      case "toggleMinimize":
+      case 'toggleMinimize':
         this.isMinimized = !this.isMinimized;
         this._render();
         this._adjustBodyPadding(true);
-        this._sendMessage("footer.visibilityChanged", { isMinimized: this.isMinimized });
+        this._sendMessage('footer.visibilityChanged', { isMinimized: this.isMinimized });
         this._saveState();
-        this._announce(this.isMinimized ? "Player minimized" : "Player expanded");
+        this._announce(this.isMinimized ? 'Player minimized' : 'Player expanded');
         break;
-      case "close":
-        this._sendMessage("footer.action", { action: "close" });
+      case 'close':
+        this._sendMessage('footer.action', { action: 'close' });
         break;
-      case "addToQueue":
+      case 'addToQueue':
         // T077: Send add to queue action to background
-        this._sendMessage("footer.action", { action: "addToQueue" });
-        this._announce("Added to queue");
+        this._sendMessage('footer.action', { action: 'addToQueue' });
+        this._announce('Added to queue');
         break;
     }
   }
@@ -1407,7 +1421,7 @@ export class StickyFooter {
    */
   private _toggleSpeedDropdown(): void {
     if (this._speedDropdown) {
-      this._speedDropdown.classList.toggle("open");
+      this._speedDropdown.classList.toggle('open');
     }
   }
 
@@ -1416,7 +1430,7 @@ export class StickyFooter {
    */
   private _closeSpeedDropdown(): void {
     if (this._speedDropdown) {
-      this._speedDropdown.classList.remove("open");
+      this._speedDropdown.classList.remove('open');
     }
   }
 
@@ -1425,7 +1439,7 @@ export class StickyFooter {
    */
   private _toggleLanguageDropdown(): void {
     if (this._langDropdown) {
-      this._langDropdown.classList.toggle("open");
+      this._langDropdown.classList.toggle('open');
     }
   }
 
@@ -1434,7 +1448,7 @@ export class StickyFooter {
    */
   private _closeLanguageDropdown(): void {
     if (this._langDropdown) {
-      this._langDropdown.classList.remove("open");
+      this._langDropdown.classList.remove('open');
     }
   }
 
@@ -1447,7 +1461,7 @@ export class StickyFooter {
    */
   private _handleDragStart(e: MouseEvent | TouchEvent): void {
     this.isDragging = true;
-    this.dragStartY = e.type.includes("touch")
+    this.dragStartY = e.type.includes('touch')
       ? (e as TouchEvent).touches[0].clientY
       : (e as MouseEvent).clientY;
     this.dragStartOffset = this.position.yOffset;
@@ -1459,7 +1473,7 @@ export class StickyFooter {
    */
   private _handleDragMove(e: MouseEvent | TouchEvent): void {
     if (!this.isDragging) return;
-    const currentY = e.type.includes("touch")
+    const currentY = e.type.includes('touch')
       ? (e as TouchEvent).touches[0].clientY
       : (e as MouseEvent).clientY;
     const deltaY = this.dragStartY - currentY;
@@ -1477,7 +1491,7 @@ export class StickyFooter {
   private _handleDragEnd(): void {
     if (this.isDragging) {
       this.isDragging = false;
-      this._sendMessage("footer.positionChanged", { position: this.position });
+      this._sendMessage('footer.positionChanged', { position: this.position });
       this._saveState();
     }
   }
@@ -1487,42 +1501,42 @@ export class StickyFooter {
    */
   private _handleKeyDown(e: KeyboardEvent): void {
     switch (e.key) {
-      case " ":
-      case "Enter":
+      case ' ':
+      case 'Enter':
         if ((e.target as HTMLElement)?.dataset?.action) {
           e.preventDefault();
           this._handleAction((e.target as HTMLElement).dataset.action!);
         } else {
           e.preventDefault();
-          this._handleAction("playPause");
+          this._handleAction('playPause');
         }
         break;
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         this._closeSpeedDropdown();
         break;
-      case "ArrowLeft":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowLeft':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.max(0, this.playbackState.progress - 5) });
+          this._handleAction('seek', { value: Math.max(0, this.playbackState.progress - 5) });
         }
         break;
-      case "ArrowRight":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowRight':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.min(100, this.playbackState.progress + 5) });
+          this._handleAction('seek', { value: Math.min(100, this.playbackState.progress + 5) });
         }
         break;
-      case "ArrowUp":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowUp':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.min(100, this.playbackState.progress + 10) });
+          this._handleAction('seek', { value: Math.min(100, this.playbackState.progress + 10) });
         }
         break;
-      case "ArrowDown":
-        if ((e.target as HTMLElement)?.classList?.contains("progress-bar")) {
+      case 'ArrowDown':
+        if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
           e.preventDefault();
-          this._handleAction("seek", { value: Math.max(0, this.playbackState.progress - 10) });
+          this._handleAction('seek', { value: Math.max(0, this.playbackState.progress - 10) });
         }
         break;
     }
@@ -1551,7 +1565,7 @@ export class StickyFooter {
   private _setupResizeObserver(): void {
     if (this._resizeObserver) return;
     this._resizeObserver = new ResizeObserver(() => this._onResize());
-    window.addEventListener("resize", this._onResize, { passive: true });
+    window.addEventListener('resize', this._onResize, { passive: true });
     this._resizeObserver.observe(document.documentElement);
   }
 
@@ -1563,7 +1577,7 @@ export class StickyFooter {
       this._resizeObserver.disconnect();
       this._resizeObserver = null;
     }
-    window.removeEventListener("resize", this._onResize);
+    window.removeEventListener('resize', this._onResize);
   }
 
   /**
@@ -1573,11 +1587,11 @@ export class StickyFooter {
     if (this._mutationObserver || !this.container) return;
     this._mutationObserver = new MutationObserver(() => {
       if (!document.body.contains(this.container!)) {
-        console.log("Proso: Footer was removed from DOM, re-attaching");
+        console.log('Proso: Footer was removed from DOM, re-attaching');
         try {
           document.body.appendChild(this.container!);
         } catch (e) {
-          console.warn("Proso: Failed to re-attach footer:", e);
+          console.warn('Proso: Failed to re-attach footer:', e);
         }
       }
     });

@@ -11,7 +11,7 @@
  * @module utils/telemetry/usage/shipper
  */
 
-import type { UsageEvent, ShipperState, ShipperConfig, IngestRequest } from './types';
+import type { IngestRequest, ShipperConfig, ShipperState, UsageEvent } from './types';
 import { DEFAULT_SHIPPER_CONFIG } from './types';
 
 /**

@@ -224,7 +224,9 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     });
   } catch (error) {
     console.error('[Hexagonal] Failed to initialize container:', error);
-    console.warn('[Hexagonal] Handlers are still registered — dispatches will use graceful fallbacks');
+    console.warn(
+      '[Hexagonal] Handlers are still registered — dispatches will use graceful fallbacks',
+    );
   }
 
   return registry;

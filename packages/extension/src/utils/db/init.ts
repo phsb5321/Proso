@@ -10,7 +10,7 @@
  * @module utils/db/init
  */
 
-import { getDB, isIndexedDBAvailable, DB_NAME, DB_VERSION } from './schema';
+import { DB_NAME, DB_VERSION, getDB, isIndexedDBAvailable } from './schema';
 
 /**
  * Database initialization result
