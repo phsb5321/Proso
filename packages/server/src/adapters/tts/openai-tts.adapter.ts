@@ -2,7 +2,7 @@
 // Returns Result<TTSSynthesizeResult, TTSError> for all fallible operations
 
 import { Injectable, Logger } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { Err, ErrorCode, Ok, TTSProvider } from '@proso/shared';
 import type { Result } from '@proso/shared';
 import { type TTSError, ttsError } from '../../core/shared/domain-errors';

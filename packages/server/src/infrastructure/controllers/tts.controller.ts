@@ -35,9 +35,9 @@ import type {
 } from '@proso/shared';
 import type { Request, Response } from 'express';
 import { synthesize } from '../../core/tts/tts.service';
-import type { CacheStorePort } from '../../ports/cache-store.port';
-import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import { CacheStorePort } from '../../ports/cache-store.port';
+import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import type { TTSProviderPort } from '../../ports/tts-provider.port';
 import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 

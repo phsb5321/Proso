@@ -12,9 +12,9 @@ import type { CheckoutRequest, CheckoutResponse, SubscriptionDetailsResponse } f
 import { SubscriptionStatus, SubscriptionTier } from '@proso/shared';
 import type { Request } from 'express';
 import { getFreeTierDefaults } from '../../core/subscription/feature-gate';
-import type { BillingGatewayPort } from '../../ports/billing-gateway.port';
-import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import { BillingGatewayPort } from '../../ports/billing-gateway.port';
+import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 
 @Controller('api/v1/subscription')
 export class SubscriptionController {
