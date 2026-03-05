@@ -3,9 +3,9 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import type { LicenseValidateRequestParsed, LicenseValidateResponse } from '@proso/shared';
 import { LicenseValidateRequestSchema, isOk } from '@proso/shared';
 import { validateLicenseKey } from '../../core/subscription/license-validation.service';
-import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
-import type { UserRepositoryPort } from '../../ports/user-repository.port';
+import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import { UserRepositoryPort } from '../../ports/user-repository.port';
 import { Public } from '../guards/license-key.guard';
 import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
 

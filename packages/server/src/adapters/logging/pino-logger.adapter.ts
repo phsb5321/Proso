@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PinoLogger } from 'nestjs-pino';
+import { PinoLogger } from 'nestjs-pino';
 import { LoggerPort } from '../../ports/logger.port';
 
 @Injectable()

@@ -9,11 +9,11 @@
 
 import { Controller, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } from '@nestjs/common';
 import { SubscriptionStatus, SubscriptionTier, TIER_CREDITS } from '@proso/shared';
-import type { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import type { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import { Public } from '../guards/license-key.guard';
 import { PaddleWebhookGuard, type WebhookRequest } from '../guards/paddle-webhook.guard';
-import type { IdempotencyService } from '../services/idempotency.service';
+import { IdempotencyService } from '../services/idempotency.service';
 
 /** Paddle webhook event type constants. */
 const PaddleEventType = {

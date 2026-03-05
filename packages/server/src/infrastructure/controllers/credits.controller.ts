@@ -14,9 +14,9 @@ import {
   type TransactionType,
 } from '@proso/shared';
 import type { Request, Response } from 'express';
-import type {
+import {
   CreditRepositoryPort,
-  CreditTransactionRecord,
+  type CreditTransactionRecord,
 } from '../../ports/credit-repository.port';
 
 /** Maximum number of transactions a client can request in one page. */

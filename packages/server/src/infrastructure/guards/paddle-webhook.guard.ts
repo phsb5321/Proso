@@ -9,7 +9,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { BillingGatewayPort, WebhookEvent } from '../../ports/billing-gateway.port';
+import { BillingGatewayPort, type WebhookEvent } from '../../ports/billing-gateway.port';
 
 /** Extended Request type with webhook event and raw body attached. */
 export interface WebhookRequest extends Request {
