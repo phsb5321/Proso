@@ -81,10 +81,10 @@ export default defineConfig({
     },
   },
 
-  // Use Firefox Nightly for development (NixOS: /run/current-system/sw/bin/firefox-nightly)
+  // Use FIREFOX_BIN env var to override browser binary, defaults to firefox-nightly
   webExt: {
     binaries: {
-      firefox: 'firefox-nightly',
+      firefox: process.env.FIREFOX_BIN || 'firefox-nightly',
     },
   },
 

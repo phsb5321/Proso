@@ -29,7 +29,7 @@
     "test:e2e:ext": "npx playwright test --project=chromium-extension",
     "test:e2e:ext:ui": "npx playwright test --project=chromium-extension --ui",
     "test:e2e:ext:docker": "PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:3000/ npx playwright test --project=chromium-extension",
-    "validate:firefox": "web-ext run --source-dir=.output/firefox-mv2 --firefox=firefox-nightly",
+    "validate:firefox": "web-ext run --source-dir=.output/firefox-mv2 --firefox=${FIREFOX_BIN:-firefox-nightly}",
     "test:all": "pnpm run test && pnpm run test:visual",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
