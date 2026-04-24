@@ -9,13 +9,23 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
+    "knip": "knip",
+    "knip:production": "knip --production",
+    "knip:fix": "knip --fix --allow-remove-files",
     "postinstall": "lefthook install || true"
   },
   "devDependencies": {
+    "knip": "6.6.2",
     "lefthook": "^2.1.2",
     "typescript": "^5.9.3"
   },
-  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
+  "keywords": [
+    "firefox",
+    "extension",
+    "tts",
+    "text-to-speech",
+    "accessibility"
+  ],
   "license": "MIT",
   "pnpm": {
     "onlyBuiltDependencies": [
