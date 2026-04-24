@@ -208,5 +208,3 @@ export class SettingsStore {
 
 // Export singleton instance
 export const settingsStore = new SettingsStore();
-
-export default settingsStore;

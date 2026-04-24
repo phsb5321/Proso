@@ -294,5 +294,3 @@ export function getPendingMigrationCount(stored: StoredSettings): number {
   const currentVersion = stored._configVersion || 0;
   return migrations.filter((m) => m.version > currentVersion).length;
 }
-
-export default migrations;
