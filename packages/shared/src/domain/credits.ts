@@ -5,7 +5,6 @@ import type { TTSProvider } from './provider.js';
 export enum TransactionType {
   Deduction = 'deduction',
   Allocation = 'allocation',
-  Refund = 'refund',
 }
 
 export interface CreditAllocation {
