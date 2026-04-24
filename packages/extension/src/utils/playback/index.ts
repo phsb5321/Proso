@@ -3,45 +3,18 @@
 // Commercial licensing: https://proso.com.br/commercial
 
 /**
- * Playback Module
- * Central export for playback-related utilities including queue management
- * and prefetch services.
+ * Playback Module — public barrel
+ *
+ * Only the two singletons consumed via this barrel path
+ * (`handlers/prefetch.handlers.ts`) are re-exported here. Tests and
+ * internal modules import directly from `./playback-queue` and
+ * `./prefetch` source files; those exports stay available via direct
+ * path imports.
  *
  * Feature: 028-smart-audio-cache (User Story 3)
  *
  * @module utils/playback
  */
 
-// ============================================================================
-// Exports from playback-queue.ts
-// ============================================================================
-
-export {
-  PlaybackQueue,
-  playbackQueue,
-  queueItemStatusSchema,
-  type QueueItem,
-  type QueueItemStatus,
-  type QueueState,
-  type QueueOptions,
-} from './playback-queue';
-
-// ============================================================================
-// Exports from prefetch.ts
-// ============================================================================
-
-export {
-  PrefetchService,
-  prefetchService,
-  prefetchPrioritySchema,
-  type PrefetchPriority,
-  type PrefetchTask,
-  type PrefetchedAudio,
-  type WordTiming,
-  type PrefetchStatus,
-  type AudioGenerator,
-  type CacheChecker,
-  type PrefetchServiceOptions,
-} from './prefetch';
-
-console.log('Proso: utils/playback/index.ts loaded');
+export { playbackQueue } from './playback-queue';
+export { prefetchService } from './prefetch';
