@@ -5,6 +5,7 @@
       "entry": [
         "src/entrypoints/*.{ts,html}",
         "src/entrypoints/**/main.ts",
+        "src/**/*-worker.ts",
         "wxt.config.ts",
         "jest.config.{js,ts,mjs}",
         "tests/**/*.test.ts",
