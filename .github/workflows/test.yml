@@ -35,10 +35,10 @@ jobs:
         run: pnpm run lint
 
       - name: Run unit tests
-        run: NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit --coverage
+        run: pnpm --filter @proso/extension test:unit --coverage
 
       - name: Run contract tests
-        run: pnpm run test:contract
+        run: pnpm --filter @proso/extension test:contract
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
