@@ -45,6 +45,9 @@ jobs:
       - name: Lint server
         run: pnpm --filter @proso/server lint
 
+      - name: Generate Prisma client
+        run: pnpm --filter @proso/server prisma:generate
+
       - name: Test server with coverage
         run: pnpm --filter @proso/server test -- --coverage
 
