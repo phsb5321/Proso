@@ -180,7 +180,7 @@ jobs:
         run: pnpm --filter @proso/server prisma:generate
 
       - name: Test server with coverage
-        run: pnpm --filter @proso/server test -- --coverage
+        run: pnpm --filter @proso/server test --coverage
 
       - name: Upload coverage
         if: always()
