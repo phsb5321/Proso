@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # PR decoration (status checks + inline issues)
 
 concurrency:
   group: sonar-${{ github.ref }}
@@ -19,7 +20,8 @@ jobs:
     name: SonarQube analysis
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.actor != 'dependabot[bot]'
+    # Skip gracefully when the SONAR_HOST_URL repo *variable* is unset (forks, pre-setup) — no red X.
+    if: github.actor != 'dependabot[bot]' && vars.SONAR_HOST_URL != ''
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -52,15 +54,16 @@ jobs:
         continue-on-error: true
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@aa494459d7c39c106cc77b166de8b4250a32bb97 # v5.3.0
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@cf038b0a0c6ce5fe8c6c1a3e3bb2ba15c8c0f9d5 # v1.1.0
+        uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
