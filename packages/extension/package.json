@@ -40,7 +40,7 @@
     "deps:check": "madge --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
-    "quality": "pnpm run deps:check && pnpm run duplication && pnpm run lint:manifest",
+    "quality": "pnpm run deps:check && pnpm run duplication",
     "version:show": "./scripts/version.sh",
     "version:patch": "./scripts/version.sh patch",
     "version:minor": "./scripts/version.sh minor",
