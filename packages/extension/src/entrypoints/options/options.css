@@ -160,7 +160,8 @@ body {
   min-width: 100px;
   padding: var(--spacing-xs) var(--spacing-md);
   padding-right: 32px;
-  min-height: 36px;
+  /* WCAG 2.1 AA: 44x44px touch target (T079). */
+  min-height: var(--min-touch-target, 44px);
 }
 
 /* ========================================
@@ -661,8 +662,10 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  /* WCAG 2.1 AA: 44x44px touch target (T079). Glyph stays small via the
+     inner SVG size; the button expands its hit area transparently. */
+  width: var(--min-touch-target, 44px);
+  height: var(--min-touch-target, 44px);
   padding: 0;
   background: none;
   border: none;

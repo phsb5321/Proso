@@ -93,8 +93,19 @@
         </section>
 
         <!-- Progress Bar -->
-        <div class="proso-popup__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-container">
-          <div class="proso-popup__progress-bar" id="progress-bar"></div>
+        <!-- progressbar role lives on the non-interactive fill (not the wrapper),
+             so it has an accessible name and no focusable descendants (a11y: avoids
+             aria-progressbar-name + nested-interactive). The seek slider is a sibling. -->
+        <div class="proso-popup__progress" id="progress-container">
+          <div
+            class="proso-popup__progress-bar"
+            id="progress-bar"
+            role="progressbar"
+            aria-label="Playback progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          ></div>
           <input
             type="range"
             class="proso-popup__progress-seek"

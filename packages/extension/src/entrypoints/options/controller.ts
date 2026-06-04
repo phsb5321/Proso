@@ -13,6 +13,7 @@ import {
   queueDefaults,
   defaults as settingsDefaults,
 } from '../../utils/config';
+import { confirmDialog } from '../../utils/ui/confirm-dialog';
 
 // UI defaults (inline since they're simple)
 const uiDefaults = {
@@ -1165,7 +1166,13 @@ async function flushLogs(): Promise<void> {
 async function clearLogs(): Promise<void> {
   if (!elements) return;
 
-  if (!confirm('Are you sure you want to clear all buffered logs? This cannot be undone.')) {
+  const confirmed = await confirmDialog({
+    title: 'Clear buffered logs',
+    message: 'Are you sure you want to clear all buffered logs? This cannot be undone.',
+    confirmLabel: 'Clear logs',
+    destructive: true,
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -1372,11 +1379,14 @@ async function clearCompletedQueue(): Promise<void> {
 async function clearAllQueue(): Promise<void> {
   if (!elements) return;
 
-  if (
-    !confirm(
+  const confirmed = await confirmDialog({
+    title: 'Clear reading queue',
+    message:
       'Are you sure you want to clear all items from the reading queue? This cannot be undone.',
-    )
-  ) {
+    confirmLabel: 'Clear all',
+    destructive: true,
+  });
+  if (!confirmed) {
     return;
   }
 
