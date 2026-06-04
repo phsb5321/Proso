@@ -28,8 +28,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # pnpm version pinned by root package.json packageManager field
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,8 +45,11 @@ jobs:
       - name: Lint server
         run: pnpm --filter @proso/server lint
 
+      - name: Generate Prisma client
+        run: pnpm --filter @proso/server prisma:generate
+
       - name: Test server with coverage
-        run: pnpm --filter @proso/server test -- --coverage
+        run: pnpm --filter @proso/server test --coverage
 
       - name: Upload coverage
         if: always()
