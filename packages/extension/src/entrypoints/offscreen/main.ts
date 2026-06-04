@@ -2,6 +2,8 @@
 // Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
 // Commercial licensing: https://proso.com.br/commercial
 
+// T091: Chrome support scaffolding, not actively used in Firefox builds.
+
 /**
  * Chrome MV3 Offscreen Document for Audio Playback
  *

@@ -225,7 +225,8 @@ function updateProgress(progress: number): void {
   const clampedProgress = Math.max(0, Math.min(100, progress));
   elements.progressBar.style.width = `${clampedProgress}%`;
   elements.progressSeek.value = String(clampedProgress);
-  elements.progressContainer.setAttribute('aria-valuenow', String(clampedProgress));
+  // progressbar role lives on #progress-bar (the fill), not the wrapper.
+  elements.progressBar.setAttribute('aria-valuenow', String(clampedProgress));
 }
 
 /**
