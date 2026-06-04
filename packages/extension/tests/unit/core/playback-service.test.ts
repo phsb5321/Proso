@@ -473,6 +473,34 @@ describe('PlaybackService', () => {
     });
   });
 
+  describe('setAudioGenerator (T020)', () => {
+    it('should route generation through the newly-set generator', async () => {
+      // Start playback so the service is in a state where next() will
+      // trigger a fresh generateAndPlayParagraph (and thus a generator call).
+      await service.start(testParagraphs, testTabId, testPageUrl);
+
+      // The original generator was used for paragraph 0.
+      expect(mockAudioGenerator.generateAudioCalls).toHaveLength(1);
+
+      // Swap in a brand-new generator instance.
+      const newGenerator = createMockAudioGenerator();
+      service.setAudioGenerator(newGenerator);
+
+      // Reset the original's call log so we can prove it is no longer used.
+      mockAudioGenerator.generateAudioCalls = [];
+
+      // Advance to the next paragraph — this exercises the generate path.
+      const result = await service.next();
+
+      expect(isOk(result)).toBe(true);
+      // The NEW generator must have produced the audio for paragraph 1.
+      expect(newGenerator.generateAudioCalls).toHaveLength(1);
+      expect(newGenerator.generateAudioCalls[0].text).toBe(testParagraphs[1]);
+      // The original generator must NOT have been touched after the swap.
+      expect(mockAudioGenerator.generateAudioCalls).toHaveLength(0);
+    });
+  });
+
   describe('performance', () => {
     it('should complete operations quickly with mocks', async () => {
       const start = Date.now();
