@@ -1,0 +1,69 @@
+name: SonarQube
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read # PR decoration (status checks + inline issues)
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: SonarQube analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Skip gracefully when the SONAR_HOST_URL repo *variable* is unset (forks, pre-setup) — no red X.
+    if: github.actor != 'dependabot[bot]' && vars.SONAR_HOST_URL != ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: 10.30.3
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Run tests with coverage (extension)
+        run: pnpm --filter @proso/extension test:unit -- --coverage --coverageReporters=lcov
+        continue-on-error: true
+
+      - name: Run tests with coverage (server)
+        env:
+          PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING: "1"
+        run: pnpm --filter @proso/server test -- --coverage --coverageReporters=lcov
+        continue-on-error: true
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt

@@ -12,6 +12,7 @@ import {
   type TTSSynthesizeResult,
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
+import { retryableFetch } from './retry-fetch';
 
 const ELEVENLABS_TTS_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
 const ELEVENLABS_VOICES_URL = 'https://api.elevenlabs.io/v1/voices';
@@ -86,7 +87,7 @@ export class ElevenLabsTTSAdapter extends TTSProviderPort {
     const url = `${ELEVENLABS_TTS_BASE}/${voiceId}`;
 
     try {
-      const response = await fetch(url, {
+      const response = await retryableFetch(url, {
         method: 'POST',
         headers: {
           'xi-api-key': apiKey,
@@ -102,17 +103,6 @@ export class ElevenLabsTTSAdapter extends TTSProviderPort {
         }),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => 'unknown');
-        this.logger.warn(`ElevenLabs TTS API returned ${response.status}: ${errorBody}`);
-        return Err(
-          ttsError(ErrorCode.ProviderUnavailable, `ElevenLabs TTS API error: ${response.status}`, {
-            status: response.status,
-            body: errorBody,
-          }),
-        );
-      }
-
       const arrayBuffer = await response.arrayBuffer();
       return Ok({
         audio: Buffer.from(arrayBuffer),
@@ -121,7 +111,7 @@ export class ElevenLabsTTSAdapter extends TTSProviderPort {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown network error';
-      this.logger.error(`ElevenLabs TTS network failure: ${message}`);
+      this.logger.error(`ElevenLabs TTS failure after retries: ${message}`);
       return Err(
         ttsError(ErrorCode.ProviderUnavailable, `ElevenLabs TTS failed: ${message}`, {
           provider: this.providerId,

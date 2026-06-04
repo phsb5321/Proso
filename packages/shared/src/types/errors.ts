@@ -21,8 +21,6 @@ export enum ErrorCode {
 
   // General errors
   ValidationError = 'VALIDATION_ERROR',
-  InternalError = 'INTERNAL_ERROR',
-  RateLimited = 'RATE_LIMITED',
   Unauthorized = 'UNAUTHORIZED',
 }
 

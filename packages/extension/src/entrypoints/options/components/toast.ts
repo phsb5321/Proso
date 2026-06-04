@@ -196,5 +196,3 @@ export const toast = {
   info: (message: string, options?: Partial<ToastOptions>) =>
     showToast({ type: 'info', message, ...options }),
 };
-
-export default toast;

@@ -12,6 +12,7 @@ import {
   type TTSSynthesizeResult,
   type VoiceInfo,
 } from '../../ports/tts-provider.port';
+import { retryableFetch } from './retry-fetch';
 
 const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
 
@@ -45,7 +46,7 @@ export class OpenAITTSAdapter extends TTSProviderPort {
     }
 
     try {
-      const response = await fetch(OPENAI_TTS_URL, {
+      const response = await retryableFetch(OPENAI_TTS_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -60,17 +61,6 @@ export class OpenAITTSAdapter extends TTSProviderPort {
         }),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => 'unknown');
-        this.logger.warn(`OpenAI TTS API returned ${response.status}: ${errorBody}`);
-        return Err(
-          ttsError(ErrorCode.ProviderUnavailable, `OpenAI TTS API error: ${response.status}`, {
-            status: response.status,
-            body: errorBody,
-          }),
-        );
-      }
-
       const arrayBuffer = await response.arrayBuffer();
       return Ok({
         audio: Buffer.from(arrayBuffer),
@@ -79,7 +69,7 @@ export class OpenAITTSAdapter extends TTSProviderPort {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown network error';
-      this.logger.error(`OpenAI TTS network failure: ${message}`);
+      this.logger.error(`OpenAI TTS failure after retries: ${message}`);
       return Err(
         ttsError(ErrorCode.ProviderUnavailable, `OpenAI TTS failed: ${message}`, {
           provider: this.providerId,

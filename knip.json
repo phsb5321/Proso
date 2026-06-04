@@ -1,0 +1,41 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "packages/extension": {
+      "entry": [
+        "src/entrypoints/*.{ts,html}",
+        "src/entrypoints/**/main.ts",
+        "src/**/*-worker.ts",
+        "wxt.config.ts",
+        "jest.config.{js,ts,mjs}",
+        "tests/**/*.test.ts",
+        "tests/**/*.spec.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignore": ["src/generated/**", ".wxt/**", ".output/**"],
+      "ignoreDependencies": [
+        "@webext-core/messaging",
+        "webextension-polyfill"
+      ]
+    },
+    "packages/server": {
+      "entry": [
+        "src/main.ts",
+        "src/**/*.module.ts",
+        "src/**/*.controller.ts",
+        "tests/**/*.spec.ts"
+      ],
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/generated/**", "prisma/migrations/**", "dist/**"],
+      "ignoreDependencies": [
+        "@nestjs/platform-express",
+        "reflect-metadata"
+      ]
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["dist/**"]
+    }
+  }
+}
