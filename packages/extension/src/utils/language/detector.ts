@@ -10,8 +10,11 @@
  */
 
 import { franc } from 'franc-min';
+import { createLogger } from '../logging/logger';
 import { isLanguageSupported, normalizeLanguageCode } from './codes';
 import type { LanguageDetectionResult, PageLanguage } from './types';
+
+const log = createLogger('service');
 
 /**
  * Storage keys for language detection
@@ -87,7 +90,7 @@ export function detectLanguageFromText(text: string): { code: string; confidence
       confidence,
     };
   } catch (error) {
-    console.error('Proso: Text language detection failed:', error);
+    log.error('Proso: Text language detection failed', { error });
     return null;
   }
 }
@@ -167,7 +170,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
   // Check cache first
   const cached = await getCachedLanguage(url);
   if (cached) {
-    console.log(`Proso: Using cached language for ${url}: ${cached.code}`);
+    log.info(`Proso: Using cached language for ${url}: ${cached.code}`);
     return cached;
   }
 
@@ -178,7 +181,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const textResult = detectLanguageFromText(textSample);
     if (textResult && textResult.confidence >= 0.9) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
-      console.log(
+      log.info(
         `Proso: Detected language from text: ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
       );
     }
@@ -189,7 +192,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const primary = normalizeLanguageCode(metadata);
     if (isLanguageSupported(primary)) {
       detected = createDetectedLanguage(metadata, 1.0, 'metadata');
-      console.log(`Proso: Using metadata language: ${detected.code}`);
+      log.info(`Proso: Using metadata language: ${detected.code}`);
     }
   }
 
@@ -198,7 +201,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
     const textResult = detectLanguageFromText(textSample);
     if (textResult && textResult.confidence >= 0.5) {
       detected = createDetectedLanguage(textResult.code, textResult.confidence, 'text');
-      console.log(
+      log.info(
         `Proso: Detected language from text (low confidence): ${detected.code} (confidence: ${detected.confidence.toFixed(2)})`,
       );
     }
@@ -207,7 +210,7 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
   // Fallback to English
   if (!detected) {
     detected = createDetectedLanguage('en', 0.5, 'fallback');
-    console.log('Proso: Fallback to English');
+    log.info('Proso: Fallback to English');
   }
 
   // Cache the result
@@ -236,7 +239,7 @@ async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> 
 
     return cached;
   } catch (error) {
-    console.warn('Proso: Failed to read language cache:', error);
+    log.warn('Proso: Failed to read language cache', { error });
     return null;
   }
 }
@@ -261,7 +264,7 @@ async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<v
     cache[url] = detected;
     await browser.storage.local.set({ [STORAGE_KEYS.LANGUAGE_CACHE]: cache });
   } catch (error) {
-    console.warn('Proso: Failed to cache language:', error);
+    log.warn('Proso: Failed to cache language', { error });
   }
 }
 
@@ -313,7 +316,7 @@ export async function setLanguageOverride(languageCode: string): Promise<void> {
     [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
   });
 
-  console.log(`Proso: Language override set to: ${languageCode}`);
+  log.info(`Proso: Language override set to: ${languageCode}`);
 }
 
 /**
@@ -335,7 +338,7 @@ export async function clearLanguageOverride(): Promise<void> {
     [STORAGE_KEYS.LANGUAGE_PREFERENCE]: preference,
   });
 
-  console.log('Proso: Language override cleared');
+  log.info('Proso: Language override cleared');
 }
 
 /**
@@ -385,12 +388,12 @@ export function setupNavigationListener(): void {
         ] as LanguagePreference | undefined;
 
         if (preference?.currentOverride) {
-          console.log('Proso: Cross-domain navigation, clearing language override');
+          log.info('Proso: Cross-domain navigation, clearing language override');
           await clearLanguageOverride();
         }
       } catch (error) {
         // URL parsing failed - log but don't clear
-        console.warn('Proso: URL parsing failed in navigation listener:', error);
+        log.warn('Proso: URL parsing failed in navigation listener', { error });
       }
     }
   });
@@ -400,5 +403,5 @@ export function setupNavigationListener(): void {
     tabUrls.delete(tabId);
   });
 
-  console.log('Proso: Language navigation listener registered');
+  log.info('Proso: Language navigation listener registered');
 }

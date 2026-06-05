@@ -14,6 +14,10 @@
  * @module entrypoints/offscreen
  */
 
+import { createLogger } from '../../utils/logging/logger';
+
+const log = createLogger('background');
+
 // Audio player element
 let audioElement: HTMLAudioElement | null = null;
 let currentObjectUrl: string | null = null;
@@ -84,7 +88,7 @@ function init(): void {
   audioElement = document.getElementById('audio-player') as HTMLAudioElement;
 
   if (!audioElement) {
-    console.error('[Offscreen] Audio element not found');
+    log.error('[Offscreen] Audio element not found');
     return;
   }
 
@@ -96,7 +100,7 @@ function init(): void {
   audioElement.addEventListener('error', handleError);
   audioElement.addEventListener('loadedmetadata', handleLoadedMetadata);
 
-  console.log('[Offscreen] Initialized audio playback document');
+  log.info('[Offscreen] Initialized audio playback document');
 }
 
 /**
@@ -198,7 +202,7 @@ async function handleLoadAudio(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to load audio:', message);
+    log.error('[Offscreen] Failed to load audio', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -217,7 +221,7 @@ async function handlePlayCommand(sendResponse: (response: unknown) => void): Pro
     sendResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to play:', message);
+    log.error('[Offscreen] Failed to play', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -236,7 +240,7 @@ function handlePauseCommand(sendResponse: (response: unknown) => void): void {
     sendResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to pause:', message);
+    log.error('[Offscreen] Failed to pause', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -266,7 +270,7 @@ function handleStopCommand(sendResponse: (response: unknown) => void): void {
     sendResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to stop:', message);
+    log.error('[Offscreen] Failed to stop', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -285,7 +289,7 @@ function handleSeekCommand(positionMs: number, sendResponse: (response: unknown)
     sendResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to seek:', message);
+    log.error('[Offscreen] Failed to seek', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -307,7 +311,7 @@ function handleSetSpeedCommand(speed: number, sendResponse: (response: unknown) 
     sendResponse({ success: true, speed: playbackSpeed });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to set speed:', message);
+    log.error('[Offscreen] Failed to set speed', { error: message });
     sendResponse({ success: false, error: message });
   }
 }
@@ -341,7 +345,7 @@ function handleGetStateCommand(sendResponse: (response: unknown) => void): void 
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Offscreen] Failed to get state:', message);
+    log.error('[Offscreen] Failed to get state', { error: message });
     sendResponse({ success: false, error: message });
   }
 }

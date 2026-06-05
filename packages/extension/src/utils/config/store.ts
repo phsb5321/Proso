@@ -11,9 +11,12 @@
  * Uses browser.storage.local for persistence across extension contexts.
  */
 
+import { createLogger } from '../logging/logger';
 import { defaults } from './defaults';
 import { applyMigrations } from './migrations';
 import { type Settings, settingsSchema } from './schema';
+
+const log = createLogger('service');
 
 /**
  * Callback function for settings changes
@@ -62,7 +65,7 @@ export class SettingsStore {
       this._initialized = true;
       return { ...validated };
     } catch (error) {
-      console.error('Proso: Failed to load settings:', error);
+      log.error('Proso: Failed to load settings', { error });
       this._cache = { ...defaults };
       return { ...defaults };
     }
@@ -162,7 +165,7 @@ export class SettingsStore {
     // Notify subscribers
     this._notifySubscribers(Object.keys(defaults));
 
-    console.log('Proso: Settings reset to defaults');
+    log.info('Proso: Settings reset to defaults');
   }
 
   /**
@@ -190,7 +193,7 @@ export class SettingsStore {
       try {
         callback(currentSettings, changedKeys);
       } catch (error) {
-        console.error('Proso: Subscriber callback error:', error);
+        log.error('Proso: Subscriber callback error', { error });
       }
     }
   }

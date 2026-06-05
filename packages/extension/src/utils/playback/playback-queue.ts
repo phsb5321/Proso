@@ -13,6 +13,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('service');
 
 // ============================================================================
 // Types & Schemas
@@ -497,4 +500,4 @@ export class PlaybackQueue {
  */
 export const playbackQueue = new PlaybackQueue();
 
-console.log('Proso: utils/playback/playback-queue.ts loaded');
+log.debug('Proso: utils/playback/playback-queue.ts loaded');

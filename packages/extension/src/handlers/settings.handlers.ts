@@ -11,7 +11,10 @@ import { browser } from 'wxt/browser';
 import type { ProviderId } from '../core/shared/errors';
 import type { IApiClient } from '../ports/api-client.port';
 import type { ISettingsStore, Settings } from '../ports/settings-store.port';
+import { createLogger } from '../utils/logging/logger';
 import type { HandlerRegistry } from './registry';
+
+const log = createLogger('handler');
 
 // ============================================
 // Response Types
@@ -236,7 +239,7 @@ const API_TEST_ENDPOINTS: Record<
 async function handleTestApiKey(
   params: ApiKeyParams & { apiKey?: string; data?: { provider: string; apiKey: string } },
 ): Promise<ApiKeyTestResponse> {
-  console.log('[Settings] handleTestApiKey called with params:', {
+  log.debug('[Settings] handleTestApiKey called with params', {
     hasData: !!params.data,
     dataProvider: params.data?.provider,
     directProvider: params.provider,
@@ -247,34 +250,31 @@ async function handleTestApiKey(
   const provider = params.data?.provider || params.provider;
   const apiKey = params.data?.apiKey || params.apiKey || params.key;
 
-  console.log(
-    '[Settings] Resolved provider:',
+  log.debug('[Settings] Resolved provider', {
     provider,
-    'hasApiKey:',
-    !!apiKey,
-    'keyLength:',
-    apiKey?.length,
-  );
+    hasApiKey: !!apiKey,
+    keyLength: apiKey?.length,
+  });
 
   // Validate provider — TTS providers route through server, anthropic uses direct fetch
   const validProviders = [...SERVER_VALIDATED_TTS_PROVIDERS, 'anthropic'];
   if (!validProviders.includes(provider)) {
-    console.error('[Settings] Invalid provider:', provider);
+    log.error('[Settings] Invalid provider', { provider });
     return { success: false, error: `Invalid provider: ${provider}` };
   }
 
   // If no API key provided, try to get from storage
   let keyToTest: string | null | undefined = apiKey;
   if (!keyToTest || keyToTest.trim().length === 0) {
-    console.log('[Settings] No key in params, checking storage...');
+    log.debug('[Settings] No key in params, checking storage...');
     try {
       const store = getSettingsStore();
       keyToTest = await store.getApiKey(provider as ProviderId);
-      console.log('[Settings] Key from storage via store:', keyToTest ? 'found' : 'not found');
+      log.debug('[Settings] Key from storage via store', {
+        found: keyToTest ? 'found' : 'not found',
+      });
     } catch (_storeError) {
-      console.warn(
-        '[Settings] Settings store not available, falling back to direct storage access',
-      );
+      log.warn('[Settings] Settings store not available, falling back to direct storage access');
       const storageKeyMap: Record<string, string> = {
         elevenlabs: 'elevenlabsApiKey',
         openai: 'openaiApiKey',
@@ -287,16 +287,18 @@ async function handleTestApiKey(
         try {
           const result = await browser.storage.local.get(storageKey);
           keyToTest = (result[storageKey] as string) || null;
-          console.log('[Settings] Key from direct storage:', keyToTest ? 'found' : 'not found');
+          log.debug('[Settings] Key from direct storage', {
+            found: keyToTest ? 'found' : 'not found',
+          });
         } catch (storageError) {
-          console.error('[Settings] Failed to access storage:', storageError);
+          log.error('[Settings] Failed to access storage', { error: storageError });
         }
       }
     }
   }
 
   if (!keyToTest || keyToTest.trim().length === 0) {
-    console.error('[Settings] No API key available for testing');
+    log.error('[Settings] No API key available for testing');
     return { success: false, error: 'No API key provided' };
   }
 
@@ -311,7 +313,7 @@ async function handleTestApiKey(
       };
     }
     try {
-      console.log('[Settings] Testing TTS key for', provider, 'via server');
+      log.info('[Settings] Testing TTS key via server', { provider });
       const result = await settingsApiClient.testApiKey(provider, trimmedKey);
       if (result.ok) {
         if (result.value.success) {
@@ -324,7 +326,7 @@ async function handleTestApiKey(
       return { success: false, error: 'message' in err ? err.message : 'Server request failed' };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Network error';
-      console.error('[Settings] Server test-key error for', provider, ':', message);
+      log.error('[Settings] Server test-key error', { provider, error: message });
       return { success: false, error: message };
     }
   }
@@ -332,29 +334,29 @@ async function handleTestApiKey(
   // Non-TTS providers (anthropic): validate via direct fetch
   const endpoint = API_TEST_ENDPOINTS[provider];
   if (!endpoint) {
-    console.error('[Settings] No test endpoint for provider:', provider);
+    log.error('[Settings] No test endpoint for provider', { provider });
     return { success: false, error: `No test endpoint for provider: ${provider}` };
   }
 
   try {
-    console.log(
-      '[Settings] Testing API key for',
+    log.info('[Settings] Testing API key', {
       provider,
-      'at',
-      endpoint.url,
-      'keyLength:',
-      trimmedKey.length,
-    );
+      url: endpoint.url,
+      keyLength: trimmedKey.length,
+    });
     const response = await fetch(endpoint.url, {
       method: endpoint.method,
       headers: endpoint.headers(trimmedKey),
       body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
     });
 
-    console.log('[Settings] API response status:', response.status, response.statusText);
+    log.debug('[Settings] API response status', {
+      status: response.status,
+      statusText: response.statusText,
+    });
 
     if (response.ok) {
-      console.log('[Settings] API key validated successfully for', provider);
+      log.info('[Settings] API key validated successfully', { provider });
       return { success: true, message: 'API key is valid' };
     }
 
@@ -362,33 +364,31 @@ async function handleTestApiKey(
     let errorDetail = '';
     try {
       const errorBody = await response.text();
-      console.log('[Settings] API error response body:', errorBody);
+      log.debug('[Settings] API error response body', { errorBody });
       errorDetail = errorBody.substring(0, 200);
     } catch {
       // Ignore if we can't read the body
     }
 
     if (response.status === 401 || response.status === 403) {
-      console.error(
-        '[Settings] Authentication failed for',
+      log.error('[Settings] Authentication failed', {
         provider,
-        '- status:',
-        response.status,
+        status: response.status,
         errorDetail,
-      );
+      });
       return { success: false, error: 'Invalid API key' };
     }
 
     if (response.status === 429) {
-      console.warn('[Settings] Rate limited for', provider);
+      log.warn('[Settings] Rate limited', { provider });
       return { success: false, error: 'Rate limited - key may be valid but quota exceeded' };
     }
 
-    console.error('[Settings] Unexpected status for', provider, ':', response.status);
+    log.error('[Settings] Unexpected status', { provider, status: response.status });
     return { success: false, error: `API returned status ${response.status}` };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network error';
-    console.error('[Settings] Network error testing', provider, ':', message);
+    log.error('[Settings] Network error testing', { provider, error: message });
     return { success: false, error: message };
   }
 }

@@ -10,6 +10,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('service');
 
 /**
  * Timing data for a single paragraph
@@ -119,7 +122,7 @@ export class PlaybackSyncState {
       this._timelineReady = true;
       this._pendingTimelineParagraph = -1;
     } else {
-      console.warn(
+      log.warn(
         `Proso: Ignoring TIMELINE_READY for paragraph ${paragraphIndex}, expected ${this._pendingTimelineParagraph}`,
       );
     }
@@ -270,7 +273,7 @@ export class PlaybackSyncState {
 
       if (estimatedDuration > 0 && Math.abs(durationMs - estimatedDuration) > 100) {
         const scaleFactor = durationMs / estimatedDuration;
-        console.log(
+        log.debug(
           `Proso: Scaling word timings by ${scaleFactor.toFixed(2)} (${estimatedDuration}ms -> ${durationMs}ms)`,
         );
 
@@ -444,9 +447,7 @@ export class PlaybackSyncState {
         this._driftMs = audioTimeMs - expectedTime;
 
         if (Math.abs(this._driftMs) > this._driftThresholdMs) {
-          console.warn(
-            `Proso: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`,
-          );
+          log.warn(`Proso: Sync drift detected: ${this._driftMs.toFixed(0)}ms - auto-correcting`);
           this._currentTimeMs = audioTimeMs;
           this._driftMs = 0;
           if (this.hasWordTiming) {
@@ -468,7 +469,7 @@ export class PlaybackSyncState {
       this.syncToWord();
     } else if (this.hasWordTiming && !this._timelineReady) {
       if (this._perfLogging) {
-        console.debug('Proso: Skipping word sync - timeline not ready yet');
+        log.debug('Proso: Skipping word sync - timeline not ready yet');
       }
     }
 
@@ -481,9 +482,7 @@ export class PlaybackSyncState {
       this._maxSyncDurationMs = this._lastSyncDurationMs;
     }
     if (this._perfLogging && this._lastSyncDurationMs > 5) {
-      console.warn(
-        `Proso: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`,
-      );
+      log.warn(`Proso: Sync loop exceeded 5ms target: ${this._lastSyncDurationMs.toFixed(2)}ms`);
     }
 
     this._animationFrameId = requestAnimationFrame(() => this._syncLoop());
@@ -592,7 +591,7 @@ export class PlaybackSyncState {
 export function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoundary {
   const usedLegacyFormat = rawTiming.startMs !== undefined || rawTiming.start !== undefined;
   if (usedLegacyFormat) {
-    console.debug('Proso: normalizeWordTiming converting legacy format', {
+    log.debug('Proso: normalizeWordTiming converting legacy format', {
       hasStartMs: rawTiming.startMs !== undefined,
       hasStart: rawTiming.start !== undefined,
       word: rawTiming.word,

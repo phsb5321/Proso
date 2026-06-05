@@ -10,6 +10,7 @@
 import { NoOpAudioGeneratorAdapter } from '../adapters/audio';
 import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
+import { createLogger } from '../utils/logging/logger';
 import { ContentExtractionService } from '../core/content-extraction/extraction-service';
 import { PlaybackService } from '../core/playback/playback-service';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
@@ -25,6 +26,8 @@ import {
   getApiKeyForProvider,
 } from './factories';
 import type { ApiKeys, AppConfig, Container, ContainerAdapters, ContainerServices } from './types';
+
+const log = createLogger('background');
 
 /**
  * Container instance (singleton).
@@ -49,16 +52,13 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   let audioGenerator: ContainerAdapters['audioGenerator'];
   try {
     audioGenerator = createAudioGeneratorAdapter(config.provider, apiKey, apiClient);
-    console.log(
-      '[Container] Audio generator:',
-      audioGenerator.constructor.name,
-      'apiClient configured:',
-      apiClient.isConfigured,
-      'serverUrl:',
-      config.serverUrl,
-    );
+    log.info('[Container] Audio generator', {
+      generator: audioGenerator.constructor.name,
+      apiClientConfigured: apiClient.isConfigured,
+      serverUrl: config.serverUrl,
+    });
   } catch (error) {
-    console.warn('[Container] Audio generator failed, using no-op fallback:', error);
+    log.warn('[Container] Audio generator failed, using no-op fallback', { error });
     audioGenerator = new NoOpAudioGeneratorAdapter(
       error instanceof Error ? error.message : 'Server not configured',
     );
@@ -76,7 +76,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   try {
     cacheStore = createCacheStoreAdapter(config.cacheType);
   } catch (error) {
-    console.warn('[Container] IndexedDB cache failed, using in-memory fallback:', error);
+    log.warn('[Container] IndexedDB cache failed, using in-memory fallback', { error });
     cacheStore = new InMemoryCacheAdapter();
   }
 
@@ -85,7 +85,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
   try {
     highlightSync = createHighlightSyncAdapter();
   } catch (error) {
-    console.warn('[Container] HighlightSync failed, using no-op fallback:', error);
+    log.warn('[Container] HighlightSync failed, using no-op fallback', { error });
     highlightSync = new NoOpHighlightSyncAdapter();
   }
 
@@ -95,7 +95,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
     settingsStore = createSettingsStoreAdapter();
   } catch (error) {
     // This should not happen, but log if it does
-    console.error('[Container] SettingsStore failed:', error);
+    log.error('[Container] SettingsStore failed', { error });
     throw error; // Re-throw - settings store is critical
   }
 
@@ -196,7 +196,7 @@ export async function ensureContainerInitialized(
     return containerInstance;
   }
 
-  console.log('[Container] Re-initializing after service worker wake-up');
+  log.info('[Container] Re-initializing after service worker wake-up');
   return createContainer(config, apiKeys);
 }
 
@@ -236,7 +236,7 @@ export function reconfigureAudioGenerator(
       containerInstance.adapters.apiClient,
     );
   } catch (error) {
-    console.warn('[Container] Audio generator reconfigure failed, using no-op fallback:', error);
+    log.warn('[Container] Audio generator reconfigure failed, using no-op fallback', { error });
     newAudioGenerator = new NoOpAudioGeneratorAdapter(
       error instanceof Error ? error.message : 'Server not configured',
     );

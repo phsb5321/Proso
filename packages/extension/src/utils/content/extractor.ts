@@ -11,6 +11,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('content');
 
 // ============================================================================
 // Zod Schemas (Zod-first approach)
@@ -223,7 +226,7 @@ export function setExtractedParagraphs(paragraphs: Element[]): void {
  * Extract text from the page based on mode
  */
 export function extractText(mode: ExtractionMode): string {
-  console.log(`Proso: extractText() called with mode: "${mode}"`);
+  log.debug(`Proso: extractText() called with mode: "${mode}"`);
 
   switch (mode) {
     case 'selection':
@@ -232,7 +235,7 @@ export function extractText(mode: ExtractionMode): string {
       return extractArticle();
     case 'full':
     default:
-      console.log('Proso: Using full page extraction (consider using article mode)');
+      log.debug('Proso: Using full page extraction (consider using article mode)');
       return extractFullPage();
   }
 }
@@ -295,7 +298,7 @@ export function extractSelection(): string {
   extractedParagraphs = selectedElements.length > 0 ? selectedElements : [];
 
   // Log for debugging
-  console.log(
+  log.debug(
     `Proso: Selection extracted ${text.length} chars, ${extractedParagraphs.length} DOM elements`,
   );
 
@@ -307,22 +310,26 @@ export function extractSelection(): string {
  * Falls back to heuristics if Readability fails
  */
 export function extractArticle(): string {
-  console.log('Proso: extractArticle() called');
-  console.log('Proso: Readability available:', typeof window.Readability);
-  console.log('Proso: isProbablyReaderable available:', typeof window.isProbablyReaderable);
+  log.debug('Proso: extractArticle() called', {
+    readabilityAvailable: typeof window.Readability,
+    isProbablyReaderableAvailable: typeof window.isProbablyReaderable,
+  });
 
   // Try Mozilla Readability first (best content extraction)
   const readabilityResult = tryReadabilityExtraction();
   if (readabilityResult) {
-    console.log('Proso: Used Readability for extraction');
-    console.log('Proso: Extracted paragraphs count:', extractedParagraphs.length);
+    log.debug('Proso: Used Readability for extraction', {
+      paragraphCount: extractedParagraphs.length,
+    });
     return readabilityResult;
   }
 
   // Fallback to manual heuristics
-  console.log('Proso: Readability failed, using heuristic extraction');
+  log.debug('Proso: Readability failed, using heuristic extraction');
   const result = extractArticleHeuristic();
-  console.log('Proso: Heuristic extracted paragraphs count:', extractedParagraphs.length);
+  log.debug('Proso: Heuristic extracted paragraphs count', {
+    paragraphCount: extractedParagraphs.length,
+  });
   return result;
 }
 
@@ -503,7 +510,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
 
   try {
     const unwantedElements = docClone.querySelectorAll(combinedSelector);
-    console.log(`Proso: Pre-filter found ${unwantedElements.length} potentially unwanted elements`);
+    log.debug(`Proso: Pre-filter found ${unwantedElements.length} potentially unwanted elements`);
 
     for (const el of unwantedElements) {
       // Don't remove the wiki content container itself
@@ -520,7 +527,7 @@ function preFilterDocumentForReadability(docClone: Document): number {
       const paragraphCount = el.querySelectorAll('p').length;
       if (paragraphCount > 10) {
         // This might be a main content area, skip it
-        console.log(`Proso: Skipping removal of element with ${paragraphCount} paragraphs`);
+        log.debug(`Proso: Skipping removal of element with ${paragraphCount} paragraphs`);
         continue;
       }
 
@@ -541,9 +548,9 @@ function preFilterDocumentForReadability(docClone: Document): number {
       }
     }
 
-    console.log(`Proso: Pre-filter removed ${removedCount} unwanted elements`);
+    log.debug(`Proso: Pre-filter removed ${removedCount} unwanted elements`);
   } catch (e) {
-    console.error('Proso: Pre-filter error:', e);
+    log.error('Proso: Pre-filter error', { error: e });
   }
 
   return removedCount;
@@ -570,14 +577,14 @@ function tryReadabilityExtraction(): string | null {
   try {
     // Check if Readability is available
     if (typeof window.Readability !== 'function') {
-      console.log('Proso: Readability not available');
+      log.debug('Proso: Readability not available');
       return null;
     }
 
     // Check if page is probably readable
     if (typeof window.isProbablyReaderable === 'function') {
       if (!window.isProbablyReaderable(document)) {
-        console.log('Proso: Page not suitable for Readability');
+        log.debug('Proso: Page not suitable for Readability');
         return null;
       }
     }
@@ -588,7 +595,7 @@ function tryReadabilityExtraction(): string | null {
     // Feature 015: Pre-filter BEFORE Readability to remove cards/infoboxes
     // This ensures audio content doesn't include card text
     const removedCount = preFilterDocumentForReadability(documentClone);
-    console.log(`Proso: Pre-filtered ${removedCount} elements before Readability`);
+    log.debug(`Proso: Pre-filtered ${removedCount} elements before Readability`);
 
     // Parse with Readability
     const reader = new window.Readability(documentClone, {
@@ -599,15 +606,15 @@ function tryReadabilityExtraction(): string | null {
     const article = reader.parse();
 
     if (!article || !article.textContent || article.textContent.trim().length < 100) {
-      console.log('Proso: Readability returned insufficient content');
+      log.debug('Proso: Readability returned insufficient content');
       return null;
     }
 
     // Extract the article title for TTS to read first
     const articleTitle = article.title?.trim() || '';
-    console.log(`Proso: Article title: "${articleTitle}"`);
+    log.debug(`Proso: Article title: "${articleTitle}"`);
 
-    console.log(
+    log.debug(
       `Proso: Readability extracted ${article.textContent.length} chars (after pre-filtering)`,
     );
 
@@ -657,7 +664,7 @@ function tryReadabilityExtraction(): string | null {
           (h1Text.length > 10 && normalizedTitle.startsWith(h1Text.substring(0, 20)))
         ) {
           titleElement = h1;
-          console.log('Proso: Found title h1 element:', h1Text.substring(0, 50));
+          log.debug('Proso: Found title h1 element', { title: h1Text.substring(0, 50) });
           break;
         }
       }
@@ -684,7 +691,7 @@ function tryReadabilityExtraction(): string | null {
               normalizedTitle.includes(elText)
             ) {
               titleElement = el;
-              console.log('Proso: Found title element via selector:', selector);
+              log.debug('Proso: Found title element via selector', { selector });
               break;
             }
           }
@@ -695,15 +702,15 @@ function tryReadabilityExtraction(): string | null {
       // Prepend title element to extractedParagraphs if found and not already included
       if (titleElement && !extractedParagraphs.includes(titleElement)) {
         extractedParagraphs = [titleElement, ...extractedParagraphs];
-        console.log('Proso: Prepended title element for highlighting');
+        log.debug('Proso: Prepended title element for highlighting');
       } else if (!titleElement) {
         // No DOM element found for title - create a virtual entry by logging
         // The title text will still be included in the returned text below
-        console.log('Proso: Title element not found in DOM, but title text will be read');
+        log.debug('Proso: Title element not found in DOM, but title text will be read');
       }
     }
 
-    console.log(
+    log.debug(
       `Proso: Found ${extractedParagraphs.length} paragraphs for highlighting (including title)`,
     );
 
@@ -727,13 +734,15 @@ function tryReadabilityExtraction(): string | null {
           !titleNormalized.includes(firstParagraphText)
         ) {
           filteredText = `${articleTitle}\n\n${filteredText}`;
-          console.log('Proso: Prepended title text to output:', articleTitle.substring(0, 50));
+          log.debug('Proso: Prepended title text to output', {
+            title: articleTitle.substring(0, 50),
+          });
         } else {
-          console.log('Proso: Title already present in first paragraph');
+          log.debug('Proso: Title already present in first paragraph');
         }
       }
 
-      console.log(
+      log.debug(
         `Proso: Returning filtered text (${filteredText.length} chars) from ${extractedParagraphs.length} matched paragraphs`,
       );
       return filteredText;
@@ -741,14 +750,14 @@ function tryReadabilityExtraction(): string | null {
 
     // Fallback: prepend title to article textContent if we have a title
     if (articleTitle) {
-      console.log('Proso: Using fallback with title prepended');
+      log.debug('Proso: Using fallback with title prepended');
       return `${articleTitle}\n\n${article.textContent}`;
     }
 
     // Final fallback to article textContent if no paragraphs matched
     return article.textContent;
   } catch (e) {
-    console.error('Proso: Readability extraction failed:', e);
+    log.error('Proso: Readability extraction failed', { error: e });
     return null;
   }
 }
@@ -870,7 +879,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     }
   });
 
-  console.log(
+  log.debug(
     `Proso: Searching ${filteredDomParagraphs.length} DOM elements for matches (wiki container: ${isKnownContentContainer}, filtered from ${domParagraphs.length})`,
   );
 
@@ -937,7 +946,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
 
   // If matching failed, fall back to direct DOM extraction
   if (matchedElements.length === 0 && extractedEls.length > 0) {
-    console.log('Proso: Readability matching failed, using direct DOM extraction');
+    log.debug('Proso: Readability matching failed, using direct DOM extraction');
     return extractParagraphsDirectlyFromDOM();
   }
 
@@ -947,7 +956,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   // Feature 015: Log matching statistics for performance monitoring
   const endTime = performance.now();
   const matchTime = (endTime - startTime).toFixed(2);
-  console.log(
+  log.debug(
     `Proso: Matching stats - extracted: ${extractedEls.length}, ` +
       `candidates: ${domParagraphs.length}, filtered: ${filteredDomParagraphs.length}, ` +
       `matched: ${matchedElements.length}, time: ${matchTime}ms`,
@@ -981,7 +990,7 @@ function findWikiContentContainer(): Element | null {
   for (const selector of wikiContainerSelectors) {
     const container = document.querySelector(selector);
     if (container && (container.textContent?.length || 0) > 200) {
-      console.log(`Proso: Found wiki container: ${selector}`);
+      log.debug(`Proso: Found wiki container: ${selector}`);
       return container;
     }
   }
@@ -1108,14 +1117,14 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
   const isKnownContentContainer =
     !!wikiContainer || container.tagName === 'ARTICLE' || container.tagName === 'MAIN';
 
-  console.log(
+  log.debug(
     `Proso: Direct extraction from container: ${container.tagName}${container.id ? '#' + container.id : ''} (known: ${isKnownContentContainer})`,
   );
 
   // Get all paragraph-like elements
   const candidates = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote');
 
-  console.log(`Proso: Found ${candidates.length} candidate elements`);
+  log.debug(`Proso: Found ${candidates.length} candidate elements`);
 
   for (const el of candidates) {
     // If we're in a known content container, only check for unwanted sub-containers
@@ -1185,7 +1194,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     paragraphs.push(el);
   }
 
-  console.log(`Proso: Direct extraction found ${paragraphs.length} paragraphs`);
+  log.debug(`Proso: Direct extraction found ${paragraphs.length} paragraphs`);
   return paragraphs;
 }
 
@@ -1524,4 +1533,4 @@ export function splitTextIntoParagraphs(text: string): string[] {
 // Console Log
 // ============================================================================
 
-console.log('Proso: utils/content/extractor.ts loaded');
+log.debug('Proso: utils/content/extractor.ts loaded');

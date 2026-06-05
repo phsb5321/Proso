@@ -11,7 +11,10 @@
  * Migrations respect explicit user choices (FR-010a/b).
  */
 
+import { createLogger } from '../logging/logger';
 import { defaults } from './defaults';
+
+const log = createLogger('service');
 
 /**
  * Current configuration version
@@ -93,7 +96,7 @@ export const migrations: Migration[] = [
         _modeV2Migrated: true,
       };
       await save({ mode: defaults.mode, _modeV2Migrated: true });
-      console.log('Proso: Migrated mode to article');
+      log.info('Proso: Migrated mode to article');
       return updated;
     },
   },
@@ -108,7 +111,7 @@ export const migrations: Migration[] = [
     migrate: async (stored, save) => {
       // If user explicitly chose their mode, don't touch it
       if (stored._modeExplicit) {
-        console.log('Proso: Mode explicitly set by user, keeping:', stored.mode);
+        log.info('Proso: Mode explicitly set by user, keeping', { mode: stored.mode });
         return stored;
       }
 
@@ -119,7 +122,7 @@ export const migrations: Migration[] = [
           mode: defaults.mode, // 'article'
         };
         await save({ mode: defaults.mode });
-        console.log('Proso: Fixed stuck mode from full to article');
+        log.info('Proso: Fixed stuck mode from full to article');
         return updated;
       }
 
@@ -156,7 +159,7 @@ export const migrations: Migration[] = [
 
       if (Object.keys(updates).length > 0) {
         await save(updates);
-        console.log('Proso: Added settings-ux-overhaul fields:', Object.keys(updates));
+        log.info('Proso: Added settings-ux-overhaul fields', { fields: Object.keys(updates) });
         return { ...stored, ...updates };
       }
 
@@ -192,7 +195,7 @@ export const migrations: Migration[] = [
 
       if (Object.keys(updates).length > 0) {
         await save(updates);
-        console.log('Proso: Cleaned up orphaned provider data:', Object.keys(updates));
+        log.info('Proso: Cleaned up orphaned provider data', { fields: Object.keys(updates) });
         return { ...stored, ...updates };
       }
 
@@ -215,7 +218,7 @@ export const migrations: Migration[] = [
           voiceId: null,
         };
         await save(updates);
-        console.log('Proso: Migrated from browser TTS to ElevenLabs');
+        log.info('Proso: Migrated from browser TTS to ElevenLabs');
         return { ...stored, ...updates };
       }
       return stored;
@@ -234,7 +237,7 @@ export const migrations: Migration[] = [
       if (!stored.serverUrl) {
         const updates = { serverUrl: defaults.serverUrl };
         await save(updates);
-        console.log('Proso: Set default server URL:', defaults.serverUrl);
+        log.info('Proso: Set default server URL', { serverUrl: defaults.serverUrl });
         return { ...stored, ...updates };
       }
       return stored;
@@ -268,9 +271,9 @@ export async function applyMigrations(
   for (const migration of pendingMigrations) {
     try {
       current = await migration.migrate(current, save);
-      console.log(`Proso: Applied migration v${migration.version}: ${migration.description}`);
+      log.info(`Proso: Applied migration v${migration.version}: ${migration.description}`);
     } catch (error) {
-      console.error(`Proso: Migration v${migration.version} failed:`, error);
+      log.error(`Proso: Migration v${migration.version} failed`, { error });
       // Continue with other migrations
     }
   }

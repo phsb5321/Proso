@@ -8,6 +8,9 @@
  */
 
 import { browser } from 'wxt/browser';
+import { createLogger } from '../../utils/logging/logger';
+
+const log = createLogger('adapter');
 
 // ============================================
 // Types
@@ -207,7 +210,7 @@ export class ElevenLabsProvider {
 
       return response.ok;
     } catch (error) {
-      console.error('ElevenLabs key validation error:', error);
+      log.error('ElevenLabs key validation error', { error });
       return false;
     }
   }
@@ -250,7 +253,7 @@ export class ElevenLabsProvider {
       }
     }
 
-    console.log('[ElevenLabs] Generating audio, text length:', text.length);
+    log.info('[ElevenLabs] Generating audio', { textLength: text.length });
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
