@@ -36,6 +36,7 @@ import {
 } from '../handlers';
 import { detectLanguageFromText } from '../utils/language/detector';
 import { createLogBuffer } from '../utils/logging/buffer';
+import { createLogger } from '../utils/logging/logger';
 import {
   type DispatchStats,
   type DispatchSummary,
@@ -44,6 +45,8 @@ import {
   logDispatch,
   resetDispatchStats,
 } from '../utils/telemetry';
+
+const log = createLogger('background');
 
 /**
  * Load API keys from browser storage.
@@ -94,11 +97,11 @@ async function loadAppConfig(): Promise<AppConfig> {
 export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
   // Skip if already initialized
   if (isContainerInitialized()) {
-    console.log('[Hexagonal] Container already initialized');
+    log.info('[Hexagonal] Container already initialized');
     return getGlobalInstrumentedRegistry();
   }
 
-  console.log('[Hexagonal] Initializing composition container...');
+  log.info('[Hexagonal] Initializing composition container...');
 
   // Register all handlers FIRST on the GLOBAL registry (defense-in-depth).
   // Handlers call getPlaybackService() lazily at dispatch time and already
@@ -179,7 +182,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
         },
       });
     } catch (error) {
-      console.warn('[Hexagonal] Failed to wire export dependencies:', error);
+      log.warn('[Hexagonal] Failed to wire export dependencies', { error });
     }
 
     // T005: Wire logging dependencies (graceful — logging handlers return disabled state if unwired)
@@ -208,7 +211,7 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
         isCircuitBreakerOpen: () => logBuffer.isCircuitBroken(),
       });
     } catch (error) {
-      console.warn('[Hexagonal] Failed to wire logging dependencies:', error);
+      log.warn('[Hexagonal] Failed to wire logging dependencies', { error });
     }
 
     // T006: Track active tab for footer handlers
@@ -216,17 +219,15 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
       setActiveTabId(activeInfo.tabId);
     });
 
-    console.log('[Hexagonal] Container initialized with config:', {
+    log.info('[Hexagonal] Container initialized with config', {
       provider: config.provider,
       cacheType: config.cacheType,
       hasElevenLabsKey: !!apiKeys.elevenlabs,
       registeredHandlers: registry.getHandlerNames().length,
     });
   } catch (error) {
-    console.error('[Hexagonal] Failed to initialize container:', error);
-    console.warn(
-      '[Hexagonal] Handlers are still registered — dispatches will use graceful fallbacks',
-    );
+    log.error('[Hexagonal] Failed to initialize container', { error });
+    log.warn('[Hexagonal] Handlers are still registered — dispatches will use graceful fallbacks');
   }
 
   return registry;
@@ -290,12 +291,10 @@ export async function dispatchToHexagonal<T = unknown>(
   if (!registry.has(type)) {
     // Debug: Log when handler not found
     if (type.startsWith('queue.')) {
-      console.log(
-        '[Hexagonal] Handler not found for:',
+      log.debug('[Hexagonal] Handler not found for type', {
         type,
-        'Registered handlers:',
-        registry.getHandlerNames().filter((n) => n.startsWith('queue.')),
-      );
+        registeredHandlers: registry.getHandlerNames().filter((n) => n.startsWith('queue.')),
+      });
     }
     return null;
   }
@@ -313,7 +312,7 @@ export async function dispatchToHexagonal<T = unknown>(
       error: String(result.error),
       timestamp: startTime,
     });
-    console.warn('[Hexagonal] Handler error:', result.error);
+    log.warn('[Hexagonal] Handler error', { error: result.error });
     // T033: Return discriminated error instead of null
     return { _hexError: true, error: String(result.error) } as T;
   }
@@ -325,7 +324,9 @@ export async function dispatchToHexagonal<T = unknown>(
 
   // Debug: Log what we're receiving for queue.getState
   if (type === 'queue.getState') {
-    console.log('[Hexagonal] queue.getState raw result.value:', JSON.stringify(handlerResult));
+    log.debug('[Hexagonal] queue.getState raw result.value', {
+      value: JSON.stringify(handlerResult),
+    });
   }
 
   if (
@@ -347,10 +348,9 @@ export async function dispatchToHexagonal<T = unknown>(
 
       // Debug: Log what we're returning for queue.getState
       if (type === 'queue.getState') {
-        console.log(
-          '[Hexagonal] queue.getState unwrapped value:',
-          JSON.stringify(innerResult.value),
-        );
+        log.debug('[Hexagonal] queue.getState unwrapped value', {
+          value: JSON.stringify(innerResult.value),
+        });
       }
 
       return innerResult.value as T;
@@ -364,7 +364,7 @@ export async function dispatchToHexagonal<T = unknown>(
         error: String(innerResult.error),
         timestamp: startTime,
       });
-      console.warn('[Hexagonal] Handler returned error:', innerResult.error);
+      log.warn('[Hexagonal] Handler returned error', { error: innerResult.error });
       // T033: Return discriminated error instead of null
       return { _hexError: true, error: String(innerResult.error) } as T;
     }

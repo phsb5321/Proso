@@ -9,7 +9,10 @@
  * @module utils/providers/elevenlabs
  */
 
+import { createLogger } from '../logging/logger';
 import { BaseTTSProvider, type TTSRequest, type TTSResponse, type VoiceOption } from './base';
+
+const log = createLogger('adapter');
 
 /**
  * Word timing data structure
@@ -201,7 +204,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
       }
     }
 
-    console.log('[ElevenLabs] Generating audio with timestamps, text length:', text.length);
+    log.info('[ElevenLabs] Generating audio with timestamps', { textLength: text.length });
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps`,
@@ -246,12 +249,10 @@ export class ElevenLabsProvider extends BaseTTSProvider {
         ? alignment.character_end_times_seconds[alignment.character_end_times_seconds.length - 1]
         : 0;
 
-    console.log(
-      '[ElevenLabs] Generated audio with',
-      wordTimings.length,
-      'word timings, duration:',
+    log.info('[ElevenLabs] Generated audio with word timings', {
+      wordTimings: wordTimings.length,
       duration,
-    );
+    });
 
     return {
       audioBlob,
@@ -327,7 +328,7 @@ export class ElevenLabsProvider extends BaseTTSProvider {
 
       return response.ok;
     } catch (error) {
-      console.error('ElevenLabs key validation error:', error);
+      log.error('ElevenLabs key validation error', { error });
       return false;
     }
   }

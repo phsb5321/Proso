@@ -25,6 +25,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('content');
 
 /**
  * Word timing data schema
@@ -153,7 +156,7 @@ export class HighlightManager {
     extractedParagraphs?: Element[],
     findElementByText?: (text: string) => Element | null,
   ): void {
-    console.log(
+    log.debug(
       `Proso: highlightParagraph called - index: ${index}, paragraphs available: ${extractedParagraphs?.length || 0}`,
     );
 
@@ -164,7 +167,7 @@ export class HighlightManager {
     if (timestamp) {
       const latency = Date.now() - timestamp;
       if (latency > PARAGRAPH_LATENCY_THRESHOLD_MS) {
-        console.warn(`Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`);
+        log.warn(`Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`);
 
         // Notify background for drift correction tracking
         this.reportDrift(latency, index);
@@ -184,11 +187,10 @@ export class HighlightManager {
     }
 
     if (element && element.nodeType === Node.ELEMENT_NODE) {
-      console.log(
-        `Proso: Highlighting element at index ${index}:`,
-        element.tagName,
-        element.textContent?.substring(0, 50),
-      );
+      log.debug(`Proso: Highlighting element at index ${index}`, {
+        tagName: element.tagName,
+        textContent: element.textContent?.substring(0, 50),
+      });
       element.classList.add('proso-highlight');
       (element as HTMLElement).dataset.prosoIndex = String(index);
       this.state.highlightElements.push(element);
@@ -197,7 +199,7 @@ export class HighlightManager {
       // Auto-scroll to highlighted element
       this.scrollToHighlight(element);
     } else {
-      console.warn(
+      log.warn(
         `Proso: No element found for highlight at index ${index}, text lookup: ${text ? 'yes' : 'no'}`,
       );
       this.state.currentHighlightedElement = null;
@@ -221,7 +223,7 @@ export class HighlightManager {
     const element = this.state.currentHighlightedElement;
     if (element && wordTimeline.length > 0) {
       this.wrapWordsInSpans(element as HTMLElement);
-      console.log(
+      log.debug(
         `Proso: Wrapped ${this.state.wordSpans.length}/${wordTimeline.length} words in spans`,
       );
     }
@@ -332,7 +334,10 @@ export class HighlightManager {
           while (nodeOffsets.length > textNodes.length) nodeOffsets.pop();
           while (nodeOffsets.length < textNodes.length) nodeOffsets.push(off);
         } catch (e) {
-          console.warn('Proso: Span wrapping failed for word', wp.timelineIdx, e);
+          log.warn('Proso: Span wrapping failed for word', {
+            timelineIdx: wp.timelineIdx,
+            error: e,
+          });
         }
       }
     }
@@ -541,7 +546,7 @@ export class HighlightManager {
     if (timestamp) {
       const latency = Date.now() - timestamp;
       if (latency > WORD_LATENCY_THRESHOLD_MS) {
-        console.warn(
+        log.warn(
           `Proso: Word highlight latency ${latency}ms exceeds 100ms sync threshold (FR-002)`,
         );
       }
@@ -553,7 +558,7 @@ export class HighlightManager {
 
     // FR-004: Validate paragraph index matches current timeline
     if (paragraphIndex !== this.state.currentParagraphForWords) {
-      console.warn(
+      log.warn(
         `Proso: Paragraph mismatch (expected ${this.state.currentParagraphForWords}, got ${paragraphIndex}), ignoring highlightWord`,
       );
       return;
@@ -617,7 +622,7 @@ export class HighlightManager {
 
           return range;
         } catch (e) {
-          console.warn('Proso: Range creation failed:', e);
+          log.warn('Proso: Range creation failed', { error: e });
           return null;
         }
       }
@@ -772,7 +777,7 @@ export class HighlightManager {
         })
         .catch(() => {});
     } catch (e) {
-      console.warn('Proso: Failed to send TIMELINE_READY:', e);
+      log.warn('Proso: Failed to send TIMELINE_READY', { error: e });
     }
   }
 

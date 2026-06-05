@@ -10,6 +10,10 @@
  * @description FR-008 - Theme switching with instant apply
  */
 
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('options');
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -172,7 +176,7 @@ export function createThemeManager(options: ThemeManagerOptions = {}): ThemeMana
       });
     } catch (error) {
       // Background script may not be ready, that's okay
-      console.debug('Theme message to background failed:', error);
+      log.debug('Theme message to background failed', { error });
     }
 
     if (onThemeChange) {

@@ -13,6 +13,7 @@ import {
   queueDefaults,
   defaults as settingsDefaults,
 } from '../../utils/config';
+import { createLogger } from '../../utils/logging/logger';
 import { confirmDialog } from '../../utils/ui/confirm-dialog';
 
 // UI defaults (inline since they're simple)
@@ -54,6 +55,8 @@ import { usageTracker } from '../../utils/telemetry/usage';
 import { showConfirmModal } from './components/modal';
 import { setupSidebarKeyboardNav } from './components/sidebar';
 import { toast } from './components/toast';
+
+const log = createLogger('options');
 
 /**
  * DOM element references
@@ -257,7 +260,7 @@ async function loadQuickSettings(): Promise<void> {
     elements.quickSpeed.value = String(speed);
     elements.quickSpeedValue.textContent = `${speed.toFixed(1)}x`;
   } catch (error) {
-    console.error('Error loading Quick Settings:', error);
+    log.error('Error loading Quick Settings', { error });
   }
 }
 
@@ -370,7 +373,7 @@ async function saveQuickSetting(key: string, value: string | number): Promise<vo
     // T018: Track setting changes
     trackSettingChange('settings.quick_setting_changed', { key, value });
   } catch (error) {
-    console.error(`Error saving ${key}:`, error);
+    log.error(`Error saving ${key}`, { error });
     toast.error(`Failed to save ${key}`);
   }
 }
@@ -586,10 +589,9 @@ async function loadSettings(): Promise<void> {
     // API keys (no defaults, empty if not set)
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
 
-    console.log(
-      'Proso options: Settings loaded, mode:',
-      (result.mode as string | undefined) || settingsDefaults.mode,
-    );
+    log.info('Proso options: Settings loaded', {
+      mode: (result.mode as string | undefined) || settingsDefaults.mode,
+    });
 
     // Boolean settings with defaults
     elements.highlightEnabled.checked =
@@ -613,7 +615,7 @@ async function loadSettings(): Promise<void> {
           : true; // Default to true
     }
   } catch (error) {
-    console.error('Error loading settings:', error);
+    log.error('Error loading settings', { error });
   }
 }
 
@@ -839,8 +841,10 @@ async function handleProviderTest(provider: string, button: HTMLButtonElement): 
   try {
     const result = await testApiKey(provider, apiKey);
 
-    console.log('[Controller] testApiKey returned:', JSON.stringify(result, null, 2));
-    console.log('[Controller] result.success:', result.success);
+    log.debug('[Controller] testApiKey returned', {
+      result: JSON.stringify(result, null, 2),
+      success: result.success,
+    });
 
     if (result.success) {
       // T034: Display success with icon
@@ -985,7 +989,7 @@ async function saveSettings(): Promise<void> {
 
     showSaveStatus('Settings saved!');
   } catch (error) {
-    console.error('Error saving settings:', error);
+    log.error('Error saving settings', { error });
     showSaveStatus('Error saving settings', true);
   }
 }
@@ -1033,7 +1037,7 @@ async function loadLoggingConfig(): Promise<void> {
     // Only the toggle is visible - other settings use defaults
     elements.loggingEnabled.checked = config.enabled;
   } catch (error) {
-    console.error('Error loading logging config:', error);
+    log.error('Error loading logging config', { error });
   }
 }
 
@@ -1076,7 +1080,7 @@ async function saveLoggingConfig(): Promise<void> {
     await browser.storage.local.set({ proso_logging_config: config });
     showSaveStatus('Settings saved!');
   } catch (error) {
-    console.error('Error saving logging config:', error);
+    log.error('Error saving logging config', { error });
     showSaveStatus('Error saving settings', true);
   }
 }
@@ -1293,7 +1297,7 @@ async function loadQueueConfig(): Promise<void> {
     // Note: saveProgress is derived from autoPlayNext for now
     elements.queueSaveProgress.checked = config.autoPlayNext;
   } catch (error) {
-    console.error('Error loading queue config:', error);
+    log.error('Error loading queue config', { error });
   }
 }
 
@@ -1343,7 +1347,7 @@ async function saveQueueConfig(): Promise<void> {
     await browser.storage.local.set({ 'queue:settings': config });
     showSaveStatus('Settings saved!');
   } catch (error) {
-    console.error('Error saving queue config:', error);
+    log.error('Error saving queue config', { error });
     showSaveStatus('Error saving settings', true);
   }
 }
@@ -1540,7 +1544,7 @@ async function initTelemetry(): Promise<void> {
 
     // Skip if telemetry is disabled
     if (stored.telemetryEnabled === false) {
-      console.log('[Settings] Telemetry disabled by user');
+      log.info('[Settings] Telemetry disabled by user');
       return;
     }
 
@@ -1569,9 +1573,9 @@ async function initTelemetry(): Promise<void> {
       usageTracker.destroy();
     });
 
-    console.log('[Settings] Telemetry initialized');
+    log.info('[Settings] Telemetry initialized');
   } catch (error) {
-    console.warn('[Settings] Telemetry init failed:', error);
+    log.warn('[Settings] Telemetry init failed', { error });
   }
 }
 
@@ -1607,7 +1611,7 @@ async function loadTelemetryConfig(): Promise<void> {
     const enabled = result.telemetryEnabled !== false;
     elements.telemetryEnabled.checked = enabled;
   } catch (error) {
-    console.error('Error loading telemetry config:', error);
+    log.error('Error loading telemetry config', { error });
     // Default to enabled on error
     elements.telemetryEnabled.checked = true;
   }
@@ -1706,7 +1710,7 @@ async function loadCacheStats(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('[Options] Failed to load cache stats:', error);
+    log.error('[Options] Failed to load cache stats', { error });
     entriesEl.textContent = '--';
     sizeEl.textContent = '-- / -- MB';
     hitRateEl.textContent = '--%';

@@ -10,6 +10,10 @@
  * @module utils/permissions
  */
 
+import { createLogger } from './logging/logger';
+
+const log = createLogger('service');
+
 /**
  * Check if we have permission for a specific URL origin
  *
@@ -27,7 +31,7 @@ export async function hasHostPermission(url: string): Promise<boolean> {
 
     return result;
   } catch (error) {
-    console.error('[Proso:Permissions] Error checking host permission:', error);
+    log.error('[Proso:Permissions] Error checking host permission', { error });
     return false;
   }
 }
@@ -48,14 +52,14 @@ export async function requestHostPermission(url: string): Promise<boolean> {
     });
 
     if (granted) {
-      console.log(`[Proso:Permissions] Permission granted for ${origin}`);
+      log.info(`[Proso:Permissions] Permission granted for ${origin}`);
     } else {
-      console.log(`[Proso:Permissions] Permission denied for ${origin}`);
+      log.info(`[Proso:Permissions] Permission denied for ${origin}`);
     }
 
     return granted;
   } catch (error) {
-    console.error('[Proso:Permissions] Error requesting host permission:', error);
+    log.error('[Proso:Permissions] Error requesting host permission', { error });
     return false;
   }
 }
@@ -89,7 +93,7 @@ export async function hasActiveTabPermission(): Promise<boolean> {
     });
     return result;
   } catch (error) {
-    console.error('[Proso:Permissions] Error checking activeTab permission:', error);
+    log.error('[Proso:Permissions] Error checking activeTab permission', { error });
     return false;
   }
 }
@@ -106,7 +110,7 @@ export async function hasUnlimitedStoragePermission(): Promise<boolean> {
     });
     return result;
   } catch (error) {
-    console.error('[Proso:Permissions] Error checking unlimitedStorage permission:', error);
+    log.error('[Proso:Permissions] Error checking unlimitedStorage permission', { error });
     return false;
   }
 }
@@ -127,7 +131,7 @@ export async function getAllPermissions(): Promise<{
       origins: result.origins ?? [],
     };
   } catch (error) {
-    console.error('[Proso:Permissions] Error getting all permissions:', error);
+    log.error('[Proso:Permissions] Error getting all permissions', { error });
     return {
       permissions: [],
       origins: [],

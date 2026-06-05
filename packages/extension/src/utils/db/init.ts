@@ -10,7 +10,10 @@
  * @module utils/db/init
  */
 
+import { createLogger } from '../logging/logger';
 import { DB_NAME, DB_VERSION, getDB, isIndexedDBAvailable } from './schema';
+
+const log = createLogger('service');
 
 /**
  * Database initialization result
@@ -42,7 +45,7 @@ export async function initDatabase(): Promise<DBInitResult> {
     // Open the database (triggers version upgrade if needed)
     await db.open();
 
-    console.log(`[Proso:DB] Database initialized: ${DB_NAME} v${DB_VERSION}`);
+    log.info(`[Proso:DB] Database initialized: ${DB_NAME} v${DB_VERSION}`);
 
     return {
       success: true,
@@ -50,7 +53,7 @@ export async function initDatabase(): Promise<DBInitResult> {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown database error';
-    console.error('[Proso:DB] Initialization failed:', message);
+    log.error('[Proso:DB] Initialization failed', { error: message });
 
     return {
       success: false,
@@ -118,7 +121,7 @@ export async function checkDatabaseHealth(): Promise<DBHealthCheck> {
       audioCacheSizeBytes,
     };
   } catch (error) {
-    console.error('[Proso:DB] Health check failed:', error);
+    log.error('[Proso:DB] Health check failed', { error });
 
     return {
       available: true,
@@ -141,10 +144,10 @@ export async function clearAudioCache(): Promise<number> {
     const db = getDB();
     const count = await db.audioCache.count();
     await db.audioCache.clear();
-    console.log(`[Proso:DB] Cleared ${count} audio cache entries`);
+    log.info(`[Proso:DB] Cleared ${count} audio cache entries`);
     return count;
   } catch (error) {
-    console.error('[Proso:DB] Failed to clear audio cache:', error);
+    log.error('[Proso:DB] Failed to clear audio cache', { error });
     return 0;
   }
 }
@@ -164,10 +167,10 @@ export async function evictOldAudioCache(maxAgeMs: number): Promise<number> {
 
     await db.audioCache.bulkDelete(oldEntries);
 
-    console.log(`[Proso:DB] Evicted ${oldEntries.length} old audio cache entries`);
+    log.info(`[Proso:DB] Evicted ${oldEntries.length} old audio cache entries`);
     return oldEntries.length;
   } catch (error) {
-    console.error('[Proso:DB] Failed to evict old audio cache:', error);
+    log.error('[Proso:DB] Failed to evict old audio cache', { error });
     return 0;
   }
 }
@@ -197,10 +200,10 @@ export async function evictToTargetSize(targetSizeBytes: number): Promise<number
       evicted++;
     }
 
-    console.log(`[Proso:DB] LRU evicted ${evicted} entries, new size: ${currentSize} bytes`);
+    log.info(`[Proso:DB] LRU evicted ${evicted} entries, new size: ${currentSize} bytes`);
     return evicted;
   } catch (error) {
-    console.error('[Proso:DB] LRU eviction failed:', error);
+    log.error('[Proso:DB] LRU eviction failed', { error });
     return 0;
   }
 }

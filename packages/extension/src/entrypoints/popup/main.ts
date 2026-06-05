@@ -13,7 +13,10 @@
 
 import 'virtual:uno.css';
 import { browser } from 'wxt/browser';
+import { createLogger } from '../../utils/logging/logger';
 import { usageTracker } from '../../utils/telemetry/usage';
+
+const log = createLogger('popup');
 
 // ============================================
 // Types
@@ -280,7 +283,7 @@ function switchTab(tabId: TabId): void {
     selected.panel.hidden = false;
   }
 
-  console.log('[Popup] Switched to tab:', tabId);
+  log.debug('[Popup] Switched to tab', { tabId });
 }
 
 /**
@@ -317,13 +320,13 @@ async function updateSectionVisibility(): Promise<void> {
       elements.exportSection.hidden = !hasAudioApiKey;
     }
 
-    console.log('[Popup] Section visibility updated:', {
+    log.debug('[Popup] Section visibility updated', {
       hasAudioApiKey,
       summarize: false,
       export: hasAudioApiKey,
     });
   } catch (error) {
-    console.error('[Popup] Failed to update section visibility:', error);
+    log.error('[Popup] Failed to update section visibility', { error });
   }
 }
 
@@ -354,18 +357,18 @@ async function sendMessage<T = unknown>(type: string, data?: Record<string, unkn
 
     // Guard against null/undefined responses from disconnected ports or missing handlers
     if (response === null || response === undefined) {
-      console.warn('[Popup] Null response for message:', type);
+      log.warn('[Popup] Null response for message', { type });
       return response as T;
     }
 
     // Guard against non-object responses (strings, numbers) when expecting objects
     if (typeof response === 'object' && 'error' in response && response.error) {
-      console.warn('[Popup] Error response for message:', type, response.error);
+      log.warn('[Popup] Error response for message', { type, error: response.error });
     }
 
     return response as T;
   } catch (error) {
-    console.error('[Popup] Message error:', type, error);
+    log.error('[Popup] Message error', { type, error });
     throw error;
   }
 }
@@ -380,7 +383,7 @@ async function fetchPlaybackState(): Promise<void> {
       applyState(state);
     }
   } catch (error) {
-    console.error('[Popup] Failed to fetch playback state:', error);
+    log.error('[Popup] Failed to fetch playback state', { error });
     // Keep default state on error
   }
 }
@@ -399,7 +402,7 @@ async function fetchSettings(): Promise<void> {
       currentState.provider = result.provider;
     }
   } catch (error) {
-    console.error('[Popup] Failed to fetch settings:', error);
+    log.error('[Popup] Failed to fetch settings', { error });
   }
 }
 
@@ -415,7 +418,7 @@ async function handlePlayPause(): Promise<void> {
     status: currentState.status,
   });
 
-  console.log('[Popup] handlePlayPause called, state:', {
+  log.debug('[Popup] handlePlayPause called', {
     status: currentState.status,
   });
 
@@ -434,7 +437,7 @@ async function handlePlayPause(): Promise<void> {
     } else {
       // Start fresh playback
       trackClick('playback.play_clicked');
-      console.log('[Popup] Starting web page playback');
+      log.info('[Popup] Starting web page playback');
       usageTracker.track('popup.web_playback_starting');
       updateStatus('loading');
       const result = await sendMessage<Record<string, unknown>>('playback.start');
@@ -442,7 +445,7 @@ async function handlePlayPause(): Promise<void> {
       // If playback.start returned an error, reset to stopped
       if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
         const errorMsg = String(result.error || 'Playback failed');
-        console.warn('[Popup] Playback start failed:', errorMsg);
+        log.warn('[Popup] Playback start failed', { error: errorMsg });
         updateStatus('stopped');
         elements.statusText.textContent = 'Error: ' + errorMsg;
       }
@@ -453,7 +456,7 @@ async function handlePlayPause(): Promise<void> {
       error: errorMsg,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    console.error('[Popup] Play/pause error:', error);
+    log.error('[Popup] Play/pause error', { error });
     updateStatus('stopped');
   }
 }
@@ -466,7 +469,7 @@ async function handlePrev(): Promise<void> {
   try {
     await sendMessage('playback.previous');
   } catch (error) {
-    console.error('[Popup] Previous error:', error);
+    log.error('[Popup] Previous error', { error });
   }
 }
 
@@ -478,7 +481,7 @@ async function handleNext(): Promise<void> {
   try {
     await sendMessage('playback.next');
   } catch (error) {
-    console.error('[Popup] Next error:', error);
+    log.error('[Popup] Next error', { error });
   }
 }
 
@@ -492,7 +495,7 @@ async function handleStop(): Promise<void> {
     updateStatus('stopped');
     updatePlayPauseButton(false);
   } catch (error) {
-    console.error('[Popup] Stop error:', error);
+    log.error('[Popup] Stop error', { error });
   }
 }
 
@@ -516,7 +519,7 @@ async function handleSpeedChange(event: Event): Promise<void> {
     // T019: Also send runtime message to update active playback immediately
     await sendMessage('playback.setSpeed', { speed });
   } catch (error) {
-    console.error('[Popup] Speed change error:', error);
+    log.error('[Popup] Speed change error', { error });
   }
 }
 
@@ -532,7 +535,7 @@ async function handleProgressSeek(event: Event): Promise<void> {
   try {
     await sendMessage('playback.seek', { progress });
   } catch (error) {
-    console.error('[Popup] Seek error:', error);
+    log.error('[Popup] Seek error', { error });
   }
 }
 
@@ -604,7 +607,7 @@ function startExportPolling(jobId: string): void {
 
   // FR-004: 10-minute timeout for export polling
   exportPollingTimeout = setTimeout(async () => {
-    console.warn('[Popup] Export polling timed out after 10 minutes');
+    log.warn('[Popup] Export polling timed out after 10 minutes');
     stopExportPolling();
     updateExportProgress(0, 'Export timed out');
 
@@ -660,7 +663,7 @@ function startExportPolling(jobId: string): void {
         updateExportProgress(response.percentComplete, statusText);
       }
     } catch (error) {
-      console.error('[Popup] Export progress error:', error);
+      log.error('[Popup] Export progress error', { error });
     }
   }, 500);
 }
@@ -684,7 +687,7 @@ function stopExportPolling(): void {
  */
 async function handleExportClick(): Promise<void> {
   if (currentExportJobId) {
-    console.log('[Popup] Export already in progress');
+    log.debug('[Popup] Export already in progress');
     return;
   }
 
@@ -731,7 +734,7 @@ async function handleExportClick(): Promise<void> {
     updateExportProgress(0, 'Starting...');
     startExportPolling(jobId);
   } catch (error) {
-    console.error('[Popup] Export error:', error);
+    log.error('[Popup] Export error', { error });
     elements.exportBtnText.textContent = error instanceof Error ? error.message : 'Export failed';
     setTimeout(() => {
       elements.exportBtnText.textContent = 'Download MP3';
@@ -752,7 +755,7 @@ async function handleExportCancel(): Promise<void> {
     hideExportProgress();
     currentExportJobId = null;
   } catch (error) {
-    console.error('[Popup] Export cancel error:', error);
+    log.error('[Popup] Export cancel error', { error });
   }
 }
 
@@ -874,7 +877,7 @@ async function fetchQueueState(): Promise<void> {
       renderQueueItems(queueState.items);
     }
   } catch (error) {
-    console.error('[Popup] Failed to fetch queue state:', error);
+    log.error('[Popup] Failed to fetch queue state', { error });
   }
 }
 
@@ -932,7 +935,7 @@ async function handleAddToQueue(): Promise<void> {
       elements.addToQueueBtn.disabled = false;
     }, 1500);
   } catch (error) {
-    console.error('[Popup] Add to queue error:', error);
+    log.error('[Popup] Add to queue error', { error });
     elements.addQueueBtnText.textContent = error instanceof Error ? error.message : 'Failed';
     setTimeout(() => {
       elements.addQueueBtnText.textContent = 'Add to Queue';
@@ -950,7 +953,7 @@ async function handleRemoveFromQueue(id: string): Promise<void> {
     await sendMessage('queue.remove', { id });
     await fetchQueueState();
   } catch (error) {
-    console.error('[Popup] Remove from queue error:', error);
+    log.error('[Popup] Remove from queue error', { error });
   }
 }
 
@@ -962,7 +965,7 @@ async function handlePlayQueueItem(id: string): Promise<void> {
   try {
     await sendMessage('queue.play', { startFromId: id });
   } catch (error) {
-    console.error('[Popup] Play queue item error:', error);
+    log.error('[Popup] Play queue item error', { error });
   }
 }
 
@@ -974,7 +977,7 @@ async function handlePlayQueue(): Promise<void> {
   try {
     await sendMessage('queue.play', {});
   } catch (error) {
-    console.error('[Popup] Play queue error:', error);
+    log.error('[Popup] Play queue error', { error });
   }
 }
 
@@ -987,7 +990,7 @@ async function handleClearQueue(): Promise<void> {
     await sendMessage('queue.clear', { filter: 'completed' });
     await fetchQueueState();
   } catch (error) {
-    console.error('[Popup] Clear queue error:', error);
+    log.error('[Popup] Clear queue error', { error });
   }
 }
 
@@ -1113,7 +1116,7 @@ async function fetchCostEstimate(): Promise<void> {
       updateCostDisplay(response);
     }
   } catch (error) {
-    console.error('[Popup] Failed to fetch cost estimate:', error);
+    log.error('[Popup] Failed to fetch cost estimate', { error });
     // On error, hide cost section silently
     hideCostDisplay();
   }
@@ -1233,7 +1236,7 @@ async function fetchCreditBalance(): Promise<void> {
 
     updateCreditDisplay(result.balance);
   } catch (error) {
-    console.error('[Popup] Failed to fetch credit balance:', error);
+    log.error('[Popup] Failed to fetch credit balance', { error });
     if (elements.creditsSection) {
       elements.creditsSection.hidden = true;
     }
@@ -1309,7 +1312,7 @@ async function displayVersion(): Promise<void> {
     const manifest = browser.runtime.getManifest();
     elements.version.textContent = `v${manifest.version}`;
   } catch (error) {
-    console.error('[Popup] Failed to get version:', error);
+    log.error('[Popup] Failed to get version', { error });
   }
 }
 
@@ -1332,7 +1335,7 @@ async function initTelemetry(): Promise<void> {
 
     // Skip if telemetry is disabled
     if (stored.telemetryEnabled === false) {
-      console.log('[Popup] Telemetry disabled by user');
+      log.info('[Popup] Telemetry disabled by user');
       return;
     }
 
@@ -1365,9 +1368,9 @@ async function initTelemetry(): Promise<void> {
       usageTracker.destroy();
     });
 
-    console.log('[Popup] Telemetry initialized');
+    log.info('[Popup] Telemetry initialized');
   } catch (error) {
-    console.warn('[Popup] Telemetry init failed:', error);
+    log.warn('[Popup] Telemetry init failed', { error });
   }
 }
 
@@ -1444,7 +1447,7 @@ async function fetchHighlightCount(): Promise<void> {
       elements.highlightCount.textContent = String(response.highlights.length);
     }
   } catch (error) {
-    console.error('[Popup] Failed to fetch highlight count:', error);
+    log.error('[Popup] Failed to fetch highlight count', { error });
   }
 }
 
@@ -1527,7 +1530,7 @@ function selectHighlightColor(color: HighlightColor): void {
  */
 async function handleCreateHighlight(): Promise<void> {
   if (!currentSelectionExact) {
-    console.warn('[Popup] No selection to highlight');
+    log.warn('[Popup] No selection to highlight');
     return;
   }
 
@@ -1543,7 +1546,7 @@ async function handleCreateHighlight(): Promise<void> {
     })) as { success: boolean; id?: string; error?: string };
 
     if (response.success) {
-      console.log('[Popup] Highlight created:', response.id);
+      log.info('[Popup] Highlight created', { id: response.id });
       // Update highlight count
       await fetchHighlightCount();
       // Hide selection UI
@@ -1551,10 +1554,10 @@ async function handleCreateHighlight(): Promise<void> {
       // Track event
       trackClick('highlight.created', { color: selectedHighlightColor });
     } else {
-      console.error('[Popup] Failed to create highlight:', response.error);
+      log.error('[Popup] Failed to create highlight', { error: response.error });
     }
   } catch (error) {
-    console.error('[Popup] Failed to create highlight:', error);
+    log.error('[Popup] Failed to create highlight', { error });
   }
 }
 
@@ -1562,7 +1565,7 @@ async function handleCreateHighlight(): Promise<void> {
  * Main initialization
  */
 async function init(): Promise<void> {
-  console.log('[Popup] Initializing...');
+  log.info('[Popup] Initializing...');
 
   // T016: Initialize usage tracker for popup telemetry
   await initTelemetry();
@@ -1586,20 +1589,20 @@ async function init(): Promise<void> {
 
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {
-    console.error('[Popup] Cost estimate fetch failed:', err);
+    log.error('[Popup] Cost estimate fetch failed', { error: err });
   });
 
   // Fetch credit balance (non-blocking, T132)
   fetchCreditBalance().catch((err) => {
-    console.error('[Popup] Credit balance fetch failed:', err);
+    log.error('[Popup] Credit balance fetch failed', { error: err });
   });
 
   // Initialize highlights (T093-T095)
   initHighlights().catch((err) => {
-    console.error('[Popup] Highlights init failed:', err);
+    log.error('[Popup] Highlights init failed', { error: err });
   });
 
-  console.log('[Popup] Initialized');
+  log.info('[Popup] Initialized');
 }
 
 // Start initialization when DOM is ready

@@ -14,6 +14,9 @@
 
 import { browser } from 'wxt/browser';
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('content');
 
 // ============================================================================
 // Types
@@ -124,11 +127,11 @@ export class ParagraphSelector {
     cachedIndices: number[] = [],
   ): Promise<void> {
     if (this.state.isActive) {
-      console.log('Proso: Selection mode already active');
+      log.debug('Proso: Selection mode already active');
       return;
     }
 
-    console.log(
+    log.debug(
       `Proso: Enabling selection mode with ${paragraphElements.length} paragraphs, ${cachedIndices.length} cached`,
     );
 
@@ -166,7 +169,7 @@ export class ParagraphSelector {
       // Setup event handlers after DOM is ready
       this.setupEventHandlers();
 
-      console.log('Proso: Selection mode enabled');
+      log.debug('Proso: Selection mode enabled');
     });
   }
 
@@ -179,7 +182,7 @@ export class ParagraphSelector {
       return;
     }
 
-    console.log('Proso: Disabling selection mode');
+    log.debug('Proso: Disabling selection mode');
 
     // Remove event handlers
     this.removeEventHandlers();
@@ -204,7 +207,7 @@ export class ParagraphSelector {
       cachedIndices: [],
     };
 
-    console.log('Proso: Selection mode disabled');
+    log.debug('Proso: Selection mode disabled');
   }
 
   /**
@@ -244,7 +247,7 @@ export class ParagraphSelector {
     el.classList.add(SELECTED_CLASS);
     this.state.selectedIndex = index;
 
-    console.log(`Proso: Paragraph ${index} selected`);
+    log.debug(`Proso: Paragraph ${index} selected`);
   }
 
   /**
@@ -390,7 +393,7 @@ export class ParagraphSelector {
 
     document.addEventListener('click', this.clickHandler, true);
 
-    console.log('Proso: Selection event handlers setup');
+    log.debug('Proso: Selection event handlers setup');
   }
 
   /**
@@ -419,7 +422,7 @@ export class ParagraphSelector {
 
     // T019: Debounce - ignore rapid clicks within 300ms
     if (now - this.lastClickTime < CLICK_DEBOUNCE_MS) {
-      console.log(
+      log.debug(
         `[Proso:Selection] Debounced click on paragraph ${index} (${now - this.lastClickTime}ms since last click)`,
       );
       return;
@@ -427,7 +430,7 @@ export class ParagraphSelector {
 
     // T021: Deduplication - ignore clicks on paragraph already playing
     if (this.currentlyPlayingIndex === index) {
-      console.log(
+      log.debug(
         `[Proso:Selection] Ignored duplicate click on paragraph ${index} (already playing)`,
       );
       return;
@@ -449,7 +452,7 @@ export class ParagraphSelector {
     };
 
     // T022: Debug logging for debounce
-    console.log(`[Proso:Selection] Starting playback from paragraph ${index}`, {
+    log.debug(`[Proso:Selection] Starting playback from paragraph ${index}`, {
       isCached,
       characterCount: text.length,
       lastClickedIndex: this.lastClickedIndex,
@@ -463,7 +466,7 @@ export class ParagraphSelector {
         ...payload,
       })
       .catch((err) => {
-        console.error('Proso: Failed to send PARAGRAPH_CLICKED message:', err);
+        log.error('Proso: Failed to send PARAGRAPH_CLICKED message', { error: err });
         // Reset playing state on error
         this.currentlyPlayingIndex = null;
       });
@@ -502,4 +505,4 @@ export class ParagraphSelector {
  */
 export const paragraphSelector = new ParagraphSelector();
 
-console.log('Proso: utils/content/paragraph-selector.ts loaded');
+log.debug('Proso: utils/content/paragraph-selector.ts loaded');

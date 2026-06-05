@@ -16,6 +16,7 @@
 
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { createLogger } from '../utils/logging/logger';
 
 // Roadmap feature handlers (023-feature-roadmap)
 import { exportHandlers } from '../utils/messaging/handlers/export';
@@ -35,6 +36,8 @@ import { logUnknownMessage } from '../utils/telemetry';
 
 // Usage observability (043-usage-observability-loki)
 import { installConsoleCapture, installErrorCapture, usageTracker } from '../utils/telemetry/usage';
+
+const log = createLogger('background');
 
 // ============================================
 // Message Router
@@ -94,7 +97,7 @@ const messageHandlers: Record<string, MessageHandler> = {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[Background] Get logs failed:', error);
+      log.error('[Background] Get logs failed', { error });
       return { success: false, error: errorMessage };
     }
   },
@@ -124,7 +127,7 @@ const messageHandlers: Record<string, MessageHandler> = {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[Background] Flush logs failed:', error);
+      log.error('[Background] Flush logs failed', { error });
       return { success: false, error: errorMessage };
     }
   },
@@ -152,7 +155,7 @@ const messageHandlers: Record<string, MessageHandler> = {
 // ============================================
 
 export default defineBackground(() => {
-  console.log('Proso background service worker started');
+  log.info('Proso background service worker started');
 
   // Seed telemetry gateway config from build-time constants on install/update
   browser.runtime.onInstalled.addListener(async (details) => {
@@ -174,10 +177,10 @@ export default defineBackground(() => {
 
       if (Object.keys(updates).length > 0) {
         await browser.storage.local.set(updates);
-        console.log(`[Background] Telemetry config seeded on ${details.reason}`);
+        log.info(`[Background] Telemetry config seeded on ${details.reason}`);
       }
     } catch (error) {
-      console.warn('[Background] Failed to seed telemetry config:', error);
+      log.warn('[Background] Failed to seed telemetry config', { error });
     }
   });
 
@@ -194,7 +197,7 @@ export default defineBackground(() => {
 
       // Only initialize if telemetry is enabled
       if (result.telemetryEnabled === false) {
-        console.log('[Background] Usage telemetry disabled by user');
+        log.info('[Background] Usage telemetry disabled by user');
         return;
       }
 
@@ -203,7 +206,7 @@ export default defineBackground(() => {
       const gatewayToken = result.telemetryGatewayToken as string | undefined;
 
       if (!gatewayUrl || !gatewayToken) {
-        console.log('[Background] Telemetry gateway not configured, skipping');
+        log.info('[Background] Telemetry gateway not configured, skipping');
         return;
       }
 
@@ -230,9 +233,9 @@ export default defineBackground(() => {
       // Track background start event
       usageTracker.track('background.started');
 
-      console.log('[Background] Usage telemetry initialized');
+      log.info('[Background] Usage telemetry initialized');
     } catch (error) {
-      console.warn('[Background] Failed to initialize usage telemetry:', error);
+      log.warn('[Background] Failed to initialize usage telemetry', { error });
     }
   };
   initUsageTracker();
@@ -240,10 +243,10 @@ export default defineBackground(() => {
   // Initialize hexagonal architecture (034-hexagonal-architecture)
   initHexagonalArchitecture()
     .then(() => {
-      console.log('[Background] Hexagonal architecture initialized');
+      log.info('[Background] Hexagonal architecture initialized');
     })
     .catch((error) => {
-      console.error('[Background] Failed to initialize hexagonal architecture:', error);
+      log.error('[Background] Failed to initialize hexagonal architecture', { error });
     });
 
   // T021: Initialize audio cache on extension startup
@@ -251,19 +254,18 @@ export default defineBackground(() => {
   cacheStore
     .init()
     .then(() => {
-      console.log(
-        '[Background] Audio cache initialized, mode:',
-        cacheStore.isInMemoryMode ? 'in-memory' : 'IndexedDB',
-      );
+      log.info('[Background] Audio cache initialized', {
+        mode: cacheStore.isInMemoryMode ? 'in-memory' : 'IndexedDB',
+      });
       const stats = cacheStore.getStats();
-      console.log('[Background] Cache stats:', {
+      log.info('[Background] Cache stats', {
         entries: stats.entries,
         size: stats.totalSize,
         hitRate: stats.hitRate,
       });
     })
     .catch((error) => {
-      console.error('[Background] Failed to initialize audio cache:', error);
+      log.error('[Background] Failed to initialize audio cache', { error });
     });
 
   /**
@@ -282,7 +284,7 @@ export default defineBackground(() => {
         '_hexError' in (hexResult as Record<string, unknown>)
       ) {
         const hexError = hexResult as { _hexError: boolean; error: string };
-        console.warn('[Background] Hexagonal handler error for', type, ':', hexError.error);
+        log.warn('[Background] Hexagonal handler error', { type, error: hexError.error });
         return { success: false, error: hexError.error };
       }
       return hexResult;
@@ -311,20 +313,20 @@ export default defineBackground(() => {
         return;
       }
 
-      console.log('[Background] Received message:', type);
+      log.debug('[Background] Received message', { type });
 
       // T007: Inject sender tab ID into dispatch data
       const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
 
       return dispatchMessage(type, enrichedData).then((result) => {
         if (result === null) {
-          console.warn('[Background] Unknown message type:', type);
+          log.warn('[Background] Unknown message type', { type });
           logUnknownMessage(type);
           return unknownMessageResponse(type);
         }
         // Debug: log what we're returning to the caller
         if (type === 'settings.testApiKey') {
-          console.log('[Background] Returning testApiKey result:', JSON.stringify(result));
+          log.debug('[Background] Returning testApiKey result', { result: JSON.stringify(result) });
         }
         return result;
       });
@@ -333,7 +335,7 @@ export default defineBackground(() => {
     // Handle messages with 'action' field (legacy format from content script)
     if (message && typeof message === 'object' && 'action' in message) {
       const { action, ...data } = message as { action: string; [key: string]: unknown };
-      console.log('[Background] Received legacy action:', action);
+      log.debug('[Background] Received legacy action', { action });
 
       // T007: Inject sender tab ID into dispatch data
       const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
@@ -370,7 +372,7 @@ export default defineBackground(() => {
     return;
   });
 
-  console.log('Proso: Message handlers registered');
+  log.info('Proso: Message handlers registered');
 
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {
@@ -378,7 +380,7 @@ export default defineBackground(() => {
 
     // Check if queue data changed
     if (changes[QUEUE_STORAGE_KEYS.ITEMS] || changes[QUEUE_STORAGE_KEYS.METADATA]) {
-      console.log('[Background] Queue storage changed, broadcasting to tabs');
+      log.debug('[Background] Queue storage changed, broadcasting to tabs');
 
       // Broadcast to all tabs
       browser.tabs.query({}).then((tabs) => {
@@ -413,14 +415,14 @@ export default defineBackground(() => {
       const store = getCacheStore();
       const result = await store.cleanup();
       if (result.entriesRemoved > 0) {
-        console.log('[Background] Initial cache cleanup:', {
+        log.info('[Background] Initial cache cleanup', {
           entriesRemoved: result.entriesRemoved,
           bytesFreed: result.bytesFreed,
           durationMs: result.durationMs,
         });
       }
     } catch (error) {
-      console.error('[Background] Initial cache cleanup failed:', error);
+      log.error('[Background] Initial cache cleanup failed', { error });
     }
   }, INITIAL_CLEANUP_DELAY_MS);
 
@@ -432,7 +434,7 @@ export default defineBackground(() => {
       // Run cleanup for stale entries
       const cleanupResult = await store.cleanup();
       if (cleanupResult.entriesRemoved > 0) {
-        console.log('[Background] Periodic cache cleanup:', {
+        log.info('[Background] Periodic cache cleanup', {
           staleRemoved: cleanupResult.staleEntriesRemoved,
           corruptRemoved: cleanupResult.corruptEntriesRemoved,
           bytesFreed: cleanupResult.bytesFreed,
@@ -442,18 +444,18 @@ export default defineBackground(() => {
       // Check if eviction is needed
       const evictionResult = await store.evictIfNeeded();
       if (evictionResult.triggered && evictionResult.entriesEvicted > 0) {
-        console.log('[Background] Periodic cache eviction:', {
+        log.info('[Background] Periodic cache eviction', {
           entriesEvicted: evictionResult.entriesEvicted,
           bytesFreed: evictionResult.bytesFreed,
           reason: evictionResult.reason,
         });
       }
     } catch (error) {
-      console.error('[Background] Periodic cache maintenance failed:', error);
+      log.error('[Background] Periodic cache maintenance failed', { error });
     }
   }, PERIODIC_CLEANUP_INTERVAL_MS);
 
-  console.log('[Background] Cache cleanup scheduled:', {
+  log.info('[Background] Cache cleanup scheduled', {
     initialDelay: `${INITIAL_CLEANUP_DELAY_MS / 1000}s`,
     periodicInterval: `${PERIODIC_CLEANUP_INTERVAL_MS / 1000 / 60}min`,
   });

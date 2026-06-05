@@ -16,6 +16,7 @@
 import { browser } from 'wxt/browser';
 import type { TextQuoteSelector } from '../core/highlight';
 import * as extractor from '../utils/content/extractor';
+import { createLogger } from '../utils/logging/logger';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
@@ -31,6 +32,8 @@ import {
 } from '../utils/content/sticky-footer';
 import type { HighlightColor } from '../utils/schemas/highlight.schema';
 import { hashUrlSync, usageTracker } from '../utils/telemetry/usage';
+
+const log = createLogger('content');
 
 // ============================================================================
 // CSS Injection
@@ -295,7 +298,7 @@ function injectContentStyles(): void {
   `;
 
   document.head.appendChild(style);
-  console.log('Proso: Content styles injected');
+  log.debug('Proso: Content styles injected');
 }
 
 // ============================================================================
@@ -415,7 +418,7 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
 
   main() {
-    console.log('Proso: Content script starting (WXT TypeScript)');
+    log.info('Proso: Content script starting (WXT TypeScript)');
 
     // Inject highlight CSS into page
     injectContentStyles();
@@ -433,7 +436,7 @@ export default defineContentScript({
     // Prevent re-initialization
     const voxWindow = window as unknown as ProsoWindow;
     if (voxWindow.Proso?._contentInitialized) {
-      console.log('Proso: Content script already initialized, skipping');
+      log.debug('Proso: Content script already initialized, skipping');
       return;
     }
 
@@ -454,7 +457,7 @@ export default defineContentScript({
       voxWindow.Proso!.paragraphIndicator = paragraphIndicator;
       voxWindow.Proso!.persistentHighlightManager = persistentHighlightManager;
 
-      console.log('Proso: Modules initialized successfully', {
+      log.info('Proso: Modules initialized successfully', {
         hasExtractor: true, // extractor is a module with functions
         hasHighlightManager: !!highlightManager,
         hasStickyFooter: !!stickyFooter,
@@ -469,7 +472,7 @@ export default defineContentScript({
       // T017: Initialize telemetry for content script
       initContentTelemetry();
     } catch (error) {
-      console.error('Proso: Failed to initialize modules:', error);
+      log.error('Proso: Failed to initialize modules', { error });
       return;
     }
 
@@ -490,7 +493,7 @@ export default defineContentScript({
           index: index,
         })
         .catch((err) => {
-          console.error('Proso: Failed to jump to paragraph:', err);
+          log.error('Proso: Failed to jump to paragraph', { error: err });
         });
     }
 
@@ -640,7 +643,7 @@ export default defineContentScript({
           url: langData.url,
         })
         .catch((err) => {
-          console.error('Proso: Failed to send language detection:', err);
+          log.error('Proso: Failed to send language detection', { error: err });
         });
     }
 
@@ -686,11 +689,11 @@ export default defineContentScript({
               .then((response: { success: boolean }) => {
                 if (response.success) {
                   manager.removeHighlight(highlightId);
-                  console.log('Proso: Highlight deleted:', highlightId);
+                  log.info('Proso: Highlight deleted', { highlightId });
                 }
               })
               .catch((err) => {
-                console.error('Proso: Failed to delete highlight:', err);
+                log.error('Proso: Failed to delete highlight', { error: err });
               });
             break;
 
@@ -705,7 +708,7 @@ export default defineContentScript({
                   note: note,
                 })
                 .catch((err) => {
-                  console.error('Proso: Failed to add note:', err);
+                  log.error('Proso: Failed to add note', { error: err });
                 });
             }
             break;
@@ -722,11 +725,11 @@ export default defineContentScript({
               .then((response: { success: boolean }) => {
                 if (response.success) {
                   manager.updateHighlightColor(highlightId, color);
-                  console.log('Proso: Highlight color changed:', highlightId, color);
+                  log.info('Proso: Highlight color changed', { highlightId, color });
                 }
               })
               .catch((err) => {
-                console.error('Proso: Failed to change color:', err);
+                log.error('Proso: Failed to change color', { error: err });
               });
             break;
           }
@@ -765,7 +768,7 @@ export default defineContentScript({
           return;
         }
 
-        console.log(`Proso: Loading ${response.highlights.length} highlights for page`);
+        log.debug(`Proso: Loading ${response.highlights.length} highlights for page`);
 
         // Convert to format expected by reanchorHighlights
         const highlightsToRender = response.highlights.map((h) => ({
@@ -790,7 +793,7 @@ export default defineContentScript({
           .map(([id]) => id);
 
         if (orphanedIds.length > 0) {
-          console.warn(`Proso: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
+          log.warn(`Proso: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
           // Notify background about orphaned highlights
           browser.runtime
             .sendMessage({
@@ -803,7 +806,7 @@ export default defineContentScript({
             });
         }
       } catch (error) {
-        console.error('Proso: Failed to load page highlights:', error);
+        log.error('Proso: Failed to load page highlights', { error });
       }
     }
 
@@ -857,7 +860,7 @@ export default defineContentScript({
         });
       } catch (error) {
         // Silently fail - telemetry should never break the extension
-        console.debug('[Proso] Telemetry init failed:', error);
+        log.debug('[Proso] Telemetry init failed', { error });
       }
     }
 
@@ -877,15 +880,15 @@ export default defineContentScript({
     // Message Listener
     // ========================================================================
 
-    console.log('Proso: Setting up message listener');
+    log.debug('Proso: Setting up message listener');
 
     browser.runtime.onMessage.addListener((message: LegacyMessage & { type?: string }) => {
       // Support both 'action' (legacy) and 'type' (new protocol) fields
       const messageKey = message.action || message.type;
-      console.log('Proso: Received message:', messageKey);
+      log.debug('Proso: Received message', { messageKey });
 
       if (!highlightManager || !stickyFooter) {
-        console.warn('Proso: Modules not initialized, ignoring message');
+        log.warn('Proso: Modules not initialized, ignoring message');
         return;
       }
 
@@ -902,7 +905,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators
           if (paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('Proso: Failed to enable selection mode:', err);
+              log.warn('Proso: Failed to enable selection mode', { error: err });
             });
           }
 
@@ -927,7 +930,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators (only on fresh extraction)
           if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('Proso: Failed to enable selection mode:', err);
+              log.warn('Proso: Failed to enable selection mode', { error: err });
             });
           }
 
@@ -951,7 +954,7 @@ export default defineContentScript({
           // T046: Enable selection mode for hover indicators (only on fresh extraction)
           if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
             paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              console.warn('Proso: Failed to enable selection mode:', err);
+              log.warn('Proso: Failed to enable selection mode', { error: err });
             });
           }
 
@@ -985,7 +988,7 @@ export default defineContentScript({
               return result;
             })
             .catch((error) => {
-              console.error('Proso: Article extraction failed:', error);
+              log.error('Proso: Article extraction failed', { error });
               return {
                 success: false,
                 error: error.message || 'Article extraction failed',
@@ -1004,7 +1007,7 @@ export default defineContentScript({
             })
             .then((result) => result)
             .catch((error) => {
-              console.error('Proso: Article check failed:', error);
+              log.error('Proso: Article check failed', { error });
               return { success: false, isArticle: false };
             });
         }
@@ -1043,7 +1046,7 @@ export default defineContentScript({
             startTimeMs: item.startMs,
             endTimeMs: item.endMs,
           }));
-          console.log('Proso: Setting word timeline with', convertedTimeline.length, 'words');
+          log.debug('Proso: Setting word timeline', { wordCount: convertedTimeline.length });
           highlightManager.setWordTimeline(convertedTimeline, msg.paragraphIndex);
           break;
         }
@@ -1078,7 +1081,7 @@ export default defineContentScript({
                 wordIndex,
               })
               .catch((err) => {
-                console.error('Proso: Failed to jump to word:', err);
+                log.error('Proso: Failed to jump to word', { error: err });
               });
           }
           break;
@@ -1150,7 +1153,7 @@ export default defineContentScript({
             message: string;
             provider?: string;
           };
-          console.error(`[Proso] Playback error (${errorMsg.provider}):`, errorMsg.message);
+          log.error(`[Proso] Playback error (${errorMsg.provider})`, { message: errorMsg.message });
 
           // Show error notification in sticky footer if visible, otherwise show alert
           if (stickyFooter && stickyFooter.isFooterVisible()) {
@@ -1387,7 +1390,7 @@ export default defineContentScript({
 
           return new Promise<{ success: boolean }>((resolve) => {
             if (typeof speechSynthesis === 'undefined') {
-              console.error('Proso: Web Speech API not available');
+              log.error('Proso: Web Speech API not available');
               resolve({ success: false });
               return;
             }
@@ -1406,18 +1409,18 @@ export default defineContentScript({
             }
 
             utterance.onend = () => {
-              console.log('Proso: Speech ended');
+              log.debug('Proso: Speech ended');
               resolve({ success: true });
             };
 
             utterance.onerror = (event) => {
               if (event.error !== 'canceled') {
-                console.error('Proso: Speech error:', event.error);
+                log.error('Proso: Speech error', { error: event.error });
               }
               resolve({ success: false });
             };
 
-            console.log('Proso: Speaking text of length', text.length);
+            log.debug('Proso: Speaking text', { length: text.length });
             speechSynthesis.speak(utterance);
           });
         }
@@ -1425,7 +1428,7 @@ export default defineContentScript({
         case 'stopSpeech': {
           if (typeof speechSynthesis !== 'undefined') {
             speechSynthesis.cancel();
-            console.log('Proso: Speech cancelled');
+            log.debug('Proso: Speech cancelled');
           }
           return Promise.resolve({ success: true });
         }
@@ -1440,7 +1443,7 @@ export default defineContentScript({
 
           // Validate audio URL before attempting to play
           if (!audioUrl || audioUrl.trim() === '') {
-            console.error('Proso: Invalid audio URL: empty or undefined');
+            log.error('Proso: Invalid audio URL: empty or undefined');
             return Promise.resolve({ success: false });
           }
 
@@ -1460,20 +1463,20 @@ export default defineContentScript({
             audio.playbackRate = Math.max(0.5, Math.min(2.0, speed));
 
             audio.onended = () => {
-              console.log('Proso: Audio playback ended');
+              log.debug('Proso: Audio playback ended');
               voxWindow.__prosoAudio = null;
               resolve({ success: true });
             };
 
             audio.onerror = (event) => {
-              console.error('Proso: Audio playback error:', event);
+              log.error('Proso: Audio playback error', { event });
               voxWindow.__prosoAudio = null;
               resolve({ success: false });
             };
 
-            console.log('Proso: Playing audio, speed:', speed);
+            log.debug('Proso: Playing audio', { speed });
             audio.play().catch((err) => {
-              console.error('Proso: Audio play() failed:', err);
+              log.error('Proso: Audio play() failed', { error: err });
               resolve({ success: false });
             });
           });
@@ -1487,7 +1490,7 @@ export default defineContentScript({
             audio.removeAttribute('src');
             audio.load();
             voxWindow.__prosoAudio = null;
-            console.log('Proso: Audio stopped');
+            log.debug('Proso: Audio stopped');
           }
           return Promise.resolve({ success: true });
         }
@@ -1502,7 +1505,7 @@ export default defineContentScript({
         }
 
         default:
-          console.warn('Proso: Unknown message action:', message.action);
+          log.warn('Proso: Unknown message action', { action: message.action });
       }
     });
 
@@ -1547,7 +1550,7 @@ export default defineContentScript({
      * T023: Enhanced cleanup for blob URLs and audio (035-selection-tts-hardening)
      */
     function executeCleanup(reason: string): void {
-      console.log(`Proso: Executing cleanup (reason: ${reason})`);
+      log.debug(`Proso: Executing cleanup (reason: ${reason})`);
 
       // T023: Stop and cleanup content script audio first
       if (voxWindow.__prosoAudio) {
@@ -1557,7 +1560,7 @@ export default defineContentScript({
         audio.removeAttribute('src');
         audio.load();
         voxWindow.__prosoAudio = null;
-        console.log('[Proso:Cleanup] Content script audio stopped and cleaned');
+        log.debug('[Proso:Cleanup] Content script audio stopped and cleaned');
       }
 
       // T023: Stop browser TTS if active
@@ -1595,7 +1598,7 @@ export default defineContentScript({
         try {
           cb(reason);
         } catch (e) {
-          console.warn('Proso: Cleanup callback failed:', e);
+          log.warn('Proso: Cleanup callback failed', { error: e });
         }
       });
     }
@@ -1644,11 +1647,11 @@ export default defineContentScript({
           .then(() => {
             const resyncDuration = performance.now() - resyncStart;
             if (resyncDuration > 500) {
-              console.warn(
+              log.warn(
                 `Proso: Resync took ${resyncDuration.toFixed(0)}ms, exceeds 500ms target (FR-005)`,
               );
             } else {
-              console.log(`Proso: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`);
+              log.debug(`Proso: Resync completed in ${resyncDuration.toFixed(0)}ms (FR-005)`);
             }
           })
           .catch(() => {
@@ -1712,7 +1715,7 @@ export default defineContentScript({
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         sendLanguageDetectionRequest();
-        console.log('Proso: Sent initial language detection request');
+        log.debug('Proso: Sent initial language detection request');
       }, 100);
     }
 
@@ -1730,6 +1733,6 @@ export default defineContentScript({
       window.addEventListener('load', () => loadPageHighlights(), { once: true });
     }
 
-    console.log('Proso content script fully loaded and message listener registered');
+    log.info('Proso content script fully loaded and message listener registered');
   },
 });

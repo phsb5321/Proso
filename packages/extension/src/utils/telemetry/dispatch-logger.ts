@@ -7,7 +7,10 @@
  * @module utils/telemetry/dispatch-logger
  */
 
+import { createLogger } from '../logging/logger';
 import type { DispatchEvent, DispatchStats, DispatchSummary, MessageStats } from './types';
+
+const log = createLogger('service');
 
 /**
  * In-memory dispatch statistics storage.
@@ -59,7 +62,7 @@ export function logDispatch(event: DispatchEvent): void {
 
     // Log unknown messages in dev mode
     if (process.env.NODE_ENV === 'development') {
-      console.debug(`\x1b[31m✗ [Dispatch] ${type} → unknown (${event.durationMs}ms)\x1b[0m`);
+      log.debug(`\x1b[31m✗ [Dispatch] ${type} → unknown (${event.durationMs}ms)\x1b[0m`);
     }
     return;
   }
@@ -90,7 +93,7 @@ export function logDispatch(event: DispatchEvent): void {
   if (process.env.NODE_ENV === 'development') {
     const symbol = path === 'hex' ? '⬡' : '▢';
     const color = path === 'hex' ? '\x1b[32m' : '\x1b[33m';
-    console.debug(
+    log.debug(
       `${color}${symbol} [Dispatch] ${type} → ${path} (${event.durationMs}ms)${event.success ? '' : ' FAILED'}\x1b[0m`,
     );
   }

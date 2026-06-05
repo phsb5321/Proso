@@ -18,7 +18,10 @@ import {
   createArticleExtractionService,
 } from '../core/article/extraction.service';
 import { isErr } from '../core/shared/result';
+import { createLogger } from '../utils/logging/logger';
 import type { HandlerRegistry, MessageSender } from './registry';
+
+const log = createLogger('handler');
 
 /**
  * Cache for extracted articles by tab ID
@@ -123,7 +126,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[ReaderHandlers] Extract article error:', message);
+      log.error('[ReaderHandlers] Extract article error', { error: message });
       return {
         success: false,
         error: message,
@@ -302,7 +305,7 @@ export function registerReaderHandlers(registry: HandlerRegistry): void {
     }
   });
 
-  console.log('[ReaderHandlers] Registered 6 reader handlers');
+  log.info('[ReaderHandlers] Registered 6 reader handlers');
 }
 
 /**

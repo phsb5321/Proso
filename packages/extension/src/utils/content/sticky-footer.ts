@@ -16,6 +16,9 @@
 import { browser } from 'wxt/browser';
 import { z } from 'zod';
 import { SUPPORTED_LANGUAGES } from '../language/codes';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('content');
 
 // ============================================================================
 // Zod Schemas (SSOT for type definitions)
@@ -945,7 +948,7 @@ export class StickyFooter {
       this._footerEl.focus();
     }
 
-    console.log('Proso: Sticky footer shown');
+    log.debug('Proso: Sticky footer shown');
   }
 
   /**
@@ -977,7 +980,7 @@ export class StickyFooter {
     this._langBtn = null;
     this._langDropdown = null;
 
-    console.log('Proso: Sticky footer hidden');
+    log.debug('Proso: Sticky footer hidden');
   }
 
   /**
@@ -1075,7 +1078,7 @@ export class StickyFooter {
    */
   showError(message: string, duration: number = ERROR_DISPLAY_DURATION_MS): void {
     if (!this.shadowRoot || !this._footerEl) {
-      console.error('[Proso:StickyFooter] Cannot show error - footer not visible:', message);
+      log.error('[Proso:StickyFooter] Cannot show error - footer not visible', { message });
       return;
     }
 
@@ -1123,7 +1126,7 @@ export class StickyFooter {
     // Announce to screen readers
     this._announce(`Error: ${message}`);
 
-    console.log('[Proso:StickyFooter] Showing error:', message);
+    log.debug('[Proso:StickyFooter] Showing error', { message });
 
     // Auto-dismiss after duration (if duration > 0)
     if (duration > 0) {
@@ -1183,11 +1186,11 @@ export class StickyFooter {
           this.isMinimized = parsed.data.isMinimized;
           this.position = parsed.data.position;
         } else {
-          console.warn('Proso: Invalid footer state schema:', parsed.error);
+          log.warn('Proso: Invalid footer state schema', { error: parsed.error });
         }
       }
     } catch (e) {
-      console.warn('Proso: Failed to restore footer state:', e);
+      log.warn('Proso: Failed to restore footer state', { error: e });
     }
   }
 
@@ -1204,7 +1207,7 @@ export class StickyFooter {
         [FOOTER_STATE_KEY]: state,
       });
     } catch (e) {
-      console.warn('Proso: Failed to save footer state:', e);
+      log.warn('Proso: Failed to save footer state', { error: e });
     }
   }
 
@@ -1222,7 +1225,7 @@ export class StickyFooter {
         ...payload,
       })
       .catch((err) => {
-        console.error('Proso: Failed to send message:', err);
+        log.error('Proso: Failed to send message', { error: err });
       });
   }
 
@@ -1587,11 +1590,11 @@ export class StickyFooter {
     if (this._mutationObserver || !this.container) return;
     this._mutationObserver = new MutationObserver(() => {
       if (!document.body.contains(this.container!)) {
-        console.log('Proso: Footer was removed from DOM, re-attaching');
+        log.debug('Proso: Footer was removed from DOM, re-attaching');
         try {
           document.body.appendChild(this.container!);
         } catch (e) {
-          console.warn('Proso: Failed to re-attach footer:', e);
+          log.warn('Proso: Failed to re-attach footer', { error: e });
         }
       }
     });

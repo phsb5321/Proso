@@ -13,6 +13,9 @@
  */
 
 import { z } from 'zod';
+import { createLogger } from '../logging/logger';
+
+const log = createLogger('content');
 
 // ============================================================================
 // Types
@@ -390,4 +393,4 @@ export class ParagraphIndicator {
  */
 export const paragraphIndicator = new ParagraphIndicator();
 
-console.log('Proso: utils/content/paragraph-indicator.ts loaded');
+log.debug('Proso: utils/content/paragraph-indicator.ts loaded');

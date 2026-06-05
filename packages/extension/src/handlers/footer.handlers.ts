@@ -10,6 +10,7 @@
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import { isErr } from '../core/shared/result';
 import type { FooterState, IHighlightSynchronizer } from '../ports/highlight-sync.port';
+import { createLogger } from '../utils/logging/logger';
 import type { HandlerRegistry } from './registry';
 import {
   footerActionParamsSchema,
@@ -19,6 +20,8 @@ import {
   footerStateUpdateParamsSchema,
   footerVisibilityParamsSchema,
 } from './schemas/footer.schemas';
+
+const log = createLogger('handler');
 
 // ============================================
 // Response Types
@@ -200,7 +203,7 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
     };
   }
 
-  console.log('[Footer] Action received:', parsed.data.action, parsed.data.value);
+  log.info('[Footer] Action received', { action: parsed.data.action, value: parsed.data.value });
 
   if (!isPlaybackServiceAvailable()) {
     return { success: false, error: 'PlaybackService not available', action: parsed.data.action };
@@ -237,7 +240,7 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
         }
         break;
       default:
-        console.warn('[Footer] Unknown action:', parsed.data.action);
+        log.warn('[Footer] Unknown action', { action: parsed.data.action });
     }
 
     return { success: true, action: parsed.data.action };
@@ -260,7 +263,7 @@ async function handleFooterVisibilityChanged(params: unknown): Promise<FooterOpe
     };
   }
 
-  console.log('[Footer] Visibility changed:', parsed.data);
+  log.info('[Footer] Visibility changed', { data: parsed.data });
   // Informational only - acknowledge receipt
   return { success: true };
 }
@@ -278,7 +281,7 @@ async function handleFooterPositionChanged(params: unknown): Promise<FooterOpera
     };
   }
 
-  console.log('[Footer] Position changed:', parsed.data);
+  log.info('[Footer] Position changed', { data: parsed.data });
   // Informational only - acknowledge receipt
   return { success: true };
 }
