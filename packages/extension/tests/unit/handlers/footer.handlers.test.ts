@@ -413,6 +413,21 @@ describe('footer.handlers', () => {
       expect(result.action).toBe('speed');
     });
 
+    it('converts a seek percentage to a paragraph index (regression)', async () => {
+      // Footer sends a 0-100 progress percentage; the handler must convert it to
+      // a paragraph index, not pass the raw percent (which clamps to the last
+      // paragraph). 50% of 10 paragraphs -> index 5.
+      mockPlaybackService.getState.mockReturnValueOnce({
+        status: 'playing',
+        totalParagraphs: 10,
+      });
+
+      await registry.dispatch('footer.action', { action: 'seek', value: 50 });
+
+      expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(5);
+      expect(mockPlaybackService.seekToParagraph).not.toHaveBeenCalledWith(50);
+    });
+
     it('should handle stop action', async () => {
       const outer = await registry.dispatch('footer.action', { action: 'stop' });
       const result = unwrapDispatch(outer) as FooterActionResponse;
