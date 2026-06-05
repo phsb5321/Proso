@@ -761,8 +761,9 @@ describe('IndexedDB Cache Lifecycle Integration', () => {
         audioData: createMockAudioData(1024),
       });
 
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait well past the asserted floor (>=50ms) so CI timer jitter / coarse
+      // Date.now() resolution can't make the measured age dip under it (de-flake).
+      await new Promise((resolve) => setTimeout(resolve, 120));
 
       const result = await registry.dispatch<void, Result<CacheStats, { type: string; message: string }>>(
         'cache.getStats',
