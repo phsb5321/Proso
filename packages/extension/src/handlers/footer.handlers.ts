@@ -231,7 +231,14 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
         break;
       case 'seek':
         if (typeof parsed.data.value === 'number') {
-          await service.seekToParagraph(parsed.data.value);
+          // The footer sends a 0-100 progress percentage; convert it to a
+          // paragraph index (mirrors playback.seek). Previously the raw percent
+          // was passed straight to seekToParagraph, so any seek clamped to the
+          // last paragraph (e.g. 50% on a 10-paragraph article -> index 50 -> 9).
+          const { totalParagraphs } = service.getState();
+          const paragraphIndex =
+            totalParagraphs > 0 ? Math.floor((parsed.data.value / 100) * totalParagraphs) : 0;
+          await service.seekToParagraph(paragraphIndex);
         }
         break;
       case 'speed':
