@@ -58,6 +58,11 @@ jobs:
       - name: Build Firefox extension
         run: pnpm --filter @proso/extension build:firefox
 
+      # Chrome-ready smoke (056 T093): the product is Firefox-first but must
+      # stay buildable for Chrome MV3 — fail CI if the Chrome build breaks.
+      - name: Build Chrome extension (smoke)
+        run: pnpm --filter @proso/extension build:chrome
+
       # ============================================
       # Firefox Build Validation (041-firefox-first-pivot T4.1)
       # ============================================
