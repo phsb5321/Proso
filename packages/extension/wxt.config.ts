@@ -50,6 +50,27 @@ export default defineConfig({
         32: 'icons/icon-32.png',
       },
     },
+    // Keyboard shortcuts (handled by browser.commands.onCommand in background.ts).
+    // Firefox uses MV2 `commands` with the "Alt+<Key>" suggested-key syntax;
+    // "." and "," must be spelled "Period" / "Comma".
+    commands: {
+      'playback-toggle': {
+        suggested_key: { default: 'Alt+P' },
+        description: 'Play/Pause',
+      },
+      'playback-stop': {
+        suggested_key: { default: 'Alt+S' },
+        description: 'Stop',
+      },
+      'playback-next': {
+        suggested_key: { default: 'Alt+Period' },
+        description: 'Next paragraph',
+      },
+      'playback-previous': {
+        suggested_key: { default: 'Alt+Comma' },
+        description: 'Previous paragraph',
+      },
+    },
     browser_specific_settings: {
       gecko: {
         id: '{41eb66cb-b520-4047-9b6c-63fdce6fca11}',
