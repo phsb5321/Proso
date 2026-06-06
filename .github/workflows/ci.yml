@@ -8,6 +8,7 @@ on:
       - 'packages/shared/**'
       - 'packages/server/**'
       - 'pnpm-lock.yaml'
+      - '.github/workflows/ci.yml'
   push:
     branches: [develop, main]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'packages/shared/**'
       - 'packages/server/**'
       - 'pnpm-lock.yaml'
+      - '.github/workflows/ci.yml'
 
 jobs:
   # ============================================
