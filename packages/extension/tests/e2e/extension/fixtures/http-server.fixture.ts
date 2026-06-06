@@ -163,7 +163,8 @@ export async function stopHttpServer(state: HttpServerState): Promise<void> {
       return;
     }
 
-    state.server.close((err) => {
+    const server = state.server;
+    server.close((err) => {
       if (err) {
         reject(err);
       } else {
@@ -173,6 +174,12 @@ export async function stopHttpServer(state: HttpServerState): Promise<void> {
         resolve();
       }
     });
+
+    // Force-close keep-alive sockets so close() can resolve promptly. Chromium
+    // holds a persistent connection to the fixture server; without this,
+    // server.close() waits for that socket and the fixture teardown hangs until
+    // the 60s test timeout (observed only on CI, where the socket lingers).
+    server.closeAllConnections?.();
   });
 }
 
