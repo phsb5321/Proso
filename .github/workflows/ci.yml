@@ -246,7 +246,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install firefox --with-deps
+        run: pnpm --filter @proso/extension exec -- playwright install firefox --with-deps
 
       - name: Run Firefox visual tests
         run: pnpm --filter @proso/extension test:visual
@@ -292,10 +292,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+        run: pnpm --filter @proso/extension exec -- playwright install chromium --with-deps
 
-      - name: Build Firefox extension
-        run: pnpm --filter @proso/extension build:firefox
+      # The chromium-extension fixture loads .output/chrome-mv3 (not firefox-mv2),
+      # so the E2E job must build the Chrome target, not Firefox.
+      - name: Build Chrome extension
+        run: pnpm --filter @proso/extension build:chrome
 
       - name: Run extension E2E tests
         run: pnpm --filter @proso/extension test:e2e:ext
