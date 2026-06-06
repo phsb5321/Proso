@@ -29,6 +29,14 @@ import { getCacheStore } from '../utils/cache';
 // Hexagonal Architecture (034-hexagonal-architecture)
 import { dispatchToHexagonal, initHexagonalArchitecture } from '../background/init-hexagonal';
 
+// Keyboard shortcuts + "Read with Proso" context menu
+import {
+  READ_SELECTION_MENU_ID,
+  handleReadSelectionClick,
+  handleShortcutCommand,
+} from '../background/shortcuts';
+import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
+
 // Structured error responses (041-firefox-first-pivot T1.2)
 import { unknownMessageResponse } from '../utils/messaging/error-response';
 // Unknown message telemetry (041-firefox-first-pivot T1.3)
@@ -181,6 +189,20 @@ export default defineBackground(() => {
       }
     } catch (error) {
       log.warn('[Background] Failed to seed telemetry config', { error });
+    }
+
+    // Create the "Read with Proso" context menu idempotently. removeAll() first
+    // avoids "duplicate id" errors when onInstalled fires again on update.
+    try {
+      await browser.contextMenus.removeAll();
+      browser.contextMenus.create({
+        id: READ_SELECTION_MENU_ID,
+        title: 'Read with Proso',
+        contexts: ['selection'],
+      });
+      log.info('[Background] Context menu registered');
+    } catch (error) {
+      log.warn('[Background] Failed to register context menu', { error });
     }
   });
 
@@ -373,6 +395,46 @@ export default defineBackground(() => {
   });
 
   log.info('Proso: Message handlers registered');
+
+  // ============================================
+  // Keyboard Shortcuts (browser.commands)
+  // ============================================
+
+  /**
+   * Read the current playback status for the Alt+P toggle.
+   * Returns null when the playback service is unavailable so the toggle falls
+   * back to starting playback.
+   */
+  const getPlaybackStatus = (): string | null => {
+    if (!isPlaybackServiceAvailable()) {
+      return null;
+    }
+    try {
+      return getPlaybackService().getState().status;
+    } catch (error) {
+      log.warn('[Background] Failed to read playback status for shortcut', { error });
+      return null;
+    }
+  };
+
+  browser.commands.onCommand.addListener((command) => {
+    handleShortcutCommand(command, {
+      dispatch: dispatchMessage,
+      getStatus: getPlaybackStatus,
+    }).catch((error) => {
+      log.error('[Background] Shortcut command failed', { command, error });
+    });
+  });
+
+  // ============================================
+  // Context Menu ("Read with Proso")
+  // ============================================
+
+  browser.contextMenus.onClicked.addListener((info, tab) => {
+    handleReadSelectionClick(info, tab, { dispatch: dispatchMessage }).catch((error) => {
+      log.error('[Background] Context menu action failed', { error });
+    });
+  });
 
   // Cross-tab sync for reading queue (T075)
   browser.storage.onChanged.addListener((changes, areaName) => {

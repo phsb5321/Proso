@@ -12,6 +12,10 @@ export const playbackStartParamsSchema = z.object({
   paragraphs: z.array(z.string()).optional(),
   tabId: z.number().int().positive().optional(),
   pageUrl: z.string().optional(),
+  // Extraction mode used when `paragraphs` is not supplied. Defaults to
+  // 'article' (whole-page reading). 'selection' reads the user's current text
+  // selection (used by the "Read with Proso" context menu).
+  mode: z.enum(['selection', 'article', 'full']).optional(),
 });
 
 export const playbackSeekToParagraphParamsSchema = z.object({

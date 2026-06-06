@@ -352,6 +352,117 @@ describe('Playback Handlers', () => {
       expect(footerCall![0]).toBe(99);
     });
 
+    it('should default extraction mode to article', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { paragraphs: ['Article text'] };
+        }
+        return null;
+      });
+
+      await registry.dispatch('playback.start', {});
+
+      const extractCall = mockTabsSendMessage.mock.calls.find(
+        (call: any[]) => call[1]?.action === 'extractText',
+      );
+      expect(extractCall![1].mode).toBe('article');
+    });
+
+    it('should forward mode=selection to the content script extractText call', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { text: 'Selected words', paragraphs: ['Selected words'] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('playback.start', { mode: 'selection' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      const extractCall = mockTabsSendMessage.mock.calls.find(
+        (call: any[]) => call[1]?.action === 'extractText',
+      );
+      expect(extractCall![1].mode).toBe('selection');
+      expect(mockPlaybackService.start).toHaveBeenCalledWith(
+        ['Selected words'],
+        42,
+        'https://example.com',
+      );
+    });
+
+    it('should fall back to splitting raw selection text when paragraphs are empty', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          // Selection that does not map to whole block elements: empty
+          // paragraphs but raw text present.
+          return { text: 'First chunk\n\nSecond chunk', paragraphs: [] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('playback.start', { mode: 'selection' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      expect(mockPlaybackService.start).toHaveBeenCalledWith(
+        ['First chunk', 'Second chunk'],
+        42,
+        'https://example.com',
+      );
+    });
+
+    it('should read a single-line selection as one paragraph', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { text: '  just one sentence  ', paragraphs: [] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('playback.start', { mode: 'selection' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(true);
+      expect(mockPlaybackService.start).toHaveBeenCalledWith(
+        ['just one sentence'],
+        42,
+        'https://example.com',
+      );
+    });
+
+    it('should report no text when selection text is empty and no paragraphs', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
+        if (msg.action === 'extractText') {
+          return { text: '   ', paragraphs: [] };
+        }
+        return null;
+      });
+
+      const raw = await registry.dispatch('playback.start', { mode: 'selection' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value.success).toBe(false);
+      expect(result.value.error).toBe('No text found on page');
+    });
+
+    it('should reject an invalid mode value', async () => {
+      const raw = await registry.dispatch('playback.start', { mode: 'bogus' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('invalid_params');
+    });
+
     it('should return service_unavailable when service is not available', async () => {
       mockIsPlaybackServiceAvailable.mockReturnValue(false);
 

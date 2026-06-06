@@ -30,6 +30,27 @@ async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
 }
 
 /**
+ * Split raw selected text into non-empty paragraphs.
+ *
+ * Used as a fallback when a text selection cannot be mapped to whole block
+ * elements: the content script returns the raw selection string, which we split
+ * on blank lines (falling back to the whole trimmed string) so it can be read.
+ */
+function splitSelectionText(text: string): string[] {
+  const paragraphs = text
+    .split(/\n\s*\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
+  if (paragraphs.length > 0) {
+    return paragraphs;
+  }
+
+  const trimmed = text.trim();
+  return trimmed.length > 0 ? [trimmed] : [];
+}
+
+/**
  * Send a message to a content script and get the response.
  */
 async function sendToContentScript(
@@ -227,18 +248,30 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           pageUrl = tab.url ?? '';
         }
 
-        // Step 2: Extract paragraphs if not provided
+        // Step 2: Extract paragraphs if not provided.
+        // `mode` selects the content-script extraction strategy; it defaults to
+        // 'article'. The "Read with Proso" context menu passes 'selection' to
+        // read the user's highlighted text via the same extraction path.
         let paragraphs = parsed.data.paragraphs;
+        const mode = parsed.data.mode ?? 'article';
 
         if (!paragraphs || paragraphs.length === 0) {
           const extractResult = await sendToContentScript(tabId, {
             action: 'extractText',
-            mode: 'article',
+            mode,
           });
 
           if (extractResult && typeof extractResult === 'object' && 'paragraphs' in extractResult) {
-            const result = extractResult as { paragraphs: string[] };
-            paragraphs = result.paragraphs;
+            const result = extractResult as { paragraphs?: string[]; text?: string };
+            paragraphs = result.paragraphs ?? [];
+
+            // Selection fallback: when the highlighted text cannot be mapped to
+            // whole block elements (e.g. a partial sentence), the content script
+            // returns an empty `paragraphs` array but a non-empty `text`. Split
+            // that raw text so arbitrary selections are still read aloud.
+            if (paragraphs.length === 0 && typeof result.text === 'string') {
+              paragraphs = splitSelectionText(result.text);
+            }
           } else {
             return Ok({ success: false, error: 'Failed to extract text' });
           }
