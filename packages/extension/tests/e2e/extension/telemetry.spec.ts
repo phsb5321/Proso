@@ -349,22 +349,27 @@ test.describe('Telemetry Privacy', () => {
     const settingsPage = await openExtensionSettings(context, extensionId);
     await settingsPage.waitForLoadState('domcontentloaded');
 
-    // Find API key input if it exists
-    const apiKeyInput = settingsPage.locator(
+    // Find API key inputs if present. The settings UI renders provider key
+    // fields inside collapsible accordions, so a matching input can exist in
+    // the DOM while hidden — fill the first one that is actually visible.
+    const apiKeyInputs = settingsPage.locator(
       'input[type="password"], input[name*="api"], input[name*="key"], input[placeholder*="API"]'
     );
 
-    const hasApiKeyInput = (await apiKeyInput.count()) > 0;
+    const inputCount = await apiKeyInputs.count();
+    for (let i = 0; i < inputCount; i++) {
+      const input = apiKeyInputs.nth(i);
+      if (!(await input.isVisible())) continue;
 
-    if (hasApiKeyInput) {
       // Type a test API key
-      await apiKeyInput.first().fill('sk-test-1234567890abcdef');
+      await input.fill('sk-test-1234567890abcdef');
 
       // Wait for potential event tracking
       await settingsPage.waitForTimeout(500);
 
-      // The redaction module should prevent any API key from being logged
-      // This is validated at the telemetry module level, not E2E
+      // The redaction module should prevent any API key from being logged.
+      // This is validated at the telemetry module level, not E2E.
+      break;
     }
 
     await settingsPage.close();
