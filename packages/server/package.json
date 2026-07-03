@@ -32,6 +32,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.0.1",
     "@proso/shared": "workspace:*",
+    "@sentry/nestjs": "^10.63.0",
     "nestjs-pino": "^4.2.0",
     "pg": "^8.18.0",
     "pino-http": "^10.4.0",

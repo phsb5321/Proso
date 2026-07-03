@@ -1,3 +1,5 @@
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import appConfig from './infrastructure/config/app.config';
 import { BillingModule } from './infrastructure/modules/billing.module';
 import { CreditsModule } from './infrastructure/modules/credits.module';
@@ -12,6 +14,9 @@ import { TTSModule } from './infrastructure/modules/tts.module';
 
 @Module({
   imports: [
+    // Error tracking (Sentry/GlitchTip) — no-op without SENTRY_DSN
+    SentryModule.forRoot(),
+
     // Environment configuration
     ConfigModule.forRoot({
       isGlobal: true,
@@ -41,6 +46,10 @@ import { TTSModule } from './infrastructure/modules/tts.module';
 
     // Billing webhooks (Paddle)
     BillingModule,
+  ],
+  providers: [
+    // Route unhandled exceptions to Sentry (preserves Nest's default response)
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
   ],
 })
 export class AppModule {}
