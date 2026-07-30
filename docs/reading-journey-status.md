@@ -1,5 +1,10 @@
 # Reading journey status
 
+The 30/07/2026 Mac Firefox installation and local TTS experiment is recorded in
+[`docs/research/local-reader-lab-2026-07-30.md`](research/local-reader-lab-2026-07-30.md).
+It is deliberately marked partially verified because the production API returned HTTP 502 during
+the real-browser acceptance attempt.
+
 Evidence reconciled on 30/07/2026. Symbols: ✓ verified, ◐ partially verified, ◯ unresolved,
 ✗ disproven as a delivery claim.
 
