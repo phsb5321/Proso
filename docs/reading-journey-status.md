@@ -26,6 +26,8 @@ missing fallback to restore casually.
 | ✓ | The TypeScript cycle scan processes real files | `make quality` reports 177 files and no cycle |
 | ✗ | The existing Chromium audio E2E proves reading works | It can pass without initiating or observing a TTS request and clears errors |
 | ✗ | CI `security-audit` is a dependency gate | `pnpm audit --audit-level=high` exited 1 on PR #63, but `continue-on-error: true` made the job green; GitHub reports 73 open alerts (2 critical) |
+| ✗ | A green CI `visual-tests` job means visual tests passed | PR #63 ran 26 Firefox visual tests: 24 failed and 2 passed, but step-level `continue-on-error: true` made the job green |
+| ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | Real Firefox reading works end to end | Source route and deterministic integrations are covered; no real Firefox session was accepted in this slice |
 | ◯ | Production server/provider availability | Not probed; production, secrets, quotas, and deploys are outside this slice |
@@ -109,3 +111,6 @@ Captured on 30/07/2026 at 16:55 BRT with
 5. Remediate the two critical dependency alerts in service-scoped PRs, then the remaining high
    alerts. Changing `.github/workflows/ci.yml` to remove the audit’s `continue-on-error` is a
    separately gated workflow change; until then, do not cite the green job as security evidence.
+6. Establish the missing Firefox/Linux visual baselines and repair the keyboard assertions behind
+   the 24 visual failures before removing that job’s `continue-on-error`. That workflow edit is
+   separately gated; until then, inspect the test log rather than the green job badge.

@@ -76,6 +76,7 @@ and control state.
 | SonarQube | Deferred as a gate | Historical project has no trustworthy populated baseline; a skipped scan is not green |
 | CodeQL / workflow additions | Deferred | Workflow changes are outside this safe slice and GitHub licensing was not established |
 | CI `pnpm audit` | Rejected as a gate | It currently exits 1 but is masked by `continue-on-error`; 73 open alerts remain |
+| CI Firefox visual job | Rejected as a gate | PR #63 had 24 failures / 2 passes, masked by step-level `continue-on-error` |
 | OSV/Trivy/Semgrep additions | Deferred | No reproduced gap justified another install/network scanner in this slice |
 | Existing Playwright audio suite | Rejected as an oracle | It can pass without a synthesis request or audio assertion |
 
