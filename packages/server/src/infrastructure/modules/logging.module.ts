@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { PinoLoggerAdapter } from '../../adapters/logging/pino-logger.adapter';
+import { LoggerPort } from '../../ports/logger.port';
 
 @Module({
   imports: [
@@ -49,5 +51,7 @@ import { LoggerModule } from 'nestjs-pino';
       },
     }),
   ],
+  providers: [PinoLoggerAdapter, { provide: LoggerPort, useExisting: PinoLoggerAdapter }],
+  exports: [LoggerPort],
 })
 export class LoggingModule {}

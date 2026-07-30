@@ -14,6 +14,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Optional,
   Param,
   Post,
   Req,
@@ -37,6 +38,7 @@ import type { Request, Response } from 'express';
 import { synthesize } from '../../core/tts/tts.service';
 import { CacheStorePort } from '../../ports/cache-store.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';
+import { LoggerPort } from '../../ports/logger.port';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 import type { TTSProviderPort } from '../../ports/tts-provider.port';
 import { ZodValidationPipe } from '../pipes/zod-validation.pipe';
@@ -55,6 +57,8 @@ export class TTSController {
     private readonly subscriptionRepository: SubscriptionRepositoryPort,
     @Inject('TTS_PROVIDERS')
     private readonly providers: Map<TTSProvider, TTSProviderPort>,
+    @Optional()
+    private readonly logger?: LoggerPort,
   ) {}
 
   @Post('synthesize')
@@ -123,6 +127,7 @@ export class TTSController {
         cacheStore: this.cacheStore,
         creditRepository: this.creditRepository,
         providers: this.providers,
+        ...(this.logger ? { logger: this.logger } : {}),
       },
     );
 

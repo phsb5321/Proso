@@ -15,11 +15,12 @@ import { OpenAITTSAdapter } from '../../adapters/tts/openai-tts.adapter';
 import { CacheStorePort } from '../../ports/cache-store.port';
 import type { TTSProviderPort } from '../../ports/tts-provider.port';
 import { TTSController } from '../controllers/tts.controller';
+import { LoggingModule } from './logging.module';
 import { RateLimitModule } from './rate-limit.module';
 import { SubscriptionModule } from './subscription.module';
 
 @Module({
-  imports: [SubscriptionModule, RateLimitModule],
+  imports: [SubscriptionModule, RateLimitModule, LoggingModule],
   controllers: [TTSController],
   providers: [
     // Cache adapter — in-memory placeholder (TODO: swap for Redis)

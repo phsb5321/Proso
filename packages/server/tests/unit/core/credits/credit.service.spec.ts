@@ -1,13 +1,10 @@
-import { ErrorCode, isOk, isErr } from '@proso/shared';
-import {
-  deductCredits,
-  type CreditServiceDeps,
-} from '../../../../src/core/credits/credit.service';
+import { ErrorCode, isErr, isOk } from '@proso/shared';
+import { type CreditServiceDeps, deductCredits } from '../../../../src/core/credits/credit.service';
 import type {
-  CreditRepositoryPort,
   CreditAllocationRecord,
-  CreditTransactionRecord,
   CreditDeductionMetadata,
+  CreditDeductionRecord,
+  CreditRepositoryPort,
 } from '../../../../src/ports/credit-repository.port';
 
 // ---------------------------------------------------------------------------
@@ -31,8 +28,8 @@ function makeMockAllocation(
 }
 
 function makeMockTransaction(
-  overrides: Partial<CreditTransactionRecord> = {},
-): CreditTransactionRecord {
+  overrides: Partial<CreditDeductionRecord> = {},
+): CreditDeductionRecord {
   return {
     id: 'tx-1',
     userId: 'user-1',
@@ -43,6 +40,7 @@ function makeMockTransaction(
     characterCount: 100,
     description: 'TTS synthesis via openai',
     createdAt: new Date(),
+    remainingCredits: 349_000,
     ...overrides,
   };
 }
@@ -103,6 +101,7 @@ describe('CreditService.deductCredits', () => {
       expect(isOk(result)).toBe(true);
       if (!isOk(result)) return;
       expect(result.value).toBe(transaction);
+      expect(result.value.remainingCredits).toBe(349_000);
     });
 
     it('returns the exact transaction object from the repository', async () => {
@@ -437,11 +436,7 @@ describe('CreditService.deductCredits', () => {
       await deductCredits('user-1', 2500, defaultMetadata, deps);
 
       expect(repo.deductCredits).toHaveBeenCalledTimes(1);
-      expect(repo.deductCredits).toHaveBeenCalledWith(
-        'alloc-custom-42',
-        2500,
-        defaultMetadata,
-      );
+      expect(repo.deductCredits).toHaveBeenCalledWith('alloc-custom-42', 2500, defaultMetadata);
     });
 
     it('does not call deductCredits when findCurrentAllocation returns null', async () => {
@@ -494,6 +489,20 @@ describe('CreditService.deductCredits', () => {
       expect(result.error.details).toHaveProperty('requested');
       expect(result.error.details).toHaveProperty('remaining');
       expect(result.error.details).toHaveProperty('total');
+    });
+  });
+
+  describe('Conditional commit', () => {
+    it('returns InsufficientCredits when the repository rejects a raced debit', async () => {
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      repo.deductCredits.mockResolvedValue(null);
+
+      const result = await deductCredits('user-1', 1000, defaultMetadata, deps);
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+      expect(result.error.message).toContain('changed before');
     });
   });
 

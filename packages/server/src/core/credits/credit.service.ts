@@ -9,9 +9,10 @@ import { ErrorCode } from '@proso/shared';
 import type { Result } from '@proso/shared';
 import { Err, Ok } from '@proso/shared';
 import type {
+  CreditAllocationRecord,
   CreditDeductionMetadata,
+  CreditDeductionRecord,
   CreditRepositoryPort,
-  CreditTransactionRecord,
 } from '../../ports/credit-repository.port.js';
 import { creditError } from '../shared/domain-errors.js';
 import type { CreditError } from '../shared/domain-errors.js';
@@ -21,24 +22,23 @@ export interface CreditServiceDeps {
 }
 
 /**
- * Deduct credits from the user's current allocation.
+ * Validate that the current allocation can cover a future conditional debit.
  *
  * Checks:
  * 1. Active allocation exists
  * 2. Allocation period has not expired (INV-004)
  * 3. Sufficient remaining credits
  *
- * Returns the transaction record on success, or a CreditError on failure.
+ * This is a preflight only. The repository still enforces the balance
+ * condition atomically when the debit is committed.
  */
-export async function deductCredits(
+export async function checkCredits(
   userId: string,
   amount: number,
-  metadata: CreditDeductionMetadata,
   deps: CreditServiceDeps,
-): Promise<Result<CreditTransactionRecord, CreditError>> {
+): Promise<Result<CreditAllocationRecord, CreditError>> {
   const allocation = await deps.creditRepository.findCurrentAllocation(userId);
 
-  // No allocation found for this user
   if (!allocation) {
     return Err(
       creditError(
@@ -48,7 +48,6 @@ export async function deductCredits(
     );
   }
 
-  // INV-004: Check if the allocation period has expired
   const now = new Date();
   if (allocation.periodEnd.getTime() < now.getTime()) {
     return Err(
@@ -60,7 +59,6 @@ export async function deductCredits(
     );
   }
 
-  // Check sufficient credits
   if (allocation.remainingCredits < amount) {
     return Err(
       creditError(
@@ -75,8 +73,44 @@ export async function deductCredits(
     );
   }
 
-  // All checks pass — perform deduction
-  const transaction = await deps.creditRepository.deductCredits(allocation.id, amount, metadata);
+  return Ok(allocation);
+}
+
+/**
+ * Commit a conditional credit debit.
+ *
+ * The preflight keeps known-invalid requests away from paid providers. The
+ * repository condition is still authoritative so concurrent requests cannot
+ * drive the balance below zero between the check and the commit.
+ */
+export async function deductCredits(
+  userId: string,
+  amount: number,
+  metadata: CreditDeductionMetadata,
+  deps: CreditServiceDeps,
+): Promise<Result<CreditDeductionRecord, CreditError>> {
+  const preflight = await checkCredits(userId, amount, deps);
+  if (!preflight.ok) {
+    return preflight;
+  }
+
+  const transaction = await deps.creditRepository.deductCredits(
+    preflight.value.id,
+    amount,
+    metadata,
+  );
+  if (!transaction) {
+    return Err(
+      creditError(
+        ErrorCode.InsufficientCredits,
+        'Credit balance changed before the synthesis debit could be committed',
+        {
+          requested: amount,
+          allocationId: preflight.value.id,
+        },
+      ),
+    );
+  }
 
   return Ok(transaction);
 }

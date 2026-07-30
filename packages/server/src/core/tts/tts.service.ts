@@ -10,8 +10,9 @@ import type { Result } from '@proso/shared';
 import { Err, Ok, isErr } from '@proso/shared';
 import type { CacheStorePort } from '../../ports/cache-store.port.js';
 import type { CreditRepositoryPort } from '../../ports/credit-repository.port.js';
+import type { LoggerPort } from '../../ports/logger.port.js';
 import type { TTSProviderPort, TTSSynthesizeResult } from '../../ports/tts-provider.port.js';
-import { deductCredits } from '../credits/credit.service.js';
+import { checkCredits, deductCredits } from '../credits/credit.service.js';
 import { selectProvider } from '../routing/provider-router.js';
 import { ttsError } from '../shared/domain-errors.js';
 import type { CreditError, TTSError } from '../shared/domain-errors.js';
@@ -19,6 +20,7 @@ import type { CreditError, TTSError } from '../shared/domain-errors.js';
 export interface TTSServiceDeps {
   cacheStore: CacheStorePort;
   creditRepository: CreditRepositoryPort;
+  logger?: LoggerPort;
   providers: Map<TTSProvider, TTSProviderPort>;
 }
 
@@ -79,6 +81,25 @@ async function tryProvider(
   return provider.synthesize({ text, voice, language, speed, byokApiKey });
 }
 
+async function cacheAudioBestEffort(
+  cacheKey: string,
+  audio: Buffer,
+  deps: Pick<TTSServiceDeps, 'cacheStore' | 'logger'>,
+): Promise<void> {
+  try {
+    await deps.cacheStore.set(cacheKey, audio);
+  } catch (error: unknown) {
+    try {
+      deps.logger?.warn('TTS audio cache write failed after successful synthesis', {
+        cacheKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } catch {
+      // A reporting failure must never turn already-paid audio into an HTTP failure.
+    }
+  }
+}
+
 /**
  * Orchestrate TTS synthesis with caching, credit checking, and fallback.
  *
@@ -86,10 +107,10 @@ async function tryProvider(
  * 1. Generate cache key from request parameters
  * 2. Check cache (INV-006: cached content never re-charges)
  * 3. Route to best provider via selectProvider()
- * 4. Calculate credit cost via calculateCreditCost()
- * 5. Deduct credits BEFORE synthesis (fail fast on insufficient credits)
- * 6. Call provider.synthesize()
- * 7. On provider failure, try fallback chain
+ * 4. Preflight credits before paid provider work
+ * 5. Call provider.synthesize()
+ * 6. On provider failure, try fallback chain
+ * 7. Conditionally commit credits for the provider that actually succeeded
  * 8. Store result in cache for future requests
  * 9. Return audio with metadata
  */
@@ -126,50 +147,33 @@ export async function synthesize(
     );
   }
 
-  // Step 2: Check cache (INV-006: cached content never re-charges)
-  const cacheKey = buildCacheKey(request.text, resolvedProvider, request.voice, request.language);
+  const candidates = [resolvedProvider, ...routing.fallbackChain].filter(
+    (provider): provider is Exclude<TTSProvider, TTSProvider.Browser> =>
+      provider !== TTSProvider.Browser,
+  );
 
-  const cached = await deps.cacheStore.get(cacheKey);
-  if (cached) {
-    // INV-006: Cache hit — return without charging credits
-    // We need to look up remaining credits for the response
-    const allocation = await deps.creditRepository.findCurrentAllocation(request.userId);
-    return Ok({
-      audio: cached,
-      contentType: 'audio/mpeg',
-      provider: resolvedProvider,
-      cacheHit: true,
-      creditsUsed: 0,
-      creditsRemaining: allocation?.remainingCredits ?? 0,
-    });
-  }
-
-  // Step 3-4: Calculate credit cost and deduct (skip for free tier — INV-001)
-  let creditCost = 0;
-  if (request.tier !== SubscriptionTier.Free) {
-    creditCost = calculateCreditCost(
-      request.text.length,
-      resolvedProvider as Exclude<TTSProvider, TTSProvider.Browser>,
+  // Step 2: Probe cache keys in the same deterministic order as provider routing.
+  for (const candidate of candidates) {
+    const candidateCacheKey = buildCacheKey(
+      request.text,
+      candidate,
+      request.voice,
+      request.language,
     );
-
-    // Step 5: Deduct credits BEFORE synthesis (fail fast)
-    const deductionResult = await deductCredits(
-      request.userId,
-      creditCost,
-      {
-        provider: resolvedProvider,
-        characterCount: request.text.length,
-        description: `TTS synthesis via ${resolvedProvider}`,
-      },
-      { creditRepository: deps.creditRepository },
-    );
-
-    if (isErr(deductionResult)) {
-      return deductionResult;
+    const cached = await deps.cacheStore.get(candidateCacheKey);
+    if (cached) {
+      const allocation = await deps.creditRepository.findCurrentAllocation(request.userId);
+      return Ok({
+        audio: cached,
+        contentType: 'audio/mpeg',
+        provider: candidate,
+        cacheHit: true,
+        creditsUsed: 0,
+        creditsRemaining: allocation?.remainingCredits ?? 0,
+      });
     }
   }
 
-  // Step 6: Attempt synthesis with primary provider
   const primaryAdapter = deps.providers.get(resolvedProvider);
   if (!primaryAdapter) {
     return Err(
@@ -179,61 +183,105 @@ export async function synthesize(
     );
   }
 
-  let synthesisResult = await tryProvider(
-    primaryAdapter,
-    request.text,
-    request.voice,
-    request.language,
-  );
+  // Steps 3-5: preflight each candidate's real price immediately before paid
+  // provider work, then follow the deterministic fallback order.
+  let synthesisResult: TTSSynthesizeResult | undefined;
+  let successfulCandidate: Exclude<TTSProvider, TTSProvider.Browser> | undefined;
+  let lastProviderError: TTSError | undefined;
+  let lastCreditError: CreditError | undefined;
 
-  // Step 7: On failure, try fallback chain
-  if (isErr(synthesisResult)) {
-    for (const fallbackId of routing.fallbackChain) {
-      // Skip Browser — cannot synthesize server-side (INV-005)
-      if (fallbackId === TTSProvider.Browser) continue;
+  for (const candidate of candidates) {
+    const adapter = deps.providers.get(candidate);
+    if (!adapter) continue;
 
-      const fallbackAdapter = deps.providers.get(fallbackId);
-      if (!fallbackAdapter) continue;
-
-      synthesisResult = await tryProvider(
-        fallbackAdapter,
-        request.text,
-        request.voice,
-        request.language,
-      );
-
-      if (!isErr(synthesisResult)) break;
+    if (request.tier !== SubscriptionTier.Free) {
+      const candidateCost = calculateCreditCost(request.text.length, candidate);
+      const preflight = await checkCredits(request.userId, candidateCost, {
+        creditRepository: deps.creditRepository,
+      });
+      if (isErr(preflight)) {
+        lastCreditError = preflight.error;
+        continue;
+      }
     }
+
+    const attempt = await tryProvider(adapter, request.text, request.voice, request.language);
+    if (!attempt.ok) {
+      lastProviderError = attempt.error;
+      continue;
+    }
+    if (attempt.value.provider !== candidate) {
+      lastProviderError = ttsError(
+        ErrorCode.ProviderUnavailable,
+        `Provider ${candidate} returned mismatched provider metadata`,
+        {
+          expectedProvider: candidate,
+          returnedProvider: attempt.value.provider,
+        },
+      );
+      continue;
+    }
+
+    synthesisResult = attempt.value;
+    successfulCandidate = candidate;
+    break;
   }
 
-  // All providers failed — check final result
-  // Snapshot into const so TypeScript can narrow the discriminated union
-  const finalResult = synthesisResult;
-  if (!finalResult.ok) {
+  if (!synthesisResult || !successfulCandidate) {
+    if (lastCreditError) {
+      return Err(lastCreditError);
+    }
     return Err(
       ttsError(ErrorCode.AllProvidersUnavailable, 'All TTS providers failed to synthesize audio', {
         primary: resolvedProvider,
         fallbackChain: routing.fallbackChain,
-        lastError: finalResult.error.message,
+        lastError: lastProviderError?.message,
       }),
     );
   }
 
-  const result = finalResult.value;
+  const result = synthesisResult;
 
-  // Step 8: Store in cache for future requests (fire-and-forget)
-  await deps.cacheStore.set(cacheKey, result.audio);
+  // Step 6: Charge only after successful synthesis, using the provider that produced the audio.
+  // This preserves INV-001 and prevents failed provider chains from consuming credits.
+  let creditCost = 0;
+  let creditsRemaining = 0;
+  if (request.tier !== SubscriptionTier.Free) {
+    creditCost = calculateCreditCost(request.text.length, successfulCandidate);
 
-  // Step 9: Get updated remaining credits after deduction
-  const updatedAllocation = await deps.creditRepository.findCurrentAllocation(request.userId);
+    const deductionResult = await deductCredits(
+      request.userId,
+      creditCost,
+      {
+        provider: successfulCandidate,
+        characterCount: request.text.length,
+        description: `TTS synthesis via ${successfulCandidate}`,
+      },
+      { creditRepository: deps.creditRepository },
+    );
+
+    if (!deductionResult.ok) {
+      return deductionResult;
+    }
+    creditsRemaining = deductionResult.value.remainingCredits;
+  }
+
+  // Step 7: Store under the actual provider so future cache metadata is truthful.
+  const resultCacheKey = buildCacheKey(
+    request.text,
+    successfulCandidate,
+    request.voice,
+    request.language,
+  );
+  await cacheAudioBestEffort(resultCacheKey, result.audio, deps);
 
   return Ok({
     audio: result.audio,
     contentType: result.contentType,
-    provider: result.provider,
+    provider: successfulCandidate,
     cacheHit: false,
     creditsUsed: creditCost,
-    creditsRemaining: updatedAllocation?.remainingCredits ?? 0,
+    creditsRemaining,
   });
 }
 
@@ -302,8 +350,8 @@ async function synthesizeByok(
 
   const result = synthesisResult.value;
 
-  // Store in cache (fire-and-forget) — same audio benefits both BYOK and managed users
-  await deps.cacheStore.set(cacheKey, result.audio);
+  // Cache failure must not discard audio that the user's provider already generated.
+  await cacheAudioBestEffort(cacheKey, result.audio, deps);
 
   return Ok({
     audio: result.audio,

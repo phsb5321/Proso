@@ -1,27 +1,27 @@
 import {
-  TTSProvider,
-  SubscriptionTier,
-  ErrorCode,
-  calculateCreditCost,
-  Ok,
   Err,
-  isOk,
+  ErrorCode,
+  Ok,
+  SubscriptionTier,
+  TTSProvider,
+  calculateCreditCost,
   isErr,
+  isOk,
 } from '@proso/shared';
 import {
-  synthesize,
-  type TTSServiceDeps,
   type TTSRequest,
+  type TTSServiceDeps,
+  synthesize,
 } from '../../../../src/core/tts/tts.service';
-import type {
-  CreditRepositoryPort,
-  CreditAllocationRecord,
-  CreditTransactionRecord,
-} from '../../../../src/ports/credit-repository.port';
 import type { CacheStorePort } from '../../../../src/ports/cache-store.port';
 import type {
-  TTSProviderPort,
-} from '../../../../src/ports/tts-provider.port';
+  CreditAllocationRecord,
+  CreditDeductionRecord,
+  CreditRepositoryPort,
+  CreditTransactionRecord,
+} from '../../../../src/ports/credit-repository.port';
+import type { LoggerPort } from '../../../../src/ports/logger.port';
+import type { TTSProviderPort } from '../../../../src/ports/tts-provider.port';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,8 +44,8 @@ function makeMockAllocation(
 }
 
 function makeMockTransaction(
-  overrides: Partial<CreditTransactionRecord> = {},
-): CreditTransactionRecord {
+  overrides: Partial<CreditDeductionRecord> = {},
+): CreditDeductionRecord {
   return {
     id: 'tx-1',
     userId: 'user-1',
@@ -56,6 +56,7 @@ function makeMockTransaction(
     characterCount: 100,
     description: 'TTS synthesis via openai',
     createdAt: new Date(),
+    remainingCredits: 349_000,
     ...overrides,
   };
 }
@@ -78,6 +79,15 @@ function makeMockCreditRepository(): jest.Mocked<CreditRepositoryPort> {
   } as unknown as jest.Mocked<CreditRepositoryPort>;
 }
 
+function makeMockLogger(): jest.Mocked<LoggerPort> {
+  return {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  };
+}
+
 function createMockTTSProvider(
   providerId: TTSProvider,
   overrides: Partial<{
@@ -98,8 +108,7 @@ function createMockTTSProvider(
           provider: providerId,
         }),
       ),
-    getVoices:
-      overrides.getVoices ?? jest.fn().mockResolvedValue(Ok([])),
+    getVoices: overrides.getVoices ?? jest.fn().mockResolvedValue(Ok([])),
   } as unknown as jest.Mocked<TTSProviderPort>;
 }
 
@@ -116,6 +125,7 @@ function makeDefaultDeps(overrides: Partial<TTSServiceDeps> = {}): TTSServiceDep
   return {
     cacheStore,
     creditRepository,
+    logger: makeMockLogger(),
     providers,
     ...overrides,
   };
@@ -137,7 +147,7 @@ function makeDefaultRequest(overrides: Partial<TTSRequest> = {}): TTSRequest {
 function setupSuccessFlow(
   deps: TTSServiceDeps,
   allocationOverrides: Partial<CreditAllocationRecord> = {},
-): { allocation: CreditAllocationRecord; transaction: CreditTransactionRecord } {
+): { allocation: CreditAllocationRecord; transaction: CreditDeductionRecord } {
   const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
   const allocation = makeMockAllocation(allocationOverrides);
   const transaction = makeMockTransaction();
@@ -271,6 +281,46 @@ describe('TTSService.synthesize', () => {
       const [, audioArg] = cacheStore.set.mock.calls[0];
       expect(audioArg).toEqual(Buffer.from('audio-data'));
     });
+
+    it('returns paid audio and reports telemetry when the cache write rejects', async () => {
+      const cacheStore = deps.cacheStore as jest.Mocked<CacheStorePort>;
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      const logger = deps.logger as jest.Mocked<LoggerPort>;
+      const paidAudio = Buffer.from('paid-audio');
+      cacheStore.set.mockRejectedValue(new Error('cache unavailable'));
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      repo.deductCredits.mockResolvedValue(makeMockTransaction({ remainingCredits: 349_975 }));
+      const provider = createMockTTSProvider(TTSProvider.OpenAI, {
+        synthesize: jest.fn().mockResolvedValue(
+          Ok({
+            audio: paidAudio,
+            contentType: 'audio/mpeg',
+            provider: TTSProvider.OpenAI,
+          }),
+        ),
+      });
+      deps.providers.set(TTSProvider.OpenAI, provider);
+
+      const result = await synthesize(
+        makeDefaultRequest({
+          provider: TTSProvider.OpenAI,
+          tier: SubscriptionTier.Pro,
+        }),
+        deps,
+      );
+
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+      expect(result.value.audio).toEqual(paidAudio);
+      expect(result.value.creditsRemaining).toBe(349_975);
+      expect(provider.synthesize).toHaveBeenCalledTimes(1);
+      expect(repo.deductCredits).toHaveBeenCalledTimes(1);
+      expect(cacheStore.set).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'TTS audio cache write failed after successful synthesis',
+        expect.objectContaining({ error: 'cache unavailable' }),
+      );
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -279,9 +329,7 @@ describe('TTSService.synthesize', () => {
   describe('Insufficient credits', () => {
     it('returns CreditError with InsufficientCredits when user lacks credits', async () => {
       const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
-      repo.findCurrentAllocation.mockResolvedValue(
-        makeMockAllocation({ remainingCredits: 1 }),
-      );
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation({ remainingCredits: 1 }));
 
       const request = makeDefaultRequest({
         provider: TTSProvider.OpenAI,
@@ -292,6 +340,9 @@ describe('TTSService.synthesize', () => {
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
       expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+      for (const provider of deps.providers.values()) {
+        expect(provider.synthesize).not.toHaveBeenCalled();
+      }
     });
   });
 
@@ -343,6 +394,38 @@ describe('TTSService.synthesize', () => {
       // The audio should come from the fallback provider
       expect(result.value.audio).toEqual(Buffer.from('audio-data'));
     });
+
+    it('does not call a fallback whose real price exceeds the available balance', async () => {
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation({ remainingCredits: 500 }));
+      deps.providers.delete(TTSProvider.OpenAI);
+      const groqProvider = createMockTTSProvider(TTSProvider.Groq, {
+        synthesize: jest.fn().mockResolvedValue(
+          Err({
+            code: ErrorCode.ProviderUnavailable,
+            message: 'Groq is down',
+          }),
+        ),
+      });
+      const elevenLabsProvider = createMockTTSProvider(TTSProvider.ElevenLabs);
+      deps.providers.set(TTSProvider.Groq, groqProvider);
+      deps.providers.set(TTSProvider.ElevenLabs, elevenLabsProvider);
+
+      const result = await synthesize(
+        makeDefaultRequest({
+          text: 'A'.repeat(1000),
+          tier: SubscriptionTier.Pro,
+        }),
+        deps,
+      );
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+      expect(groqProvider.synthesize).toHaveBeenCalledTimes(1);
+      expect(elevenLabsProvider.synthesize).not.toHaveBeenCalled();
+      expect(repo.deductCredits).not.toHaveBeenCalled();
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -350,7 +433,18 @@ describe('TTSService.synthesize', () => {
   // -----------------------------------------------------------------------
   describe('All providers fail', () => {
     it('returns TTSError with AllProvidersUnavailable when every provider fails', async () => {
-      setupSuccessFlow(deps);
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      let remainingCredits = 350_000;
+      const ledger: CreditTransactionRecord[] = [];
+      repo.findCurrentAllocation.mockImplementation(async () =>
+        makeMockAllocation({ remainingCredits }),
+      );
+      repo.deductCredits.mockImplementation(async (_allocationId, amount) => {
+        remainingCredits -= amount;
+        const transaction = makeMockTransaction({ amount: -amount });
+        ledger.push(transaction);
+        return transaction;
+      });
 
       const failingSynthesize = jest.fn().mockResolvedValue(
         Err({
@@ -373,6 +467,9 @@ describe('TTSService.synthesize', () => {
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
       expect(result.error.code).toBe(ErrorCode.AllProvidersUnavailable);
+      expect(repo.deductCredits).not.toHaveBeenCalled();
+      expect(remainingCredits).toBe(350_000);
+      expect(ledger).toEqual([]);
     });
   });
 
@@ -470,14 +567,17 @@ describe('TTSService.synthesize', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 10. Credits deducted before synthesis
+  // 10. Credit preflight and conditional commit
   // -----------------------------------------------------------------------
-  describe('Credits deducted before synthesis', () => {
-    it('calls creditRepository.deductCredits before provider.synthesize', async () => {
+  describe('Credit preflight and conditional commit', () => {
+    it('checks balance before synthesis and commits the debit only after success', async () => {
       const callOrder: string[] = [];
 
       const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
-      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      repo.findCurrentAllocation.mockImplementation(async () => {
+        callOrder.push('checkCredits');
+        return makeMockAllocation();
+      });
       repo.deductCredits.mockImplementation(async () => {
         callOrder.push('deductCredits');
         return makeMockTransaction();
@@ -498,9 +598,22 @@ describe('TTSService.synthesize', () => {
       const request = makeDefaultRequest({ tier: SubscriptionTier.Pro });
       await synthesize(request, deps);
 
-      expect(callOrder.indexOf('deductCredits')).toBeLessThan(
-        callOrder.indexOf('synthesize'),
-      );
+      expect(callOrder.indexOf('checkCredits')).toBeLessThan(callOrder.indexOf('synthesize'));
+      expect(callOrder.indexOf('synthesize')).toBeLessThan(callOrder.indexOf('deductCredits'));
+    });
+
+    it('returns a credit error without caching when the conditional commit loses a race', async () => {
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      const cacheStore = deps.cacheStore as jest.Mocked<CacheStorePort>;
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      repo.deductCredits.mockResolvedValue(null);
+
+      const result = await synthesize(makeDefaultRequest(), deps);
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+      expect(cacheStore.set).not.toHaveBeenCalled();
     });
   });
 
@@ -538,20 +651,15 @@ describe('TTSService.synthesize', () => {
   // 12. creditsRemaining in response
   // -----------------------------------------------------------------------
   describe('creditsRemaining in response', () => {
-    it('returns creditsRemaining from the updated allocation after synthesis', async () => {
+    it('returns the atomic debit balance without a fallible post-debit allocation read', async () => {
       const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
 
-      // First call: for routing/deduction check - returns original allocation
-      // The deductCredits flow calls findCurrentAllocation once,
-      // then after synthesis the service calls it again for the updated balance.
       const originalAllocation = makeMockAllocation({ remainingCredits: 100_000 });
-      const updatedAllocation = makeMockAllocation({ remainingCredits: 99_000 });
-
       repo.findCurrentAllocation
-        .mockResolvedValueOnce(originalAllocation) // called by deductCredits
-        .mockResolvedValueOnce(updatedAllocation); // called after synthesis for response
-
-      repo.deductCredits.mockResolvedValue(makeMockTransaction());
+        .mockResolvedValueOnce(originalAllocation)
+        .mockResolvedValueOnce(originalAllocation)
+        .mockRejectedValue(new Error('post-debit metadata read must not run'));
+      repo.deductCredits.mockResolvedValue(makeMockTransaction({ remainingCredits: 99_000 }));
 
       const request = makeDefaultRequest({
         provider: TTSProvider.OpenAI,
@@ -562,6 +670,7 @@ describe('TTSService.synthesize', () => {
       expect(isOk(result)).toBe(true);
       if (!isOk(result)) return;
       expect(result.value.creditsRemaining).toBe(99_000);
+      expect(repo.findCurrentAllocation).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -572,7 +681,9 @@ describe('TTSService.synthesize', () => {
     it('uses the requested provider when request.provider is set', async () => {
       setupSuccessFlow(deps);
 
-      const elevenlabsProvider = deps.providers.get(TTSProvider.ElevenLabs) as jest.Mocked<TTSProviderPort>;
+      const elevenlabsProvider = deps.providers.get(
+        TTSProvider.ElevenLabs,
+      ) as jest.Mocked<TTSProviderPort>;
 
       const request = makeDefaultRequest({
         provider: TTSProvider.ElevenLabs,
@@ -591,7 +702,9 @@ describe('TTSService.synthesize', () => {
     it('selects ElevenLabs as primary when Enterprise tier and no preferred provider', async () => {
       setupSuccessFlow(deps);
 
-      const elevenlabsProvider = deps.providers.get(TTSProvider.ElevenLabs) as jest.Mocked<TTSProviderPort>;
+      const elevenlabsProvider = deps.providers.get(
+        TTSProvider.ElevenLabs,
+      ) as jest.Mocked<TTSProviderPort>;
 
       const request = makeDefaultRequest({
         tier: SubscriptionTier.Enterprise,
@@ -641,6 +754,93 @@ describe('TTSService.synthesize', () => {
       if (!isOk(result)) return;
       expect(result.value.provider).toBe(TTSProvider.ElevenLabs);
     });
+
+    it('stores and replays fallback audio under the actual provider key', async () => {
+      const cacheEntries = new Map<string, Buffer>();
+      const cacheStore = deps.cacheStore as jest.Mocked<CacheStorePort>;
+      cacheStore.get.mockImplementation(async (key) => cacheEntries.get(key) ?? null);
+      cacheStore.set.mockImplementation(async (key, audio) => {
+        cacheEntries.set(key, audio);
+      });
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      repo.deductCredits.mockResolvedValue(makeMockTransaction());
+      deps.providers.delete(TTSProvider.ElevenLabs);
+      const groqProvider = createMockTTSProvider(TTSProvider.Groq, {
+        synthesize: jest.fn().mockResolvedValue(
+          Err({
+            code: ErrorCode.ProviderUnavailable,
+            message: 'Groq is down',
+          }),
+        ),
+      });
+      const openAiProvider = createMockTTSProvider(TTSProvider.OpenAI);
+      deps.providers.set(TTSProvider.Groq, groqProvider);
+      deps.providers.set(TTSProvider.OpenAI, openAiProvider);
+      const request = makeDefaultRequest({ tier: SubscriptionTier.Pro });
+
+      const first = await synthesize(request, deps);
+
+      expect(isOk(first)).toBe(true);
+      if (!isOk(first)) return;
+      expect(first.value.provider).toBe(TTSProvider.OpenAI);
+      expect(first.value.cacheHit).toBe(false);
+      const [storedKey] = cacheStore.set.mock.calls[0];
+      expect(storedKey).toContain(`tts:${TTSProvider.OpenAI}:`);
+      expect(storedKey).not.toContain(`tts:${TTSProvider.Groq}:`);
+      expect(repo.deductCredits).toHaveBeenCalledWith(
+        'alloc-1',
+        calculateCreditCost(request.text.length, TTSProvider.OpenAI),
+        expect.objectContaining({ provider: TTSProvider.OpenAI }),
+      );
+
+      const second = await synthesize(request, deps);
+
+      expect(isOk(second)).toBe(true);
+      if (!isOk(second)) return;
+      expect(second.value).toMatchObject({
+        provider: TTSProvider.OpenAI,
+        cacheHit: true,
+        creditsUsed: 0,
+      });
+      expect(groqProvider.synthesize).toHaveBeenCalledTimes(1);
+      expect(openAiProvider.synthesize).toHaveBeenCalledTimes(1);
+      expect(repo.deductCredits).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects mismatched adapter provider metadata before debit or cache', async () => {
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+      const cacheStore = deps.cacheStore as jest.Mocked<CacheStorePort>;
+      repo.findCurrentAllocation.mockResolvedValue(makeMockAllocation());
+      deps.providers.clear();
+      deps.providers.set(
+        TTSProvider.OpenAI,
+        createMockTTSProvider(TTSProvider.OpenAI, {
+          synthesize: jest.fn().mockResolvedValue(
+            Ok({
+              audio: Buffer.from('audio-data'),
+              contentType: 'audio/mpeg',
+              provider: TTSProvider.Browser,
+            }),
+          ),
+        }),
+      );
+
+      const result = await synthesize(
+        makeDefaultRequest({
+          provider: TTSProvider.OpenAI,
+          tier: SubscriptionTier.Pro,
+        }),
+        deps,
+      );
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error.code).toBe(ErrorCode.AllProvidersUnavailable);
+      expect(result.error.details?.lastError).toContain('mismatched provider metadata');
+      expect(repo.deductCredits).not.toHaveBeenCalled();
+      expect(cacheStore.set).not.toHaveBeenCalled();
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -662,7 +862,7 @@ describe('TTSService.synthesize', () => {
       await synthesize(request, deps);
 
       // Verify cache was checked with a key containing provider, voice, language
-      expect(cacheStore.get).toHaveBeenCalledTimes(1);
+      expect(cacheStore.get).toHaveBeenCalledTimes(3);
       const cacheKey = cacheStore.get.mock.calls[0][0] as string;
       expect(cacheKey).toContain('openai');
       expect(cacheKey).toContain('alloy');
