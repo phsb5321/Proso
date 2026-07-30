@@ -2,8 +2,9 @@
 
 The 30/07/2026 Mac Firefox installation and local TTS experiment is recorded in
 [`docs/research/local-reader-lab-2026-07-30.md`](research/local-reader-lab-2026-07-30.md).
-It is deliberately marked partially verified because the production API returned HTTP 502 during
-the real-browser acceptance attempt.
+It remains partially verified after the production recovery below because macOS denied UI
+automation: the installed extension has not yet been observed through popup click, extraction,
+audio playback, and controls in one real-browser run.
 
 Evidence reconciled on 30/07/2026. Symbols: ✓ verified, ◐ partially verified, ◯ unresolved,
 ✗ disproven as a delivery claim.
@@ -35,7 +36,33 @@ missing fallback to restore casually.
 | ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | Real Firefox reading works end to end | Source route and deterministic integrations are covered; no real Firefox session was accepted in this slice |
-| ◯ | Production server/provider availability | Not probed; production, secrets, quotas, and deploys are outside this slice |
+| ✓ | Production server/provider availability | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3 |
+
+## Production deployment receipt — 30/07/2026
+
+At 18:30–18:36 BRT, the merged server SHA
+`9c761c341fa91fca2f26badfff5a6d86874eb7df` was deployed to `proso-api`. Dokku's
+port and `/health` startup checks passed, its deploy lock was restored, and the public endpoint
+returned HTTP 200 with database and memory up.
+
+One sanitized free-tier canary (`Proso deploy check.`) returned a 19,584-byte OpenAI MP3 in
+4.747 seconds, duration 1.224 seconds, with zero credits used. The identical request from the
+MacBook returned in 0.242 seconds with `X-Cache-Hit: true`, zero credits used, and the same
+SHA-256 `53dfc7d3232df18fc41a02ca8a4824c1c1ff9b3a420843453abc5873e0840e3f`.
+
+The log gateway was redeployed from a signed, fast-forward deployment commit
+`3908f3c55368efdd32c02872012d01eff4e60617`; its public health endpoint returned HTTP 200 with
+Loki connected. GitHub Pages deployment run
+[`30583836531`](https://github.com/phsb5321/Proso/actions/runs/30583836531) completed successfully
+at the merged server SHA.
+
+The Firefox build at the merged SHA remained byte-for-byte identical to the already-running
+dedicated Mac profile artifact (`9b4050e347d5c78f7d306f164f101d1c8b48b33e0e507d664fe3515cb84ff673`).
+The daily Firefox profile was not modified. This proves current bytes are installed and the Mac can
+reach the recovered API; it does not upgrade the real-browser journey above to green.
+
+The Orange Pi TTS/STT appliance remains research-only. No appliance, client adapter, model service,
+DNS mapping, secret, or audio-integration PR was deployed.
 
 Focused evidence captured before the slice:
 
