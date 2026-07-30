@@ -56,6 +56,39 @@ pnpm --filter @proso/extension test:unit -- --maxWorkers=100% \
 
 The first command passed 3 suites / 65 tests; the second passed 6 suites / 159 tests.
 
+## TTS credit correctness — Slice 1a
+
+Verified on 30/07/2026 at 18:10 BRT. Hypothesis: failed or malformed provider chains and fallible
+post-debit work could consume credits without delivering audio; the fix is per-candidate preflight
+plus an atomic conditional commit only for the successful candidate, followed by a non-failing
+response path. Falsifier: any terminal failure changes balance/ledger, concurrent debits make the
+balance negative, fallback audio is charged/cached as the primary provider, mismatched provider
+metadata reaches debit/cache, or cache/metadata failure after debit prevents returning paid audio.
+
+Evidence:
+
+- The planted all-provider failure assertion was red before the change: Jest observed one Groq
+  debit. Receipt `/tmp/proso-slice1-credit-red.log`, SHA-256
+  `8e410084b5218d16cd2a96e9c53c83f44dde4c156d92a10416d7fd18d12d831b`.
+- `pnpm --filter @proso/server exec tsc --noEmit` exited 0.
+- The focused managed/BYOK/routing/credit/controller/provider/Prisma gate passed 8 suites and
+  210/210 tests in 31.725 seconds. This includes all 23 Prisma contracts against Postgres with the
+  canonical NixOS schema engine and the concurrent conditional-debit case. Receipt
+  `/tmp/proso-slice1-tts-credit-prisma-focused.log`, SHA-256
+  `86ee70915b6cba0b6ea7c0a263780989e8cb03fcd34cb982349e42ef3475bfbd`.
+- Regression coverage asserts preflight before provider work, no debit on terminal failure, debit
+  only after success, atomic race rejection, actual fallback pricing/cache/provider attribution,
+  malformed provider metadata rejection, authoritative remaining balance from the atomic debit,
+  and best-effort cache failure returning paid audio with a warning.
+- Exact different-family reviewer `llama-3.3-70b-versatile` returned `PASS` for all six
+  TTS/credit requirements with zero findings after inspecting the complete final diff.
+- The edit hook's whole-file jscpd check remains a known legacy false positive, not a bypass:
+  TTS spec 6.52%/8 clones, credit spec 19.49%/14, and Prisma contract 23.26%/10. Slice 2 will replace
+  this with a changed-code ratchet.
+
+Gateway workspace integration, seeded property tests, and the broader anomaly matrix are explicitly
+deferred to Slice 1b from merged `main`; they are not partially implemented in this rollback unit.
+
 ## Highest-leverage gap and falsifier
 
 Hypothesis: the immediate delivery risk was a false-green verification surface, because no

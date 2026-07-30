@@ -7,7 +7,7 @@ export abstract class CreditRepositoryPort {
     allocationId: string,
     amount: number,
     metadata: CreditDeductionMetadata,
-  ): Promise<CreditTransactionRecord>;
+  ): Promise<CreditDeductionRecord | null>;
   abstract getAllocationHistory(
     userId: string,
     limit: number,
@@ -40,6 +40,10 @@ export interface CreditTransactionRecord {
   characterCount?: number;
   description?: string;
   createdAt: Date;
+}
+
+export interface CreditDeductionRecord extends CreditTransactionRecord {
+  remainingCredits: number;
 }
 
 export interface CreditDeductionMetadata {

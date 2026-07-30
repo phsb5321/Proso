@@ -3,6 +3,7 @@ import { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
   type CreditAllocationRecord,
   type CreditDeductionMetadata,
+  type CreditDeductionRecord,
   CreditRepositoryPort,
   type CreditTransactionRecord,
 } from '../../ports/credit-repository.port';
@@ -30,14 +31,23 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
     allocationId: string,
     amount: number,
     metadata: CreditDeductionMetadata,
-  ): Promise<CreditTransactionRecord> {
-    // Atomic deduction using a transaction
+  ): Promise<CreditDeductionRecord | null> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const allocation = await tx.creditAllocation.update({
-        where: { id: allocationId },
+      const debit = await tx.creditAllocation.updateMany({
+        where: {
+          id: allocationId,
+          remainingCredits: { gte: amount },
+          periodEnd: { gte: new Date() },
+        },
         data: { remainingCredits: { decrement: amount } },
       });
+      if (debit.count !== 1) {
+        return null;
+      }
 
+      const allocation = await tx.creditAllocation.findUniqueOrThrow({
+        where: { id: allocationId },
+      });
       const transaction = await tx.creditTransaction.create({
         data: {
           allocationId,
@@ -49,9 +59,17 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
         },
       });
 
-      return transaction;
+      return {
+        transaction,
+        remainingCredits: allocation.remainingCredits,
+      };
     });
-    return this.toTransactionRecord(result);
+    return result
+      ? {
+          ...this.toTransactionRecord(result.transaction),
+          remainingCredits: result.remainingCredits,
+        }
+      : null;
   }
 
   async getAllocationHistory(

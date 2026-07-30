@@ -202,6 +202,8 @@ describe('PrismaCreditRepository (contract)', () => {
         characterCount: 250,
       });
 
+      expect(transaction).not.toBeNull();
+      if (!transaction) return;
       expect(transaction.id).toBeDefined();
       expect(transaction.allocationId).toBe(allocation.id);
       expect(transaction.userId).toBe(user.id);
@@ -210,6 +212,7 @@ describe('PrismaCreditRepository (contract)', () => {
       expect(transaction.provider).toBe('openai');
       expect(transaction.characterCount).toBe(250);
       expect(transaction.createdAt).toBeInstanceOf(Date);
+      expect(transaction.remainingCredits).toBe(9500);
 
       // Verify remaining credits were decremented
       const updatedAllocation = await repo.findCurrentAllocation(user.id);
@@ -259,19 +262,51 @@ describe('PrismaCreditRepository (contract)', () => {
         characterCount: 50,
       });
 
+      expect(transaction).not.toBeNull();
+      if (!transaction) return;
       // This verifies the bug fix: userId should be the actual user ID,
       // not an empty string
       expect(transaction.userId).toBe(user.id);
       expect(transaction.userId).not.toBe('');
     });
 
-    it('should throw for non-existent allocation', async () => {
-      await expect(
-        repo.deductCredits('non-existent-allocation', 100, {
+    it('should return null for a non-existent allocation', async () => {
+      const transaction = await repo.deductCredits('non-existent-allocation', 100, {
+        provider: 'openai',
+        characterCount: 50,
+      });
+
+      expect(transaction).toBeNull();
+    });
+
+    it('should atomically reject one of two debits that exceed the shared balance', async () => {
+      const user = await createTestUser(prisma);
+      const sub = await createTestSubscription(prisma, user.id);
+      const now = new Date();
+      const allocation = await createTestCreditAllocation(prisma, user.id, sub.id, {
+        totalCredits: 1000,
+        remainingCredits: 1000,
+        periodStart: new Date(now.getTime() - 86400000),
+        periodEnd: new Date(now.getTime() + 86400000),
+      });
+
+      const results = await Promise.all([
+        repo.deductCredits(allocation.id, 700, {
           provider: 'openai',
-          characterCount: 50,
+          characterCount: 350,
         }),
-      ).rejects.toThrow();
+        repo.deductCredits(allocation.id, 700, {
+          provider: 'openai',
+          characterCount: 350,
+        }),
+      ]);
+
+      expect(results.filter((result) => result !== null)).toHaveLength(1);
+      expect(results.filter((result) => result === null)).toHaveLength(1);
+      expect(results.find((result) => result !== null)?.remainingCredits).toBe(300);
+      const updatedAllocation = await repo.findCurrentAllocation(user.id);
+      expect(updatedAllocation?.remainingCredits).toBe(300);
+      expect(await repo.getTransactionCount(user.id)).toBe(1);
     });
   });
 
@@ -496,6 +531,8 @@ describe('PrismaCreditRepository (contract)', () => {
         characterCount: 50,
       });
 
+      expect(transaction).not.toBeNull();
+      if (!transaction) return;
       expect(transaction.provider).toBe('openai');
       expect(transaction.characterCount).toBe(50);
     });
