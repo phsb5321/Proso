@@ -35,9 +35,7 @@ declare module 'jest-axe' {
   /** axe-core run options (subset used by these tests). */
   export interface AxeRunOptions {
     rules?: Record<string, { enabled: boolean }>;
-    runOnly?:
-      | string[]
-      | { type: 'tag' | 'rule'; values: string[] };
+    runOnly?: string[] | { type: 'tag' | 'rule'; values: string[] };
     [key: string]: unknown;
   }
 

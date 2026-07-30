@@ -1,0 +1,5 @@
+docs/telemetry/debugging.md:curl-auth-header:226
+packages/extension/tests/contract/settings-store.contract.test.ts:generic-api-key:126
+packages/extension/tests/unit/telemetry/usage-privacy.test.ts:generic-api-key:26
+packages/server/tests/unit/infrastructure/tts-test-key.spec.ts:generic-api-key:268
+packages/extension/tests/unit/telemetry/usage-events.test.ts:generic-api-key:332

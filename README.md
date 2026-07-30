@@ -2,13 +2,17 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![CI](https://github.com/phsb5321/Proso/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/Proso/actions/workflows/ci.yml)
-[![Firefox 112+](https://img.shields.io/badge/Firefox-112%2B-orange.svg)](https://www.mozilla.org/firefox/)
+[![Firefox 109+](https://img.shields.io/badge/Firefox-109%2B-orange.svg)](https://www.mozilla.org/firefox/)
 
 **Transform any webpage into an immersive audio experience**
 
-> **Firefox-First**: Proso is developed and optimized for Firefox. We leverage Firefox's native extension capabilities including event pages with DOM access, native `Audio` API in background scripts, and `speechSynthesis` for Browser TTS.
+> **Firefox-First**: Proso is developed and optimized for Firefox. It uses an event-page
+> background with DOM access and native `Audio` playback. Speech synthesis is server-backed.
 
-Proso is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with natural, expressive voices. Choose from premium AI voices (OpenAI, ElevenLabs) or use your browser's built-in speech synthesis.
+Proso is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with
+natural, expressive voices. The default free-tier flow needs no account, license key, or provider
+API key; the Proso server selects a configured TTS provider. Users may optionally supply a provider
+key for a single request through the BYOK flow.
 
 ## Features
 
@@ -19,7 +23,7 @@ Proso is a Firefox extension that uses AI-powered text-to-speech to read web pag
 - **Floating Controller** - Draggable on-page controls for easy access
 - **Context Menu Integration** - Right-click any selected text to read it aloud
 - **Modern Dark UI** - Beautiful, distraction-free interface
-- **Privacy First** - API keys stored locally, no data collection
+- **Optional BYOK** - Provider keys are stored in extension storage and forwarded per request
 
 ## Installation
 
@@ -38,25 +42,25 @@ Proso is a Firefox extension that uses AI-powered text-to-speech to read web pag
 2. Open Firefox and navigate to `about:debugging`
 3. Click "This Firefox" in the sidebar
 4. Click "Load Temporary Add-on..."
-5. Select the `manifest.json` file from the Proso folder
+5. Build the Firefox extension and select `.output/firefox-mv2/manifest.json`
 
 ## Setup
 
-### API Keys
+### TTS providers
 
-Proso supports multiple TTS providers:
+Proso routes synthesis through its server and currently supports these providers:
 
-| Provider | Quality | Cost | Setup |
-|----------|---------|------|-------|
-| **OpenAI** | Excellent | ~$0.015/1K chars | [Get API Key](https://platform.openai.com/api-keys) |
-| **ElevenLabs** | Premium | ~$0.30/1K chars | [Get API Key](https://elevenlabs.io/app/settings/api-keys) |
-| **Groq** | Good | Free tier available | [Get API Key](https://console.groq.com/keys) |
-| **Browser** | Good | Free | No setup needed |
+| Provider | Default path | Optional BYOK |
+|----------|--------------|---------------|
+| **OpenAI** | Server-managed free/credit routing | Supported |
+| **ElevenLabs** | Server-managed free/credit routing | Supported |
+| **Groq** | Server-managed free/credit routing | Supported |
+| **Cartesia** | BYOK-only | Supported |
 
 1. Click the Proso icon in your toolbar
 2. Click the gear icon to open Settings
-3. Enter your API key(s) for your preferred provider(s)
-4. Select your default provider
+3. Select your preferred provider
+4. Optionally enter that provider's API key to use BYOK
 
 ## Usage
 
@@ -108,89 +112,67 @@ Proso uses **WXT** (Web Extension Tools) with TypeScript for a modern developmen
 
 ### Prerequisites
 
-- Firefox 112+ (primary target)
+- Firefox 109+ (primary target)
 - Node.js 20.x
-- pnpm (preferred) or npm
+- pnpm 10.30.3
+- GNU Make for the unified delivery harness
 
 ### Setup
 
 ```bash
 git clone https://github.com/phsb5321/Proso.git
 cd Proso
-npm install
+pnpm install --frozen-lockfile
+make help
 ```
 
 ### Development Commands
 
 ```bash
+# Deterministic delivery checks
+make verify
+make verify-full
+
 # Start development server with hot reload
-npm run dev              # Default browser (Firefox)
-npm run dev:firefox      # Firefox explicitly
-npm run dev:chrome       # Chrome
+pnpm --filter @proso/extension dev
+pnpm --filter @proso/extension dev:firefox
+pnpm --filter @proso/extension dev:chrome
 
-# Build production extension
-npm run build            # Default browser
-npm run build:firefox    # Firefox (MV2)
-npm run build:chrome     # Chrome (MV3)
-npm run build:all        # All browsers
-
-# Create distributable zip
-npm run zip:firefox
-npm run zip:chrome
+# Build extension targets
+pnpm --filter @proso/extension build:firefox
+pnpm --filter @proso/extension build:chrome
+make build-all
 ```
 
 ### Testing & Quality
 
 ```bash
-npm test                # Run ESLint + unit tests
-npm run test:unit       # Unit tests only (Jest)
-npm run test:integration # Integration tests (Jest)
-npm run test:visual     # Visual regression (Playwright)
-npm run test:e2e        # End-to-end tests (Playwright)
-npm run test:security   # Security tests (Jest)
-npm run test:all        # Run all tests
-npm run lint            # ESLint
-npm run quality         # Full quality checks
+make smoke-reader       # Extraction-to-playback outcome oracle
+make test               # Workspace test suites
+make security           # Security tests + working-tree secret scan
+make quality            # TypeScript cycle + duplication checks
+make inventory          # Informational unused-code/dependency report
 ```
 
 #### Testing on NixOS
 
-If you're running on NixOS, Playwright requires Firefox to be available via `FIREFOX_PATH`:
-
-```bash
-# Set Firefox path for Playwright
-export FIREFOX_PATH=$(which firefox)
-
-# Or use the setup script
-./scripts/nixos-playwright-setup.sh
-
-# Run E2E/visual tests in headed mode (for debugging)
-npm run test:visual -- --headed
-npm run test:e2e -- --headed
-```
-
-The visual and E2E tests require a built extension. Run `npm run build:firefox` first.
+On NixOS, browser automation must run in the pinned Playwright Docker image; host Playwright
+launches are not a supported verification path. The existing browser suites are not part of
+`make gate` until they drive and assert the real server-backed reading journey. See
+[`docs/reading-journey-status.md`](docs/reading-journey-status.md).
 
 ### Project Structure
 
 ```
 Proso/
-├── src/                 # Source code (WXT srcDir)
-│   ├── entrypoints/     # WXT entry points (auto-discovered)
-│   │   ├── background.ts    # Service worker
-│   │   ├── content.ts       # Content script
-│   │   └── options/         # Options page
-│   ├── utils/           # Shared TypeScript utilities
-│   │   ├── config/          # Settings, defaults, migrations
-│   │   ├── audio/           # Playback sync, cache, visualizer
-│   │   ├── providers/       # TTS providers (6 supported)
-│   │   ├── content/         # Extractor, highlighter, footer
-│   │   ├── language/        # Language detection (franc-min)
-│   │   ├── logging/         # Remote logging
-│   │   └── messaging/       # Type-safe message handlers
-│   └── styles/          # CSS design tokens
-├── public/icons/        # Extension icons
-└── tests/               # Jest + Playwright tests
+├── packages/
+│   ├── extension/       # Firefox-first WXT extension
+│   ├── server/          # NestJS/Hono TTS and credit backend
+│   ├── shared/          # Shared schemas and domain types
+│   └── site/            # Landing page
+├── services/
+│   └── proso-log-gateway/
+└── docs/
 ```
 
 ### Technology Stack
@@ -215,10 +197,10 @@ Proso automatically detects page language using **franc-min**:
 
 ## Privacy
 
-- **API keys are stored locally** in your browser's extension storage
-- **No data is collected** by Proso
-- Text is sent only to your selected TTS provider when reading
-- Browser TTS mode processes everything locally
+- Optional BYOK provider keys are stored in browser extension storage
+- Text selected for reading is sent to the Proso server and then to the selected TTS provider
+- Optional technical and interaction telemetry is controlled separately from TTS content
+- There is no local Browser TTS mode
 
 ## Contributing
 

@@ -1,0 +1,95 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -Eeuo pipefail -c
+.DEFAULT_GOAL := help
+.DELETE_ON_ERROR:
+.NOTPARALLEL:
+
+PNPM ?= pnpm
+GENERATOR_FAMILY ?=
+ADVERSARIAL_REVIEWER ?= default
+
+.PHONY: help doctor bootstrap format-check lint typecheck smoke-reader test-fast test \
+	build build-chrome build-all quality inventory security verify verify-full adversarial \
+	gate ci status
+
+help: ## Show the delivery commands.
+	@awk 'BEGIN {FS = ":.*## "; printf "Proso delivery harness\n\n"} \
+		/^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+doctor: ## Fail when required local delivery tools or generated Prisma types are missing.
+	@./scripts/delivery-doctor.sh
+
+bootstrap: ## Install the frozen workspace and generate Prisma types.
+	$(PNPM) install --frozen-lockfile
+	@./scripts/generate-prisma.sh
+
+format-check: ## Check tracked TypeScript/JavaScript formatting.
+	$(PNPM) --filter @proso/extension format:check
+	$(PNPM) --dir packages/server exec biome format src/
+	$(PNPM) exec biome format packages/shared/src
+	@./scripts/biome-changed.sh format
+
+lint: ## Lint the extension, server, and shared source with the pinned Biome.
+	$(PNPM) --filter @proso/extension lint
+	$(PNPM) --dir packages/server exec biome lint src/
+	$(PNPM) exec biome lint packages/shared/src
+	@./scripts/biome-changed.sh lint
+
+typecheck: doctor ## Type-check all TypeScript workspace packages in parallel.
+	$(PNPM) --parallel --filter @proso/extension --filter @proso/server \
+		--filter @proso/shared exec tsc --noEmit
+
+smoke-reader: ## Run the deterministic extraction-to-playback reader oracle.
+	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
+		--selectProjects integration --runInBand tests/integration/reader-journey.test.ts
+
+test-fast: smoke-reader ## Alias for the fast outcome-level reader check.
+
+test: ## Run workspace test suites concurrently.
+	@./scripts/test-workspace.sh
+
+build: ## Build every buildable pnpm workspace package.
+	$(PNPM) --filter @proso/shared build
+	$(PNPM) --parallel --aggregate-output --filter @proso/extension \
+		--filter @proso/server run build
+
+build-chrome: ## Compile the Chromium extension artifact (not a journey acceptance test).
+	$(PNPM) --filter @proso/extension build:chrome
+
+build-all: ## Build the workspace plus Chromium and Edge extension artifacts.
+	$(PNPM) --filter @proso/shared build
+	$(PNPM) --parallel --aggregate-output --filter @proso/extension \
+		--filter @proso/server run build
+	$(PNPM) --filter @proso/extension build:chrome
+	$(PNPM) --filter @proso/extension exec wxt build -b edge
+
+quality: ## Enforce TypeScript cycle and duplication thresholds.
+	$(PNPM) --filter @proso/extension quality
+
+inventory: ## Report existing unused-code/dependency debt; currently informational.
+	-$(PNPM) knip
+
+security: doctor ## Run extension security tests and scan the current source tree for secrets.
+	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
+		--selectProjects security --maxWorkers=100%
+	@./scripts/security-check.sh
+
+verify: doctor format-check lint typecheck smoke-reader security ## Fast deterministic delivery floor.
+
+verify-full: verify test build-all quality ## Deep deterministic gate before adversarial review.
+
+adversarial: ## Run a different-family, typed, fail-closed review (requires GENERATOR_FAMILY).
+	@test -n "$(GENERATOR_FAMILY)" || { \
+		echo "GENERATOR_FAMILY is required: openai, anthropic, or zhipu" >&2; exit 2; }
+	@DETERMINISTIC_GATE='make verify-full: PASS' \
+		GENERATOR_FAMILY='$(GENERATOR_FAMILY)' \
+		ADVERSARIAL_REVIEWER='$(ADVERSARIAL_REVIEWER)' ./scripts/adversarial-review.sh
+
+gate: verify-full adversarial ## Full deterministic checks followed by the typed adversarial gate.
+
+ci: verify-full ## Deterministic CI entry point; model review remains an explicit local gate.
+
+status: ## Show branch, worktree, and diff state without claiming unrun checks are green.
+	@git status --short --branch
+	@git diff --stat
+	@git diff --check

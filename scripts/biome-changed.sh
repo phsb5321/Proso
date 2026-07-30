@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+readonly MODE="${1:-}"
+case "$MODE" in
+  format | lint) ;;
+  *)
+    printf 'Usage: %s <format|lint>\n' "$0" >&2
+    exit 2
+    ;;
+esac
+
+for command_name in git pnpm; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    printf 'Missing required command: %s\n' "$command_name" >&2
+    exit 1
+  fi
+done
+
+declare -A seen=()
+changed_files=()
+
+collect_file() {
+  local candidate="$1"
+  [[ -f "$candidate" ]] || return 0
+  [[ "$candidate" =~ \.(js|jsx|json|ts|tsx)$ ]] || return 0
+  [[ -n "${seen[$candidate]+present}" ]] && return 0
+  seen["$candidate"]=1
+  changed_files+=("$candidate")
+}
+
+while IFS= read -r -d '' candidate; do
+  collect_file "$candidate"
+done < <(git diff --name-only --diff-filter=ACMR -z origin/main...HEAD)
+
+while IFS= read -r -d '' candidate; do
+  collect_file "$candidate"
+done < <(git diff --name-only --diff-filter=ACMR -z)
+
+while IFS= read -r -d '' candidate; do
+  collect_file "$candidate"
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+while IFS= read -r -d '' candidate; do
+  collect_file "$candidate"
+done < <(git ls-files --others --exclude-standard -z)
+
+if (( ${#changed_files[@]} == 0 )); then
+  printf 'No changed JavaScript, JSON, or TypeScript files to check.\n'
+  exit 0
+fi
+
+pnpm exec biome "$MODE" --files-ignore-unknown=true "${changed_files[@]}"

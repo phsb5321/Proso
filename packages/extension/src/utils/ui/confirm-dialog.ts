@@ -271,9 +271,7 @@ export function confirmDialog(options: ConfirmDialogOptions): Promise<boolean> {
         return;
       }
 
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      );
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
       if (focusable.length === 0) {
         event.preventDefault();
         return;

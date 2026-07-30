@@ -37,7 +37,7 @@
     "format:check": "biome format .",
     "check": "biome check .",
     "lint:manifest": "web-ext lint --source-dir .output/firefox-mv2",
-    "deps:check": "madge --circular src/entrypoints/ src/utils/",
+    "deps:check": "madge --extensions ts --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
     "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
     "quality": "pnpm run deps:check && pnpm run duplication",

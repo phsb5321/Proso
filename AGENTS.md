@@ -28,6 +28,11 @@ packages/extension/src/
 
 ## Commands
 
+The tracked delivery contract is `docs/agent-delivery-harness.md`. Start with
+`make help`; use `make verify` for the fast deterministic floor and
+`GENERATOR_FAMILY=<openai|anthropic|zhipu> make gate` for the full cross-family
+delivery gate.
+
 ### Build
 ```bash
 pnpm -r build                         # Build all packages
@@ -174,8 +179,9 @@ try {
 ## Firefox-First Guidelines
 1. Background scripts use **event pages** (not service workers) — DOM access available
 2. Native **`Audio` API** in background — no offscreen documents needed
-3. Native **`speechSynthesis`** for Browser TTS — direct API access
-4. **Minimum Firefox version**: 109.0 (see manifest.json gecko settings)
+3. TTS synthesis routes through the Proso server; free-tier requests need no license or BYOK key
+4. Browser `speechSynthesis` was deliberately removed; do not reintroduce it without a new decision
+5. **Minimum Firefox version**: 109.0 (see manifest.json gecko settings)
 
 ## Git Workflow
 - **Branch naming**: `NNN-feature-name` (e.g., `017-git-workflow-automation`), `hotfix/NNN-desc`, `release/X.Y.Z`
