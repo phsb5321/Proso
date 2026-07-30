@@ -20,6 +20,7 @@ import {
   getContainer,
   isContainerInitialized,
 } from '../composition';
+import { getContainerStatus as getCompositionStatus } from '../composition/status';
 import {
   type HandlerRegistry,
   getGlobalInstrumentedRegistry,
@@ -242,32 +243,8 @@ export function getContainerStatus(): {
   services: string[];
   handlers: string[];
 } {
-  if (!isContainerInitialized()) {
-    return {
-      initialized: false,
-      adapters: [],
-      services: [],
-      handlers: [],
-    };
-  }
-
-  const container = getContainer();
   const registry = getGlobalInstrumentedRegistry();
-
-  const adapters = Object.entries(container.adapters)
-    .filter(([, v]) => v !== null)
-    .map(([k]) => k);
-
-  const services = Object.entries(container.services)
-    .filter(([, v]) => v !== undefined)
-    .map(([k]) => k);
-
-  return {
-    initialized: true,
-    adapters,
-    services,
-    handlers: registry.getHandlerNames(),
-  };
+  return getCompositionStatus(registry.getHandlerNames());
 }
 
 /**

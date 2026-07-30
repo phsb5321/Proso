@@ -7,17 +7,17 @@
  * @module handlers/debug
  */
 
-import {
-  getContainerStatus,
-  getHexagonalDispatchStats,
-  getHexagonalDispatchSummary,
-  resetHexagonalDispatchStats,
-} from '../background/init-hexagonal';
 import { isContentExtractionServiceAvailable, isPlaybackServiceAvailable } from '../composition';
+import { getContainerStatus } from '../composition/status';
 import type { Result } from '../core/shared/result';
 import { Ok } from '../core/shared/result';
 import type { DispatchStats, DispatchSummary } from '../utils/telemetry';
-import { getUnknownMessageStats } from '../utils/telemetry';
+import {
+  getDispatchStats,
+  getDispatchSummary,
+  getUnknownMessageStats,
+  resetDispatchStats,
+} from '../utils/telemetry';
 import type { HandlerRegistry } from './registry';
 
 /**
@@ -49,7 +49,7 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
   registry.register<void, Result<HexagonalStatusResponse, DebugHandlerError>>(
     'hexagonal.getStatus',
     async () => {
-      const status = getContainerStatus();
+      const status = getContainerStatus(registry.getHandlerNames());
       return Ok({
         ...status,
         playbackServiceAvailable: isPlaybackServiceAvailable(),
@@ -65,7 +65,7 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
   registry.register<void, Result<DispatchStats, DebugHandlerError>>(
     'hexagonal.getDispatchStats',
     async () => {
-      return Ok(getHexagonalDispatchStats());
+      return Ok(getDispatchStats());
     },
     'Get dispatch telemetry statistics',
   );
@@ -76,7 +76,7 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
   registry.register<{ legacyHandlers?: string[] }, Result<DispatchSummary, DebugHandlerError>>(
     'hexagonal.getDispatchSummary',
     async (params) => {
-      return Ok(getHexagonalDispatchSummary(params?.legacyHandlers ?? []));
+      return Ok(getDispatchSummary(registry.getHandlerNames(), params?.legacyHandlers ?? []));
     },
     'Get dispatch summary with migration analysis',
   );
@@ -87,7 +87,7 @@ export function registerDebugHandlers(registry: HandlerRegistry): void {
   registry.register<void, Result<{ success: boolean }, DebugHandlerError>>(
     'hexagonal.resetStats',
     async () => {
-      resetHexagonalDispatchStats();
+      resetDispatchStats();
       return Ok({ success: true });
     },
     'Reset dispatch statistics',

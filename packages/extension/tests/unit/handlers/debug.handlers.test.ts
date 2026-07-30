@@ -11,9 +11,9 @@
  * @module tests/unit/handlers/debug.handlers
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { DispatchStats, DispatchSummary } from '../../../src/utils/telemetry';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,21 +22,21 @@ const srcDir = resolve(__dirname, '../../../src');
 
 // --- Mock setup (must come before dynamic imports) ---
 
-const mockGetContainerStatus = jest.fn<() => {
-  initialized: boolean;
-  adapters: string[];
-  services: string[];
-  handlers: string[];
-}>();
+const mockGetContainerStatus =
+  jest.fn<
+    () => {
+      initialized: boolean;
+      adapters: string[];
+      services: string[];
+      handlers: string[];
+    }
+  >();
 const mockGetHexagonalDispatchStats = jest.fn<() => DispatchStats>();
 const mockGetHexagonalDispatchSummary = jest.fn<(legacyHandlers: string[]) => DispatchSummary>();
 const mockResetHexagonalDispatchStats = jest.fn();
 
-jest.unstable_mockModule(resolve(srcDir, 'background/init-hexagonal'), () => ({
+jest.unstable_mockModule(resolve(srcDir, 'composition/status'), () => ({
   getContainerStatus: mockGetContainerStatus,
-  getHexagonalDispatchStats: mockGetHexagonalDispatchStats,
-  getHexagonalDispatchSummary: mockGetHexagonalDispatchSummary,
-  resetHexagonalDispatchStats: mockResetHexagonalDispatchStats,
 }));
 
 const mockIsPlaybackServiceAvailable = jest.fn<() => boolean>();
@@ -49,15 +49,18 @@ jest.unstable_mockModule(resolve(srcDir, 'composition'), () => ({
   isContentExtractionServiceAvailable: mockIsContentExtractionServiceAvailable,
 }));
 
-const mockGetUnknownMessageStats = jest.fn<() => {
-  total: number;
-  types: Record<string, { count: number; lastSeen: number }>;
-}>();
+const mockGetUnknownMessageStats =
+  jest.fn<
+    () => {
+      total: number;
+      types: Record<string, { count: number; lastSeen: number }>;
+    }
+  >();
 
 jest.unstable_mockModule(resolve(srcDir, 'utils/telemetry'), () => ({
-  getDispatchStats: jest.fn(),
-  getDispatchSummary: jest.fn(),
-  resetDispatchStats: jest.fn(),
+  getDispatchStats: mockGetHexagonalDispatchStats,
+  getDispatchSummary: mockGetHexagonalDispatchSummary,
+  resetDispatchStats: mockResetHexagonalDispatchStats,
   getUnknownMessageStats: mockGetUnknownMessageStats,
 }));
 
@@ -256,10 +259,10 @@ describe('Debug Handlers', () => {
         expect(inner.value.hexHandlers).toContain('playback.start');
         expect(inner.value.legacyOnlyHandlers).toContain('startPlayback');
       }
-      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith([
-        'startPlayback',
-        'stopPlayback',
-      ]);
+      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith(
+        expect.arrayContaining(['hexagonal.getDispatchSummary']),
+        ['startPlayback', 'stopPlayback'],
+      );
     });
 
     it('should default to empty array when legacyHandlers not provided', async () => {
@@ -268,7 +271,7 @@ describe('Debug Handlers', () => {
 
       await registry.dispatch('hexagonal.getDispatchSummary', undefined);
 
-      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith([]);
+      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith(expect.any(Array), []);
     });
 
     it('should default to empty array when params is null', async () => {
@@ -277,7 +280,7 @@ describe('Debug Handlers', () => {
 
       await registry.dispatch('hexagonal.getDispatchSummary', null);
 
-      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith([]);
+      expect(mockGetHexagonalDispatchSummary).toHaveBeenCalledWith(expect.any(Array), []);
     });
   });
 
