@@ -25,6 +25,7 @@ missing fallback to restore casually.
 | ✓ | Focused server route and extension orchestration suites pass | Commands below |
 | ✓ | The TypeScript cycle scan processes real files | `make quality` reports 177 files and no cycle |
 | ✗ | The existing Chromium audio E2E proves reading works | It can pass without initiating or observing a TTS request and clears errors |
+| ✗ | CI `security-audit` is a dependency gate | `pnpm audit --audit-level=high` exited 1 on PR #63, but `continue-on-error: true` made the job green; GitHub reports 73 open alerts (2 critical) |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | Real Firefox reading works end to end | Source route and deterministic integrations are covered; no real Firefox session was accepted in this slice |
 | ◯ | Production server/provider availability | Not probed; production, secrets, quotas, and deploys are outside this slice |
@@ -105,3 +106,6 @@ Captured on 30/07/2026 at 16:55 BRT with
 3. Reconcile the dated architecture audit and pre-launch checklist; they still contain historical
    Browser TTS and browser-test claims.
 4. Configure/baseline Knip before promoting `make inventory` to a gate.
+5. Remediate the two critical dependency alerts in service-scoped PRs, then the remaining high
+   alerts. Changing `.github/workflows/ci.yml` to remove the audit’s `continue-on-error` is a
+   separately gated workflow change; until then, do not cite the green job as security evidence.
