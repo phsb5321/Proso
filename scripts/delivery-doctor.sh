@@ -27,5 +27,7 @@ if [[ ! -f packages/server/src/generated/prisma/client.ts ]]; then
   exit 1
 fi
 
+node scripts/workspace-policy.mjs
+
 printf 'Delivery prerequisites ready (node %s, pnpm %s).\n' \
   "$(node --version)" "$ACTUAL_PNPM"

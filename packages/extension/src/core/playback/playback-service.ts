@@ -46,6 +46,7 @@ export class PlaybackService {
   private audioElement: HTMLAudioElement | null = null;
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
+  private playbackGeneration = 0;
 
   // Detected page language (set externally via setLanguage)
   private detectedLanguage: string | null = null;
@@ -106,10 +107,12 @@ export class PlaybackService {
     }
 
     // Update state to loading
+    const generation = ++this.playbackGeneration;
     this.state = playbackStateTransitions.startLoading(this.state, paragraphs, tabId, pageUrl);
 
     // Show footer and highlight first paragraph
     await this.deps.highlightSync.showFooter(tabId);
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     await this.deps.highlightSync.highlightParagraph(
       tabId,
       0,
@@ -117,9 +120,10 @@ export class PlaybackService {
       paragraphs[0] ?? '',
       Date.now(),
     );
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     // Generate audio for first paragraph
-    const result = await this.generateAndPlayParagraph(0);
+    const result = await this.generateAndPlayParagraph(0, generation);
     if (isErr(result)) {
       return result;
     }
@@ -167,6 +171,8 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
+    const generation = ++this.playbackGeneration;
+
     // Stop audio element playback
     if (this.audioElement) {
       this.audioElement.pause();
@@ -183,7 +189,9 @@ export class PlaybackService {
     // Clear highlights and hide footer
     if (this.state.activeTabId !== null) {
       await this.deps.highlightSync.clearHighlights(this.state.activeTabId);
+      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
       await this.deps.highlightSync.hideFooter(this.state.activeTabId);
+      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     }
 
     this.state = playbackStateTransitions.stop(this.state);
@@ -201,14 +209,7 @@ export class PlaybackService {
     }
 
     this.state = playbackStateTransitions.nextParagraph(this.state);
-
-    // Generate audio for next paragraph
-    const result = await this.generateAndPlayParagraph(this.state.currentParagraphIndex);
-    if (isErr(result)) {
-      return result;
-    }
-
-    return Ok(this.state);
+    return this.generateCurrentParagraph();
   }
 
   /**
@@ -221,14 +222,7 @@ export class PlaybackService {
     }
 
     this.state = playbackStateTransitions.previousParagraph(this.state);
-
-    // Generate audio for previous paragraph
-    const result = await this.generateAndPlayParagraph(this.state.currentParagraphIndex);
-    if (isErr(result)) {
-      return result;
-    }
-
-    return Ok(this.state);
+    return this.generateCurrentParagraph();
   }
 
   /**
@@ -240,14 +234,7 @@ export class PlaybackService {
     }
 
     this.state = playbackStateTransitions.seekToParagraph(this.state, index);
-
-    // Generate audio for target paragraph
-    const result = await this.generateAndPlayParagraph(index);
-    if (isErr(result)) {
-      return result;
-    }
-
-    return Ok(this.state);
+    return this.generateCurrentParagraph();
   }
 
   /**
@@ -358,6 +345,14 @@ export class PlaybackService {
 
   // Private methods
 
+  private isCurrentGeneration(generation: number): boolean {
+    return generation === this.playbackGeneration;
+  }
+
+  private generateCurrentParagraph(): Promise<Result<PlaybackState, PlaybackError>> {
+    const generation = ++this.playbackGeneration;
+    return this.generateAndPlayParagraph(this.state.currentParagraphIndex, generation);
+  }
   /**
    * Convert provider word timings (startMs/endMs) to internal format with charOffset/charLength.
    * Matches each provider word against the paragraph text sequentially.
@@ -541,6 +536,7 @@ export class PlaybackService {
    */
   private async generateAndPlayParagraph(
     index: number,
+    generation: number,
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // Clear previous word timings on paragraph transition
     this.clearWordTimings();
@@ -553,6 +549,7 @@ export class PlaybackService {
     // Check cache first
     const cacheKey = this.createCacheKey(index, text);
     const cachedResult = await this.deps.cacheStore.get(cacheKey);
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     let audioResponse: AudioResponse;
 
@@ -580,6 +577,7 @@ export class PlaybackService {
 
       console.log('[PlaybackService] Generating audio with:', this.audioGenerator.constructor.name);
       const generateResult = await this.audioGenerator.generateAudio(request);
+      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
       if (isErr(generateResult)) {
         console.error('[PlaybackService] Audio generation failed:', generateResult.error);
@@ -602,10 +600,12 @@ export class PlaybackService {
       };
 
       await this.deps.cacheStore.set(cacheKey, cacheEntry);
+      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     }
 
     // Play the audio via HTMLAudioElement
-    await this.playAudio(audioResponse.audioBlob);
+    const played = await this.playAudio(audioResponse.audioBlob, generation);
+    if (!played) return Ok(this.state);
 
     // Update state to playing
     this.state = playbackStateTransitions.startPlaying(this.state);
@@ -620,6 +620,7 @@ export class PlaybackService {
         paragraphText,
         Date.now(),
       );
+      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
       // Use real provider word timings when available, else estimate
       const audioDurationMs = this.audioElement?.duration
@@ -647,12 +648,14 @@ export class PlaybackService {
 
         if (wordTimings.length > 0) {
           await this.deps.highlightSync.setWordTimeline(this.state.activeTabId, index, wordTimings);
+          if (!this.isCurrentGeneration(generation)) return Ok(this.state);
         }
       }
     }
 
     // Update footer state
     await this.updateFooterState();
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     return Ok(this.state);
   }
@@ -660,7 +663,9 @@ export class PlaybackService {
   /**
    * Play audio blob.
    */
-  private async playAudio(blob: Blob): Promise<void> {
+  private async playAudio(blob: Blob, generation: number): Promise<boolean> {
+    if (!this.isCurrentGeneration(generation)) return false;
+
     // Clean up previous audio (no-op for data URLs)
     this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
 
@@ -671,11 +676,17 @@ export class PlaybackService {
     }
 
     // Create audio URL (uses data URL in service worker, blob URL in DOM)
-    this.currentAudioUrl = await this.deps.audioUrlProvider.createUrl(blob);
+    const audioUrl = await this.deps.audioUrlProvider.createUrl(blob);
+    if (!this.isCurrentGeneration(generation)) {
+      this.deps.audioUrlProvider.revokeUrl(audioUrl);
+      return false;
+    }
+    this.currentAudioUrl = audioUrl;
     this.audioElement.src = this.currentAudioUrl;
     this.audioElement.playbackRate = this.state.speed;
 
     await this.audioElement.play();
+    return this.isCurrentGeneration(generation);
   }
 
   /**

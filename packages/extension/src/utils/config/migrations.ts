@@ -22,6 +22,10 @@ const log = createLogger('service');
  */
 export const CURRENT_CONFIG_VERSION = 8;
 
+function storedConfigVersion(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
 /**
  * Storage object with migration flags
  */
@@ -255,8 +259,8 @@ export async function applyMigrations(
   stored: StoredSettings,
   save: SaveFunction,
 ): Promise<StoredSettings> {
-  let current = { ...stored };
-  const currentVersion = stored._configVersion || 0;
+  const currentVersion = storedConfigVersion(stored._configVersion);
+  let current: StoredSettings = { ...stored, _configVersion: currentVersion };
 
   // Get migrations that need to run (version > current)
   const pendingMigrations = migrations
@@ -271,18 +275,13 @@ export async function applyMigrations(
   for (const migration of pendingMigrations) {
     try {
       current = await migration.migrate(current, save);
+      await save({ _configVersion: migration.version });
+      current._configVersion = migration.version;
       log.info(`Proso: Applied migration v${migration.version}: ${migration.description}`);
     } catch (error) {
       log.error(`Proso: Migration v${migration.version} failed`, { error });
-      // Continue with other migrations
+      break;
     }
-  }
-
-  // Update config version
-  const maxVersion = Math.max(...pendingMigrations.map((m) => m.version));
-  if (maxVersion > currentVersion) {
-    await save({ _configVersion: maxVersion });
-    current._configVersion = maxVersion;
   }
 
   return current;
@@ -294,6 +293,6 @@ export async function applyMigrations(
  * @returns Number of pending migrations
  */
 export function getPendingMigrationCount(stored: StoredSettings): number {
-  const currentVersion = stored._configVersion || 0;
+  const currentVersion = storedConfigVersion(stored._configVersion);
   return migrations.filter((m) => m.version > currentVersion).length;
 }
