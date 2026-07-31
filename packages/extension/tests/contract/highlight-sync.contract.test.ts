@@ -22,7 +22,7 @@ import { NoOpHighlightSyncAdapter } from '../../src/adapters/messaging/noop-high
  */
 export function runHighlightSyncContractTests(
   adapterName: string,
-  createAdapter: () => IHighlightSynchronizer
+  createAdapter: () => IHighlightSynchronizer,
 ) {
   describe(`${adapterName} implements IHighlightSynchronizer contract`, () => {
     let adapter: IHighlightSynchronizer;
@@ -49,7 +49,7 @@ export function runHighlightSyncContractTests(
         if (isErr(result)) {
           expect(result.error.type).toBeDefined();
           expect(['tab_not_found', 'content_script_not_loaded', 'message_failed']).toContain(
-            result.error.type
+            result.error.type,
           );
         }
       });
@@ -82,7 +82,7 @@ export function runHighlightSyncContractTests(
         if (isErr(result)) {
           expect(result.error.type).toBeDefined();
           expect(['tab_not_found', 'content_script_not_loaded', 'message_failed']).toContain(
-            result.error.type
+            result.error.type,
           );
         }
       });
@@ -183,6 +183,27 @@ export function runHighlightSyncContractTests(
           const result = await adapter.updateFooterState(validTabId, state);
           expect(typeof result.ok).toBe('boolean');
         }
+      });
+    });
+
+    describe('showError()', () => {
+      it('should return a Result type', async () => {
+        const result = await adapter.showError(validTabId, 'Something went wrong');
+
+        expect(typeof result.ok).toBe('boolean');
+
+        if (isOk(result)) {
+          expect(result.value).toBeUndefined();
+        }
+
+        if (isErr(result)) {
+          expect(result.error.type).toBeDefined();
+        }
+      });
+
+      it('should accept an optional provider', async () => {
+        const result = await adapter.showError(validTabId, 'Provider failed', 'openai');
+        expect(typeof result.ok).toBe('boolean');
       });
     });
   });

@@ -8,6 +8,7 @@ import type {
   SubscriptionStatus,
   SubscriptionTier,
 } from '../domain/subscription.js';
+import type { ErrorCode } from './errors.js';
 
 // Health
 export interface HealthResponse {
@@ -124,4 +125,5 @@ export interface ErrorResponse {
   error: string;
   message: string;
   details?: Record<string, unknown>;
+  code?: ErrorCode;
 }

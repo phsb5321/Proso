@@ -38,14 +38,20 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
     private readonly byokApiKey?: string,
   ) {}
 
-  async generateAudio(request: AudioRequest): Promise<Result<AudioResponse, AudioError>> {
-    const result = await this.apiClient.synthesize({
-      text: request.text,
-      provider: this.preferredProvider,
-      voice: request.voice ?? undefined,
-      language: request.language ?? undefined,
-      byokApiKey: this.byokApiKey,
-    });
+  async generateAudio(
+    request: AudioRequest,
+    signal?: AbortSignal,
+  ): Promise<Result<AudioResponse, AudioError>> {
+    const result = await this.apiClient.synthesize(
+      {
+        text: request.text,
+        provider: this.preferredProvider,
+        voice: request.voice ?? undefined,
+        language: request.language ?? undefined,
+        byokApiKey: this.byokApiKey,
+      },
+      signal,
+    );
 
     if (!result.ok) {
       const error = result.error;
@@ -56,6 +62,14 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
           return Err(audioError.network(`Server request timed out (${error.timeoutMs}ms)`));
         case 'not_configured':
           return Err(audioError.providerError('not_configured', error.message));
+        case 'server_error':
+          // Server proxies the provider's rate-limit status through as 429
+          // (T020); retryAfterMs is optional on the wire, default to 0 (retry
+          // immediately) when the server didn't send a Retry-After hint.
+          if (error.status === 429) {
+            return Err(audioError.rateLimit(error.retryAfterMs ?? 0));
+          }
+          return Err(audioError.network(error.message));
         default:
           return Err(
             audioError.network('message' in error ? error.message : 'Server request failed'),

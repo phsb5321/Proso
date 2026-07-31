@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
 import { isOk, isErr } from '../../../../src/core/shared/result';
 import type { LicenseValidateResponse, SubscriptionDetailsResponse } from '@proso/shared';
-import { SubscriptionTier, SubscriptionStatus } from '@proso/shared';
+import { SubscriptionTier, SubscriptionStatus, ErrorCode } from '@proso/shared';
 
 // Mock fetch globally
 const mockFetch = jest.fn<typeof fetch>();
@@ -38,8 +38,70 @@ function jsonResponse(data: unknown, status = 200): Response {
   } as Response;
 }
 
-function errorResponse(status: number, error = 'error', message = 'Something went wrong'): Response {
+function errorResponse(
+  status: number,
+  error = 'error',
+  message = 'Something went wrong',
+): Response {
   return jsonResponse({ error, message }, status);
+}
+
+/**
+ * Error response with caller-controlled body + headers — used for T003/T004 cases
+ * (legacy `error`-only bodies, `code` capture, `Retry-After`) that `errorResponse`'s
+ * fixed `{error, message}` shape can't express.
+ */
+function errorResponseWithHeaders(
+  status: number,
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+    headers: new Headers(headers),
+    redirected: false,
+    statusText: 'Error',
+    type: 'basic',
+    url: '',
+    clone: () => errorResponseWithHeaders(status, body, headers),
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(''),
+    bytes: () => Promise.resolve(new Uint8Array()),
+  } as Response;
+}
+
+/** Successful binary (audio) response, matching what `requestBinary`/`synthesize` expects. */
+function binarySuccessResponse(): Response {
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers({
+      'Content-Type': 'audio/mpeg',
+      'X-Credits-Used': '1',
+      'X-Credits-Remaining': '99',
+      'X-Cache-Hit': 'false',
+      'X-Provider': 'openai',
+    }),
+    redirected: false,
+    statusText: 'OK',
+    type: 'basic',
+    url: '',
+    clone: () => binarySuccessResponse(),
+    body: null,
+    bodyUsed: false,
+    json: () => Promise.resolve({}),
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(''),
+    bytes: () => Promise.resolve(new Uint8Array()),
+  } as Response;
 }
 
 const SERVER_URL = 'https://api.proso.com.br';
@@ -175,7 +237,9 @@ describe('ProsoApiAdapter', () => {
 
   describe('createCheckout', () => {
     it('sends POST to /api/v1/subscription/checkout with tier', async () => {
-      mockFetch.mockResolvedValueOnce(jsonResponse({ checkoutUrl: 'https://checkout.paddle.com/123' }));
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ checkoutUrl: 'https://checkout.paddle.com/123' }),
+      );
 
       await adapter.createCheckout('pro');
 
@@ -313,6 +377,213 @@ describe('ProsoApiAdapter', () => {
 
       const [url] = mockFetch.mock.calls[0];
       expect(url).toBe('https://api.proso.com.br/api/v1/license/validate');
+    });
+  });
+
+  describe('legacy error-body fallback (T003)', () => {
+    it('falls back to the `error` field when a legacy server omits `message`', async () => {
+      mockFetch.mockResolvedValueOnce(
+        errorResponseWithHeaders(422, { error: 'Legacy validation failure' }),
+      );
+
+      const result = await adapter.validateLicense('key');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('server_error');
+        if (result.error.type === 'server_error') {
+          expect(result.error.message).toBe('Legacy validation failure');
+          expect(result.error.code).toBeUndefined();
+        }
+      }
+    });
+
+    it('falls back to `HTTP <status>` when the body has neither `message` nor `error`', async () => {
+      mockFetch.mockResolvedValueOnce(errorResponseWithHeaders(422, {}));
+
+      const result = await adapter.validateLicense('key');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('server_error');
+        if (result.error.type === 'server_error') {
+          expect(result.error.message).toBe('HTTP 422');
+        }
+      }
+    });
+  });
+
+  describe('error code capture (T003)', () => {
+    it('captures `code` on a 402 (server_error) response', async () => {
+      mockFetch.mockResolvedValueOnce(
+        errorResponseWithHeaders(402, {
+          error: 'No active allocation',
+          message: 'No active allocation',
+          code: ErrorCode.NoActiveAllocation,
+        }),
+      );
+
+      const result = await adapter.validateLicense('key');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('server_error');
+        if (result.error.type === 'server_error') {
+          expect(result.error.status).toBe(402);
+          expect(result.error.code).toBe(ErrorCode.NoActiveAllocation);
+        }
+      }
+    });
+
+    it('captures `code` on a 401 (unauthorized) response', async () => {
+      mockFetch.mockResolvedValueOnce(
+        errorResponseWithHeaders(401, {
+          error: 'Invalid license',
+          message: 'Invalid license',
+          code: ErrorCode.LicenseInvalid,
+        }),
+      );
+
+      const result = await adapter.validateLicense('bad-key');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('unauthorized');
+        if (result.error.type === 'unauthorized') {
+          expect(result.error.code).toBe(ErrorCode.LicenseInvalid);
+        }
+      }
+    });
+  });
+
+  describe('429 retry with Retry-After (T004)', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('honors a delta-seconds Retry-After before retrying a 429', async () => {
+      jest.useFakeTimers();
+      mockFetch
+        .mockResolvedValueOnce(
+          errorResponseWithHeaders(429, { error: 'Rate limited' }, { 'Retry-After': '3' }),
+        )
+        .mockResolvedValueOnce(jsonResponse(mockLicenseResponse));
+
+      const resultPromise = adapter.validateLicense('key');
+
+      // Just under the 3s hint: proves the retry hasn't fired yet.
+      await jest.advanceTimersByTimeAsync(2999);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1);
+      const result = await resultPromise;
+
+      expect(isOk(result)).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('honors an HTTP-date Retry-After before retrying a 429 (synthesize/requestBinary path)', async () => {
+      jest.useFakeTimers();
+      const retryAt = new Date(Date.now() + 6000).toUTCString();
+      mockFetch
+        .mockResolvedValueOnce(
+          errorResponseWithHeaders(429, { error: 'Rate limited' }, { 'Retry-After': retryAt }),
+        )
+        .mockResolvedValueOnce(binarySuccessResponse());
+
+      const resultPromise = adapter.synthesize({ text: 'hello' });
+
+      // Well under the ~6s hint: proves it isn't using the 1s default backoff.
+      await jest.advanceTimersByTimeAsync(3000);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Past the hint (buffer accounts for whole-second truncation in the HTTP-date format).
+      await jest.advanceTimersByTimeAsync(3500);
+      const result = await resultPromise;
+
+      expect(isOk(result)).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('clamps an oversized Retry-After to MAX_RETRY_AFTER_MS', async () => {
+      jest.useFakeTimers();
+      mockFetch
+        .mockResolvedValueOnce(
+          errorResponseWithHeaders(429, { error: 'Rate limited' }, { 'Retry-After': '999999' }),
+        )
+        .mockResolvedValueOnce(jsonResponse(mockLicenseResponse));
+
+      const resultPromise = adapter.validateLicense('key');
+
+      // Just under the 60s clamp ceiling: proves it did not honor the full 999999s hint.
+      await jest.advanceTimersByTimeAsync(59_999);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1);
+      const result = await resultPromise;
+
+      expect(isOk(result)).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns server_error with retryAfterMs after exhausting retries on 429', async () => {
+      jest.useFakeTimers();
+      mockFetch.mockResolvedValue(
+        errorResponseWithHeaders(429, { error: 'Rate limited' }, { 'Retry-After': '1' }),
+      );
+
+      const resultPromise = adapter.validateLicense('key');
+
+      await jest.advanceTimersByTimeAsync(1000);
+      await jest.advanceTimersByTimeAsync(1000);
+      const result = await resultPromise;
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('server_error');
+        if (result.error.type === 'server_error') {
+          expect(result.error.status).toBe(429);
+          expect(result.error.message).toBe('Rate limited');
+          expect(result.error.retryAfterMs).toBe(1000);
+        }
+      }
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('abort mid-flight (T005)', () => {
+    it('returns an aborted error when the caller aborts before the fetch settles', async () => {
+      const abortController = new AbortController();
+      mockFetch.mockImplementationOnce((_url, init) => {
+        return new Promise<Response>((_resolve, reject) => {
+          const sig = init?.signal as AbortSignal;
+          sig.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted', 'AbortError'));
+          });
+        });
+      });
+
+      const resultPromise = adapter.synthesize({ text: 'hello' }, abortController.signal);
+      abortController.abort();
+      const result = await resultPromise;
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('aborted');
+      }
+    });
+
+    it('short-circuits to an aborted error when the signal is already aborted before the call', async () => {
+      const abortController = new AbortController();
+      abortController.abort();
+
+      const result = await adapter.synthesize({ text: 'hello' }, abortController.signal);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.type).toBe('aborted');
+      }
     });
   });
 });

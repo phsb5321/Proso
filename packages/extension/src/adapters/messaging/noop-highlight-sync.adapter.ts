@@ -90,6 +90,15 @@ export class NoOpHighlightSyncAdapter implements IHighlightSynchronizer {
     // No-op: silently succeed
     return Ok(undefined);
   }
+
+  async showError(
+    _tabId: number,
+    _message: string,
+    _provider?: string,
+  ): Promise<Result<void, HighlightError>> {
+    // No-op: silently succeed
+    return Ok(undefined);
+  }
 }
 
 /**

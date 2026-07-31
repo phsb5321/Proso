@@ -11,6 +11,7 @@ import type {
   CheckoutResponse,
   CreditBalanceResponse,
   CreditHistoryResponse,
+  ErrorCode,
   LicenseValidateResponse,
   SubscriptionDetailsResponse,
   TTSSynthesizeRequest,
@@ -37,10 +38,17 @@ export interface SynthesizeResponse {
 export type ApiClientError =
   | { type: 'network'; message: string }
   | { type: 'timeout'; timeoutMs: number }
-  | { type: 'unauthorized'; message: string }
-  | { type: 'server_error'; status: number; message: string }
+  | { type: 'unauthorized'; message: string; code?: ErrorCode }
+  | {
+      type: 'server_error';
+      status: number;
+      message: string;
+      code?: ErrorCode;
+      retryAfterMs?: number;
+    }
   | { type: 'invalid_response'; message: string }
-  | { type: 'not_configured'; message: string };
+  | { type: 'not_configured'; message: string }
+  | { type: 'aborted'; message: string };
 
 /**
  * Port interface for Proso server communication.
@@ -97,8 +105,13 @@ export interface IApiClient {
    * user's key for that single request without deducting managed credits.
    *
    * @param request - Text, provider, voice, language, and optional byokApiKey
+   * @param signal - Optional caller-supplied AbortSignal, composed with the adapter's
+   *   own per-call timeout. Aborting either aborts the underlying fetch.
    */
-  synthesize(request: TTSSynthesizeRequest): Promise<Result<SynthesizeResponse, ApiClientError>>;
+  synthesize(
+    request: TTSSynthesizeRequest,
+    signal?: AbortSignal,
+  ): Promise<Result<SynthesizeResponse, ApiClientError>>;
 
   /**
    * Validate a BYOK API key via the server's test-key endpoint.
@@ -126,14 +139,22 @@ export const apiClientError = {
     type: 'timeout',
     timeoutMs,
   }),
-  unauthorized: (message: string): ApiClientError => ({
+  unauthorized: (message: string, code?: ErrorCode): ApiClientError => ({
     type: 'unauthorized',
     message,
+    code,
   }),
-  serverError: (status: number, message: string): ApiClientError => ({
+  serverError: (
+    status: number,
+    message: string,
+    code?: ErrorCode,
+    retryAfterMs?: number,
+  ): ApiClientError => ({
     type: 'server_error',
     status,
     message,
+    code,
+    retryAfterMs,
   }),
   invalidResponse: (message: string): ApiClientError => ({
     type: 'invalid_response',
@@ -141,6 +162,10 @@ export const apiClientError = {
   }),
   notConfigured: (message: string): ApiClientError => ({
     type: 'not_configured',
+    message,
+  }),
+  aborted: (message = 'Request was aborted'): ApiClientError => ({
+    type: 'aborted',
     message,
   }),
 };

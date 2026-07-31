@@ -75,6 +75,12 @@ export class MockHighlightSync implements IHighlightSynchronizer {
   public showFooterCalls: number[] = [];
   public hideFooterCalls: number[] = [];
   public updateFooterStateCalls: FooterStateUpdateCall[] = [];
+  public showErrorCalls: Array<{
+    tabId: number;
+    message: string;
+    provider: string | undefined;
+    timestamp: number;
+  }> = [];
 
   constructor(config: MockHighlightSyncConfig = {}) {
     this.forceError = config.forceError ?? null;
@@ -294,6 +300,26 @@ export class MockHighlightSync implements IHighlightSynchronizer {
     return Ok(undefined);
   }
 
+  async showError(
+    tabId: number,
+    message: string,
+    provider?: string,
+  ): Promise<Result<void, HighlightError>> {
+    this.showErrorCalls.push({ tabId, message, provider, timestamp: Date.now() });
+    await this.simulateLatency();
+
+    if (this.forceError) {
+      return Err(this.forceError);
+    }
+
+    const tabError = this.validateTabId(tabId);
+    if (tabError) {
+      return Err(tabError);
+    }
+
+    return Ok(undefined);
+  }
+
   // Test helpers
 
   /**
@@ -307,6 +333,7 @@ export class MockHighlightSync implements IHighlightSynchronizer {
     this.showFooterCalls = [];
     this.hideFooterCalls = [];
     this.updateFooterStateCalls = [];
+    this.showErrorCalls = [];
     this.currentParagraphIndex.clear();
     this.currentWordIndex.clear();
     this.footerVisible.clear();
