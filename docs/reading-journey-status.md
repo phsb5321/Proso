@@ -64,6 +64,13 @@ reach the recovered API; it does not upgrade the real-browser journey above to g
 The Orange Pi TTS/STT appliance remains research-only. No appliance, client adapter, model service,
 DNS mapping, secret, or audio-integration PR was deployed.
 
+Release run
+[`30585260097`](https://github.com/phsb5321/Proso/actions/runs/30585260097) published the 1.2.0
+Firefox, Chrome, and source archives, but AMO signing failed after approval because the action's
+default `web-ext-artifacts/` output directory did not exist. Auto-update deployment was therefore
+skipped. Version 1.2.1 points the signer at the existing `artifacts/` directory; it is not considered
+deployed until AMO signing, the public update manifest, and the signed XPI are independently checked.
+
 Focused evidence captured before the slice:
 
 ```bash
