@@ -21,17 +21,12 @@
     "postinstall": "lefthook install || true"
   },
   "devDependencies": {
+    "dependency-cruiser": "17.4.3",
     "knip": "6.6.2",
     "lefthook": "^2.1.2",
     "typescript": "^5.9.3"
   },
-  "keywords": [
-    "firefox",
-    "extension",
-    "tts",
-    "text-to-speech",
-    "accessibility"
-  ],
+  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
   "license": "MIT",
   "pnpm": {
     "onlyBuiltDependencies": [

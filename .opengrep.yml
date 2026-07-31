@@ -1,0 +1,28 @@
+rules:
+  - id: proso.workflow-continue-on-error
+    message: A required workflow step must not mask failure with continue-on-error.
+    severity: ERROR
+    languages: [yaml]
+    pattern: "continue-on-error: true"
+
+  - id: proso.codecov-fail-open
+    message: Codecov uploads must fail CI when coverage publishing fails.
+    severity: ERROR
+    languages: [yaml]
+    pattern: "fail_ci_if_error: false"
+
+  - id: proso.focused-or-skipped-test
+    message: New focused or skipped tests require an explicit committed policy exception.
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-either:
+      - pattern: $TEST.skip(...)
+      - pattern: $TEST.only(...)
+      - pattern: $SUITE.skip(...)
+      - pattern: $SUITE.only(...)
+
+  - id: proso.shell-success-mask
+    message: Do not turn a failed command into success with an unconditional `|| true`.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: '\|\|\s+true(?:\s|$)'

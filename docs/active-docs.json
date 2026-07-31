@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "documents": [
+    {
+      "path": "README.md",
+      "owner": "proso",
+      "reviewedAt": "2026-07-30",
+      "expires": "2026-10-30"
+    },
+    {
+      "path": "docs/agent-delivery-harness.md",
+      "owner": "proso",
+      "reviewedAt": "2026-07-30",
+      "expires": "2026-10-30"
+    },
+    {
+      "path": "docs/reading-journey-status.md",
+      "owner": "proso",
+      "reviewedAt": "2026-07-30",
+      "expires": "2026-10-30"
+    },
+    {
+      "path": "docs/sonarqube.md",
+      "owner": "proso",
+      "reviewedAt": "2026-07-30",
+      "expires": "2026-10-30"
+    },
+    {
+      "path": "docs/telemetry/README.md",
+      "owner": "proso",
+      "reviewedAt": "2026-07-30",
+      "expires": "2026-10-30"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/**/*.{mjs,sh}"],
+  "ignoreDependencies": ["dependency-cruiser"],
   "workspaces": {
     "packages/extension": {
       "entry": [
@@ -13,10 +15,7 @@
       ],
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/generated/**", ".wxt/**", ".output/**"],
-      "ignoreDependencies": [
-        "@webext-core/messaging",
-        "webextension-polyfill"
-      ]
+      "ignoreDependencies": ["@webext-core/messaging", "webextension-polyfill"]
     },
     "packages/server": {
       "entry": [
@@ -27,15 +26,17 @@
       ],
       "project": ["src/**/*.ts"],
       "ignore": ["src/generated/**", "prisma/migrations/**", "dist/**"],
-      "ignoreDependencies": [
-        "@nestjs/platform-express",
-        "reflect-metadata"
-      ]
+      "ignoreDependencies": ["@nestjs/platform-express", "reflect-metadata"]
     },
     "packages/shared": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"],
       "ignore": ["dist/**"]
+    },
+    "services/proso-log-gateway": {
+      "entry": ["src/index.ts", "tests/**/*.test.ts", "vitest.config.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
+      "ignore": ["dist/**", "coverage/**"]
     }
   }
 }

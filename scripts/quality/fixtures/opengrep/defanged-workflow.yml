@@ -1,0 +1,15 @@
+name: Defanged workflow fixture
+
+jobs:
+  bad:
+    runs-on: ubuntu-latest
+    steps:
+      # ruleid: proso.workflow-continue-on-error
+      - run: exit 1
+        continue-on-error: true
+      - uses: codecov/codecov-action@fixture
+        with:
+          # ruleid: proso.codecov-fail-open
+          fail_ci_if_error: false
+      # ruleid: proso.shell-success-mask
+      - run: failing-command || true
