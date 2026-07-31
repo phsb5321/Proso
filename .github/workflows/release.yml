@@ -180,6 +180,7 @@ jobs:
         with:
           cmd: sign
           source: artifacts/proso-${{ needs.validate.outputs.version }}-firefox.zip
+          artifacts: artifacts
           channel: unlisted
           apiKey: ${{ secrets.AMO_API_KEY }}
           apiSecret: ${{ secrets.AMO_API_SECRET }}
