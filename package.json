@@ -21,7 +21,7 @@
     "postinstall": "lefthook install || true"
   },
   "devDependencies": {
-    "dependency-cruiser": "18.1.0",
+    "dependency-cruiser": "17.4.3",
     "knip": "6.6.2",
     "lefthook": "^2.1.2",
     "typescript": "^5.9.3"
