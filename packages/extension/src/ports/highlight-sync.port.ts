@@ -119,4 +119,17 @@ export interface IHighlightSynchronizer {
    * @param state - New footer state
    */
   updateFooterState(tabId: number, state: FooterState): Promise<Result<void, HighlightError>>;
+
+  /**
+   * Notify the content script that playback failed, so it can surface the
+   * existing accessible error toast (see content.ts PLAYBACK_ERROR handler).
+   * @param tabId - Tab to notify
+   * @param message - Human-readable failure reason
+   * @param provider - Provider the failure originated from, when known
+   */
+  showError(
+    tabId: number,
+    message: string,
+    provider?: string,
+  ): Promise<Result<void, HighlightError>>;
 }

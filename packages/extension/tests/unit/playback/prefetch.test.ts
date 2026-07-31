@@ -27,7 +27,9 @@ describe('PrefetchService', () => {
       if (!returnValue) return null;
       return {
         audioUrl: `blob:test-${index}`,
-        wordTimings: [{ word: 'test', charOffset: 0, charLength: 4, startTimeMs: 0, endTimeMs: 100 }],
+        wordTimings: [
+          { word: 'test', charOffset: 0, charLength: 4, startTimeMs: 0, endTimeMs: 100 },
+        ],
       };
     };
   };
@@ -308,6 +310,94 @@ describe('PrefetchService', () => {
 
       const status = service.getStatus();
       expect(status.isActive).toBe(true);
+    });
+  });
+
+  describe('stop during an in-flight fetch', () => {
+    it('revokes a blob URL that arrives after the service stopped', async () => {
+      // stop() runs clearBuffer(), which revokes every URL the buffer knows about.
+      // A fetch still in flight resolves *after* that, so its URL is created too late
+      // to be in the buffer and is never stored — if the result is simply dropped,
+      // nothing ever revokes it.
+      const revoked: string[] = [];
+      const originalRevoke = URL.revokeObjectURL;
+      URL.revokeObjectURL = (url: string) => {
+        revoked.push(url);
+      };
+
+      let releaseGeneration: (() => void) | undefined;
+      const blocked = new Promise<void>((resolve) => {
+        releaseGeneration = resolve;
+      });
+
+      const slowGenerator: AudioGenerator = async (_text: string, index: number) => {
+        await blocked;
+        return { audioUrl: `blob:in-flight-${index}`, wordTimings: [] };
+      };
+
+      try {
+        queue.initialize(['P1', 'P2', 'P3']);
+        service.configure(queue, slowGenerator);
+        queue.start();
+        service.start();
+
+        // Let a batch start and block inside the generator.
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(service.getStatus().inProgressTasks).toBeGreaterThan(0);
+
+        service.stop();
+        service.clearBuffer();
+        revoked.length = 0; // ignore anything clearBuffer legitimately revoked
+
+        releaseGeneration?.();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        expect(revoked.some((url) => url.startsWith('blob:in-flight-'))).toBe(true);
+        expect(service.getStatus().bufferSize).toBe(0);
+      } finally {
+        releaseGeneration?.();
+        URL.revokeObjectURL = originalRevoke;
+      }
+    });
+
+    it('aborts the in-flight fetch so a stopped run stops spending', async () => {
+      // Prefetch is speculative: it synthesizes paragraphs the reader may never
+      // reach, and synthesis is billed. Dropping the result on stop() is not
+      // enough — the request has to actually be cancelled.
+      const seenSignals: Array<AbortSignal | undefined> = [];
+
+      let releaseGeneration: (() => void) | undefined;
+      const blocked = new Promise<void>((resolve) => {
+        releaseGeneration = resolve;
+      });
+
+      const signalCapturingGenerator: AudioGenerator = async (
+        _text: string,
+        index: number,
+        signal?: AbortSignal,
+      ) => {
+        seenSignals.push(signal);
+        await blocked;
+        return { audioUrl: `blob:abortable-${index}`, wordTimings: [] };
+      };
+
+      try {
+        queue.initialize(['P1', 'P2', 'P3']);
+        service.configure(queue, signalCapturingGenerator);
+        queue.start();
+        service.start();
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(seenSignals.length).toBeGreaterThan(0);
+        expect(seenSignals.every((signal) => signal?.aborted === false)).toBe(true);
+
+        service.stop();
+
+        expect(seenSignals.every((signal) => signal?.aborted === true)).toBe(true);
+      } finally {
+        releaseGeneration?.();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
     });
   });
 });

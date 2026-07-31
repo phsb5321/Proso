@@ -58,9 +58,15 @@ export interface IAudioGenerator {
   /**
    * Generate audio from text.
    * @param request - Audio generation request
+   * @param signal - Optional AbortSignal for real cancellation of a superseded
+   *   or stopped request (T015), instead of letting it complete and discarding
+   *   the result via the generation counter.
    * @returns Result with audio response or error
    */
-  generateAudio(request: AudioRequest): Promise<Result<AudioResponse, AudioError>>;
+  generateAudio(
+    request: AudioRequest,
+    signal?: AbortSignal,
+  ): Promise<Result<AudioResponse, AudioError>>;
 
   /**
    * Get available voices for a language.

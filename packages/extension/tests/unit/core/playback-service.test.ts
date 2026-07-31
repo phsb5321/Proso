@@ -7,21 +7,22 @@
  * @module tests/unit/core/playback-service
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
+import { highlightError } from '../../../src/core/shared/errors';
+import { isErr, isOk } from '../../../src/core/shared/result';
 import {
-  createMockAudioGenerator,
-  createMockAudioUrlProvider,
-  createMockCacheStore,
-  createMockHighlightSync,
-  createMockSettingsStore,
   type MockAudioGenerator,
   type MockAudioUrlProvider,
   type MockCacheStore,
   type MockHighlightSync,
   type MockSettingsStore,
+  createMockAudioGenerator,
+  createMockAudioUrlProvider,
+  createMockCacheStore,
+  createMockHighlightSync,
+  createMockSettingsStore,
 } from '../../mocks';
-import { isOk, isErr } from '../../../src/core/shared/result';
 
 describe('PlaybackService', () => {
   let service: PlaybackService;
@@ -470,6 +471,69 @@ describe('PlaybackService', () => {
 
       expect(service.getState().status).toBe('error');
       expect(service.getState().error).toBeDefined();
+    });
+
+    it('should notify the tab when audio generation fails (T006/T007)', async () => {
+      mockAudioGenerator.setForceError({
+        type: 'network',
+        message: 'Connection failed',
+      });
+
+      await service.start(testParagraphs, testTabId, testPageUrl);
+
+      expect(mockHighlightSync.showErrorCalls.length).toBeGreaterThan(0);
+      expect(mockHighlightSync.showErrorCalls[0]?.tabId).toBe(testTabId);
+      expect(mockHighlightSync.showErrorCalls[0]?.message.length).toBeGreaterThan(0);
+    });
+
+    it('should notify the tab when auto-advance generation fails (T008)', async () => {
+      await service.start(testParagraphs, testTabId, testPageUrl);
+      mockHighlightSync.showErrorCalls = []; // Reset
+
+      mockAudioGenerator.setForceError({
+        type: 'network',
+        message: 'Connection failed',
+      });
+
+      await service.next();
+
+      expect(mockHighlightSync.showErrorCalls.length).toBeGreaterThan(0);
+      expect(service.getState().status).toBe('error');
+    });
+
+    it('should notify the tab when audio.play() rejects (T009)', async () => {
+      const playSpy = jest
+        .spyOn(global.Audio.prototype, 'play')
+        .mockRejectedValueOnce(new DOMException('Blocked by autoplay policy', 'NotAllowedError'));
+
+      await service.start(testParagraphs, testTabId, testPageUrl);
+
+      expect(service.getState().status).toBe('error');
+      expect(mockHighlightSync.showErrorCalls.length).toBeGreaterThan(0);
+
+      playSpy.mockRestore();
+    });
+
+    it('should leave the footer in an error state, not stuck on playing', async () => {
+      mockAudioGenerator.setForceError({
+        type: 'network',
+        message: 'Connection failed',
+      });
+      mockHighlightSync.updateFooterStateCalls = []; // Reset
+
+      await service.start(testParagraphs, testTabId, testPageUrl);
+
+      const lastUpdate = mockHighlightSync.updateFooterStateCalls.at(-1);
+      expect(lastUpdate?.state.status).toBe('error');
+    });
+
+    it('should stop playback when the tab goes away mid-highlight (T010)', async () => {
+      await service.start(testParagraphs, testTabId, testPageUrl);
+      mockHighlightSync.setForceError(highlightError.tabNotFound(testTabId));
+
+      await service.next();
+
+      expect(service.getState().status).toBe('stopped');
     });
   });
 

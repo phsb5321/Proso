@@ -10,10 +10,11 @@
 import { NoOpAudioGeneratorAdapter } from '../adapters/audio';
 import { InMemoryCacheAdapter } from '../adapters/cache';
 import { NoOpHighlightSyncAdapter } from '../adapters/messaging';
-import { createLogger } from '../utils/logging/logger';
 import { ContentExtractionService } from '../core/content-extraction/extraction-service';
 import { PlaybackService } from '../core/playback/playback-service';
 import type { IAudioGenerator } from '../ports/audio-generator.port';
+import { createLogger } from '../utils/logging/logger';
+import { playbackQueue, prefetchService } from '../utils/playback';
 import {
   createApiClientAdapter,
   createAudioGeneratorAdapter,
@@ -126,7 +127,17 @@ function createServices(adapters: ContainerAdapters): ContainerServices {
     cacheStore: adapters.cacheStore,
     highlightSync: adapters.highlightSync,
     settingsStore: adapters.settingsStore,
+    // S3/T012: lookahead prefetch pipeline. Bound to `playback` itself so the
+    // producer/checkCache callbacks reuse the exact same cache-key + network
+    // path as live playback (see PlaybackService.generatePrefetchAudio /
+    // isParagraphCached).
+    prefetch: { service: prefetchService, queue: playbackQueue },
   });
+  prefetchService.configure(
+    playbackQueue,
+    (text, index, signal) => playback.generatePrefetchAudio(text, index, signal),
+    (index) => playback.isParagraphCached(index),
+  );
 
   // ContentExtractionService is always created (adapters always available)
   const contentExtraction = new ContentExtractionService({

@@ -58,6 +58,14 @@ export interface PrefetchedAudio {
   wordTimings: WordTiming[];
   /** When this was prefetched (for cleanup) */
   prefetchedAt: number;
+  /**
+   * Provider that generated this audio (T016/FR-012). Optional so callers
+   * that don't tag params still type-check — an absent value never matches
+   * a current provider, so it's discarded rather than played (fail closed).
+   */
+  provider?: string;
+  /** Voice that generated this audio — same fail-closed handling as `provider` (T016/FR-012). */
+  voice?: string | null;
 }
 
 /**
@@ -94,7 +102,14 @@ export interface PrefetchStatus {
 export type AudioGenerator = (
   text: string,
   index: number,
-) => Promise<{ audioUrl: string; audioData?: ArrayBuffer; wordTimings: WordTiming[] } | null>;
+  signal?: AbortSignal,
+) => Promise<{
+  audioUrl: string;
+  audioData?: ArrayBuffer;
+  wordTimings: WordTiming[];
+  provider?: string;
+  voice?: string | null;
+} | null>;
 
 /**
  * Cache checker function signature (injected dependency)
@@ -160,6 +175,12 @@ export class PrefetchService {
   private generateAudio: AudioGenerator | null = null;
   private checkCache: CacheChecker | null = null;
   private batchTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * Aborts every in-flight prefetch when the run is stopped. Prefetch is
+   * speculative spend on paragraphs the reader may never reach, so a stopped run
+   * must kill its fetches rather than let them bill out (FR-010, FR-013).
+   */
+  private runAbortController: AbortController | null = null;
 
   private readonly maxBufferSize: number;
   private readonly maxConcurrent: number;
@@ -205,6 +226,7 @@ export class PrefetchService {
     }
 
     this.isActive = true;
+    this.runAbortController = new AbortController();
     log.info('[Prefetch] Started');
 
     // Immediately process current queue state
@@ -224,6 +246,10 @@ export class PrefetchService {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
+    // Kill in-flight fetches rather than let them run to completion: they are
+    // speculative spend on paragraphs the reader has now abandoned (FR-013).
+    this.runAbortController?.abort();
+    this.runAbortController = null;
     log.info('[Prefetch] Stopped');
   }
 
@@ -484,11 +510,25 @@ export class PrefetchService {
         }
       }
 
-      // Generate audio
-      const result = await this.generateAudio(task.text, task.index);
+      // Generate audio. The signal is read here, before the await, so it is the
+      // controller belonging to the run that scheduled this task — a later start()
+      // installs a fresh one and must not un-cancel this fetch.
+      const result = await this.generateAudio(
+        task.text,
+        task.index,
+        this.runAbortController?.signal,
+      );
 
-      if (!result || !this.isActive) {
-        // Generation failed or service stopped
+      if (!result) {
+        this.queue.markError(task.index, 'Prefetch failed');
+        return;
+      }
+
+      if (!this.isActive) {
+        // Stopped while this fetch was in flight. clearBuffer() has already run and
+        // revoked everything it knew about, and this URL was created after that — so
+        // nothing else will ever revoke it if we simply drop the result (FR-011).
+        safeRevokeObjectURL(result.audioUrl);
         this.queue.markError(task.index, 'Prefetch failed');
         return;
       }
@@ -500,6 +540,8 @@ export class PrefetchService {
         audioData: result.audioData, // T046: Store raw data for persistent cache
         wordTimings: result.wordTimings,
         prefetchedAt: Date.now(),
+        provider: result.provider,
+        voice: result.voice,
       };
 
       this.buffer.set(task.index, prefetchedAudio);

@@ -197,6 +197,23 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     }
   }
 
+  async showError(
+    tabId: number,
+    message: string,
+    provider?: string,
+  ): Promise<Result<void, HighlightError>> {
+    try {
+      await this.sendToContentScript(tabId, {
+        type: 'PLAYBACK_ERROR',
+        message,
+        ...(provider !== undefined ? { provider } : {}),
+      });
+      return Ok(undefined);
+    } catch (error) {
+      return Err(this.toHighlightError(tabId, error));
+    }
+  }
+
   /**
    * Convert error to appropriate HighlightError type.
    */

@@ -11,6 +11,7 @@ import type {
   CheckoutResponse,
   CreditBalanceResponse,
   CreditHistoryResponse,
+  ErrorCode,
   ErrorResponse,
   LicenseValidateResponse,
   SubscriptionDetailsResponse,
@@ -25,6 +26,42 @@ import { apiClientError } from '../../ports/api-client.port';
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1_000;
+/** Upper bound on how long a Retry-After hint is honored (ms), so a hostile or
+ * malformed value cannot stall a retry indefinitely; MAX_RETRIES still bounds
+ * the total number of attempts regardless of this cap. */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+/**
+ * The server always sends `code` alongside `error`/`message`, but the shared
+ * `ErrorResponse` type doesn't declare it yet (packages/shared/src/types/api.ts).
+ * Widened locally so it can be read without an `any` cast or an out-of-scope
+ * edit to the shared package.
+ */
+interface ParsedErrorBody extends ErrorResponse {
+  code?: ErrorCode;
+}
+
+/**
+ * Parse RFC 7231 §7.1.3 `Retry-After` — either delta-seconds ("120") or an
+ * HTTP-date ("Wed, 21 Oct 2026 07:28:00 GMT"). Returns undefined when the
+ * header is absent or unparseable. Clamped to MAX_RETRY_AFTER_MS; a
+ * past HTTP-date clamps to 0 (retry immediately) rather than going negative.
+ */
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const trimmed = header.trim();
+
+  if (/^\d+$/.test(trimmed)) {
+    return Math.min(Number(trimmed) * 1000, MAX_RETRY_AFTER_MS);
+  }
+
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isNaN(dateMs)) {
+    return Math.min(Math.max(dateMs - Date.now(), 0), MAX_RETRY_AFTER_MS);
+  }
+
+  return undefined;
+}
 
 /**
  * Proso API adapter — HTTP client with retry and auth headers.
@@ -93,10 +130,11 @@ export class ProsoApiAdapter implements IApiClient {
 
   async synthesize(
     request: TTSSynthesizeRequest,
+    signal?: AbortSignal,
   ): Promise<Result<SynthesizeResponse, ApiClientError>> {
     // All requests go to the server — the server uses its own API keys
     // for free-tier users, and BYOK keys when provided (INV-001, INV-002).
-    return this.requestBinary('/api/v1/tts/synthesize', request);
+    return this.requestBinary('/api/v1/tts/synthesize', request, 0, signal);
   }
 
   async testApiKey(
@@ -156,25 +194,13 @@ export class ProsoApiAdapter implements IApiClient {
         return Ok(data);
       }
 
-      // Handle specific HTTP error codes
-      if (response.status === 401 || response.status === 403) {
-        const errorBody = await this.tryParseError(response);
-        return Err(apiClientError.unauthorized(errorBody?.message ?? 'Unauthorized'));
-      }
-
-      // Retry on 5xx
-      if (response.status >= 500 && attempt < MAX_RETRIES) {
-        await this.delay(RETRY_DELAY_MS * (attempt + 1));
+      const retryDelay = this.retryDelayMs(response, attempt);
+      if (retryDelay !== null) {
+        await this.delay(retryDelay);
         return this.request<T>(method, path, body, attempt + 1);
       }
 
-      const errorBody = await this.tryParseError(response);
-      return Err(
-        apiClientError.serverError(
-          response.status,
-          errorBody?.message ?? `HTTP ${response.status}`,
-        ),
-      );
+      return Err(await this.toApiClientError(response));
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return Err(apiClientError.timeout(DEFAULT_TIMEOUT_MS));
@@ -197,10 +223,30 @@ export class ProsoApiAdapter implements IApiClient {
     path: string,
     body: unknown,
     attempt = 0,
+    signal?: AbortSignal,
   ): Promise<Result<SynthesizeResponse, ApiClientError>> {
+    if (signal?.aborted) {
+      return Err(apiClientError.aborted());
+    }
+
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    // Compose the caller-supplied signal with the internal timeout controller so
+    // aborting either one aborts the fetch. AbortSignal.any needs no manual
+    // cleanup (engines drop the internal listener once the composed signal is
+    // unreachable); the fallback path adds a real listener and must remove it.
+    let fetchSignal: AbortSignal = controller.signal;
+    let onExternalAbort: (() => void) | undefined;
+    if (signal) {
+      if (typeof AbortSignal.any === 'function') {
+        fetchSignal = AbortSignal.any([controller.signal, signal]);
+      } else {
+        onExternalAbort = () => controller.abort();
+        signal.addEventListener('abort', onExternalAbort, { once: true });
+      }
+    }
 
     try {
       const headers: Record<string, string> = {
@@ -215,7 +261,7 @@ export class ProsoApiAdapter implements IApiClient {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
-        signal: controller.signal,
+        signal: fetchSignal,
       });
 
       if (response.ok) {
@@ -230,46 +276,80 @@ export class ProsoApiAdapter implements IApiClient {
         });
       }
 
-      if (response.status === 401 || response.status === 403) {
-        const errorBody = await this.tryParseError(response);
-        return Err(apiClientError.unauthorized(errorBody?.message ?? 'Unauthorized'));
+      const retryDelay = this.retryDelayMs(response, attempt);
+      if (retryDelay !== null) {
+        await this.delay(retryDelay);
+        return this.requestBinary(path, body, attempt + 1, signal);
       }
 
-      if (response.status >= 500 && attempt < MAX_RETRIES) {
-        await this.delay(RETRY_DELAY_MS * (attempt + 1));
-        return this.requestBinary(path, body, attempt + 1);
-      }
-
-      const errorBody = await this.tryParseError(response);
-      return Err(
-        apiClientError.serverError(
-          response.status,
-          errorBody?.message ?? `HTTP ${response.status}`,
-        ),
-      );
+      return Err(await this.toApiClientError(response));
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
+        if (signal?.aborted) {
+          return Err(apiClientError.aborted());
+        }
         return Err(apiClientError.timeout(DEFAULT_TIMEOUT_MS));
       }
 
       if (attempt < MAX_RETRIES) {
         await this.delay(RETRY_DELAY_MS * (attempt + 1));
-        return this.requestBinary(path, body, attempt + 1);
+        return this.requestBinary(path, body, attempt + 1, signal);
       }
 
       const message = error instanceof Error ? error.message : 'Unknown network error';
       return Err(apiClientError.network(message));
     } finally {
       clearTimeout(timeoutId);
+      if (onExternalAbort) {
+        signal?.removeEventListener('abort', onExternalAbort);
+      }
     }
   }
 
-  private async tryParseError(response: Response): Promise<ErrorResponse | null> {
+  private async tryParseError(response: Response): Promise<ParsedErrorBody | null> {
     try {
-      return (await response.json()) as ErrorResponse;
+      return (await response.json()) as ParsedErrorBody;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Delay before retrying a failed response, or null when the response is terminal.
+   * Only 5xx and 429 are retryable; a 429 carrying `Retry-After` overrides the backoff.
+   */
+  private retryDelayMs(response: Response, attempt: number): number | null {
+    const retryable = response.status >= 500 || response.status === 429;
+    if (!retryable || attempt >= MAX_RETRIES) {
+      return null;
+    }
+    return parseRetryAfterMs(response.headers.get('Retry-After')) ?? RETRY_DELAY_MS * (attempt + 1);
+  }
+
+  /**
+   * Map a non-OK response onto the error the reader will eventually see.
+   * Reads `message` first, then `error`, so both the current and the pre-089 server
+   * shapes yield a real reason instead of a bare status code.
+   */
+  private async toApiClientError(response: Response): Promise<ApiClientError> {
+    const errorBody = await this.tryParseError(response);
+
+    if (response.status === 401 || response.status === 403) {
+      return apiClientError.unauthorized(
+        errorBody?.message ?? errorBody?.error ?? 'Unauthorized',
+        errorBody?.code,
+      );
+    }
+
+    const retryAfterMs =
+      response.status === 429 ? parseRetryAfterMs(response.headers.get('Retry-After')) : undefined;
+
+    return apiClientError.serverError(
+      response.status,
+      errorBody?.message ?? errorBody?.error ?? `HTTP ${response.status}`,
+      errorBody?.code,
+      retryAfterMs,
+    );
   }
 
   private delay(ms: number): Promise<void> {

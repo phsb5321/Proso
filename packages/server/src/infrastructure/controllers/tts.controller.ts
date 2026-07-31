@@ -81,8 +81,10 @@ export class TTSController {
     }
 
     if (body.text.length > MAX_TEXT_LENGTH) {
+      const message = `Text exceeds maximum length of ${MAX_TEXT_LENGTH} characters`;
       res.status(HttpStatus.BAD_REQUEST).json({
-        error: `Text exceeds maximum length of ${MAX_TEXT_LENGTH} characters`,
+        error: message,
+        message,
         code: ErrorCode.TextTooLong,
       });
       return;
@@ -137,6 +139,7 @@ export class TTSController {
       const statusCode = this.mapErrorToStatus(error.code);
       res.status(statusCode).json({
         error: error.message,
+        message: error.message,
         code: error.code,
         details: error.details,
       });

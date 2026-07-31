@@ -5,7 +5,7 @@
  * @module tests/unit/content/paragraph-selector
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // Mock browser API - unused in this file since we test the mock implementation
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -598,5 +598,94 @@ describe('Bug 2: Section Selection (US2)', () => {
       expect(selector.isActive()).toBe(true);
       expect(selector.getSelectedIndex()).toBe(null); // Reset on disable
     });
+  });
+});
+
+// ============================================================================
+// T011 (089-reading-reliability): Playback failure toast
+// ============================================================================
+//
+// Unlike MockParagraphSelector above (a hand-rolled, DOM-free reimplementation
+// of the debounce/dedup state machine), these tests exercise the REAL
+// ParagraphSelector class against a mocked `wxt/browser` module so the actual
+// browser.runtime.sendMessage(...).then()/.catch() wiring in
+// handlePlayFromParagraph() is what runs. handlePlayFromParagraph() is called
+// directly (it is private; TS's privacy is compile-time only) rather than via
+// a simulated click through enableSelectionMode(), since that path's
+// rAF-deferred DOM setup is orthogonal to the toast behavior under test here
+// and is already covered by the debounce/dedup tests above.
+
+const mockBrowserSendMessage = jest.fn<(message: unknown) => Promise<unknown>>();
+
+jest.unstable_mockModule('wxt/browser', () => ({
+  browser: {
+    runtime: {
+      sendMessage: mockBrowserSendMessage,
+    },
+  },
+}));
+
+const { ParagraphSelector } = await import('../../../src/utils/content/paragraph-selector');
+
+const FAILURE_TOAST_ID = 'proso-playback-failure-toast';
+
+/** Flush the microtask queue so a fire-and-forget .then()/.catch() settles. */
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * `handlePlayFromParagraph` is private — it is invoked by a click listener the
+ * real class installs on paragraph elements. Naming the one member under test
+ * keeps the escape hatch typed instead of widening the instance to `any`.
+ */
+type ParagraphSelectorInternals = { handlePlayFromParagraph(index: number): void };
+
+describe('T011: playback failure toast (089-reading-reliability)', () => {
+  let realSelector: InstanceType<typeof ParagraphSelector>;
+  let internals: ParagraphSelectorInternals;
+
+  beforeEach(() => {
+    mockBrowserSendMessage.mockReset();
+    document.getElementById(FAILURE_TOAST_ID)?.remove();
+    realSelector = new ParagraphSelector();
+    internals = realSelector as unknown as ParagraphSelectorInternals;
+  });
+
+  it('should show an accessible alert toast when the background resolves success:false', async () => {
+    mockBrowserSendMessage.mockResolvedValueOnce({
+      success: false,
+      playbackStarted: false,
+      error: 'No active tab found.',
+    });
+
+    internals.handlePlayFromParagraph(0);
+    await flushMicrotasks();
+
+    const toast = document.body.querySelector('[role="alert"]');
+    expect(toast).not.toBeNull();
+    expect(toast?.getAttribute('aria-live')).toBe('assertive');
+    expect(toast?.textContent).toBe('No active tab found.');
+  });
+
+  it('should show an accessible alert toast when sendMessage rejects (transport failure)', async () => {
+    mockBrowserSendMessage.mockRejectedValueOnce(new Error('port closed'));
+
+    internals.handlePlayFromParagraph(0);
+    await flushMicrotasks();
+
+    const toast = document.body.querySelector('[role="alert"]');
+    expect(toast).not.toBeNull();
+    expect(toast?.textContent).toBe('Could not reach the extension to start playback.');
+  });
+
+  it('should fall back to a generic message when the background omits an error string', async () => {
+    mockBrowserSendMessage.mockResolvedValueOnce({ success: false, playbackStarted: false });
+
+    internals.handlePlayFromParagraph(0);
+    await flushMicrotasks();
+
+    const toast = document.body.querySelector('[role="alert"]');
+    expect(toast?.textContent).toBe('Failed to start playback from this paragraph.');
   });
 });

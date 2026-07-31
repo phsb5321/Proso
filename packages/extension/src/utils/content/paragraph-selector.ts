@@ -57,6 +57,19 @@ const _DATA_INDEX_ATTR = 'data-proso-select-index';
 // T019: Click debounce configuration (035-selection-tts-hardening)
 const CLICK_DEBOUNCE_MS = 300;
 
+// T011 (089-reading-reliability): standalone failure toast for paragraph-click
+// playback errors. Cannot anchor to the clicked paragraph's play icon —
+// disableSelectionMode() (called synchronously right after the
+// PARAGRAPH_CLICKED message is sent) removes every play icon and clears
+// paragraphElements before any async response or rejection can arrive.
+// Reusing stickyFooter.showError() was considered and rejected: it
+// early-returns silently when the footer isn't mounted yet
+// (`!this.shadowRoot || !this._footerEl`), which is exactly the case for
+// the failures this covers (background resolves success:false BEFORE
+// FOOTER_SHOW is ever sent — see playback.handlers.ts PARAGRAPH_CLICKED).
+const FAILURE_TOAST_ID = 'proso-playback-failure-toast';
+const FAILURE_TOAST_DISPLAY_MS = 5000;
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -91,6 +104,10 @@ export class ParagraphSelector {
   private lastClickTime = 0;
   private lastClickedIndex: number | null = null;
   private currentlyPlayingIndex: number | null = null;
+
+  // T011 (089-reading-reliability): pending auto-dismiss timer for the
+  // failure toast (see reportPlaybackFailure).
+  private failureToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.state = {
@@ -465,10 +482,30 @@ export class ParagraphSelector {
         type: 'PARAGRAPH_CLICKED',
         ...payload,
       })
+      .then((response) => {
+        // T011: background resolves (never rejects) for expected failures —
+        // e.g. no active tab, extraction failed, invalid index — so a
+        // resolved success:false must be treated as a failure too.
+        if (
+          response &&
+          typeof response === 'object' &&
+          'success' in response &&
+          response.success === false
+        ) {
+          const reason =
+            'error' in response && typeof response.error === 'string'
+              ? response.error
+              : 'Failed to start playback from this paragraph.';
+          log.error('Proso: PARAGRAPH_CLICKED reported failure', { error: reason });
+          this.currentlyPlayingIndex = null;
+          this.reportPlaybackFailure(reason);
+        }
+      })
       .catch((err) => {
         log.error('Proso: Failed to send PARAGRAPH_CLICKED message', { error: err });
         // Reset playing state on error
         this.currentlyPlayingIndex = null;
+        this.reportPlaybackFailure('Could not reach the extension to start playback.');
       });
 
     // Visually select the paragraph
@@ -477,6 +514,48 @@ export class ParagraphSelector {
     // Disable selection mode as playback will start
     // The background will re-enable it if needed
     this.disableSelectionMode();
+  }
+
+  /**
+   * Show a standalone failure toast for a paragraph-click playback failure
+   * (T011). Rendered directly on document.body (not anchored to a paragraph
+   * or the sticky footer) since both may be gone or not-yet-mounted by the
+   * time the failure is known — see the FAILURE_TOAST_ID comment above.
+   */
+  private reportPlaybackFailure(message: string): void {
+    let toast = document.getElementById(FAILURE_TOAST_ID);
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = FAILURE_TOAST_ID;
+      toast.setAttribute('role', 'alert');
+      toast.setAttribute('aria-live', 'assertive');
+      toast.style.cssText = [
+        'position: fixed !important',
+        'bottom: 16px !important',
+        'left: 16px !important',
+        'z-index: 2147483647 !important',
+        'max-width: 320px',
+        'padding: 12px 16px',
+        'border-radius: 8px',
+        'background: #1e1e2e',
+        'color: #f38ba8',
+        'border: 1px solid #f38ba8',
+        'font: 14px/1.4 system-ui, sans-serif',
+        'box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3)',
+      ].join('; ');
+      document.body.appendChild(toast);
+    }
+
+    toast.textContent = message;
+
+    if (this.failureToastTimer !== null) {
+      clearTimeout(this.failureToastTimer);
+    }
+    const toastEl = toast;
+    this.failureToastTimer = setTimeout(() => {
+      toastEl.remove();
+      this.failureToastTimer = null;
+    }, FAILURE_TOAST_DISPLAY_MS);
   }
 
   /**

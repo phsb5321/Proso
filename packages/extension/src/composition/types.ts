@@ -40,14 +40,12 @@ export interface ApiKeys {
 
 /**
  * Dependencies required by PlaybackService.
+ *
+ * Re-exported from the service that consumes it, so the contract has one
+ * definition. It used to be declared here as well, and the two copies had to be
+ * kept in step by hand.
  */
-export interface PlaybackServiceDependencies {
-  readonly audioGenerator: IAudioGenerator;
-  readonly audioUrlProvider: IAudioUrlProvider;
-  readonly cacheStore: ICacheStore;
-  readonly highlightSync: IHighlightSynchronizer;
-  readonly settingsStore: ISettingsStore;
-}
+export type { PlaybackServiceDependencies } from '../core/playback/playback-service';
 
 /**
  * Dependencies required by ContentExtractionService.

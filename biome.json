@@ -66,5 +66,17 @@
       "package-lock.json",
       ".wxt/**"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "include": ["packages/server/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    }
+  ]
 }
