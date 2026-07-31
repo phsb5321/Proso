@@ -9,8 +9,8 @@ GENERATOR_FAMILY ?=
 ADVERSARIAL_REVIEWER ?= default
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader test-fast test \
-	build build-chrome build-all quality inventory security verify verify-full adversarial \
-	gate ci status
+	build build-chrome build-all coverage architecture stale duplication semantic docs \
+	dependencies quality inventory security verify verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Proso delivery harness\n\n"} \
@@ -65,20 +65,42 @@ build-all: ## Build the workspace plus Chromium and Edge extension artifacts.
 	$(PNPM) --filter @proso/extension build:chrome
 	$(PNPM) --filter @proso/extension exec wxt build -b edge
 
-quality: ## Enforce TypeScript cycle and duplication thresholds.
+coverage: ## Run every suite and require at least 80% coverage on changed production lines.
+	@./scripts/coverage-workspace.sh
+
+architecture: ## Enforce package and layer import boundaries.
+	$(PNPM) exec depcruise --config .dependency-cruiser.cjs packages services scripts \
+		--output-type err
+
+stale: ## Reject new unused code/dependencies and expired or stale baseline entries.
+	@node scripts/quality/knip-ratchet.mjs
+
+duplication: ## Reject duplication touching changed production lines.
+	@node scripts/quality/duplication-ratchet.mjs
+
+semantic: ## Reject new fail-open policy patterns with tested OpenGrep rules.
+	@./scripts/opengrep-check.sh
+
+docs: ## Check ownership, review expiry, and relative links for active documentation.
+	@node scripts/quality/check-active-docs.mjs
+
+dependencies: ## Reject new advisories and expired or stale OSV baseline entries.
+	@./scripts/osv-check.sh
+
+quality: architecture stale duplication semantic docs ## Enforce changed-code quality ratchets.
 	$(PNPM) --filter @proso/extension quality
 
-inventory: ## Report existing unused-code/dependency debt; currently informational.
-	-$(PNPM) knip
+inventory: stale ## Compatibility alias for the fail-closed unused-code ratchet.
 
-security: doctor ## Run extension security tests and scan the current source tree for secrets.
+security: doctor build ## Build required fixtures, run security tests, and scan source plus commits.
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
 		--selectProjects security --maxWorkers=100%
 	@./scripts/security-check.sh
 
 verify: doctor format-check lint typecheck smoke-reader security ## Fast delivery floor.
 
-verify-full: verify test build-all quality ## Deep deterministic gate before adversarial review.
+verify-full: verify coverage build-all quality dependencies ## Deep deterministic gate before review.
+	@./scripts/write-gate-receipt.sh
 
 adversarial: ## Run a different-family, typed, fail-closed review (requires GENERATOR_FAMILY).
 	@test -n "$(GENERATOR_FAMILY)" || { \

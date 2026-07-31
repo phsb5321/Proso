@@ -1,0 +1,14 @@
+# OpenGrep/Semgrep target filter.
+#
+# Defining this file replaces the bundled default ignore list, which silently drops
+# `tests/` — the exact place the focused/skipped-test rule has to look. Only generated
+# and vendored output is filtered here; the detector fixtures are excluded on the
+# repository-scan command line instead, so the self-test can still scan them.
+node_modules/
+dist/
+build/
+coverage/
+.output/
+.wxt/
+.venv/
+*.min.js

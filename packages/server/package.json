@@ -16,6 +16,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:coverage": "jest --coverage --coverageReporters=lcov",
     "test:e2e": "jest --config ./tests/jest-e2e.config.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",

@@ -25,7 +25,7 @@ changed_files=()
 collect_file() {
   local candidate="$1"
   [[ -f "$candidate" ]] || return 0
-  [[ "$candidate" =~ \.(js|jsx|json|ts|tsx)$ ]] || return 0
+  [[ "$candidate" =~ \.(cjs|js|jsx|json|mjs|ts|tsx)$ ]] || return 0
   [[ -n "${seen[$candidate]+present}" ]] && return 0
   seen["$candidate"]=1
   changed_files+=("$candidate")
@@ -48,7 +48,7 @@ while IFS= read -r -d '' candidate; do
 done < <(git ls-files --others --exclude-standard -z)
 
 if (( ${#changed_files[@]} == 0 )); then
-  printf 'No changed JavaScript, JSON, or TypeScript files to check.\n'
+  printf 'No changed JavaScript, JSON, or TypeScript-family files to check.\n'
   exit 0
 fi
 

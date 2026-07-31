@@ -29,7 +29,7 @@ missing fallback to restore casually.
 | ✓ | The no-key request is allowed and the server owns free-tier provider keys | Commit `55add09`; `ProsoApiAdapter.synthesize`; server TTS service/routing tests |
 | ✓ | Extraction, no-key HTTP shape, audio adaptation, cache, highlight timeline, and controls join in one deterministic oracle | `make smoke-reader` |
 | ✓ | Focused server route and extension orchestration suites pass | Commands below |
-| ✓ | The TypeScript cycle scan processes real files | `make quality` reports 177 files and no cycle |
+| ✓ | Static gates process real code and changed evidence | `make quality` resolves 501 modules / 805 dependencies, classifies 73 Knip findings and 136 clone groups, and rejects new debt |
 | ✗ | The existing Chromium audio E2E proves reading works | It can pass without initiating or observing a TTS request and clears errors |
 | ✗ | CI `security-audit` is a dependency gate | `pnpm audit --audit-level=high` exited 1 on PR #63, but `continue-on-error: true` made the job green; GitHub reports 73 open alerts (2 critical) |
 | ✗ | A green CI `visual-tests` job means visual tests passed | PR #63 ran 26 Firefox visual tests: 24 failed and 2 passed, but step-level `continue-on-error: true` made the job green |
@@ -172,8 +172,9 @@ Captured on 30/07/2026 at 16:55 BRT with
    choose the smallest Chrome-specific architecture change. Do not infer a Firefox regression.
 3. Reconcile the dated architecture audit and pre-launch checklist; they still contain historical
    Browser TTS and browser-test claims.
-4. Configure/baseline Knip before promoting `make inventory` to a gate.
-5. Remediate the two critical dependency alerts in service-scoped PRs, then the remaining high
+4. Triage the 73 expiring Knip fingerprints and 60 OSV advisories before 30/10/2026; remove a
+   fingerprint as soon as its finding disappears.
+5. Remediate critical/reachable dependency alerts in service-scoped PRs, then the remaining high
    alerts. Changing `.github/workflows/ci.yml` to remove the audit’s `continue-on-error` is a
    separately gated workflow change; until then, do not cite the green job as security evidence.
 6. Establish the missing Firefox/Linux visual baselines and repair the keyboard assertions behind

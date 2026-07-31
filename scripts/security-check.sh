@@ -10,6 +10,19 @@ for command_name in git gitleaks mktemp; do
   fi
 done
 
+readonly BASE_REF="${DIFF_BASE_REF:-origin/main}"
+if ! git rev-parse --verify --quiet "${BASE_REF}^{commit}" >/dev/null; then
+  printf 'Gitleaks baseline commit does not exist: %s\n' "$BASE_REF" >&2
+  exit 1
+fi
+
+gitleaks git \
+  --no-banner \
+  --no-color \
+  --redact=100 \
+  --log-opts="${BASE_REF}..HEAD" \
+  .
+
 SCAN_ROOT="$(mktemp -d -t proso-gitleaks.XXXXXXXX)"
 readonly SCAN_ROOT
 cleanup() {

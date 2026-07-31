@@ -12,6 +12,7 @@
     "lint": "biome lint src/ tests/",
     "format:check": "biome format src/ tests/",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "engines": {
@@ -31,8 +32,9 @@
     "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/node": "^22.7.0",
+    "@vitest/coverage-v8": "4.1.10",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "vitest": "4.1.10"
   }
 }
