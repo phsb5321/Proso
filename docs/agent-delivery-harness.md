@@ -80,6 +80,34 @@ and control state.
 | OSV/Trivy/Semgrep additions | Deferred | No reproduced gap justified another install/network scanner in this slice |
 | Existing Playwright audio suite | Rejected as an oracle | It can pass without a synthesis request or audio assertion |
 
+## Quality foundation receipts
+
+Slice 1a merged as PR #67 (`9c761c341fa91fca2f26badfff5a6d86874eb7df`). It makes managed
+TTS debit atomic and post-success, attributes fallback/cache results to the provider that actually
+synthesized the audio, and treats post-synthesis cache/logging failures as best effort.
+
+Slice 1b adds the log gateway to the same pnpm lock and Make contract as every other shipped
+package. Property tests use `FC_SEED=20260730` by default and accept `FC_NUM_RUNS` for bounded PR
+and deeper nightly campaigns. Deterministic fault checks now cover credit conservation, schema
+boundaries, non-finite playback progress, stale audio completion after stop, corrupt migration
+versions, failed migration checkpoints, 429/5xx jitter and `Retry-After`, per-attempt deadlines,
+and disconnect retry bounds.
+
+Saved planted-failure receipts:
+
+- `/tmp/proso-slice1-credit-red.log` — all-provider failure charged 25 credits.
+- `/tmp/proso-slice1b-playback-pbt-red.log` — seed `20260730`, path `80`, minimized to `NaN`.
+- `/tmp/proso-slice1b-retry-red.log` — retry runtime ignored injected bounds/hints.
+- `/tmp/proso-slice1b-stale-response-red.log` — stopped playback returned to `playing`.
+- `/tmp/proso-slice1b-corrupt-storage-red.log` — corrupt version skipped all migrations and a
+  failed migration was incorrectly advanced to version 8.
+
+On 30/07/2026, `make verify` completed in 22.88 seconds with receipt SHA-256
+`a65ad6fa1ce06a7dacf3c920efa427337d36884f2e0e1fca9d8ab81207d3e649`. The gateway container
+built from the repository root lockfile as image
+`sha256:2a987b44fd24d2a220b0ee66ed48002d5be5b872959940c0b36f0f53ae2e2384` and ran its dependency
+probe as non-root UID 1001. Container tags and image IDs are evidence only, not deployment.
+
 ## Handoff format
 
 Every handoff records: hypothesis/falsifier, changed files, exact commands and exit status, planted

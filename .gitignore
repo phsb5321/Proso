@@ -8,6 +8,7 @@ specs/
 
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build outputs
 *.xpi

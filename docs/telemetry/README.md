@@ -126,9 +126,8 @@ Failed sends are retried with exponential backoff:
 
 1. Start the gateway in development mode:
    ```bash
-   cd services/proso-log-gateway
-   npm install
-   npm run dev
+   pnpm install --frozen-lockfile
+   pnpm --filter @proso/log-gateway dev
    ```
 
 2. Configure extension to use local gateway:
@@ -188,6 +187,13 @@ dokku config:set proso-log-gateway \
 
 # Deploy
 git push dokku main
+```
+
+The gateway shares the repository's pinned pnpm version and lockfile. Its
+Dockerfile must therefore use the repository root as its build context:
+
+```bash
+docker build -f services/proso-log-gateway/Dockerfile .
 ```
 
 ### Loki Setup

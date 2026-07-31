@@ -1,6 +1,7 @@
 {
-  "name": "proso-log-gateway",
+  "name": "@proso/log-gateway",
   "version": "1.0.0",
+  "private": true,
   "description": "Telemetry gateway for Proso extension - receives events and pushes to Loki",
   "main": "dist/index.js",
   "scripts": {
@@ -8,6 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint src/ tests/",
+    "format:check": "biome format src/ tests/",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -16,7 +19,7 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "zod": "^3.23.8",
+    "zod": "^3.25.76",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
     "helmet": "^8.0.0",
@@ -24,11 +27,12 @@
     "express-rate-limit": "^7.4.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@biomejs/biome": "1.9.4",
+    "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
     "@types/node": "^22.7.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

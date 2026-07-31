@@ -27,17 +27,19 @@ format-check: ## Check tracked TypeScript/JavaScript formatting.
 	$(PNPM) --filter @proso/extension format:check
 	$(PNPM) --dir packages/server exec biome format src/
 	$(PNPM) exec biome format packages/shared/src
+	$(PNPM) --filter @proso/log-gateway format:check
 	@./scripts/biome-changed.sh format
 
-lint: ## Lint the extension, server, and shared source with the pinned Biome.
+lint: ## Lint every shipped TypeScript workspace with the pinned Biome.
 	$(PNPM) --filter @proso/extension lint
 	$(PNPM) --dir packages/server exec biome lint src/
 	$(PNPM) exec biome lint packages/shared/src
+	$(PNPM) --filter @proso/log-gateway lint
 	@./scripts/biome-changed.sh lint
 
 typecheck: doctor ## Type-check all TypeScript workspace packages in parallel.
 	$(PNPM) --parallel --filter @proso/extension --filter @proso/server \
-		--filter @proso/shared exec tsc --noEmit
+		--filter @proso/shared --filter @proso/log-gateway exec tsc --noEmit
 
 smoke-reader: ## Run the deterministic extraction-to-playback reader oracle.
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
@@ -51,7 +53,7 @@ test: ## Run workspace test suites concurrently.
 build: ## Build every buildable pnpm workspace package.
 	$(PNPM) --filter @proso/shared build
 	$(PNPM) --parallel --aggregate-output --filter @proso/extension \
-		--filter @proso/server run build
+		--filter @proso/server --filter @proso/log-gateway run build
 
 build-chrome: ## Compile the Chromium extension artifact (not a journey acceptance test).
 	$(PNPM) --filter @proso/extension build:chrome
@@ -59,7 +61,7 @@ build-chrome: ## Compile the Chromium extension artifact (not a journey acceptan
 build-all: ## Build the workspace plus Chromium and Edge extension artifacts.
 	$(PNPM) --filter @proso/shared build
 	$(PNPM) --parallel --aggregate-output --filter @proso/extension \
-		--filter @proso/server run build
+		--filter @proso/server --filter @proso/log-gateway run build
 	$(PNPM) --filter @proso/extension build:chrome
 	$(PNPM) --filter @proso/extension exec wxt build -b edge
 
@@ -74,7 +76,7 @@ security: doctor ## Run extension security tests and scan the current source tre
 		--selectProjects security --maxWorkers=100%
 	@./scripts/security-check.sh
 
-verify: doctor format-check lint typecheck smoke-reader security ## Fast deterministic delivery floor.
+verify: doctor format-check lint typecheck smoke-reader security ## Fast delivery floor.
 
 verify-full: verify test build-all quality ## Deep deterministic gate before adversarial review.
 

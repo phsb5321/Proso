@@ -165,7 +165,7 @@ export const playbackStateTransitions = {
    */
   updateProgress: (state: PlaybackState, progress: number): PlaybackState => ({
     ...state,
-    progress: Math.max(0, Math.min(1, progress)),
+    progress: Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0,
   }),
 
   /**
