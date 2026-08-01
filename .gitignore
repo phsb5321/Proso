@@ -59,3 +59,6 @@ coverage/
 
 # TypeScript build info (incremental compilation)
 *.tsbuildinfo
+
+# Smoke-reading run receipts
+.artifacts/

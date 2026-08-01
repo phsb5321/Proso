@@ -8,9 +8,10 @@ PNPM ?= pnpm
 GENERATOR_FAMILY ?=
 ADVERSARIAL_REVIEWER ?= default
 
-.PHONY: help doctor bootstrap format-check lint typecheck smoke-reader test-fast test \
-	build build-chrome build-all coverage architecture stale duplication semantic docs \
-	dependencies quality inventory security verify verify-full adversarial gate ci status
+.PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
+	test-fast test build build-chrome build-all coverage architecture stale duplication \
+	semantic docs dependencies quality inventory security verify verify-full adversarial \
+	gate ci status
 
 help: ## Show the delivery commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Proso delivery harness\n\n"} \
@@ -41,9 +42,13 @@ typecheck: doctor ## Type-check all TypeScript workspace packages in parallel.
 	$(PNPM) --parallel --filter @proso/extension --filter @proso/server \
 		--filter @proso/shared --filter @proso/log-gateway exec tsc --noEmit
 
-smoke-reader: ## Run the deterministic extraction-to-playback reader oracle.
+smoke-reader: ## Run the in-process (jsdom) extraction-to-playback reader oracle.
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
 		--selectProjects integration --runInBand tests/integration/reader-journey.test.ts
+
+smoke-reading: ## Drive the built extension in a real Firefox and assert the reading journey.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/smoke-reading.mjs
 
 test-fast: smoke-reader ## Alias for the fast outcome-level reader check.
 
@@ -109,8 +114,11 @@ adversarial: ## Run a different-family, typed, fail-closed review (requires GENE
 		GENERATOR_FAMILY='$(GENERATOR_FAMILY)' \
 		ADVERSARIAL_REVIEWER='$(ADVERSARIAL_REVIEWER)' ./scripts/adversarial-review.sh
 
-gate: verify-full adversarial ## Full deterministic checks followed by the typed adversarial gate.
+gate: verify-full smoke-reading adversarial ## Deterministic checks, the real-browser journey, then the typed adversarial gate.
 
+# `ci` deliberately stops at verify-full: smoke-reading needs a real Firefox and
+# geckodriver on the host, and a missing browser must fail the local gate loudly
+# rather than turn every hosted run red on a tooling gap.
 ci: verify-full ## Deterministic CI entry point; model review remains an explicit local gate.
 
 status: ## Show branch, worktree, and diff state without claiming unrun checks are green.
