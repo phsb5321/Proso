@@ -186,15 +186,20 @@ describe('TTSController — error response shape (T001)', () => {
     it('maps InsufficientCredits/NoActiveAllocation-class errors to 402 with the same shape', async () => {
       // Paid tier so the credit preflight runs and produces a CreditError before any
       // provider call — deterministic without needing to mock deductCredits.
+      // The window is relative because the record claims `status: 'active'`:
+      // an absolute one turns this into an active subscription whose period has
+      // closed, which is a state the product does not have and a trap for the
+      // first check that reads these dates.
+      const periodStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const proSubscription: SubscriptionRecord = {
         id: 'sub-1',
         userId: 'user-1',
         tier: SubscriptionTier.Pro,
         status: 'active',
-        currentPeriodStart: new Date('2026-07-01T00:00:00.000Z'),
-        currentPeriodEnd: new Date('2026-08-01T00:00:00.000Z'),
-        createdAt: new Date('2026-07-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        createdAt: periodStart,
+        updatedAt: periodStart,
       };
       subscriptionRepo.findActiveByUserId.mockResolvedValue(proSubscription);
       creditRepo.findCurrentAllocation.mockResolvedValue(null);
