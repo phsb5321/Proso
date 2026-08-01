@@ -7,9 +7,10 @@
  *
  * Flattens stored highlights into the shape an external anchoring tool reads:
  * the W3C TextQuoteSelector this extension already stores, plus the page it
- * was taken from. Nothing else — something re-locating a quote in a document
- * needs the quote and its surrounding context, not our storage ids, display
- * colour, or re-anchoring bookkeeping.
+ * was taken from and whether the quote has stopped matching that page.
+ * Nothing else — something re-locating a quote in a document needs the quote,
+ * its surrounding context, and any reason to distrust it, not our storage ids
+ * or display colour.
  *
  * @module core/highlight/highlight-export
  */
@@ -45,6 +46,18 @@ export interface HighlightAnchor {
 
   /** ISO 8601 creation timestamp. */
   createdAt: string;
+
+  /**
+   * Present, and always `true`, when the extension last opened this page and
+   * could not find the quote in it.
+   *
+   * Absent means "not known to be orphaned", which also covers every highlight
+   * whose page has not been opened since it was made — so absence is not a
+   * promise the quote still matches. Emitted only when true for the same
+   * reason the optional fields are omitted rather than nulled: in the written
+   * file, a consumer testing for the key and one testing the value agree.
+   */
+  orphaned?: true;
 }
 
 /**
@@ -69,10 +82,11 @@ function compareAnchors(a: HighlightAnchor, b: HighlightAnchor): number {
 /**
  * Flatten highlights into export anchors, oldest first.
  *
- * Orphaned highlights are included: re-anchoring failing against the live page
- * says nothing about whether the reader's quote was real, and the consumer
- * anchors against its own copy of the source anyway. Dropping them here would
- * silently lose reader work.
+ * Orphaned highlights are included, and marked. Re-anchoring failing against
+ * the live page says nothing about whether the reader's quote was real, and
+ * the consumer anchors against its own copy of the source anyway, so dropping
+ * them here would silently lose reader work. Leaving the decision to the
+ * consumer only means something if the file says which ones they are.
  *
  * @param highlights - Highlights as stored
  * @returns Anchors in a stable order
@@ -93,6 +107,7 @@ export function toHighlightAnchors(highlights: readonly Highlight[]): HighlightA
         suffix: selector.suffix,
         note: note ? note : undefined,
         createdAt: highlight.created,
+        orphaned: highlight.orphaned ? true : undefined,
       };
     })
     .sort(compareAnchors);

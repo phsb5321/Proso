@@ -16,7 +16,7 @@ import { createHighlightRepository } from '../adapters/storage/highlight-indexed
 import { serializeHighlightAnchors } from '../core/highlight/highlight-export';
 import { type HighlightColor, createHighlight } from '../core/highlight/highlight.entity';
 import type { Result } from '../core/shared/result';
-import { isOk } from '../core/shared/result';
+import { Ok, isOk } from '../core/shared/result';
 import type {
   HighlightRepositoryError,
   IHighlightRepository,
@@ -28,6 +28,7 @@ import {
   highlightDeleteParamsSchema,
   highlightGetParamsSchema,
   highlightListParamsSchema,
+  highlightReportAnchoringParamsSchema,
   highlightUpdateParamsSchema,
 } from './schemas/misc.schemas';
 
@@ -194,6 +195,30 @@ function registerAcknowledged<T>(
 }
 
 /**
+ * Persist how each highlight anchored against the page.
+ *
+ * Runs the updates together and reports the first failure. The rest are not
+ * rolled back and should not be: a highlight deleted from another tab
+ * mid-render makes its own update fail without saying anything about the
+ * others, whose new flags are correct and already written.
+ *
+ * Success is its own value rather than one of the updated highlights. Handing
+ * back `applied[0]` would answer "did the batch work" with a record of one
+ * particular highlight, and would depend on the batch being non-empty to
+ * answer at all.
+ */
+async function applyAnchoringResults(
+  repo: IHighlightRepository,
+  results: readonly { id: string; orphaned: boolean }[],
+): Promise<Result<unknown, HighlightRepositoryError>> {
+  const applied = await Promise.all(
+    results.map((result) => repo.update(result.id, { orphaned: result.orphaned })),
+  );
+
+  return applied.find((result) => !isOk(result)) ?? Ok(undefined);
+}
+
+/**
  * Register all highlight handlers.
  *
  * @param registry - Handler registry to register with
@@ -317,6 +342,14 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   // DELETE
   registerAcknowledged(registry, 'highlight.delete', highlightDeleteParamsSchema, (repo, params) =>
     repo.delete(params.id),
+  );
+
+  // ANCHORING RESULTS
+  registerAcknowledged(
+    registry,
+    'highlight.reportAnchoring',
+    highlightReportAnchoringParamsSchema,
+    (repo, params) => applyAnchoringResults(repo, params.results),
   );
 
   // DELETE BY URL

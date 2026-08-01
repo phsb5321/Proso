@@ -174,7 +174,7 @@ describe('highlight.handlers', () => {
   // -----------------------------------------------------------------------
 
   describe('registration', () => {
-    it('should register all seven highlight handlers', () => {
+    it('should register all eight highlight handlers', () => {
       expect(registry.has('highlight.create')).toBe(true);
       expect(registry.has('highlight.get')).toBe(true);
       expect(registry.has('highlight.list')).toBe(true);
@@ -182,10 +182,11 @@ describe('highlight.handlers', () => {
       expect(registry.has('highlight.delete')).toBe(true);
       expect(registry.has('highlight.deleteByUrl')).toBe(true);
       expect(registry.has('highlight.export')).toBe(true);
+      expect(registry.has('highlight.reportAnchoring')).toBe(true);
     });
 
-    it('should register exactly 7 handlers', () => {
-      expect(registry.size).toBe(7);
+    it('should register exactly 8 handlers', () => {
+      expect(registry.size).toBe(8);
     });
   });
 
@@ -542,6 +543,86 @@ describe('highlight.handlers', () => {
   // -----------------------------------------------------------------------
   // highlight.delete
   // -----------------------------------------------------------------------
+
+  describe('highlight.reportAnchoring', () => {
+    it('marks a highlight that no longer matches its page', async () => {
+      mockRepo.update.mockResolvedValue(okResult(makeHighlight({ id: 'gone' })));
+
+      const outer = await registry.dispatch('highlight.reportAnchoring', {
+        results: [{ id: 'gone', orphaned: true }],
+      });
+
+      expect((unwrapDispatch(outer) as HighlightUpdateResponse).success).toBe(true);
+      expect(mockRepo.update).toHaveBeenCalledWith('gone', { orphaned: true });
+    });
+
+    it('clears the flag on a highlight that matches again', async () => {
+      // A page can be edited back into matching. Persisting only the failures
+      // would let the flag ratchet true and never come back, so the export
+      // would keep warning about a quote that is fine.
+      mockRepo.update.mockResolvedValue(okResult(makeHighlight({ id: 'back' })));
+
+      await registry.dispatch('highlight.reportAnchoring', {
+        results: [{ id: 'back', orphaned: false }],
+      });
+
+      expect(mockRepo.update).toHaveBeenCalledWith('back', { orphaned: false });
+    });
+
+    it('applies each result to its own highlight', async () => {
+      // Asserted as the whole call list, not a count plus one spot-check: a
+      // handler that ignored `result.id` and wrote all three flags onto the
+      // first highlight would satisfy both of those and still be wrong.
+      mockRepo.update.mockResolvedValue(okResult(makeHighlight({ id: 'any' })));
+
+      await registry.dispatch('highlight.reportAnchoring', {
+        results: [
+          { id: 'a', orphaned: false },
+          { id: 'b', orphaned: true },
+          { id: 'c', orphaned: false },
+        ],
+      });
+
+      expect(mockRepo.update.mock.calls).toEqual([
+        ['a', { orphaned: false }],
+        ['b', { orphaned: true }],
+        ['c', { orphaned: false }],
+      ]);
+    });
+
+    it('reports a storage failure rather than claiming the flags were written', async () => {
+      // Only the middle one fails. A uniform mock would let a handler that
+      // reported an arbitrary element of the batch pass this.
+      mockRepo.update.mockImplementation(async (id: string) =>
+        id === 'full'
+          ? errResult({ type: 'STORAGE_ERROR' as const, message: 'quota exceeded' })
+          : okResult(makeHighlight({ id })),
+      );
+
+      const outer = await registry.dispatch('highlight.reportAnchoring', {
+        results: [
+          { id: 'fine', orphaned: false },
+          { id: 'full', orphaned: true },
+          { id: 'also-fine', orphaned: false },
+        ],
+      });
+      const result = unwrapDispatch(outer) as HighlightUpdateResponse;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('quota exceeded');
+      // The two that worked are not rolled back — their flags are correct, and
+      // the one failure says nothing about them.
+      expect(mockRepo.update).toHaveBeenCalledTimes(3);
+    });
+
+    it('rejects an empty report instead of acknowledging nothing', async () => {
+      const outer = await registry.dispatch('highlight.reportAnchoring', { results: [] });
+      const result = unwrapDispatch(outer) as HighlightUpdateResponse;
+
+      expect(result.success).toBe(false);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+  });
 
   describe('highlight.delete', () => {
     it('should delete a highlight and return success', async () => {

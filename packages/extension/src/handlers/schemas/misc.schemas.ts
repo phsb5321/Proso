@@ -63,6 +63,24 @@ export const highlightDeleteByUrlParamsSchema = z.object({
   url: z.string().min(1),
 });
 
+/**
+ * Every highlight the content script tried to place, and whether it landed.
+ *
+ * Successes are carried as well as failures: a page can be edited back into
+ * matching, and a report of failures alone could only ever set the flag, never
+ * clear it.
+ */
+export const highlightReportAnchoringParamsSchema = z.object({
+  results: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        orphaned: z.boolean(),
+      }),
+    )
+    .min(1),
+});
+
 // ========== Prefetch Schemas ==========
 
 export const prefetchStartParamsSchema = z
