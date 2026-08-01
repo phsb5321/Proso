@@ -11,6 +11,16 @@
               "strict_min_version": "109.0"
             }
           }
+        },
+        {
+          "version": "1.2.1",
+          "update_link": "https://phsb5321.github.io/Proso/releases/proso-1.2.1.xpi",
+          "update_hash": "sha256:c1e4eef1c97bdc470b504425630a1458b8c66d585ca82004fbec64ef5856aa4c",
+          "browser_specific_settings": {
+            "gecko": {
+              "strict_min_version": "109.0"
+            }
+          }
         }
       ]
     }
