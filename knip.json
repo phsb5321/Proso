@@ -3,6 +3,10 @@
   "entry": ["scripts/**/*.{mjs,sh}"],
   "ignoreDependencies": ["dependency-cruiser"],
   "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.{mjs,sh}"],
+      "project": ["scripts/**/*.mjs"]
+    },
     "packages/extension": {
       "entry": [
         "src/entrypoints/*.{ts,html}",

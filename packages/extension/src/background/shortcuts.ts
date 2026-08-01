@@ -52,9 +52,13 @@ export type PlaybackStatusReader = () => string | null | undefined;
 /**
  * Resolve a command id to the playback message it should dispatch.
  *
- * The toggle (`Alt+P`) is state-dependent: when playing it pauses, when paused
+ * The toggle (`Alt+P`) is state-dependent: while reading it pauses, when paused
  * it resumes, otherwise it starts fresh playback. Returns `null` for unknown
  * command ids so callers can ignore them.
+ *
+ * `loading` counts as reading: every paragraph transition passes through it
+ * while the next clip is fetched. Treating it as "not reading" made a toggle
+ * pressed between paragraphs restart the article from the top.
  *
  * @param commandId - The `browser.commands` command id
  * @param getStatus - Reader for the current playback status (toggle only)
@@ -67,7 +71,7 @@ export function resolveCommandMessage(
   switch (commandId) {
     case SHORTCUT_COMMANDS.TOGGLE: {
       const status = getStatus();
-      if (status === 'playing') return 'playback.pause';
+      if (status === 'playing' || status === 'loading') return 'playback.pause';
       if (status === 'paused') return 'playback.resume';
       return 'playback.start';
     }

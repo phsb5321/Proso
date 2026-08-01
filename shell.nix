@@ -21,9 +21,16 @@ pkgs.mkShell {
     nodejs_20
     nodePackages.pnpm
 
+    # Delivery harness (`make verify`, `make gate`, ...)
+    gnumake
+
     # Browsers for Playwright
     chromium
     firefox
+
+    # WebDriver server for the real-browser reading acceptance test
+    # (`make smoke-reading`).
+    geckodriver
 
     # Required for Playwright on NixOS
     # These libraries are needed for headless browser operation

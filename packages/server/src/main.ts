@@ -3,6 +3,7 @@ import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { CORS_OPTIONS } from './infrastructure/config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,11 +18,7 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', true);
 
   // CORS for extension communication
-  app.enableCors({
-    origin: true,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'X-License-Key'],
-  });
+  app.enableCors({ ...CORS_OPTIONS });
 
   const port = process.env.PORT || 5000;
   await app.listen(port);

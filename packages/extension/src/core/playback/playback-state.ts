@@ -214,8 +214,13 @@ export const playbackStateValidation = {
 
   /**
    * Check if playback can be paused.
+   *
+   * `loading` counts: every paragraph transition passes through it while the
+   * next clip is fetched, and to the reader the article is still being read.
+   * Rejecting a pause there drops the press and playback resumes by itself.
    */
-  canPause: (state: PlaybackState): boolean => state.status === 'playing',
+  canPause: (state: PlaybackState): boolean =>
+    state.status === 'playing' || state.status === 'loading',
 
   /**
    * Check if playback can be resumed.

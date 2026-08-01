@@ -15,7 +15,7 @@
  * @module tests/unit/background/shortcuts
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   READ_SELECTION_MENU_ID,
   SHORTCUT_COMMANDS,
@@ -23,6 +23,13 @@ import {
   handleShortcutCommand,
   resolveCommandMessage,
 } from '../../../src/background/shortcuts';
+
+type Dispatch = (type: string, data: Record<string, unknown>) => Promise<unknown>;
+
+/** A dispatch seam that records its calls and reports success. */
+function createDispatch(): jest.Mock<Dispatch> {
+  return jest.fn<Dispatch>(async () => ({ success: true }));
+}
 
 describe('background/shortcuts', () => {
   // -----------------------------------------------------------------------
@@ -50,8 +57,16 @@ describe('background/shortcuts', () => {
       );
     });
 
+    it('toggle pauses while a paragraph transition is loading', () => {
+      // Every paragraph boundary passes through `loading` while the next clip
+      // is fetched. Starting fresh there restarts the article from the top.
+      expect(resolveCommandMessage(SHORTCUT_COMMANDS.TOGGLE, () => 'loading')).toBe(
+        'playback.pause',
+      );
+    });
+
     it('toggle starts fresh playback when idle/stopped/unavailable', () => {
-      for (const status of ['idle', 'stopped', 'loading', 'error', null, undefined]) {
+      for (const status of ['idle', 'stopped', 'error', null, undefined]) {
         expect(resolveCommandMessage(SHORTCUT_COMMANDS.TOGGLE, () => status)).toBe(
           'playback.start',
         );
@@ -79,12 +94,10 @@ describe('background/shortcuts', () => {
   // handleShortcutCommand
   // -----------------------------------------------------------------------
   describe('handleShortcutCommand', () => {
-    let dispatch: jest.Mock<(type: string, data: Record<string, unknown>) => Promise<unknown>>;
+    let dispatch: jest.Mock<Dispatch>;
 
     beforeEach(() => {
-      dispatch = jest.fn<(type: string, data: Record<string, unknown>) => Promise<unknown>>(
-        async () => ({ success: true }),
-      );
+      dispatch = createDispatch();
     });
 
     it('dispatches the resolved message with empty data', async () => {
@@ -128,12 +141,10 @@ describe('background/shortcuts', () => {
   // handleReadSelectionClick
   // -----------------------------------------------------------------------
   describe('handleReadSelectionClick', () => {
-    let dispatch: jest.Mock<(type: string, data: Record<string, unknown>) => Promise<unknown>>;
+    let dispatch: jest.Mock<Dispatch>;
 
     beforeEach(() => {
-      dispatch = jest.fn<(type: string, data: Record<string, unknown>) => Promise<unknown>>(
-        async () => ({ success: true }),
-      );
+      dispatch = createDispatch();
     });
 
     it('dispatches playback.start in selection mode with tab id + url', async () => {
@@ -151,11 +162,9 @@ describe('background/shortcuts', () => {
     });
 
     it('omits tabId/pageUrl when the tab is undefined', async () => {
-      await handleReadSelectionClick(
-        { menuItemId: READ_SELECTION_MENU_ID },
-        undefined,
-        { dispatch },
-      );
+      await handleReadSelectionClick({ menuItemId: READ_SELECTION_MENU_ID }, undefined, {
+        dispatch,
+      });
 
       expect(dispatch).toHaveBeenCalledWith('playback.start', { mode: 'selection' });
     });
