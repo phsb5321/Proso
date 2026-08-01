@@ -1788,6 +1788,12 @@ async function exportHighlights(): Promise<void> {
 
   if (!statusEl || !exportBtn) return;
 
+  // The disabled button is the lock, not just its appearance: without this,
+  // a second export arriving by any route other than a click — a retained
+  // listener, a keyboard activation — would run to its own `finally` and
+  // re-enable the button while the first write is still in flight.
+  if (exportBtn.disabled) return;
+
   exportBtn.disabled = true;
   statusEl.className = 'cache-status cache-status--loading';
   statusEl.textContent = 'Exporting…';

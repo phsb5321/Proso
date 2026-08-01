@@ -46,14 +46,14 @@ jest.unstable_mockModule('wxt/browser', () => ({ browser: mockBrowser }));
 const { downloadJson } = await import('../../../../src/utils/download/download-json');
 
 /**
- * Deliver a downloads.onChanged event, once something is actually listening.
+ * Deliver a downloads.onChanged event.
  *
- * `downloadJson` awaits `download()` before it attaches its listener, so an
- * event emitted synchronously after the call lands in an empty room and the
- * export hangs forever — which is a property of the test, not the code.
+ * Synchronous on purpose. `downloadJson` attaches its listener before it asks
+ * for the download, so there is no window in which an event has nowhere to
+ * land — and a test that had to wait for the listener would be hiding exactly
+ * the race this module exists to avoid.
  */
-async function emit(delta: ChangedDelta): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+function emit(delta: ChangedDelta): void {
   for (const listener of [...listeners]) listener(delta);
 }
 
@@ -84,7 +84,7 @@ beforeEach(() => {
 describe('downloadJson', () => {
   it('replaces the file at the requested name instead of writing beside it', async () => {
     const promise = downloadJson('proso-highlights.json', '[]\n');
-    await emit({ id: 7, state: { current: 'complete' } });
+    emit({ id: 7, state: { current: 'complete' } });
     await promise;
 
     expect(mockDownload).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe('downloadJson', () => {
 
     expect(await settledYet(promise)).toBe('pending');
 
-    await emit({ id: 7, state: { current: 'complete' } });
+    emit({ id: 7, state: { current: 'complete' } });
     await expect(promise).resolves.toBeUndefined();
   });
 
@@ -114,7 +114,7 @@ describe('downloadJson', () => {
     // Revoking here is what truncates the file.
     expect(revokeObjectURL).not.toHaveBeenCalled();
 
-    await emit({ id: 7, state: { current: 'complete' } });
+    emit({ id: 7, state: { current: 'complete' } });
     await promise;
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:proso-test');
@@ -122,17 +122,28 @@ describe('downloadJson', () => {
 
   it('fails with the reason the browser gave when the write is interrupted', async () => {
     const promise = downloadJson('proso-highlights.json', '[]\n');
-    await emit({ id: 7, state: { current: 'interrupted' }, error: { current: 'DISK_FULL' } });
+    emit({ id: 7, state: { current: 'interrupted' }, error: { current: 'FILE_NO_SPACE' } });
 
-    await expect(promise).rejects.toThrow('DISK_FULL');
+    await expect(promise).rejects.toThrow('FILE_NO_SPACE');
   });
 
   it('releases the blob when the write is interrupted', async () => {
     const promise = downloadJson('proso-highlights.json', '[]\n');
-    await emit({ id: 7, state: { current: 'interrupted' }, error: { current: 'DISK_FULL' } });
+    emit({ id: 7, state: { current: 'interrupted' }, error: { current: 'FILE_NO_SPACE' } });
     await expect(promise).rejects.toThrow();
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:proso-test');
+  });
+
+  it('still fails when the browser interrupts without naming a reason', async () => {
+    // `DownloadDelta.error` is optional, and a delta only carries the fields
+    // that changed — so an interruption can arrive with no reason attached.
+    // Reporting nothing there would leave the reader with a stuck button and
+    // no message.
+    const promise = downloadJson('proso-highlights.json', '[]\n');
+    emit({ id: 7, state: { current: 'interrupted' } });
+
+    await expect(promise).rejects.toThrow('Download interrupted');
   });
 
   it('releases the blob when the download never starts', async () => {
@@ -146,16 +157,39 @@ describe('downloadJson', () => {
   it('ignores state changes belonging to other downloads', async () => {
     const promise = downloadJson('proso-highlights.json', '[]\n');
 
-    await emit({ id: 999, state: { current: 'complete' } });
+    emit({ id: 999, state: { current: 'complete' } });
     expect(await settledYet(promise)).toBe('pending');
 
-    await emit({ id: 7, state: { current: 'complete' } });
+    emit({ id: 7, state: { current: 'complete' } });
     await expect(promise).resolves.toBeUndefined();
+  });
+
+  it('catches a download that finishes before its id comes back', async () => {
+    // `download()` resolving and `onChanged` firing are separate messages from
+    // the browser, and nothing orders them — so a small file can be written
+    // before the caller learns which id to wait for. Listening only from that
+    // point on would miss this event and hang the export forever.
+    mockDownload.mockImplementation(async () => {
+      emit({ id: 7, state: { current: 'complete' } });
+      return 7;
+    });
+
+    await expect(downloadJson('proso-highlights.json', '[]\n')).resolves.toBeUndefined();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:proso-test');
+  });
+
+  it('reports a failure that lands before its id comes back', async () => {
+    mockDownload.mockImplementation(async () => {
+      emit({ id: 7, state: { current: 'interrupted' }, error: { current: 'FILE_NO_SPACE' } });
+      return 7;
+    });
+
+    await expect(downloadJson('proso-highlights.json', '[]\n')).rejects.toThrow('FILE_NO_SPACE');
   });
 
   it('stops listening once the download has settled', async () => {
     const promise = downloadJson('proso-highlights.json', '[]\n');
-    await emit({ id: 7, state: { current: 'complete' } });
+    emit({ id: 7, state: { current: 'complete' } });
     await promise;
 
     // A listener per export would accumulate for the life of the page.

@@ -16,43 +16,70 @@
 
 import { browser } from 'wxt/browser';
 
+/** How a download ended, once it has stopped moving. */
+interface Outcome {
+  state: 'complete' | 'interrupted';
+  error?: string;
+}
+
+interface ChangedDelta {
+  id: number;
+  state?: { current?: string };
+  error?: { current?: string };
+}
+
 /**
- * Resolve once the browser has finished writing a download.
+ * Watch every download's terminal state, starting now.
  *
- * `downloads.download()` resolves when the download is *accepted*, not when
- * the bytes reach disk. Treating acceptance as completion revokes the source
- * blob mid-write and reports a failed write — a full disk, a folder the
- * browser cannot touch — as a successful export.
+ * The obvious shape — call `download()`, then listen for the id it returns —
+ * has a hole: `download()` resolving and `onChanged` firing are separate
+ * messages from the browser's parent process, and nothing orders them. A small
+ * file can therefore finish before the listener exists, firing into an empty
+ * room and leaving the caller waiting forever with no error to show. Listening
+ * first and remembering outcomes by id removes the window rather than betting
+ * against it.
  *
  * ponytail: a download the user pauses from the downloads panel never reaches
- * a terminal state, so this waits indefinitely rather than timing out. The
+ * a terminal state, so `settled` waits indefinitely rather than timing out. The
  * caller keeps its button disabled meanwhile. If that ever becomes a real
- * complaint the fix is a timeout that reports pessimistically, not a guess
- * that the write finished.
+ * complaint the fix is a timeout that reports pessimistically, not a guess that
+ * the write finished.
  */
-function whenSettled(downloadId: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onChanged = (delta: {
-      id: number;
-      state?: { current?: string };
-      error?: { current?: string };
-    }): void => {
-      if (delta.id !== downloadId) return;
+function watchDownloads(): {
+  settled: (downloadId: number) => Promise<Outcome>;
+  stop: () => void;
+} {
+  const finished = new Map<number, Outcome>();
+  const waiting = new Map<number, (outcome: Outcome) => void>();
 
-      const state = delta.state?.current;
-      if (state !== 'complete' && state !== 'interrupted') return;
+  const onChanged = (delta: ChangedDelta): void => {
+    const state = delta.state?.current;
+    if (state !== 'complete' && state !== 'interrupted') return;
 
-      browser.downloads.onChanged.removeListener(onChanged);
+    const outcome: Outcome = { state, error: delta.error?.current };
+    const waiter = waiting.get(delta.id);
 
-      if (state === 'complete') {
-        resolve();
-      } else {
-        reject(new Error(delta.error?.current ?? 'Download interrupted'));
+    if (waiter) {
+      waiting.delete(delta.id);
+      waiter(outcome);
+    } else {
+      finished.set(delta.id, outcome);
+    }
+  };
+
+  browser.downloads.onChanged.addListener(onChanged);
+
+  return {
+    settled: (downloadId) => {
+      const already = finished.get(downloadId);
+      if (already) {
+        finished.delete(downloadId);
+        return Promise.resolve(already);
       }
-    };
-
-    browser.downloads.onChanged.addListener(onChanged);
-  });
+      return new Promise((resolve) => waiting.set(downloadId, resolve));
+    },
+    stop: () => browser.downloads.onChanged.removeListener(onChanged),
+  };
 }
 
 /**
@@ -72,6 +99,8 @@ export async function downloadJson(filename: string, json: string): Promise<void
   }
 
   const objectUrl = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  // Before the download exists, so a fast one cannot finish unobserved.
+  const watch = watchDownloads();
 
   try {
     const downloadId = await browser.downloads.download({
@@ -83,10 +112,15 @@ export async function downloadJson(filename: string, json: string): Promise<void
       saveAs: false,
     });
 
-    await whenSettled(downloadId);
+    const outcome = await watch.settled(downloadId);
+
+    if (outcome.state === 'interrupted') {
+      throw new Error(outcome.error ?? 'Download interrupted');
+    }
   } finally {
-    // Every path releases it: a download that never started, one that was
+    // Every path releases both: a download that never started, one that was
     // interrupted, and the successful case alike.
+    watch.stop();
     URL.revokeObjectURL(objectUrl);
   }
 }
