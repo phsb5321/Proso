@@ -33,6 +33,7 @@ export const DEFAULT_SECTIONS: SidebarSection[] = [
   { id: 'api-keys', label: 'API Keys' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'reading-queue', label: 'Reading Queue' },
+  { id: 'highlights', label: 'Highlights' },
   { id: 'keyboard-shortcuts', label: 'Shortcuts' },
   { id: 'developer', label: 'Developer' },
 ];

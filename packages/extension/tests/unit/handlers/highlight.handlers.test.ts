@@ -28,6 +28,7 @@ import type {
   HighlightUpdateResponse,
   HighlightDeleteResponse,
   HighlightDeleteByUrlResponse,
+  HighlightExportResponse,
 } from '../../../src/handlers/highlight.handlers';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,13 +39,10 @@ const srcDir = resolve(__dirname, '../../../src');
 // Mocks (must precede dynamic imports)
 // ---------------------------------------------------------------------------
 
-jest.unstable_mockModule(
-  resolve(srcDir, 'adapters/storage/highlight-indexeddb.adapter'),
-  () => ({
-    HighlightIndexedDBAdapter: jest.fn(),
-    createHighlightRepository: jest.fn(),
-  }),
-);
+jest.unstable_mockModule(resolve(srcDir, 'adapters/storage/highlight-indexeddb.adapter'), () => ({
+  HighlightIndexedDBAdapter: jest.fn(),
+  createHighlightRepository: jest.fn(),
+}));
 
 // Dynamic imports after mocks are wired
 const { registerHighlightHandlers, setHighlightRepository } = await import(
@@ -78,18 +76,20 @@ function unwrapDispatch<T>(outer: Result<T, unknown>): T {
 /**
  * Build a mock Highlight entity matching the W3C Web Annotation shape.
  */
-function makeHighlight(overrides: Partial<{
-  id: string;
-  url: string;
-  exact: string;
-  prefix: string;
-  suffix: string;
-  color: HighlightColor;
-  note: string;
-  orphaned: boolean;
-  created: string;
-  modified: string;
-}> = {}): Highlight {
+function makeHighlight(
+  overrides: Partial<{
+    id: string;
+    url: string;
+    exact: string;
+    prefix: string;
+    suffix: string;
+    color: HighlightColor;
+    note: string;
+    orphaned: boolean;
+    created: string;
+    modified: string;
+  }> = {},
+): Highlight {
   const id = overrides.id ?? 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
   const url = overrides.url ?? 'https://example.com/page';
   const exact = overrides.exact ?? 'highlighted text';
@@ -174,17 +174,18 @@ describe('highlight.handlers', () => {
   // -----------------------------------------------------------------------
 
   describe('registration', () => {
-    it('should register all six highlight handlers', () => {
+    it('should register all seven highlight handlers', () => {
       expect(registry.has('highlight.create')).toBe(true);
       expect(registry.has('highlight.get')).toBe(true);
       expect(registry.has('highlight.list')).toBe(true);
       expect(registry.has('highlight.update')).toBe(true);
       expect(registry.has('highlight.delete')).toBe(true);
       expect(registry.has('highlight.deleteByUrl')).toBe(true);
+      expect(registry.has('highlight.export')).toBe(true);
     });
 
-    it('should register exactly 6 handlers', () => {
-      expect(registry.size).toBe(6);
+    it('should register exactly 7 handlers', () => {
+      expect(registry.size).toBe(7);
     });
   });
 
@@ -339,9 +340,9 @@ describe('highlight.handlers', () => {
     });
 
     it('should return highlight without note when body is undefined', async () => {
-      const highlight = makeHighlight({ id: 'no-note-id' });
-      // Ensure no body
-      delete (highlight as Partial<Highlight>).body;
+      // Rest-destructure rather than `delete`: it drops the key outright,
+      // which is the shape a highlight saved without a note actually has.
+      const { body: _noBody, ...highlight } = makeHighlight({ id: 'no-note-id' });
       mockRepo.get.mockResolvedValue(okResult(highlight));
 
       const outer = await registry.dispatch('highlight.get', { id: 'no-note-id' });
@@ -352,9 +353,7 @@ describe('highlight.handlers', () => {
     });
 
     it('should return failure when highlight not found', async () => {
-      mockRepo.get.mockResolvedValue(
-        errResult({ type: 'NOT_FOUND' as const, id: 'missing-id' }),
-      );
+      mockRepo.get.mockResolvedValue(errResult({ type: 'NOT_FOUND' as const, id: 'missing-id' }));
 
       const outer = await registry.dispatch('highlight.get', { id: 'missing-id' });
       const result = unwrapDispatch(outer) as HighlightGetResponse;
@@ -679,9 +678,7 @@ describe('highlight.handlers', () => {
 
       // Make createHighlightRepository return a working repo
       const fallbackRepo = createMockRepository();
-      fallbackRepo.get.mockResolvedValue(
-        okResult(makeHighlight({ id: 'auto-id' })),
-      );
+      fallbackRepo.get.mockResolvedValue(okResult(makeHighlight({ id: 'auto-id' })));
       mockCreate.mockReturnValue(fallbackRepo);
 
       const freshRegistry = new HandlerRegistry();
@@ -696,6 +693,93 @@ describe('highlight.handlers', () => {
 
       // Restore the mock repo for other tests
       setHighlightRepository(mockRepo);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // highlight.export
+  // -----------------------------------------------------------------------
+
+  describe('highlight.export', () => {
+    it('should return every highlight, unfiltered, as a parseable document', async () => {
+      mockRepo.list.mockResolvedValue(
+        okResult([
+          makeHighlight({
+            id: 'h1',
+            url: 'https://www.databass.dev/chapters/1',
+            exact: 'B-Trees are a family of data structures',
+            prefix: 'we discuss how ',
+            suffix: ' used to index data.',
+            note: 'compare with LSM write amplification',
+            created: '2026-07-28T09:30:00.000Z',
+          }),
+          makeHighlight({
+            id: 'h2',
+            url: 'https://www.databass.dev/chapters/2',
+            exact: 'anti-entropy',
+            created: '2026-07-29T18:15:00.000Z',
+          }),
+        ]),
+      );
+
+      const outer = await registry.dispatch('highlight.export', {});
+      const result = unwrapDispatch(outer) as HighlightExportResponse;
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(2);
+      expect(JSON.parse(result.json!)).toEqual([
+        {
+          url: 'https://www.databass.dev/chapters/1',
+          exact: 'B-Trees are a family of data structures',
+          prefix: 'we discuss how ',
+          suffix: ' used to index data.',
+          note: 'compare with LSM write amplification',
+          createdAt: '2026-07-28T09:30:00.000Z',
+        },
+        {
+          url: 'https://www.databass.dev/chapters/2',
+          exact: 'anti-entropy',
+          createdAt: '2026-07-29T18:15:00.000Z',
+        },
+      ]);
+
+      // A query here would cap or filter the export, handing the consumer a
+      // partial file that still looks complete.
+      expect(mockRepo.list).toHaveBeenCalledWith();
+    });
+
+    it('should export an empty document rather than failing when there is nothing stored', async () => {
+      mockRepo.list.mockResolvedValue(okResult([]));
+
+      const outer = await registry.dispatch('highlight.export', {});
+      const result = unwrapDispatch(outer) as HighlightExportResponse;
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(0);
+      expect(JSON.parse(result.json!)).toEqual([]);
+    });
+
+    it('should report a storage failure instead of writing an empty file over real data', async () => {
+      mockRepo.list.mockResolvedValue(
+        errResult({ type: 'STORAGE_ERROR', message: 'IndexedDB unavailable' }),
+      );
+
+      const outer = await registry.dispatch('highlight.export', {});
+      const result = unwrapDispatch(outer) as HighlightExportResponse;
+
+      expect(result.success).toBe(false);
+      expect(result.json).toBeUndefined();
+      expect(result.error).toContain('IndexedDB unavailable');
+    });
+
+    it('should report a thrown storage error rather than propagating it', async () => {
+      mockRepo.list.mockRejectedValue(new Error('database connection lost'));
+
+      const outer = await registry.dispatch('highlight.export', {});
+      const result = unwrapDispatch(outer) as HighlightExportResponse;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('database connection lost');
     });
   });
 

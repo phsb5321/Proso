@@ -13,9 +13,9 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +72,7 @@ describe('Manifest Permissions', () => {
       'tabs', // Tab management and URL tracking
       'contextMenus', // Right-click menu integration
       'scripting', // Programmatic content script injection
+      'downloads', // Writing MP3 and highlight exports to disk
       'https://api.elevenlabs.io/*', // ElevenLabs TTS API
       'https://logs.proso.com.br/*', // Telemetry gateway
     ];
@@ -103,6 +104,16 @@ describe('Manifest Permissions', () => {
       const permissions = (manifest.permissions as string[]) || [];
       expect(permissions).toContain('activeTab');
       expect(permissions).toContain('storage');
+    });
+
+    it('should declare the downloads permission that the export paths call into', () => {
+      // `browser.downloads` is simply undefined when this is missing, so an
+      // export throws a TypeError at the call site instead of failing a
+      // permission check — and the export tests mock the namespace, so nothing
+      // else notices. This reads the source rather than the build so it cannot
+      // quietly pass by skipping on a machine that has not built the extension.
+      const content = fs.readFileSync(WXT_CONFIG_PATH, 'utf-8');
+      expect(content).toContain("'downloads'");
     });
   });
 

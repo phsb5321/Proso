@@ -8,11 +8,13 @@
  */
 
 import { browser } from 'wxt/browser';
+import { HIGHLIGHT_EXPORT_FILENAME } from '../../core/highlight/highlight-export';
 import {
   type QueueSettings,
   queueDefaults,
   defaults as settingsDefaults,
 } from '../../utils/config';
+import { downloadJson } from '../../utils/download/download-json';
 import { createLogger } from '../../utils/logging/logger';
 import { confirmDialog } from '../../utils/ui/confirm-dialog';
 
@@ -210,6 +212,7 @@ export async function initOptionsPage(): Promise<void> {
   setupLoggingEventListeners();
   setupQueueEventListeners();
   setupCacheEventListeners();
+  setupHighlightsEventListeners();
   setupTelemetryEventListeners();
   setupAccordions();
   setupStorageChangeListener();
@@ -1768,6 +1771,71 @@ function setupCacheEventListeners(): void {
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
       void loadCacheStats();
+    });
+  }
+}
+
+// ========================================
+// HIGHLIGHTS EXPORT
+// ========================================
+
+/**
+ * Write every stored highlight to a file.
+ */
+async function exportHighlights(): Promise<void> {
+  const statusEl = document.getElementById('highlightsExportStatus');
+  const exportBtn = document.getElementById('exportHighlightsBtn') as HTMLButtonElement | null;
+
+  if (!statusEl || !exportBtn) return;
+
+  // The disabled button is the lock, not just its appearance: without this,
+  // a second export arriving by any route other than a click — a retained
+  // listener, a keyboard activation — would run to its own `finally` and
+  // re-enable the button while the first write is still in flight.
+  if (exportBtn.disabled) return;
+
+  exportBtn.disabled = true;
+  statusEl.className = 'cache-status cache-status--loading';
+  statusEl.textContent = 'Exporting…';
+
+  try {
+    const response = await browser.runtime.sendMessage({ type: 'highlight.export' });
+
+    // A read failure must not reach the download call: overwriting a good
+    // export with an empty file loses the reader's highlights on the one path
+    // that was meant to preserve them.
+    if (!response?.success || typeof response.json !== 'string') {
+      throw new Error(response?.error || 'Could not read stored highlights');
+    }
+
+    // Awaited, so the success below is reported about a file that exists
+    // rather than about a download the browser merely agreed to start.
+    await downloadJson(HIGHLIGHT_EXPORT_FILENAME, response.json);
+
+    const count = (response.count as number | undefined) ?? 0;
+    statusEl.className = 'cache-status cache-status--success';
+    statusEl.textContent = `${count} highlight${count === 1 ? '' : 's'} → ${HIGHLIGHT_EXPORT_FILENAME}`;
+    toast.success(`Exported ${count} highlight${count === 1 ? '' : 's'}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Export failed';
+    log.error('[Options] Highlight export failed', { error });
+    statusEl.className = 'cache-status cache-status--error';
+    statusEl.textContent = message;
+    toast.error(`Export failed: ${message}`);
+  } finally {
+    exportBtn.disabled = false;
+  }
+}
+
+/**
+ * Setup highlights section event listeners
+ */
+function setupHighlightsEventListeners(): void {
+  const exportBtn = document.getElementById('exportHighlightsBtn');
+
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      void exportHighlights();
     });
   }
 }

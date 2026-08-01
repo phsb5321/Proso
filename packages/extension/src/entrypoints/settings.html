@@ -11,6 +11,27 @@
   <script type="module" src="./options/main.ts"></script>
 </head>
 <body>
+  <!--
+    Icon sprite. Glyphs drawn in more than one place are defined once here and
+    referenced with <use>, so the accordion chevron is one path rather than one
+    per section, and redrawing an icon is a single edit.
+
+    A symbol holds geometry only; each call site keeps its own viewBox/fill/
+    stroke on the wrapping <svg>. Attributes would work on the symbol too — SVG
+    2 clones them into the shadow tree — but splitting them across both places
+    is what makes an icon's appearance depend on where you happen to look.
+  -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true">
+    <symbol id="icon-chevron-down">
+      <polyline points="6 9 12 15 18 9"/>
+    </symbol>
+    <symbol id="icon-download">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </symbol>
+  </svg>
+
   <!-- Skip link for keyboard navigation (FR-029) -->
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -191,9 +212,7 @@
             </svg>
             Appearance
           </h2>
-          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
         </button>
         <div id="appearance-content" class="proso-accordion__content">
           <div class="section-actions">
@@ -242,9 +261,7 @@
             </svg>
             Audio Cache
           </h2>
-          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
         </button>
         <div id="cache-content" class="proso-accordion__content" hidden>
           <p class="section-description">
@@ -305,6 +322,39 @@
         </div>
       </section>
 
+      <!-- Highlights Section -->
+      <section id="highlights" class="proso-card proso-accordion" data-section="highlights">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="highlights-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>
+            Highlights
+          </h2>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+        </button>
+        <div id="highlights-content" class="proso-accordion__content" hidden>
+          <p class="section-description">
+            Text you highlight while reading is stored in this browser and nowhere else. Exporting writes all of it to one file so another tool can read it.
+          </p>
+
+          <div class="form-group cache-actions">
+            <button id="exportHighlightsBtn" class="proso-button proso-button--secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <use href="#icon-download"/>
+              </svg>
+              Export Highlights
+            </button>
+            <span id="highlightsExportStatus" class="cache-status" role="status" aria-live="polite"></span>
+          </div>
+
+          <p class="form-hint">
+            Saved to your downloads folder as <code>proso-highlights.json</code>, replacing any previous export. Each entry holds the page address, the quoted text with the words either side of it, your note, and when you made it.
+          </p>
+        </div>
+      </section>
+
       <!-- Queue Settings Section (T079) -->
       <section id="reading-queue" class="proso-card proso-accordion" data-section="queue">
         <button class="proso-accordion__header" aria-expanded="false" aria-controls="queue-content">
@@ -319,9 +369,7 @@
             </svg>
             Reading Queue
           </h2>
-          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
         </button>
         <div id="queue-content" class="proso-accordion__content" hidden>
           <div class="section-actions">
@@ -389,9 +437,7 @@
             </svg>
             Keyboard Shortcuts
           </h2>
-          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
         </button>
         <div id="shortcuts-content" class="proso-accordion__content" hidden>
         <p class="section-description">Use these shortcuts to control playback:</p>
@@ -430,9 +476,7 @@
             </svg>
             Developer Settings
           </h2>
-          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
         </button>
         <div id="developer-content" class="proso-accordion__content" hidden>
         <p class="section-description">
@@ -523,9 +567,7 @@
             </button>
             <button id="exportLogsBtn" class="proso-button proso-button--ghost">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
+                <use href="#icon-download"/>
               </svg>
               Export JSON
             </button>
