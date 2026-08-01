@@ -1,0 +1,204 @@
+# Test Contract: Handler Tests
+# Sprint: 056-production-readiness-sprint
+# Covers: FR-009 (All hexagonal handlers MUST have unit tests)
+
+scope: "All hexagonal message handlers in src/handlers/"
+
+# Existing handlers that need tests (currently 0 test coverage)
+targets:
+  - file: src/handlers/playback.handlers.ts
+    test_file: tests/unit/handlers/playback.handlers.test.ts
+    handlers:
+      - playback.getState
+      - playback.start
+      - playback.pause
+      - playback.resume
+      - playback.stop
+      - playback.next
+      - playback.previous
+      - playback.seekToParagraph
+      - playback.setSpeed
+      - playback.seek
+    min_tests_per_handler: 2  # happy path + error case
+
+  - file: src/handlers/audio.handlers.ts
+    test_file: tests/unit/handlers/audio.handlers.test.ts
+    handlers:
+      - audio.getVoices
+      - audio.setVoice
+      - audio.validateCredentials
+      - audio.generate
+    min_tests_per_handler: 2
+
+  - file: src/handlers/settings.handlers.ts
+    test_file: tests/unit/handlers/settings.handlers.test.ts
+    handlers:
+      - settings.get
+      - settings.update
+      - settings.getApiKey
+      - settings.setApiKey
+      - settings.testApiKey
+    min_tests_per_handler: 2
+
+  - file: src/handlers/provider.handlers.ts
+    test_file: tests/unit/handlers/provider.handlers.test.ts
+    handlers:
+      - provider.getList
+      - provider.select
+      - provider.validateLanguage
+    min_tests_per_handler: 2
+
+  - file: src/handlers/cache.handlers.ts
+    test_file: tests/unit/handlers/cache.handlers.test.ts
+    handlers:
+      - cache.getStats
+      - cache.clear
+      - cache.has
+      - cache.delete
+      - cache.evictIfNeeded
+      - cache.getCachedParagraphs
+      - cost.estimate
+    min_tests_per_handler: 2
+
+  - file: src/handlers/content.handlers.ts
+    test_file: tests/unit/handlers/content.handlers.test.ts
+    handlers:
+      - content.extract
+      - content.extractWithScore
+      - content.score
+      - content.isAvailable
+    min_tests_per_handler: 2
+
+  - file: src/handlers/debug.handlers.ts
+    test_file: tests/unit/handlers/debug.handlers.test.ts
+    handlers:
+      - hexagonal.getStatus
+      - debug.getDispatchStats
+      - debug.getDispatchSummary
+      - debug.resetStats
+      - debug.getUnknownMessages
+    min_tests_per_handler: 1  # introspection handlers, less critical
+
+  - file: src/handlers/prefetch.handlers.ts
+    test_file: tests/unit/handlers/prefetch.handlers.test.ts
+    handlers:
+      - prefetch.start
+      - prefetch.stop
+      - prefetch.getStatus
+      - prefetch.clearBuffer
+    min_tests_per_handler: 2
+
+  - file: src/handlers/queue.handlers.ts
+    test_file: tests/unit/handlers/queue.handlers.test.ts
+    handlers:
+      - queue.add
+      - queue.remove
+      - queue.reorder
+      - queue.updateStatus
+      - queue.updateProgress
+      - queue.clear
+      - queue.getState
+      - queue.getItem
+      - queue.play
+      - queue.playNext
+      - queue.playPrevious
+    min_tests_per_handler: 2
+
+  - file: src/handlers/footer.handlers.ts
+    test_file: tests/unit/handlers/footer.handlers.test.ts
+    handlers:
+      - footer.show
+      - footer.hide
+      - footer.stateUpdate
+      - footer.action
+      - footer.visibilityChanged
+      - footer.positionChanged
+    min_tests_per_handler: 2
+
+  - file: src/handlers/reader.handlers.ts
+    test_file: tests/unit/handlers/reader.handlers.test.ts
+    handlers:
+      - reader.extractArticle
+      - reader.getParagraphs
+      - reader.getParagraph
+      - reader.getArticleInfo
+      - reader.clearArticle
+      - reader.isArticlePage
+    min_tests_per_handler: 2
+
+  - file: src/handlers/highlight.handlers.ts
+    test_file: tests/unit/handlers/highlight.handlers.test.ts
+    handlers:
+      - highlight.create
+      - highlight.get
+      - highlight.list
+      - highlight.update
+      - highlight.delete
+      - highlight.deleteByUrl
+    min_tests_per_handler: 2
+
+# New handlers to be created (Wave 1-2 of migration)
+new_handlers:
+  - file: src/handlers/export.handlers.ts
+    test_file: tests/unit/handlers/export.handlers.test.ts
+    handlers:
+      - export.start
+      - export.cancel
+      - export.getProgress
+      - export.download
+
+  - file: src/handlers/summarize.handlers.ts
+    test_file: tests/unit/handlers/summarize.handlers.test.ts
+    handlers:
+      - summarize.article
+      - summarize.readSummary
+      - summarize.getProviderStatus
+
+  - file: src/handlers/language.handlers.ts
+    test_file: tests/unit/handlers/language.handlers.test.ts
+    handlers:
+      - language.detect
+      - language.getState
+      - language.setOverride
+      - language.clearOverride
+
+  - file: src/handlers/logging.handlers.ts
+    test_file: tests/unit/handlers/logging.handlers.test.ts
+    handlers:
+      - logging.logRemote
+      - logging.flushBuffer
+      - logging.getState
+
+test_patterns:
+  - name: "Handler returns Result<T, E>"
+    description: "Every handler MUST return a Result type. Test both Ok and Err paths."
+    example: |
+      it('returns Ok with voices list on success', async () => {
+        mockAudioGenerator.getVoices.mockResolvedValue(Ok([mockVoice]));
+        const result = await handler({ language: 'en' });
+        expect(result).toEqual({ voices: [mockVoice] });
+      });
+
+      it('returns error when audio generator fails', async () => {
+        mockAudioGenerator.getVoices.mockResolvedValue(Err({ type: 'network', message: 'timeout' }));
+        const result = await handler({ language: 'en' });
+        expect(result).toEqual({ error: 'network', message: 'timeout' });
+      });
+
+  - name: "Handler validates input via Zod"
+    description: "Handlers that use Zod schema validation should have tests for invalid input."
+    example: |
+      it('throws on invalid params', async () => {
+        await expect(handler({ speed: -1 })).rejects.toThrow();
+      });
+
+  - name: "Handler delegates to correct service"
+    description: "Verify the handler calls the expected port/service method."
+
+validation:
+  command: "pnpm run test:unit -- --testPathPattern='handlers' --coverage"
+  thresholds:
+    statements: 80
+    branches: 70
+    functions: 90
+    lines: 80

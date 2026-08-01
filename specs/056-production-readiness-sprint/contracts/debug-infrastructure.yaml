@@ -1,0 +1,118 @@
+# Test Contract: Debug Infrastructure
+# Sprint: 056-production-readiness-sprint
+# Covers: FR-013 (Structured logging), FR-014 (Production stripping),
+#          FR-015 (Debug API), FR-016 (E2E console capture)
+
+scope: "Structured debug logging, debug API, production build stripping"
+
+# Structured logging
+structured_logging:
+  existing_files:
+    - src/utils/logging/entry.ts   # LogEntry, LogLevel, Component types
+    - src/utils/logging/buffer.ts  # LogBuffer circular buffer
+
+  new_files:
+    - file: src/utils/logging/logger.ts
+      description: "createLogger(component) factory returning typed log methods"
+      test_file: tests/unit/logging/logger.test.ts
+      tests:
+        - name: "createLogger returns object with debug/info/warn/error methods"
+          assert: "All four methods exist and are callable"
+        - name: "Log method creates LogEntry with correct component tag"
+          assert: "Entry.component matches the component passed to createLogger"
+        - name: "Log method adds entry to global LogBuffer"
+          assert: "LogBuffer.count increases by 1"
+        - name: "Log method respects configured log level"
+          assert: "debug() is no-op when level is 'info' or higher"
+        - name: "Log method truncates message at maxMessageBytes"
+          assert: "Messages exceeding 8192 bytes are truncated"
+        - name: "Log method serializes metadata safely"
+          assert: "Circular references don't throw; metadata truncated at 4096 bytes"
+
+  integration:
+    - file: src/handlers/*.handlers.ts
+      description: "Each handler file should use createLogger for structured logging"
+      pattern: |
+        const logger = createLogger('handler');
+        // In handler body:
+        logger.info('playback.start', { tabId, paragraphIndex });
+
+# Debug API
+debug_api:
+  file: src/utils/debug/debug-api.ts
+  condition: "Development builds only (stripped in production)"
+  test_file: tests/unit/debug/debug-api.test.ts
+  exposed_state:
+    - "extractedText: current article text and paragraphs"
+    - "playbackState: current playback status, position, provider"
+    - "cacheStats: cache hit/miss ratio, size, entry count"
+    - "logBuffer: recent log entries (last 100)"
+    - "handlerRegistry: registered handler names and dispatch stats"
+    - "providerConfig: active provider, voice, speed (NOT API keys)"
+  tests:
+    - name: "Debug API exposes all documented state"
+      assert: "All state properties are accessible"
+    - name: "Debug API does NOT expose API keys"
+      assert: "apiKey fields are absent or masked"
+    - name: "Debug API returns serializable data"
+      assert: "JSON.stringify succeeds on all state"
+
+# Production stripping
+production_stripping:
+  config_file: wxt.config.ts
+  mechanism: "esbuild.drop: ['console', 'debugger'] when NODE_ENV=production"
+  tests:
+    - file: tests/security/build-artifacts.test.ts
+      tests:
+        - name: "Production build contains zero console.log statements"
+          assert: "grep -rn 'console.log' .output/ returns 0 matches"
+        - name: "Production build contains zero debugger statements"
+          assert: "grep -rn 'debugger' .output/ returns 0 matches"
+        - name: "Production build does not expose debug API"
+          assert: "grep -rn 'debugApi\\|__DEBUG__' .output/ returns 0 matches"
+        - name: "Production build contains zero source maps"
+          assert: "find .output/ -name '*.map' returns 0 files"
+        - name: "Development build preserves console statements"
+          assert: "Development build JS files contain console calls"
+
+  approach: |
+    The debug API and structured logger use console.* methods internally.
+    In production, esbuild's `drop: ['console']` removes all console calls,
+    effectively dead-code-eliminating the logging infrastructure.
+
+    For the debug API specifically, wrap it in:
+    ```typescript
+    if (process.env.NODE_ENV !== 'production') {
+      // Debug API registration
+    }
+    ```
+    Vite/esbuild will tree-shake this entire block in production.
+
+# E2E console capture
+e2e_capture:
+  file: tests/e2e/helpers/console-capture.ts
+  description: "Playwright helper that captures browser console output from the extension"
+  tests:
+    - name: "Console capture collects extension log output"
+      assert: "page.on('console') captures messages from extension contexts"
+    - name: "Console capture is included in test failure reports"
+      assert: "On test failure, captured console output appears in the test report"
+    - name: "Console capture filters by extension origin"
+      assert: "Only messages from moz-extension:// origin are captured"
+
+  integration_with_playwright: |
+    // In playwright.config.ts or test fixtures:
+    test.afterEach(async ({ page }, testInfo) => {
+      if (testInfo.status !== 'passed') {
+        const consoleLogs = await getConsoleLogs(page);
+        await testInfo.attach('extension-console', {
+          body: consoleLogs.join('\n'),
+          contentType: 'text/plain',
+        });
+      }
+    });
+
+validation:
+  commands:
+    - "pnpm run test:unit -- --testPathPattern='logging|debug' --coverage"
+    - "NODE_ENV=production pnpm run build:firefox && pnpm run test:security"

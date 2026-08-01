@@ -1,0 +1,143 @@
+# Updated TTS Synthesize Endpoint — adds byokApiKey support
+# Extends existing POST /api/v1/tts/synthesize
+
+openapi: "3.0.3"
+info:
+  title: Proso TTS Synthesize API (v2 — BYOK support)
+  version: "1.1.0"
+
+paths:
+  /api/v1/tts/synthesize:
+    post:
+      summary: Synthesize text to audio
+      description: |
+        Generate TTS audio from text. Routes to server-configured providers
+        using managed credits, or uses a BYOK API key if provided.
+
+        When byokApiKey is present:
+        - Server uses the key for this request only (not persisted)
+        - No managed credits are deducted
+        - Cache still applies (INV-006)
+
+        When byokApiKey is absent:
+        - Existing managed-credit flow (credit check → route → deduct)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  maxLength: 5000
+                  description: Text to synthesize
+                provider:
+                  type: string
+                  enum: [openai, elevenlabs, groq, cartesia]
+                  description: TTS provider
+                voice:
+                  type: string
+                  description: Provider-specific voice ID
+                language:
+                  type: string
+                  description: Language hint (BCP-47)
+                byokApiKey:
+                  type: string
+                  description: |
+                    User's own API key for the requested provider.
+                    Used for this request only. Never persisted.
+      parameters:
+        - name: X-License-Key
+          in: header
+          required: false
+          description: |
+            License key for authentication. Required for managed-credit requests.
+            Optional for BYOK requests (used for tracking only).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audio synthesized successfully
+          headers:
+            X-Credits-Used:
+              schema:
+                type: integer
+              description: Credits deducted (0 for BYOK and cache hits)
+            X-Credits-Remaining:
+              schema:
+                type: integer
+              description: Remaining credit balance
+            X-Cache-Hit:
+              schema:
+                type: boolean
+              description: Whether audio was served from cache
+            X-Provider:
+              schema:
+                type: string
+              description: Provider that generated the audio
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid request (text too long, invalid provider)
+        "401":
+          description: Authentication required (managed credits without license key)
+        "402":
+          description: Insufficient credits (managed credits only)
+        "429":
+          description: Rate limited
+        "503":
+          description: All providers unavailable
+
+  /api/v1/tts/test-key:
+    post:
+      summary: Validate a BYOK API key
+      description: |
+        Makes a minimal API call to the specified provider to verify
+        the provided API key is valid. Rate limited to 5 req/min per IP.
+
+        The API key is used only for the validation call and is not persisted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, apiKey]
+              properties:
+                provider:
+                  type: string
+                  enum: [openai, elevenlabs, groq, cartesia]
+                  description: Provider to validate key against
+                apiKey:
+                  type: string
+                  description: API key to test (not persisted)
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, provider]
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether the key is valid
+                  provider:
+                    type: string
+                    description: Provider that was tested
+                  error:
+                    type: string
+                    description: Error message if validation failed
+                  latencyMs:
+                    type: integer
+                    description: Round-trip time to provider in ms
+        "400":
+          description: Invalid request (missing provider or apiKey)
+        "429":
+          description: Rate limited (max 5 req/min per IP)

@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: Highlight Storage Internal API Contract
+  description: |
+    Internal API contract for highlight storage operations.
+    Defines the interface between handlers and the IndexedDB adapter.
+    Used for contract testing to ensure adapter implementations are consistent.
+  version: 1.0.0
+
+paths:
+  /highlights:
+    get:
+      operationId: listHighlights
+      summary: List highlights for a URL
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+      responses:
+        '200':
+          description: List of highlights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Highlight'
+
+    post:
+      operationId: createHighlight
+      summary: Create a new highlight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHighlightRequest'
+      responses:
+        '201':
+          description: Created highlight
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '400':
+          description: Invalid highlight data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /highlights/{id}:
+    get:
+      operationId: getHighlight
+      summary: Get highlight by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Highlight found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '404':
+          description: Highlight not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      operationId: updateHighlight
+      summary: Update highlight (note, color)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateHighlightRequest'
+      responses:
+        '200':
+          description: Updated highlight
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '404':
+          description: Highlight not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      operationId: deleteHighlight
+      summary: Delete highlight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Highlight deleted
+        '404':
+          description: Highlight not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /highlights/url/{encodedUrl}:
+    delete:
+      operationId: deleteHighlightsByUrl
+      summary: Delete all highlights for a URL
+      parameters:
+        - name: encodedUrl
+          in: path
+          required: true
+          schema:
+            type: string
+          description: URL-encoded page URL
+      responses:
+        '200':
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                    description: Number of highlights deleted
+
+components:
+  schemas:
+    Highlight:
+      type: object
+      required:
+        - id
+        - url
+        - target
+        - color
+        - created
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        target:
+          $ref: '#/components/schemas/AnnotationTarget'
+        body:
+          $ref: '#/components/schemas/TextualBody'
+        color:
+          $ref: '#/components/schemas/HighlightColor'
+        orphaned:
+          type: boolean
+          default: false
+        created:
+          type: string
+          format: date-time
+        modified:
+          type: string
+          format: date-time
+
+    AnnotationTarget:
+      type: object
+      required:
+        - source
+        - selector
+      properties:
+        source:
+          type: string
+          format: uri
+        selector:
+          type: array
+          items:
+            $ref: '#/components/schemas/TextQuoteSelector'
+          minItems: 1
+
+    TextQuoteSelector:
+      type: object
+      required:
+        - type
+        - exact
+      properties:
+        type:
+          type: string
+          enum: [TextQuoteSelector]
+        exact:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        prefix:
+          type: string
+          maxLength: 64
+        suffix:
+          type: string
+          maxLength: 64
+
+    TextualBody:
+      type: object
+      required:
+        - type
+        - value
+        - format
+      properties:
+        type:
+          type: string
+          enum: [TextualBody]
+        value:
+          type: string
+        format:
+          type: string
+          enum: [text/plain]
+
+    HighlightColor:
+      type: string
+      enum:
+        - yellow
+        - green
+        - blue
+        - pink
+        - purple
+
+    CreateHighlightRequest:
+      type: object
+      required:
+        - url
+        - selector
+        - color
+      properties:
+        url:
+          type: string
+          format: uri
+        selector:
+          $ref: '#/components/schemas/TextQuoteSelector'
+        color:
+          $ref: '#/components/schemas/HighlightColor'
+        note:
+          type: string
+          description: Optional note to attach
+
+    UpdateHighlightRequest:
+      type: object
+      properties:
+        color:
+          $ref: '#/components/schemas/HighlightColor'
+        note:
+          type: string
+          nullable: true
+          description: Note text, or null to remove
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum:
+            - NOT_FOUND
+            - INVALID_DATA
+            - STORAGE_ERROR

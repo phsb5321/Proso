@@ -1,0 +1,476 @@
+openapi: 3.1.0
+info:
+  title: VoxPage API
+  version: 1.0.0
+  description: |
+    VoxPage backend API for subscription management, credit-based TTS proxy,
+    and provider routing. Deployed to Dokku at ProxMox.Dokku.
+  license:
+    name: AGPL-3.0
+servers:
+  - url: https://voxpage-api.home301server.com.br
+    description: Production (Dokku)
+  - url: http://localhost:5000
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns server health status. Used by Dokku for zero-downtime deploys.
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, uptime]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, error]
+                  version:
+                    type: string
+                    example: '1.0.0'
+                  uptime:
+                    type: number
+                    description: Uptime in seconds
+                    example: 86400
+                  details:
+                    type: object
+                    description: Component health details
+                    properties:
+                      database:
+                        $ref: '#/components/schemas/HealthIndicator'
+                      memory:
+                        $ref: '#/components/schemas/HealthIndicator'
+
+  /api/v1/license/validate:
+    post:
+      summary: Validate a license key
+      description: |
+        Validates the provided license key and returns subscription tier,
+        feature entitlements, and credit balance. Unknown keys return free-tier
+        defaults (INV-001).
+      tags: [License]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [licenseKey]
+              properties:
+                licenseKey:
+                  type: string
+                  description: License key to validate
+                  example: 'VXP-XXXXX-XXXXX-XXXXX'
+                deviceId:
+                  type: string
+                  description: Optional device identifier for tracking
+      responses:
+        '200':
+          description: Validation result (always succeeds — unknown keys = free tier)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseValidationResponse'
+
+  /api/v1/license/activate:
+    post:
+      summary: Activate a new license key
+      description: Activates a license key and creates associated user/subscription records.
+      tags: [License]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [licenseKey]
+              properties:
+                licenseKey:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                deviceId:
+                  type: string
+      responses:
+        '200':
+          description: License activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LicenseValidationResponse'
+        '400':
+          description: Invalid or expired license key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tts/synthesize:
+    post:
+      summary: Synthesize text to speech (managed credits)
+      description: |
+        Proxies TTS request to upstream provider, handles credit deduction,
+        caching (INV-006), and provider routing. Returns audio data.
+      tags: [TTS]
+      security:
+        - licenseKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  description: Text to synthesize
+                  maxLength: 5000
+                provider:
+                  $ref: '#/components/schemas/TTSProvider'
+                voice:
+                  type: string
+                  description: Voice identifier
+                language:
+                  type: string
+                  description: BCP-47 language code
+                  example: 'en-US'
+      responses:
+        '200':
+          description: Audio generated successfully
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+          headers:
+            X-Credits-Used:
+              description: Credits deducted for this request
+              schema:
+                type: integer
+            X-Credits-Remaining:
+              description: Remaining credit balance
+              schema:
+                type: integer
+            X-Cache-Hit:
+              description: Whether cached audio was returned
+              schema:
+                type: boolean
+            X-Provider:
+              description: Provider that generated the audio
+              schema:
+                type: string
+        '402':
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: All providers unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tts/voices/{provider}:
+    get:
+      summary: Get available voices for a provider
+      description: Returns list of available voices for the specified TTS provider.
+      tags: [TTS]
+      security:
+        - licenseKey: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/TTSProvider'
+        - name: language
+          in: query
+          schema:
+            type: string
+            description: Filter voices by language
+      responses:
+        '200':
+          description: Voice list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [voices]
+                properties:
+                  voices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Voice'
+
+  /api/v1/credits/balance:
+    get:
+      summary: Get current credit balance
+      description: Returns current credit balance, usage percentage, and period info.
+      tags: [Credits]
+      security:
+        - licenseKey: []
+      responses:
+        '200':
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditBalance'
+
+  /api/v1/credits/history:
+    get:
+      summary: Get credit transaction history
+      description: Returns chronological list of credit transactions.
+      tags: [Credits]
+      security:
+        - licenseKey: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [transactions, total]
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CreditTransaction'
+                  total:
+                    type: integer
+
+  /api/v1/subscription:
+    get:
+      summary: Get current subscription details
+      description: Returns the user's current subscription tier, status, and period.
+      tags: [Subscription]
+      security:
+        - licenseKey: []
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionDetails'
+
+  /api/v1/subscription/checkout:
+    post:
+      summary: Generate checkout URL
+      description: Creates a Paddle checkout URL for new subscription or tier upgrade.
+      tags: [Subscription]
+      security:
+        - licenseKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier:
+                  $ref: '#/components/schemas/SubscriptionTier'
+      responses:
+        '200':
+          description: Checkout URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checkoutUrl]
+                properties:
+                  checkoutUrl:
+                    type: string
+                    format: uri
+
+  /webhooks/paddle:
+    post:
+      summary: Paddle billing webhook
+      description: |
+        Receives Paddle webhook events for subscription lifecycle management.
+        Signature verification via Paddle SDK. Must be idempotent (FR-021).
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Paddle webhook payload (varies by event type)
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid signature or malformed payload
+
+components:
+  securitySchemes:
+    licenseKey:
+      type: apiKey
+      in: header
+      name: X-License-Key
+      description: VoxPage license key for authentication
+
+  schemas:
+    SubscriptionTier:
+      type: string
+      enum: [free, pro, enterprise]
+
+    SubscriptionStatus:
+      type: string
+      enum: [active, cancelled, expired, past_due, trialing]
+
+    TTSProvider:
+      type: string
+      enum: [openai, elevenlabs, groq]
+
+    HealthIndicator:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [up, down]
+
+    LicenseValidationResponse:
+      type: object
+      required: [valid, tier, features, credits]
+      properties:
+        valid:
+          type: boolean
+        tier:
+          $ref: '#/components/schemas/SubscriptionTier'
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+        features:
+          type: object
+          description: Feature entitlements for this tier
+          properties:
+            managedTts:
+              type: boolean
+            premiumVoices:
+              type: boolean
+            prioritySupport:
+              type: boolean
+        credits:
+          $ref: '#/components/schemas/CreditBalance'
+
+    CreditBalance:
+      type: object
+      required: [total, remaining, usagePercent]
+      properties:
+        total:
+          type: integer
+          description: Total credits for current period
+        remaining:
+          type: integer
+          description: Credits remaining
+        usagePercent:
+          type: number
+          format: float
+          description: Usage as percentage (0-100)
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+
+    CreditTransaction:
+      type: object
+      required: [id, type, amount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [deduction, allocation, refund]
+        amount:
+          type: integer
+        provider:
+          $ref: '#/components/schemas/TTSProvider'
+        characterCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    SubscriptionDetails:
+      type: object
+      required: [tier, status]
+      properties:
+        tier:
+          $ref: '#/components/schemas/SubscriptionTier'
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+        currentPeriodStart:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        credits:
+          $ref: '#/components/schemas/CreditBalance'
+
+    Voice:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        language:
+          type: string
+        gender:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error context

@@ -1,10 +1,15 @@
-# AI Development Tools - keep locally, never push to GitHub
+# Agent runtime config - machine-specific, keep local
 CLAUDE.md
 .claude/
 .mcp.json
 .opencode/
-.specify/
-specs/
+
+# Spec-driven development artifacts ARE tracked - see AGENTS.md "Spec-Driven
+# Development". `specs/` and `.specify/` deliberately do not appear above:
+# a spec that is not in the diff cannot be reviewed with the code it governs.
+# Only the pre-monorepo archive stays out; it is 4.4M of superseded history
+# that no reviewer reads.
+specs/_archive/
 
 # Dependencies
 node_modules/
