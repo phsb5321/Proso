@@ -15,6 +15,7 @@
 
 import { browser } from 'wxt/browser';
 import type { TextQuoteSelector } from '../core/highlight';
+import { toAnchoringReport } from '../core/highlight/anchoring-report';
 import * as extractor from '../utils/content/extractor';
 import { createLogger } from '../utils/logging/logger';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
@@ -787,22 +788,24 @@ export default defineContentScript({
         const orphanStatus =
           await persistentHighlightManager.reanchorHighlights(highlightsToRender);
 
-        // Report orphaned highlights to background for status update
-        const orphanedIds = Array.from(orphanStatus.entries())
-          .filter(([_, isOrphaned]) => isOrphaned)
-          .map(([id]) => id);
+        const orphanedCount = Array.from(orphanStatus.values()).filter(Boolean).length;
 
-        if (orphanedIds.length > 0) {
-          log.warn(`Proso: ${orphanedIds.length} highlights could not be anchored (orphaned)`);
-          // Notify background about orphaned highlights
+        if (orphanedCount > 0) {
+          log.warn(`Proso: ${orphanedCount} highlights could not be anchored (orphaned)`);
+        }
+
+        // Only the highlights whose status moved. Reporting failures alone
+        // would set the flag but never clear it; reporting everything would
+        // rewrite every highlight on the page on every load.
+        const results = toAnchoringReport(response.highlights, orphanStatus);
+
+        if (results.length > 0) {
           browser.runtime
-            .sendMessage({
-              type: 'highlight.reportOrphans',
-              highlightIds: orphanedIds,
-              url: url,
-            })
-            .catch(() => {
-              // Ignore - background may not handle this message
+            .sendMessage({ type: 'highlight.reportAnchoring', results })
+            .catch((error) => {
+              // Logged rather than swallowed: this message going nowhere is
+              // exactly how the flag silently stopped being written before.
+              log.warn('Proso: Could not report anchoring results', { error });
             });
         }
       } catch (error) {

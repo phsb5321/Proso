@@ -51,7 +51,6 @@ describe('toHighlightAnchors', () => {
     const [anchor] = anchors;
     expect(anchor).not.toHaveProperty('id');
     expect(anchor).not.toHaveProperty('color');
-    expect(anchor).not.toHaveProperty('orphaned');
     expect(anchor).not.toHaveProperty('target');
   });
 
@@ -91,15 +90,31 @@ describe('toHighlightAnchors', () => {
     ).not.toContain('note');
   });
 
-  it('exports orphaned highlights too', () => {
+  it('exports orphaned highlights too, and says which ones they are', () => {
     // Re-anchoring failing against the live page says nothing about whether the
-    // reader's quote was real, and the consumer anchors against its own copy.
+    // reader's quote was real, and the consumer anchors against its own copy —
+    // so the highlight ships. Leaving the keep-or-drop decision to the consumer
+    // is only a real offer if the file marks them.
     const anchors = toHighlightAnchors([
       makeHighlight({ created: '2026-07-30T12:00:00.000Z', orphaned: true }),
     ]);
 
     expect(anchors).toHaveLength(1);
     expect(anchors[0].exact).toBe('B-Trees are a family of data structures');
+    expect(anchors[0].orphaned).toBe(true);
+  });
+
+  it('omits the orphaned flag when the quote still matches its page', () => {
+    // Same rule as the note: absent rather than `false`, so a consumer testing
+    // for the key and one testing the value cannot disagree. Absent means "not
+    // known to be orphaned" — which includes a page never re-opened — so there
+    // is nothing to assert by emitting it.
+    const highlight = makeHighlight({ created: '2026-07-30T12:00:00.000Z', orphaned: false });
+
+    expect(toHighlightAnchors([highlight])[0].orphaned).toBeUndefined();
+    // The written file is the contract, and that is where the key is gone:
+    // an undefined-valued property still exists on the object in memory.
+    expect(serializeHighlightAnchors([highlight])).not.toContain('orphaned');
   });
 
   it('orders oldest first regardless of the order it was handed', () => {
