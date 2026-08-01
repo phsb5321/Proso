@@ -5,17 +5,6 @@
   "findings": [
     {
       "tool": "knip",
-      "fingerprint": "00be62beb37c7384e7ed9ce162267dd487748cd42bc50fd68fd54156bd432ef3",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/check-active-docs.mjs",
-      "symbol": "scripts/quality/check-active-docs.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "0594f26e3dc3000ffc17cc35106082bc01a6ae6acf1a24d40594ca1c8f8cfd88",
       "scope": "production",
       "category": "dependencies",
@@ -32,17 +21,6 @@
       "category": "dependencies",
       "file": "packages/server/package.json",
       "symbol": "nestjs-pino",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "194a73a388c312cb1a85add4a6df3fee0ec533bfb66243169cfbc401a0e6bae5",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/workspace-policy.mjs",
-      "symbol": "scripts/workspace-policy.mjs",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
@@ -76,17 +54,6 @@
       "category": "devDependencies",
       "file": "packages/server/package.json",
       "symbol": "pino-pretty",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "245c3dbde2c80024cdac21cc460f3a56e415f01ac3f1a084add7079d335598b9",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/fixtures/opengrep/focused-test.ts",
-      "symbol": "scripts/quality/fixtures/opengrep/focused-test.ts",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
@@ -148,17 +115,6 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "334fd26f7fa9532eaef1ef694ad23699a665a0e427af971893c4dd3ed72cfeec",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/diff-coverage.mjs",
-      "symbol": "scripts/quality/diff-coverage.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "34e92b3273364026576076ed5eff709ce091e39241798ff25b2b1ecbebb78d03",
       "scope": "production",
       "category": "dependencies",
@@ -186,72 +142,6 @@
       "category": "dependencies",
       "file": "packages/server/package.json",
       "symbol": "@nestjs/common",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "3a66fff80177ed3dc134debf4f7ed7e9de8b0c8aa07b5e9c2b4791677d02d60e",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/changed-lines.mjs",
-      "symbol": "scripts/quality/changed-lines.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "3beb5637dec96492f59b4e0b873331b1268f6aca6a008cef413fb8b829a688ed",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/check-active-docs.mjs",
-      "symbol": "scripts/quality/check-active-docs.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "402b6d613fb4c3c0b032812ddc0f57c4722209b066061ab9348604712a9c9b52",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/duplication-ratchet.mjs",
-      "symbol": "scripts/quality/duplication-ratchet.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "490b7b12f600977b755c611cf1d194e29f291a540e6a1b4da82f7bf8b86d4642",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/knip-ratchet.mjs",
-      "symbol": "scripts/quality/knip-ratchet.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "4afc17fe273a3432cf7ed2ec0479fc62e39f59dc1034ef6e720e00631e7b917b",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/changed-lines.mjs",
-      "symbol": "scripts/quality/changed-lines.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "4e8337d119decc7446f1d924235ca66cd43943d7afc144554d87ccd4f20609e9",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/duplication-ratchet.mjs",
-      "symbol": "scripts/quality/duplication-ratchet.mjs",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
@@ -346,17 +236,6 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "74a646312db6c88f28b1cb4c843a208737d37d0e95e438c71df9c84ae8d81b03",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/workspace-policy.mjs",
-      "symbol": "scripts/workspace-policy.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "7503a3e44f6cb9a04d00b93ff9b78bee54103f57af785875f9542522d5b27049",
       "scope": "production",
       "category": "dependencies",
@@ -412,44 +291,11 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "8cf79d638406a106ea79c6b37415b55b944a95ce37f4773909e9bbf661896c73",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/osv-ratchet.mjs",
-      "symbol": "scripts/quality/osv-ratchet.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "92b3e2f0c54c0179d667b5b2b98635964d0bc59438485bd81b6dd3d23e5308a9",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/osv-ratchet.mjs",
-      "symbol": "scripts/quality/osv-ratchet.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "94af762eeab04bb392c094d0d1e2355b98628f1329381eda03d8f1c4dd7bb7a9",
       "scope": "production",
       "category": "dependencies",
       "file": "packages/extension/package.json",
       "symbol": "@proso/shared",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "99f2cb5aaed8d82736a3dcc293cfc5a77cd63bf47f980a2c6c8aa0aed26296f4",
-      "scope": "production",
-      "category": "files",
-      "file": "scripts/quality/fixtures/opengrep/focused-test.ts",
-      "symbol": "scripts/quality/fixtures/opengrep/focused-test.ts",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
@@ -516,17 +362,6 @@
       "category": "dependencies",
       "file": "packages/server/package.json",
       "symbol": "@nestjs/core",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "b6de2e11e006da85f506b94d884ec6082256b2f925ee9c3fe825ee53ed86c8f2",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/knip-ratchet.mjs",
-      "symbol": "scripts/quality/knip-ratchet.mjs",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
@@ -676,17 +511,6 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "d1876b32ed87142c73520953dea89a87d6b6b81a389668527f98a0227f6aad0a",
-      "scope": "all",
-      "category": "files",
-      "file": "scripts/quality/diff-coverage.mjs",
-      "symbol": "scripts/quality/diff-coverage.mjs",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "d1f3a8c9d866a444ac7d1c60134ad49237c7bd45afd272ae817c7abef276e751",
       "scope": "all",
       "category": "files",
@@ -714,17 +538,6 @@
       "category": "dependencies",
       "file": "packages/server/package.json",
       "symbol": "@prisma/client",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
-      "fingerprint": "e1df6b75bafa7f1cf9e7c2cf1f4117b6661551eedb94b5d742b37da17331a920",
-      "scope": "all",
-      "category": "files",
-      "file": "packages/extension/src/utils/content/scorer.ts",
-      "symbol": "packages/extension/src/utils/content/scorer.ts",
       "owner": "proso",
       "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
       "issue": "quality-depth-slice-2"
