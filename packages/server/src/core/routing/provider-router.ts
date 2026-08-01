@@ -2,9 +2,12 @@
 // ZERO NestJS imports — pure TypeScript business logic
 //
 // Routing strategy:
-//   Free tier → server-side providers (ElevenLabs > OpenAI > Groq) — INV-001
 //   Pro tier → cost-efficient first (Groq > OpenAI > ElevenLabs)
 //   Enterprise tier → premium quality first (ElevenLabs > OpenAI > Groq)
+//
+// This module answers "which provider?", never "is the caller entitled?".
+// Entitlement is enforced upstream in tts.service.ts via
+// FEATURE_MATRIX.managedTts, so tiers without managed TTS never get here.
 
 import { SubscriptionTier, TTSProvider } from '@proso/shared';
 import { TIER_PROVIDER_ORDER, buildFallbackChain } from './fallback-chain.js';
@@ -19,9 +22,9 @@ export interface RoutingDecision {
  * Select the best TTS provider and build a fallback chain.
  *
  * Decision order:
- * 1. Free tier always routes to Browser (no server-side TTS)
- * 2. If user has a preferred provider and it is available, use it
- * 3. Otherwise, use the tier's default ordering filtered by availability
+ * 1. If user has a preferred provider and it is available, use it
+ * 2. Otherwise, use the tier's default ordering filtered by availability
+ * 3. If no server-side provider is available at all, fall back to Browser
  *
  * @param tier - User's subscription tier
  * @param _language - Language hint (reserved for future language-based routing)
@@ -35,9 +38,6 @@ export function selectProvider(
   preferredProvider: TTSProvider | undefined,
   availableProviders: TTSProvider[],
 ): RoutingDecision {
-  // Free tier: use server-side providers (Browser TTS removed)
-  // INV-001: Free tier never requires account creation — server uses its own API keys.
-
   // If user has a preferred provider and it is available, use it
   if (preferredProvider && availableProviders.includes(preferredProvider)) {
     const fallbackChain = buildFallbackChain(tier, availableProviders, preferredProvider);
