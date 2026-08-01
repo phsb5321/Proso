@@ -143,6 +143,15 @@ export async function synthesize(
   // No invariant is weakened: INV-001 holds because Free tier still needs no
   // account for the things it is entitled to — browser TTS (INV-005,
   // client-side and unlimited) and BYOK (INV-002, handled above this line).
+  //
+  // The gate sits ABOVE the cache probe on purpose, so an ungated tier gets a
+  // deterministic 402 rather than "works whenever someone else already
+  // synthesized this exact text". managedTts is an entitlement flag, not a cost
+  // flag — a warm cache is not a licence to hand a paid feature to a tier that
+  // does not have it, and the cache key is global (tts:{provider}:{voice}:
+  // {language}:{textHash}, no userId), so reading it from an unauthenticated
+  // request would expose one tenant's audio to another. INV-006 is untouched:
+  // it forbids re-charging for cached content, and this path charges nothing.
   if (!FEATURE_MATRIX[request.tier].managedTts) {
     // A credit-class error, not a TTS-class one: the tier's managed allowance is
     // zero (TIER_CREDITS.Free), so every managed request is short by its full
