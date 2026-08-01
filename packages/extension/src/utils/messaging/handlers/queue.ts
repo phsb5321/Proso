@@ -33,42 +33,14 @@ function getQueueStore(): QueueStore {
  */
 function getQueuePlayer(): QueuePlayer {
   if (!queuePlayer) {
-    queuePlayer = createQueuePlayer(getQueueStore(), {
-      onItemStart: (item) => {
-        // Broadcast to tabs that item started
-        broadcastQueueEvent('itemStart', { item });
-      },
-      onItemComplete: (item) => {
-        // Broadcast to tabs that item completed
-        broadcastQueueEvent('itemComplete', { item });
-      },
-      onQueueComplete: () => {
-        // Broadcast to tabs that queue finished
-        broadcastQueueEvent('queueComplete', {});
-      },
-    });
+    // The three lifecycle callbacks used to broadcast a 'queue.event' message
+    // to every tab. Nothing has ever listened for that name, and nothing had
+    // to: each callback fires immediately after the player has written the
+    // item's new status to storage, and that write is what raises the
+    // 'queue.updated' broadcast the popup and content script do read.
+    queuePlayer = createQueuePlayer(getQueueStore());
   }
   return queuePlayer;
-}
-
-/**
- * Broadcast queue event to all tabs
- */
-async function broadcastQueueEvent(event: string, data: Record<string, unknown>): Promise<void> {
-  const tabs = await browser.tabs.query({});
-  for (const tab of tabs) {
-    if (tab.id) {
-      try {
-        await browser.tabs.sendMessage(tab.id, {
-          type: 'queue.event',
-          event,
-          data,
-        });
-      } catch {
-        // Ignore tabs that can't receive messages
-      }
-    }
-  }
 }
 
 /**

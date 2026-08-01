@@ -37,6 +37,9 @@ import {
 } from '../background/shortcuts';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 
+// Legacy `action:` names mapped onto canonical handler names (T068)
+import { LEGACY_BRIDGE } from '../handlers/legacy-bridge';
+
 // Structured error responses (041-firefox-first-pivot T1.2)
 import { unknownMessageResponse } from '../utils/messaging/error-response';
 // Unknown message telemetry (041-firefox-first-pivot T1.3)
@@ -136,6 +139,26 @@ const messageHandlers: Record<string, MessageHandler> = {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.error('[Background] Flush logs failed', { error });
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  /**
+   * Drop the buffered telemetry logs.
+   * Called from the options page "Clear logs" button, which asks for
+   * confirmation first and reports whatever comes back here.
+   */
+  clearLogs: async () => {
+    try {
+      if (!usageTracker.isEnabled() || !usageTracker.isInitialized()) {
+        return { success: false, error: 'Telemetry not initialized' };
+      }
+
+      await usageTracker.clearBufferedLogs();
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error('[Background] Clear logs failed', { error });
       return { success: false, error: errorMessage };
     }
   },
@@ -362,22 +385,9 @@ export default defineBackground(() => {
       // T007: Inject sender tab ID into dispatch data
       const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
 
-      // T068: Bridge legacy action names to canonical dot-notation handler names.
-      // Single mapping location for all camelCase and SCREAMING_SNAKE legacy names.
-      const LEGACY_BRIDGE: Record<string, string> = {
-        // Content script legacy actions
-        languageDetected: 'language.detect',
-        controllerAction: 'footer.action',
-        jumpToParagraph: 'playback.jumpToParagraph',
-        jumpToWord: 'playback.jumpToWord',
-        requestResync: 'playback.resync',
-        // SCREAMING_SNAKE footer messages
-        FOOTER_SHOW: 'footer.show',
-        FOOTER_HIDE: 'footer.hide',
-        FOOTER_STATE_UPDATE: 'footer.stateUpdate',
-        FOOTER_ACTION: 'footer.action',
-        TOGGLE_FOOTER_SETTINGS: 'footer.toggleSettings',
-      };
+      // T068: Bridge legacy action names to canonical dot-notation handler
+      // names. The map lives in src/handlers/legacy-bridge.ts so a test can
+      // check every row still points at a registered handler.
       const handlerType = LEGACY_BRIDGE[action] ?? action;
 
       return dispatchMessage(handlerType, enrichedData).then((result) => {

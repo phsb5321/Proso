@@ -329,6 +329,22 @@ export class PlaybackService {
   }
 
   /**
+   * Push the current audio position to the reading tab immediately.
+   *
+   * The position is otherwise only sent on `timeupdate`, which is enough while
+   * the tab is visible. A hidden tab throttles the animation frames that move
+   * its word highlight, so it comes back stale and stays that way until the
+   * next `timeupdate` — this lets it ask for the position the moment the
+   * reader looks at it again (FR-005).
+   *
+   * @returns Whether a position was sent — false when nothing is loaded to
+   * report on, or when no tab is being read into.
+   */
+  resyncPosition(): boolean {
+    return this.emitAudioPosition();
+  }
+
+  /**
    * Seek within current paragraph (0-1 progress).
    */
   async seek(progress: number): Promise<Result<PlaybackState, PlaybackError>> {
@@ -1116,6 +1132,29 @@ export class PlaybackService {
   }
 
   /**
+   * Send where the audio currently is to the tab being read into.
+   *
+   * `duration` is checked because an element that has not loaded metadata
+   * reports `currentTime` 0 against an unknown clip — a position that would
+   * drag the highlight back to the first word rather than leave it alone.
+   *
+   * @returns Whether a position was sent
+   */
+  private emitAudioPosition(): boolean {
+    if (!this.audioElement?.duration) return false;
+    if (this.state.activeTabId === null) return false;
+
+    this.deps.highlightSync.sendAudioPosition(
+      this.state.activeTabId,
+      this.audioElement.currentTime * 1000,
+      !this.audioElement.paused,
+      this.state.speed,
+    );
+
+    return true;
+  }
+
+  /**
    * Set up audio element event listeners.
    */
   private setupAudioEventListeners(): void {
@@ -1128,15 +1167,7 @@ export class PlaybackService {
         this.updateFooterState();
 
         // Send audio position to content script for rAF-based word sync
-        if (this.state.activeTabId !== null) {
-          const currentTimeMs = this.audioElement.currentTime * 1000;
-          this.deps.highlightSync.sendAudioPosition(
-            this.state.activeTabId,
-            currentTimeMs,
-            !this.audioElement.paused,
-            this.state.speed,
-          );
-        }
+        this.emitAudioPosition();
       }
     });
 
