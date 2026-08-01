@@ -1,0 +1,217 @@
+openapi: 3.0.3
+info:
+  title: ElevenLabs TTS API Contract (Subset)
+  description: |
+    Subset of ElevenLabs API used by VoxPage for text-to-speech streaming.
+    This contract defines the expected request/response format for integration testing.
+  version: 1.0.0
+
+servers:
+  - url: https://api.elevenlabs.io/v1
+    description: ElevenLabs Production API
+
+paths:
+  /text-to-speech/{voice_id}/stream:
+    post:
+      operationId: streamTextToSpeech
+      summary: Stream text-to-speech audio
+      description: Converts text to speech and streams the audio back as chunks
+      parameters:
+        - name: voice_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: EXAVITQu4vr4xnSDxMaL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TtsRequest'
+      responses:
+        '200':
+          description: Audio stream
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (text too long, invalid parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+
+  /voices:
+    get:
+      operationId: listVoices
+      summary: List available voices
+      description: Returns list of voices available to the user
+      responses:
+        '200':
+          description: List of voices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoicesResponse'
+        '401':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+
+  /user:
+    get:
+      operationId: getUser
+      summary: Get user info and subscription status
+      description: Used to validate API key and check quota
+      responses:
+        '200':
+          description: User info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: xi-api-key
+
+  schemas:
+    TtsRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Text to convert to speech
+          minLength: 1
+          maxLength: 5000
+        model_id:
+          type: string
+          description: Model to use for synthesis
+          default: eleven_monolingual_v1
+          enum:
+            - eleven_monolingual_v1
+            - eleven_multilingual_v2
+            - eleven_turbo_v2
+        voice_settings:
+          $ref: '#/components/schemas/VoiceSettings'
+        output_format:
+          type: string
+          description: Output audio format
+          default: mp3_44100_128
+          enum:
+            - mp3_22050_32
+            - mp3_44100_64
+            - mp3_44100_96
+            - mp3_44100_128
+            - mp3_44100_192
+
+    VoiceSettings:
+      type: object
+      properties:
+        stability:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+        similarity_boost:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.75
+        style:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0
+        use_speaker_boost:
+          type: boolean
+          default: true
+
+    VoicesResponse:
+      type: object
+      properties:
+        voices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Voice'
+
+    Voice:
+      type: object
+      properties:
+        voice_id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum:
+            - premade
+            - cloned
+            - generated
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        preview_url:
+          type: string
+          format: uri
+
+    UserResponse:
+      type: object
+      properties:
+        subscription:
+          type: object
+          properties:
+            tier:
+              type: string
+            character_count:
+              type: integer
+            character_limit:
+              type: integer
+            can_use_instant_voice_cloning:
+              type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: object
+          properties:
+            status:
+              type: string
+            message:
+              type: string

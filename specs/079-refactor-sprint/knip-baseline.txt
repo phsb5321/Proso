@@ -1,0 +1,854 @@
+Unused files (33)
+packages/extension/src/adapters/index.ts                              
+packages/extension/src/background/providers/elevenlabs.ts             
+packages/extension/src/core/article/index.ts                          
+packages/extension/src/core/content-extraction/index.ts               
+packages/extension/src/core/index.ts                                  
+packages/extension/src/core/playback/index.ts                         
+packages/extension/src/core/shared/index.ts                           
+packages/extension/src/entrypoints/options/components/provider-card.ts
+packages/extension/src/handlers/schemas/index.ts                      
+packages/extension/src/handlers/schemas/settings.schemas.ts           
+packages/extension/src/ports/index.ts                                 
+packages/extension/src/utils/audio/cache.ts                           
+packages/extension/src/utils/audio/mp3-worker.ts                      
+packages/extension/src/utils/audio/segment.ts                         
+packages/extension/src/utils/audio/visualizer.ts                      
+packages/extension/src/utils/cache/db.ts                              
+packages/extension/src/utils/content/scorer.ts                        
+packages/extension/src/utils/db/index.ts                              
+packages/extension/src/utils/db/init.ts                               
+packages/extension/src/utils/logging/logger.ts                        
+packages/extension/src/utils/messaging/handlers/index.ts              
+packages/extension/src/utils/messaging/types.ts                       
+packages/extension/src/utils/permissions.ts                           
+packages/extension/src/utils/providers/base.ts                        
+packages/extension/src/utils/providers/elevenlabs.ts                  
+packages/extension/src/utils/schemas/index.ts                         
+packages/server/src/adapters/logging/pino-logger.adapter.ts           
+packages/server/src/adapters/tts/index.ts                             
+packages/server/src/ports/logger.port.ts                              
+packages/site/assets/js/main.js                                       
+services/proso-log-gateway/src/index.ts                               
+services/proso-log-gateway/src/loki-client.ts                         
+services/proso-log-gateway/src/schemas.ts                             
+Unused dependencies (2)
+pg         packages/server/package.json:36:6
+pino-loki  packages/server/package.json:38:6
+Unused devDependencies (10)
+@types/webextension-polyfill  packages/extension/package.json:63:6
+jest-axe                      packages/extension/package.json:66:6
+@iconify-json/lucide          packages/extension/package.json:72:6
+@wxt-dev/unocss               packages/extension/package.json:74:6
+vite                          packages/extension/package.json:77:6
+@nestjs/testing               packages/server/package.json:47:6   
+@testcontainers/postgresql    packages/server/package.json:48:6   
+pino-pretty                   packages/server/package.json:53:6   
+testcontainers                packages/server/package.json:54:6   
+ts-loader                     packages/server/package.json:56:6   
+Unlisted dependencies (94)
+@jest/globals  packages/extension/tests/contract/audio-player.contract.test.ts:10:22                
+@jest/globals  packages/extension/tests/contract/cache-store.contract.test.ts:10:50                 
+@jest/globals  packages/extension/tests/contract/config-consistency.test.js:15:51                   
+@jest/globals  packages/extension/tests/contract/content-scorer.contract.test.ts:10:50              
+@jest/globals  packages/extension/tests/contract/footer-state-update.test.ts:10:38                  
+@jest/globals  packages/extension/tests/contract/highlight-repository.contract.test.ts:10:50        
+@jest/globals  packages/extension/tests/contract/mp3-export.test.ts:9:56                            
+@jest/globals  packages/extension/tests/contract/ocr-reading.test.ts:8:38                           
+@jest/globals  packages/extension/tests/contract/queue.test.ts:8:56                                 
+@jest/globals  packages/extension/tests/contract/reader.contract.test.ts:10:50                      
+@jest/globals  packages/extension/tests/contract/settings-store.contract.test.ts:10:22              
+@jest/globals  packages/extension/tests/contract/text-extractor.contract.test.ts:10:50              
+@jest/globals  packages/extension/tests/integration/cache/indexeddb-lifecycle.test.ts:10:61         
+@jest/globals  packages/extension/tests/integration/composition-root.test.ts:12:61                  
+@jest/globals  packages/extension/tests/integration/dispatch.test.ts:11:61                          
+@jest/globals  packages/extension/tests/integration/handler-registry.test.ts:10:50                  
+@jest/globals  packages/extension/tests/integration/messaging/background-content.test.ts:10:61      
+@jest/globals  packages/extension/tests/integration/messaging/playback-flow.test.ts:10:61           
+@jest/globals  packages/extension/tests/integration/messaging/queue-getstate.test.ts:17:56          
+@jest/globals  packages/extension/tests/integration/popup-background.test.ts:13:61                  
+@jest/globals  packages/extension/tests/integration/storage/settings-persistence.test.ts:10:61      
+@jest/globals  packages/extension/tests/regression/mode-sync.test.js:18:51                          
+@jest/globals  packages/extension/tests/regression/orphaned-audio.test.js:7:22                      
+@jest/globals  packages/extension/tests/security/build-artifacts.test.ts:12:49                      
+@jest/globals  packages/extension/tests/security/credentials.test.ts:12:38                          
+@jest/globals  packages/extension/tests/security/csp-compliance.test.ts:10:38                       
+@jest/globals  packages/extension/tests/security/manifest-permissions.test.ts:15:38                 
+@jest/globals  packages/extension/tests/setup.js:6:22                                               
+@jest/globals  packages/extension/tests/unit/accessibility/reduced-motion.test.js:18:69             
+@jest/globals  packages/extension/tests/unit/adapters/api/noop-api-client.adapter.test.ts:9:38      
+@jest/globals  packages/extension/tests/unit/adapters/api/proso-api-testkey.test.ts:12:56           
+@jest/globals  packages/extension/tests/unit/adapters/api/proso-api.adapter.test.ts:10:56           
+@jest/globals  packages/extension/tests/unit/adapters/audio-adapters.test.ts:10:50                  
+@jest/globals  packages/extension/tests/unit/adapters/audio/server-tts-byok.test.ts:10:56           
+@jest/globals  packages/extension/tests/unit/audio/url-lifecycle.test.ts:8:66                       
+@jest/globals  packages/extension/tests/unit/cache/audio-cache-store.test.ts:7:22                   
+@jest/globals  packages/extension/tests/unit/composition/container.test.ts:14:56                    
+@jest/globals  packages/extension/tests/unit/composition/factories.test.ts:16:44                    
+@jest/globals  packages/extension/tests/unit/config/defaults.test.js:6:40                           
+@jest/globals  packages/extension/tests/unit/config/migrations.test.ts:10:56                        
+@jest/globals  packages/extension/tests/unit/config/schema.test.js:9:40                             
+@jest/globals  packages/extension/tests/unit/content/debouncing.test.ts:8:50                        
+@jest/globals  packages/extension/tests/unit/content/extractor-heading-order.test.ts:13:61          
+jsdom          packages/extension/tests/unit/content/extractor-heading-order.test.ts:14:23          
+@jest/globals  packages/extension/tests/unit/content/paragraph-selector.test.ts:8:56                
+@jest/globals  packages/extension/tests/unit/content/sticky-footer-timer.test.ts:11:67              
+@jest/globals  packages/extension/tests/unit/content/tts-queue-order.test.ts:11:50                  
+@jest/globals  packages/extension/tests/unit/core/article/extraction.service.test.ts:10:50          
+jsdom          packages/extension/tests/unit/core/article/extraction.service.test.ts:11:23          
+@jest/globals  packages/extension/tests/unit/core/article/fallback.test.ts:11:50                    
+jsdom          packages/extension/tests/unit/core/article/fallback.test.ts:12:23                    
+@jest/globals  packages/extension/tests/unit/core/content-extraction/extracted-content.test.ts:10:38
+@jest/globals  packages/extension/tests/unit/core/highlight/anchoring.service.test.ts:11:38         
+@jest/globals  packages/extension/tests/unit/core/highlight/highlight.entity.test.ts:6:49           
+@jest/globals  packages/extension/tests/unit/core/playback-service.test.ts:10:50                    
+@jest/globals  packages/extension/tests/unit/core/shared/errors.test.ts:6:38                        
+@jest/globals  packages/extension/tests/unit/core/shared/result.test.ts:6:38                        
+@jest/globals  packages/extension/tests/unit/debug/debug-api.test.ts:11:55                          
+@jest/globals  packages/extension/tests/unit/e2e-helpers/console-capture.test.ts:11:44              
+@jest/globals  packages/extension/tests/unit/handlers/audio.handlers.test.ts:16:56                  
+@jest/globals  packages/extension/tests/unit/handlers/cache.handlers.test.ts:13:56                  
+@jest/globals  packages/extension/tests/unit/handlers/content.handlers.test.ts:16:56                
+@jest/globals  packages/extension/tests/unit/handlers/debug.handlers.test.ts:14:56                  
+@jest/globals  packages/extension/tests/unit/handlers/export.handlers.test.ts:16:56                 
+@jest/globals  packages/extension/tests/unit/handlers/footer.handlers.test.ts:22:56                 
+@jest/globals  packages/extension/tests/unit/handlers/highlight.handlers.test.ts:18:56              
+@jest/globals  packages/extension/tests/unit/handlers/language.handlers.test.ts:16:56               
+@jest/globals  packages/extension/tests/unit/handlers/logging.handlers.test.ts:15:56                
+@jest/globals  packages/extension/tests/unit/handlers/playback.handlers.test.ts:11:56               
+@jest/globals  packages/extension/tests/unit/handlers/prefetch.handlers.test.ts:12:56               
+@jest/globals  packages/extension/tests/unit/handlers/provider.handlers.test.ts:10:56               
+@jest/globals  packages/extension/tests/unit/handlers/queue.handlers.test.ts:11:56                  
+@jest/globals  packages/extension/tests/unit/handlers/reader.handlers.test.ts:18:56                 
+@jest/globals  packages/extension/tests/unit/handlers/settings.handlers.test.ts:18:67               
+@jest/globals  packages/extension/tests/unit/language-extractor.test.js:9:40                        
+@jest/globals  packages/extension/tests/unit/language-mappings.test.js:7:40                         
+@jest/globals  packages/extension/tests/unit/log-buffer.test.js:6:22                                
+@jest/globals  packages/extension/tests/unit/logging/logger.test.ts:14:56                           
+@jest/globals  packages/extension/tests/unit/messaging/error-response.test.ts:9:38                  
+@jest/globals  packages/extension/tests/unit/messaging/message-router.test.ts:11:56                 
+@jest/globals  packages/extension/tests/unit/mp3-encoder.test.ts:7:56                               
+@jest/globals  packages/extension/tests/unit/navigation-cleanup.test.js:6:22                        
+@jest/globals  packages/extension/tests/unit/paragraph-selector.test.js:6:22                        
+@jest/globals  packages/extension/tests/unit/playback-sync.test.js:5:67                             
+@jest/globals  packages/extension/tests/unit/playback/playback-queue.test.ts:6:56                   
+@jest/globals  packages/extension/tests/unit/playback/playback-state.test.ts:8:38                   
+@jest/globals  packages/extension/tests/unit/playback/prefetch.test.ts:6:67                         
+@jest/globals  packages/extension/tests/unit/providers/pricing.test.ts:6:38                         
+@jest/globals  packages/extension/tests/unit/queue-player.test.ts:8:56                              
+@jest/globals  packages/extension/tests/unit/queue-store.test.ts:8:56                               
+@jest/globals  packages/extension/tests/unit/telemetry/usage-privacy.test.ts:11:38                  
+@jest/globals  packages/extension/tests/unit/telemetry/usage-shipper.test.ts:11:67                  
+@jest/globals  packages/extension/tests/unit/telemetry/usage-tracker.test.ts:16:67                  
+@jest/globals  packages/extension/tests/unit/tokens.test.js:11:49                                   
+Unlisted binaries (5)
+playwright  .github/workflows/ci.yml    
+jest        .github/workflows/test.yml  
+playwright  .github/workflows/test.yml  
+biome       lefthook.yml                
+biome       packages/server/package.json
+Unused exports (353)
+OffscreenAudioAdapter                                      packages/extension/src/adapters/audio/index.ts:17:10         
+DirectAudioAdapter                                         packages/extension/src/adapters/audio/index.ts:18:10         
+OffscreenAudioAdapter                            class     …ages/extension/src/adapters/audio/offscreen.adapter.ts:46:14
+ReadabilityAdapter                                         packages/extension/src/adapters/content/index.ts:11:10       
+createNoOpHighlightSyncAdapter                             packages/extension/src/adapters/messaging/index.ts:10:3      
+createNoOpHighlightSyncAdapter                   function  …/src/adapters/messaging/noop-highlight-sync.adapter.ts:98:17
+HighlightIndexedDBAdapter                        class     …on/src/adapters/storage/highlight-indexeddb.adapter.ts:35:14
+HighlightIndexedDBAdapter                                  packages/extension/src/adapters/storage/index.ts:9:3         
+createHighlightRepository                                  packages/extension/src/adapters/storage/index.ts:10:3        
+logLegacyDispatch                                function  packages/extension/src/background/init-hexagonal.ts:394:17   
+createHighlightSyncAdapterWithFallback           function  packages/extension/src/composition/factories.ts:115:17       
+resetContainer                                             packages/extension/src/composition/index.ts:26:3             
+ensureContainerInitialized                                 packages/extension/src/composition/index.ts:32:3             
+createAudioGeneratorAdapter                                packages/extension/src/composition/index.ts:37:3             
+createCacheStoreAdapter                                    packages/extension/src/composition/index.ts:38:3             
+createHighlightSyncAdapter                                 packages/extension/src/composition/index.ts:39:3             
+createTextExtractorAdapter                                 packages/extension/src/composition/index.ts:40:3             
+createContentScorerAdapter                                 packages/extension/src/composition/index.ts:41:3             
+createSettingsStoreAdapter                                 packages/extension/src/composition/index.ts:42:3             
+getApiKeyForProvider                                       packages/extension/src/composition/index.ts:43:3             
+createParagraph                                  function  packages/extension/src/core/article/article.entity.ts:105:17 
+getArticleCharacterCount                         function  packages/extension/src/core/article/article.entity.ts:122:17 
+getEstimatedReadingTime                          function  packages/extension/src/core/article/article.entity.ts:132:17 
+getEstimatedTTSDuration                          function  packages/extension/src/core/article/article.entity.ts:142:17 
+createContentExtractionService                   function  …ion/src/core/content-extraction/extraction-service.ts:265:17
+createHighlight                                            packages/extension/src/core/highlight/index.ts:19:3          
+validateHighlight                                          packages/extension/src/core/highlight/index.ts:20:3          
+isOrphaned                                                 packages/extension/src/core/highlight/index.ts:21:3          
+hasNote                                                    packages/extension/src/core/highlight/index.ts:22:3          
+getNote                                                    packages/extension/src/core/highlight/index.ts:23:3          
+getExactText                                               packages/extension/src/core/highlight/index.ts:24:3          
+getSelectors                                               packages/extension/src/core/highlight/index.ts:25:3          
+withColor                                                  packages/extension/src/core/highlight/index.ts:26:3          
+withNote                                                   packages/extension/src/core/highlight/index.ts:27:3          
+withOrphanedStatus                                         packages/extension/src/core/highlight/index.ts:28:3          
+compareByCreated                                           packages/extension/src/core/highlight/index.ts:29:3          
+compareByModified                                          packages/extension/src/core/highlight/index.ts:30:3          
+DEFAULT_CONTEXT_LENGTH                                     packages/extension/src/core/highlight/index.ts:35:3          
+MAX_CONTEXT_LENGTH                                         packages/extension/src/core/highlight/index.ts:36:3          
+createTextQuoteSelector                                    packages/extension/src/core/highlight/index.ts:38:3          
+validateTextQuoteSelector                                  packages/extension/src/core/highlight/index.ts:40:3          
+buildSearchPattern                                         packages/extension/src/core/highlight/index.ts:41:3          
+getExpectedLength                                          packages/extension/src/core/highlight/index.ts:42:3          
+normalizeText                                              packages/extension/src/core/highlight/index.ts:43:3          
+selectorsMatch                                             packages/extension/src/core/highlight/index.ts:44:3          
+levenshteinDistance                                        packages/extension/src/core/highlight/index.ts:54:3          
+similarityRatio                                            packages/extension/src/core/highlight/index.ts:55:3          
+anchorToText                                               packages/extension/src/core/highlight/index.ts:56:3          
+createRangeFromPosition                                    packages/extension/src/core/highlight/index.ts:57:3          
+anchorAll                                                  packages/extension/src/core/highlight/index.ts:59:3          
+createAnchoringService                                     packages/extension/src/core/highlight/index.ts:60:3          
+DEFAULT_CONTEXT_LENGTH                                     …es/extension/src/core/highlight/text-quote-selector.ts:26:14
+MAX_CONTEXT_LENGTH                                         …es/extension/src/core/highlight/text-quote-selector.ts:31:14
+createTextQuoteSelector                          function  …es/extension/src/core/highlight/text-quote-selector.ts:60:17
+validateTextQuoteSelector                        function  …s/extension/src/core/highlight/text-quote-selector.ts:136:17
+buildSearchPattern                               function  …s/extension/src/core/highlight/text-quote-selector.ts:149:17
+getExpectedLength                                function  …s/extension/src/core/highlight/text-quote-selector.ts:170:17
+selectorsMatch                                   function  …s/extension/src/core/highlight/text-quote-selector.ts:184:17
+closeActiveModal                                 function  …extension/src/entrypoints/options/components/modal.ts:199:17
+isModalOpen                                      function  …extension/src/entrypoints/options/components/modal.ts:218:17
+DEFAULT_SECTIONS                                           …xtension/src/entrypoints/options/components/sidebar.ts:31:14
+createSidebar                                    function  …xtension/src/entrypoints/options/components/sidebar.ts:43:17
+updateSidebarActive                              function  …tension/src/entrypoints/options/components/sidebar.ts:109:17
+showToast                                        function  …/extension/src/entrypoints/options/components/toast.ts:63:17
+dismissToast                                     function  …extension/src/entrypoints/options/components/toast.ts:133:17
+dismissAllToasts                                 function  …extension/src/entrypoints/options/components/toast.ts:157:17
+default                                          variable  …extension/src/entrypoints/options/components/toast.ts:200:16
+cleanupCompletedJobs                             function  packages/extension/src/handlers/export.handlers.ts:336:17    
+getActiveTabId                                   function  packages/extension/src/handlers/footer.handlers.ts:78:17     
+createHandlerRegistry                                      packages/extension/src/handlers/index.ts:13:3                
+getGlobalRegistry                                          packages/extension/src/handlers/index.ts:14:3                
+resetGlobalRegistry                                        packages/extension/src/handlers/index.ts:15:3                
+InstrumentedRegistry                                       packages/extension/src/handlers/index.ts:22:3                
+createInstrumentedRegistry                                 packages/extension/src/handlers/index.ts:23:3                
+resetGlobalInstrumentedRegistry                            packages/extension/src/handlers/index.ts:25:3                
+wrapWithInstrumentation                                    packages/extension/src/handlers/index.ts:26:3                
+registerPlaybackHandlers                                   packages/extension/src/handlers/index.ts:31:3                
+registerCacheHandlers                                      packages/extension/src/handlers/index.ts:39:3                
+registerContentHandlers                                    packages/extension/src/handlers/index.ts:53:3                
+registerDebugHandlers                                      packages/extension/src/handlers/index.ts:62:3                
+registerAudioHandlers                                      packages/extension/src/handlers/index.ts:69:3                
+registerProviderHandlers                                   packages/extension/src/handlers/index.ts:79:3                
+registerSettingsHandlers                                   packages/extension/src/handlers/index.ts:89:3                
+registerFooterHandlers                                     packages/extension/src/handlers/index.ts:102:3               
+getActiveTabId                                             packages/extension/src/handlers/index.ts:105:3               
+registerPrefetchHandlers                                   packages/extension/src/handlers/index.ts:113:3               
+registerQueueHandlers                                      packages/extension/src/handlers/index.ts:125:3               
+registerReaderHandlers                                     packages/extension/src/handlers/index.ts:148:3               
+clearArticleCache                                          packages/extension/src/handlers/index.ts:149:3               
+getCachedArticle                                           packages/extension/src/handlers/index.ts:150:3               
+onReaderTabRemoved                                         packages/extension/src/handlers/index.ts:151:19              
+registerHighlightHandlers                                  packages/extension/src/handlers/index.ts:156:3               
+registerExportHandlers                                     packages/extension/src/handlers/index.ts:169:3               
+clearActiveJobs                                            packages/extension/src/handlers/index.ts:171:3               
+cleanupCompletedJobs                                       packages/extension/src/handlers/index.ts:172:3               
+registerLanguageHandlers                                   packages/extension/src/handlers/index.ts:183:3               
+clearLanguageState                                         packages/extension/src/handlers/index.ts:185:3               
+registerLoggingHandlers                                    packages/extension/src/handlers/index.ts:196:3               
+registerCreditHandlers                                     packages/extension/src/handlers/index.ts:207:3               
+createInstrumentedConfiguredRegistry             function  packages/extension/src/handlers/index.ts:280:17              
+resetGlobalInstrumentedRegistry                  function  …kages/extension/src/handlers/instrumented-registry.ts:190:17
+wrapWithInstrumentation                          function  …kages/extension/src/handlers/instrumented-registry.ts:201:17
+getGlobalRegistry                                function  packages/extension/src/handlers/registry.ts:191:17           
+resetGlobalRegistry                              function  packages/extension/src/handlers/registry.ts:201:17           
+prefetchStartParamsSchema                                  packages/extension/src/handlers/schemas/misc.schemas.ts:68:14
+prefetchClearBufferParamsSchema                            packages/extension/src/handlers/schemas/misc.schemas.ts:74:14
+readerExtractArticleParamsSchema                           packages/extension/src/handlers/schemas/misc.schemas.ts:82:14
+readerGetParagraphsParamsSchema                            packages/extension/src/handlers/schemas/misc.schemas.ts:87:14
+readerGetParagraphParamsSchema                             packages/extension/src/handlers/schemas/misc.schemas.ts:91:14
+readerGetArticleInfoParamsSchema                           packages/extension/src/handlers/schemas/misc.schemas.ts:96:14
+readerClearArticleParamsSchema                             …ckages/extension/src/handlers/schemas/misc.schemas.ts:100:14
+readerIsArticlePageParamsSchema                            …ckages/extension/src/handlers/schemas/misc.schemas.ts:104:14
+debugGetDispatchSummaryParamsSchema                        …ckages/extension/src/handlers/schemas/misc.schemas.ts:119:14
+createAudioDataUrl                               function  packages/extension/src/utils/audio/audio-url.ts:73:17        
+createAudioBlobUrl                               function  packages/extension/src/utils/audio/audio-url.ts:86:17        
+paragraphTimingSchema                                      packages/extension/src/utils/audio/playback-sync.ts:17:14    
+wordBoundarySchema                                         packages/extension/src/utils/audio/playback-sync.ts:27:14    
+normalizeWordTiming                              function  packages/extension/src/utils/audio/playback-sync.ts:592:17   
+normalizeWordTimeline                            function  packages/extension/src/utils/audio/playback-sync.ts:621:17   
+playbackSync                                               packages/extension/src/utils/audio/playback-sync.ts:627:14   
+estimateCost                                     function  packages/extension/src/utils/cache/audio-cache-store.ts:84:17
+generateCacheKeyFromText                         function  packages/extension/src/utils/cache/cache-key.ts:120:23       
+estimateCost                                     function  packages/extension/src/utils/cache/cost-estimator.ts:79:23   
+getParagraphCacheStatus                          function  packages/extension/src/utils/cache/cost-estimator.ts:172:23  
+cacheConfigSchema                                          packages/extension/src/utils/cache/index.ts:26:3             
+cachedAudioEntrySchema                                     packages/extension/src/utils/cache/index.ts:27:3             
+cacheStatsSchema                                           packages/extension/src/utils/cache/index.ts:28:3             
+cleanupResultSchema                                        packages/extension/src/utils/cache/index.ts:29:3             
+evictionResultSchema                                       packages/extension/src/utils/cache/index.ts:30:3             
+wordTimelineItemSchema                                     packages/extension/src/utils/cache/index.ts:31:3             
+costEstimateSchema                                         packages/extension/src/utils/cache/index.ts:32:3             
+AudioCacheStore                                            packages/extension/src/utils/cache/index.ts:37:3             
+resetCacheStore                                            packages/extension/src/utils/cache/index.ts:39:3             
+createAudioCacheStore                                      packages/extension/src/utils/cache/index.ts:40:3             
+generateContentHash                                        packages/extension/src/utils/cache/index.ts:41:3             
+generateCacheKey                                           packages/extension/src/utils/cache/index.ts:42:3             
+estimateCost                                               packages/extension/src/utils/cache/index.ts:43:3             
+cacheConfigSchema                                          packages/extension/src/utils/cache/types.ts:23:14            
+wordTimelineItemSchema                                     packages/extension/src/utils/cache/types.ts:57:14            
+cachedAudioEntrySchema                                     packages/extension/src/utils/cache/types.ts:74:14            
+cacheStatsSchema                                           packages/extension/src/utils/cache/types.ts:112:14           
+cleanupResultSchema                                        packages/extension/src/utils/cache/types.ts:138:14           
+evictionResultSchema                                       packages/extension/src/utils/cache/types.ts:156:14           
+paragraphCostSchema                                        packages/extension/src/utils/cache/types.ts:181:14           
+costEstimateSchema                                         packages/extension/src/utils/cache/types.ts:190:14           
+footerStateDefaults                                        packages/extension/src/utils/config/defaults.ts:70:14        
+exportDefaults                                             packages/extension/src/utils/config/defaults.ts:102:14       
+aiDefaults                                                 packages/extension/src/utils/config/defaults.ts:110:14       
+extendedSpeedConstraints                                   packages/extension/src/utils/config/defaults.ts:121:14       
+cacheConstraints                                           packages/extension/src/utils/config/defaults.ts:155:14       
+settingsSchema                                             packages/extension/src/utils/config/index.ts:14:3            
+footerStateSchema                                          packages/extension/src/utils/config/index.ts:15:3            
+footerPositionSchema                                       packages/extension/src/utils/config/index.ts:16:3            
+detectedLanguageSchema                                     packages/extension/src/utils/config/index.ts:17:3            
+languagePreferenceSchema                                   packages/extension/src/utils/config/index.ts:18:3            
+DETECTION_SOURCES                                          packages/extension/src/utils/config/index.ts:21:3            
+footerStateDefaults                                        packages/extension/src/utils/config/index.ts:38:3            
+SettingsStore                                              packages/extension/src/utils/config/index.ts:43:10           
+settingsStore                                              packages/extension/src/utils/config/index.ts:43:25           
+migrations                                                 packages/extension/src/utils/config/index.ts:47:3            
+applyMigrations                                            packages/extension/src/utils/config/index.ts:48:3            
+getPendingMigrationCount                                   packages/extension/src/utils/config/index.ts:49:3            
+CURRENT_CONFIG_VERSION                                     packages/extension/src/utils/config/index.ts:50:3            
+default                                          variable  packages/extension/src/utils/config/migrations.ts:298:16     
+DETECTION_SOURCES                                          packages/extension/src/utils/config/schema.ts:29:14          
+THEME_MODES                                                packages/extension/src/utils/config/schema.ts:34:14          
+HIGHLIGHT_COLORS                                           packages/extension/src/utils/config/schema.ts:39:14          
+footerPositionSchema                                       packages/extension/src/utils/config/schema.ts:44:14          
+footerStateSchema                                          packages/extension/src/utils/config/schema.ts:52:14          
+detectedLanguageSchema                                     packages/extension/src/utils/config/schema.ts:121:14         
+languagePreferenceSchema                                   packages/extension/src/utils/config/schema.ts:133:14         
+AI_PROVIDERS                                               packages/extension/src/utils/config/schema.ts:158:14         
+QUEUE_STATUSES                                             packages/extension/src/utils/config/schema.ts:164:14         
+EXPORT_STATUSES                                            packages/extension/src/utils/config/schema.ts:170:14         
+EXPORT_QUALITIES                                           packages/extension/src/utils/config/schema.ts:176:14         
+queueSettingsSchema                                        packages/extension/src/utils/config/schema.ts:182:14         
+exportSettingsSchema                                       packages/extension/src/utils/config/schema.ts:192:14         
+aiSettingsSchema                                           packages/extension/src/utils/config/schema.ts:200:14         
+SettingsStore                                    class     packages/extension/src/utils/config/store.ts:36:14           
+default                                          variable  packages/extension/src/utils/config/store.ts:212:16          
+unwantedConfigSchema                    extrac…            packages/extension/src/utils/content/extractor.ts:22:14      
+extractedContentSchema                  extrac…            packages/extension/src/utils/content/extractor.ts:33:14      
+domMappingSchema                        extrac…            packages/extension/src/utils/content/extractor.ts:46:14      
+extractionModeSchema                    extrac…            packages/extension/src/utils/content/extractor.ts:58:14      
+contentScoreSchema                      extrac…            packages/extension/src/utils/content/extractor.ts:64:14      
+textFingerprintSchema                   extrac…            packages/extension/src/utils/content/extractor.ts:76:14      
+UNWANTED_CONFIG                         extrac…            packages/extension/src/utils/content/extractor.ts:87:14      
+extractSelection                        extrac…  function  packages/extension/src/utils/content/extractor.ts:243:17     
+extractArticle                          extrac…  function  packages/extension/src/utils/content/extractor.ts:309:17     
+extractFullPage                         extrac…  function  packages/extension/src/utils/content/extractor.ts:332:17     
+findBestContentBlock                    extrac…  function  packages/extension/src/utils/content/extractor.ts:344:17     
+findContentParagraphs                   extrac…  function  packages/extension/src/utils/content/extractor.ts:367:17     
+splitTextIntoParagraphs                 extrac…  function  packages/extension/src/utils/content/extractor.ts:1516:17    
+wordTimingSchema                                           packages/extension/src/utils/content/highlight.ts:32:14      
+highlightManager                                           packages/extension/src/utils/content/highlight.ts:799:14     
+paragraphStatusSchema                                      …ges/extension/src/utils/content/paragraph-indicator.ts:24:14
+paragraphIndicator                                         …es/extension/src/utils/content/paragraph-indicator.ts:391:14
+paragraphSelectionStateSchema                              …ages/extension/src/utils/content/paragraph-selector.ts:25:14
+paragraphSelector                                          …ges/extension/src/utils/content/paragraph-selector.ts:503:14
+footerPositionSchema                                       packages/extension/src/utils/content/sticky-footer.ts:29:14  
+footerStateSchema                                          packages/extension/src/utils/content/sticky-footer.ts:37:14  
+playbackStatusSchema                                       packages/extension/src/utils/content/sticky-footer.ts:51:14  
+playbackStateSchema                                        packages/extension/src/utils/content/sticky-footer.ts:56:14  
+buttonOptionsSchema                                        packages/extension/src/utils/content/sticky-footer.ts:71:14  
+iconNameSchema                                             packages/extension/src/utils/content/sticky-footer.ts:83:14  
+footerActionSchema                                         packages/extension/src/utils/content/sticky-footer.ts:97:14  
+storageStateSchema                                         packages/extension/src/utils/content/sticky-footer.ts:112:14 
+stickyFooter                                               packages/extension/src/utils/content/sticky-footer.ts:1619:14
+wordBoundarySchema                                         packages/extension/src/utils/content/text-segment.ts:18:14   
+SEGMENT_TYPES                                              packages/extension/src/utils/content/text-segment.ts:29:14   
+textSegmentMap                                             packages/extension/src/utils/content/text-segment.ts:361:14  
+DB_VERSION                                                 packages/extension/src/utils/db/schema.ts:22:14              
+DB_NAME                                                    packages/extension/src/utils/db/schema.ts:27:14              
+ProsoDB                                          class     packages/extension/src/utils/db/schema.ts:32:14              
+closeDB                                          function  packages/extension/src/utils/db/schema.ts:86:23              
+deleteDB                                         function  packages/extension/src/utils/db/schema.ts:97:23              
+isIndexedDBAvailable                             function  packages/extension/src/utils/db/schema.ts:105:17             
+registerDebugProviders                           function  packages/extension/src/utils/debug/debug-api.ts:117:17       
+unregisterDebugProviders                         function  packages/extension/src/utils/debug/debug-api.ts:124:17       
+getDebugSnapshot                                 function  packages/extension/src/utils/debug/debug-api.ts:134:17       
+isDebugApiAvailable                              function  packages/extension/src/utils/debug/debug-api.ts:194:17       
+getLanguageDisplayName                           function  packages/extension/src/utils/language/codes.ts:128:17        
+getSupportedLanguagesList                        function  packages/extension/src/utils/language/codes.ts:138:17        
+detectLanguage                                   function  packages/extension/src/utils/language/detector.ts:164:23     
+getLanguageState                                 function  packages/extension/src/utils/language/detector.ts:271:23     
+setLanguageOverride                              function  packages/extension/src/utils/language/detector.ts:300:23     
+clearLanguageOverride                            function  packages/extension/src/utils/language/detector.ts:322:23     
+storeDetectedLanguage                            function  packages/extension/src/utils/language/detector.ts:344:23     
+setupNavigationListener                          function  packages/extension/src/utils/language/detector.ts:354:17     
+languageDetectionResultSchema                              packages/extension/src/utils/language/types.ts:27:14         
+pageLanguageSchema                                         packages/extension/src/utils/language/types.ts:38:14         
+languageMetadataSchema                                     packages/extension/src/utils/language/types.ts:49:14         
+providerLanguageSupportSchema                              packages/extension/src/utils/language/types.ts:62:14         
+languageStateSchema                                        packages/extension/src/utils/language/types.ts:73:14         
+COMMON_LANGUAGES                                           packages/extension/src/utils/language/types.ts:85:14         
+logBufferStateSchema                                       packages/extension/src/utils/logging/buffer.ts:18:14         
+bufferOptionsSchema                                        packages/extension/src/utils/logging/buffer.ts:42:14         
+LOG_LEVELS                                                 packages/extension/src/utils/logging/entry.ts:17:14          
+COMPONENTS                                                 packages/extension/src/utils/logging/entry.ts:23:14          
+logEntrySchema                                             packages/extension/src/utils/logging/entry.ts:46:14          
+cleanupCompletedJobs                             function  …ages/extension/src/utils/messaging/handlers/export.ts:268:17
+logLevelSchema                                             packages/extension/src/utils/messaging/schemas.ts:29:14      
+logComponentSchema                                         packages/extension/src/utils/messaging/schemas.ts:31:14      
+footerActionSchema                                         packages/extension/src/utils/messaging/schemas.ts:33:14      
+footerPositionXSchema                                      packages/extension/src/utils/messaging/schemas.ts:46:14      
+segmentTypeSchema                                          packages/extension/src/utils/messaging/schemas.ts:48:14      
+languageSourceSchema                                       packages/extension/src/utils/messaging/schemas.ts:50:14      
+playbackStartParamsSchema                                  packages/extension/src/utils/messaging/schemas.ts:54:14      
+playbackSeekParamsSchema                                   packages/extension/src/utils/messaging/schemas.ts:61:14      
+playbackSetSpeedParamsSchema                               packages/extension/src/utils/messaging/schemas.ts:65:14      
+playbackStateResponseSchema                                packages/extension/src/utils/messaging/schemas.ts:69:14      
+wordTimelineEntrySchema                                    packages/extension/src/utils/messaging/schemas.ts:84:14      
+audioGenerateParamsSchema                                  packages/extension/src/utils/messaging/schemas.ts:90:14      
+audioGenerateResponseSchema                                packages/extension/src/utils/messaging/schemas.ts:97:14      
+audioCacheParamsSchema                                     packages/extension/src/utils/messaging/schemas.ts:104:14     
+audioCacheStateResponseSchema                              packages/extension/src/utils/messaging/schemas.ts:110:14     
+providerSelectParamsSchema                                 packages/extension/src/utils/messaging/schemas.ts:118:14     
+providerInfoSchema                                         packages/extension/src/utils/messaging/schemas.ts:122:14     
+providerValidateLanguageSupportParams…                     packages/extension/src/utils/messaging/schemas.ts:129:14     
+providerValidateLanguageSupportRespon…                     packages/extension/src/utils/messaging/schemas.ts:134:14     
+contentExtractParamsSchema                                 packages/extension/src/utils/messaging/schemas.ts:141:14     
+contentParagraphSchema                                     packages/extension/src/utils/messaging/schemas.ts:145:14     
+contentExtractResponseSchema                               packages/extension/src/utils/messaging/schemas.ts:151:14     
+contentScoreParamsSchema                                   packages/extension/src/utils/messaging/schemas.ts:158:14     
+contentScoreResponseSchema                                 packages/extension/src/utils/messaging/schemas.ts:162:14     
+contentFindDOMParamsSchema                                 packages/extension/src/utils/messaging/schemas.ts:169:14     
+contentDOMElementSchema                                    packages/extension/src/utils/messaging/schemas.ts:178:14     
+highlightParagraphParamsSchema                             packages/extension/src/utils/messaging/schemas.ts:186:14     
+highlightWordParamsSchema                                  packages/extension/src/utils/messaging/schemas.ts:191:14     
+highlightStateResponseSchema                               packages/extension/src/utils/messaging/schemas.ts:196:14     
+languageDetectParamsSchema                                 packages/extension/src/utils/messaging/schemas.ts:204:14     
+languageDetectResponseSchema                               packages/extension/src/utils/messaging/schemas.ts:210:14     
+languageGetStateParamsSchema                               packages/extension/src/utils/messaging/schemas.ts:217:14     
+languageStateResponseSchema                                packages/extension/src/utils/messaging/schemas.ts:221:14     
+languageSetOverrideParamsSchema                            packages/extension/src/utils/messaging/schemas.ts:234:14     
+settingsSchema                                             packages/extension/src/utils/messaging/schemas.ts:240:14     
+settingsUpdateParamsSchema                                 packages/extension/src/utils/messaging/schemas.ts:251:14     
+settingsMigrateParamsSchema                                packages/extension/src/utils/messaging/schemas.ts:253:14     
+settingsMigrateResponseSchema                              packages/extension/src/utils/messaging/schemas.ts:258:14     
+footerPositionSchema                                       packages/extension/src/utils/messaging/schemas.ts:265:14     
+footerUpdateStateParamsSchema                              packages/extension/src/utils/messaging/schemas.ts:270:14     
+footerStateResponseSchema                                  packages/extension/src/utils/messaging/schemas.ts:280:14     
+footerActionParamsSchema                                   packages/extension/src/utils/messaging/schemas.ts:286:14     
+loggingLogRemoteParamsSchema                               packages/extension/src/utils/messaging/schemas.ts:293:14     
+loggingStateResponseSchema                                 packages/extension/src/utils/messaging/schemas.ts:300:14     
+testAllApiKeys                                   function  packages/extension/src/utils/options/api-key-tester.ts:80:23 
+API_KEY_STORAGE_KEYS                                       packages/extension/src/utils/options/api-key-tester.ts:100:14
+loadApiKeys                                      function  packages/extension/src/utils/options/api-key-tester.ts:108:23
+createThemeManager                               function  packages/extension/src/utils/options/theme-manager.ts:40:17  
+PlaybackQueue                                              packages/extension/src/utils/playback/index.ts:20:3          
+queueItemStatusSchema                                      packages/extension/src/utils/playback/index.ts:22:3          
+PrefetchService                                            packages/extension/src/utils/playback/index.ts:34:3          
+prefetchPrioritySchema                                     packages/extension/src/utils/playback/index.ts:36:3          
+queueItemStatusSchema                                      packages/extension/src/utils/playback/playback-queue.ts:24:14
+prefetchPrioritySchema                                     packages/extension/src/utils/playback/prefetch.ts:25:14      
+QUEUE_ITEM_STATUSES                                        packages/extension/src/utils/queue/types.ts:17:14            
+queueStateSchema                                           packages/extension/src/utils/queue/types.ts:70:14            
+queueActionSchema                                          packages/extension/src/utils/queue/types.ts:78:14            
+addItemRequestSchema                                       packages/extension/src/utils/queue/types.ts:112:14           
+estimateReadingTime                              function  packages/extension/src/utils/schemas/article.schema.ts:83:17 
+AudioChunkSchema                                           …ages/extension/src/utils/schemas/audio-chunk.schema.ts:20:14
+generateAudioChunkId                             function  …ages/extension/src/utils/schemas/audio-chunk.schema.ts:64:17
+generateTextHash                                 function  …ages/extension/src/utils/schemas/audio-chunk.schema.ts:89:23
+createAudioChunk                                 function  …ges/extension/src/utils/schemas/audio-chunk.schema.ts:100:23
+calculateCacheSize                               function  …ges/extension/src/utils/schemas/audio-chunk.schema.ts:131:17
+HighlightColorSchema                                       …ckages/extension/src/utils/schemas/highlight.schema.ts:35:14
+PlaybackStatusSchema                                       packages/extension/src/utils/schemas/playback.schema.ts:18:14
+PlaybackStateSchema                                        packages/extension/src/utils/schemas/playback.schema.ts:27:14
+createInitialPlaybackState                       function  packages/extension/src/utils/schemas/playback.schema.ts:62:17
+PlaybackTransitions                                        packages/extension/src/utils/schemas/playback.schema.ts:82:14
+calculateProgress                                function  …ckages/extension/src/utils/schemas/playback.schema.ts:151:17
+_internal                                                  …ages/extension/src/utils/telemetry/dispatch-logger.ts:226:14
+createInternalLogger                             function  …xtension/src/utils/telemetry/usage/console-capture.ts:320:17
+generateErrorFingerprint                         function  …s/extension/src/utils/telemetry/usage/error-capture.ts:54:17
+withErrorCapture                                 function  …/extension/src/utils/telemetry/usage/error-capture.ts:256:17
+trackError                                       function  …/extension/src/utils/telemetry/usage/error-capture.ts:286:17
+UsageTracker                                               packages/extension/src/utils/telemetry/usage/index.ts:22:10  
+ContextProvider                                            packages/extension/src/utils/telemetry/usage/index.ts:25:10  
+UsageBuffer                                                packages/extension/src/utils/telemetry/usage/index.ts:28:10  
+UsageShipper                                               packages/extension/src/utils/telemetry/usage/index.ts:31:10  
+generateErrorFingerprint                                   packages/extension/src/utils/telemetry/usage/index.ts:36:3   
+withErrorCapture                                           packages/extension/src/utils/telemetry/usage/index.ts:37:3   
+trackError                                                 packages/extension/src/utils/telemetry/usage/index.ts:38:3   
+createInternalLogger                                       packages/extension/src/utils/telemetry/usage/index.ts:45:3   
+redactSensitiveData                                        packages/extension/src/utils/telemetry/usage/index.ts:51:3   
+redactError                                                packages/extension/src/utils/telemetry/usage/index.ts:52:3   
+redactStackTrace                                           packages/extension/src/utils/telemetry/usage/index.ts:53:3   
+hashUrl                                                    packages/extension/src/utils/telemetry/usage/index.ts:54:3   
+sanitizeEventData                                          packages/extension/src/utils/telemetry/usage/index.ts:56:3   
+EventGroupEnum                                             packages/extension/src/utils/telemetry/usage/index.ts:89:17  
+LogLevelEnum                                               packages/extension/src/utils/telemetry/usage/index.ts:90:15  
+EntrypointEnum                                             packages/extension/src/utils/telemetry/usage/index.ts:91:17  
+ProviderEnum                                               packages/extension/src/utils/telemetry/usage/index.ts:92:15  
+EnvironmentEnum                                            packages/extension/src/utils/telemetry/usage/index.ts:93:18  
+UsageEventTypes                                            packages/extension/src/utils/telemetry/usage/index.ts:94:3   
+UsageEventSchema                                           packages/extension/src/utils/telemetry/usage/index.ts:95:3   
+EventGroupSchema                                           packages/extension/src/utils/telemetry/usage/index.ts:96:3   
+LogLevelSchema                                             packages/extension/src/utils/telemetry/usage/index.ts:97:3   
+EntrypointSchema                                           packages/extension/src/utils/telemetry/usage/index.ts:98:3   
+ProviderSchema                                             packages/extension/src/utils/telemetry/usage/index.ts:99:3   
+EnvironmentSchema                                          packages/extension/src/utils/telemetry/usage/index.ts:100:3  
+DEFAULT_BUFFER_CONFIG                                      packages/extension/src/utils/telemetry/usage/index.ts:101:3  
+DEFAULT_SHIPPER_CONFIG                                     packages/extension/src/utils/telemetry/usage/index.ts:102:3  
+DEFAULT_TRACKER_CONFIG                                     packages/extension/src/utils/telemetry/usage/index.ts:103:3  
+getEventGroup                                              packages/extension/src/utils/telemetry/usage/index.ts:104:3  
+getDefaultLogLevel                                         packages/extension/src/utils/telemetry/usage/index.ts:105:3  
+EventGroupSchema                                           packages/extension/src/utils/telemetry/usage/types.ts:280:14 
+LogLevelSchema                                             packages/extension/src/utils/telemetry/usage/types.ts:289:14 
+EntrypointSchema                                           packages/extension/src/utils/telemetry/usage/types.ts:291:14 
+ProviderSchema                                             packages/extension/src/utils/telemetry/usage/types.ts:293:14 
+EnvironmentSchema                                          packages/extension/src/utils/telemetry/usage/types.ts:295:14 
+licenseError                                     function  packages/server/src/core/shared/domain-errors.ts:24:17       
+IS_PUBLIC_KEY                                              …/server/src/infrastructure/guards/license-key.guard.ts:11:14
+Unused exported types (326)
+PlaybackServiceDependencies                  type       packages/extension/src/composition/index.ts:14:3                
+ContentExtractionServiceDependen…            type       packages/extension/src/composition/index.ts:15:3                
+ContainerAdapters                            type       packages/extension/src/composition/index.ts:16:3                
+ContainerServices                            type       packages/extension/src/composition/index.ts:17:3                
+Container                                    type       packages/extension/src/composition/index.ts:18:3                
+PlaybackServiceDependencies                  interface  packages/extension/src/composition/types.ts:44:18               
+ContentExtractionServiceDependen…            interface  packages/extension/src/composition/types.ts:55:18               
+ArticleExtractionServiceDeps                 interface  packages/extension/src/core/article/extraction.service.ts:32:18 
+ExtractionOptions                            interface  packages/extension/src/core/article/extraction.service.ts:40:18 
+ContentExtractionServiceDependen…            interface  …tension/src/core/content-extraction/extraction-service.ts:21:18
+ExtractionOptions                            interface  …tension/src/core/content-extraction/extraction-service.ts:31:18
+ScoredExtractedContent                       interface  …tension/src/core/content-extraction/extraction-service.ts:43:18
+AnchorResult                                 interface  packages/extension/src/core/highlight/anchoring.service.ts:49:18
+AnchoringService                             type       …ckages/extension/src/core/highlight/anchoring.service.ts:470:13
+CreateHighlightParams                        interface  packages/extension/src/core/highlight/highlight.entity.ts:28:18 
+Highlight                                    type       packages/extension/src/core/highlight/index.ts:15:8             
+HighlightColor                               type       packages/extension/src/core/highlight/index.ts:16:8             
+CreateHighlightParams                        type       packages/extension/src/core/highlight/index.ts:18:8             
+CreateSelectorParams                         type       packages/extension/src/core/highlight/index.ts:37:8             
+AnchoringError                               type       packages/extension/src/core/highlight/index.ts:49:8             
+AnchorPosition                               type       packages/extension/src/core/highlight/index.ts:50:8             
+AnchorResult                                 type       packages/extension/src/core/highlight/index.ts:51:8             
+AnchoringConfig                              type       packages/extension/src/core/highlight/index.ts:52:8             
+AnchoringService                             type       packages/extension/src/core/highlight/index.ts:53:8             
+TextQuoteSelector                            type       …kages/extension/src/core/highlight/text-quote-selector.ts:21:15
+CreateSelectorParams                         interface  …kages/extension/src/core/highlight/text-quote-selector.ts:36:18
+PlaybackServiceDependencies                  interface  packages/extension/src/core/playback/playback-service.ts:33:18  
+SettingsError                                type       packages/extension/src/core/shared/errors.ts:71:13              
+ModalOptions                                 interface  …ges/extension/src/entrypoints/options/components/modal.ts:13:18
+SidebarSection                               interface  …s/extension/src/entrypoints/options/components/sidebar.ts:13:18
+SidebarOptions                               interface  …s/extension/src/entrypoints/options/components/sidebar.ts:19:18
+ToastOptions                                 interface  …ges/extension/src/entrypoints/options/components/toast.ts:13:18
+AudioHandlerError                            type       packages/extension/src/handlers/audio.handlers.ts:27:13         
+VoicesResponse                               interface  packages/extension/src/handlers/audio.handlers.ts:35:18         
+SetVoiceResponse                             interface  packages/extension/src/handlers/audio.handlers.ts:42:18         
+ValidateCredentialsResponse                  interface  packages/extension/src/handlers/audio.handlers.ts:49:18         
+GenerateAudioResponse                        interface  packages/extension/src/handlers/audio.handlers.ts:57:18         
+GetCachedParagraphsParams                    interface  packages/extension/src/handlers/cache.handlers.ts:70:18         
+CostEstimateParams                           interface  packages/extension/src/handlers/cache.handlers.ts:80:18         
+ContentHandlerError                          type       packages/extension/src/handlers/content.handlers.ts:87:13       
+ExtractedParagraph                           interface  packages/extension/src/handlers/content.handlers.ts:95:18       
+ContentExtractResponse                       interface  packages/extension/src/handlers/content.handlers.ts:104:18      
+ContentScoreResponse                         interface  packages/extension/src/handlers/content.handlers.ts:117:18      
+CreditHandlerError                           type       packages/extension/src/handlers/credit.handlers.ts:24:13        
+CreditBalanceHandlerResponse                 interface  packages/extension/src/handlers/credit.handlers.ts:31:18        
+CreditHistoryHandlerResponse                 interface  packages/extension/src/handlers/credit.handlers.ts:39:18        
+CreditErrorResponse                          interface  packages/extension/src/handlers/credit.handlers.ts:47:18        
+DebugHandlerError                            type       packages/extension/src/handlers/debug.handlers.ts:26:13         
+HexagonalStatusResponse                      interface  packages/extension/src/handlers/debug.handlers.ts:31:18         
+ExportHandlerError                           type       packages/extension/src/handlers/export.handlers.ts:44:13        
+ExportStartResponse                          interface  packages/extension/src/handlers/export.handlers.ts:54:18        
+ExportCancelResponse                         interface  packages/extension/src/handlers/export.handlers.ts:60:18        
+ExportProgressResponse                       interface  packages/extension/src/handlers/export.handlers.ts:65:18        
+ExportDownloadResponse                       interface  packages/extension/src/handlers/export.handlers.ts:73:18        
+ExportDependencies                           interface  packages/extension/src/handlers/export.handlers.ts:102:18       
+FooterHandlerError                           type       packages/extension/src/handlers/footer.handlers.ts:30:13        
+HighlightHandlerError                        type       packages/extension/src/handlers/highlight.handlers.ts:31:13     
+Handler                                      type       packages/extension/src/handlers/index.ts:16:8                   
+HandlerError                                 type       packages/extension/src/handlers/index.ts:17:8                   
+PlaybackHandlerError                         type       packages/extension/src/handlers/index.ts:32:8                   
+PlaybackStateResponse                        type       packages/extension/src/handlers/index.ts:33:8                   
+PlaybackOperationResponse                    type       packages/extension/src/handlers/index.ts:34:8                   
+CacheHandlerError                            type       packages/extension/src/handlers/index.ts:40:8                   
+CacheStatsResponse                           type       packages/extension/src/handlers/index.ts:41:8                   
+CacheClearResponse                           type       packages/extension/src/handlers/index.ts:42:8                   
+CacheCheckResponse                           type       packages/extension/src/handlers/index.ts:43:8                   
+CacheEvictionResponse                        type       packages/extension/src/handlers/index.ts:44:8                   
+CachedParagraphsResponse                     type       packages/extension/src/handlers/index.ts:45:8                   
+GetCachedParagraphsParams                    type       packages/extension/src/handlers/index.ts:46:8                   
+CostEstimateParams                           type       packages/extension/src/handlers/index.ts:47:8                   
+CostEstimateResponse                         type       packages/extension/src/handlers/index.ts:48:8                   
+ContentHandlerError                          type       packages/extension/src/handlers/index.ts:54:8                   
+ExtractedParagraph                           type       packages/extension/src/handlers/index.ts:55:8                   
+ContentExtractResponse                       type       packages/extension/src/handlers/index.ts:56:8                   
+ContentScoreResponse                         type       packages/extension/src/handlers/index.ts:57:8                   
+DebugHandlerError                            type       packages/extension/src/handlers/index.ts:63:8                   
+HexagonalStatusResponse                      type       packages/extension/src/handlers/index.ts:64:8                   
+AudioHandlerError                            type       packages/extension/src/handlers/index.ts:70:8                   
+VoicesResponse                               type       packages/extension/src/handlers/index.ts:71:8                   
+SetVoiceResponse                             type       packages/extension/src/handlers/index.ts:72:8                   
+ValidateCredentialsResponse                  type       packages/extension/src/handlers/index.ts:73:8                   
+GenerateAudioResponse                        type       packages/extension/src/handlers/index.ts:74:8                   
+ProviderHandlerError                         type       packages/extension/src/handlers/index.ts:80:8                   
+ProviderInfo                                 type       packages/extension/src/handlers/index.ts:81:8                   
+ProviderListResponse                         type       packages/extension/src/handlers/index.ts:82:8                   
+ProviderSelectResponse                       type       packages/extension/src/handlers/index.ts:83:8                   
+LanguageValidationResponse                   type       packages/extension/src/handlers/index.ts:84:8                   
+SettingsHandlerError                         type       packages/extension/src/handlers/index.ts:92:8                   
+SettingsGetResponse                          type       packages/extension/src/handlers/index.ts:93:8                   
+SettingsUpdateResponse                       type       packages/extension/src/handlers/index.ts:94:8                   
+ApiKeyGetResponse                            type       packages/extension/src/handlers/index.ts:95:8                   
+ApiKeySetResponse                            type       packages/extension/src/handlers/index.ts:96:8                   
+ApiKeyTestResponse                           type       packages/extension/src/handlers/index.ts:97:8                   
+FooterHandlerError                           type       packages/extension/src/handlers/index.ts:106:8                  
+FooterOperationResponse                      type       packages/extension/src/handlers/index.ts:107:8                  
+FooterActionResponse                         type       packages/extension/src/handlers/index.ts:108:8                  
+PrefetchHandlerError                         type       packages/extension/src/handlers/index.ts:114:8                  
+PrefetchStartResponse                        type       packages/extension/src/handlers/index.ts:115:8                  
+PrefetchStopResponse                         type       packages/extension/src/handlers/index.ts:116:8                  
+PrefetchStatusResponse                       type       packages/extension/src/handlers/index.ts:117:8                  
+PrefetchClearBufferResponse                  type       packages/extension/src/handlers/index.ts:118:8                  
+PrefetchStartParams                          type       packages/extension/src/handlers/index.ts:119:8                  
+PrefetchClearBufferParams                    type       packages/extension/src/handlers/index.ts:120:8                  
+QueueHandlerError                            type       packages/extension/src/handlers/index.ts:126:8                  
+QueueAddParams                               type       packages/extension/src/handlers/index.ts:127:8                  
+QueueAddResponse                             type       packages/extension/src/handlers/index.ts:128:8                  
+QueueRemoveParams                            type       packages/extension/src/handlers/index.ts:129:8                  
+QueueReorderParams                           type       packages/extension/src/handlers/index.ts:130:8                  
+QueueReorderResponse                         type       packages/extension/src/handlers/index.ts:131:8                  
+QueueUpdateStatusParams                      type       packages/extension/src/handlers/index.ts:132:8                  
+QueueUpdateProgressParams                    type       packages/extension/src/handlers/index.ts:133:8                  
+QueueClearParams                             type       packages/extension/src/handlers/index.ts:134:8                  
+QueueClearResponse                           type       packages/extension/src/handlers/index.ts:135:8                  
+QueueGetItemParams                           type       packages/extension/src/handlers/index.ts:136:8                  
+QueueGetItemResponse                         type       packages/extension/src/handlers/index.ts:137:8                  
+QueueItemInfo                                type       packages/extension/src/handlers/index.ts:138:8                  
+QueuePlayParams                              type       packages/extension/src/handlers/index.ts:139:8                  
+QueuePlayResponse                            type       packages/extension/src/handlers/index.ts:140:8                  
+QueuePlayNextResponse                        type       packages/extension/src/handlers/index.ts:141:8                  
+QueuePlayPreviousResponse                    type       packages/extension/src/handlers/index.ts:142:8                  
+QueueStateResponse                           type       packages/extension/src/handlers/index.ts:143:8                  
+HighlightHandlerError                        type       packages/extension/src/handlers/index.ts:158:8                  
+HighlightCreateResponse                      type       packages/extension/src/handlers/index.ts:159:8                  
+HighlightGetResponse                         type       packages/extension/src/handlers/index.ts:160:8                  
+HighlightListResponse                        type       packages/extension/src/handlers/index.ts:161:8                  
+HighlightUpdateResponse                      type       packages/extension/src/handlers/index.ts:162:8                  
+HighlightDeleteResponse                      type       packages/extension/src/handlers/index.ts:163:8                  
+HighlightDeleteByUrlResponse                 type       packages/extension/src/handlers/index.ts:164:8                  
+ExportHandlerError                           type       packages/extension/src/handlers/index.ts:173:8                  
+ExportStartResponse                          type       packages/extension/src/handlers/index.ts:174:8                  
+ExportCancelResponse                         type       packages/extension/src/handlers/index.ts:175:8                  
+ExportProgressResponse                       type       packages/extension/src/handlers/index.ts:176:8                  
+ExportDownloadResponse                       type       packages/extension/src/handlers/index.ts:177:8                  
+ExportDependencies                           type       packages/extension/src/handlers/index.ts:178:8                  
+LanguageHandlerError                         type       packages/extension/src/handlers/index.ts:186:8                  
+LanguageDetectResponse                       type       packages/extension/src/handlers/index.ts:187:8                  
+LanguageStateResponse                        type       packages/extension/src/handlers/index.ts:188:8                  
+LanguageSetOverrideResponse                  type       packages/extension/src/handlers/index.ts:189:8                  
+LanguageClearOverrideResponse                type       packages/extension/src/handlers/index.ts:190:8                  
+LanguageDependencies                         type       packages/extension/src/handlers/index.ts:191:8                  
+LoggingHandlerError                          type       packages/extension/src/handlers/index.ts:198:8                  
+LogRemoteResponse                            type       packages/extension/src/handlers/index.ts:199:8                  
+FlushBufferResponse                          type       packages/extension/src/handlers/index.ts:200:8                  
+LoggingStateResponse                         type       packages/extension/src/handlers/index.ts:201:8                  
+LoggingDependencies                          type       packages/extension/src/handlers/index.ts:202:8                  
+CreditHandlerError                           type       packages/extension/src/handlers/index.ts:209:8                  
+CreditBalanceHandlerResponse                 type       packages/extension/src/handlers/index.ts:210:8                  
+CreditHistoryHandlerResponse                 type       packages/extension/src/handlers/index.ts:211:8                  
+CreditErrorResponse                          type       packages/extension/src/handlers/index.ts:212:8                  
+LanguageHandlerError                         type       packages/extension/src/handlers/language.handlers.ts:31:13      
+LanguageDetectResponse                       interface  packages/extension/src/handlers/language.handlers.ts:39:18      
+LanguageStateResponse                        interface  packages/extension/src/handlers/language.handlers.ts:49:18      
+LanguageSetOverrideResponse                  interface  packages/extension/src/handlers/language.handlers.ts:63:18      
+LanguageClearOverrideResponse                interface  packages/extension/src/handlers/language.handlers.ts:71:18      
+LanguageDependencies                         interface  packages/extension/src/handlers/language.handlers.ts:106:18     
+LoggingHandlerError                          type       packages/extension/src/handlers/logging.handlers.ts:26:13       
+LogRemoteResponse                            interface  packages/extension/src/handlers/logging.handlers.ts:33:18       
+FlushBufferResponse                          interface  packages/extension/src/handlers/logging.handlers.ts:41:18       
+LoggingStateResponse                         interface  packages/extension/src/handlers/logging.handlers.ts:49:18       
+LoggingDependencies                          interface  packages/extension/src/handlers/logging.handlers.ts:65:18       
+PlaybackHandlerError                         type       packages/extension/src/handlers/playback.handlers.ts:50:13      
+PlaybackStateResponse                        interface  packages/extension/src/handlers/playback.handlers.ts:60:18      
+PlaybackOperationResponse                    interface  packages/extension/src/handlers/playback.handlers.ts:124:18     
+PrefetchStartParams                          interface  packages/extension/src/handlers/prefetch.handlers.ts:61:18      
+PrefetchClearBufferParams                    interface  packages/extension/src/handlers/prefetch.handlers.ts:68:18      
+QueueHandlerError                            type       packages/extension/src/handlers/queue.handlers.ts:40:13         
+QueueAddParams                               interface  packages/extension/src/handlers/queue.handlers.ts:52:18         
+QueueRemoveParams                            interface  packages/extension/src/handlers/queue.handlers.ts:65:18         
+QueueReorderParams                           interface  packages/extension/src/handlers/queue.handlers.ts:72:18         
+QueueUpdateStatusParams                      interface  packages/extension/src/handlers/queue.handlers.ts:80:18         
+QueueUpdateProgressParams                    interface  packages/extension/src/handlers/queue.handlers.ts:88:18         
+QueueClearParams                             interface  packages/extension/src/handlers/queue.handlers.ts:97:18         
+QueueGetItemParams                           interface  packages/extension/src/handlers/queue.handlers.ts:104:18        
+QueuePlayParams                              interface  packages/extension/src/handlers/queue.handlers.ts:111:18        
+QueueAddResponse                             interface  packages/extension/src/handlers/queue.handlers.ts:122:18        
+QueueReorderResponse                         interface  packages/extension/src/handlers/queue.handlers.ts:130:18        
+QueueClearResponse                           interface  packages/extension/src/handlers/queue.handlers.ts:137:18        
+QueueItemInfo                                interface  packages/extension/src/handlers/queue.handlers.ts:144:18        
+QueueStateResponse                           interface  packages/extension/src/handlers/queue.handlers.ts:164:18        
+QueueGetItemResponse                         interface  packages/extension/src/handlers/queue.handlers.ts:177:18        
+QueuePlayResponse                            interface  packages/extension/src/handlers/queue.handlers.ts:184:18        
+QueuePlayNextResponse                        interface  packages/extension/src/handlers/queue.handlers.ts:195:18        
+QueuePlayPreviousResponse                    interface  packages/extension/src/handlers/queue.handlers.ts:207:18        
+SettingsHandlerError                         type       packages/extension/src/handlers/settings.handlers.ts:23:13      
+SettingsGetResponse                          interface  packages/extension/src/handlers/settings.handlers.ts:31:18      
+SettingsUpdateResponse                       interface  packages/extension/src/handlers/settings.handlers.ts:39:18      
+ApiKeyGetResponse                            interface  packages/extension/src/handlers/settings.handlers.ts:46:18      
+ApiKeySetResponse                            interface  packages/extension/src/handlers/settings.handlers.ts:54:18      
+ApiKeyTestResponse                           interface  packages/extension/src/handlers/settings.handlers.ts:61:18      
+ThemeGetResponse                             interface  packages/extension/src/handlers/settings.handlers.ts:413:18     
+ThemeSetResponse                             interface  packages/extension/src/handlers/settings.handlers.ts:421:18     
+SettingsResetResponse                        interface  packages/extension/src/handlers/settings.handlers.ts:430:18     
+EncodingProgressCallback                     type       packages/extension/src/utils/audio/mp3-encoder.ts:19:13         
+EncodingOptions                              interface  packages/extension/src/utils/audio/mp3-encoder.ts:28:18         
+ParagraphTiming                              type       packages/extension/src/utils/audio/playback-sync.ts:43:13       
+WordBoundary                                 type       packages/extension/src/utils/audio/playback-sync.ts:44:13       
+NormalizedWordBoundary                       interface  packages/extension/src/utils/audio/playback-sync.ts:49:18       
+CostEstimateOptions                          interface  packages/extension/src/utils/cache/cost-estimator.ts:64:18      
+EvictionWeights                              interface  packages/extension/src/utils/cache/eviction.ts:28:18            
+EvictionStats                                interface  packages/extension/src/utils/cache/eviction.ts:257:18           
+CacheConfig                                  type       packages/extension/src/utils/cache/index.ts:16:3                
+CachedAudioEntry                             type       packages/extension/src/utils/cache/index.ts:17:3                
+CacheStats                                   type       packages/extension/src/utils/cache/index.ts:18:3                
+CleanupResult                                type       packages/extension/src/utils/cache/index.ts:19:3                
+EvictionResult                               type       packages/extension/src/utils/cache/index.ts:20:3                
+WordTimelineItem                             type       packages/extension/src/utils/cache/index.ts:21:3                
+CostEstimate                                 type       packages/extension/src/utils/cache/index.ts:22:3                
+Settings                                     type       packages/extension/src/utils/config/index.ts:22:8               
+FooterState                                  type       packages/extension/src/utils/config/index.ts:23:8               
+FooterPosition                               type       packages/extension/src/utils/config/index.ts:24:8               
+DetectedLanguage                             type       packages/extension/src/utils/config/index.ts:25:8               
+LanguagePreference                           type       packages/extension/src/utils/config/index.ts:26:8               
+Mode                                         type       packages/extension/src/utils/config/index.ts:27:8               
+Provider                                     type       packages/extension/src/utils/config/index.ts:28:8               
+DetectionSource                              type       packages/extension/src/utils/config/index.ts:29:8               
+FooterPosition                               type       packages/extension/src/utils/config/schema.ts:144:13            
+DetectedLanguage                             type       packages/extension/src/utils/config/schema.ts:145:13            
+LanguagePreference                           type       packages/extension/src/utils/config/schema.ts:146:13            
+DetectionSource                              type       packages/extension/src/utils/config/schema.ts:149:13            
+HighlightColor                               type       packages/extension/src/utils/config/schema.ts:151:13            
+QueueStatus                                  type       packages/extension/src/utils/config/schema.ts:165:13            
+ExportStatus                                 type       packages/extension/src/utils/config/schema.ts:171:13            
+UnwantedConfig                     extract…  type       packages/extension/src/utils/content/extractor.ts:28:13         
+ExtractedContent                   extract…  type       packages/extension/src/utils/content/extractor.ts:41:13         
+DOMMapping                         extract…  type       packages/extension/src/utils/content/extractor.ts:53:13         
+ExtractionMode                     extract…  type       packages/extension/src/utils/content/extractor.ts:59:13         
+ContentScore                       extract…  type       packages/extension/src/utils/content/extractor.ts:71:13         
+TextFingerprint                    extract…  type       packages/extension/src/utils/content/extractor.ts:77:13         
+HighlightState                               interface  packages/extension/src/utils/content/highlight.ts:45:18         
+ParagraphIndicatorState                      interface  …ckages/extension/src/utils/content/paragraph-indicator.ts:30:18
+ParagraphSelectionState                      type       packages/extension/src/utils/content/paragraph-selector.ts:32:13
+ParagraphClickedPayload                      interface  packages/extension/src/utils/content/paragraph-selector.ts:37:18
+FooterPosition                               type       packages/extension/src/utils/content/sticky-footer.ts:121:13    
+FooterState                                  type       packages/extension/src/utils/content/sticky-footer.ts:122:13    
+ButtonOptions                                type       packages/extension/src/utils/content/sticky-footer.ts:125:13    
+IconName                                     type       packages/extension/src/utils/content/sticky-footer.ts:126:13    
+FooterAction                                 type       packages/extension/src/utils/content/sticky-footer.ts:127:13    
+WordBoundary                                 type       packages/extension/src/utils/content/text-segment.ts:24:13      
+SegmentType                                  type       packages/extension/src/utils/content/text-segment.ts:30:13      
+TextSegmentConfig                            interface  packages/extension/src/utils/content/text-segment.ts:35:18      
+TextNodeWithOffset                           interface  packages/extension/src/utils/content/text-segment.ts:47:18      
+BCP47ParseResult                             interface  packages/extension/src/utils/language/codes.ts:52:18            
+DetectedLanguage                             interface  packages/extension/src/utils/language/detector.ts:28:18         
+LanguagePreference                           interface  packages/extension/src/utils/language/detector.ts:37:18         
+LanguageState                                interface  packages/extension/src/utils/language/detector.ts:46:18         
+ProviderId                                   type       packages/extension/src/utils/language/mappings.ts:17:13         
+LanguageMapping                              interface  packages/extension/src/utils/language/mappings.ts:22:18         
+Voice                                        interface  packages/extension/src/utils/language/mappings.ts:34:18         
+LanguageCode                                 type       packages/extension/src/utils/language/types.ts:17:13            
+BCP47Tag                                     type       packages/extension/src/utils/language/types.ts:22:13            
+LanguageMetadata                             type       packages/extension/src/utils/language/types.ts:56:13            
+ProviderLanguageSupport                      type       packages/extension/src/utils/language/types.ts:68:13            
+LanguageState                                type       packages/extension/src/utils/language/types.ts:80:13            
+CommonLanguage                               type       packages/extension/src/utils/language/types.ts:108:13           
+LogBufferState                               type       packages/extension/src/utils/logging/buffer.ts:27:13            
+BufferOptions                                type       packages/extension/src/utils/logging/buffer.ts:47:13            
+LogLevel                                     type       packages/extension/src/utils/logging/entry.ts:18:13             
+Component                                    type       packages/extension/src/utils/logging/entry.ts:32:13             
+CreateLogEntryParams                         interface  packages/extension/src/utils/logging/entry.ts:59:18             
+TestResult                                   interface  packages/extension/src/utils/options/api-key-tester.ts:15:18    
+ScrollSpyOptions                             interface  packages/extension/src/utils/options/scroll-spy.ts:13:18        
+ResolvedTheme                                type       packages/extension/src/utils/options/theme-manager.ts:14:13     
+ThemeManagerOptions                          interface  packages/extension/src/utils/options/theme-manager.ts:16:18     
+ThemeManager                                 interface  packages/extension/src/utils/options/theme-manager.ts:23:18     
+QueueItem                                    type       packages/extension/src/utils/playback/index.ts:23:8             
+QueueItemStatus                              type       packages/extension/src/utils/playback/index.ts:24:8             
+QueueState                                   type       packages/extension/src/utils/playback/index.ts:25:8             
+QueueOptions                                 type       packages/extension/src/utils/playback/index.ts:26:8             
+PrefetchPriority                             type       packages/extension/src/utils/playback/index.ts:37:8             
+PrefetchTask                                 type       packages/extension/src/utils/playback/index.ts:38:8             
+PrefetchedAudio                              type       packages/extension/src/utils/playback/index.ts:39:8             
+WordTiming                                   type       packages/extension/src/utils/playback/index.ts:40:8             
+PrefetchStatus                               type       packages/extension/src/utils/playback/index.ts:41:8             
+AudioGenerator                               type       packages/extension/src/utils/playback/index.ts:42:8             
+CacheChecker                                 type       packages/extension/src/utils/playback/index.ts:43:8             
+PrefetchServiceOptions                       type       packages/extension/src/utils/playback/index.ts:44:8             
+QueueOptions                                 interface  packages/extension/src/utils/playback/playback-queue.ts:77:18   
+PrefetchPriority                             type       packages/extension/src/utils/playback/prefetch.ts:26:13         
+PrefetchTask                                 interface  packages/extension/src/utils/playback/prefetch.ts:31:18         
+PrefetchStatus                               interface  packages/extension/src/utils/playback/prefetch.ts:75:18         
+PrefetchServiceOptions                       interface  packages/extension/src/utils/playback/prefetch.ts:104:18        
+PricingTypeValue                             type       packages/extension/src/utils/providers/pricing.ts:23:13         
+QueueAction                                  type       packages/extension/src/utils/queue/types.ts:126:13              
+PlaybackState                                type       packages/extension/src/utils/schemas/playback.schema.ts:57:13   
+DispatchEvent                                type       packages/extension/src/utils/telemetry/index.ts:23:3            
+MessageStats                                 type       packages/extension/src/utils/telemetry/index.ts:26:3            
+ConsoleCaptureOptions                        interface  …es/extension/src/utils/telemetry/usage/console-capture.ts:17:18
+ErrorCaptureOptions                          interface  …ages/extension/src/utils/telemetry/usage/error-capture.ts:16:18
+UsageContext                                 type       packages/extension/src/utils/telemetry/usage/index.ts:25:32     
+ErrorCaptureOptions                          type       packages/extension/src/utils/telemetry/usage/index.ts:39:8      
+ConsoleCaptureOptions                        type       packages/extension/src/utils/telemetry/usage/index.ts:46:8      
+UsageEvent                                   type       packages/extension/src/utils/telemetry/usage/index.ts:61:3      
+EventGroup                                   type       packages/extension/src/utils/telemetry/usage/index.ts:62:3      
+LogLevel                                     type       packages/extension/src/utils/telemetry/usage/index.ts:63:3      
+Entrypoint                                   type       packages/extension/src/utils/telemetry/usage/index.ts:64:3      
+Provider                                     type       packages/extension/src/utils/telemetry/usage/index.ts:65:3      
+Environment                                  type       packages/extension/src/utils/telemetry/usage/index.ts:66:3      
+UsageEventType                               type       packages/extension/src/utils/telemetry/usage/index.ts:67:3      
+BufferStats                                  type       packages/extension/src/utils/telemetry/usage/index.ts:68:3      
+BufferConfig                                 type       packages/extension/src/utils/telemetry/usage/index.ts:69:3      
+StoredEvent                                  type       packages/extension/src/utils/telemetry/usage/index.ts:70:3      
+ShipperState                                 type       packages/extension/src/utils/telemetry/usage/index.ts:71:3      
+ShipperConfig                                type       packages/extension/src/utils/telemetry/usage/index.ts:72:3      
+UsageTrackerConfig                           type       packages/extension/src/utils/telemetry/usage/index.ts:73:3      
+UsageTrackerInitConfig                       type       packages/extension/src/utils/telemetry/usage/index.ts:74:3      
+TrackerStats                                 type       packages/extension/src/utils/telemetry/usage/index.ts:75:3      
+TrackOptions                                 type       packages/extension/src/utils/telemetry/usage/index.ts:76:3      
+LokiLabels                                   type       packages/extension/src/utils/telemetry/usage/index.ts:77:3      
+LokiPushRequest                              type       packages/extension/src/utils/telemetry/usage/index.ts:78:3      
+LokiStream                                   type       packages/extension/src/utils/telemetry/usage/index.ts:79:3      
+LokiEntry                                    type       packages/extension/src/utils/telemetry/usage/index.ts:80:3      
+IngestRequest                                type       packages/extension/src/utils/telemetry/usage/index.ts:81:3      
+ValidationErrorResponse                      type       packages/extension/src/utils/telemetry/usage/index.ts:82:3      
+RateLimitResponse                            type       packages/extension/src/utils/telemetry/usage/index.ts:83:3      
+GatewayErrorResponse                         type       packages/extension/src/utils/telemetry/usage/index.ts:84:3      
+UsageEventType                               type       packages/extension/src/utils/telemetry/usage/types.ts:222:13    
+LokiLabels                                   interface  packages/extension/src/utils/telemetry/usage/types.ts:560:18    
+LokiPushRequest                              interface  packages/extension/src/utils/telemetry/usage/types.ts:586:18    
+LokiStream                                   interface  packages/extension/src/utils/telemetry/usage/types.ts:590:18    
+LokiEntry                                    type       packages/extension/src/utils/telemetry/usage/types.ts:599:13    
+ValidationErrorResponse                      interface  packages/extension/src/utils/telemetry/usage/types.ts:615:18    
+RateLimitResponse                            interface  packages/extension/src/utils/telemetry/usage/types.ts:626:18    
+GatewayErrorResponse                         interface  packages/extension/src/utils/telemetry/usage/types.ts:634:18    
+RoutingDecision                              interface  packages/server/src/core/routing/provider-router.ts:12:18       
+Feature                                      type       packages/server/src/core/subscription/feature-gate.ts:12:13     
+TTSResult                                    interface  packages/server/src/core/tts/tts.service.ts:36:18               
+Unused exported enum members (4)
+Refund           TransactionType  packages/shared/src/domain/credits.ts:8:3
+ValidationError  ErrorCode        packages/shared/src/types/errors.ts:23:3 
+InternalError    ErrorCode        packages/shared/src/types/errors.ts:24:3 
+RateLimited      ErrorCode        packages/shared/src/types/errors.ts:25:3 
+Duplicate exports (3)
+toast|default          packages/extension/src/entrypoints/options/components/toast.ts
+migrations|default     packages/extension/src/utils/config/migrations.ts             
+settingsStore|default  packages/extension/src/utils/config/store.ts                  
+Configuration hints (14)
+packages/extension                      …p.json  Add entry and/or refine project files in workspaces["packages/extensio…
+packages/server                         …p.json  Add entry and/or refine project files in workspaces["packages/server"]…
+. (root)                                …p.json  Add entry and/or refine project files in workspaces["."] (3 unused fil…
+src/generated/**        …ges/extension  …p.json  Remove from ignore                                                     
+.wxt/**                 …ges/extension  …p.json  Remove from ignore                                                     
+.output/**              …ges/extension  …p.json  Remove from ignore                                                     
+src/generated/**        …ckages/server  …p.json  Remove from ignore                                                     
+prisma/migrations/**    …ckages/server  …p.json  Remove from ignore                                                     
+dist/**                 …ckages/server  …p.json  Remove from ignore                                                     
+dist/**                 …ckages/shared  …p.json  Remove from ignore                                                     
+webextension-polyfill   …ges/extension  …p.json  Remove from ignoreDependencies                                         
+…stjs/platform-express  …ckages/server  …p.json  Remove from ignoreDependencies                                         
+reflect-metadata        …ckages/server  …p.json  Remove from ignoreDependencies                                         
+src/index.ts            …ckages/shared  …p.json  Remove redundant entry pattern                                         

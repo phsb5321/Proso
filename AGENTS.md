@@ -183,6 +183,36 @@ try {
 4. Browser `speechSynthesis` was deliberately removed; do not reintroduce it without a new decision
 5. **Minimum Firefox version**: 109.0 (see manifest.json gecko settings)
 
+## Spec-Driven Development
+
+**`specs/` and `.specify/` are tracked in git.** This is a deliberate decision,
+recorded here because it was previously the opposite and the reversal cost real
+work: with `specs/` ignored, PR #73 was dispatched with a binding instruction to
+produce `specs/088-reading-outcome-spine/`, merged, and left no spec behind —
+and nothing could have caught it.
+
+The rule: **a feature's spec, plan, and tasks belong in the diff that implements
+it.** A spec that lives only on one machine cannot be reviewed alongside its
+code, does not survive `git worktree remove`, and cannot tell a future reader
+why the code looks the way it does.
+
+| Path | Tracked? | Why |
+|---|---|---|
+| `specs/NNN-slug/` | Yes | The reviewable artifact — `spec.md`, `plan.md`, `tasks.md` |
+| `.specify/` | Yes | Constitution + templates. Also mechanical: an ignored `.specify/` is **absent from every fresh worktree**, so `/speckit.plan` cannot run there |
+| `specs/_archive/` | No | 4.4M of pre-monorepo history no reviewer reads |
+| `CLAUDE.md`, `.claude/`, `.mcp.json`, `.opencode/` | No | Agent runtime config, machine-specific |
+
+Conventions:
+
+- Feature directory is `specs/NNN-slug/`, `NNN` matching the branch name.
+- Numbering resumes honestly from the present. Features that merged before this
+  change have no spec directory and none will be invented for them — a
+  retroactive spec is a fabricated record.
+- `.specify/memory/constitution.md` is the governance document every
+  `/speckit.plan` Constitution Check gates against. Amending it requires a SYNC
+  IMPACT REPORT and a semantic version bump; see its own Governance section.
+
 ## Git Workflow
 - **Branch naming**: `NNN-feature-name` (e.g., `017-git-workflow-automation`), `hotfix/NNN-desc`, `release/X.Y.Z`
 - **Protected branches**: `main`, `develop` — never push directly

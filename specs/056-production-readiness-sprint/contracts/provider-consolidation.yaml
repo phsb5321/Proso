@@ -1,0 +1,122 @@
+# Test Contract: Provider Consolidation
+# Sprint: 056-production-readiness-sprint
+# Covers: FR-021 (Two providers: ElevenLabs + Browser TTS),
+#          FR-022 (Auto-fallback to Browser TTS),
+#          FR-023 (Settings migration cleanup)
+
+scope: "Provider system consolidation — type system, adapters, factory, UI, migration"
+
+# Type system changes
+type_system:
+  - file: src/core/shared/errors.ts
+    change: "ProviderId = 'elevenlabs' | 'browser'"
+    test: "TypeScript compilation succeeds with new union type"
+
+  - file: src/utils/config/schema.ts
+    change: "PROVIDERS = ['elevenlabs', 'browser'] as const"
+    test: "Zod schema validates both provider values"
+
+  - file: src/utils/messaging/schemas.ts
+    change: "providerIdSchema = z.enum(['elevenlabs', 'browser'])"
+    test: "Schema rejects invalid providers (e.g., 'openai', 'groq')"
+
+# New adapter
+browser_tts_adapter:
+  file: src/adapters/audio/browser-tts-audio.adapter.ts
+  test_file: tests/unit/adapters/browser-tts-audio.adapter.test.ts
+  interface: IAudioGenerator
+  tests:
+    - name: "providerId is 'browser'"
+      assert: "adapter.providerId === 'browser'"
+    - name: "supportsWordTiming is false"
+      assert: "adapter.supportsWordTiming === false"
+    - name: "validateCredentials always returns true"
+      assert: "No API key needed; always valid"
+    - name: "getVoices returns available speechSynthesis voices"
+      assert: "Maps SpeechSynthesisVoice to Voice interface"
+    - name: "getVoices filters by language when provided"
+      assert: "Only voices matching the language code are returned"
+    - name: "generateAudio uses speechSynthesis to speak text"
+      assert: "Creates SpeechSynthesisUtterance and speaks"
+    - name: "generateAudio handles speechSynthesis errors"
+      assert: "Returns Err with appropriate AudioError"
+
+# Factory update
+factory:
+  file: src/composition/factories.ts
+  test_file: tests/unit/composition/factories.test.ts
+  tests:
+    - name: "createAudioGeneratorAdapter returns BrowserTtsAudioAdapter for 'browser'"
+      assert: "Factory creates correct adapter instance"
+    - name: "createAudioGeneratorAdapter returns ElevenLabsAudioAdapter for 'elevenlabs'"
+      assert: "Existing behavior preserved"
+    - name: "createAudioGeneratorAdapter throws for unknown provider"
+      assert: "Invalid providers are rejected"
+
+# Provider metadata
+provider_metadata:
+  file: src/handlers/provider.handlers.ts
+  tests:
+    - name: "provider.getList returns both providers with correct metadata"
+      assert: |
+        Returns array with:
+        - { id: 'elevenlabs', name: 'ElevenLabs', requiresApiKey: true, type: 'premium' }
+        - { id: 'browser', name: 'Browser TTS', requiresApiKey: false, type: 'free' }
+    - name: "provider.select validates provider is in PROVIDERS"
+      assert: "Rejects selection of removed providers"
+
+# Fallback logic
+fallback:
+  test_file: tests/unit/core/playback/fallback.test.ts
+  tests:
+    - name: "Auto-selects Browser TTS when no ElevenLabs API key is configured"
+      assert: "Default provider is 'browser' when apiKey_elevenlabs is empty"
+    - name: "Falls back to Browser TTS when ElevenLabs fails"
+      assert: "On ElevenLabs AudioError, retries with Browser TTS adapter"
+    - name: "Does not fall back when Browser TTS also fails"
+      assert: "Returns error to user if both providers fail"
+
+# Settings migration v6
+migration:
+  file: src/utils/config/migrations.ts
+  test_file: tests/unit/config/migrations.test.ts
+  tests:
+    - name: "Cleans up orphaned API keys for removed providers"
+      assert: "apiKey_openai, apiKey_groq, apiKey_cartesia, apiKey_anthropic are removed"
+    - name: "Resets provider to 'browser' if current provider is removed"
+      assert: "provider: 'groq' → provider: 'browser'"
+    - name: "Preserves provider if current provider is still valid"
+      assert: "provider: 'elevenlabs' remains unchanged"
+    - name: "Migration is idempotent"
+      assert: "Running twice produces same result"
+    - name: "Preserves all other settings during migration"
+      assert: "voice, speed, cacheEnabled etc. are not modified"
+
+# UI validation
+ui_integrity:
+  - file: src/entrypoints/settings.html
+    assert: "Only ElevenLabs and Browser TTS provider cards exist"
+    anti_patterns:
+      - "openai"
+      - "groq"
+      - "cartesia"
+
+  - file: src/entrypoints/popup/index.html
+    assert: "Provider dropdown only lists implemented providers"
+
+  - file: src/entrypoints/options/controller.ts
+    assert: "PROVIDER_INPUT_IDS maps only 'elevenlabs' and 'browser'"
+
+# Contract test for port compliance
+contract:
+  test_file: tests/contract/browser-tts-audio-generator.contract.test.ts
+  port: IAudioGenerator
+  adapter: BrowserTtsAudioAdapter
+  tests:
+    - "Implements all IAudioGenerator methods"
+    - "generateAudio returns Result<AudioResponse, AudioError>"
+    - "getVoices returns Result<Voice[], AudioError>"
+    - "validateCredentials returns boolean"
+
+validation:
+  command: "pnpm run test:unit -- --testPathPattern='provider|browser-tts|migration|factories' --coverage"

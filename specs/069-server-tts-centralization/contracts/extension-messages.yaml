@@ -1,0 +1,69 @@
+# Extension Message Protocol Changes
+# Documents changes to the @webext-core/messaging protocol
+
+messages:
+  settings.testApiKey:
+    description: |
+      Test an API key validity. Previously made direct API calls from the
+      extension background script. Now routes through the Proso server's
+      /api/v1/tts/test-key endpoint via IApiClient.
+
+      Message signature is PRESERVED for backwards compatibility.
+    request:
+      type: object
+      required: [provider, apiKey]
+      properties:
+        provider:
+          type: string
+          description: Provider to test (elevenlabs, openai, groq, cartesia, anthropic)
+        apiKey:
+          type: string
+          description: API key to validate
+    response:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        provider:
+          type: string
+        error:
+          type: string
+        latencyMs:
+          type: integer
+    implementation_change: |
+      BEFORE: Handler in settings.handlers.ts makes direct fetch() calls
+              to provider APIs (ElevenLabs, Anthropic endpoints)
+      AFTER:  Handler calls IApiClient.testApiKey() which POSTs to
+              server /api/v1/tts/test-key endpoint
+      NOTE:   Anthropic key testing (for AI summarization) still goes
+              direct since it's not a TTS provider
+
+port_changes:
+  IApiClient:
+    new_methods:
+      - name: testApiKey
+        signature: "testApiKey(provider: string, apiKey: string): Promise<Result<TTSTestKeyResponse, ApiClientError>>"
+        description: Validate a BYOK API key via the server
+    modified_methods:
+      - name: synthesize
+        change: Request type extended with optional byokApiKey field
+        before: "synthesize(request: TTSSynthesizeRequest): Promise<Result<SynthesizeResponse, ApiClientError>>"
+        after: "synthesize(request: TTSSynthesizeRequest): Promise<Result<SynthesizeResponse, ApiClientError>>"
+        note: TTSSynthesizeRequest itself is extended in @proso/shared — no signature change needed
+
+factory_changes:
+  createAudioGeneratorAdapter:
+    before: |
+      1. browser → BrowserTtsAudioAdapter
+      2. apiKey → createDirectProviderAdapter(provider, apiKey)
+      3. apiClient.isConfigured → ServerTtsAudioAdapter(apiClient, provider)
+      4. else → throw Error
+    after: |
+      1. browser → BrowserTtsAudioAdapter
+      2. else → ServerTtsAudioAdapter(apiClient, provider, apiKey?)
+    note: |
+      The apiKey parameter is now forwarded to ServerTtsAudioAdapter
+      instead of being used to create a direct provider adapter.
+      ServerTtsAudioAdapter passes it to IApiClient.synthesize() in
+      the request body as byokApiKey.

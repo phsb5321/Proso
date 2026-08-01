@@ -63,6 +63,7 @@ opengrep scan \
   --config .opengrep.yml \
   --error \
   --exclude="$FIXTURE_DIR" \
+  --exclude=specs \
   --json-output="$REPORT" \
   .github/workflows packages services
 

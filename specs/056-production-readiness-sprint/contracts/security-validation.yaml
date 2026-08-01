@@ -1,0 +1,153 @@
+# Test Contract: Security Validation
+# Sprint: 056-production-readiness-sprint
+# Covers: FR-005 (No hardcoded credentials), FR-006 (Clean production builds),
+#          FR-007 (Minimal permissions), FR-008 (Real gecko ID)
+
+scope: "Production build security scanning and credential hygiene"
+
+# Credential scanning
+credentials:
+  test_file: tests/security/credentials.test.ts
+  tests:
+    - name: "No hardcoded telemetry token in source code"
+      files: "src/**/*.ts"
+      assert: "Zero matches for '5Q0LlZ' or base64 token pattern"
+      severity: CRITICAL
+
+    - name: "No hardcoded telemetry token in build output"
+      files: ".output/**/*.js"
+      assert: "Zero matches for '5Q0LlZ' or the full token string"
+      severity: CRITICAL
+
+    - name: "No hardcoded gateway URL as fallback in source"
+      files: "src/**/*.ts"
+      pattern: "voxpage-logs.home301server"
+      assert: "Only appears in .env files or build config, not in entrypoint source"
+      severity: HIGH
+
+    - name: "No API keys in source code"
+      files: "src/**/*.ts"
+      patterns:
+        - "sk-[a-zA-Z0-9]{32,}"    # OpenAI-style
+        - "sk_live_[a-zA-Z0-9]+"    # ElevenLabs-style
+        - "gsk_[a-zA-Z0-9]+"        # Groq-style
+      assert: "Zero matches"
+      severity: CRITICAL
+
+    - name: "No credentials in test fixtures"
+      files: "tests/**/*.ts"
+      patterns:
+        - "sk-[a-zA-Z0-9]{48}"
+        - "Bearer [a-zA-Z0-9+/=]{20,}"
+      assert: "Only mock/fake tokens (e.g., 'sk-test-fake-key-for-testing')"
+      severity: HIGH
+
+# Production build cleanliness
+build_artifacts:
+  test_file: tests/security/build-artifacts.test.ts
+  tests:
+    - name: "Zero console.log in production JS"
+      command: "grep -rn 'console\\.log' .output/firefox-mv2/ --include='*.js'"
+      assert: "Exit code 1 (no matches)"
+      severity: HIGH
+
+    - name: "Zero console.debug in production JS"
+      command: "grep -rn 'console\\.debug' .output/firefox-mv2/ --include='*.js'"
+      assert: "Exit code 1 (no matches)"
+      severity: HIGH
+
+    - name: "Zero console.info in production JS"
+      command: "grep -rn 'console\\.info' .output/firefox-mv2/ --include='*.js'"
+      assert: "Exit code 1 (no matches)"
+      severity: MEDIUM
+
+    - name: "Zero console.warn in production JS"
+      command: "grep -rn 'console\\.warn' .output/firefox-mv2/ --include='*.js'"
+      assert: "Exit code 1 (no matches) — warnings should use structured logger"
+      severity: MEDIUM
+
+    - name: "Zero debugger statements in production JS"
+      command: "grep -rn 'debugger' .output/firefox-mv2/ --include='*.js'"
+      assert: "Exit code 1 (no matches)"
+      severity: HIGH
+
+    - name: "Zero source maps in production output"
+      command: "find .output/firefox-mv2/ -name '*.map'"
+      assert: "No files found"
+      severity: HIGH
+
+    - name: "Extension package under 5MB (AMO limit)"
+      command: "du -sb .output/firefox-mv2/ | awk '{print $1}'"
+      assert: "Size < 5242880 bytes"
+      severity: CRITICAL
+
+# Manifest permissions
+permissions:
+  test_file: tests/security/manifest-permissions.test.ts
+  tests:
+    - name: "No <all_urls> permission"
+      assert: "manifest.json does not contain '<all_urls>' in permissions or host_permissions"
+      severity: CRITICAL
+
+    - name: "No unused host permissions"
+      assert: "Every host in host_permissions is actually used by the extension"
+      severity: HIGH
+
+    - name: "Gecko ID is not a placeholder"
+      assert: "manifest.json gecko.id is NOT 'voxpage@example.com'"
+      severity: HIGH
+
+    - name: "Required permissions only"
+      expected_permissions:
+        - "activeTab"
+        - "storage"
+        - "tabs"
+      assert: "Only expected permissions are declared (no extras)"
+      severity: HIGH
+
+    - name: "Manifest version matches build target"
+      assert: "Firefox build has manifest_version: 2"
+      severity: MEDIUM
+
+# Configuration files
+config_hygiene:
+  tests:
+    - name: "No stale root manifest.json"
+      assert: "Root manifest.json does not exist (only .output/ manifest)"
+      severity: MEDIUM
+
+    - name: "No stale package-lock.json"
+      assert: "Only pnpm-lock.yaml exists (no package-lock.json)"
+      severity: LOW
+
+    - name: ".env files are gitignored"
+      assert: ".gitignore contains '.env' pattern"
+      severity: HIGH
+
+    - name: ".env.example exists with documented variables"
+      assert: "File exists with TELEMETRY_GATEWAY_URL and TELEMETRY_GATEWAY_TOKEN placeholders"
+      severity: MEDIUM
+
+# Runtime security
+runtime:
+  tests:
+    - name: "API keys stored in browser-encrypted storage"
+      assert: "API keys use browser.storage.local (encrypted at rest by browser)"
+      severity: HIGH
+
+    - name: "API keys never logged or included in telemetry"
+      assert: "No API key values appear in log entries or telemetry events"
+      severity: CRITICAL
+
+    - name: "Telemetry gateway token only in HTTP headers"
+      assert: "Token is sent as Bearer auth, never in request body"
+      severity: HIGH
+
+validation:
+  commands:
+    - "NODE_ENV=production pnpm run build:firefox"
+    - "pnpm run test:security"
+  pre_commit_hook: |
+    # Recommend adding to .husky/pre-commit or similar:
+    grep -rn "5Q0LlZ" src/ && echo "BLOCKED: Hardcoded token found" && exit 1
+    echo "Security pre-commit check passed"

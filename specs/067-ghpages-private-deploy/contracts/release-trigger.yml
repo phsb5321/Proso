@@ -1,0 +1,11 @@
+# Contract: Addition to release.yml deploy-updates job
+# After pushing to gh-pages, trigger site redeploy to include new release files
+
+# Add this step at the end of the deploy-updates job in release.yml:
+- name: Trigger site redeploy to include release files
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: |
+    gh api repos/${{ github.repository }}/dispatches \
+      -f event_type=release-deployed
+    echo "Triggered site redeploy to serve updated auto-update files"

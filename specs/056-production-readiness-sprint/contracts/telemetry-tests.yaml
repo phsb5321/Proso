@@ -1,0 +1,93 @@
+# Test Contract: Telemetry Tests
+# Sprint: 056-production-readiness-sprint
+# Covers: FR-010 (Privacy-sensitive telemetry code MUST have unit tests)
+
+scope: "All telemetry/usage tracking code in src/utils/telemetry/"
+
+targets:
+  - file: src/utils/telemetry/usage/shipper.ts
+    test_file: tests/unit/telemetry/usage-shipper.test.ts
+    tests:
+      - name: "Sends events with Bearer token Authorization header"
+        assert: "HTTP request includes Authorization: Bearer <token>"
+      - name: "Gracefully handles network failure"
+        assert: "No unhandled errors; events are buffered for retry"
+      - name: "Respects telemetry opt-out"
+        assert: "No HTTP requests when telemetryEnabled is false"
+      - name: "Redacts PII from event data before transmission"
+        assert: "No email addresses, URLs with query params, or user-identifiable data in shipped events"
+      - name: "Circuit breaker activates after consecutive failures"
+        assert: "After N consecutive failures, stops attempting to ship"
+      - name: "Circuit breaker resets after cooldown"
+        assert: "After cooldown period, resumes shipping attempts"
+
+  - file: src/utils/telemetry/usage/tracker.ts
+    test_file: tests/unit/telemetry/usage-tracker.test.ts
+    tests:
+      - name: "Initializes with gateway URL and token from storage"
+        assert: "Reads telemetryGatewayUrl and telemetryGatewayToken from browser.storage.local"
+      - name: "Tracks event with correct schema"
+        assert: "Event has timestamp, type, and metadata"
+      - name: "Does not initialize when gateway config is missing"
+        assert: "Silently skips initialization when URL or token is empty"
+      - name: "Does not track when telemetry is disabled"
+        assert: "No events recorded when telemetryEnabled is false"
+
+  - file: src/utils/telemetry/usage/buffer.ts
+    test_file: tests/unit/telemetry/usage-buffer.test.ts
+    tests:
+      - name: "Buffers events up to max capacity"
+        assert: "Events are stored until flush"
+      - name: "Evicts oldest events when buffer is full"
+        assert: "FIFO eviction, no memory leak"
+      - name: "Flush returns all buffered events and clears buffer"
+        assert: "getAll() returns events, flush() empties buffer"
+
+  - file: src/utils/telemetry/usage/events.ts
+    test_file: tests/unit/telemetry/usage-events.test.ts
+    tests:
+      - name: "Event factory creates correctly typed events"
+        assert: "Each event type has required fields"
+      - name: "PII redaction strips sensitive data"
+        assert: "Email patterns, auth tokens, and query strings are removed from event metadata"
+
+  - file: src/utils/telemetry/usage/privacy.ts
+    test_file: tests/unit/telemetry/usage-privacy.test.ts
+    condition: "If this file exists (may be inline in other files)"
+    tests:
+      - name: "Redacts email addresses from strings"
+        assert: "user@example.com → [REDACTED_EMAIL]"
+      - name: "Redacts URLs with query parameters"
+        assert: "https://example.com?key=value → https://example.com?[REDACTED]"
+      - name: "Redacts API keys from error messages"
+        assert: "API key patterns are masked"
+      - name: "Does not redact non-sensitive data"
+        assert: "Normal strings pass through unchanged"
+
+pii_patterns_to_verify:
+  - pattern: "email"
+    regex: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+    action: "MUST be redacted before transmission"
+  - pattern: "api_key"
+    regex: "sk-[a-zA-Z0-9]{32,}"
+    action: "MUST be redacted before transmission"
+  - pattern: "bearer_token"
+    regex: "Bearer [a-zA-Z0-9+/=]+"
+    action: "MUST NOT appear in event metadata"
+  - pattern: "url_query"
+    regex: "\\?[^\\s]+"
+    action: "Query parameters MUST be stripped from logged URLs"
+
+security_invariants:
+  - "No telemetry event MUST contain raw user content (article text, selection text)"
+  - "No telemetry event MUST contain API keys or authentication tokens"
+  - "Telemetry opt-out MUST prevent ALL data transmission (not just reduce frequency)"
+  - "Gateway token MUST NOT appear in telemetry event payloads (only in HTTP headers)"
+
+validation:
+  command: "pnpm run test:unit -- --testPathPattern='telemetry' --coverage"
+  thresholds:
+    statements: 90
+    branches: 80
+    functions: 90
+    lines: 90
