@@ -33,6 +33,7 @@ const mockPlaybackService = {
   seekToParagraph: jest.fn<() => Promise<any>>(),
   setSpeed: jest.fn<() => any>(),
   seek: jest.fn<() => Promise<any>>(),
+  resyncPosition: jest.fn<() => boolean>(),
 };
 
 const mockGetPlaybackService = jest.fn<() => any>(() => mockPlaybackService);
@@ -59,9 +60,7 @@ jest.unstable_mockModule('wxt/browser', () => ({
 // Dynamic imports AFTER mocking
 // ---------------------------------------------------------------------------
 
-const { registerPlaybackHandlers } = await import(
-  '../../../src/handlers/playback.handlers'
-);
+const { registerPlaybackHandlers } = await import('../../../src/handlers/playback.handlers');
 const { HandlerRegistry } = await import('../../../src/handlers/registry');
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -129,6 +128,7 @@ describe('Playback Handlers', () => {
     mockPlaybackService.previous.mockResolvedValue({ ok: true, value: undefined });
     mockPlaybackService.seekToParagraph.mockResolvedValue({ ok: true, value: undefined });
     mockPlaybackService.setSpeed.mockReturnValue({ ok: true, value: undefined });
+    mockPlaybackService.resyncPosition.mockReturnValue(true);
 
     // Fresh registry for every test
     registry = new HandlerRegistry();
@@ -139,7 +139,7 @@ describe('Playback Handlers', () => {
   // Registration
   // -----------------------------------------------------------------------
   describe('registration', () => {
-    it('should register all 10 playback handlers plus PARAGRAPH_CLICKED', () => {
+    it('should register all 11 playback handlers plus PARAGRAPH_CLICKED', () => {
       const names = registry.getHandlerNames();
       const expected = [
         'playback.getState',
@@ -150,6 +150,7 @@ describe('Playback Handlers', () => {
         'playback.next',
         'playback.previous',
         'playback.seekToParagraph',
+        'playback.resync',
         'playback.setSpeed',
         'playback.seek',
         'PARAGRAPH_CLICKED',
@@ -157,7 +158,7 @@ describe('Playback Handlers', () => {
       for (const name of expected) {
         expect(names).toContain(name);
       }
-      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(10);
+      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(11);
       expect(names).toContain('PARAGRAPH_CLICKED');
     });
   });
@@ -620,9 +621,7 @@ describe('Playback Handlers', () => {
   // -----------------------------------------------------------------------
   describe('playback.next', () => {
     it('should skip to next paragraph and return currentParagraph', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ currentParagraphIndex: 3 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ currentParagraphIndex: 3 }));
 
       const raw = await registry.dispatch('playback.next', undefined);
       const result = unwrapDispatch(raw);
@@ -673,9 +672,7 @@ describe('Playback Handlers', () => {
   // -----------------------------------------------------------------------
   describe('playback.previous', () => {
     it('should skip to previous paragraph and return currentParagraph', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ currentParagraphIndex: 1 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ currentParagraphIndex: 1 }));
 
       const raw = await registry.dispatch('playback.previous', undefined);
       const result = unwrapDispatch(raw);
@@ -789,6 +786,87 @@ describe('Playback Handlers', () => {
   });
 
   // -----------------------------------------------------------------------
+  // playback.resync
+  // -----------------------------------------------------------------------
+  describe('playback.resync', () => {
+    it('should push the position when the tab being read into asks', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ activeTabId: 42 }));
+      mockPlaybackService.resyncPosition.mockReturnValue(true);
+
+      const raw = await registry.dispatch('playback.resync', { __tabId: 42 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value).toEqual({ success: true, resynced: true });
+      expect(mockPlaybackService.resyncPosition).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report no resync when the service has no position to send', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ activeTabId: 42 }));
+      mockPlaybackService.resyncPosition.mockReturnValue(false);
+
+      const raw = await registry.dispatch('playback.resync', { __tabId: 42 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value).toEqual({ success: true, resynced: false });
+    });
+
+    it('should not send another tab its position', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ activeTabId: 42 }));
+
+      const raw = await registry.dispatch('playback.resync', { __tabId: 7 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value).toEqual({ success: true, resynced: false });
+      expect(mockPlaybackService.resyncPosition).not.toHaveBeenCalled();
+    });
+
+    it('should answer a caller with no tab id, such as the popup', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ activeTabId: 42 }));
+      mockPlaybackService.resyncPosition.mockReturnValue(true);
+
+      const raw = await registry.dispatch('playback.resync', { reason: 'visibilitychange' });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      expect(result.value).toEqual({ success: true, resynced: true });
+    });
+
+    it('should return service_unavailable when playback is not initialized', async () => {
+      mockIsPlaybackServiceAvailable.mockReturnValue(false);
+
+      const raw = await registry.dispatch('playback.resync', { __tabId: 42 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('service_unavailable');
+    });
+
+    it('should return invalid_params when the tab id is not a tab id', async () => {
+      const raw = await registry.dispatch('playback.resync', { __tabId: -3 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('invalid_params');
+    });
+
+    it('should return operation_failed when the service throws', async () => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ activeTabId: 42 }));
+      mockPlaybackService.resyncPosition.mockImplementation(() => {
+        throw new Error('resync crash');
+      });
+
+      const raw = await registry.dispatch('playback.resync', { __tabId: 42 });
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(false);
+      expect(result.error.type).toBe('operation_failed');
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // playback.setSpeed
   // -----------------------------------------------------------------------
   describe('playback.setSpeed', () => {
@@ -870,9 +948,7 @@ describe('Playback Handlers', () => {
   // -----------------------------------------------------------------------
   describe('playback.seek', () => {
     it('should convert progress percentage to paragraph index and seek', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ totalParagraphs: 10 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ totalParagraphs: 10 }));
 
       const raw = await registry.dispatch('playback.seek', { progress: 50 });
       const result = unwrapDispatch(raw);
@@ -885,9 +961,7 @@ describe('Playback Handlers', () => {
     });
 
     it('should handle progress 0 (beginning)', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ totalParagraphs: 10 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ totalParagraphs: 10 }));
 
       const raw = await registry.dispatch('playback.seek', { progress: 0 });
       const result = unwrapDispatch(raw);
@@ -897,9 +971,7 @@ describe('Playback Handlers', () => {
     });
 
     it('should handle progress 100 (end)', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ totalParagraphs: 10 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ totalParagraphs: 10 }));
 
       const raw = await registry.dispatch('playback.seek', { progress: 100 });
       const result = unwrapDispatch(raw);
@@ -910,9 +982,7 @@ describe('Playback Handlers', () => {
     });
 
     it('should handle 0 totalParagraphs gracefully', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ totalParagraphs: 0 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ totalParagraphs: 0 }));
 
       const raw = await registry.dispatch('playback.seek', { progress: 50 });
       const result = unwrapDispatch(raw);
@@ -956,9 +1026,7 @@ describe('Playback Handlers', () => {
     });
 
     it('should propagate seekToParagraph failure', async () => {
-      mockPlaybackService.getState.mockReturnValue(
-        defaultState({ totalParagraphs: 10 }),
-      );
+      mockPlaybackService.getState.mockReturnValue(defaultState({ totalParagraphs: 10 }));
       mockPlaybackService.seekToParagraph.mockResolvedValue({
         ok: false,
         error: { type: 'invalid_paragraph_index', index: 5, max: 4 },

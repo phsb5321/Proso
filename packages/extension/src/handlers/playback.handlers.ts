@@ -15,6 +15,7 @@ import { tabLanguageStates } from './language.handlers';
 import type { HandlerRegistry } from './registry';
 import {
   paragraphClickedParamsSchema,
+  playbackResyncParamsSchema,
   playbackSeekParamsSchema,
   playbackSeekToParagraphParamsSchema,
   playbackSetSpeedParamsSchema,
@@ -146,6 +147,28 @@ export interface PlaybackOperationResponse {
   success: boolean;
   error?: string;
   currentParagraph?: number;
+}
+
+/** The rejection for params this handler's schema would not accept. */
+function invalidParams(error: { issues: { message: string }[] }): PlaybackHandlerError {
+  return { type: 'invalid_params', message: error.issues.map((i) => i.message).join('; ') };
+}
+
+/** The rejection for a call that arrives before the service is wired up. */
+function serviceUnavailable(): PlaybackHandlerError {
+  return { type: 'service_unavailable', message: 'PlaybackService not yet initialized.' };
+}
+
+/**
+ * Answer to a tab asking where the audio is.
+ *
+ * `resynced` is false, not an error, when there was nothing to send: another
+ * tab asked, or no clip is loaded. Neither is a failure — the tab simply has
+ * no position to catch up to.
+ */
+export interface PlaybackResyncResponse {
+  success: boolean;
+  resynced: boolean;
 }
 
 /**
@@ -502,6 +525,40 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
       }
     },
     'Seek to specific paragraph',
+  );
+
+  /**
+   * Tell a tab where the audio is, on request.
+   *
+   * A hidden tab throttles the animation frames its word highlight moves on,
+   * so it comes back stale; it asks for this the moment it becomes visible
+   * (FR-005). Only the tab actually being read into is answered — any other
+   * tab asking is told there was nothing for it rather than being handed
+   * another page's playback position.
+   */
+  registry.register<{ __tabId?: number }, Result<PlaybackResyncResponse, PlaybackHandlerError>>(
+    'playback.resync',
+    async (params) => {
+      const parsed = playbackResyncParamsSchema.safeParse(params ?? {});
+      if (!parsed.success) return Err(invalidParams(parsed.error));
+      if (!isPlaybackServiceAvailable()) return Err(serviceUnavailable());
+
+      try {
+        const service = getPlaybackService();
+        const askingTabId = parsed.data.__tabId;
+        const activeTabId = service.getState().activeTabId;
+
+        if (askingTabId !== undefined && askingTabId !== activeTabId) {
+          return Ok({ success: true, resynced: false });
+        }
+
+        return Ok({ success: true, resynced: service.resyncPosition() });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err({ type: 'operation_failed', message });
+      }
+    },
+    'Push the current audio position to the asking tab',
   );
 
   /**

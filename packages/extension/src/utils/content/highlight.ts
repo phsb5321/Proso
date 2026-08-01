@@ -168,9 +168,6 @@ export class HighlightManager {
       const latency = Date.now() - timestamp;
       if (latency > PARAGRAPH_LATENCY_THRESHOLD_MS) {
         log.warn(`Proso: Highlight latency ${latency}ms exceeds 200ms sync threshold (FR-001)`);
-
-        // Notify background for drift correction tracking
-        this.reportDrift(latency, index);
       }
     }
 
@@ -209,7 +206,6 @@ export class HighlightManager {
   /**
    * Set word timeline for the current paragraph.
    * Wraps each word in a <span> for animatable CSS styling (border-radius, transition).
-   * Sends TIMELINE_READY acknowledgment (FR-002, FR-023).
    */
   setWordTimeline(wordTimeline: WordTiming[], paragraphIndex: number): void {
     // Clean up previous span wrapping
@@ -227,9 +223,6 @@ export class HighlightManager {
         `Proso: Wrapped ${this.state.wordSpans.length}/${wordTimeline.length} words in spans`,
       );
     }
-
-    // FR-002, FR-023: Send acknowledgment that timeline is ready
-    this.sendTimelineReady(paragraphIndex);
   }
 
   /**
@@ -668,7 +661,6 @@ export class HighlightManager {
   onUserScroll(): void {
     this.state.userScrollTimestamp = Date.now();
     this.state.autoScrollEnabled = false;
-    this.reportScrollState(this.state.userScrollTimestamp);
   }
 
   enableAutoScroll(): void {
@@ -747,55 +739,13 @@ export class HighlightManager {
     );
   }
 
-  /**
-   * Report drift to background script
-   */
-  private reportDrift(latencyMs: number, paragraphIndex: number): void {
-    try {
-      browser.runtime
-        .sendMessage({
-          action: 'reportDrift',
-          latencyMs,
-          paragraphIndex,
-        })
-        .catch(() => {});
-    } catch (_e) {
-      // Ignore
-    }
-  }
-
-  /**
-   * Send timeline ready acknowledgment to background script
-   */
-  private sendTimelineReady(paragraphIndex: number): void {
-    try {
-      browser.runtime
-        .sendMessage({
-          type: 'TIMELINE_READY',
-          paragraphIndex,
-          timestamp: Date.now(),
-        })
-        .catch(() => {});
-    } catch (e) {
-      log.warn('Proso: Failed to send TIMELINE_READY', { error: e });
-    }
-  }
-
-  /**
-   * Report scroll state to background script
-   */
-  private reportScrollState(userScrolledAt: number): void {
-    try {
-      browser.runtime
-        .sendMessage({
-          action: 'reportScrollState',
-          userScrolledAt,
-        })
-        .catch(() => {});
-    } catch (_e) {
-      // Ignore
-    }
-  }
+  // Three more announcements used to sit here — 'reportDrift',
+  // 'TIMELINE_READY' and 'reportScrollState'. None of the three names was ever
+  // registered with a handler, so all three resolved to an unknown-message
+  // response, and the one class that would have consumed the timeline
+  // acknowledgment (PlaybackSyncState) is never constructed anywhere in the
+  // extension. Drift is still reported where it is measured, as a warning in
+  // this tab's own log.
 }
 
 /**

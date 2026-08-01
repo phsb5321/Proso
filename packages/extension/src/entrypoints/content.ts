@@ -488,10 +488,16 @@ export default defineContentScript({
       // T017: Track paragraph click
       trackParagraphClick(index);
 
+      // The same handler the play-icon click uses (see paragraph-selector.ts).
+      // It covers both cases this function is called for: seek when a run is
+      // already going, extract and start from here when one is not. The
+      // earlier pair — 'playback.jumpToParagraph' with `index` — matched no
+      // registered handler at all, so every click resolved to an
+      // unknown-message response and playback stayed where it was.
       browser.runtime
         .sendMessage({
-          type: 'playback.jumpToParagraph',
-          index: index,
+          type: 'PARAGRAPH_CLICKED',
+          paragraphIndex: index,
         })
         .catch((err) => {
           log.error('Proso: Failed to jump to paragraph', { error: err });
@@ -660,21 +666,12 @@ export default defineContentScript({
       // Track current selection for highlight creation
       let currentSelection: TextQuoteSelector | null = null;
 
-      // Selection change callback - notify background when text is selected
+      // Selection change callback. The selection is kept here, where the page
+      // API below reads it. It used to also be announced to the background as
+      // 'highlight.selectionChanged'; nothing has ever listened for that name,
+      // so the announcement was a round-trip to an unknown-message response.
       manager.onSelectionChange((selector) => {
         currentSelection = selector;
-        // Send selection state to background for potential highlight creation
-        if (selector) {
-          browser.runtime
-            .sendMessage({
-              type: 'highlight.selectionChanged',
-              hasSelection: true,
-              exact: selector.exact,
-            })
-            .catch(() => {
-              // Ignore errors - background may not be listening
-            });
-        }
       });
 
       // Highlight action callback - handle context menu actions
@@ -1070,25 +1067,12 @@ export default defineContentScript({
           break;
         }
 
-        case 'jumpToWord': {
-          // Type guard to narrow message to expected shape
-          if ('paragraphIndex' in message && 'wordIndex' in message) {
-            const { paragraphIndex, wordIndex } = message as LegacyMessage & {
-              paragraphIndex: number;
-              wordIndex: number;
-            };
-            browser.runtime
-              .sendMessage({
-                type: 'playback.jumpToWord',
-                paragraphIndex,
-                wordIndex,
-              })
-              .catch((err) => {
-                log.error('Proso: Failed to jump to word', { error: err });
-              });
-          }
-          break;
-        }
+        // A 'jumpToWord' arm used to sit here. Nothing has ever sent that
+        // message to a tab, and the 'playback.jumpToWord' it forwarded to was
+        // never a registered handler — dead at both ends. Seeking to a word is
+        // a feature the playback service does not have; when it does, it
+        // belongs behind a handler that exists, not a relay to one that does
+        // not.
 
         // ====================================================================
         // Sticky Footer
@@ -1138,15 +1122,11 @@ export default defineContentScript({
           break;
         }
 
-        case 'TOGGLE_FOOTER_SETTINGS': {
-          // If footer is visible, do nothing (settings are part of the footer)
-          // If footer is hidden, show it
-          if (!stickyFooter.isFooterVisible()) {
-            stickyFooter.show();
-          }
-          // Note: Settings toggle functionality should be handled within the footer UI
-          break;
-        }
+        // A 'TOGGLE_FOOTER_SETTINGS' arm used to sit here, showing the footer
+        // if it was hidden. Nothing in the extension has ever sent that
+        // message to a tab, and the footer's settings are opened from the
+        // footer itself, so the arm could only ever have been reached by a
+        // sender that was never written.
 
         // ====================================================================
         // Playback Error Notification (T015: 035-selection-tts-hardening)

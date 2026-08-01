@@ -34,3 +34,17 @@ export const paragraphClickedParamsSchema = z.object({
   paragraphIndex: z.number().int().nonnegative(),
   isCached: z.boolean().optional(),
 });
+
+/**
+ * A tab asking to be told where the audio is (FR-005).
+ *
+ * `__tabId` is stamped on by the background dispatcher, and is what decides
+ * whether the asking tab is the one being read into. The other two fields are
+ * the caller's own diagnostics, accepted so a stray one cannot fail the
+ * request but not read by the handler.
+ */
+export const playbackResyncParamsSchema = z.object({
+  __tabId: z.number().int().nonnegative().optional(),
+  reason: z.string().optional(),
+  timestamp: z.number().optional(),
+});

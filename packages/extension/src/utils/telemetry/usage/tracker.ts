@@ -375,6 +375,16 @@ export class UsageTracker {
   }
 
   /**
+   * Drop every buffered event without shipping it.
+   *
+   * This is what the options page's "Clear logs" button does. Events already
+   * sent to the gateway are not affected — only what is still waiting here.
+   */
+  async clearBufferedLogs(): Promise<void> {
+    return this.buffer.clear();
+  }
+
+  /**
    * Start periodic flush interval.
    */
   private startPeriodicFlush(): void {
