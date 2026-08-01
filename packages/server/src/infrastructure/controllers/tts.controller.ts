@@ -69,9 +69,11 @@ export class TTSController {
     @Body(new ZodValidationPipe(TTSSynthesizeRequestSchema)) body: TTSSynthesizeRequestParsed,
   ): Promise<void> {
     // --- Authentication ---
-    // INV-001: Free tier never requires account creation.
-    // Unauthenticated requests are allowed and treated as free tier
-    // (server uses its own API keys). BYOK requests forward the user's key.
+    // INV-001: Free tier never requires account creation, so unauthenticated
+    // requests are accepted and treated as Free tier. They may use BYOK (the
+    // user's own key) or browser TTS; they may NOT spend the server's provider
+    // keys — tts.service.ts rejects Free tier managed synthesis via
+    // FEATURE_MATRIX.managedTts.
     const userId = (req as Request & { userId?: string }).userId;
     const isByok = !!body.byokApiKey;
 

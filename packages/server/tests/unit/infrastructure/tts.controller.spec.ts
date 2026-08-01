@@ -13,7 +13,10 @@
 import { HttpStatus } from '@nestjs/common';
 import { TTSProvider, SubscriptionTier, ErrorCode, Ok, Err } from '@proso/shared';
 import { TTSController } from '../../../src/infrastructure/controllers/tts.controller';
-import type { CreditRepositoryPort } from '../../../src/ports/credit-repository.port';
+import type {
+  CreditAllocationRecord,
+  CreditRepositoryPort,
+} from '../../../src/ports/credit-repository.port';
 import type { CacheStorePort } from '../../../src/ports/cache-store.port';
 import type {
   SubscriptionRecord,
@@ -82,6 +85,41 @@ function createMockProviders(): Map<TTSProvider, jest.Mocked<TTSProviderPort>> {
 
 function createMockRequest(userId?: string): Record<string, unknown> {
   return { userId };
+}
+
+/**
+ * An active Pro subscription. The period window is relative because the record
+ * claims `status: 'active'`: an absolute one turns this into an active
+ * subscription whose period has closed, a state the product does not have and a
+ * trap for the first check that reads these dates.
+ */
+function makeProSubscription(): SubscriptionRecord {
+  const periodStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return {
+    id: 'sub-1',
+    userId: 'user-1',
+    tier: SubscriptionTier.Pro,
+    status: 'active',
+    currentPeriodStart: periodStart,
+    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    createdAt: periodStart,
+    updatedAt: periodStart,
+  };
+}
+
+/** A funded, unexpired credit allocation — enough to pass the preflight. */
+function makeAllocation(): CreditAllocationRecord {
+  const periodStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  return {
+    id: 'alloc-1',
+    userId: 'user-1',
+    subscriptionId: 'sub-1',
+    totalCredits: 500_000,
+    remainingCredits: 350_000,
+    periodStart,
+    periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    createdAt: periodStart,
+  };
 }
 
 function createMockResponse() {
@@ -162,7 +200,13 @@ describe('TTSController — error response shape (T001)', () => {
         adapter.synthesize.mockResolvedValue(Err(providerError));
       }
 
-      const req = createMockRequest(undefined);
+      // Paid tier with credits — the only way to reach the provider loop, since
+      // managed synthesis is gated on FEATURE_MATRIX.managedTts and a Free tier
+      // request is rejected before any provider is tried.
+      subscriptionRepo.findActiveByUserId.mockResolvedValue(makeProSubscription());
+      creditRepo.findCurrentAllocation.mockResolvedValue(makeAllocation());
+
+      const req = createMockRequest('user-1');
       const res = createMockResponse();
 
       await controller.synthesizeAudio(req as any, res as any, {
@@ -186,22 +230,7 @@ describe('TTSController — error response shape (T001)', () => {
     it('maps InsufficientCredits/NoActiveAllocation-class errors to 402 with the same shape', async () => {
       // Paid tier so the credit preflight runs and produces a CreditError before any
       // provider call — deterministic without needing to mock deductCredits.
-      // The window is relative because the record claims `status: 'active'`:
-      // an absolute one turns this into an active subscription whose period has
-      // closed, which is a state the product does not have and a trap for the
-      // first check that reads these dates.
-      const periodStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const proSubscription: SubscriptionRecord = {
-        id: 'sub-1',
-        userId: 'user-1',
-        tier: SubscriptionTier.Pro,
-        status: 'active',
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        createdAt: periodStart,
-        updatedAt: periodStart,
-      };
-      subscriptionRepo.findActiveByUserId.mockResolvedValue(proSubscription);
+      subscriptionRepo.findActiveByUserId.mockResolvedValue(makeProSubscription());
       creditRepo.findCurrentAllocation.mockResolvedValue(null);
 
       const req = createMockRequest('user-1');
@@ -217,6 +246,29 @@ describe('TTSController — error response shape (T001)', () => {
       expect(body.message).toBeDefined();
       expect(body.message).toBe(body.error);
       expect(body.code).toBe(ErrorCode.NoActiveAllocation);
+    });
+  });
+
+  describe('managed TTS is gated at the HTTP boundary', () => {
+    // Regression lock for the production leak: this exact request — anonymous,
+    // no BYOK key — returned 200 with `audio/mpeg`, `X-Provider: openai` and
+    // `X-Credits-Used: 0`, i.e. freshly synthesized on the server's own OpenAI
+    // key at our cost, for any caller on the internet.
+    it('answers an anonymous managed request with 402, not audio', async () => {
+      const req = createMockRequest(undefined);
+      const res = createMockResponse();
+
+      await controller.synthesizeAudio(req as any, res as any, {
+        text: 'Anonymous request with no BYOK key',
+      });
+
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.PAYMENT_REQUIRED);
+      expect(res.send).not.toHaveBeenCalled();
+      expect((res.body as Record<string, unknown>).code).toBe(ErrorCode.InsufficientCredits);
+
+      for (const adapter of providers.values()) {
+        expect(adapter.synthesize).not.toHaveBeenCalled();
+      }
     });
   });
 });

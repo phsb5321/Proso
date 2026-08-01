@@ -474,17 +474,56 @@ describe('TTSService.synthesize', () => {
   });
 
   // -----------------------------------------------------------------------
-  // 8. Free tier uses server-side providers (INV-001)
+  // 8. Managed TTS is tier-gated (FEATURE_MATRIX.managedTts)
   // -----------------------------------------------------------------------
-  describe('Free tier uses server-side providers (INV-001)', () => {
-    it('synthesizes successfully for free tier without credit deduction', async () => {
-      // Free tier now routes to server-side providers and skips credit deduction
+  describe('Managed TTS is gated on FEATURE_MATRIX.managedTts', () => {
+    // Regression lock. This path previously succeeded with creditsUsed=0:
+    // the credit preflight and deduction were both wrapped in
+    // `if (tier !== Free)`, which metered nobody on Free tier rather than
+    // charging nobody — so anonymous callers spent the server's provider
+    // keys, unbounded and unrecorded.
+    it('rejects a Free tier managed request instead of spending server keys', async () => {
+      setupSuccessFlow(deps);
+
       const request = makeDefaultRequest({ tier: SubscriptionTier.Free });
       const result = await synthesize(request, deps);
 
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+    });
+
+    it('does not reach any provider adapter on a Free tier managed request', async () => {
+      setupSuccessFlow(deps);
+
+      await synthesize(makeDefaultRequest({ tier: SubscriptionTier.Free }), deps);
+
+      for (const provider of deps.providers.values()) {
+        expect((provider as jest.Mocked<TTSProviderPort>).synthesize).not.toHaveBeenCalled();
+      }
+    });
+
+    it('still allows Free tier BYOK — the gate sits after the BYOK branch (INV-002)', async () => {
+      const request = makeDefaultRequest({
+        tier: SubscriptionTier.Free,
+        provider: TTSProvider.OpenAI,
+        byokApiKey: 'sk-user-supplied-key',
+      });
+      const result = await synthesize(request, deps);
+
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
       expect(result.value.creditsUsed).toBe(0);
+    });
+
+    it('meters a Pro tier managed request, which the gate lets through', async () => {
+      setupSuccessFlow(deps);
+      const repo = deps.creditRepository as jest.Mocked<CreditRepositoryPort>;
+
+      const result = await synthesize(makeDefaultRequest({ tier: SubscriptionTier.Pro }), deps);
+
+      expect(isOk(result)).toBe(true);
+      expect(repo.deductCredits).toHaveBeenCalled();
     });
   });
 

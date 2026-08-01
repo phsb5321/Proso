@@ -4,17 +4,27 @@
 // Enforces:
 //   INV-005: Browser TTS always unlimited (routed client-side, never reaches here)
 //   INV-006: Cached content never re-charges (cache check before credit deduction)
+//   FEATURE_MATRIX.managedTts: only tiers that pay for managed TTS may spend
+//     the server's own provider API keys
 
-import { ErrorCode, SubscriptionTier, TTSProvider, calculateCreditCost } from '@proso/shared';
+import {
+  Err,
+  ErrorCode,
+  FEATURE_MATRIX,
+  Ok,
+  SubscriptionTier,
+  TTSProvider,
+  calculateCreditCost,
+  isErr,
+} from '@proso/shared';
 import type { Result } from '@proso/shared';
-import { Err, Ok, isErr } from '@proso/shared';
 import type { CacheStorePort } from '../../ports/cache-store.port.js';
 import type { CreditRepositoryPort } from '../../ports/credit-repository.port.js';
 import type { LoggerPort } from '../../ports/logger.port.js';
 import type { TTSProviderPort, TTSSynthesizeResult } from '../../ports/tts-provider.port.js';
 import { checkCredits, deductCredits } from '../credits/credit.service.js';
 import { selectProvider } from '../routing/provider-router.js';
-import { ttsError } from '../shared/domain-errors.js';
+import { creditError, ttsError } from '../shared/domain-errors.js';
 import type { CreditError, TTSError } from '../shared/domain-errors.js';
 
 export interface TTSServiceDeps {
@@ -123,7 +133,29 @@ export async function synthesize(
     return synthesizeByok({ ...request, byokApiKey: request.byokApiKey }, deps);
   }
 
-  // --- Managed-credit path (existing flow, unchanged) ---
+  // --- Managed-credit path ---
+  // Gate the server's own provider keys behind FEATURE_MATRIX.managedTts.
+  // Without this, a tier whose credit allowance is 0 (Free) skipped both the
+  // preflight and the deduction below — the `tier !== Free` guards read as
+  // "free tier is not charged" but actually meant "free tier is not metered",
+  // so unauthenticated callers synthesized on our keys for free, unbounded.
+  //
+  // No invariant is weakened: INV-001 holds because Free tier still needs no
+  // account for the things it is entitled to — browser TTS (INV-005,
+  // client-side and unlimited) and BYOK (INV-002, handled above this line).
+  if (!FEATURE_MATRIX[request.tier].managedTts) {
+    // A credit-class error, not a TTS-class one: the tier's managed allowance is
+    // zero (TIER_CREDITS.Free), so every managed request is short by its full
+    // price. That is already the 402 the extension branches on.
+    return Err(
+      creditError(
+        ErrorCode.InsufficientCredits,
+        'Managed TTS is not included in this tier. Use browser TTS, or supply your own provider API key.',
+        { tier: request.tier },
+      ),
+    );
+  }
+
   const availableProviders = Array.from(deps.providers.keys());
 
   // Step 1-2: Route to determine primary provider (needed for cache key)
@@ -194,15 +226,15 @@ export async function synthesize(
     const adapter = deps.providers.get(candidate);
     if (!adapter) continue;
 
-    if (request.tier !== SubscriptionTier.Free) {
-      const candidateCost = calculateCreditCost(request.text.length, candidate);
-      const preflight = await checkCredits(request.userId, candidateCost, {
-        creditRepository: deps.creditRepository,
-      });
-      if (isErr(preflight)) {
-        lastCreditError = preflight.error;
-        continue;
-      }
+    // Unconditional: every tier that reaches here has managedTts, so every
+    // provider call below is metered. No tier gets a free pass.
+    const candidateCost = calculateCreditCost(request.text.length, candidate);
+    const preflight = await checkCredits(request.userId, candidateCost, {
+      creditRepository: deps.creditRepository,
+    });
+    if (isErr(preflight)) {
+      lastCreditError = preflight.error;
+      continue;
     }
 
     const attempt = await tryProvider(adapter, request.text, request.voice, request.language);
@@ -243,28 +275,25 @@ export async function synthesize(
   const result = synthesisResult;
 
   // Step 6: Charge only after successful synthesis, using the provider that produced the audio.
-  // This preserves INV-001 and prevents failed provider chains from consuming credits.
-  let creditCost = 0;
-  let creditsRemaining = 0;
-  if (request.tier !== SubscriptionTier.Free) {
-    creditCost = calculateCreditCost(request.text.length, successfulCandidate);
+  // Unconditional for the same reason as the preflight above — reaching this
+  // line means the tier includes managed TTS, so the work is always billed.
+  const creditCost = calculateCreditCost(request.text.length, successfulCandidate);
 
-    const deductionResult = await deductCredits(
-      request.userId,
-      creditCost,
-      {
-        provider: successfulCandidate,
-        characterCount: request.text.length,
-        description: `TTS synthesis via ${successfulCandidate}`,
-      },
-      { creditRepository: deps.creditRepository },
-    );
+  const deductionResult = await deductCredits(
+    request.userId,
+    creditCost,
+    {
+      provider: successfulCandidate,
+      characterCount: request.text.length,
+      description: `TTS synthesis via ${successfulCandidate}`,
+    },
+    { creditRepository: deps.creditRepository },
+  );
 
-    if (!deductionResult.ok) {
-      return deductionResult;
-    }
-    creditsRemaining = deductionResult.value.remainingCredits;
+  if (!deductionResult.ok) {
+    return deductionResult;
   }
+  const creditsRemaining = deductionResult.value.remainingCredits;
 
   // Step 7: Store under the actual provider so future cache metadata is truthful.
   const resultCacheKey = buildCacheKey(
