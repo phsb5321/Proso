@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import { createLogger } from '../logging/logger';
+import * as scorer from './scorer';
 
 const log = createLogger('content');
 
@@ -165,33 +166,6 @@ export const UNWANTED_CONFIG: UnwantedConfig = {
  * This is module-level state that persists across function calls
  */
 let extractedParagraphs: Element[] = [];
-
-// ============================================================================
-// Type Definitions for External Dependencies
-// ============================================================================
-
-/**
- * Content scorer interface (from content-scorer.js)
- * This is optional dependency - functions check if it exists before calling
- */
-interface ContentScorer {
-  isNavigationElement?: (el: Element) => boolean;
-  isInsideUnwantedElement?: (el: Element) => boolean;
-  isNavigationText?: (text: string) => boolean;
-  isBlockElement?: (el: Element) => boolean;
-  calculateContentScore?: (el: Element) => number;
-}
-
-/**
- * Get scorer functions from global namespace (legacy compatibility)
- * In the future, this will be replaced with direct imports
- */
-function getScorer(): ContentScorer {
-  return (
-    (((window as unknown as Record<string, unknown>).Proso as Record<string, unknown> | undefined)
-      ?.contentScorer as ContentScorer) || {}
-  );
-}
 
 // ============================================================================
 // Public API Functions
@@ -349,16 +323,15 @@ export function extractFullPage(): string {
  * Find the best content block using a scoring algorithm
  */
 export function findBestContentBlock(): Element | null {
-  const scorer = getScorer();
   const candidates = document.querySelectorAll('div, section, article, main');
   let bestElement: Element | null = null;
   let bestScore = 0;
 
   for (const el of candidates) {
-    if (scorer.isNavigationElement?.(el)) continue;
+    if (scorer.isNavigationElement(el)) continue;
     if ((el.textContent?.length || 0) < 500) continue;
 
-    const score = scorer.calculateContentScore?.(el) || 0;
+    const score = scorer.calculateContentScore(el);
     if (score > bestScore) {
       bestScore = score;
       bestElement = el;
@@ -372,7 +345,6 @@ export function findBestContentBlock(): Element | null {
  * Find content paragraphs within an element
  */
 export function findContentParagraphs(container: Element): Element[] {
-  const scorer = getScorer();
   const paragraphs: Element[] = [];
   const seenTexts = new Set<string>();
 
@@ -384,10 +356,10 @@ export function findContentParagraphs(container: Element): Element[] {
   // First pass: Filter candidates without style checks (non-layout operations)
   const preFilteredCandidates: Element[] = [];
   for (const el of candidates) {
-    if (scorer.isInsideUnwantedElement?.(el)) continue;
+    if (scorer.isInsideUnwantedElement(el)) continue;
     const text = el.textContent?.trim() || '';
     if (text.length < 30) continue;
-    if (scorer.isNavigationText?.(text)) continue;
+    if (scorer.isNavigationText(text)) continue;
 
     const linkText = Array.from(el.querySelectorAll('a')).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
@@ -416,10 +388,10 @@ export function findContentParagraphs(container: Element): Element[] {
     '.wiki-content li, .content li, article li, .prose li, .article-body li, [role="main"] li',
   );
   for (const el of contentLists) {
-    if (scorer.isInsideUnwantedElement?.(el)) continue;
+    if (scorer.isInsideUnwantedElement(el)) continue;
     const text = el.textContent?.trim() || '';
     if (text.length < 30) continue;
-    if (scorer.isNavigationText?.(text)) continue;
+    if (scorer.isNavigationText(text)) continue;
 
     const linkText = Array.from(el.querySelectorAll('a')).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
@@ -810,7 +782,6 @@ function textsMatch(text1: string, text2: string): boolean {
  */
 function findMatchingDOMElements(extractedEls: Element[]): Element[] {
   const startTime = performance.now();
-  const scorer = getScorer();
   const matchedElements: Element[] = [];
   const seenFingerprints = new Set<string>();
 
@@ -875,7 +846,7 @@ function findMatchingDOMElements(extractedEls: Element[]): Element[] {
     if (isKnownContentContainer && wikiContainer) {
       return !isInsideUnwantedSubContainer(domEl, wikiContainer);
     } else {
-      return !scorer.isInsideUnwantedElement?.(domEl);
+      return !scorer.isInsideUnwantedElement(domEl);
     }
   });
 
@@ -1100,7 +1071,6 @@ function isInsideUnwantedSubContainer(el: Element, contentContainer: Element): b
  * This bypasses Readability remapping entirely
  */
 function extractParagraphsDirectlyFromDOM(): Element[] {
-  const scorer = getScorer();
   const paragraphs: Element[] = [];
   const seenFingerprints = new Set<string>();
 
@@ -1132,7 +1102,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     if (isKnownContentContainer) {
       if (isInsideUnwantedSubContainer(el, container)) continue;
     } else {
-      if (scorer.isInsideUnwantedElement?.(el)) continue;
+      if (scorer.isInsideUnwantedElement(el)) continue;
     }
 
     const text = el.textContent?.trim() || '';
@@ -1141,7 +1111,7 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     if (text.length < 30) continue;
 
     // Skip navigation-like text (but be less aggressive for known content)
-    if (!isKnownContentContainer && scorer.isNavigationText?.(text)) continue;
+    if (!isKnownContentContainer && scorer.isNavigationText(text)) continue;
 
     // Skip high link density (navigation) - more lenient threshold for known content
     const linkText = Array.from(el.querySelectorAll('a')).reduce(
@@ -1173,12 +1143,12 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     if (isKnownContentContainer) {
       if (isInsideUnwantedSubContainer(el, container)) continue;
     } else {
-      if (scorer.isInsideUnwantedElement?.(el)) continue;
+      if (scorer.isInsideUnwantedElement(el)) continue;
     }
 
     const text = el.textContent?.trim() || '';
     if (text.length < 30) continue;
-    if (!isKnownContentContainer && scorer.isNavigationText?.(text)) continue;
+    if (!isKnownContentContainer && scorer.isNavigationText(text)) continue;
 
     const linkText = Array.from(el.querySelectorAll('a')).reduce(
       (sum, a) => sum + (a.textContent?.length || 0),
@@ -1202,8 +1172,6 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
  * Extract article using heuristics (fallback)
  */
 function extractArticleHeuristic(): string {
-  const scorer = getScorer();
-
   // Priority 1: Wiki-specific selectors
   const wikiSelectors = [
     '#wiki-content-block',
@@ -1240,7 +1208,7 @@ function extractArticleHeuristic(): string {
   // Try wiki selectors first
   for (const selector of wikiSelectors) {
     const el = document.querySelector(selector);
-    if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
+    if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement(el)) {
       articleElement = el;
       break;
     }
@@ -1250,7 +1218,7 @@ function extractArticleHeuristic(): string {
   if (!articleElement) {
     for (const selector of articleSelectors) {
       const el = document.querySelector(selector);
-      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
+      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement(el)) {
         articleElement = el;
         break;
       }
@@ -1261,7 +1229,7 @@ function extractArticleHeuristic(): string {
   if (!articleElement) {
     for (const selector of genericSelectors) {
       const el = document.querySelector(selector);
-      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement?.(el)) {
+      if (el && (el.textContent?.length || 0) > 500 && !scorer.isNavigationElement(el)) {
         articleElement = el;
         break;
       }
@@ -1286,7 +1254,6 @@ function extractArticleHeuristic(): string {
  * Extract clean text from an element
  */
 function extractCleanTextFromElement(element: Element): string {
-  const scorer = getScorer();
   const clone = element.cloneNode(true) as Element;
 
   const unwantedSelectors = [
@@ -1385,7 +1352,7 @@ function extractCleanTextFromElement(element: Element): string {
   while (walker.nextNode()) {
     const node = walker.currentNode;
     const parent = node.parentElement;
-    const isBlock = parent && scorer.isBlockElement?.(parent);
+    const isBlock = parent && scorer.isBlockElement(parent);
     const isNewBlock = isBlock && parent !== lastParent;
 
     if (isNewBlock && currentBlock.trim()) {
@@ -1403,7 +1370,7 @@ function extractCleanTextFromElement(element: Element): string {
 
   const filteredTexts = texts.filter((text) => {
     if (text.length < 30) return false;
-    if (scorer.isNavigationText?.(text)) return false;
+    if (scorer.isNavigationText(text)) return false;
     const alphaRatio = (text.match(/[a-zA-Z]/g) || []).length / text.length;
     if (alphaRatio < 0.5) return false;
     return true;
@@ -1416,7 +1383,6 @@ function extractCleanTextFromElement(element: Element): string {
  * Extract readable text from an element
  */
 function extractTextFromElement(element: Element): string {
-  const scorer = getScorer();
   const clone = element.cloneNode(true) as Element;
 
   const unwantedSelectors = [
@@ -1473,7 +1439,7 @@ function extractTextFromElement(element: Element): string {
   while (walker.nextNode()) {
     const node = walker.currentNode;
     const parent = node.parentElement;
-    const isBlock = parent && scorer.isBlockElement?.(parent);
+    const isBlock = parent && scorer.isBlockElement(parent);
 
     if (isBlock && currentBlock) {
       texts.push(currentBlock.trim());
@@ -1494,12 +1460,11 @@ function extractTextFromElement(element: Element): string {
  * Find paragraph elements for highlighting
  */
 function findParagraphElements(container: Element): Element[] {
-  const scorer = getScorer();
   const paragraphs: Element[] = [];
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: (node: Node) => {
       const el = node as Element;
-      if (scorer.isBlockElement?.(el) && (el.textContent?.trim().length || 0) > 20) {
+      if (scorer.isBlockElement(el) && (el.textContent?.trim().length || 0) > 20) {
         const nestedBlocks = el.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li');
         const hasNestedContent = Array.from(nestedBlocks).some(
           (b) => (b.textContent?.trim().length || 0) > 50,
