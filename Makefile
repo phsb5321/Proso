@@ -9,9 +9,9 @@ GENERATOR_FAMILY ?=
 ADVERSARIAL_REVIEWER ?= default
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
-	test-fast test build build-chrome build-all coverage architecture stale duplication \
-	semantic docs dependencies quality inventory security verify verify-full adversarial \
-	gate ci status
+	smoke-server-boot test-fast test build build-chrome build-all coverage architecture \
+	stale duplication semantic docs dependencies quality inventory security verify \
+	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Proso delivery harness\n\n"} \
@@ -49,6 +49,10 @@ smoke-reader: ## Run the in-process (jsdom) extraction-to-playback reader oracle
 smoke-reading: ## Drive the built extension in a real Firefox and assert the reading journey.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/smoke-reading.mjs
+
+smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
+	$(PNPM) --filter @proso/server build
+	@node scripts/smoke-server-boot.mjs
 
 test-fast: smoke-reader ## Alias for the fast outcome-level reader check.
 
@@ -102,7 +106,7 @@ security: doctor build ## Build required fixtures, run security tests, and scan 
 		--selectProjects security --maxWorkers=100%
 	@./scripts/security-check.sh
 
-verify: doctor format-check lint typecheck smoke-reader security ## Fast delivery floor.
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security ## Fast delivery floor.
 
 verify-full: verify coverage build-all quality dependencies ## Deep deterministic gate before review.
 	@./scripts/write-gate-receipt.sh
