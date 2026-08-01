@@ -27,6 +27,10 @@ export default defineConfig({
       'tabs', // Tab management and URL tracking
       'contextMenus', // Right-click menu integration
       'scripting', // For programmatic content script injection
+      // Writing exports to disk. Without it `browser.downloads` is undefined,
+      // so the MP3 export and the highlight export throw at their call sites
+      // rather than failing a permission check.
+      'downloads',
     ],
     host_permissions: [
       'https://logs.proso.com.br/*', // Telemetry gateway

@@ -11,10 +11,16 @@
  * @module handlers/highlight
  */
 
+import type { SafeParseReturnType, ZodError } from 'zod';
 import { createHighlightRepository } from '../adapters/storage/highlight-indexeddb.adapter';
+import { serializeHighlightAnchors } from '../core/highlight/highlight-export';
 import { type HighlightColor, createHighlight } from '../core/highlight/highlight.entity';
+import type { Result } from '../core/shared/result';
 import { isOk } from '../core/shared/result';
-import type { IHighlightRepository } from '../ports/highlight-repository.port';
+import type {
+  HighlightRepositoryError,
+  IHighlightRepository,
+} from '../ports/highlight-repository.port';
 import type { HandlerRegistry } from './registry';
 import {
   highlightCreateParamsSchema,
@@ -82,9 +88,27 @@ export interface HighlightDeleteResponse {
   error?: string;
 }
 
+/**
+ * What a handler answers when the only question is "did it work".
+ *
+ * `HighlightUpdateResponse` and `HighlightDeleteResponse` are both this shape.
+ * The handler that serves both is typed against this instead of borrowing one
+ * of their names, which would have it claim to answer the other's message.
+ */
+type AcknowledgedResponse = { success: boolean; error?: string };
+
 export interface HighlightDeleteByUrlResponse {
   success: boolean;
   deletedCount: number;
+  error?: string;
+}
+
+export interface HighlightExportResponse {
+  success: boolean;
+  /** The whole export document, ready to be written to disk verbatim. */
+  json?: string;
+  /** How many highlights the document holds, for the caller to report. */
+  count?: number;
   error?: string;
 }
 
@@ -96,6 +120,23 @@ function formatError(error: { type: string; message?: string; id?: string }): st
     return `Highlight not found: ${error.id ?? 'unknown'}`;
   }
   return (error as { message?: string }).message ?? `Error: ${error.type}`;
+}
+
+/**
+ * Render a schema rejection as the error string handlers report.
+ */
+function validationError(error: ZodError): string {
+  return 'Validation error: ' + error.issues.map((i) => i.message).join('; ');
+}
+
+/**
+ * Describe something that was thrown rather than returned as a Result.
+ *
+ * Every handler here funnels throws into its own failure response, so the
+ * wording lives in one place instead of being restated at each catch.
+ */
+function unexpectedError(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 // Repository instance (singleton)
@@ -119,6 +160,40 @@ export function setHighlightRepository(repo: IHighlightRepository): void {
 }
 
 /**
+ * Register a handler whose answer is only "did it work, and if not why".
+ *
+ * `highlight.update` and `highlight.delete` differ solely in the schema they
+ * accept and the repository call they make. Spelling the surrounding validate/
+ * call/report dance out twice is how the two drift apart.
+ */
+function registerAcknowledged<T>(
+  registry: HandlerRegistry,
+  message: string,
+  schema: { safeParse: (input: unknown) => SafeParseReturnType<unknown, T> },
+  apply: (
+    repo: IHighlightRepository,
+    params: T,
+  ) => Promise<Result<unknown, HighlightRepositoryError>>,
+): void {
+  registry.register(message, async (params: unknown): Promise<AcknowledgedResponse> => {
+    const parsed = schema.safeParse(params);
+    if (!parsed.success) {
+      return { success: false, error: validationError(parsed.error) };
+    }
+
+    try {
+      const result = await apply(getRepository(), parsed.data);
+
+      return isOk(result)
+        ? { success: true }
+        : { success: false, error: formatError(result.error) };
+    } catch (error) {
+      return { success: false, error: unexpectedError(error) };
+    }
+  });
+}
+
+/**
  * Register all highlight handlers.
  *
  * @param registry - Handler registry to register with
@@ -130,10 +205,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
     async (params: unknown): Promise<HighlightCreateResponse> => {
       const parsed = highlightCreateParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return {
-          success: false,
-          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-        };
+        return { success: false, error: validationError(parsed.error) };
       }
 
       try {
@@ -161,10 +233,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
           error: formatError(result.error),
         };
       } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
+        return { success: false, error: unexpectedError(error) };
       }
     },
   );
@@ -173,10 +242,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   registry.register('highlight.get', async (params: unknown): Promise<HighlightGetResponse> => {
     const parsed = highlightGetParamsSchema.safeParse(params);
     if (!parsed.success) {
-      return {
-        success: false,
-        error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-      };
+      return { success: false, error: validationError(parsed.error) };
     }
 
     try {
@@ -206,10 +272,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
 
       return { success: false, error: formatError(result.error) };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return { success: false, error: unexpectedError(error) };
     }
   });
 
@@ -217,11 +280,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
   registry.register('highlight.list', async (params: unknown): Promise<HighlightListResponse> => {
     const parsed = highlightListParamsSchema.safeParse(params);
     if (!parsed.success) {
-      return {
-        success: false,
-        highlights: [],
-        error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-      };
+      return { success: false, highlights: [], error: validationError(parsed.error) };
     }
 
     try {
@@ -243,76 +302,21 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
 
       return { success: false, highlights: [], error: formatError(result.error) };
     } catch (error) {
-      return {
-        success: false,
-        highlights: [],
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      return { success: false, highlights: [], error: unexpectedError(error) };
     }
   });
 
   // UPDATE
-  registry.register(
-    'highlight.update',
-    async (params: unknown): Promise<HighlightUpdateResponse> => {
-      const parsed = highlightUpdateParamsSchema.safeParse(params);
-      if (!parsed.success) {
-        return {
-          success: false,
-          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-        };
-      }
-
-      try {
-        const repo = getRepository();
-
-        const result = await repo.update(parsed.data.id, {
-          color: parsed.data.color as HighlightColor | undefined,
-          note: parsed.data.note,
-        });
-
-        if (isOk(result)) {
-          return { success: true };
-        }
-
-        return { success: false, error: formatError(result.error) };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
-    },
+  registerAcknowledged(registry, 'highlight.update', highlightUpdateParamsSchema, (repo, params) =>
+    repo.update(params.id, {
+      color: params.color as HighlightColor | undefined,
+      note: params.note,
+    }),
   );
 
   // DELETE
-  registry.register(
-    'highlight.delete',
-    async (params: unknown): Promise<HighlightDeleteResponse> => {
-      const parsed = highlightDeleteParamsSchema.safeParse(params);
-      if (!parsed.success) {
-        return {
-          success: false,
-          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-        };
-      }
-
-      try {
-        const repo = getRepository();
-        const result = await repo.delete(parsed.data.id);
-
-        if (isOk(result)) {
-          return { success: true };
-        }
-
-        return { success: false, error: formatError(result.error) };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
-    },
+  registerAcknowledged(registry, 'highlight.delete', highlightDeleteParamsSchema, (repo, params) =>
+    repo.delete(params.id),
   );
 
   // DELETE BY URL
@@ -321,11 +325,7 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
     async (params: unknown): Promise<HighlightDeleteByUrlResponse> => {
       const parsed = highlightDeleteByUrlParamsSchema.safeParse(params);
       if (!parsed.success) {
-        return {
-          success: false,
-          deletedCount: 0,
-          error: 'Validation error: ' + parsed.error.issues.map((i) => i.message).join('; '),
-        };
+        return { success: false, deletedCount: 0, error: validationError(parsed.error) };
       }
 
       try {
@@ -338,12 +338,34 @@ export function registerHighlightHandlers(registry: HandlerRegistry): void {
 
         return { success: false, deletedCount: 0, error: formatError(result.error) };
       } catch (error) {
-        return {
-          success: false,
-          deletedCount: 0,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
+        return { success: false, deletedCount: 0, error: unexpectedError(error) };
       }
     },
   );
+
+  // EXPORT
+  // Highlights are otherwise reachable only from inside the profile's
+  // IndexedDB. This is the one way out: every highlight, in the flat anchor
+  // shape, serialised here so the file's contents are decided in one place
+  // rather than by each caller that happens to write one.
+  registry.register('highlight.export', async (): Promise<HighlightExportResponse> => {
+    try {
+      const repo = getRepository();
+      // No query — an export that silently paginated would hand the consumer a
+      // partial file that still looks complete.
+      const result = await repo.list();
+
+      if (isOk(result)) {
+        return {
+          success: true,
+          json: serializeHighlightAnchors(result.value),
+          count: result.value.length,
+        };
+      }
+
+      return { success: false, error: formatError(result.error) };
+    } catch (error) {
+      return { success: false, error: unexpectedError(error) };
+    }
+  });
 }
