@@ -196,7 +196,34 @@ export class PlaybackService {
       return Err(playbackError.playbackFailed('Cannot resume: not paused'));
     }
 
-    this.audioElement?.play();
+    // Awaiting play() below opens a window this method never used to have, and
+    // `stop()` is not gated on status — it can land inside it, clearing the
+    // element's source and the prefetch buffer. Writing `playing` afterwards
+    // would resurrect a session the reader ended, which is the same lie about
+    // one status this whole change exists to remove. The generation counter
+    // stop()/start() already bump is the seam for noticing.
+    const generation = this.playbackGeneration;
+
+    // This play() has to be awaited and funnelled, not fired and forgotten.
+    // A pause taken during a paragraph transition leaves attachAndPlay() having
+    // deliberately skipped its own play(), so the element here holds a source it
+    // has never played — this is the FIRST play() for that clip, and the two
+    // rejections describePlayError() names (autoplay policy, undecodable blob)
+    // land here rather than there. Dropping one would leave the reader watching
+    // a footer that claims `playing` over an element that is silent, with no
+    // error and nothing to press.
+    if (this.audioElement) {
+      try {
+        await this.audioElement.play();
+      } catch (error) {
+        if (!this.isCurrentGeneration(generation)) return Ok(this.state);
+        const failure = this.describePlayError(error);
+        await this.setError(failure);
+        return Err(failure);
+      }
+    }
+
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     this.deps.prefetch?.queue.start();
     this.deps.prefetch?.service.start();
@@ -782,8 +809,12 @@ export class PlaybackService {
     const played = await this.playAudio(audioResponse.audioBlob, generation);
     if (!played) return Ok(this.state);
 
-    // Update state to playing
-    this.state = playbackStateTransitions.startPlaying(this.state);
+    // Update state to playing — unless the user paused while this clip loaded.
+    // The highlight below still moves to `index` so a resume plays the
+    // paragraph the reader can see is next.
+    if (this.state.status !== 'paused') {
+      this.state = playbackStateTransitions.startPlaying(this.state);
+    }
 
     // Update highlights
     if (this.state.activeTabId !== null) {
@@ -861,7 +892,12 @@ export class PlaybackService {
 
     this.deps.prefetch?.queue.markCached(index);
 
-    this.state = playbackStateTransitions.startPlaying(this.state);
+    // Same rule as the cache/network tail: a pause taken while this clip was
+    // being attached wins, so the status must not claim `playing` for an
+    // element attachAndPlay() deliberately left paused.
+    if (this.state.status !== 'paused') {
+      this.state = playbackStateTransitions.startPlaying(this.state);
+    }
 
     if (this.state.activeTabId !== null) {
       const paragraphText = this.state.paragraphs[index] ?? '';
@@ -946,14 +982,18 @@ export class PlaybackService {
     this.audioElement.src = this.currentAudioUrl;
     this.audioElement.playbackRate = this.state.speed;
 
-    try {
-      await this.audioElement.play();
-    } catch (error) {
-      if (!this.isCurrentGeneration(generation)) return false;
-      await this.setError(this.describePlayError(error));
-      return false;
+    // A pause taken while this clip was still being fetched has to win: playing
+    // here would restart the reading behind the user's back. The element keeps
+    // the loaded source, so `resume()` picks it up with no second fetch.
+    if (this.state.status !== 'paused') {
+      try {
+        await this.audioElement.play();
+      } catch (error) {
+        if (!this.isCurrentGeneration(generation)) return false;
+        await this.setError(this.describePlayError(error));
+        return false;
+      }
     }
-
     return this.isCurrentGeneration(generation);
   }
 
@@ -1101,6 +1141,13 @@ export class PlaybackService {
     });
 
     this.audioElement.addEventListener('ended', () => {
+      // A pause taken as the clip finished must not be undone by the queued
+      // auto-advance: `next()` would move to `loading` and start reading again.
+      // ponytail: resuming then replays the paragraph that is still
+      // highlighted rather than continuing mid-article — audio and highlight
+      // stay in agreement, which is the property that matters here.
+      if (this.state.status === 'paused') return;
+
       // Move to next paragraph; route rejection through the same failure
       // funnel so an unexpected throw is still reported (T008).
       this.next().catch((error: unknown) => {

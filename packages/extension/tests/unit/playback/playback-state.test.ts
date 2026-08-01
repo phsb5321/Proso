@@ -5,16 +5,19 @@
  * Tests the immutable state model and state transitions for playback orchestration.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
-  initialPlaybackState,
-  updatePlaybackState,
-  playbackStateTransitions,
-  playbackStateValidation,
   type PlaybackState,
   type PlaybackStatus,
+  initialPlaybackState,
+  playbackStateTransitions,
+  playbackStateValidation,
+  updatePlaybackState,
 } from '../../../src/core/playback/playback-state';
 import { playbackError } from '../../../src/core/shared/errors';
+
+/** Every status a guard has to answer for — exhaustive on purpose. */
+const ALL_STATUSES: PlaybackStatus[] = ['idle', 'loading', 'playing', 'paused', 'stopped', 'error'];
 
 describe('PlaybackState', () => {
   describe('initialPlaybackState', () => {
@@ -532,10 +535,7 @@ describe('PlaybackState', () => {
         );
         expect(indexError.error).toEqual({ type: 'invalid_paragraph_index', index: 10, max: 5 });
 
-        const tabError = playbackStateTransitions.setError(
-          state,
-          playbackError.tabNotFound(999),
-        );
+        const tabError = playbackStateTransitions.setError(state, playbackError.tabNotFound(999));
         expect(tabError.error).toEqual({ type: 'tab_not_found', tabId: 999 });
       });
     });
@@ -564,25 +564,25 @@ describe('PlaybackState', () => {
         const modifiedState: PlaybackState = {
           status: 'playing',
           currentParagraphIndex: 5,
-        totalParagraphs: 10,
-        paragraphs: ['A', 'B', 'C'],
-        progress: 0.8,
-        speed: 2.0,
-        provider: 'elevenlabs',
-        voice: 'alloy',
-        mode: 'full',
-        activeTabId: 123,
-        currentPageUrl: 'https://example.com',
-        error: null,
-      };
+          totalParagraphs: 10,
+          paragraphs: ['A', 'B', 'C'],
+          progress: 0.8,
+          speed: 2.0,
+          provider: 'elevenlabs',
+          voice: 'alloy',
+          mode: 'full',
+          activeTabId: 123,
+          currentPageUrl: 'https://example.com',
+          error: null,
+        };
 
-      // reset() doesn't take state as parameter, verifying it's truly a reset factory
-      void modifiedState; // Referenced to avoid unused warning
-      const resetState = playbackStateTransitions.reset();
+        // reset() doesn't take state as parameter, verifying it's truly a reset factory
+        void modifiedState; // Referenced to avoid unused warning
+        const resetState = playbackStateTransitions.reset();
 
-      expect(resetState.status).toBe('idle');
-      expect(resetState.provider).toBe('elevenlabs');
-    });
+        expect(resetState.status).toBe('idle');
+        expect(resetState.provider).toBe('elevenlabs');
+      });
     });
 
     describe('updateSettings', () => {
@@ -721,12 +721,11 @@ describe('PlaybackState', () => {
     });
 
     describe('canPause', () => {
-      it('should return true only for playing state', () => {
-        const statuses: PlaybackStatus[] = ['idle', 'loading', 'playing', 'paused', 'stopped', 'error'];
-
-        for (const status of statuses) {
+      it('should return true only while the article is being read', () => {
+        for (const status of ALL_STATUSES) {
           const state: PlaybackState = { ...initialPlaybackState, status };
-          const expected = status === 'playing';
+          // `loading` is a paragraph transition, not a stop: reading is still on.
+          const expected = status === 'playing' || status === 'loading';
           expect(playbackStateValidation.canPause(state)).toBe(expected);
         }
       });
@@ -734,9 +733,7 @@ describe('PlaybackState', () => {
 
     describe('canResume', () => {
       it('should return true only for paused state', () => {
-        const statuses: PlaybackStatus[] = ['idle', 'loading', 'playing', 'paused', 'stopped', 'error'];
-
-        for (const status of statuses) {
+        for (const status of ALL_STATUSES) {
           const state: PlaybackState = { ...initialPlaybackState, status };
           const expected = status === 'paused';
           expect(playbackStateValidation.canResume(state)).toBe(expected);
@@ -946,12 +943,7 @@ describe('PlaybackState', () => {
       let state = initialPlaybackState;
 
       // Start loading
-      state = playbackStateTransitions.startLoading(
-        state,
-        ['Para 1'],
-        1,
-        'https://example.com',
-      );
+      state = playbackStateTransitions.startLoading(state, ['Para 1'], 1, 'https://example.com');
 
       // Error occurs
       state = playbackStateTransitions.setError(
@@ -965,12 +957,7 @@ describe('PlaybackState', () => {
       expect(playbackStateValidation.canStart(state)).toBe(true);
 
       // Retry
-      state = playbackStateTransitions.startLoading(
-        state,
-        ['Para 1'],
-        1,
-        'https://example.com',
-      );
+      state = playbackStateTransitions.startLoading(state, ['Para 1'], 1, 'https://example.com');
       expect(state.status).toBe('loading');
       expect(state.error).toBeNull();
     });
