@@ -23,6 +23,27 @@ const propertyOptions = {
 
 const providers = [TTSProvider.Groq, TTSProvider.OpenAI, TTSProvider.ElevenLabs] as const;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A billing period that contains the moment the test runs.
+ *
+ * synthesize() charges through credit.service, which rejects an allocation
+ * whose periodEnd is behind `new Date()`. A fixture that names the window in
+ * absolute time therefore stops testing what it says: once the wall clock
+ * passes periodEnd, every generated input takes the expired-allocation branch
+ * and the property under test — charge once on success, never on total
+ * failure — is no longer exercised at all. It reads as a failing invariant
+ * rather than a stale fixture, which is exactly how this one was found.
+ */
+function currentBillingPeriod(): { periodStart: Date; periodEnd: Date } {
+  const now = Date.now();
+  return {
+    periodStart: new Date(now - 30 * DAY_MS),
+    periodEnd: new Date(now + 30 * DAY_MS),
+  };
+}
+
 describe('managed TTS credit properties', () => {
   it('charges exactly once for the first successful provider and never for total failure', async () => {
     await fc.assert(
@@ -44,6 +65,7 @@ describe('managed TTS credit properties', () => {
             has: jest.fn(async () => false),
             delete: jest.fn(async () => undefined),
           } as jest.Mocked<CacheStorePort>;
+          const period = currentBillingPeriod();
           const creditRepository = {
             findCurrentAllocation: jest.fn(async () => ({
               id: 'allocation-1',
@@ -51,9 +73,9 @@ describe('managed TTS credit properties', () => {
               subscriptionId: 'subscription-1',
               totalCredits: 1_000_000,
               remainingCredits: 1_000_000,
-              periodStart: new Date('2026-07-01T00:00:00.000Z'),
-              periodEnd: new Date('2026-08-01T00:00:00.000Z'),
-              createdAt: new Date('2026-07-01T00:00:00.000Z'),
+              periodStart: period.periodStart,
+              periodEnd: period.periodEnd,
+              createdAt: period.periodStart,
             })),
             deductCredits: jest.fn(async (allocationId: string, amount: number) => ({
               id: 'transaction-1',
