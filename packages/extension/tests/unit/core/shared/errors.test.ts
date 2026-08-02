@@ -124,6 +124,14 @@ describe('Domain Error Factories', () => {
         message: 'Internal server error',
       });
     });
+
+    it('creates paymentRequired error', () => {
+      const err = audioError.paymentRequired('Managed TTS is not included in the free tier.');
+      expect(err).toEqual({
+        type: 'payment_required',
+        message: 'Managed TTS is not included in the free tier.',
+      });
+    });
   });
 
   describe('highlightError', () => {
@@ -165,6 +173,7 @@ describe('Domain Error Factories', () => {
         audioError.unsupportedLanguage('').type,
         audioError.textTooLong(0).type,
         audioError.providerError('', '').type,
+        audioError.paymentRequired('').type,
       ];
       expect(new Set(types).size).toBe(types.length);
     });

@@ -11,19 +11,22 @@
  */
 
 import { HttpStatus } from '@nestjs/common';
-import { TTSProvider, SubscriptionTier, ErrorCode, Ok, Err } from '@proso/shared';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { THROTTLER_LIMIT, THROTTLER_TTL } from '@nestjs/throttler/dist/throttler.constants';
+import { Err, ErrorCode, Ok, SubscriptionTier, TTSProvider } from '@proso/shared';
+import type { TTSError } from '../../../src/core/shared/domain-errors';
 import { TTSController } from '../../../src/infrastructure/controllers/tts.controller';
+import type { CacheStorePort } from '../../../src/ports/cache-store.port';
 import type {
   CreditAllocationRecord,
   CreditRepositoryPort,
 } from '../../../src/ports/credit-repository.port';
-import type { CacheStorePort } from '../../../src/ports/cache-store.port';
 import type {
   SubscriptionRecord,
   SubscriptionRepositoryPort,
 } from '../../../src/ports/subscription-repository.port';
 import type { TTSProviderPort } from '../../../src/ports/tts-provider.port';
-import type { TTSError } from '../../../src/core/shared/domain-errors';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -269,6 +272,21 @@ describe('TTSController — error response shape (T001)', () => {
       for (const adapter of providers.values()) {
         expect(adapter.synthesize).not.toHaveBeenCalled();
       }
+    });
+  });
+
+  describe('provider-backed anonymous endpoint throttle wiring', () => {
+    it.each([
+      ['testKey', 5],
+      ['getVoices', 30],
+    ] as const)('binds %s to the configured long window at %i requests/minute', (method, limit) => {
+      const handler = TTSController.prototype[method];
+      const guards = Reflect.getMetadata(GUARDS_METADATA, handler) as unknown[] | undefined;
+
+      expect(guards).toContain(ThrottlerGuard);
+      expect(Reflect.getMetadata(`${THROTTLER_LIMIT}long`, handler)).toBe(limit);
+      expect(Reflect.getMetadata(`${THROTTLER_TTL}long`, handler)).toBe(60_000);
+      expect(Reflect.getMetadata(`${THROTTLER_LIMIT}default`, handler)).toBeUndefined();
     });
   });
 });

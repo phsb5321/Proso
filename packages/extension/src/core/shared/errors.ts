@@ -55,7 +55,11 @@ export type AudioError =
   | { type: 'invalid_credentials' }
   | { type: 'unsupported_language'; language: string }
   | { type: 'text_too_long'; maxLength: number }
-  | { type: 'provider_error'; code: string; message: string };
+  | { type: 'provider_error'; code: string; message: string }
+  // The server refused on entitlement grounds (HTTP 402). It is distinct from
+  // `network` so the reader sees the server's actionable message without a
+  // false transport-failure prefix.
+  | { type: 'payment_required'; message: string };
 
 /**
  * Highlight synchronization errors.
@@ -173,6 +177,10 @@ export const audioError = {
   providerError: (code: string, message: string): AudioError => ({
     type: 'provider_error',
     code,
+    message,
+  }),
+  paymentRequired: (message: string): AudioError => ({
+    type: 'payment_required',
     message,
   }),
 };

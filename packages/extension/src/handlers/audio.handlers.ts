@@ -77,6 +77,11 @@ function getAudioErrorMessage(error: AudioError): string {
       return `Text too long (max ${error.maxLength} characters)`;
     case 'provider_error':
       return `Provider error [${error.code}]: ${error.message}`;
+    case 'payment_required':
+      // Verbatim — the server writes this one for the reader, and every prefix
+      // this function could add ("Network error:", "Provider error:") would
+      // misdescribe an entitlement refusal as a fault.
+      return error.message;
     default:
       return 'Unknown audio error';
   }

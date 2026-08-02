@@ -69,6 +69,11 @@ export class ServerTtsAudioAdapter implements IAudioGenerator {
           if (error.status === 429) {
             return Err(audioError.rateLimit(error.retryAfterMs ?? 0));
           }
+          // 402 is an entitlement refusal, not a transport failure. Carry the
+          // server's reader-facing remedy through unchanged.
+          if (error.status === 402) {
+            return Err(audioError.paymentRequired(error.message));
+          }
           return Err(audioError.network(error.message));
         default:
           return Err(

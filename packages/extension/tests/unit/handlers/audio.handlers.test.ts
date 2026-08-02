@@ -13,9 +13,9 @@
  * @module tests/unit/handlers/audio.handlers
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -269,20 +269,17 @@ describe('audio.handlers', () => {
     it('should return container_not_initialized when container is not ready', async () => {
       mockIsContainerInitialized.mockReturnValue(false);
 
-      const result = (await dispatchOk(
-        registry,
-        'audio.validateCredentials',
-        {},
-      )) as { ok: boolean; error?: { type: string } };
+      const result = (await dispatchOk(registry, 'audio.validateCredentials', {})) as {
+        ok: boolean;
+        error?: { type: string };
+      };
 
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('container_not_initialized');
     });
 
     it('should return valid=false (not Err) when validateCredentials throws', async () => {
-      mockAudioGenerator.validateCredentials.mockRejectedValue(
-        new Error('network failure'),
-      );
+      mockAudioGenerator.validateCredentials.mockRejectedValue(new Error('network failure'));
 
       const result = (await dispatchOk(registry, 'audio.validateCredentials', {})) as {
         ok: boolean;
@@ -402,6 +399,25 @@ describe('audio.handlers', () => {
       expect(result.ok).toBe(false);
       expect(result.error!.type).toBe('operation_failed');
       expect(result.error!.message).toBeDefined();
+    });
+
+    it('preserves the server message for payment_required without a fault prefix', async () => {
+      const message =
+        'Managed TTS is not included in this tier. Add a provider API key in settings, or use a plan that includes managed TTS.';
+      mockAudioGenerator.generateAudio.mockResolvedValue({
+        ok: false,
+        error: { type: 'payment_required', message },
+      });
+
+      const result = (await dispatchOk(registry, 'audio.generate', validRequest)) as {
+        ok: boolean;
+        error?: { type: string; message: string };
+      };
+
+      expect(result).toEqual({
+        ok: false,
+        error: { type: 'operation_failed', message },
+      });
     });
 
     it('should return operation_failed when generateAudio throws', async () => {
