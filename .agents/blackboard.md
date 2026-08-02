@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 13:50 BRT.
+Updated: 02/08/2026 14:26 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -12,23 +12,30 @@ assignments.
 
 | Active pane | Role | Exclusive worktree / branch | Scope | Status |
 |---|---|---|---|---|
-| `w2:p3` | Engineer | `proso-098-ops-parity` / `098-ops-parity`; retain `proso-82-extension-402` / `096-tts-boundary-hardening` unchanged | Sole implementation owner for Feature 098: retain clean-bootstrap RED, change only the `smoke-server-boot` dependency filter, retain GREEN, and run focused checks. Do not mutate 093/094/095/096, workflows, packages, Notes, or sync. | 098 assigned test-first after `OPS-PARITY-AUDITED`; PR #86 stays draft/CLEAN at `33ba614` and untouched |
-| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration`; SpecKit bootstrap only on `proso-098-ops-parity` | Maintain this map, create/publish the 098 SpecKit contract, dispatch exact work, and own safe PRs through merge. No feature implementation. | PR #83 is OPEN/CLEAN at `995fd2a`; the 098 bootstrap slice is the independently reversible repair for its clean-build blocker |
-| `w2:p2` | Product | None (exact-HEAD reviewer) | Review Feature 098's P0–P3 classes, default-deny vault audience, zero-telemetry current contract, cache/retention decisions, and public Firefox accessibility oracles. Do not implement worker/runtime/public-policy/Notes slices. | Ops-parity audit complete; public policy publication, runtime privacy changes, and no-key Free entitlement remain separately gated |
-| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive); exact-HEAD reviewer only | Preserve retired 093, validate Feature 098's clean RED/GREEN falsifier and scope, and confirm no workflow/browser/sync expansion. Do not repeat Firefox/fuzz. | Ops-parity audit complete; Semgrep/CodeQL/evidence/security-budget work is split into later local slices; workflow/Sonar changes stay `[pending] Pedro` |
+| `w2:p3` | Engineer | Retain `proso-82-extension-402` / `096-tts-boundary-hardening` unchanged | Hold clean PR #86 and support exact-HEAD delivery gates. Do not duplicate the public Firefox gate or mutate retired 093/094/095. | Feature 098 implementation merged via PR #87; PR #86 remains draft at `33ba614` and must reconcile current main before any later delivery |
+| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this map, reconcile merged 098 evidence, and own the safe coordination PR through its gates and merge. No worker-feature implementation. | PR #83 is OPEN; local coordination branch includes `origin/main@e5193c0` and this final 098 receipt |
+| `w2:p2` | Product | None (read-only reviewer) | Preserve the ratified P0–P3/default-deny contract and review later Product slices only when assigned. Do not implement runtime/public-policy/Notes work. | Exact Feature 098 review `APPROVE` at `933726a`; privacy publication, retention, telemetry, cache, and no-key Free decisions remain separately gated |
+| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive) | Preserve retired 093 and own any separately assigned Quality slice. Do not repeat Firefox/fuzz or treat internal dispatch as public acceptance. | Exact Feature 098 review `APPROVE` at `933726a`; public user gate remains `BLOCKED`; Semgrep/CodeQL/evidence/security-budget work remains split |
 
 ## Operational-parity audit and first slice — 02/08/2026
 
 `OPS-PARITY-AUDITED` was emitted before the 098 worktree or any parity-related
 repository mutation. Product, Engineer, and Quality each supplied a read-only
 evidence/falsifier matrix. The reconciled classification is tracked in
-`specs/098-ops-parity/research.md` on branch `098-ops-parity`.
+`specs/098-ops-parity/research.md` on `main` after PR #87.
 
 The first slice is deliberately one implementation line: select
 `@proso/server...` in `smoke-server-boot` so pnpm builds the existing shared
 workspace dependency before the server in a fresh worktree. Engineer owns the
 worktree after Orchestrator publishes the SpecKit bootstrap. Product and Quality
-are read-only exact-HEAD reviewers.
+were read-only exact-HEAD reviewers.
+
+PR #87 merged the safe slice at `e5193c0` from reviewed head `933726a`.
+Engineer retained the causal post-bootstrap RED and dependency-aware GREEN;
+Product and Quality both returned exact-head `APPROVE` with no findings. A
+Meta-family `llama-3.3-70b-versatile` review returned `PASS` with six concrete
+file-bound traces and zero findings. No runtime, workflow, manifest, lockfile,
+service, Notes, sync, token, Firefox/fuzz, or PR #86 mutation was included.
 
 The following remain independent follow-ups, not hidden scope on 098: root
 security/threat/secret/retention documentation; durable evidence manifests;
@@ -102,18 +109,20 @@ as migration evidence and are not additional active owner assignments.
 - GitHub Actions/workflow changes stay `[pending] Pedro`; no workflow change is
   folded into the safe local slices.
 
-## Deterministic-gate blocker — verified 02/08/2026 00:20 BRT
+## Clean bootstrap resolution and deep-gate honesty — 02/08/2026 14:26 BRT
 
-`nix shell nixpkgs#gnumake --command make verify-full` fails after a clean
-`make bootstrap`: `smoke-server-boot` builds the server before
-`@proso/shared`, and the absent `packages/shared/dist` makes `@proso/shared`
-unresolvable. This is not a 094 documentation regression. The falsifier was
-run: `pnpm --filter @proso/shared build` followed by `make smoke-server-boot`
-passes (built server present; boot routing returned HTTP 503 as expected).
+PR #87 fixed the former deterministic build-ordering blocker: from a clean
+bootstrap with `packages/shared/dist` absent, `smoke-server-boot` now selects
+`@proso/server...`, builds shared then server, finds the built artifact, and
+observes HTTP 503 from `/health`.
 
-Treat this as a separately scoped build-ordering repair. Do not fold it into
-093, 096, or 097, and do not mark PR #83 deterministic-green until a fresh
-clean-bootstrap `make verify-full` passes.
+The fast `make verify` dependency completed repeatedly. `make verify-full` is
+**not** recorded green and no receipt was created: while host load exceeded 80
+on 22 cores, three attempts reached timeout-only failures in three different
+unchanged tests. The furthest attempt passed all 2,922 extension tests and all
+426 server assertions before an unchanged Prisma `afterAll` cleanup exceeded
+five seconds. This is retained as load-sensitive gate evidence, not waived or
+misreported as success. The public Firefox user gate also remains `BLOCKED`.
 
 ## Feature 096 delivery gates — PR #86
 
@@ -121,10 +130,10 @@ PR #86 is a cross-service draft at `33ba614`; extension/server tests, Server CI
 lint/test/build, security audit, E2E, visual, and GitGuardian passed at 00:40.
 Sonar is skipped and remains non-evidence. Before any merge it needs: (1) p4's retained,
 exact-HEAD public browser-action observation of the visible 402 refusal and
-clean stopped state; (2) a non-OpenAI typed review; and (3) a clear record that
-the repository-wide `verify-full` failure is the separately scoped clean-
-bootstrap ordering defect, not a claim of green. The cross-service gate forbids
-self-merge. Sonar is skipped and is not quality evidence.
+clean stopped state; (2) a non-OpenAI typed review; (3) an explicit update from
+current main so the merged clean-bootstrap repair is present; and (4) Pedro's
+cross-service merge decision. The cross-service gate forbids self-merge. Sonar
+is skipped and is not quality evidence.
 
 ## Quality migration receipt — 02/08/2026 13:36 BRT
 
