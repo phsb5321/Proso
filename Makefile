@@ -7,9 +7,11 @@ SHELL := /bin/bash
 PNPM ?= pnpm
 GENERATOR_FAMILY ?=
 ADVERSARIAL_REVIEWER ?= default
+FC_SEED ?= 20260730
+FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
-	smoke-server-boot test-fast test build build-chrome build-all coverage architecture \
+	smoke-server-boot fuzz user-gate-diagnostic user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
 
@@ -53,6 +55,22 @@ smoke-reading: ## Drive the built extension in a real Firefox and assert the rea
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter @proso/server build
 	@node scripts/smoke-server-boot.mjs
+
+fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUNS.
+	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) NODE_OPTIONS='--experimental-vm-modules' \
+		$(PNPM) --filter @proso/extension exec jest --selectProjects unit --runInBand \
+		tests/unit/playback/playback-state.property.test.ts
+	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) \
+		$(PNPM) --filter @proso/server exec jest --runInBand \
+		tests/unit/core/shared/tts-schema.property.spec.ts \
+		tests/unit/core/tts/tts-credit.property.spec.ts
+
+user-gate-diagnostic: fuzz smoke-reading ## Run seeded models and the internal-dispatch Firefox diagnostic.
+
+user-gate: user-gate-diagnostic ## Fail closed until a public-control Firefox actor satisfies Feature 095.
+	@echo 'BLOCKED: smoke-reading invokes Firefox internal shortcuts.onCommand and is diagnostic-only.' >&2
+	@echo 'BLOCKED: public-control, anomaly/restart/soak, and unified receipt evidence are required by Feature 095.' >&2
+	@exit 2
 
 test-fast: smoke-reader ## Alias for the fast outcome-level reader check.
 

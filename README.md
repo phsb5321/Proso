@@ -10,9 +10,11 @@
 > background with DOM access and native `Audio` playback. Speech synthesis is server-backed.
 
 Proso is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with
-natural, expressive voices. The default free-tier flow needs no account, license key, or provider
-API key; the Proso server selects a configured TTS provider. Users may optionally supply a provider
-key for a single request through the BYOK flow.
+natural, expressive voices. The product contract requires an account-free reading path, but current
+`main` does not satisfy it: server-managed TTS requires an eligible plan and browser TTS was
+removed. BYOK remains available without an account. See the tracked
+[`reading journey contract`](specs/095-reading-journey-contract/spec.md) for the blocking gap and
+the evidence required before the anonymous path is claimed again.
 
 ## Features
 
@@ -23,7 +25,8 @@ key for a single request through the BYOK flow.
 - **Floating Controller** - Draggable on-page controls for easy access
 - **Context Menu Integration** - Right-click any selected text to read it aloud
 - **Modern Dark UI** - Beautiful, distraction-free interface
-- **Optional BYOK** - Provider keys are stored in extension storage and forwarded per request
+- **Optional BYOK** - Provider keys are stored in extension storage, forwarded through the Proso
+  API only for the explicit request, and never retained by the server
 
 ## Installation
 
@@ -52,9 +55,9 @@ Proso routes synthesis through its server and currently supports these providers
 
 | Provider | Default path | Optional BYOK |
 |----------|--------------|---------------|
-| **OpenAI** | Server-managed free/credit routing | Supported |
-| **ElevenLabs** | Server-managed free/credit routing | Supported |
-| **Groq** | Server-managed free/credit routing | Supported |
+| **OpenAI** | Server-managed for eligible plans | Supported |
+| **ElevenLabs** | Server-managed for eligible plans | Supported |
+| **Groq** | Server-managed for eligible plans | Supported |
 | **Cartesia** | BYOK-only | Supported |
 
 1. Click the Proso icon in your toolbar

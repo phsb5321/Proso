@@ -4,20 +4,26 @@
     {
       "path": "README.md",
       "owner": "proso",
-      "reviewedAt": "2026-07-30",
-      "expires": "2026-10-30"
+      "reviewedAt": "2026-08-02",
+      "expires": "2026-11-02"
     },
     {
       "path": "docs/agent-delivery-harness.md",
       "owner": "proso",
-      "reviewedAt": "2026-07-30",
-      "expires": "2026-10-30"
+      "reviewedAt": "2026-08-02",
+      "expires": "2026-11-02"
     },
     {
       "path": "docs/reading-journey-status.md",
       "owner": "proso",
-      "reviewedAt": "2026-07-30",
-      "expires": "2026-10-30"
+      "reviewedAt": "2026-08-02",
+      "expires": "2026-11-02"
+    },
+    {
+      "path": "specs/095-reading-journey-contract/spec.md",
+      "owner": "proso",
+      "reviewedAt": "2026-08-02",
+      "expires": "2026-11-02"
     },
     {
       "path": "docs/sonarqube.md",
