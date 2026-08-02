@@ -53,7 +53,7 @@ smoke-reading: ## Drive the built extension in a real Firefox and assert the rea
 	@node scripts/smoke-reading.mjs
 
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
-	$(PNPM) --filter @proso/server build
+	$(PNPM) --filter '@proso/server...' build
 	@node scripts/smoke-server-boot.mjs
 
 fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUNS.
