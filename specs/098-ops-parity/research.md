@@ -42,6 +42,21 @@
 | P2 Restricted operator | Secret names/scopes/owners, private endpoints, incidents, billing operations | Pedro and explicitly authorized operators in private Notes | Repo, PR bodies, CI artifacts, external model prompts |
 | P3 Restricted user/secret | Keys/tokens, page text, audio, history, account/payment/ledger rows, raw logs | Minimum runtime component for bounded purpose/retention | Notes, repo, exports, fixtures, screenshots, prompts, PRs |
 
+## Fail-Closed Product Acceptance Oracles
+
+- Before an explicit public start action, page content has no network egress and is not stored;
+  after start, only the exact requested selection or article fragment may enter synthesis.
+- Public browser-action and keyboard controls preserve focus and expose stable role/name plus a
+  live `ready`/`loading`/`playing`/`paused`/`stopped`/`error` status; stop and restart clear all
+  transient text, audio, and highlight state.
+- Failure, BYOK, and cache-hit paths debit managed credit zero times. A successful managed
+  synthesis is debited exactly once to the provider that delivered the audio, and the visible
+  remaining balance equals the authoritative ledger.
+
+Missing Firefox, public selectors, focus/status observability, or accounting evidence keeps the
+corresponding outcome `BLOCKED`; internal dispatch, screenshots, builds, or private state cannot
+upgrade it.
+
 ## Knowledge Model
 
 - Source of truth for private rationale: `~/Documents/Notes/1. Projects/Proso/`.
