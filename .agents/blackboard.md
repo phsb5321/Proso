@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 00:34 BRT.
+Updated: 02/08/2026 00:40 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -12,7 +12,7 @@ superseded by the authoritative correction below—p1 is Code and p3 is Product
 
 | Seat | Owner | Exclusive worktree / branch | Scope | Status |
 |---|---|---|---|---|
-| p1 | Code | `proso-82-extension-402` / `096-tts-boundary-hardening` | Feature 096 implemented at `33ba614`: 402 maps to `payment_required`, preserves the capability-based remedy in a stopped popup, and repairs named `long` throttles with effective 5/min test-key and 30/min voices HTTP proofs. | PR #86 draft; CI in progress. No no-key Free restoration or Feature 093 completion claim |
+| p1 | Code | `proso-82-extension-402` / `096-tts-boundary-hardening` | Feature 096 implemented at `33ba614`: 402 maps to `payment_required`, preserves the capability-based remedy in a stopped popup, and repairs named `long` throttles with effective 5/min test-key and 30/min voices HTTP proofs. | PR #86 draft; all completed CI checks green at 00:40. No no-key Free restoration or Feature 093 completion claim |
 | p2 | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this owner map, reconcile worktree/PR/gate facts, and route safe merge work. No feature implementation. | In progress |
 | p3 | Product & Intent | `proso-097-reading-journey-delta` / `097-reading-journey-delta` | Completed the audited Product delta: explicit per-journey falsifiers and the BYOK proxy oracle (transient receipt only; no retention/logging/wrong-provider forwarding/managed-credit debit). | **MERGED** as PR #85 at 00:24, squash `444a09e`; Meta `llama-3.3-70b-versatile` PASS FR-001..FR-007, zero findings |
 | p4 | E2E & Quality | `proso-093-user-simulation-gate` / `093-user-simulation-gate` | Exclusively rework Feature 093 using Firefox's Unified Extensions panel and Proso browser action as the public start surface. Observe the p1 `33ba614` 402 refusal through those public controls without mutating the Code worktree; internal dispatch stays diagnostic only. | In progress; J-001 no-key managed journey is blocked pending Pedro, never skipped or fixture-simulated |
@@ -69,8 +69,9 @@ clean-bootstrap `make verify-full` passes.
 
 ## Feature 096 delivery gates — PR #86
 
-PR #86 is a cross-service draft at `33ba614` with extension/server/security CI
-still in progress at 00:34. Before any merge it needs: (1) p4's retained,
+PR #86 is a cross-service draft at `33ba614`; extension/server tests, Server CI
+lint/test/build, security audit, E2E, visual, and GitGuardian passed at 00:40.
+Sonar is skipped and remains non-evidence. Before any merge it needs: (1) p4's retained,
 exact-HEAD public browser-action observation of the visible 402 refusal and
 clean stopped state; (2) a non-OpenAI typed review; and (3) a clear record that
 the repository-wide `verify-full` failure is the separately scoped clean-
