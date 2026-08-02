@@ -11,3 +11,5 @@
   Product before recording any delta.
 - [x] Inspect the historical 096-ledger provenance and route its status-doc
   delta to the 097 audit without touching the ledger worktree.
+- [x] Record the clean-bootstrap deterministic build-ordering blocker and its
+  shared-build falsifier without expanding an active implementation slice.

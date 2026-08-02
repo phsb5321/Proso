@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 00:16 BRT.
+Updated: 02/08/2026 00:20 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -48,3 +48,16 @@ superseded by the authoritative correction below—p1 is Code and p3 is Product
   the same family and cannot review each other.
 - GitHub Actions/workflow changes stay `[pending] Pedro`; no workflow change is
   folded into the safe local slices.
+
+## Deterministic-gate blocker — verified 02/08/2026 00:20 BRT
+
+`nix shell nixpkgs#gnumake --command make verify-full` fails after a clean
+`make bootstrap`: `smoke-server-boot` builds the server before
+`@proso/shared`, and the absent `packages/shared/dist` makes `@proso/shared`
+unresolvable. This is not a 094 documentation regression. The falsifier was
+run: `pnpm --filter @proso/shared build` followed by `make smoke-server-boot`
+passes (built server present; boot routing returned HTTP 503 as expected).
+
+Treat this as a separately scoped build-ordering repair. Do not fold it into
+093, 096, or 097, and do not mark PR #83 deterministic-green until a fresh
+clean-bootstrap `make verify-full` passes.
