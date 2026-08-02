@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 00:40 BRT.
+Updated: 02/08/2026 13:36 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -15,7 +15,7 @@ superseded by the authoritative correction below—p1 is Code and p3 is Product
 | p1 | Code | `proso-82-extension-402` / `096-tts-boundary-hardening` | Feature 096 implemented at `33ba614`: 402 maps to `payment_required`, preserves the capability-based remedy in a stopped popup, and repairs named `long` throttles with effective 5/min test-key and 30/min voices HTTP proofs. | PR #86 draft; all completed CI checks green at 00:40. No no-key Free restoration or Feature 093 completion claim |
 | p2 | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this owner map, reconcile worktree/PR/gate facts, and route safe merge work. No feature implementation. | In progress |
 | p3 | Product & Intent | `proso-097-reading-journey-delta` / `097-reading-journey-delta` | Completed the audited Product delta: explicit per-journey falsifiers and the BYOK proxy oracle (transient receipt only; no retention/logging/wrong-provider forwarding/managed-credit debit). | **MERGED** as PR #85 at 00:24, squash `444a09e`; Meta `llama-3.3-70b-versatile` PASS FR-001..FR-007, zero findings |
-| p4 | E2E & Quality | `proso-093-user-simulation-gate` / `093-user-simulation-gate` | Exclusively rework Feature 093 using Firefox's Unified Extensions panel and Proso browser action as the public start surface. Observe the p1 `33ba614` 402 refusal through those public controls without mutating the Code worktree; internal dispatch stays diagnostic only. | In progress; J-001 no-key managed journey is blocked pending Pedro, never skipped or fixture-simulated |
+| p4 | E2E & Quality | Retained `proso-093-user-simulation-gate` (inactive) | Feature 093 migrated and merged as PR #84 / `87b2cbb`. Preserve this clean, upstream-gone worktree; never reset or reuse it. A future fresh Quality worktree must own public Firefox browser-action/accessibility controls and the unified anomaly/restart/soak receipt. | BLOCK remains: internal dispatch is diagnostic-only; J-001 no-key managed journey is `[pending] Pedro` |
 
 ## Numbering and preservation facts
 
@@ -77,3 +77,14 @@ clean stopped state; (2) a non-OpenAI typed review; and (3) a clear record that
 the repository-wide `verify-full` failure is the separately scoped clean-
 bootstrap ordering defect, not a claim of green. The cross-service gate forbids
 self-merge. Sonar is skipped and is not quality evidence.
+
+## Quality migration receipt — 02/08/2026 13:36 BRT
+
+PR #84 merged Feature 093 at `87b2cbb`; the retained 093 worktree is clean at
+`43a1a82` with its upstream branch gone. Quality made no post-migration change
+and started no duplicate Firefox/fuzz run. `make user-gate` remains BLOCKED as
+a completion oracle: its internal `ExtensionParent`/`shortcuts.onCommand()`
+actor is diagnostic-only and its exit 2 was retained negative-control evidence.
+The remaining future acceptance work is public browser-action/accessible-control
+driving plus a unified anomaly/restart/soak receipt. The pre-cache Free managed
+TTS 402 remains a Pedro-gated entitlement decision.

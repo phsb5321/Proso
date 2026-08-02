@@ -15,5 +15,7 @@
   096-ledger correction as superseded by current `origin/main`.
 - [x] Verify PR #86's exact Code head and route its public-browser,
   non-OpenAI-review, and cross-service delivery gates.
+- [x] Verify Quality's #84 migration receipt and retire the clean 093 worktree
+  from active mutation without resetting or reusing it.
 - [x] Record the clean-bootstrap deterministic build-ordering blocker and its
   shared-build falsifier without expanding an active implementation slice.
