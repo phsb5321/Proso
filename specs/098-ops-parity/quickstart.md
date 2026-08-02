@@ -3,12 +3,13 @@
 ## RED
 
 ```bash
+nix shell nixpkgs#gnumake --command make bootstrap
 test ! -e packages/shared/dist/index.js
 nix shell nixpkgs#gnumake --command make smoke-server-boot
 ```
 
-Expected before the fix: the server build cannot resolve `@proso/shared` because its
-ignored `dist/**` output does not exist.
+Expected before the fix: bootstrap installs the workspace without creating shared's
+ignored `dist/**` output, then the server build cannot resolve `@proso/shared`.
 
 ## Minimum implementation
 

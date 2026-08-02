@@ -13,11 +13,11 @@ Product and Quality review exact HEAD.
 
 ## Phase 2: User Story 1 — Clean server bootstrap (P1)
 
-- [ ] T005 [US1] Engineer: confirm `packages/shared/dist/index.js` is absent in the fresh 098 worktree.
-- [ ] T006 [US1] Engineer: retain RED from `nix shell nixpkgs#gnumake --command make smoke-server-boot` showing shared module resolution failure.
-- [ ] T007 [US1] Engineer: change only the server build recipe in `Makefile` to the dependency-aware `@proso/server...` filter.
-- [ ] T008 [US1] Engineer: replay the clean command and retain GREEN showing shared then server build and an observed HTTP response.
-- [ ] T009 [US1] Engineer: run `git diff --check`, `make docs`, and focused static/Make checks without modifying workflows or packages.
+- [x] T005 [US1] Engineer: confirm `packages/shared/dist/index.js` is absent in the fresh 098 worktree.
+- [x] T006 [US1] Engineer: retain RED from `nix shell nixpkgs#gnumake --command make smoke-server-boot` showing shared module resolution failure.
+- [x] T007 [US1] Engineer: change only the server build recipe in `Makefile` to the dependency-aware `@proso/server...` filter.
+- [x] T008 [US1] Engineer: replay the clean command and retain GREEN showing shared then server build and an observed HTTP response.
+- [x] T009 [US1] Engineer: run `git diff --check`, `make docs`, and focused static/Make checks without modifying workflows or packages.
 
 ## Phase 3: Exact-HEAD specialist review
 
