@@ -21,6 +21,9 @@ and an agent review cannot override a red deterministic check.
 | Command | Enforced outcome |
 |---|---|
 | `make smoke-reader` | Real extractor → no-license API request → server TTS adapter → cache/audio/highlight state → controls |
+| `make fuzz` | Seeded extension playback plus server schema/credit properties; `FC_SEED` and `FC_NUM_RUNS` are replay controls |
+| `make user-gate-diagnostic` | Focused properties followed by the built extension's internal-dispatch Firefox diagnostic |
+| `make user-gate` | Fails closed until a public-control Firefox actor, outcome matrix, and unified receipt satisfy Feature 095 |
 | `make verify` | Tool readiness, formatting, lint, type checks, reader smoke, security tests, source secret scan |
 | `make coverage` | All three test suites plus ≥80% coverage on changed production lines; missing reports fail |
 | `make quality` | Import boundaries, Knip/clone/OpenGrep ratchets, active-doc contract, and legacy cycle evidence |
