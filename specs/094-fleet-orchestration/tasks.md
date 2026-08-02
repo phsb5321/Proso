@@ -17,5 +17,9 @@
   non-OpenAI-review, and cross-service delivery gates.
 - [x] Verify Quality's #84 migration receipt and retire the clean 093 worktree
   from active mutation without resetting or reusing it.
+- [x] Capture native Codex migration receipts from Engineer, Product, and
+  Quality, then publish the reconciled `side-projects` owner map.
+- [x] Re-read the final `w2C:p2` predecessor delta after it advanced PR #83 and
+  bind the map to clean HEAD `72074e` and live GitHub checks.
 - [x] Record the clean-bootstrap deterministic build-ordering blocker and its
   shared-build falsifier without expanding an active implementation slice.

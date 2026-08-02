@@ -1,21 +1,34 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 13:36 BRT.
+Updated: 02/08/2026 13:40 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
 or move another seat's worktree.
 
-The single merged 00:07 Product entry is retained as history: its ownership is
-superseded by the authoritative correction below—p1 is Code and p3 is Product
-& Intent for audited post-merge deltas only.
+The active rows use the native Codex panes in HERDR session `side-projects`.
+References to `home` panes below are preserved predecessor history, not active
+assignments.
 
-| Seat | Owner | Exclusive worktree / branch | Scope | Status |
+| Active pane | Role | Exclusive worktree / branch | Scope | Status |
 |---|---|---|---|---|
-| p1 | Code | `proso-82-extension-402` / `096-tts-boundary-hardening` | Feature 096 implemented at `33ba614`: 402 maps to `payment_required`, preserves the capability-based remedy in a stopped popup, and repairs named `long` throttles with effective 5/min test-key and 30/min voices HTTP proofs. | PR #86 draft; all completed CI checks green at 00:40. No no-key Free restoration or Feature 093 completion claim |
-| p2 | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this owner map, reconcile worktree/PR/gate facts, and route safe merge work. No feature implementation. | In progress |
-| p3 | Product & Intent | `proso-097-reading-journey-delta` / `097-reading-journey-delta` | Completed the audited Product delta: explicit per-journey falsifiers and the BYOK proxy oracle (transient receipt only; no retention/logging/wrong-provider forwarding/managed-credit debit). | **MERGED** as PR #85 at 00:24, squash `444a09e`; Meta `llama-3.3-70b-versatile` PASS FR-001..FR-007, zero findings |
-| p4 | E2E & Quality | Retained `proso-093-user-simulation-gate` (inactive) | Feature 093 migrated and merged as PR #84 / `87b2cbb`. Preserve this clean, upstream-gone worktree; never reset or reuse it. A future fresh Quality worktree must own public Firefox browser-action/accessibility controls and the unified anomaly/restart/soak receipt. | BLOCK remains: internal dispatch is diagnostic-only; J-001 no-key managed journey is `[pending] Pedro` |
+| `w2:p3` | Engineer | `proso-82-extension-402` / `096-tts-boundary-hardening` | Hold Feature 096 clean at `33ba614` and support its exact-HEAD gates. Do not mutate 093/094/095 or duplicate the browser gate. | PR #86 is draft/CLEAN; runnable CI green, Sonar skipped/non-evidence, zero reviews/comments/threads. Blocked on public Firefox 402 evidence, non-OpenAI review, and Pedro's cross-service merge gate |
+| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this map, reconcile PR/worktree/gate facts, dispatch uniquely numbered slices, and own safe PRs through merge. No feature implementation. | PR #83 is OPEN/CLEAN at `72074e`; GitGuardian passed, Sonar skipped/non-evidence, zero reviews/comments. Deterministic gate remains blocked by clean-bootstrap shared-build ordering |
+| `w2:p2` | Product | None | Read-only audit of current 093/096 outcomes against the merged Feature 095 falsifiers. No fresh Product worktree is assigned. | Migration complete; PR #85 merged as `444a09e`. Anonymous no-key Free entitlement remains `[pending] Pedro` |
+| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive) | Preserve the clean, upstream-gone worktree from merged PR #84; do not reset or reuse it. Any future public Firefox actor work needs a fresh unique worktree. | Migration complete; no duplicate Firefox/fuzz run. Internal dispatch remains diagnostic-only and `make user-gate` remains fail-closed |
+
+## Lossless migration receipts — 02/08/2026
+
+- Engineer captured predecessor `w2C:p1`, exact Feature 096 HEAD `33ba614`,
+  clean owned worktree, PR #86 gates, and no running heavy process.
+- Product captured predecessor `w2C:p3`, confirmed merged PR #85 and no owned
+  worktree, then completed a read-only 093/096 acceptance audit.
+- Quality captured predecessor `w2C:p4`, confirmed merged PR #84 and the clean
+  retained 093 worktree, and did not repeat Firefox/fuzz evidence.
+- Orchestrator captured predecessor `w2C:p2`, then re-read its final delta after
+  the predecessor advanced 094. Final source state: idle at `72074e`, clean and
+  tracking origin; PR #83 OPEN/CLEAN on base `444a09e`, GitGuardian passed,
+  Sonar skipped, and no reviews/comments.
 
 ## Superseded operational history (preserved)
 
