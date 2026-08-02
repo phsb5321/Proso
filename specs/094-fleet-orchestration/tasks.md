@@ -13,5 +13,7 @@
   delta to the 097 audit without touching the ledger worktree.
 - [x] Verify PR #85 merged the audited 097 Product delta and classify the
   096-ledger correction as superseded by current `origin/main`.
+- [x] Verify PR #86's exact Code head and route its public-browser,
+  non-OpenAI-review, and cross-service delivery gates.
 - [x] Record the clean-bootstrap deterministic build-ordering blocker and its
   shared-build falsifier without expanding an active implementation slice.
