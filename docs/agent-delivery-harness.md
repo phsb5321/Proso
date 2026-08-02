@@ -1,6 +1,6 @@
 # Agent delivery harness
 
-Last reconciled: 30/07/2026 16:55 BRT.
+Last reconciled: 02/08/2026 00:17 BRT.
 
 This is the persistent delivery contract for Proso. The Makefile is the single command surface;
 package scripts remain implementation details. A green build is not a browser acceptance result,
@@ -10,7 +10,9 @@ and an agent review cannot override a red deterministic check.
 
 1. Confirm `git rev-parse --show-toplevel` is an isolated `proso-NNN-slug` worktree. Never mutate
    the shared main worktree.
-2. Read this file and `docs/reading-journey-status.md`.
+2. Read this file, the
+   [`Feature 095 reading contract`](../specs/095-reading-journey-contract/spec.md),
+   and `docs/reading-journey-status.md`.
 3. State one causal hypothesis and one falsifier before changing code.
 4. Run `make doctor`. Run `make bootstrap` only when dependencies or generated Prisma types are
    missing.
@@ -46,8 +48,11 @@ or `BLOCK` exits non-zero.
 
 Delivery may advance only when all applicable requirements trace to code plus a runnable check:
 
+- Loaded-extension completion satisfies Feature 095's public actor, observer,
+  invariant, campaign, falsifier, and receipt boundaries.
 - Article extraction yields the same ordered paragraphs used for speech and highlighting.
-- Free-tier synthesis reaches `POST /api/v1/tts/synthesize` without `X-License-Key` or BYOK data.
+- Target outcome (currently blocked): Free-tier synthesis reaches
+  `POST /api/v1/tts/synthesize` without `X-License-Key` or BYOK data.
 - Playback shows the footer, tracks paragraph/word state, and supports pause, resume, speed, seek,
   previous, next, and stop.
 - Shell gates use strict mode, validate dependencies, clean temporary data, redact secret findings,
@@ -66,7 +71,8 @@ acceptance oracle: it does not initiate the current background synthesis path an
 background audio. Chrome MV3 also has separate response/audio runtime gaps recorded in the reading
 status. `build-chrome` proves compilation only. A future browser gate must intercept background
 requests at `BrowserContext`, prove a synthesis request occurred, and assert user-visible playback
-and control state.
+and control state. The retained Firefox smoke calls Firefox's internal extension command listener,
+so it proves downstream start/pause/resume only and is not public-control acceptance.
 
 ## Tool decisions
 

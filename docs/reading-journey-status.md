@@ -6,8 +6,10 @@ It remains partially verified after the production recovery below because macOS 
 automation: the installed extension has not yet been observed through popup click, extraction,
 audio playback, and controls in one real-browser run.
 
-Evidence reconciled on 30/07/2026. Symbols: ✓ verified, ◐ partially verified, ◯ unresolved,
-✗ disproven as a delivery claim.
+Evidence reconciled on 02/08/2026 against the
+[`Feature 095 reading contract`](../specs/095-reading-journey-contract/spec.md).
+Symbols: ✓ verified, ◐ partially verified, ◯ unresolved, ✗ disproven as a
+delivery claim.
 
 ## Current route
 
@@ -18,16 +20,18 @@ The Firefox-first route is:
 `POST /api/v1/tts/synthesize` → background `Audio` → footer, paragraph/word synchronization, and
 controls.
 
-No account, license key, or provider key is required for the server-managed free-tier request. BYOK
-is optional. Browser `speechSynthesis` was deliberately removed in commit `9797dc6`; it is not a
-missing fallback to restore casually.
+The intended anonymous journey needs no account, license key, or provider key,
+but current `main` does not provide it: Free has no managed-TTS entitlement and
+the server returns 402, while browser `speechSynthesis` was deliberately removed
+in commit `9797dc6`. BYOK remains available on Free. A fixture that returns
+audio without applying this entitlement cannot prove the anonymous outcome.
 
 ## Evidence ledger
 
 | Status | Claim | Evidence |
 |---|---|---|
-| ✓ | The no-key request is allowed and the server owns free-tier provider keys | Commit `55add09`; `ProsoApiAdapter.synthesize`; server TTS service/routing tests |
-| ✓ | Extraction, no-key HTTP shape, audio adaptation, cache, highlight timeline, and controls join in one deterministic oracle | `make smoke-reader` |
+| ✗ | Current `main` allows a no-key managed request | Commit `7e4cda0` returns 402 before cache/provider work; the earlier behavior at `55add09` is superseded |
+| ✓ | A deterministic downstream oracle joins extraction, fixture synthesis, audio adaptation, cache, highlight timeline, and controls | `make smoke-reader`; the fixture bypasses the current Free entitlement and is not anonymous-outcome evidence |
 | ✓ | Focused server route and extension orchestration suites pass | Commands below |
 | ✓ | Static gates process real code and changed evidence | `make quality` resolves 501 modules / 805 dependencies, classifies 73 Knip findings and 136 clone groups, and rejects new debt |
 | ✗ | The existing Chromium audio E2E proves reading works | It can pass without initiating or observing a TTS request and clears errors |
@@ -35,8 +39,8 @@ missing fallback to restore casually.
 | ✗ | A green CI `visual-tests` job means visual tests passed | PR #63 ran 26 Firefox visual tests: 24 failed and 2 passed, but step-level `continue-on-error: true` made the job green |
 | ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
-| ◐ | Real Firefox reading works end to end | Source route and deterministic integrations are covered; no real Firefox session was accepted in this slice |
-| ✓ | Production server/provider availability | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3 |
+| ◐ | The real Firefox downstream reader route works | On 02/08, a built MV2 extension reached fixture TTS, visible footer/highlight, pause, and resume. The actor directly invoked `ExtensionParent`/`shortcuts.onCommand()`, so this is diagnostic-only and does not prove public controls or the full invariant/anomaly contract |
+| ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
 ## Production deployment receipt — 30/07/2026
 
