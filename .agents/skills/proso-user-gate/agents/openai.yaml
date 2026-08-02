@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proso User Gate"
+  short_description: "Gate Proso through real-user simulation"
+  default_prompt: "Use $proso-user-gate to prove this feature through a loaded-extension user journey."

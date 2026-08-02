@@ -33,6 +33,24 @@ The tracked delivery contract is `docs/agent-delivery-harness.md`. Start with
 `GENERATOR_FAMILY=<openai|anthropic|zhipu> make gate` for the full cross-family
 delivery gate.
 
+### Agent-operated user gate
+
+Invoke `$proso-user-gate` for every user-visible feature and for E2E, fuzz,
+soak, anomaly, or browser-readiness work. The browser-operating agent is the
+actor; deterministic assertions are the judge. A missing Firefox, geckodriver,
+fixture, public selector, or observable state is `BLOCKED`, never skipped-green.
+
+```bash
+make fuzz       # seeded extension/server property tests
+make user-gate-diagnostic  # fuzz + internal-dispatch Firefox diagnostic
+make user-gate             # fail-closed until Feature 095 public acceptance exists
+```
+
+Record the seed and replay command for each failure. Playwright remains
+Docker-only; `make smoke-reading` uses the retained raw geckodriver harness.
+It invokes Firefox's internal command dispatcher and must never be promoted to
+public-user acceptance. See `specs/095-reading-journey-contract/spec.md`.
+
 ### Build
 ```bash
 pnpm -r build                         # Build all packages
