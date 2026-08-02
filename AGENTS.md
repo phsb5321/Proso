@@ -197,7 +197,9 @@ try {
 ## Firefox-First Guidelines
 1. Background scripts use **event pages** (not service workers) — DOM access available
 2. Native **`Audio` API** in background — no offscreen documents needed
-3. TTS synthesis routes through the Proso server; free-tier requests need no license or BYOK key
+3. TTS synthesis routes through the Proso server. The intended account-free
+   reading journey is currently blocked: Free managed requests return 402 and
+   browser TTS is absent. BYOK remains available without an account.
 4. Browser `speechSynthesis` was deliberately removed; do not reintroduce it without a new decision
 5. **Minimum Firefox version**: 109.0 (see manifest.json gecko settings)
 
