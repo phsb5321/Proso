@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 13:40 BRT.
+Updated: 02/08/2026 13:50 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -12,10 +12,30 @@ assignments.
 
 | Active pane | Role | Exclusive worktree / branch | Scope | Status |
 |---|---|---|---|---|
-| `w2:p3` | Engineer | `proso-82-extension-402` / `096-tts-boundary-hardening` | Hold Feature 096 clean at `33ba614` and support its exact-HEAD gates. Do not mutate 093/094/095 or duplicate the browser gate. | PR #86 is draft/CLEAN; runnable CI green, Sonar skipped/non-evidence, zero reviews/comments/threads. Blocked on public Firefox 402 evidence, non-OpenAI review, and Pedro's cross-service merge gate |
-| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this map, reconcile PR/worktree/gate facts, dispatch uniquely numbered slices, and own safe PRs through merge. No feature implementation. | PR #83 is OPEN/CLEAN at `72074e`; GitGuardian passed, Sonar skipped/non-evidence, zero reviews/comments. Deterministic gate remains blocked by clean-bootstrap shared-build ordering |
-| `w2:p2` | Product | None | Read-only audit of current 093/096 outcomes against the merged Feature 095 falsifiers. No fresh Product worktree is assigned. | Migration complete; PR #85 merged as `444a09e`. Anonymous no-key Free entitlement remains `[pending] Pedro` |
-| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive) | Preserve the clean, upstream-gone worktree from merged PR #84; do not reset or reuse it. Any future public Firefox actor work needs a fresh unique worktree. | Migration complete; no duplicate Firefox/fuzz run. Internal dispatch remains diagnostic-only and `make user-gate` remains fail-closed |
+| `w2:p3` | Engineer | `proso-098-ops-parity` / `098-ops-parity`; retain `proso-82-extension-402` / `096-tts-boundary-hardening` unchanged | Sole implementation owner for Feature 098: retain clean-bootstrap RED, change only the `smoke-server-boot` dependency filter, retain GREEN, and run focused checks. Do not mutate 093/094/095/096, workflows, packages, Notes, or sync. | 098 assigned test-first after `OPS-PARITY-AUDITED`; PR #86 stays draft/CLEAN at `33ba614` and untouched |
+| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration`; SpecKit bootstrap only on `proso-098-ops-parity` | Maintain this map, create/publish the 098 SpecKit contract, dispatch exact work, and own safe PRs through merge. No feature implementation. | PR #83 is OPEN/CLEAN at `995fd2a`; the 098 bootstrap slice is the independently reversible repair for its clean-build blocker |
+| `w2:p2` | Product | None (exact-HEAD reviewer) | Review Feature 098's P0–P3 classes, default-deny vault audience, zero-telemetry current contract, cache/retention decisions, and public Firefox accessibility oracles. Do not implement worker/runtime/public-policy/Notes slices. | Ops-parity audit complete; public policy publication, runtime privacy changes, and no-key Free entitlement remain separately gated |
+| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive); exact-HEAD reviewer only | Preserve retired 093, validate Feature 098's clean RED/GREEN falsifier and scope, and confirm no workflow/browser/sync expansion. Do not repeat Firefox/fuzz. | Ops-parity audit complete; Semgrep/CodeQL/evidence/security-budget work is split into later local slices; workflow/Sonar changes stay `[pending] Pedro` |
+
+## Operational-parity audit and first slice — 02/08/2026
+
+`OPS-PARITY-AUDITED` was emitted before the 098 worktree or any parity-related
+repository mutation. Product, Engineer, and Quality each supplied a read-only
+evidence/falsifier matrix. The reconciled classification is tracked in
+`specs/098-ops-parity/research.md` on branch `098-ops-parity`.
+
+The first slice is deliberately one implementation line: select
+`@proso/server...` in `smoke-server-boot` so pnpm builds the existing shared
+workspace dependency before the server in a fresh worktree. Engineer owns the
+worktree after Orchestrator publishes the SpecKit bootstrap. Product and Quality
+are read-only exact-HEAD reviewers.
+
+The following remain independent follow-ups, not hidden scope on 098: root
+security/threat/secret/retention documentation; durable evidence manifests;
+Semgrep OSS; local CodeQL; complexity/function/file/performance budgets;
+AGENTS/CLAUDE drift and atomic/stale-aware coordination. GitHub Actions, Sonar,
+action pins, Notes mutation, public privacy publication, new repo/token/service/
+secret, and any sync activation stay `[pending] Pedro`.
 
 ## Lossless migration receipts — 02/08/2026
 

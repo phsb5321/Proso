@@ -23,3 +23,11 @@
   bind the map to clean HEAD `72074e` and live GitHub checks.
 - [x] Record the clean-bootstrap deterministic build-ordering blocker and its
   shared-build falsifier without expanding an active implementation slice.
+- [x] Collect Product, Engineer, and Quality DeliCasa-parity audit receipts and
+  emit `OPS-PARITY-AUDITED` before parity mutation.
+- [x] Assign Feature 098 clean-bootstrap implementation exclusively to Engineer,
+  with Product and Quality exact-HEAD review and no workflow/sync expansion.
+- [ ] Publish the 098 SpecKit bootstrap, then verify Engineer's retained clean
+  RED and dependency-aware GREEN evidence.
+- [ ] Reconcile Product and Quality reviews plus a different-family review,
+  merge the safe slice, and emit `OPS-PARITY-SLICE-MERGED`.
