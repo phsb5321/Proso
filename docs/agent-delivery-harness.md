@@ -25,6 +25,8 @@ and an agent review cannot override a red deterministic check.
 | `make smoke-reader` | Real extractor → no-license API request → server TTS adapter → cache/audio/highlight state → controls |
 | `make fuzz` | Seeded extension playback plus server schema/credit properties; `FC_SEED` and `FC_NUM_RUNS` are replay controls |
 | `make user-gate-diagnostic` | Focused properties followed by the built extension's internal-dispatch Firefox diagnostic |
+| `make public-actor-gate` | Public-control-only Firefox journey: Unified Extensions button → browser action → popup controls addressed by accessible name → page-visible reading state. PASS/FAIL/BLOCKED, never skipped-green |
+| `make public-actor-plants` | Severs one link per run and requires the matching assertion to report BLOCKED or FAIL; a plant that passes is a failure |
 | `make user-gate` | Fails closed until a public-control Firefox actor, outcome matrix, and unified receipt satisfy Feature 095 |
 | `make verify` | Tool readiness, formatting, lint, type checks, reader smoke, security tests, source secret scan |
 | `make coverage` | All three test suites plus ≥80% coverage on changed production lines; missing reports fail |
@@ -73,6 +75,17 @@ status. `build-chrome` proves compilation only. A future browser gate must inter
 requests at `BrowserContext`, prove a synthesis request occurred, and assert user-visible playback
 and control state. The retained Firefox smoke calls Firefox's internal extension command listener,
 so it proves downstream start/pause/resume only and is not public-control acceptance.
+
+`make public-actor-gate` is a sibling of that smoke, not a promotion of it. `smoke-reading` keeps
+calling `shortcuts.onCommand` and stays diagnostic-only; the public-actor gate never touches it and
+drives only controls a person can see. Two limits are load-bearing and stated here rather than
+discovered later. First, it does **not** prove FR-1, the account-free read: playback is served by
+the same local API stub, because on `main` a real account-free read has no audio source — managed
+TTS answers 402 and browser speech synthesis was removed. Second, it sets
+`extensions.webextensions.remote=false`, because WebDriver exposes no window handle for an
+extension popup panel and a remote popup's document is opaque to the parent process; the click, the
+listener and the rendered popup are real, only the process boundary is relaxed. Neither limit is a
+reason to treat a green run as Feature 095 acceptance.
 
 ## Tool decisions
 
