@@ -16,6 +16,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { createMatchMediaMock } from '../../helpers/match-media.js';
 
 describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
   let originalMatchMedia;
@@ -52,22 +53,6 @@ describe('Accessibility - Reduced Motion Support (T055-T059)', () => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
-  /**
-   * Helper to create a matchMedia mock
-   */
-  function createMatchMediaMock(reducedMotionEnabled) {
-    return jest.fn().mockImplementation((query) => ({
-      matches: reducedMotionEnabled && query === '(prefers-reduced-motion: reduce)',
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    }));
-  }
 
   describe('prefers-reduced-motion Detection (T055)', () => {
     test('should detect when reduced motion is preferred', async () => {

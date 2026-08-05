@@ -3,8 +3,9 @@
  * Additional setup after jest-webextension-mock
  */
 
+import { TextDecoder, TextEncoder } from 'node:util';
 import { jest } from '@jest/globals';
-import { TextEncoder, TextDecoder } from 'util';
+import { createMatchMediaMock } from './helpers/match-media.js';
 
 // Polyfill TextEncoder/TextDecoder for jsdom environment
 global.TextEncoder = TextEncoder;
@@ -15,7 +16,7 @@ global.TextDecoder = TextDecoder;
 // `subtle`, so the guard must test for the subtle interface itself and the
 // replacement must go through defineProperty (plain assignment is a no-op).
 if (!global.crypto?.subtle) {
-  const { webcrypto } = await import('crypto');
+  const { webcrypto } = await import('node:crypto');
   Object.defineProperty(global, 'crypto', {
     value: webcrypto,
     configurable: true,
@@ -30,16 +31,16 @@ if (typeof browser === 'undefined') {
       local: {
         get: jest.fn().mockResolvedValue({}),
         set: jest.fn().mockResolvedValue(undefined),
-        remove: jest.fn().mockResolvedValue(undefined)
-      }
+        remove: jest.fn().mockResolvedValue(undefined),
+      },
     },
     runtime: {
       sendMessage: jest.fn().mockResolvedValue(undefined),
       onMessage: {
         addListener: jest.fn(),
-        removeListener: jest.fn()
-      }
-    }
+        removeListener: jest.fn(),
+      },
+    },
   };
 }
 
@@ -48,7 +49,7 @@ global.requestAnimationFrame = (callback) => setTimeout(callback, 16);
 global.cancelAnimationFrame = (id) => clearTimeout(id);
 
 // Mock URL.createObjectURL and URL.revokeObjectURL for audio tests
-URL.createObjectURL = jest.fn((blob) => `blob:mock-url-${Math.random()}`);
+URL.createObjectURL = jest.fn(() => `blob:mock-url-${Math.random()}`);
 URL.revokeObjectURL = jest.fn();
 
 // Mock Audio element for playback tests
@@ -80,13 +81,13 @@ class MockAudio {
 
   removeEventListener(event, callback) {
     if (this._listeners[event]) {
-      this._listeners[event] = this._listeners[event].filter(cb => cb !== callback);
+      this._listeners[event] = this._listeners[event].filter((cb) => cb !== callback);
     }
   }
 
   dispatchEvent(event) {
     if (this._listeners[event.type]) {
-      this._listeners[event.type].forEach(cb => cb(event));
+      this._listeners[event.type].forEach((cb) => cb(event));
     }
   }
 }
@@ -100,7 +101,7 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   getImageData: jest.fn(() => ({ data: new Array(4).fill(0) })),
   putImageData: jest.fn(),
   createLinearGradient: jest.fn(() => ({
-    addColorStop: jest.fn()
+    addColorStop: jest.fn(),
   })),
   beginPath: jest.fn(),
   moveTo: jest.fn(),
@@ -119,7 +120,7 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   drawImage: jest.fn(),
   createPattern: jest.fn(() => ({})),
   createRadialGradient: jest.fn(() => ({
-    addColorStop: jest.fn()
+    addColorStop: jest.fn(),
   })),
   setTransform: jest.fn(),
   resetTransform: jest.fn(),
@@ -144,8 +145,8 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   textBaseline: 'alphabetic',
   canvas: {
     width: 300,
-    height: 150
-  }
+    height: 150,
+  },
 }));
 
 // Mock chrome.* APIs for Chrome-specific adapters (e.g., offscreen.adapter.ts)
@@ -173,16 +174,7 @@ if (typeof globalThis.chrome === 'undefined') {
 // Mock window.matchMedia for prefers-reduced-motion tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn()
-  }))
+  value: createMatchMediaMock(),
 });
 
 // Suppress console errors during tests (optional)
