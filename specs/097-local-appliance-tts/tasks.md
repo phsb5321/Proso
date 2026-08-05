@@ -63,7 +63,11 @@ extension at the end of this phase.
 - [ ] T015 Implement `adapters/audio/fallback-audio.adapter.ts`: primary → secondary with the
   reason retained for the UI.
   **Gate:** unit tests prove fallback on unreachable, `ready: false`, 429, 422, and declined
-  language, and prove that no fallback occurs on abort.
+  language, and prove that no fallback occurs on abort. Per
+  `docs/research/local-reader-lab-2026-07-30.md:196`, the offline, timeout, invalid-WAV,
+  denied-permission, and 5xx cases must each call the existing server adapter **exactly once** —
+  a spy asserting the call count, not merely that audio arrived, since a retry loop that
+  eventually succeeds would pass a weaker assertion.
 - [ ] T016 [P] Language-capability decision: primary subtag `pt` and `en` map to the two published
   voices; anything else, an undetermined detection, or an unpublished voice override declines.
   **Gate:** a third-language input produces a decline, never local audio (spec D-2 falsifier).

@@ -37,6 +37,39 @@ re-synthesis and without any charge.
 **Falsifier:** playback requires a credential, prompts for an account, stalls without a message,
 plays audio for a paragraph other than the one marked, or charges credit for a local synthesis.
 
+## Reconciliation with the 30/07 research constraint
+
+`docs/research/local-reader-lab-2026-07-30.md:196-198` sets a standing constraint on exactly this
+work:
+
+> The public extension must not contact Pedro's Pi directly. A Pedro-only lab endpoint must be
+> opt-in, authenticated, HTTPS, bounded by input/timeout/concurrency limits, and use an explicit
+> optional host permission without hard-coded tailnet addresses.
+
+This feature does not override that constraint; FR-2, FR-3, and FR-6 are how it is met. A shipped
+public build contacts no appliance at all, because the provider is off by default (FR-2), holds no
+host until its own user supplies one (FR-3), and has no permission for any user origin until that
+user grants it from a click (FR-6). "Pedro's Pi" is reachable only from a build whose user
+configured that host, which on the tailnet means Pedro's own. There is no discovery, no default
+host, and no appliance hostname in shipped source.
+
+The rest of the constraint maps as follows, including where it is not fully met:
+
+| Constraint clause | Where it is met |
+|---|---|
+| opt-in | FR-2, and a default-off proof asserted on issued requests rather than on configuration |
+| HTTPS | FR-3 rejects any non-`https://` origin for a non-loopback host |
+| bounded input | FR-7, at the appliance's published 8,192 UTF-8 bytes, measured in bytes |
+| bounded concurrency | FR-7, at the published queue capacity of 8, across playback and prefetch together |
+| bounded timeout | the failure-mode table: every reachability and 5xx row is bounded and falls back rather than stalling |
+| explicit optional host permission | FR-6, requested at runtime from a user gesture |
+| no hard-coded tailnet addresses | FR-3, falsified by a `grep` of shipped source |
+| **authenticated** | **not met at the application layer.** The appliance publishes no authentication scheme, so the extension has none to satisfy. Access control is network-layer: the host is reachable only from inside the reader's tailnet, where device identity is established by WireGuard. If a reader exposes their appliance beyond that boundary, this feature adds no credential to protect it, and neither the extension nor this specification can. Adding a shared secret is possible future work; it is not in scope here and would not change FR-1, since a secret for a reader's own machine is not a Proso account. |
+
+The same paragraph also requires that offline, timeout, invalid-WAV, denied-permission, and 5xx
+outcomes each call the existing server adapter **exactly once**. That is stricter than "falls
+back" and is carried as a test obligation in `tasks.md`, not merely as prose here.
+
 ## Acceptance criteria and falsifiers
 
 Each criterion below is a delivery gate. A criterion whose falsifier cannot be observed is not
