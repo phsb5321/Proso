@@ -17,6 +17,9 @@ const sharedConfig = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^(\\.{1,2}/.*)\\.ts$': '$1',
+    // Vite/UnoCSS virtual modules exist only at build time; entrypoint tests
+    // import the module under test, not its styling.
+    '^virtual:.*\\.css$': '<rootDir>/tests/mocks/virtual-css.js',
     '^@/(.*)$': '<rootDir>/src/utils/$1',
     '^@proso/shared$': '<rootDir>/../shared/src/index.ts',
     '^@proso/shared/(.*)$': '<rootDir>/../shared/src/$1',
