@@ -173,6 +173,10 @@ Only where the code lives and what permission it needs differ.
 
 ### Status
 
+Both seams are now designed to the same depth, so the choice can be read in one sitting:
+[`plan.md`](./plan.md) is the extension-direct plan, [`plan-server-seam.md`](./plan-server-seam.md)
+is the server-side one.
+
 **This is Pedro's decision, and this specification does not make it.** It is recorded here rather
 than resolved because picking either seam silently would either supersede a written decision
 without a rationale, or abandon FR-1 without saying so. Independently of the fork, line 495 gates
