@@ -299,7 +299,9 @@ async function readPopup(driver) {
      return JSON.stringify({
        open: true,
        names: named,
-       status: status ? status.textContent.replace(/\s+/g, ' ').trim() : null,
+       // Double backslash: this script is a template literal, and an untagged
+       // template turns \s into a bare s, which would collapse the regex to /s+/g.
+       status: status ? status.textContent.replace(/\\s+/g, ' ').trim() : null,
      });`,
   );
   return JSON.parse(raw);
