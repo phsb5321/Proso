@@ -1,41 +1,35 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
+const execFileAsync = promisify(execFile);
 const root = process.cwd();
-const ignoredDirectories = new Set([
-  '.git',
-  '.output',
-  '.pnpm-store',
-  '.wxt',
-  'build',
-  'coverage',
-  'dist',
-  'node_modules',
-  'playwright-report',
-  'test-results',
-]);
 const forbiddenLocks = new Set(['npm-shrinkwrap.json', 'package-lock.json', 'yarn.lock']);
 
 async function manifest(relativePath) {
   return JSON.parse(await readFile(path.join(root, relativePath), 'utf8'));
 }
 
-async function findForbiddenLocks(directory, findings = []) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue;
+async function findForbiddenLocks() {
+  // Ask git for the files the repository actually carries: tracked plus untracked
+  // that are not git-ignored. Walking the tree by hand flagged git-ignored agent
+  // runtime state (`.opencode/package-lock.json`), which CI never sees, so the
+  // whole local delivery floor failed on a file the repository does not ship.
+  const { stdout } = await execFileAsync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+    { cwd: root, maxBuffer: 64 * 1024 * 1024 },
+  );
 
-    const absolute = path.join(directory, entry.name);
-    const relative = path.relative(root, absolute);
-    if (entry.isDirectory()) {
-      await findForbiddenLocks(absolute, findings);
-    } else if (
-      forbiddenLocks.has(entry.name) ||
-      (entry.name === 'pnpm-lock.yaml' && relative !== 'pnpm-lock.yaml')
-    ) {
-      findings.push(relative);
-    }
-  }
-  return findings;
+  return stdout
+    .split('\0')
+    .filter((relative) => relative !== '')
+    .filter(
+      (relative) =>
+        forbiddenLocks.has(path.basename(relative)) ||
+        (path.basename(relative) === 'pnpm-lock.yaml' && relative !== 'pnpm-lock.yaml'),
+    );
 }
 
 const workspace = await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8');

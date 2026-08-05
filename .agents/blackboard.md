@@ -1,6 +1,6 @@
 # Fleet owner map — authoritative
 
-Updated: 02/08/2026 14:26 BRT.
+Updated: 02/08/2026 14:45 BRT.
 
 This map supersedes per-worktree ownership claims. Per-worktree blackboards are
 operational logs only; they do not reassign work. Do not reset, stash, delete,
@@ -12,10 +12,10 @@ assignments.
 
 | Active pane | Role | Exclusive worktree / branch | Scope | Status |
 |---|---|---|---|---|
-| `w2:p3` | Engineer | Retain `proso-82-extension-402` / `096-tts-boundary-hardening` unchanged | Hold clean PR #86 and support exact-HEAD delivery gates. Do not duplicate the public Firefox gate or mutate retired 093/094/095. | Feature 098 implementation merged via PR #87; PR #86 remains draft at `33ba614` and must reconcile current main before any later delivery |
-| `w2:p1` | Orchestrator | `proso-094-fleet-orchestration` / `094-fleet-orchestration` | Maintain this map, reconcile merged 098 evidence, and own the safe coordination PR through its gates and merge. No worker-feature implementation. | PR #83 is OPEN; local coordination branch includes `origin/main@e5193c0` and this final 098 receipt |
-| `w2:p2` | Product | None (read-only reviewer) | Preserve the ratified P0–P3/default-deny contract and review later Product slices only when assigned. Do not implement runtime/public-policy/Notes work. | Exact Feature 098 review `APPROVE` at `933726a`; privacy publication, retention, telemetry, cache, and no-key Free decisions remain separately gated |
-| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive) | Preserve retired 093 and own any separately assigned Quality slice. Do not repeat Firefox/fuzz or treat internal dispatch as public acceptance. | Exact Feature 098 review `APPROVE` at `933726a`; public user gate remains `BLOCKED`; Semgrep/CodeQL/evidence/security-budget work remains split |
+| `w2:p3` | Engineer | Retain `proso-82-extension-402` / `096-tts-boundary-hardening` unchanged | Hold clean PR #86 and support exact-HEAD delivery gates. Do not duplicate the public Firefox gate or mutate retired 093/094/095. | PR #86 is draft at `a5d0d78`, reconciled with current main; exact-head gate `PASS` (extension 66/66, server 40/40, static 8/8) |
+| `w2:p1` | Orchestrator | Coordination-only; no retained implementation worktree | Maintain this map and the PR #86 gate ledger. No worker-feature implementation. | PR #83 and PR #87 are merged; PR #86 remains draft with the public Firefox and Pedro cross-service gates below |
+| `w2:p2` | Product | None (read-only reviewer) | Preserve the ratified P0–P3/default-deny contract and review later Product slices only when assigned. Do not implement runtime/public-policy/Notes work. | Exact Feature 098 and Feature 096 reviews are `APPROVE` at `933726a` and `a5d0d78`; privacy publication, retention, telemetry, cache, and no-key Free decisions remain separately gated |
+| `w2:p4` | Quality | Retained `proso-093-user-simulation-gate` (inactive) | Preserve retired 093 and own the public Firefox gate. Do not treat internal dispatch as public acceptance. | Feature 098 review `APPROVE` at `933726a`; Feature 096 user gate `BLOCK` at `a5d0d78`, seed 17, because Marionette cannot enter the remote browser-action popup |
 
 ## Operational-parity audit and first slice — 02/08/2026
 
@@ -126,14 +126,22 @@ misreported as success. The public Firefox user gate also remains `BLOCKED`.
 
 ## Feature 096 delivery gates — PR #86
 
-PR #86 is a cross-service draft at `33ba614`; extension/server tests, Server CI
-lint/test/build, security audit, E2E, visual, and GitGuardian passed at 00:40.
-Sonar is skipped and remains non-evidence. Before any merge it needs: (1) p4's retained,
-exact-HEAD public browser-action observation of the visible 402 refusal and
-clean stopped state; (2) a non-OpenAI typed review; (3) an explicit update from
-current main so the merged clean-bootstrap repair is present; and (4) Pedro's
-cross-service merge decision. The cross-service gate forbids self-merge. Sonar
-is skipped and is not quality evidence.
+PR #86 is a cross-service draft at `a5d0d78`. It merged current
+`origin/main@0eeecd5` without changing the original Feature 096 patch, then
+passed the Engineer exact-head gate (extension 66/66, server 40/40, static
+8/8), Product exact-head review, and a seven-trace non-OpenAI
+`llama-3.3-70b-versatile` diff review. Hosted extension/server/security/E2E/
+visual/GitGuardian checks report success; Sonar is skipped and remains
+non-evidence. Hosted E2E/visual status is not public-user acceptance.
+
+Quality ran seeded fuzz with seed 17 and 200 runs, completed the retained
+internal-dispatch diagnostic, and replayed the public actor twice. Both public
+attempts reached Firefox Extensions and clicked the visible Proso browser
+action, but Marionette could not enter its remote popup document. No compliant
+request, visible 402 copy, or stopped-state observation exists, so the exact
+user-gate verdict is `BLOCK`. PR #86 remains draft pending that public Firefox
+evidence and `[pending] Pedro: cross-service merge decision`; neither blocker
+is waived by the green hosted jobs. No workflow or sync activation occurred.
 
 ## Quality migration receipt — 02/08/2026 13:36 BRT
 
