@@ -36,6 +36,12 @@
       "owner": "proso",
       "reviewedAt": "2026-07-30",
       "expires": "2026-10-30"
+    },
+    {
+      "path": "docs/research/appliance-measurements-2026-08-05.md",
+      "owner": "proso",
+      "reviewedAt": "2026-08-05",
+      "expires": "2026-11-05"
     }
   ]
 }
