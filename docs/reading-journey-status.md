@@ -2,12 +2,15 @@
 
 The 30/07/2026 Mac Firefox installation and local TTS experiment is recorded in
 [`docs/research/local-reader-lab-2026-07-30.md`](research/local-reader-lab-2026-07-30.md).
-It remains partially verified after the production recovery below because macOS denied UI
-automation: the installed extension has not yet been observed through popup click, extraction,
-audio playback, and controls in one real-browser run.
+That Mac run remains partially verified because macOS denied UI automation. The gap it named —
+an installed extension observed through popup click, extraction, audio playback, and controls in
+one real-browser run — was closed on Linux on 05/08/2026 by `scripts/public-actor-gate.mjs`
+(PR #97); see [Update — 05/08/2026](#update--05082026-public-control-acceptance-appliance-measurements-and-a-ci-outage).
 
 Evidence reconciled on 02/08/2026 against the
-[`Feature 095 reading contract`](../specs/095-reading-journey-contract/spec.md).
+[`Feature 095 reading contract`](../specs/095-reading-journey-contract/spec.md), and again on
+05/08/2026 against that contract plus
+[`Feature 100`](../specs/100-local-appliance-tts/spec.md).
 Symbols: ✓ verified, ◐ partially verified, ◯ unresolved, ✗ disproven as a
 delivery claim.
 
@@ -26,6 +29,11 @@ the server returns 402, while browser `speechSynthesis` was deliberately removed
 in commit `9797dc6`. BYOK remains available on Free. A fixture that returns
 audio without applying this entitlement cannot prove the anonymous outcome.
 
+Feature 100 proposes a user-operated local appliance as a second audio source that needs no
+account, license key, or provider key. Nothing of it is on `main`: the spec is at
+`specs/100-local-appliance-tts/`, the adapter is open in PR #95, and no local provider is wired
+into the route above. The route sentence stands unchanged until that lands.
+
 ## Evidence ledger
 
 | Status | Claim | Evidence |
@@ -40,6 +48,14 @@ audio without applying this entitlement cannot prove the anonymous outcome.
 | ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | The real Firefox downstream reader route works | On 02/08, a built MV2 extension reached fixture TTS, visible footer/highlight, pause, and resume. The actor directly invoked `ExtensionParent`/`shortcuts.onCommand()`, so this is diagnostic-only and does not prove public controls or the full invariant/anomaly contract |
+| ✓ | A public-control actor reads an article in a real Firefox | `node scripts/public-actor-gate.mjs` (PR #97) exited 0 with `public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab`, re-run 05/08/2026 18:39 BRT. Its 20 assertions open the Unified Extensions panel, click the browser action by its visible label `Proso`, address `Play` and `Previous paragraph` by accessible name, observe a 130-char TTS request and the page-visible highlight, hold position across pause, and advance after resume. Synthesis is still the local fixture, so this proves the public control path, not the account-free outcome |
+| ✓ | That public gate is falsifiable rather than green by construction | `node scripts/public-actor-plants.mjs` at `adc99f6` (PR #98, merged `24f0e09`) exited 0 with `public-actor-plants PASS — 10 runs, every break caught`, re-run 05/08/2026 19:03 BRT: unplanted baseline PASS, 4 severed-journey plants FAIL (TTS request, visible reading UI, paused position, resume advance), 4 missing-surface plants BLOCKED (hidden Unified Extensions button, absent browser-action widget, popup that never opens, renamed `Play` control), and a self-check that points the runner at a missing script and requires CRASH. Missing surface never reports as a pass, and neither does a run that never launched a browser |
+| ✗ | The 9-run plant figure reported earlier on 05/08 measured what it claimed | That sweep scored runs by exit code, so a crashed run that never reached Firefox scored as a caught plant — skipped-green inside the anti-skipped-green tool. PR #98 rescored on the gate's own verdict line and added the CRASH self-check; the 10-run sweep above is the first figure that distinguishes a caught break from a dead runner |
+| ✗ | `make smoke-reading` is public acceptance | It reaches into the addon's own `shortcuts.onCommand()` from chrome context (`scripts/smoke-reading.mjs:99-103`). PR #97 added the public actor as a separate retained path; both remain, and only the public one addresses user-visible controls |
+| ✓ | The Orange Pi appliance is reachable from the desktop over the tailnet | `curl https://orangepi4pro-b.tailf59220.ts.net/health` returned HTTP 200 `{"status":"ok","ready":true,"version":"1.0.0+ps4m63vm8fd4gh4i3cn9nj025br8c1b3"}` on 05/08/2026 17:52 BRT. This supersedes the 01/08 loopback-only reading in the research doc |
+| ◐ | The appliance meets the research doc's latency falsifier | Measured 05/08/2026 over the tailnet: RTF 0.195–0.276 across 68–727 UTF-8 bytes, length-invariant, all under the 0.5 bound — met. Warm paragraph synthesis 7.5–8.3 s against the 2 s clause — not met above roughly 150 UTF-8 bytes. The appliance does not stream, so time-to-first-audio equals full synthesis time. Measurements in `/tmp/097-slice-e-findings.md`, untracked |
+| ✗ | The advertised `queueCapacity: 8` is the TTS admission budget | A 12-way burst admitted 4 and returned 429 `queue_full` for the other 8; the appliance's `config.py:107` sets `tts_capacity = 4` and the per-class split is not published by `/v1/capabilities`. One inference worker, no preemption |
+| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit |
 | ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
 ## Production deployment receipt — 30/07/2026
@@ -66,7 +82,9 @@ The daily Firefox profile was not modified. This proves current bytes are instal
 reach the recovered API; it does not upgrade the real-browser journey above to green.
 
 The Orange Pi TTS/STT appliance remains research-only. No appliance, client adapter, model service,
-DNS mapping, secret, or audio-integration PR was deployed.
+DNS mapping, secret, or audio-integration PR was deployed. Both halves of that sentence have since
+changed: the appliance itself was deployed on 31/07 outside this repository, and Feature 100 now
+proposes the client adapter. See [Update — 05/08/2026](#update--05082026-public-control-acceptance-appliance-measurements-and-a-ci-outage).
 
 Release run
 [`30585260097`](https://github.com/phsb5321/Proso/actions/runs/30585260097) published the 1.2.0
@@ -175,10 +193,92 @@ Captured on 30/07/2026 at 16:55 BRT with
 - An earlier reviewer response with five traces for six requirements was rejected even though it
   said `PASS`; the schema now requires the complete unique ID set.
 
+## Update — 05/08/2026: public-control acceptance, appliance measurements, and a CI outage
+
+Three things changed today. Each is recorded with the command that produced it.
+
+### A public-control acceptance path exists
+
+PR #97 merged as `1e339b6` and added `scripts/public-actor-gate.mjs`, the repository's first
+acceptance path driven through user-visible surfaces: the Unified Extensions panel, the browser
+action addressed by its visible label, and popup controls addressed by accessible name.
+
+```bash
+pnpm --filter @proso/extension build:firefox   # exit 0, 1.12 MB firefox-mv2
+node scripts/public-actor-gate.mjs             # exit 0
+# public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab
+node scripts/public-actor-plants.mjs           # 10 runs: 1 PASS, 4 FAIL, 4 BLOCKED, 1 CRASH
+# public-actor-plants PASS — 10 runs, every break caught
+```
+
+The plant matrix is what makes the gate worth citing. Four severed-journey plants report `FAIL`
+(TTS request, footer, paused position, resume advance) and four missing-surface plants report
+`BLOCKED` (hidden Unified Extensions button, absent browser-action widget, popup that never opens,
+renamed `Play` control). A missing surface can therefore never be read as a pass.
+
+The tenth run is the runner checking itself, and it exists because the first version of this sweep
+was wrong in the exact way it was built to prevent. It scored each run by exit code, so a run that
+crashed before launching a browser exited non-zero and scored as a caught plant — skipped-green
+inside the anti-skipped-green tool. PR #98 (`adc99f6`, merged `24f0e09`) rescores on the gate's own
+verdict line and adds a self-check that points the runner at a missing script and demands `CRASH`.
+The 9-run figure quoted earlier on 05/08 came from the pre-fix scorer and is superseded by the
+10-run sweep above; the four `FAIL` and four `BLOCKED` classifications survived rescoring unchanged.
+
+This does **not** retire `make smoke-reading`. That harness invokes the addon's own
+`shortcuts.onCommand()` from chrome context and still proves only that the handler works. The two
+paths are kept separate on purpose: internal dispatch is a diagnostic, the public actor is
+acceptance. Neither yet proves the account-free outcome, because both synthesize against the local
+fixture API rather than a real no-key audio source.
+
+### The appliance is reachable and measured
+
+The research doc's 01/08 reading — loopback-bound, unreachable from the extension — is stale.
+Tailscale Serve now proxies the appliance on 443, and `GET /health` answered HTTP 200 from the
+desktop on 05/08 at 17:52 BRT. Measurements taken over that path:
+
+| Property | Measured | Against |
+|---|---|---|
+| Real-time factor | 0.195–0.276, length-invariant across 68–727 UTF-8 bytes | 0.5 bound — **met** |
+| Warm paragraph synthesis | 7.5–8.3 s | 2 s clause — **not met** above ~150 UTF-8 bytes |
+| Response streaming | none; whole WAV or JSON envelope only | time-to-first-audio equals full synthesis time |
+| TTS admission | 4 concurrent; a 12-way burst returned 429 `queue_full` for 8 | advertised `queueCapacity: 8` — **misleading**, the split is unpublished |
+| Inference workers | one, no preemption | client concurrency above 1 buys no throughput |
+
+The two clauses of the falsifier disagree, and the doc does not pick the flattering one. RTF passes
+decisively. The 2 s wall-clock clause fails at paragraph size and passes at sentence size, which is
+the granularity the original baseline used. At a fixed RTF, any positive-length input eventually
+exceeds a fixed wall-clock bound, so the clause only binds once a granularity is named — a spec
+decision for Feature 100, not a measurement gap. The actionable consequence is that a single-shot
+paragraph means roughly 8 s of silence before playback starts.
+
+Full measurements, failure-mode table (RFC-9457 `problem+json`, `413 payload_too_large`,
+`409 idempotency_key_reused`, `429` with `retry-after`) and the source citations behind them are in
+the review tab's untracked `/tmp/097-slice-e-findings.md`; the load-bearing numbers are reproduced
+above so this ledger does not depend on a temporary file.
+
+### GitHub Actions produces nothing at all
+
+Since `2026-08-05T20:52Z` every workflow run in this repository has ended `startup_failure` with an
+empty `name`, `path: "BuildFailed"`, and zero jobs — on feature branches and on `main` alike.
+
+```bash
+gh run list --limit 60 --json createdAt,conclusion,headBranch,workflowName
+gh api repos/phsb5321/proso/actions/runs/31049046583/jobs --jq '.total_count'   # 0
+git log -1 --format='%h %ad %s' --date=short -- .github/workflows/  # b2b74e4 2026-08-01 (#70)
+```
+
+The last runs that executed jobs were `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file
+has changed since PR #70 on 01/08, so a tracked workflow edit is not the cause. Until this is
+resolved, the two `✗` rows above about green jobs hiding red steps are joined by a stronger one:
+**no CI result of any colour is currently evidence of anything.** Local commands are the only
+verification surface, which is exactly why every claim added today cites one.
+
 ## Next verified slices
 
-1. Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
-   and user-visible playback/control state.
+1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
+   and user-visible playback/control state.~~ Delivered on 05/08 by PR #97, with two deviations
+   from this wording: it runs against a local `geckodriver` rather than Docker, and it observes a
+   fixture synthesis request rather than a real one. The account-free half stays open below.
 2. Reproduce Chrome’s message-response and audio-context failures in committed diagnostics, then
    choose the smallest Chrome-specific architecture change. Do not infer a Firefox regression.
 3. Reconcile the dated architecture audit and pre-launch checklist; they still contain historical
@@ -191,3 +291,13 @@ Captured on 30/07/2026 at 16:55 BRT with
 6. Establish the missing Firefox/Linux visual baselines and repair the keyboard assertions behind
    the 24 visual failures before removing that job’s `continue-on-error`. That workflow edit is
    separately gated; until then, inspect the test log rather than the green job badge.
+7. Diagnose the GitHub Actions `startup_failure` outage above. It predates and outranks items 5
+   and 6: those describe misleading green jobs, this one means no job runs at all. Repository-level
+   Actions settings and billing are outside this repository's diff, so remediation is
+   `[pending] Pedro` once the cause is identified.
+8. Point the public actor at an account-free audio source. Feature 100's appliance route is the
+   only candidate on the table; until it lands, `public-actor-gate.mjs` proves controls against a
+   fixture and the anonymous outcome stays unproven.
+9. Decide, in `specs/100-local-appliance-tts/`, the granularity the 2 s latency clause binds to,
+   and size synthesis requests to it. At RTF ~0.2 with no streaming, sentence-level chunking plus
+   prefetch keeps time-to-first-audio near 1–2 s; a paragraph-sized request does not.

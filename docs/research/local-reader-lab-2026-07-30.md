@@ -40,6 +40,10 @@ warm full-synthesis time of two seconds or a real-time factor of 0.5, or if huma
 the audio unsuitable. This checkpoint verifies latency only; subjective audio quality remains
 unverified.
 
+That falsifier was measured against the deployed appliance on 05/08/2026 and its two clauses
+disagree — RTF met, the 2 s clause met only at sentence length. See
+[Update — 05/08/2026](#update--05082026-the-appliance-is-reachable-and-measured).
+
 ## Firefox installation evidence
 
 | Item | Evidence |
@@ -167,6 +171,11 @@ Two properties of the deployed appliance shape what integrating it would actuall
    extension cannot reach it today, and that is the correct default — reaching it would take a
    deliberate opt-in path, not a firewall change.
 
+   **Superseded on 05/08/2026.** The `http=000` measurement on ports 5101 and 5200 still holds;
+   the conclusion drawn from it does not. Tailscale Serve now proxies the appliance on 443, so
+   `https://orangepi4pro-b.tailf59220.ts.net/health` answers HTTP 200 from the desktop. The
+   opt-in path this bullet asked for is what Feature 100 specifies.
+
 The other two advertised limits are worth reading against Proso's actual request shape rather than
 quoting on their own. `queueCapacity: 8` sits above what the extension would ask for: synthesis is
 per paragraph, and `PrefetchService` defaults to `maxConcurrent = 2` over a five-item buffer, so
@@ -183,6 +192,10 @@ authenticated path from the extension to that host, and inventing one is the rea
 questions sit underneath that and neither is answered here — whether the audio is good enough to
 listen to, which is the same listening test 30/07 could not run, and how the reader should behave
 when a paragraph exceeds the service's input limit.
+
+The named blocker is gone as of 05/08 and the second question acquired a sharper answer than the
+input limit: the appliance does not stream, so paragraph-sized requests are a latency problem
+before they are a bounds problem. The listening test is still unrun.
 
 ## Acceptance and next smallest step
 
@@ -208,6 +221,72 @@ untouched and is what stands between a running Piper service and a reader that u
 
 Human listening is still required before calling either voice acceptable.
 
+## Update — 05/08/2026: the appliance is reachable and measured
+
+Measured from the desktop over the tailnet between 17:49 and 18:00 BRT. Nothing on either Orange Pi
+was installed or changed; these were reads plus synthesis requests.
+
+```bash
+curl -sS https://orangepi4pro-b.tailf59220.ts.net/health
+# {"status":"ok","ready":true,"version":"1.0.0+ps4m63vm8fd4gh4i3cn9nj025br8c1b3"}  HTTP 200
+curl -sS https://orangepi4pro-b.tailf59220.ts.net/v1/capabilities   # HTTP 200
+```
+
+Capabilities are unchanged from the 01/08 reading: `maxTextUtf8Bytes 8192`,
+`maxAudioDurationMs 60000`, `queueCapacity 8`, `idempotencyRetentionSeconds 900`, voices
+`pt_BR-faber-medium` and `en_US-ljspeech-medium`, both with `markKinds: []`. The no-word-marks
+finding above stands, and with it the conclusion that a local provider takes the same
+`estimateWordTimings()` branch the server path already takes.
+
+### Falsifier verdict: RTF met, the 2 s clause met only at sentence length
+
+WAV duration was parsed from each response's own `fmt `/`data` chunks, not assumed. Both models
+were resident throughout.
+
+| Language | Input bytes | Wall | Audio | RTF | < 2 s | RTF < 0.5 |
+|---|---:|---:|---:|---:|:--:|:--:|
+| EN | 68 | 1.162 s | 4.203 s | 0.276 | yes | yes |
+| EN | 150 | 1.996 s | 9.776 s | 0.204 | yes | yes |
+| EN | 200 | 2.680 s | 13.479 s | 0.199 | **no** | yes |
+| EN | 656 (paragraph) | 8.276 s | 41.146 s | 0.201 | **no** | yes |
+| PT | 727 (paragraph) | 7.533 s | 36.734 s | 0.205 | **no** | yes |
+
+RTF passes decisively and is length-invariant: 0.195–0.276 at every size, roughly 5× faster than
+real time. The 2 s clause is not length-invariant, so it cannot pass at every size — at a fixed RTF,
+wall time grows with input, and the crossover here is about 150 UTF-8 bytes, roughly one sentence.
+The baseline rows earlier in this document used inputs of about 5 s of audio, so the clause was
+calibrated to sentences. Read literally against a paragraph it is triggered, about 4× over; read at
+the granularity it was written for it is met.
+
+That is a specification decision, not a measurement gap, and `specs/100-local-appliance-tts/` owns
+it. The engineering consequence is independent of how it is decided: the appliance has no response
+streaming — only a whole WAV or the JSON envelope — so time-to-first-audio equals full synthesis
+time of whatever is requested. A single-shot paragraph is about 8 s of silence before playback.
+Sentence-level chunking with prefetch keeps the first chunk near 1–2 s and, at RTF ~0.2, keeps the
+producer 5× ahead of playback.
+
+The 30/07 warm cold-start figure was not reproduced: the first request measured here, 68 bytes EN,
+took 1.162 s with no cold-load penalty on any call, including the first pt-BR one.
+
+### Two corrections that bind the adapter
+
+- **TTS admission is 4, not the advertised 8.** A 12-way concurrent burst admitted 4 and returned
+  429 `queue_full` with `retry-after: 14` for the other 8. The appliance's `config.py:107` sets
+  `tts_capacity = 4` and `stt_capacity = 4`, and only their sum is published by `/v1/capabilities`.
+  A client that trusts the advertised number over-admits by 2×.
+- **One inference worker, no preemption.** Observed completions serialized at 1.148, 2.106, 3.146
+  and 4.167 s. Client concurrency above 1 buys no throughput; it converts queueing into 429s. One
+  in-flight synthesis plus one prefetch is the ceiling worth using.
+
+Errors are RFC-9457 `application/problem+json` throughout. Oversize input is **413**
+`payload_too_large`, not 422; the same idempotency key with a different body is **409**
+`idempotency_key_reused`; `content-type` tolerates parameters, so `; charset=utf-8` is accepted.
+Retry decisions must map on `code`, not on status class — `engine_failed` is 503 with
+`retryable: false`.
+
+Human listening remains unrun, so audio quality is still unverified. The full failure-mode matrix
+and its source citations are in the review tab's untracked `/tmp/097-slice-e-findings.md`.
+
 ## Reversal
 
 - Close only the Firefox instance using profile `proso-dev-283ff822`, or stop its `web-ext` runner;
@@ -216,4 +295,5 @@ Human listening is still required before calling either voice acceptable.
 - Retained artifacts are isolated under `~/Library/Application Support/Proso Dev` and can be
   removed independently after testing.
 - Nothing on either Orange Pi needs reverting. Node B's audio appliance was not installed by this
-  work and was left exactly as found; the 01/08 inspection was reads and one synthesis request.
+  work and was left exactly as found; the 01/08 inspection was reads and one synthesis request, and
+  the 05/08 measurements above were reads plus synthesis requests.
