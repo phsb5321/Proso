@@ -67,8 +67,12 @@ export interface LanguageValidationResponse {
 /**
  * Static provider metadata.
  * Matches existing Proso providers.
+ *
+ * `local` (the user-configured local appliance) is excluded: it is not a
+ * selectable provider until its settings, opt-in and host permission land, so
+ * listing it here would offer a provider nothing can select yet.
  */
-const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
+const PROVIDER_METADATA: Partial<Record<ProviderId, Omit<ProviderInfo, 'id'>>> = {
   elevenlabs: {
     name: 'ElevenLabs',
     description: 'Ultra-realistic voices with word-level timing',
@@ -97,7 +101,9 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
     requiresApiKey: true,
     supportedLanguages: ['en'],
   },
-};
+  // `satisfies` keeps the four selectable providers exhaustive while the
+  // annotation above allows lookup by any ProviderId.
+} satisfies Record<Exclude<ProviderId, 'local'>, Omit<ProviderInfo, 'id'>>;
 
 /**
  * Providers that support all languages (empty array means all).
@@ -127,11 +133,8 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         const container = getContainer();
         const currentProvider = container.config.provider;
 
-        const providers: ProviderInfo[] = Object.entries(PROVIDER_METADATA).map(
-          ([id, metadata]) => ({
-            id: id as ProviderId,
-            ...metadata,
-          }),
+        const providers: ProviderInfo[] = Object.entries(PROVIDER_METADATA).flatMap(
+          ([id, metadata]) => (metadata ? [{ id: id as ProviderId, ...metadata }] : []),
         );
 
         return Ok({
@@ -242,6 +245,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
         const suggestedProviders: ProviderId[] = [];
         if (!supported) {
           for (const [id, meta] of Object.entries(PROVIDER_METADATA)) {
+            if (!meta) continue;
             const supportsLang =
               meta.supportedLanguages.length === 0 ||
               meta.supportedLanguages.includes(language) ||
