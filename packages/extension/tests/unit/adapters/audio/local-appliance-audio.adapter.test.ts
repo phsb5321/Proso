@@ -21,7 +21,7 @@ import type { AudioError } from '../../../../src/core/shared/errors';
 import type { Result } from '../../../../src/core/shared/result';
 import { isErr, isOk } from '../../../../src/core/shared/result';
 import type { AudioRequest, AudioResponse } from '../../../../src/ports/audio-generator.port';
-import { runAudioGeneratorContractTests } from '../../../contract/audio-generator.contract.test';
+import { runAudioGeneratorContractTests } from '../../../contract/audio-generator.contract-suite';
 
 const BASE_URL = 'https://appliance.test';
 
