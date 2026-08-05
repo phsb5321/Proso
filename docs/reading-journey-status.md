@@ -304,7 +304,7 @@ closed, and the Dokku container's own path to the Pi (L420-443) stays unbuilt. *
 is Pedro's call.** Until he makes it, no row in this ledger should be read as endorsing either, and
 PR #95 is held.
 
-**05/08 23:1x BRT — merged, then reverted, hold restored.** PR #95 (Feature 100 slice B, the local
+**05/08 20:1x BRT — merged, then reverted, hold restored.** PR #95 (Feature 100 slice B, the local
 appliance adapter) was squash-merged at `8994f28`, then reverted at `6b4b33e` in the same session.
 The merge violated this hold and the step-3 gate below; the revert restores the pre-merge tree
 exactly — `git diff 163abc3 6b4b33e` is empty, so verification is inherited from #86's
@@ -333,7 +333,7 @@ resolved, the two `✗` rows above about green jobs hiding red steps are joined 
 **no CI result of any colour is currently evidence of anything.** Local commands are the only
 verification surface, which is exactly why every claim added today cites one.
 
-Diagnosis so far, recorded 05/08 ~23:1x BRT. Every failing run — 89 at last count — is attributed
+Diagnosis so far, recorded 05/08 ~20:1x BRT. Every failing run — 89 at last count — is attributed
 to a single synthetic workflow record, `workflow_id 328147086` (`name: ""`, `path:
 "BuildFailed"`, `state: deleted`), created exactly at the outage start, `2026-08-05T20:52:01Z`.
 The first failing run is the push of `2fa0f2e` to `097-doctor-ignored-locks` at that timestamp — a
