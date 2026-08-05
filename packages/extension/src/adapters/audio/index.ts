@@ -13,6 +13,8 @@ export { ServerTtsAudioAdapter } from './server-tts-audio.adapter';
 export {
   APPLIANCE_ERROR_CODES,
   APPLIANCE_MAX_TEXT_UTF8_BYTES,
+  APPLIANCE_RECOMMENDED_CONCURRENCY,
+  APPLIANCE_TTS_ADMISSION_LIMIT,
   LocalApplianceAudioAdapter,
   deriveIdempotencyKey,
   parseWavDurationMs,

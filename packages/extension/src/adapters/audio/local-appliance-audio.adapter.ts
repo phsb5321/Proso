@@ -31,9 +31,27 @@ import type {
  */
 export const APPLIANCE_MAX_TEXT_UTF8_BYTES = 8192;
 
-/** Appliance `Idempotency-Key` length window (16..128 characters). */
+/** Appliance `Idempotency-Key` length window (16..128 characters, inclusive). */
 export const IDEMPOTENCY_KEY_MIN_LENGTH = 16;
 export const IDEMPOTENCY_KEY_MAX_LENGTH = 128;
+
+/**
+ * Concurrent synthesis requests the appliance actually admits.
+ *
+ * `/v1/capabilities` publishes `queueCapacity: 8`, which is the TTS budget plus
+ * the STT budget; the split is not exposed. A measured 12-way burst admitted 4
+ * and refused 8 with `queue_full`. Using the published 8 would over-admit by 2x.
+ */
+export const APPLIANCE_TTS_ADMISSION_LIMIT = 4;
+
+/**
+ * In-flight synthesis requests a client should actually issue.
+ *
+ * The appliance runs a single inference worker with no preemption, so
+ * concurrency above one buys no throughput — it only converts queueing into
+ * 429s. Callers should keep one synthesis in flight plus at most one prefetch.
+ */
+export const APPLIANCE_RECOMMENDED_CONCURRENCY = 1;
 
 /**
  * Error codes this adapter reports through `provider_error`.
@@ -78,7 +96,8 @@ interface ApplianceProblem {
   readonly status?: number;
   readonly retryable?: boolean;
   readonly requestId?: string;
-  /** Delay the appliance itself states for a retryable refusal. */
+  /** Delay the appliance states for a retryable refusal (both spellings seen). */
+  readonly retryAfterMs?: number;
   readonly retry_after_ms?: number;
 }
 
@@ -445,23 +464,49 @@ async function mapProblemResponse(response: Response): Promise<AudioError> {
   const detail = problem.detail ?? problem.title ?? `Appliance returned ${response.status}`;
   const message = problem.requestId ? `${detail} (requestId=${problem.requestId})` : detail;
 
+  // The problem document's `code` decides, never the status class: `engine_failed`
+  // is a 503 with `retryable: false`, so a rule keyed on 5xx would treat a
+  // permanent failure as retryable. Oversize arrives as 413 `payload_too_large`.
+  switch (problem.code) {
+    case 'payload_too_large':
+      return audioError.textTooLong(APPLIANCE_MAX_TEXT_UTF8_BYTES);
+    case 'engine_failed':
+      return audioError.providerError(code, message);
+    default:
+      break;
+  }
+
   if (response.status === 401 || response.status === 403) {
     return audioError.invalidCredentials();
   }
-  if (response.status === 429) {
-    // The appliance states its own delay in the problem body; the Retry-After
-    // header (in seconds) is the fallback.
-    if (typeof problem.retry_after_ms === 'number' && Number.isFinite(problem.retry_after_ms)) {
-      return audioError.rateLimit(Math.round(problem.retry_after_ms));
-    }
-    const retryAfter = Number.parseFloat(response.headers.get('retry-after') ?? '');
-    return audioError.rateLimit(Number.isFinite(retryAfter) ? Math.round(retryAfter * 1000) : 0);
-  }
-  // `retryable` is the appliance's own verdict; it decides retryable vs terminal.
+
+  // A retryable refusal that states its own delay keeps that delay: `rate_limit`
+  // is the only typed error that carries one, and the caller needs it to retry
+  // once with the same idempotency key rather than backing off blindly.
+  const statedDelayMs = retryDelayMs(problem, response);
   if (problem.retryable === true) {
-    return audioError.network(`${code}: ${message}`);
+    return statedDelayMs === null
+      ? audioError.network(`${code}: ${message}`)
+      : audioError.rateLimit(statedDelayMs);
   }
+  if (response.status === 429) {
+    return audioError.rateLimit(statedDelayMs ?? 0);
+  }
+
   return audioError.providerError(code, message);
+}
+
+/**
+ * Retry delay the appliance stated, in milliseconds. The problem body carries it
+ * as `retryAfterMs` or `retry_after_ms` depending on the refusal; the
+ * `Retry-After` header (seconds) is the fallback.
+ */
+function retryDelayMs(problem: ApplianceProblem, response: Response): number | null {
+  for (const value of [problem.retryAfterMs, problem.retry_after_ms]) {
+    if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
+  }
+  const header = Number.parseFloat(response.headers.get('retry-after') ?? '');
+  return Number.isFinite(header) ? Math.round(header * 1000) : null;
 }
 
 /** Distinguish abort, DNS failure and generic network failure. */

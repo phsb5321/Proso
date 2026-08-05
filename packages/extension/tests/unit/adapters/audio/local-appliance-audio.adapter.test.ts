@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it } from '@jest/globals';
 import {
   APPLIANCE_ERROR_CODES,
   APPLIANCE_MAX_TEXT_UTF8_BYTES,
+  APPLIANCE_RECOMMENDED_CONCURRENCY,
+  APPLIANCE_TTS_ADMISSION_LIMIT,
   LocalApplianceAudioAdapter,
   deriveIdempotencyKey,
   parseWavDurationMs,
@@ -418,11 +420,56 @@ describe('LocalApplianceAudioAdapter', () => {
         tts: fakeResponse({
           status: 429,
           headers: { 'retry-after': '30' },
-          body: { code: 'queue_full', status: 429, retryable: true, retry_after_ms: 1500 },
+          body: { code: 'queue_full', status: 429, retryable: true, retryAfterMs: 14000 },
         }),
       });
 
-      expect(expectErrorType(result, 'rate_limit').retryAfterMs).toBe(1500);
+      expect(expectErrorType(result, 'rate_limit').retryAfterMs).toBe(14000);
+    });
+
+    it('accepts the snake_case spelling of the stated delay', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 503,
+          body: {
+            code: 'engine_not_ready',
+            status: 503,
+            retryable: true,
+            retry_after_ms: 5000,
+          },
+        }),
+      });
+
+      expect(expectErrorType(result, 'rate_limit').retryAfterMs).toBe(5000);
+    });
+
+    it('maps 413 payload_too_large to text_too_long, not to a generic 4xx', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 413,
+          body: {
+            code: 'payload_too_large',
+            status: 413,
+            retryable: false,
+            detail: 'Input is 8193 bytes; the limit is 8192',
+          },
+        }),
+      });
+
+      expect(expectErrorType(result, 'text_too_long').maxLength).toBe(
+        APPLIANCE_MAX_TEXT_UTF8_BYTES,
+      );
+    });
+
+    it('keeps an unknown voice terminal so the caller falls back', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 422,
+          body: { code: 'unknown_voice', status: 422, retryable: false, detail: 'no such voice' },
+        }),
+      });
+
+      expectProviderErrorCode(result, 'unknown_voice');
     });
 
     it('treats a retryable:false 503 as terminal, never as its status class', async () => {
@@ -588,6 +635,18 @@ describe('LocalApplianceAudioAdapter', () => {
       await adapter.generateAudio(request);
 
       expect(ttsCall(fetchStub).url).toBe(`${BASE_URL}/v1/tts`);
+    });
+  });
+
+  describe('published limits', () => {
+    it('admits fewer requests than the advertised queueCapacity', () => {
+      // queueCapacity is TTS plus STT; a measured burst admitted 4, not 8.
+      expect(APPLIANCE_TTS_ADMISSION_LIMIT).toBeLessThan(CAPABILITIES.limits.queueCapacity);
+      expect(APPLIANCE_TTS_ADMISSION_LIMIT).toBe(4);
+    });
+
+    it('recommends a single in-flight synthesis, since the appliance has one worker', () => {
+      expect(APPLIANCE_RECOMMENDED_CONCURRENCY).toBe(1);
     });
   });
 
