@@ -94,6 +94,91 @@ The same paragraph also requires that offline, timeout, invalid-WAV, denied-perm
 outcomes each call the existing server adapter **exactly once**. That is stricter than "falls
 back" and is carried as a test obligation in `tasks.md`, not merely as prose here.
 
+## Unresolved: which seam carries the audio — a maintainer decision
+
+This specification describes an **extension-direct** seam: the extension talks to the appliance
+itself. A prior recorded decision says the opposite, and this document does not get to supersede it
+quietly.
+
+### The recorded decision
+
+`~/Documents/Notes/2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md`
+(31/07/2026) fixes the seam at line 56-60 and again at line 428:
+
+> `ServerTtsAudioAdapter` → Proso API `/api/v1/tts/synthesize` → `TTSProviderPort` → new
+> `AudioApplianceTTSAdapter` → Pi `/v1/tts`.
+
+It then constrains the client explicitly:
+
+- line 74 — "Do not add direct Pi networking to Proso content scripts or the Lectrice WebView."
+- line 442 — "no Pi hostname permission or bearer token in the extension."
+- line 423 — the repository "deliberately removed direct provider adapters and centralized premium
+  TTS in commit `d033edd`. Preserve that decision."
+
+And it orders the work. Line 489 makes "Add Proso's server adapter, explicit local provider policy,
+and the gated Dokku DNS configuration" step 5, and line 495 states:
+
+> No client PR should start before steps 1–3 establish the stable contract.
+
+Steps 1 and 2 shipped 31/07/2026 (NixOS #1481, #1487, #1496). **Step 3 — burst, cancellation,
+idempotency, sustained thermal, and human speech acceptance, with published actual bounds (line
+486) — has not run in full.** Slice E measured burst, idempotency and latency on 05/08/2026 but not
+sustained thermal behaviour or human speech acceptance. So Feature 100 both picks the other seam
+and starts ahead of the gate that governs either seam.
+
+### Server-side seam — extension → Proso API → `AudioApplianceTTSAdapter` → Pi
+
+For it: it honours the decision as recorded, and it needs no constitution amendment at all — the
+first-party API remains the only destination page text reaches, so Principle I is untouched and
+**PR #92 would be withdrawn rather than merged**. It reuses `ServerTtsAudioAdapter`, so the
+extension keeps one TTS path instead of two. It keeps the appliance hostname, and any future
+bearer token, out of a shipped artifact that runs on every reader's machine.
+
+Against it: it needs Dokku-container-to-tailnet DNS mapping (line 441), which is Pedro's infra and
+not a repository change. And "owner-only routing/entitlement" (line 434) means the server must
+recognise the owner before it will route to the appliance — so the read is **no longer literally
+account-free**. It becomes free-of-charge and free-of-provider-key for a recognised owner, which is
+a different product claim from FR-1's. Page text also travels browser → cloud host → tailnet
+rather than staying on the tailnet.
+
+### Extension-direct seam — the one this specification describes
+
+For it: it is the only variant that delivers a read with **no account and no credential of any
+kind**, which is FR-1 and the reason this feature was opened at all. Page text never leaves the
+reader's own tailnet — it does not transit a cloud host on the way to a machine sitting on the same
+network as the browser. It needs no infra change from Pedro and no server deployment.
+
+Against it: it contradicts the recorded decision on three explicit points (lines 74, 423, 442), it
+puts a reader-supplied Pi hostname into extension configuration and an optional host permission
+into the manifest, and it requires the Principle I amendment in PR #92 to merge before slice C can
+ship. Mitigations already in this specification — off by default (FR-2), user-supplied host
+(FR-3), runtime permission (FR-6), no hostname in shipped source — narrow the exposure but do not
+reconcile it with a decision whose wording is a flat prohibition.
+
+### What each seam invalidates
+
+| Slice | Server-side seam | Extension-direct seam |
+|---|---|---|
+| B — adapter (PR #95) | **Invalidated as located.** The adapter moves to `packages/server` behind `TTSProviderPort`; its HTTP contract mapping, idempotency derivation and problem+json handling survive the move, its `IAudioGenerator` shape does not | stands |
+| C — settings, permission, wiring | **Largely invalidated.** No optional host permission, no host field, no manifest change; replaced by server-side configuration, owner entitlement, and Dokku DNS | stands |
+| D — journey oracle | Rewritten against the server route rather than a local fixture | stands |
+| E — acceptance | FR-1 cannot be demonstrated as written; the criterion becomes owner-recognised rather than account-free | stands |
+| PR #92 — constitution amendment | **Withdrawn.** No third destination exists | required to merge before slice C |
+| FR-3, FR-6, FR-7 client bounds | Move server-side; FR-6 disappears | stand |
+| RESEARCH.md | unchanged | needs an amendment recording the reversal, with rationale |
+
+Slice B's adapter work is not wasted under either seam — the appliance contract, the error mapping,
+the derived idempotency key and the chunking policy are identical on both sides of the boundary.
+Only where the code lives and what permission it needs differ.
+
+### Status
+
+**This is Pedro's decision, and this specification does not make it.** It is recorded here rather
+than resolved because picking either seam silently would either supersede a written decision
+without a rationale, or abandon FR-1 without saying so. Independently of the fork, line 495 gates
+any client work on step 3 completing, and step 3 has not completed — sustained thermal behaviour
+and human speech acceptance are both unmeasured.
+
 ## Acceptance criteria and falsifiers
 
 Each criterion below is a delivery gate. A criterion whose falsifier cannot be observed is not
@@ -394,8 +479,15 @@ These are product-level and are not decided here.
    at all. Changing a business invariant is a MAJOR amendment by the constitution's own
    Governance section. This specification does not restate it.
 
-Neither question blocks slices B or D: an adapter and an oracle can be built and proven while the
-wording is settled. Shipping the provider to users without resolving them would be a violation.
+3. **Which seam carries the audio.** Extension-direct, as specified here, or server-side through
+   `TTSProviderPort` as recorded in RESEARCH.md on 31/07/2026. The trade is stated in full under
+   [Unresolved: which seam carries the audio](#unresolved-which-seam-carries-the-audio--a-maintainer-decision).
+   Resolving it decides whether PR #92 merges or is withdrawn, and whether slices B and C stand as
+   written. RESEARCH.md line 495 also gates any client work on step 3, which has not run in full.
+
+Questions 1 and 2 do not block slices B or D: an adapter and an oracle can be built and proven while
+the wording is settled. Question 3 does — it decides where the adapter lives. Shipping the provider
+to users without resolving all three would be a violation.
 
 ## Non-goals
 
