@@ -1,13 +1,14 @@
-# Feature 099 — Local appliance as a TTS provider
+# Feature 100 — Local appliance as a TTS provider
 
-**Branch**: `099-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: specification only,
+**Branch**: `100-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: specification only,
 nothing implemented
 
-> Numbering note: this feature was specified as 097 and renumbered to 099 on 05/08/2026, because
-> `specs/097-reading-journey-delta/` already occupied 097 and `specs/098-ops-parity/` occupied
-> 098. The feature id is 099 from here on. The two pull requests that introduced this
-> specification, #91 and #93, were authored on a branch named `097-local-appliance-tts` and are
-> already merged, so that branch name survives in the history while the directory does not.
+> Numbering note: the feature id is **100**. It was specified as 097, renumbered to 099 in PR #94,
+> and corrected to 100 here, because 097, 098 and 099 are all taken — 097 by
+> `specs/097-reading-journey-delta/` and a second merged branch `097-doctor-ignored-locks`, 098 by
+> `specs/098-ops-parity/`, and 099 by the merged `099-fleet-ledger` work. The highest id ever used
+> is 099, so this is 100. Earlier pull requests #91, #93 and #94 were authored on branches named
+> for the superseded numbers; those names survive in history while the directory does not.
 
 ## Problem
 
@@ -19,6 +20,28 @@ outcome — the free tier never requires account creation — has no delivery pa
 
 Pedro owns a machine on his tailnet that already synthesizes speech. `docs/research/local-reader-lab-2026-07-30.md`
 proposed using it and explicitly labelled the proposal an unimplemented hypothesis.
+
+Two further findings from the review actor's 05/08/2026 verification shape what this feature is
+for:
+
+**The account-free journey cannot be demonstrated on `main` at all.**
+`packages/server/src/infrastructure/controllers/tts.controller.ts:248` returns
+`HttpStatus.PAYMENT_REQUIRED` from commit `7e4cda0`, and
+`docs/reading-journey-status.md:25,33` records the same alongside the removal of browser
+`speechSynthesis`. `make smoke-reading` goes green only because it points the extension at a local
+fixture stub rather than at a real audio source. This feature is therefore the first route in the
+repository that can produce real audio with no account, no license key, and no provider key — the
+acceptance of FR-1 is not merely sequenced after slice D, it is the first opportunity to run an
+account-free read against real audio.
+
+**Public-user acceptance is unimplemented, not blocked.** Firefox Nightly 154.0a1 and geckodriver
+0.37.0 are present; `scripts/smoke-reading.mjs` resolves the browser without `FIREFOX_BIN` and
+passed green at `00f69ad`; the popup ships public accessible names (`aria-label="Play"`,
+`"Previous paragraph"`, `role="tablist"`, `aria-live="polite"`); and the chrome-context mechanism
+a public actor needs already exists in the harness at `scripts/smoke-reading.mjs:90,124,201`,
+currently pointed at addon install rather than at a toolbar click. The gap between the existing
+internal-dispatch diagnostic and Feature 095's public-control contract is work, not missing
+capability. Nothing in this feature's acceptance is BLOCKED on infrastructure.
 
 ## Goal
 
@@ -60,8 +83,8 @@ The rest of the constraint maps as follows, including where it is not fully met:
 |---|---|
 | opt-in | FR-2, and a default-off proof asserted on issued requests rather than on configuration |
 | HTTPS | FR-3 rejects any non-`https://` origin for a non-loopback host |
-| bounded input | FR-7, at the appliance's published 8,192 UTF-8 bytes, measured in bytes |
-| bounded concurrency | FR-7, at the published queue capacity of 8, across playback and prefetch together |
+| bounded input | FR-7, at the appliance's published 8,192 UTF-8 bytes, measured in bytes, with sentence-level chunking below that |
+| bounded concurrency | FR-7, at one in-flight synthesis plus one prefetch — the published `queueCapacity: 8` is a combined TTS-plus-STT figure, measured TTS admission is 4, and a single inference worker means client concurrency above 1 buys no throughput |
 | bounded timeout | the failure-mode table: every reachability and 5xx row is bounded and falls back rather than stalling |
 | explicit optional host permission | FR-6, requested at runtime from a user gesture |
 | no hard-coded tailnet addresses | FR-3, falsified by a `grep` of shipped source |
@@ -138,16 +161,25 @@ rather than producing repeated failures.
 permission is requested at install or at startup; the provider stays selected and keeps failing
 after the permission is revoked.
 
-### FR-7 — Bounds enforced before the request
+### FR-7 — Chunked synthesis within measured bounds
 
-**Criterion:** input above 8,192 UTF-8 bytes is split or refused client-side, measured in bytes
-rather than in JavaScript string length. Concurrent in-flight synthesis requests stay at or below
-the appliance's published queue capacity of 8.
+The appliance cannot stream: it returns a whole WAV or a JSON envelope, so time-to-first-audio
+equals full synthesis time for whatever is requested. A paragraph sent in one piece is therefore
+~8 seconds of silence before anything plays (measured, see FR-11). Bounds enforcement alone does
+not fix that; chunking does.
 
-**Falsifier:** a request body exceeding the published byte bound leaves the extension; a bound
-enforced on `String.length`; more than the published capacity of concurrent requests observed in
-a prefetch or export burst; a 429 or 413 that only appears at the server rather than being
-prevented.
+**Criterion:** text is synthesized at sentence granularity, and the next chunk is requested while
+the current one plays. Input is measured in UTF-8 bytes, never in JavaScript string length, and no
+request body exceeds 8,192 bytes. **At most one synthesis request is in flight at a time, plus at
+most one prefetch** — not the published `queueCapacity: 8`, which is a combined TTS-plus-STT
+figure whose per-class split the API never exposes, and which a single inference worker cannot
+exploit anyway.
+
+**Falsifier:** a whole paragraph is sent as one request; a request body exceeding 8,192 bytes
+leaves the extension; a bound enforced on `String.length`; more than two concurrent requests
+observed in a playback or prefetch burst; a `queue_full` 429 caused by the extension's own
+concurrency rather than by another client; playback that starves waiting for a chunk that was not
+requested early enough.
 
 ### FR-8 — Derived idempotency
 
@@ -179,11 +211,45 @@ hit on locally-produced audio charges nothing. INV-005 is addressed explicitly i
 **Falsifier:** any credit transaction attributable to a local synthesis; a cache hit that charges;
 a document that restates INV-005 without recording it as a maintainer decision.
 
+### FR-11 — Time to first audio, at the granularity the criterion binds to
+
+The research falsifier (`docs/research/local-reader-lab-2026-07-30.md:38`) rejects the integration
+if representative input misses **either** a warm full-synthesis time of two seconds **or** a
+real-time factor of 0.5. The review actor measured both on this appliance on 05/08/2026: RTF is
+0.195–0.276 across every input size, comfortably inside the bound and effectively length-invariant;
+wall-clock time is 1.162 s at 68 bytes, 1.996 s at 150 bytes, and 7.5–8.3 s at paragraph size
+(656–727 bytes).
+
+That is not a measurement gap, it is an ambiguity in the criterion, and the specification resolves
+it rather than reporting both numbers and moving on. At a fixed real-time factor, wall time grows
+with input, so *any* positive RTF fails a fixed two-second bound for long enough text — a
+paragraph-level reading of the clause is unsatisfiable by construction, for this or any
+synthesizer. The research doc's own baseline rows used inputs of roughly five seconds of audio,
+so the clause was calibrated to sentences.
+
+**Decision: the two-second clause binds to time-to-first-audio, at sentence granularity.** It does
+not bind to whole-paragraph synthesis time, and it does not bind to whole-article time.
+
+**Criterion:** after the reader presses play, the first audio begins within two seconds of a warm
+appliance, and playback thereafter does not starve at any article length. At RTF near 0.2 the
+producer runs roughly five times ahead of the consumer, so a chunk pipeline that starts one
+sentence ahead stays ahead.
+
+**Falsifier:** first audio later than two seconds from a warm appliance; any gap in playback
+attributable to a chunk not yet synthesized; a delivery claim that reports RTF while omitting that
+the wall-clock clause fails against paragraph-sized input; a receipt that states this criterion is
+met without measuring time-to-first-audio specifically.
+
 ## Failure modes and required results
 
 Every row is a required user-visible outcome. "Fallback" means the existing server route is
 attempted with the reader's existing entitlement, which on current `main` will itself refuse for
 a Free user — the reader must then see that refusal, not an empty state.
+
+Statuses and `code` values below are measured, not assumed — the review actor probed each one on
+05/08/2026. Where they differ from the master brief, the measurement wins. Dispatch is on `code`,
+**never on status class**: `engine_failed` is a 503 with `retryable: false`, so an adapter that
+retries on `5xx` would retry a permanent failure.
 
 | Condition | How it presents | Required user-visible result |
 |---|---|---|
@@ -192,14 +258,16 @@ a Free user — the reader must then see that refusal, not an empty state.
 | DNS unresolvable / tailnet down | connection error before response | one bounded retry, then fallback with "local reader unreachable" |
 | Permission not granted or revoked | request blocked by the browser | local route disabled, reader prompted to re-grant, fallback |
 | `/health` reports `ready: false` | 200 response, `ready` false | no synthesis attempted; "local reader is starting"; fallback |
-| 422 `idempotency_key_required` | RFC-9457 problem body | treated as a client defect: log, do not retry, fallback |
-| 422 `unknown_field` / `invalid_speed` | RFC-9457 problem body | same as above; the request shape is wrong, retrying cannot fix it |
-| 422 unknown voice | RFC-9457 problem body | fallback, message names the unavailable voice |
-| 406 accept negotiation failure | RFC-9457 problem body | treated as a client defect; fallback |
-| 415 wrong content type | RFC-9457 problem body | treated as a client defect; fallback |
-| 429 or queue full | `retryable` true | bounded wait, one retry, then fallback with "local reader busy" |
-| 5xx | problem body or empty | no retry storm; fallback with the reported request id |
-| Input over 8,192 UTF-8 bytes | detected before sending | split at a sentence boundary, or refused with an explicit message |
+| Oversize input | **413 `payload_too_large`**, `retryable: false` | must never occur — FR-7 chunks below the bound; if it does, it is a client defect: log, do not retry, fallback |
+| Missing or malformed idempotency key | 422 `idempotency_key_required` / `invalid_idempotency_key` | client defect: log, do not retry, fallback |
+| Same key, different body | **409 `idempotency_key_reused`**, `retryable: false` | unreachable with a derived key (D-6); if observed, the derivation is broken — fail loudly, do not retry, fallback |
+| Malformed body | 422 `unknown_field` / `invalid_speed` / `invalid_input` | client defect; the request shape is wrong, retrying cannot fix it; fallback |
+| Unknown voice | 422 `unknown_voice` | fallback, message names the unavailable voice |
+| Accept negotiation failure | 406 `unsupported_representation` | client defect; fallback |
+| Wrong content type | 415 `unsupported_media_type` | client defect; fallback. Note the header is parameter-tolerant — `application/json; charset=utf-8` succeeds |
+| Queue full | **429 `queue_full`**, `retryable: true`, `retry-after: 14` header and `retryAfterMs` | honour the stated delay, one retry, then fallback with "local reader busy". Never a blind backoff, and never caused by our own concurrency (FR-7) |
+| Engine starting or timed out | 503 `engine_not_ready` / `engine_timeout`, `retryable: true`, `retry_after_ms` stated | one retry after the stated delay, **reusing the same idempotency key** so it coalesces rather than queueing a second synthesis; then fallback |
+| Engine failure | **503 `engine_failed`, `retryable: false`** | no retry — it is permanent; fallback with the reported `requestId` |
 | Language the appliance cannot serve | no matching voice | local route declines; fallback; never substituted with another language's voice |
 | Reader stops or navigates mid-synthesis | abort signalled | in-flight request aborted, no audio played, no stale highlight |
 | Response is not valid audio | decode fails | discarded, not cached, fallback, reader told synthesis failed |
@@ -295,12 +363,20 @@ treats it as a metered provider.
 ### D-6 — Idempotency key derivation
 
 **Decision:** the key is a hex-encoded SHA-256 digest, truncated to a fixed length inside the
-appliance's 16 to 128 character bound, over a canonical serialization of exactly the fields the
-appliance accepts: input text, voice id, and speed. Nothing else — no URL, no paragraph index, no
-timestamp — participates, so the same paragraph on a re-read reuses retained audio.
+appliance's 16 to 128 character bound (inclusive; 15 and 129 characters both measure as 422
+`invalid_idempotency_key`), over a canonical serialization of exactly the fields the appliance
+accepts: input text, voice id, and speed. Nothing else — no URL, no chunk index, no timestamp —
+participates, so the same sentence on a re-read reuses retained audio. A retry after
+`engine_not_ready` or `engine_timeout` reuses the key it already sent, so the appliance coalesces
+the retry instead of queueing a second synthesis.
+
+Deriving the key is also what makes 409 `idempotency_key_reused` — same key, different body —
+structurally unreachable: two different bodies cannot produce one key except by digest collision.
+A random key would make that failure reachable and the retained-audio replay impossible.
 
 **Falsifier:** two distinct request bodies collide on a key in a seeded property run; the same
-body produces different keys across two extension restarts; the key length falls outside 16..128.
+body produces different keys across two extension restarts; the key length falls outside 16..128
+inclusive; a retry sends a fresh key; a 409 `idempotency_key_reused` is ever observed.
 
 ## Open decisions for Pedro
 
@@ -332,22 +408,31 @@ wording is settled. Shipping the provider to users without resolving them would 
 
 ## Evidence
 
-Nothing in this feature is implemented, so no behavioural claim below is verified.
+Nothing in this feature is implemented, so no claim about the extension's behaviour is verified.
+The appliance rows are measured, and the measurements below supersede the master brief wherever
+the two differ.
 
 | Claim | Status | Evidence |
 |---|---|---|
 | The appliance is reachable over the tailnet and reports `ready: true` | verified 05/08/2026 17:50 BRT | `GET /health` → `{"status":"ok","ready":true,"version":"1.0.0+ps4m63vm8fd4gh4i3cn9nj025br8c1b3"}` |
-| Published limits are 8,192 UTF-8 bytes, queue capacity 8, 900 s idempotency retention | verified 05/08/2026 17:50 BRT | `GET /v1/capabilities` |
+| Published limits are 8,192 UTF-8 bytes, 900 s idempotency retention, 60 s maximum audio | verified 05/08/2026 17:50 BRT | `GET /v1/capabilities` |
 | Both voices publish `markKinds: []` | verified 05/08/2026 17:50 BRT | `GET /v1/capabilities` |
-| Warm synthesis latency and real-time factor on this appliance | unverified | the master brief's cold figure of 5.475 s is a third-party measurement of a single request; the research doc's falsifier was measured on a different node and a different English voice (`en_US-lessac-medium`). Slice E must re-measure |
+| Real-time factor is 0.195–0.276 across every input size, well inside the 0.5 bound | measured 05/08/2026 17:49–18:00 BRT | review actor, 8 runs, EN and PT, WAV duration parsed from each response's own `fmt `/`data` chunks rather than assumed |
+| Wall-clock synthesis is 1.162 s at 68 bytes, 1.996 s at 150 bytes, 7.5–8.3 s at 656–727 bytes | measured, same runs | the two-second clause holds at sentence size and fails at paragraph size; FR-11 resolves which granularity it binds to |
+| The appliance cannot stream a response | measured and source-confirmed | only a whole WAV or the JSON envelope is offered; time-to-first-audio equals full synthesis time, which is why FR-7 chunks |
+| TTS admission is 4, not the advertised 8, and there is a single inference worker | measured | a 12-way burst admitted 4 and returned 429 `queue_full` for 8; the per-class split is never published, and completions serialized at 1.148 / 2.106 / 3.146 / 4.167 s |
+| Idempotent replay returns byte-identical audio in ~0.11–0.12 s | measured | EN 0.112 s and PT 0.120 s on a repeat of the same key and body |
+| The master brief's 5.475 s cold English figure | **not reproduced** | a comparable warm request took 1.162 s and no cold-load penalty appeared in any run; treated as a one-off model load and deliberately not carried into this specification as a latency characteristic |
+| `content-type` is parameter-tolerant | measured | `application/json; charset=utf-8` returns 200; the master brief's "exactly, else 415" was wrong, and a test asserting 415 on a charset parameter would encode the error |
 | Audio quality is acceptable to a listener | unverified | never assessed; the research doc says so explicitly |
+| Firefox, geckodriver, fixture, public selectors, and the chrome-context mechanism all exist | verified 05/08/2026 | Firefox Nightly 154.0a1, geckodriver 0.37.0, `scripts/smoke-reading.mjs` green at `00f69ad`; public acceptance is unimplemented, not blocked |
 | The extension can synthesize against the appliance | not implemented | no adapter exists |
-| Fallback, bounds, permission, and abort behaviour | not implemented | specified above, built in slices B and C |
-| The account-free journey works end to end | not implemented | slice E is the only thing that can establish it |
+| Fallback, bounds, chunking, permission, and abort behaviour | not implemented | specified above, built in slices B and C |
+| The account-free journey works end to end | not implemented | slice E is the only thing that can establish it, and this feature is the first route that makes it possible at all |
 
 ## Acceptance
 
-This feature is delivered when FR-1 through FR-10 each have an independent deterministic trace
+This feature is delivered when FR-1 through FR-11 each have an independent deterministic trace
 that does not trigger its falsifier, produced against the built extension in a real Firefox with
 the appliance live, and when the two open decisions above have been resolved by the maintainer. A
 missing appliance, browser, or fixture makes the gate BLOCKED. It does not make it green.
