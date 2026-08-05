@@ -1,8 +1,8 @@
-# Tasks — Feature 097, local appliance as a TTS provider
+# Tasks — Feature 099, local appliance as a TTS provider
 
 **Input**: [`spec.md`](./spec.md), [`plan.md`](./plan.md)
 **Ownership**: slice A (this document) is product. Slices B, C, D are engineering; E is review;
-F is documentation. Each slice is its own worktree, branch `097-<slug>`, and pull request.
+F is documentation. Each slice is its own worktree, branch `099-<slug>`, and pull request.
 
 Ordering: B may start now. C depends on B. D depends on C. E depends on D. F lands last and
 records what actually happened, including anything that failed.
@@ -20,9 +20,11 @@ records what actually happened, including anything that failed.
   decisions, without restating either invariant.
 - [x] T006 Re-verify the appliance contract used by this specification and record what remains
   unverified in the evidence table.
-- [ ] T007 `[pending] Pedro`: resolve Constitution Principle I — ratify an amendment naming a
-  reader-operated destination, or accept the plan's documented exception. **Blocks slice C's
-  merge, not its development.**
+- [ ] T007 `[pending] Pedro`: resolve Constitution Principle I — ratify
+  [PR #92](https://github.com/phsb5321/Proso/pull/92), the 2.0.0 → 2.1.0 amendment permitting a
+  reader-operated synthesis host, or accept the plan's documented exception. The plan's
+  Constitution Check stays **FAIL** until that pull request merges. **Blocks slice C's merge, not
+  its development.**
 - [ ] T008 `[pending] Pedro`: decide whether INV-005 is restated, replaced, or scoped away now
   that browser TTS no longer exists. **Blocks slice C's merge.**
 
