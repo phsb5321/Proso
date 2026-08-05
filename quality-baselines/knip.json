@@ -71,17 +71,6 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "2bfbc62c70525a0a849aea3087f13452369e99a7b4d2fc5089b401baadf5d23a",
-      "scope": "all",
-      "category": "devDependencies",
-      "file": "packages/server/package.json",
-      "symbol": "@nestjs/testing",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "2dbfeeb8c6b95a929cb4852326aa76113a7696dc9aafa2424d02fbd5df671bfa",
       "scope": "production",
       "category": "dependencies",
