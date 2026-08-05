@@ -11,9 +11,16 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 // Polyfill crypto.subtle for Web Crypto API
-if (!global.crypto) {
+// jsdom defines global.crypto as a getter-only accessor that exposes no
+// `subtle`, so the guard must test for the subtle interface itself and the
+// replacement must go through defineProperty (plain assignment is a no-op).
+if (!global.crypto?.subtle) {
   const { webcrypto } = await import('crypto');
-  global.crypto = webcrypto;
+  Object.defineProperty(global, 'crypto', {
+    value: webcrypto,
+    configurable: true,
+    writable: true,
+  });
 }
 
 // Mock browser.storage.local for testing
