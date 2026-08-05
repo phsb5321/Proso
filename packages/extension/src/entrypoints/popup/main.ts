@@ -15,6 +15,7 @@ import 'virtual:uno.css';
 import { browser } from 'wxt/browser';
 import { createLogger } from '../../utils/logging/logger';
 import { usageTracker } from '../../utils/telemetry/usage';
+import { showPlaybackStartFailure } from './playback-failure';
 
 const log = createLogger('popup');
 
@@ -446,8 +447,7 @@ async function handlePlayPause(): Promise<void> {
       if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
         const errorMsg = String(result.error || 'Playback failed');
         log.warn('[Popup] Playback start failed', { error: errorMsg });
-        updateStatus('stopped');
-        elements.statusText.textContent = 'Error: ' + errorMsg;
+        showPlaybackStartFailure(elements.statusDot, elements.statusText, errorMsg);
       }
     }
   } catch (error) {
@@ -457,7 +457,7 @@ async function handlePlayPause(): Promise<void> {
       stack: error instanceof Error ? error.stack : undefined,
     });
     log.error('[Popup] Play/pause error', { error });
-    updateStatus('stopped');
+    showPlaybackStartFailure(elements.statusDot, elements.statusText, error);
   }
 }
 

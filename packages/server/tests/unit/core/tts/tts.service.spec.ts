@@ -491,6 +491,10 @@ describe('TTSService.synthesize', () => {
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
       expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
+      expect(result.error.message).toBe(
+        'Managed TTS is not included in this tier. Add a provider API key in settings, or use a plan that includes managed TTS.',
+      );
+      expect(result.error.message).not.toMatch(/browser TTS|upgrade to Pro/i);
     });
 
     it('does not reach any provider adapter on a Free tier managed request', async () => {

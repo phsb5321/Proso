@@ -140,9 +140,9 @@ export async function synthesize(
   // "free tier is not charged" but actually meant "free tier is not metered",
   // so unauthenticated callers synthesized on our keys for free, unbounded.
   //
-  // No invariant is weakened: INV-001 holds because Free tier still needs no
-  // account for the things it is entitled to — browser TTS (INV-005,
-  // client-side and unlimited) and BYOK (INV-002, handled above this line).
+  // No invariant is weakened: Free remains account-free and BYOK remains
+  // available on every tier (INV-002, handled above this line). Whether a
+  // no-key Free reading route should exist is a separate product decision.
   //
   // The gate sits ABOVE the cache probe on purpose, so an ungated tier gets a
   // deterministic 402 rather than "works whenever someone else already
@@ -156,10 +156,16 @@ export async function synthesize(
     // A credit-class error, not a TTS-class one: the tier's managed allowance is
     // zero (TIER_CREDITS.Free), so every managed request is short by its full
     // price. That is already the 402 the extension branches on.
+    // This message is shown to the reader verbatim by the extension, so it names
+    // only remedies the extension actually offers. Browser TTS is deliberately
+    // absent: INV-005 guarantees it is unlimited, but the extension's provider
+    // list is the four managed providers and its playback path has no Web Speech
+    // route, so suggesting it would send the reader looking for a setting that
+    // does not exist.
     return Err(
       creditError(
         ErrorCode.InsufficientCredits,
-        'Managed TTS is not included in this tier. Use browser TTS, or supply your own provider API key.',
+        'Managed TTS is not included in this tier. Add a provider API key in settings, or use a plan that includes managed TTS.',
         { tier: request.tier },
       ),
     );

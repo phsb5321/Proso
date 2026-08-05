@@ -7,12 +7,17 @@
  * @module tests/unit/adapters/audio/server-tts-byok
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ServerTtsAudioAdapter } from '../../../../src/adapters/audio/server-tts-audio.adapter';
-import { Ok, Err } from '../../../../src/core/shared/result';
-import type { IApiClient, SynthesizeResponse } from '../../../../src/ports/api-client.port';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { TTSSynthesizeRequest } from '@proso/shared';
-import { TTSProvider } from '@proso/shared';
+import { ErrorCode, TTSProvider } from '@proso/shared';
+import { ServerTtsAudioAdapter } from '../../../../src/adapters/audio/server-tts-audio.adapter';
+import type { AudioError } from '../../../../src/core/shared/errors';
+import { Err, Ok } from '../../../../src/core/shared/result';
+import type {
+  ApiClientError,
+  IApiClient,
+  SynthesizeResponse,
+} from '../../../../src/ports/api-client.port';
 
 // ── Helpers ──
 
@@ -131,50 +136,70 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
 
   // ── Error response mapping ──
 
-  it('maps unauthorized error to invalid_credentials', async () => {
+  /**
+   * Drive one synthesize failure through the adapter and hand back the AudioError
+   * it produced. Every case below differs only in the ApiClientError going in and
+   * the AudioError expected out, so that is all each test states.
+   */
+  async function mapError(apiError: ApiClientError): Promise<AudioError> {
     const failClient = createMockApiClient({
-      synthesize: jest.fn<IApiClient['synthesize']>().mockResolvedValue(
-        Err({ type: 'unauthorized', message: 'Invalid BYOK key' }),
-      ),
-    });
-    const adapter = new ServerTtsAudioAdapter(failClient, TTSProvider.OpenAI, 'bad-key');
-
-    const result = await adapter.generateAudio(defaultAudioRequest);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.type).toBe('invalid_credentials');
-  });
-
-  it('maps timeout error to network error', async () => {
-    const failClient = createMockApiClient({
-      synthesize: jest.fn<IApiClient['synthesize']>().mockResolvedValue(
-        Err({ type: 'timeout', timeoutMs: 10000 }),
-      ),
+      synthesize: jest.fn<IApiClient['synthesize']>().mockResolvedValue(Err(apiError)),
     });
     const adapter = new ServerTtsAudioAdapter(failClient, TTSProvider.OpenAI, 'key');
 
     const result = await adapter.generateAudio(defaultAudioRequest);
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.type).toBe('network');
+    if (result.ok) throw new Error('expected generateAudio to fail, but it returned Ok');
+    return result.error;
+  }
+
+  it('maps unauthorized error to invalid_credentials', async () => {
+    const error = await mapError({ type: 'unauthorized', message: 'Invalid BYOK key' });
+    expect(error.type).toBe('invalid_credentials');
+  });
+
+  it('maps timeout error to network error', async () => {
+    const error = await mapError({ type: 'timeout', timeoutMs: 10000 });
+    expect(error.type).toBe('network');
+  });
+
+  // Regression lock. The server gates managed TTS on FEATURE_MATRIX.managedTts
+  // and answers an unentitled request with 402. Before this branch existed the
+  // reader saw "Network error: <copy>" for an entitlement refusal.
+  it('maps a 402 to payment_required, carrying the server copy through unchanged', async () => {
+    const message = 'Managed TTS is not included in the free tier. Add your own provider API key.';
+
+    const error = await mapError({
+      type: 'server_error',
+      status: 402,
+      message,
+      code: ErrorCode.InsufficientCredits,
+    });
+
+    expect(error.type).toBe('payment_required');
+    expect((error as { message: string }).message).toBe(message);
+  });
+
+  it('still maps 429 to rate_limit with the retry delay', async () => {
+    const error = await mapError({
+      type: 'server_error',
+      status: 429,
+      message: 'Too many requests',
+      retryAfterMs: 2_000,
+    });
+
+    expect(error).toEqual({ type: 'rate_limit', retryAfterMs: 2_000 });
+  });
+
+  it('still maps other server errors to network — the 402 branch is narrow', async () => {
+    const error = await mapError({ type: 'server_error', status: 503, message: 'Upstream down' });
+    expect(error.type).toBe('network');
   });
 
   it('maps not_configured error to provider_error with original message', async () => {
-    const failClient = createMockApiClient({
-      synthesize: jest.fn<IApiClient['synthesize']>().mockResolvedValue(
-        Err({ type: 'not_configured', message: 'API key required' }),
-      ),
-    });
-    const adapter = new ServerTtsAudioAdapter(failClient, TTSProvider.OpenAI);
-
-    const result = await adapter.generateAudio(defaultAudioRequest);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.type).toBe('provider_error');
-    expect((result.error as { message: string }).message).toBe('API key required');
+    const error = await mapError({ type: 'not_configured', message: 'API key required' });
+    expect(error.type).toBe('provider_error');
+    expect((error as { message: string }).message).toBe('API key required');
   });
 
   // ── validateCredentials ──
@@ -185,7 +210,7 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
   });
 
   it('returns false when apiClient is not configured', async () => {
-    const unconfigured = createMockApiClient({ isConfigured: false } as any);
+    const unconfigured = createMockApiClient({ isConfigured: false });
     // Need to override the getter
     Object.defineProperty(unconfigured, 'isConfigured', { get: () => false });
     const adapter = new ServerTtsAudioAdapter(unconfigured, TTSProvider.OpenAI, 'key');

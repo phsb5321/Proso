@@ -71,9 +71,8 @@ export class TTSController {
     // --- Authentication ---
     // INV-001: Free tier never requires account creation, so unauthenticated
     // requests are accepted and treated as Free tier. They may use BYOK (the
-    // user's own key) or browser TTS; they may NOT spend the server's provider
-    // keys — tts.service.ts rejects Free tier managed synthesis via
-    // FEATURE_MATRIX.managedTts.
+    // user's own key); they may NOT spend the server's provider keys because
+    // tts.service.ts rejects Free managed synthesis via FEATURE_MATRIX.managedTts.
     const userId = (req as Request & { userId?: string }).userId;
     const isByok = !!body.byokApiKey;
 
@@ -163,7 +162,7 @@ export class TTSController {
   @Post('test-key')
   @HttpCode(HttpStatus.OK)
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ long: { ttl: 60_000, limit: 5 } })
   async testKey(
     @Body(new ZodValidationPipe(TTSTestKeyRequestSchema)) body: TTSTestKeyRequestParsed,
   ): Promise<TTSTestKeyResponse> {
@@ -210,8 +209,15 @@ export class TTSController {
     };
   }
 
+  // Throttled like test-key, and for the same reason: this route is
+  // unauthenticated and the ElevenLabs adapter answers it by calling the vendor
+  // with the server's own key. Listing voices costs no TTS credits, but an
+  // unbounded caller can still burn our rate-limit budget on that account. The
+  // other three adapters return static lists and make no network call.
   @Get('voices/:provider')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ long: { ttl: 60_000, limit: 30 } })
   async getVoices(
     @Param('provider') providerParam: string,
   ): Promise<{ voices: Array<{ id: string; name: string; language?: string; gender?: string }> }> {
