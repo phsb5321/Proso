@@ -164,7 +164,9 @@ reconcile it with a decision whose wording is a flat prohibition.
 | D — journey oracle | Rewritten against the server route rather than a local fixture | stands |
 | E — acceptance | FR-1 cannot be demonstrated as written; the criterion becomes owner-recognised rather than account-free | stands |
 | PR #92 — constitution amendment | **Withdrawn.** No third destination exists | required to merge before slice C |
-| FR-3, FR-6, FR-7 client bounds | Move server-side; FR-6 disappears | stand |
+| FR-3, FR-6 | Move server-side; FR-6 disappears | stand |
+| FR-7 chunking | Survives intact but changes owner — it moves into `AudioApplianceTTSAdapter`, which then also holds reassembly, per-chunk keys, and a concurrency cap spanning all readers. See [Who owns the chunking depends on the seam](#who-owns-the-chunking-depends-on-the-seam) | stands in the extension adapter |
+| Unkeyed paragraph retries (RESEARCH.md lines 435-436) | Become a server-side correctness problem, underneath the server's own per-chunk keys | fixed client-side by FR-8 |
 | RESEARCH.md | unchanged | needs an amendment recording the reversal, with rationale |
 
 Slice B's adapter work is not wasted under either seam — the appliance contract, the error mapping,
@@ -265,6 +267,30 @@ leaves the extension; a bound enforced on `String.length`; more than two concurr
 observed in a playback or prefetch burst; a `queue_full` 429 caused by the extension's own
 concurrency rather than by another client; playback that starves waiting for a chunk that was not
 requested early enough.
+
+#### Who owns the chunking depends on the seam
+
+The requirement is identical under both seams and neither escapes it: the appliance cannot stream,
+so time-to-first-audio equals full synthesis of whatever is requested, and a single-shot paragraph
+is **8 seconds of silence — measured, 7.5–8.3 s for 656–727 bytes**. Only the owner moves.
+
+| | Extension-direct seam | Server-side seam (the vault's) |
+|---|---|---|
+| Where chunking lives | the extension adapter, `LocalApplianceAudioAdapter` | inside `AudioApplianceTTSAdapter` on the server. The extension keeps posting whole paragraphs to `/api/v1/tts/synthesize` unchanged |
+| Where the pipeline lives | extension: request chunk *n+1* while chunk *n* plays | server: it must synthesize chunks, hold reassembly, and return audio the extension can play as one unit |
+| Per-chunk idempotency keys | derived and held in the extension (D-6) | derived and held on the server — the extension's key, if any, covers the paragraph, not the chunks |
+| Concurrency cap of 1 + 1 | enforced in the extension | enforced in the server adapter, and it must hold **across concurrent readers**, not just across one popup |
+| Streaming relief | none — appliance returns a whole WAV | none, and the API hop adds latency on top |
+
+The server-side seam moves one existing defect across the boundary with it. RESEARCH.md lines 435-436
+records that "the extension currently retries synthesis POSTs without it" — without a stable
+end-to-end `Idempotency-Key`. Under the extension-direct seam that is a client bug this feature
+fixes by construction (FR-8). Under the server-side seam the client keeps retrying paragraph POSTs
+without a key, and the server adapter is left holding per-chunk keys underneath an unkeyed retry:
+a retried paragraph re-enters chunking, and whether it re-synthesizes or replays retained audio
+depends entirely on whether the server's per-chunk derivation is stable across requests. That makes
+it a **server-side correctness problem** rather than a client one, and it does not disappear by
+choosing that seam — it relocates.
 
 ### FR-8 — Derived idempotency
 
