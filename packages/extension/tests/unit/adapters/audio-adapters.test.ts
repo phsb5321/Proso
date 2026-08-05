@@ -7,16 +7,16 @@
  * @module tests/unit/adapters/audio-adapters
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { createMockAudioGenerator, MockAudioGenerator } from '../../mocks/mock-audio-generator';
-import { runAudioGeneratorContractTests } from '../../contract/audio-generator.contract.test';
-import { isOk, isErr } from '../../../src/core/shared/result';
+import { beforeEach, describe, expect, it } from '@jest/globals';
+import { isErr, isOk } from '../../../src/core/shared/result';
+import { runAudioGeneratorContractTests } from '../../contract/audio-generator.contract-suite';
+import {
+  type MockAudioGenerator,
+  createMockAudioGenerator,
+} from '../../mocks/mock-audio-generator';
 
 // Run contract tests against mock adapter
-runAudioGeneratorContractTests(
-  'MockAudioGenerator',
-  () => createMockAudioGenerator()
-);
+runAudioGeneratorContractTests('MockAudioGenerator', () => createMockAudioGenerator());
 
 describe('MockAudioGenerator additional tests', () => {
   let mock: MockAudioGenerator;

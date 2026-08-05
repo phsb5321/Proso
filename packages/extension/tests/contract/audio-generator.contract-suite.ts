@@ -1,14 +1,16 @@
 /**
- * IAudioGenerator Contract Tests
+ * IAudioGenerator Contract Suite
  *
- * These tests define the contract that all audio generator adapters must satisfy.
- * Run against each adapter implementation to verify interchangeability.
+ * Shared assertions every audio generator adapter must satisfy, exported for
+ * adapter test files to run. This is a suite library, not a test file: it holds
+ * no `describe` of its own, so Jest does not collect it and Biome does not
+ * classify it as a test (which is why exporting from it is legitimate).
  *
- * @module tests/contract/audio-generator
+ * @module tests/contract/audio-generator-suite
  */
 
-import type { IAudioGenerator, AudioRequest } from '../../src/ports/audio-generator.port';
-import { isOk, isErr } from '../../src/core/shared/result';
+import { isErr, isOk } from '../../src/core/shared/result';
+import type { AudioRequest, IAudioGenerator } from '../../src/ports/audio-generator.port';
 
 /**
  * Contract test suite for IAudioGenerator implementations.
@@ -20,7 +22,7 @@ import { isOk, isErr } from '../../src/core/shared/result';
  */
 export function runAudioGeneratorContractTests(
   adapterName: string,
-  createAdapter: () => IAudioGenerator
+  createAdapter: () => IAudioGenerator,
 ) {
   describe(`${adapterName} implements IAudioGenerator contract`, () => {
     let adapter: IAudioGenerator;
@@ -32,8 +34,8 @@ export function runAudioGeneratorContractTests(
     describe('providerId property', () => {
       it('should have a valid providerId', () => {
         expect(adapter.providerId).toBeDefined();
-        expect(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']).toContain(
-          adapter.providerId
+        expect(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser', 'local']).toContain(
+          adapter.providerId,
         );
       });
     });
@@ -70,10 +72,9 @@ export function runAudioGeneratorContractTests(
           expect(typeof result.value.durationMs).toBe('number');
           expect(result.value.durationMs).toBeGreaterThan(0);
           // wordTimings can be null or array
-          expect(
-            result.value.wordTimings === null ||
-              Array.isArray(result.value.wordTimings)
-          ).toBe(true);
+          expect(result.value.wordTimings === null || Array.isArray(result.value.wordTimings)).toBe(
+            true,
+          );
         }
 
         // If error, should have typed error
@@ -133,12 +134,9 @@ export function runAudioGeneratorContractTests(
             expect(typeof voice.id).toBe('string');
             expect(typeof voice.name).toBe('string');
             // language and gender can be null
+            expect(voice.language === null || typeof voice.language === 'string').toBe(true);
             expect(
-              voice.language === null || typeof voice.language === 'string'
-            ).toBe(true);
-            expect(
-              voice.gender === null ||
-                ['male', 'female', 'neutral'].includes(voice.gender)
+              voice.gender === null || ['male', 'female', 'neutral'].includes(voice.gender),
             ).toBe(true);
           }
         }
@@ -170,8 +168,8 @@ export function runAudioGeneratorContractTests(
  * Test word timings structure (if supported).
  */
 export function testWordTimingsStructure(
-  adapter: IAudioGenerator,
-  wordTimings: readonly { word: string; startMs: number; endMs: number }[]
+  _adapter: IAudioGenerator,
+  wordTimings: readonly { word: string; startMs: number; endMs: number }[],
 ) {
   expect(Array.isArray(wordTimings)).toBe(true);
 
@@ -196,14 +194,3 @@ export function testWordTimingsStructure(
 
 // Export for use in adapter-specific test files
 export { runAudioGeneratorContractTests as default };
-
-/**
- * Placeholder test to satisfy Jest requirement.
- * Real contract tests are run via runAudioGeneratorContractTests() in adapter test files.
- */
-describe('IAudioGenerator Contract', () => {
-  it('exports contract test helpers', () => {
-    expect(typeof runAudioGeneratorContractTests).toBe('function');
-    expect(typeof testWordTimingsStructure).toBe('function');
-  });
-});
