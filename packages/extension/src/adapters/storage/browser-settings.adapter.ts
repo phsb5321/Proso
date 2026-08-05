@@ -7,7 +7,6 @@
  * @module adapters/storage/browser-settings
  */
 
-import { browser } from 'wxt/browser';
 import type { ProviderId } from '../../core/shared/errors';
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
 import { defaults } from '../../utils/config/defaults';
@@ -15,17 +14,13 @@ import { settingsStore } from '../../utils/config/store';
 
 /**
  * API key storage keys for each provider.
- *
- * `local` (the user-configured local appliance) has no entry: it is
- * credential-free, and `getApiKey` already answers null for a provider with no
- * storage key. `satisfies` keeps the key-bearing providers exhaustive.
  */
-const API_KEY_STORAGE: Partial<Record<ProviderId, string>> = {
+const API_KEY_STORAGE: Record<ProviderId, string> = {
   elevenlabs: 'elevenlabsApiKey',
   openai: 'openaiApiKey',
   groq: 'groqApiKey',
   cartesia: 'cartesiaApiKey',
-} satisfies Record<Exclude<ProviderId, 'local'>, string>;
+};
 
 /**
  * Browser settings adapter wrapping browser.storage.local via SettingsStore.
@@ -62,12 +57,7 @@ export class BrowserSettingsAdapter implements ISettingsStore {
 
   async updateSettings(updates: Partial<Settings>): Promise<void> {
     await this.ensureInitialized();
-    // The persisted settings schema's provider enum is PROVIDERS, which does not
-    // include `local` yet — specs/100-local-appliance-tts slice C adds it with
-    // the opt-in setting. Until then settingsStore validates with Zod and
-    // rejects any provider it does not know, so the widened port type is cast
-    // rather than silently narrowed here.
-    await settingsStore.save(updates as Parameters<typeof settingsStore.save>[0]);
+    await settingsStore.save(updates);
   }
 
   async getApiKey(provider: ProviderId): Promise<string | null> {
