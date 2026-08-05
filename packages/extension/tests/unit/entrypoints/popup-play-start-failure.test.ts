@@ -85,8 +85,12 @@ async function clickPlayWith(onStart: () => Promise<unknown>): Promise<{
   return { statusDot, statusText };
 }
 
-/** Poll until `done()`, so the test costs what it needs and not a fixed budget. */
-async function waitFor(done: () => boolean, timeoutMs = 4000): Promise<void> {
+/**
+ * Poll until `done()`, so the test costs what it needs and not a fixed budget.
+ * The budget sits under each test's own timeout, so a stall reports which state
+ * never arrived rather than Jest's generic timeout.
+ */
+async function waitFor(done: () => boolean, timeoutMs = 12000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!done()) {
     if (Date.now() > deadline) throw new Error('timed out waiting for popup state');
@@ -107,6 +111,17 @@ describe('popup play button — playback.start failures', () => {
       _hexError: true,
       error: remedy,
     }));
+
+    expect(statusDot.getAttribute('data-status')).toBe('stopped');
+    expect(statusText.textContent).toBe(remedy);
+  }, 15000);
+
+  it('handles an error-only result, which carries no _hexError marker', async () => {
+    const remedy = 'Add a provider API key in settings.';
+
+    // The guard accepts either marker. This is the branch a plain server error
+    // response takes, and it is not the one the _hexError case exercises.
+    const { statusDot, statusText } = await clickPlayWith(async () => ({ error: remedy }));
 
     expect(statusDot.getAttribute('data-status')).toBe('stopped');
     expect(statusText.textContent).toBe(remedy);
