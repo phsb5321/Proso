@@ -53,8 +53,10 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✗ | The 9-run plant figure reported earlier on 05/08 measured what it claimed | That sweep scored runs by exit code, so a crashed run that never reached Firefox scored as a caught plant — skipped-green inside the anti-skipped-green tool. PR #98 rescored on the gate's own verdict line and added the CRASH self-check; the 10-run sweep above is the first figure that distinguishes a caught break from a dead runner |
 | ✗ | `make smoke-reading` is public acceptance | It reaches into the addon's own `shortcuts.onCommand()` from chrome context (`scripts/smoke-reading.mjs:99-103`). PR #97 added the public actor as a separate retained path; both remain, and only the public one addresses user-visible controls |
 | ✓ | The Orange Pi appliance is reachable from the desktop over the tailnet | `curl https://orangepi4pro-b.tailf59220.ts.net/health` returned HTTP 200 `{"status":"ok","ready":true,"version":"1.0.0+ps4m63vm8fd4gh4i3cn9nj025br8c1b3"}` on 05/08/2026 17:52 BRT. This supersedes the 01/08 loopback-only reading in the research doc |
-| ◐ | The appliance meets the research doc's latency falsifier | Measured 05/08/2026 over the tailnet: RTF 0.195–0.276 across 68–727 UTF-8 bytes, length-invariant, all under the 0.5 bound — met. Warm paragraph synthesis 7.5–8.3 s against the 2 s clause — not met above roughly 150 UTF-8 bytes. The appliance does not stream, so time-to-first-audio equals full synthesis time. Measurements in `/tmp/097-slice-e-findings.md`, untracked |
+| ◐ | The appliance meets the research doc's latency falsifier | Measured 05/08/2026 over the tailnet: RTF 0.195–0.276 across 68–727 UTF-8 bytes, length-invariant, all under the 0.5 bound — met. Warm paragraph synthesis 7.5–8.3 s against the 2 s clause — not met above roughly 150 UTF-8 bytes. The appliance does not stream, so time-to-first-audio equals full synthesis time. Measurements in [`docs/research/appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md) (PR #100) |
 | ✗ | The advertised `queueCapacity: 8` is the TTS admission budget | A 12-way burst admitted 4 and returned 429 `queue_full` for the other 8; the appliance's `config.py:107` sets `tts_capacity = 4` and the per-class split is not published by `/v1/capabilities`. One inference worker, no preemption |
+| ✗ | Feature 100's extension-direct seam is a settled design | A prior recorded decision mandates the opposite seam. `2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md` in Pedro's vault, L53-76, routes the appliance as `Proso extension → existing Proso API → server-side AudioApplianceTTSAdapter → Tailscale Serve → loopback wrapper` and states at L74-75 "Do not add direct Pi networking to Proso content scripts or the Lectrice WebView"; L420-443 fixes the seam at `ServerTtsAudioAdapter → /api/v1/tts/synthesize → TTSProviderPort → AudioApplianceTTSAdapter → Pi /v1/tts` and requires "no Pi hostname permission or bearer token in the extension" (L442). Feature 100 was specified extension-direct because that record was not read before design started. Which seam ships is an open decision for Pedro, not a settled premise of this feature |
+| ◯ | The vault's step-3 precondition for client work is satisfied | The same record sequences delivery and states at L495 "No client PR should start before steps 1–3 establish the stable contract". Steps 1 and 2 shipped on 31/07/2026 outside this repository (NixOS PRs #1481, #1487, #1496). Step 3 (L486-487) is burst, cancellation, idempotency, sustained thermal, and human speech acceptance. Burst and idempotency are measured in [`appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md); cancellation and sustained thermal are being measured on 05/08; human speech acceptance is a listening test only Pedro can run and stays with him. PR #95 is held meanwhile |
 | ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit |
 | ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
@@ -252,9 +254,43 @@ decision for Feature 100, not a measurement gap. The actionable consequence is t
 paragraph means roughly 8 s of silence before playback starts.
 
 Full measurements, failure-mode table (RFC-9457 `problem+json`, `413 payload_too_large`,
-`409 idempotency_key_reused`, `429` with `retry-after`) and the source citations behind them are in
-the review tab's untracked `/tmp/097-slice-e-findings.md`; the load-bearing numbers are reproduced
-above so this ledger does not depend on a temporary file.
+`409 idempotency_key_reused`, `429` with `retry-after`) and the source citations behind them landed
+as [`docs/research/appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md)
+in PR #100. The earlier citation here pointed at `/tmp/097-slice-e-findings.md`; a temp file is not
+evidence, and the load-bearing numbers stay reproduced above regardless.
+
+### The seam Feature 100 assumes is not the seam of record
+
+Feature 100 puts the appliance behind an extension-side adapter. A prior decision, recorded in
+Pedro's vault at
+`2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md`, mandates the opposite:
+the extension talks to the Proso API, and a **server-side** `AudioApplianceTTSAdapter` talks to the
+Pi (L53-76, seam at L58-60). It is explicit about the client, twice — "Do not add direct Pi
+networking to Proso content scripts or the Lectrice WebView" (L74-75) and "no Pi hostname
+permission or bearer token in the extension" (L442).
+
+Feature 100 was designed against that decision, not in disagreement with it. Nobody read the vault
+record before the spec was written, and this repository has no copy of it, so the conflict surfaced
+only after the spec, the adapter in PR #95, and the measurement pass already existed. The record
+also gates the work: "No client PR should start before steps 1–3 establish the stable contract"
+(L495). Steps 1 and 2 shipped on 31/07/2026 outside this repository (NixOS PRs #1481, #1487,
+#1496). Step 3 (L486-487) is burst, cancellation, idempotency, sustained thermal, and human speech
+acceptance: burst and idempotency are in the measurement record above, cancellation and sustained
+thermal are being measured on 05/08, and human speech acceptance is a listening test that stays
+with Pedro.
+
+The tradeoff is real in both directions, which is why this is a decision and not a defect to patch.
+The server-side seam keeps entitlement on the server and adds no host permission to the extension,
+but the server currently returns 402 for Free, so it does not deliver an account-free read without
+a further server change. The extension-direct seam delivers the account-free read and keeps page
+text going only to a host the user configured, but it reopens the client boundary this record
+closed, and the Dokku container's own path to the Pi (L420-443) stays unbuilt. **Which seam ships
+is Pedro's call.** Until he makes it, no row in this ledger should be read as endorsing either, and
+PR #95 is held.
+
+The divergence itself is the lesson worth recording: two records described the same system and only
+one of them was consulted. `RESEARCH.md` now points at `specs/100-local-appliance-tts/` and at the
+measurement record, so the next reader of either finds the other.
 
 ### GitHub Actions produces nothing at all
 

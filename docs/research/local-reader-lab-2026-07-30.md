@@ -285,7 +285,23 @@ Retry decisions must map on `code`, not on status class — `engine_failed` is 5
 `retryable: false`.
 
 Human listening remains unrun, so audio quality is still unverified. The full failure-mode matrix
-and its source citations are in the review tab's untracked `/tmp/097-slice-e-findings.md`.
+and its source citations are in [`appliance-measurements-2026-08-05.md`](appliance-measurements-2026-08-05.md),
+landed in PR #100.
+
+### The integration seam is an open decision
+
+This document proposed "an optional Piper service on Orange Pi node B could implement
+`IAudioGenerator`" — an extension-side adapter — and Feature 100 was specified that way. A prior
+recorded decision in Pedro's vault
+(`2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md`, L53-76 and L420-443)
+mandates the opposite seam: extension → Proso API → server-side `AudioApplianceTTSAdapter` → Pi,
+with "no Pi hostname permission or bearer token in the extension" (L442). That record also holds
+client PRs until its step 3 completes (L495); steps 1 and 2 shipped 31/07/2026, and step 3's
+human-listening half is Pedro's.
+
+So the line above — "the public extension must not contact Pedro's Pi directly" — is not
+superseded by Feature 100. It is one side of a decision that is now open and belongs to Pedro.
+PR #95 is held pending it.
 
 ## Reversal
 
