@@ -49,7 +49,8 @@ into the route above. The route sentence stands unchanged until that lands.
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | The real Firefox downstream reader route works | On 02/08, a built MV2 extension reached fixture TTS, visible footer/highlight, pause, and resume. The actor directly invoked `ExtensionParent`/`shortcuts.onCommand()`, so this is diagnostic-only and does not prove public controls or the full invariant/anomaly contract |
 | ✓ | A public-control actor reads an article in a real Firefox | `node scripts/public-actor-gate.mjs` (PR #97) exited 0 with `public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab`, re-run 05/08/2026 18:39 BRT. Its 20 assertions open the Unified Extensions panel, click the browser action by its visible label `Proso`, address `Play` and `Previous paragraph` by accessible name, observe a 130-char TTS request and the page-visible highlight, hold position across pause, and advance after resume. Synthesis is still the local fixture, so this proves the public control path, not the account-free outcome |
-| ✓ | That public gate is falsifiable rather than green by construction | `node scripts/public-actor-plants.mjs` at `1e339b6` exited 0 with `public-actor-plants PASS — 9 runs, every break caught`, re-run 05/08/2026 18:43 BRT: unplanted baseline PASS, 4 severed-journey plants FAIL (TTS request, visible reading UI, paused position, resume advance), 4 missing-surface plants BLOCKED (hidden Unified Extensions button, absent browser-action widget, popup that never opens, renamed `Play` control). Missing surface never reports as a pass |
+| ✓ | That public gate is falsifiable rather than green by construction | `node scripts/public-actor-plants.mjs` at `adc99f6` (PR #98, merged `24f0e09`) exited 0 with `public-actor-plants PASS — 10 runs, every break caught`, re-run 05/08/2026 19:03 BRT: unplanted baseline PASS, 4 severed-journey plants FAIL (TTS request, visible reading UI, paused position, resume advance), 4 missing-surface plants BLOCKED (hidden Unified Extensions button, absent browser-action widget, popup that never opens, renamed `Play` control), and a self-check that points the runner at a missing script and requires CRASH. Missing surface never reports as a pass, and neither does a run that never launched a browser |
+| ✗ | The 9-run plant figure reported earlier on 05/08 measured what it claimed | That sweep scored runs by exit code, so a crashed run that never reached Firefox scored as a caught plant — skipped-green inside the anti-skipped-green tool. PR #98 rescored on the gate's own verdict line and added the CRASH self-check; the 10-run sweep above is the first figure that distinguishes a caught break from a dead runner |
 | ✗ | `make smoke-reading` is public acceptance | It reaches into the addon's own `shortcuts.onCommand()` from chrome context (`scripts/smoke-reading.mjs:99-103`). PR #97 added the public actor as a separate retained path; both remain, and only the public one addresses user-visible controls |
 | ✓ | The Orange Pi appliance is reachable from the desktop over the tailnet | `curl https://orangepi4pro-b.tailf59220.ts.net/health` returned HTTP 200 `{"status":"ok","ready":true,"version":"1.0.0+ps4m63vm8fd4gh4i3cn9nj025br8c1b3"}` on 05/08/2026 17:52 BRT. This supersedes the 01/08 loopback-only reading in the research doc |
 | ◐ | The appliance meets the research doc's latency falsifier | Measured 05/08/2026 over the tailnet: RTF 0.195–0.276 across 68–727 UTF-8 bytes, length-invariant, all under the 0.5 bound — met. Warm paragraph synthesis 7.5–8.3 s against the 2 s clause — not met above roughly 150 UTF-8 bytes. The appliance does not stream, so time-to-first-audio equals full synthesis time. Measurements in `/tmp/097-slice-e-findings.md`, untracked |
@@ -206,13 +207,22 @@ action addressed by its visible label, and popup controls addressed by accessibl
 pnpm --filter @proso/extension build:firefox   # exit 0, 1.12 MB firefox-mv2
 node scripts/public-actor-gate.mjs             # exit 0
 # public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab
-node scripts/public-actor-plants.mjs           # 9 runs: 1 PASS, 4 FAIL, 4 BLOCKED
+node scripts/public-actor-plants.mjs           # 10 runs: 1 PASS, 4 FAIL, 4 BLOCKED, 1 CRASH
+# public-actor-plants PASS — 10 runs, every break caught
 ```
 
 The plant matrix is what makes the gate worth citing. Four severed-journey plants report `FAIL`
 (TTS request, footer, paused position, resume advance) and four missing-surface plants report
 `BLOCKED` (hidden Unified Extensions button, absent browser-action widget, popup that never opens,
 renamed `Play` control). A missing surface can therefore never be read as a pass.
+
+The tenth run is the runner checking itself, and it exists because the first version of this sweep
+was wrong in the exact way it was built to prevent. It scored each run by exit code, so a run that
+crashed before launching a browser exited non-zero and scored as a caught plant — skipped-green
+inside the anti-skipped-green tool. PR #98 (`adc99f6`, merged `24f0e09`) rescores on the gate's own
+verdict line and adds a self-check that points the runner at a missing script and demands `CRASH`.
+The 9-run figure quoted earlier on 05/08 came from the pre-fix scorer and is superseded by the
+10-run sweep above; the four `FAIL` and four `BLOCKED` classifications survived rescoring unchanged.
 
 This does **not** retire `make smoke-reading`. That harness invokes the addon's own
 `shortcuts.onCommand()` from chrome context and still proves only that the handler works. The two
