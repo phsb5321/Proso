@@ -1,12 +1,13 @@
-# Feature 097 — Local appliance as a TTS provider
+# Feature 099 — Local appliance as a TTS provider
 
-**Branch**: `097-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: specification only,
+**Branch**: `099-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: specification only,
 nothing implemented
 
-> Numbering note: `specs/097-reading-journey-delta/` already occupies 097, and
-> `specs/098-ops-parity/` occupies 098. This directory keeps the `097-` prefix because the
-> master brief binds five downstream slices to the path `specs/097-local-appliance-tts/`.
-> The collision is recorded here rather than silently renumbered; renaming is a maintainer call.
+> Numbering note: this feature was specified as 097 and renumbered to 099 on 05/08/2026, because
+> `specs/097-reading-journey-delta/` already occupied 097 and `specs/098-ops-parity/` occupied
+> 098. The feature id is 099 from here on. The two pull requests that introduced this
+> specification, #91 and #93, were authored on a branch named `097-local-appliance-tts` and are
+> already merged, so that branch name survives in the history while the directory does not.
 
 ## Problem
 

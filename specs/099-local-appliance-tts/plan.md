@@ -1,7 +1,7 @@
 # Implementation Plan: Local appliance as a TTS provider
 
-**Branch**: `097-local-appliance-tts` | **Date**: 05/08/2026 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/097-local-appliance-tts/spec.md`
+**Branch**: `099-local-appliance-tts` | **Date**: 05/08/2026 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/099-local-appliance-tts/spec.md`
 
 ## Summary
 
@@ -54,10 +54,16 @@ WAV. The body accepts exactly `input`, `voice`, and `speed`; any additional fiel
 | V. Test Coverage for Critical Paths | PASS | The new adapter runs the existing port contract suite; each failure mode gets a planted-break proof; the storage migration gets a regression test. |
 | Business invariants | CONDITIONAL | INV-001 and INV-006 are satisfied by construction (no ledger interaction). INV-005's wording predates the removal of browser TTS; the spec refuses to restate it and leaves it to the maintainer. |
 
+The amendment that would resolve the Principle I row is [PR #92](https://github.com/phsb5321/Proso/pull/92),
+"docs: permit a user-operated synthesis host in Principle I" (2.0.0 → 2.1.0, MINOR, adding a
+reader-configured synthesis host as a third permitted destination). The row above stays **FAIL**
+until that pull request merges — an open amendment is an intention, not a ratified principle.
+
 Principle I is a real gate failure, not a formality. Slices B and D may proceed because an adapter
-and an oracle prove behaviour without shipping a data flow to a user. Slice C — the settings
-surface that lets a reader actually send page text to a third destination — must not merge until
-the maintainer either ratifies an amendment or accepts the documented exception below.
+and an oracle prove behaviour without shipping a data flow to a user, under the documented
+exception in [Complexity Tracking](#complexity-tracking) as the interim authority. Slice C — the
+settings surface that lets a reader actually send page text to a third destination — must not
+merge until the maintainer either ratifies the amendment or accepts that exception.
 
 ## Design
 
@@ -147,7 +153,7 @@ the adapter rather than imported into the domain layer.
 ### Documentation (this feature)
 
 ```text
-specs/097-local-appliance-tts/
+specs/099-local-appliance-tts/
 ├── spec.md              # This feature's outcomes, falsifiers, and decisions
 ├── plan.md              # This file
 └── tasks.md             # Ordered, individually verifiable work for slices B, C, D
