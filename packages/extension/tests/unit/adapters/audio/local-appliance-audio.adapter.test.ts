@@ -413,6 +413,40 @@ describe('LocalApplianceAudioAdapter', () => {
       expect(expectErrorType(result, 'rate_limit').retryAfterMs).toBe(2000);
     });
 
+    it('prefers the retry delay the appliance states in the body', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 429,
+          headers: { 'retry-after': '30' },
+          body: { code: 'queue_full', status: 429, retryable: true, retry_after_ms: 1500 },
+        }),
+      });
+
+      expect(expectErrorType(result, 'rate_limit').retryAfterMs).toBe(1500);
+    });
+
+    it('treats a retryable:false 503 as terminal, never as its status class', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 503,
+          body: { code: 'engine_failed', status: 503, retryable: false, requestId: 'req-9' },
+        }),
+      });
+
+      expectProviderErrorCode(result, 'engine_failed');
+    });
+
+    it('treats a 409 key reuse as terminal, since a derived key cannot collide', async () => {
+      const { result } = await generate({
+        tts: fakeResponse({
+          status: 409,
+          body: { code: 'idempotency_key_reused', status: 409, retryable: false },
+        }),
+      });
+
+      expectProviderErrorCode(result, 'idempotency_key_reused');
+    });
+
     it('maps 401 to invalid_credentials', async () => {
       const { result } = await generate({
         tts: fakeResponse({ status: 401, body: { code: 'unauthorized', status: 401 } }),

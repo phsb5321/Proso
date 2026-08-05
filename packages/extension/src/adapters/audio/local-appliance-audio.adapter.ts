@@ -78,6 +78,8 @@ interface ApplianceProblem {
   readonly status?: number;
   readonly retryable?: boolean;
   readonly requestId?: string;
+  /** Delay the appliance itself states for a retryable refusal. */
+  readonly retry_after_ms?: number;
 }
 
 export interface LocalApplianceAudioAdapterOptions {
@@ -447,6 +449,11 @@ async function mapProblemResponse(response: Response): Promise<AudioError> {
     return audioError.invalidCredentials();
   }
   if (response.status === 429) {
+    // The appliance states its own delay in the problem body; the Retry-After
+    // header (in seconds) is the fallback.
+    if (typeof problem.retry_after_ms === 'number' && Number.isFinite(problem.retry_after_ms)) {
+      return audioError.rateLimit(Math.round(problem.retry_after_ms));
+    }
     const retryAfter = Number.parseFloat(response.headers.get('retry-after') ?? '');
     return audioError.rateLimit(Number.isFinite(retryAfter) ? Math.round(retryAfter * 1000) : 0);
   }
