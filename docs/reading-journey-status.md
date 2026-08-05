@@ -48,7 +48,8 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ◐ | Packaged Chrome reading works | A Docker diagnostic reached the content script but the popup stayed `Loading...`; the Promise response was lost and MV3 worker `Audio` was undefined. The diagnostic was temporary, not a retained gate |
 | ◐ | The real Firefox downstream reader route works | On 02/08, a built MV2 extension reached fixture TTS, visible footer/highlight, pause, and resume. The actor directly invoked `ExtensionParent`/`shortcuts.onCommand()`, so this is diagnostic-only and does not prove public controls or the full invariant/anomaly contract |
-| ✓ | A public-control actor reads an article in a real Firefox | `node scripts/public-actor-gate.mjs` (PR #97) exited 0 with `public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab`, re-run 05/08/2026 18:39 BRT. Its 20 assertions open the Unified Extensions panel, click the browser action by its visible label `Proso`, address `Play` and `Previous paragraph` by accessible name, observe a 130-char TTS request and the page-visible highlight, hold position across pause, and advance after resume. Synthesis is still the local fixture, so this proves the public control path, not the account-free outcome |
+| ◐ | A public-control actor reads an article in a real Firefox | `node scripts/public-actor-gate.mjs` (PR #97) exited 0 with `public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab`, re-run 05/08/2026 18:39 BRT. Its 20 assertions open the Unified Extensions panel, click the browser action by its visible label `Proso`, address `Play` and `Previous paragraph` by accessible name, observe a 130-char TTS request and the page-visible highlight, hold position across pause, and advance after resume. Synthesis is still the local fixture, so this proves the public control path, not the account-free outcome. Partial for a second reason: the run relaxes the process model — see the row below |
+| ◐ | The public gate runs the process model users run | It sets `extensions.webextensions.remote=false` (`scripts/public-actor-gate.mjs:384`, documented at `docs/agent-delivery-harness.md:85`). Both modes were measured: WebDriver exposes no window handle for an extension popup panel, and a remote popup's `contentDocument` is opaque to the parent process, so out-of-process the popup's own DOM — and its accessible names — cannot be read at all. The click, the listener and the rendered popup are real; only the process boundary is relaxed. The gate therefore proves the public control path under a non-default process model, not under the one users actually run |
 | ✓ | That public gate is falsifiable rather than green by construction | `node scripts/public-actor-plants.mjs` at `adc99f6` (PR #98, merged `24f0e09`) exited 0 with `public-actor-plants PASS — 10 runs, every break caught`, re-run 05/08/2026 19:03 BRT: unplanted baseline PASS, 4 severed-journey plants FAIL (TTS request, visible reading UI, paused position, resume advance), 4 missing-surface plants BLOCKED (hidden Unified Extensions button, absent browser-action widget, popup that never opens, renamed `Play` control), and a self-check that points the runner at a missing script and requires CRASH. Missing surface never reports as a pass, and neither does a run that never launched a browser |
 | ✗ | The 9-run plant figure reported earlier on 05/08 measured what it claimed | That sweep scored runs by exit code, so a crashed run that never reached Firefox scored as a caught plant — skipped-green inside the anti-skipped-green tool. PR #98 rescored on the gate's own verdict line and added the CRASH self-check; the 10-run sweep above is the first figure that distinguishes a caught break from a dead runner |
 | ✗ | `make smoke-reading` is public acceptance | It reaches into the addon's own `shortcuts.onCommand()` from chrome context (`scripts/smoke-reading.mjs:99-103`). PR #97 added the public actor as a separate retained path; both remain, and only the public one addresses user-visible controls |
@@ -225,6 +226,21 @@ inside the anti-skipped-green tool. PR #98 (`adc99f6`, merged `24f0e09`) rescore
 verdict line and adds a self-check that points the runner at a missing script and demands `CRASH`.
 The 9-run figure quoted earlier on 05/08 came from the pre-fix scorer and is superseded by the
 10-run sweep above; the four `FAIL` and four `BLOCKED` classifications survived rescoring unchanged.
+
+One limit of the gate belongs in this ledger and not only in the harness doc, because this is the
+document a later reader trusts. The gate sets `extensions.webextensions.remote=false`
+(`scripts/public-actor-gate.mjs:384`, stated at `docs/agent-delivery-harness.md:85`). That is not a
+convenience: WebDriver exposes no window handle for an extension popup panel, and out-of-process a
+popup's `contentDocument` is opaque to the parent, so the popup's accessible names — the whole
+basis of addressing controls the way a person does — are unreadable. Both modes were measured
+before the pref was set.
+
+What that costs is bounded and worth naming precisely. The actor's click is a real click, the
+command listener is the real listener, and the popup is really rendered; only the process boundary
+is relaxed. What it does not cover is anything that differs *because* the popup runs
+out-of-process in a default profile — message-passing across the process boundary, and failures
+that only appear there. So both public-actor rows above are ◐, not ✓: the control path is proven
+under a non-default process model, and no run yet proves it under the one users have.
 
 This does **not** retire `make smoke-reading`. That harness invokes the addon's own
 `shortcuts.onCommand()` from chrome context and still proves only that the handler works. The two
