@@ -1,7 +1,7 @@
 # Implementation Plan: Local appliance as a TTS provider
 
-**Branch**: `099-local-appliance-tts` | **Date**: 05/08/2026 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/099-local-appliance-tts/spec.md`
+**Branch**: `100-local-appliance-tts` | **Date**: 05/08/2026 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/100-local-appliance-tts/spec.md`
 
 ## Summary
 
@@ -12,6 +12,11 @@ route only when the reader enabled it, and falling back to that route — visibl
 appliance is absent, not ready, busy, or unable to serve the page's language. It supplies no word
 timings and does not touch the credit ledger.
 
+Because the appliance cannot stream a response, the adapter synthesizes at sentence granularity
+and keeps one chunk ahead of playback rather than requesting a paragraph and waiting ~8 s for it.
+That pipeline, not a size check, is what makes the latency criterion reachable at any article
+length.
+
 ## Technical Context
 
 **Language/Version**: TypeScript 5.9, ES2020 target, strict
@@ -21,12 +26,15 @@ timings and does not touch the credit ledger.
 real-Firefox journey via `make smoke-reading` and the Feature 095 public-control gate
 **Target Platform**: Firefox 109+, Manifest V3 baseline
 **Project Type**: browser extension within a pnpm monorepo
-**Performance Goals**: none set by this feature; slice E measures warm latency and real-time
-factor against the research doc's falsifier (2 s warm full synthesis, RTF 0.5) and reports what it
-finds rather than what was hoped
-**Constraints**: appliance-published bounds — 8,192 UTF-8 bytes per request, queue capacity 8,
-900 s idempotency retention, 60 s maximum audio; responses are `audio/wav`; errors are RFC-9457
-`application/problem+json`
+**Performance Goals**: first audio within two seconds of a warm appliance, and no starvation
+thereafter (spec FR-11). The research doc's RTF clause is already met and length-invariant
+(measured 0.195–0.276 against a 0.5 bound); its two-second clause is met at sentence granularity
+and fails at paragraph granularity, which is why the pipeline is chunked
+**Constraints**: appliance-published bounds — 8,192 UTF-8 bytes per request, 900 s idempotency
+retention, 60 s maximum audio; **no response streaming**, so time-to-first-audio equals full
+synthesis time of whatever is requested; **effective TTS admission is 4 and there is a single
+inference worker**, so client concurrency is one synthesis plus one prefetch; responses are
+`audio/wav` or a `+json` envelope; errors are RFC-9457 `application/problem+json`
 **Scale/Scope**: one adapter, one settings surface, one permission flow, one cache-schema field
 
 ### External contract (re-verified 05/08/2026 17:50 BRT)
@@ -35,11 +43,30 @@ finds rather than what was hoped
 `GET /v1/capabilities` publishes the limits above and exactly two voices, `pt_BR-faber-medium`
 (pt-BR) and `en_US-ljspeech-medium` (en-US), both with `markKinds: []`.
 
-`POST /v1/tts` requires an `Idempotency-Key` header of 16 to 128 characters, `content-type:
-application/json` exactly, and an `accept` that matches `audio/wav`, `audio/*`, or `*/*` for raw
-WAV. The body accepts exactly `input`, `voice`, and `speed`; any additional field is a 422
-`unknown_field` and a missing `speed` is a 422 `invalid_speed`. Server source of truth:
+`POST /v1/tts` requires an `Idempotency-Key` header of 16 to 128 characters inclusive, a
+`content-type` of `application/json` — **parameter-tolerant**, so `; charset=utf-8` is accepted
+with a 200 — and an `accept` that matches `audio/wav`, `audio/*`, or `*/*` for raw WAV. The body
+accepts exactly `input`, `voice`, and `speed`; any additional field is a 422 `unknown_field` and a
+missing `speed` is a 422 `invalid_speed`. Server source of truth:
 `~/NixOS/pkgs/audio-appliance/src/audio_appliance/app.py` (outside this repository).
+
+Measured error surface (review actor, 05/08/2026), which supersedes the master brief where the two
+disagree:
+
+| Condition | Status | `code` | `retryable` |
+|---|---:|---|:--:|
+| input over 8,192 bytes | 413 | `payload_too_large` | false |
+| unknown voice / unknown field / missing speed / empty input | 422 | `unknown_voice`, `unknown_field`, `invalid_speed`, `invalid_input` | false |
+| missing or out-of-bound idempotency key | 422 | `idempotency_key_required`, `invalid_idempotency_key` | false |
+| same key, different body | 409 | `idempotency_key_reused` | false |
+| unacceptable `accept` | 406 | `unsupported_representation` | false |
+| unsupported `content-type` | 415 | `unsupported_media_type` | false |
+| queue full | 429 | `queue_full` | true, with `retry-after: 14` and `retryAfterMs` |
+| engine starting / timed out | 503 | `engine_not_ready`, `engine_timeout` | true, with `retry_after_ms` |
+| engine failure | 503 | `engine_failed` | **false** |
+
+Validation runs before the idempotency lookup, and `retryable` alone is not a sufficient signal:
+`engine_failed` is a 503 that must never be retried.
 
 ## Constitution Check
 
@@ -90,8 +117,11 @@ existing seam for a settings change and needs no new mechanism, only the new bra
   `supportedLanguages` is `['pt-BR', 'en-US']` derived from a capabilities fetch, cached for the
   session, not hardcoded as truth.
 - `generateAudio` sends exactly `{ input, voice, speed }`, with `accept: audio/wav`,
-  `content-type: application/json`, and the derived `Idempotency-Key`; it honours the incoming
-  `AbortSignal` by passing it to `fetch`.
+  `content-type: application/json` (a charset parameter is safe), and the derived
+  `Idempotency-Key`; it honours the incoming `AbortSignal` by passing it to `fetch`.
+- The adapter synthesizes one chunk per call and stays deliberately unaware of the pipeline; the
+  chunking and prefetch policy lives above it, so the adapter remains a faithful mapping of one
+  HTTP contract.
 - Duration comes from the WAV header (`ByteRate`, data-chunk size), not from a byte-size
   heuristic. `AudioResponse.wordTimings` is always `null`.
 - Every non-2xx is parsed as `application/problem+json` and mapped to the existing `AudioError`
@@ -105,19 +135,34 @@ existing seam for a settings change and needs no new mechanism, only the new bra
 |---|---|---|---|
 | connection refused / DNS failure | `network` | one bounded retry | yes |
 | `/health` `ready: false` | `providerError('not_ready', …)` | no | yes |
-| 406, 415, 422 | `providerError(code, …)` | no — the request shape is wrong | yes |
-| 429, queue full (`retryable: true`) | `rateLimit(retryAfterMs)` | one bounded wait | yes |
-| 5xx | `network` with the problem's `requestId` | no | yes |
+| 406, 409, 413, 415, 422 | `providerError(code, …)` | no — the request shape is wrong | yes |
+| 429 `queue_full` | `rateLimit(retryAfterMs)` | one wait of the stated `retryAfterMs` (14 s observed), never a blind backoff | yes |
+| 503 `engine_not_ready`, `engine_timeout` | `providerError(code, …)` | one retry after the stated `retry_after_ms`, **reusing the same idempotency key** so the appliance coalesces it | yes |
+| 503 `engine_failed` | `providerError('engine_failed', …)` with `requestId` | **no** — permanent despite the 5xx | yes |
 | abort | existing abort path, no error surfaced | no | no |
 
-### Bounds and concurrency
+Dispatch is a switch on `code`, with the status used only to decide that an error occurred. A
+switch on status class would retry `engine_failed`.
 
-Length is measured with `TextEncoder().encode(text).length`, never `String.length`. A paragraph
-over the published byte bound is split at sentence boundaries into sub-requests whose audio is
-played in sequence; a single sentence that alone exceeds the bound is refused with an explicit
-message rather than truncated. A semaphore caps in-flight appliance requests at the published
-queue capacity, applied across playback and prefetch together, since prefetch
-(`packages/extension/src/utils/playback/prefetch.ts`) is the realistic source of a burst.
+### Chunking, prefetch, and concurrency
+
+The appliance returns a whole WAV, so requesting a paragraph means waiting for all of it before
+any sound plays — measured at 7.5–8.3 s for 656–727 bytes. The pipeline therefore splits at
+sentence boundaries and requests chunk *n+1* while chunk *n* plays. At the measured RTF near 0.2
+the producer runs about five times ahead of the consumer, so after a first chunk of roughly
+1.2–2.0 s playback does not starve, at any article length.
+
+Length is measured with `TextEncoder().encode(text).length`, never `String.length`. A single
+sentence exceeding 8,192 bytes is refused with an explicit message rather than truncated; nothing
+else should ever approach the bound once chunking is in place, so a 413 in practice means the
+chunker is broken.
+
+Concurrency is **one in-flight synthesis plus at most one prefetch**, enforced by a semaphore
+shared with `packages/extension/src/utils/playback/prefetch.ts`. This is deliberately far below
+the advertised `queueCapacity: 8`: that figure is TTS plus STT combined, the per-class split is
+never exposed by the API, measured TTS admission is 4, and the appliance runs a single inference
+worker with no preemption — so client concurrency above one buys no throughput and only converts
+queueing into 429s.
 
 ### Permission flow
 
@@ -144,16 +189,19 @@ every cache hit on local audio is mislabelled (spec D-1).
 
 ### Idempotency key
 
-`sha256(canonical({ input, voice, speed }))` hex-encoded, truncated to 64 characters. Derived in
-`core/` as a pure function so it is directly property-testable, with `crypto.subtle` supplied by
-the adapter rather than imported into the domain layer.
+`sha256(canonical({ input, voice, speed }))` hex-encoded, truncated to 64 characters, inside the
+16..128 inclusive bound. Derived in `core/` as a pure function so it is directly property-testable,
+with `crypto.subtle` supplied by the adapter rather than imported into the domain layer. A retry
+resends the key it already used, which is what lets the appliance coalesce a retry after
+`engine_timeout` instead of queueing a second synthesis, and what makes 409
+`idempotency_key_reused` unreachable.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/099-local-appliance-tts/
+specs/100-local-appliance-tts/
 ├── spec.md              # This feature's outcomes, falsifiers, and decisions
 ├── plan.md              # This file
 └── tasks.md             # Ordered, individually verifiable work for slices B, C, D
@@ -200,10 +248,16 @@ point of the feature and also the reason Principle I needs resolving.
 - **Planted break**: each of idempotency header, body field set, accept negotiation, byte bounds,
   problem+json mapping, and abort gets a test that fails when that behaviour is deliberately
   broken. A test that stays green under the planted break is not evidence.
+- **Do not encode the brief's errors.** `content-type` is parameter-tolerant, so no test may
+  assert 415 on `application/json; charset=utf-8`; oversize is 413, not 422; and a 5xx test must
+  distinguish `engine_failed` (no retry) from `engine_timeout` (retry with the same key).
 - **Default-off**: a test asserting that no request is issued with default settings, by observing
   the injected fetch, not the config.
-- **Property**: seeded runs over the key derivation (collision and stability) and the byte-bound
-  splitter (every part within bounds, concatenation preserves the input) through `make fuzz`.
+- **Property**: seeded runs over the key derivation (collision and stability) and the sentence
+  chunker (every chunk within 8,192 bytes, concatenation preserves the input, no empty chunk)
+  through `make fuzz`.
+- **Pipeline**: a test that the chunk after the playing one is already requested, and that no more
+  than two requests are ever in flight.
 - **Journey**: `make smoke-reader` covers the local route in the jsdom oracle; a planted break in
   that route must turn it red. `make smoke-reading` and the Feature 095 public-control gate remain
   the only things that can establish FR-1.
