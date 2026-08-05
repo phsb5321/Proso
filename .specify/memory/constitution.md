@@ -1,6 +1,47 @@
 <!--
   SYNC IMPACT REPORT
   =================
+  Version change: 2.0.0 → 2.1.0 (MINOR)
+
+  Why MINOR — one materially expanded permission, no principle removed or
+  redefined:
+
+  Principle I gains a third permitted destination: a synthesis host the user
+  operates and configured explicitly. Nothing already permitted is withdrawn,
+  no business invariant changes, and no existing code becomes non-compliant.
+
+  Rationale. Feature 099 (`specs/099-local-appliance-tts/`) exists because
+  Proso currently cannot read an article to a user who has no account, no
+  license key, and no provider key: Free managed synthesis returns 402 (commit
+  `7e4cda0`) and browser `speechSynthesis` was removed (commit `9797dc6`).
+  INV-001 — the free tier never requires account creation — therefore has no
+  delivery path. A host the user runs restores one.
+
+  Impact review. v2.0.0's Principle I enumerated destinations by ownership:
+  first-party, or a named cloud BYOK vendor. A machine on the user's own
+  network fits neither label while being, in privacy terms, stronger than
+  both — the text reaches hardware the user controls and no third party. The
+  enumeration, not the intent, was the obstacle. No shipped code depends on
+  the narrower list; the only consumer is the `/speckit.plan` Constitution
+  Check, which gated Feature 099's plan and produced this amendment.
+
+  Modified principles:
+    - I. Privacy First → third destination added, with conditions: off by
+      default, user-supplied address, runtime-granted host permission, and no
+      page content to any host the user did not configure
+
+  Added sections: none. Removed sections: none.
+
+  Propagation: `specs/099-local-appliance-tts/plan.md` Constitution Check
+  (currently recording this as a FAIL pending ratification) becomes PASS with
+  conditions once this merges. No template references the destination list.
+
+  Ratification: this widens what the extension may do with page text. Per
+  Governance it is the maintainer's call, and the amendment is held for that
+  decision rather than self-merged.
+
+  ---
+  Previous report (retained)
   Version change: 1.1.0 → 2.0.0 (MAJOR)
 
   Why MAJOR — two backward-incompatible redefinitions, not additions:
@@ -72,9 +113,20 @@ data to any destination other than:
 1. **The first-party Proso API**, for synthesis and credit accounting, and only
    for text the user has explicitly asked to have read aloud; or
 2. **A TTS provider the user selected under BYOK** (OpenAI, ElevenLabs,
-   Cartesia), using a key the user supplied.
+   Cartesia), using a key the user supplied; or
+3. **A synthesis host the user operates**, at an address the user entered
+   themselves.
 
 No telemetry, no analytics, no behavioural tracking, in either direction.
+
+The third destination carries conditions, because it is the one the user could
+be led into without noticing. It MUST be off by default, so a build that the
+user has not configured behaves exactly as one without the capability. The
+address MUST come from the user, never from a shipped constant, a discovery
+probe, or a remote configuration. The host permission MUST be requested at
+runtime for that exact origin, not granted at install. Page content MUST NOT
+reach any host the user did not enter, and the interface MUST state where the
+text is being sent.
 
 On retention: the server MAY hold synthesized audio in a cache keyed to the
 requesting user — INV-006 ("cached content is never re-charged") depends on that
@@ -221,4 +273,4 @@ documentation. Amendments require:
 Reviewers MUST reject changes that violate these principles without a documented
 exception justified in the implementation plan's Complexity Tracking section.
 
-**Version**: 2.0.0 | **Ratified**: 2025-12-30 | **Last Amended**: 2026-08-01
+**Version**: 2.1.0 | **Ratified**: 2025-12-30 | **Last Amended**: 2026-08-05
