@@ -304,6 +304,14 @@ closed, and the Dokku container's own path to the Pi (L420-443) stays unbuilt. *
 is Pedro's call.** Until he makes it, no row in this ledger should be read as endorsing either, and
 PR #95 is held.
 
+**05/08 23:1x BRT — merged, then reverted, hold restored.** PR #95 (Feature 100 slice B, the local
+appliance adapter) was squash-merged at `8994f28`, then reverted at `6b4b33e` in the same session.
+The merge violated this hold and the step-3 gate below; the revert restores the pre-merge tree
+exactly — `git diff 163abc3 6b4b33e` is empty, so verification is inherited from #86's
+`make verify-full` receipt at `4860fea`. The hold stands: slice B re-lands only after the seam
+decision and the step-3 gate clear. What survives is the wire-contract proof in the PR body and in
+`specs/100-local-appliance-tts/`; the adapter code is out of the tree until then.
+
 The divergence itself is the lesson worth recording: two records described the same system and only
 one of them was consulted. `RESEARCH.md` now points at `specs/100-local-appliance-tts/` and at the
 measurement record, so the next reader of either finds the other.
@@ -324,6 +332,19 @@ has changed since PR #70 on 01/08, so a tracked workflow edit is not the cause. 
 resolved, the two `✗` rows above about green jobs hiding red steps are joined by a stronger one:
 **no CI result of any colour is currently evidence of anything.** Local commands are the only
 verification surface, which is exactly why every claim added today cites one.
+
+Diagnosis so far, recorded 05/08 ~23:1x BRT. Every failing run — 89 at last count — is attributed
+to a single synthetic workflow record, `workflow_id 328147086` (`name: ""`, `path:
+"BuildFailed"`, `state: deleted`), created exactly at the outage start, `2026-08-05T20:52:01Z`.
+The first failing run is the push of `2fa0f2e` to `097-doctor-ignored-locks` at that timestamp — a
+commit touching only `scripts/workspace-policy.mjs`. Non-causes eliminated: not a tracked workflow
+edit (workflows unchanged since `b2b74e4`); not YAML syntax (all five parse); not a GitHub incident
+(`status.github.com` All Systems Operational, checked 23:0x BRT); not repo Actions disabled
+(`actions/permissions` = `enabled: true`, `allowed_actions: all`); not a malformed workflow on any
+current branch (full ref scan — only `078-security-hardening` carries an extra `test.yml`, valid,
+from a merged 03/2026 PR). Remaining candidates are account-level: Actions billing/quota (the
+billing API needs `user` scope, which `gh` lacks here) or a GitHub server-side change. Diagnosis
+stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 
 ## Next verified slices
 
