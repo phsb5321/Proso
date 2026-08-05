@@ -52,6 +52,14 @@ smoke-reading: ## Drive the built extension in a real Firefox and assert the rea
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/smoke-reading.mjs
 
+public-actor-gate: ## Drive the built extension through public controls only (no internal dispatch).
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/public-actor-gate.mjs
+
+public-actor-plants: ## Prove every public-actor-gate assertion catches a planted break.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/public-actor-plants.mjs
+
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter '@proso/server...' build
 	@node scripts/smoke-server-boot.mjs
