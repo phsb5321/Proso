@@ -146,10 +146,15 @@ export async function selectParagraph(page, index) {
 export async function tabTo(page, expected) {
   await page.keyboard.press('Tab');
   await waitForLayoutStable(page, expected === 'body' ? 'body' : expected, 50);
+  // The label doubles as a CSS selector, so an element without an id is
+  // addressed by its first class (tag.class), never a nonexistent id.
   const actual = await page.evaluate(() => {
     const el = document.activeElement;
     if (!el || el === document.body) return 'body';
-    return `${el.tagName.toLowerCase()}#${el.id || (el.className.split(/\s+/)[0] ?? '')}`;
+    const tag = el.tagName.toLowerCase();
+    if (el.id) return `${tag}#${el.id}`;
+    const firstClass = String(el.className || '').split(/\s+/)[0] ?? '';
+    return firstClass ? `${tag}.${firstClass}` : tag;
   });
   const expectedLabel = expected === 'body' ? 'body' : expected;
   expect(actual, `after Tab, focus should be on ${expectedLabel}, got ${actual}`).toBe(expectedLabel);

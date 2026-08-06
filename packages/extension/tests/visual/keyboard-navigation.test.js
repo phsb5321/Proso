@@ -25,7 +25,7 @@ async function focusPlayButton(page, mode) {
   await page.emulateMedia({ colorScheme: mode });
   await createKeyboardPage(page);
   await page.focus('body');
-  await tabToEach(page, ['p#p1', 'button#proso-play-icon']);
+  await tabToEach(page, ['p#p1', 'button.proso-play-icon']);
   await waitForStableState(page, '#p1 .proso-play-icon', 'opacity', '1');
 }
 
@@ -60,8 +60,8 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
   // Test 5/6: Enter/Space activate the focused play button (native button
   // semantics — the browser fires a real click event on the button)
   for (const { key, label, targets, expectedIndex } of [
-    { key: 'Enter', label: 'Enter key', targets: ['p#p1', 'button#proso-play-icon'], expectedIndex: 0 },
-    { key: 'Space', label: 'Space key', targets: ['p#p1', 'button#proso-play-icon', 'p#p2', 'button#proso-play-icon'], expectedIndex: 1 }
+    { key: 'Enter', label: 'Enter key', targets: ['p#p1', 'button.proso-play-icon'], expectedIndex: 0 },
+    { key: 'Space', label: 'Space key', targets: ['p#p1', 'button.proso-play-icon', 'p#p2', 'button.proso-play-icon'], expectedIndex: 1 }
   ]) {
     test(`${label} on focused play button triggers click event`, async ({ page }) => {
       await createKeyboardPage(page);
@@ -137,8 +137,13 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
       window.focusOrder = [];
       document.querySelectorAll('[tabindex], a, button, input').forEach((el) => {
         el.addEventListener('focus', () => {
-          const label = el.id || el.className.split(/\s+/)[0] || '';
-          window.focusOrder.push(`${el.tagName}#${label}`);
+          const tag = el.tagName;
+          if (el.id) {
+            window.focusOrder.push(`${tag}#${el.id}`);
+          } else {
+            const firstClass = String(el.className || '').split(/\s+/)[0] ?? '';
+            window.focusOrder.push(firstClass ? `${tag}.${firstClass}` : tag);
+          }
         });
       });
     });
@@ -155,11 +160,11 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
     // order: p1 -> p1.play-icon -> p2 -> p2.play-icon -> p3 -> p3.play-icon
     expect(order).toEqual([
       'P#p1',
-      'BUTTON#proso-play-icon',
+      'BUTTON.proso-play-icon',
       'P#p2',
-      'BUTTON#proso-play-icon',
+      'BUTTON.proso-play-icon',
       'P#p3',
-      'BUTTON#proso-play-icon'
+      'BUTTON.proso-play-icon'
     ]);
   });
 
@@ -173,7 +178,7 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
 
     // Tab to first paragraph, then to its play button
     await page.focus('body');
-    await tabToEach(page, ['p#p1', 'button#proso-play-icon']);
+    await tabToEach(page, ['p#p1', 'button.proso-play-icon']);
 
     await expect(page).toHaveScreenshot('keyboard-focus-reduced-motion.png', {
       maxDiffPixelRatio: 0.02
