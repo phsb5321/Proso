@@ -13,7 +13,16 @@ import {
   trackPlayClicks
 } from './helpers/visual-fixture.js';
 
-async function focusFirstPlayButton(page) {
+async function focusParagraph(page, mode) {
+  await page.emulateMedia({ colorScheme: mode });
+  await createKeyboardPage(page);
+  await page.focus('body');
+  await tabToEach(page, ['p#p1']);
+  await waitForStableState(page, '#p1 .proso-play-icon', 'opacity', '1');
+}
+
+async function focusPlayButton(page, mode) {
+  await page.emulateMedia({ colorScheme: mode });
   await createKeyboardPage(page);
   await page.focus('body');
   await tabToEach(page, ['p#p1', 'button#proso-play-icon']);
@@ -24,8 +33,7 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
   for (const mode of ['light', 'dark']) {
     // Test 1/2: Tab to paragraph shows play button
     test(`Tab to paragraph shows play button - ${mode} mode`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: mode });
-      await focusFirstPlayButton(page);
+      await focusParagraph(page, mode);
 
       // Verify play icon is visible (opacity > 0)
       expect(parseFloat(await playIconOpacity(page, '#p1 .proso-play-icon'))).toBeGreaterThan(0);
@@ -37,8 +45,7 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
 
     // Test 3/4: Tab to play button shows focus ring
     test(`Tab to play button shows focus ring - ${mode} mode`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: mode });
-      await focusFirstPlayButton(page);
+      await focusPlayButton(page, mode);
 
       // Verify the focus ring is visible: the icon is at full opacity
       const focusRingStyle = await readFocusRing(page, '#p1 .proso-play-icon');
@@ -59,8 +66,6 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
     test(`${label} on focused play button triggers click event`, async ({ page }) => {
       await createKeyboardPage(page);
       await trackPlayClicks(page);
-
-      // Tab to the target play icon
       await page.focus('body');
       await tabToEach(page, targets);
 
@@ -132,7 +137,8 @@ defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
       window.focusOrder = [];
       document.querySelectorAll('[tabindex], a, button, input').forEach((el) => {
         el.addEventListener('focus', () => {
-          window.focusOrder.push(`${el.tagName}#${el.id || el.className}`);
+          const label = el.id || el.className.split(/\s+/)[0] || '';
+          window.focusOrder.push(`${el.tagName}#${label}`);
         });
       });
     });

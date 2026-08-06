@@ -10,6 +10,7 @@
  * keyboard-navigation suites, so the fixtures cannot drift apart.
  */
 import { expect, test } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { disableAnimations, waitForLayoutStable } from '../../helpers/disable-animations.js';
 
 const ARTICLE_HEADING = 'Test Article';
@@ -63,7 +64,7 @@ export async function createArticlePage(page, paragraphOpts = []) {
   `);
 
   await page.addStyleTag({
-    path: new URL('../../../src/styles/content.css', import.meta.url).pathname
+    path: fileURLToPath(new URL('../../../src/styles/content.css', import.meta.url))
   });
 
   // Disable animations for deterministic screenshots
@@ -105,6 +106,14 @@ export async function enableSelectionMode(page) {
       icon.setAttribute('title', 'Start playback from here');
       icon.setAttribute('tabindex', '0');
       icon.dataset.prosoIndex = String(index);
+
+      // Mirrors ParagraphSelector.addPlayIconWithMargin: paragraphs with less
+      // than 50px of left margin get the inline positioning class.
+      const marginLeft = Number.parseFloat(window.getComputedStyle(p).marginLeft) || 0;
+      if (marginLeft < 50) {
+        icon.classList.add('proso-play-icon--inline');
+      }
+
       p.appendChild(icon);
     });
   });
@@ -140,7 +149,7 @@ export async function tabTo(page, expected) {
   const actual = await page.evaluate(() => {
     const el = document.activeElement;
     if (!el || el === document.body) return 'body';
-    return `${el.tagName.toLowerCase()}#${el.id || el.className || ''}`;
+    return `${el.tagName.toLowerCase()}#${el.id || (el.className.split(/\s+/)[0] ?? '')}`;
   });
   const expectedLabel = expected === 'body' ? 'body' : expected;
   expect(actual, `after Tab, focus should be on ${expectedLabel}, got ${actual}`).toBe(expectedLabel);
