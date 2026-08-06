@@ -1,359 +1,127 @@
 /**
- * Visual tests for keyboard navigation accessibility
- * Feature: 035-selection-tts-hardening (T004)
- *
- * Verifies that keyboard-only users can:
- * - Tab to paragraphs and see play buttons (opacity > 0)
- * - Tab to play buttons and see focus ring
- * - Activate playback with Enter/Space
+ * Keyboard accessibility (Feature 035 T004): every tab step asserts
+ * `document.activeElement` — the historical failures were blind tab counts.
  */
 import { test, expect } from '@playwright/test';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { disableAnimations, waitForLayoutStable, waitForStableState } from '../helpers/disable-animations.js';
+import { waitForStableState } from '../helpers/disable-animations.js';
+import {
+  createKeyboardPage,
+  defineVisualSuite,
+  playIconOpacity,
+  readFocusRing,
+  tabToEach,
+  trackPlayClicks
+} from './helpers/visual-fixture.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const EXTENSION_PATH = path.resolve(__dirname, '..', '..');
-
-/**
- * Get the content CSS path for the extension
- */
-function getContentCssPath() {
-  return path.join(EXTENSION_PATH, 'src', 'styles', 'content.css');
+async function focusParagraph(page, mode) {
+  await page.emulateMedia({ colorScheme: mode });
+  await createKeyboardPage(page);
+  await page.focus('body');
+  await tabToEach(page, ['p#p1']);
+  await waitForStableState(page, '#p1 .proso-play-icon', 'opacity', '1');
 }
 
-/**
- * Create a test page with sample paragraphs and content.css loaded
- */
-async function setupTestPage(page) {
-  // Create minimal HTML with test paragraphs
-  await page.setContent(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          padding: 40px 80px;
-          line-height: 1.6;
-          background: #ffffff;
-          color: #1a1a1a;
-        }
-        p {
-          margin: 1em 0;
-          position: relative;
-        }
-        @media (prefers-color-scheme: dark) {
-          body {
-            background: #1a1a1a;
-            color: #e0e0e0;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Keyboard Navigation Test</h1>
-      <p id="p1" tabindex="0">This is the first paragraph. It should be focusable via Tab key and show a play button when focused.</p>
-      <p id="p2" tabindex="0">The second paragraph also supports keyboard navigation. Users can Tab to this element and see the play icon appear.</p>
-      <p id="p3" tabindex="0">Finally, the third paragraph completes the test. Keyboard users should be able to navigate through all paragraphs.</p>
-    </body>
-    </html>
-  `);
-
-  // Load content.css
-  await page.addStyleTag({
-    path: getContentCssPath()
-  });
-
-  // Disable animations for deterministic screenshots
-  await disableAnimations(page);
-
-  // Wait for layout to stabilize
-  await waitForLayoutStable(page, 'body', 50);
-  return page;
+async function focusPlayButton(page, mode) {
+  await page.emulateMedia({ colorScheme: mode });
+  await createKeyboardPage(page);
+  await page.focus('body');
+  await tabToEach(page, ['p#p1', 'button.proso-play-icon']);
+  await waitForStableState(page, '#p1 .proso-play-icon', 'opacity', '1');
 }
 
-/**
- * Add selectable class and play icons to paragraphs (simulating selection mode)
- * Ensures play icons have tabindex and proper ARIA attributes for keyboard access
- */
-async function enableSelectionMode(page) {
-  await page.evaluate(() => {
-    const paragraphs = document.querySelectorAll('p');
-    paragraphs.forEach((p, index) => {
-      p.classList.add('proso-selectable');
-      p.dataset.prosoSelectIndex = index.toString();
-      p.dataset.testid = 'proso-paragraph';
+defineVisualSuite('Keyboard Navigation Accessibility (T004)', () => {
+  for (const mode of ['light', 'dark']) {
+    // Test 1/2: Tab to paragraph shows play button
+    test(`Tab to paragraph shows play button - ${mode} mode`, async ({ page }) => {
+      await focusParagraph(page, mode);
 
-      // Create play icon with accessibility attributes (T009)
-      const icon = document.createElement('div');
-      icon.className = 'proso-play-icon';
-      icon.dataset.prosoPlayIndex = index.toString();
-      icon.dataset.testid = 'proso-play-icon';
-      icon.setAttribute('role', 'button');
-      icon.setAttribute('aria-label', `Play from paragraph ${index + 1}`);
-      icon.setAttribute('tabindex', '0'); // Make focusable
-      p.appendChild(icon);
-    });
-  });
+      // Verify play icon is visible (opacity > 0)
+      expect(parseFloat(await playIconOpacity(page, '#p1 .proso-play-icon'))).toBeGreaterThan(0);
 
-  // Wait for DOM to update
-  await waitForLayoutStable(page, 'p.proso-selectable', 50);
-}
-
-test.describe('Keyboard Navigation Accessibility (T004)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 800, height: 600 });
-  });
-
-  // Test 1: Tab to paragraph shows play button
-  test('Tab to paragraph shows play button - light mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Focus the body first
-    await page.focus('body');
-
-    // Tab to first paragraph
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // Skip past heading to first paragraph
-
-    // Wait for focus styles to apply
-    await waitForLayoutStable(page, '#p1', 50);
-
-    // Verify play icon is visible (opacity > 0)
-    const playIconOpacity = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .proso-play-icon');
-      if (!icon) return '0';
-      return getComputedStyle(icon).opacity;
-    });
-
-    expect(parseFloat(playIconOpacity)).toBeGreaterThan(0);
-
-    await expect(page).toHaveScreenshot('tab-to-paragraph-light.png', {
-      maxDiffPixelRatio: 0.02
-    });
-  });
-
-  // Test 2: Tab to paragraph shows play button (dark mode)
-  test('Tab to paragraph shows play button - dark mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Focus the body first
-    await page.focus('body');
-
-    // Tab to second paragraph
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // First paragraph
-    await page.keyboard.press('Tab'); // Play icon
-    await page.keyboard.press('Tab'); // Second paragraph
-
-    await waitForLayoutStable(page, '#p2', 50);
-
-    await expect(page).toHaveScreenshot('tab-to-paragraph-dark.png', {
-      maxDiffPixelRatio: 0.02
-    });
-  });
-
-  // Test 3: Tab to play button shows focus ring
-  test('Tab to play button shows focus ring - light mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Focus the body first
-    await page.focus('body');
-
-    // Tab to first paragraph
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // First paragraph
-
-    // Tab to play icon within the paragraph
-    await page.keyboard.press('Tab'); // Play icon
-
-    await waitForLayoutStable(page, '#p1 .proso-play-icon', 50);
-
-    // Verify focus ring is visible via outline
-    const focusRingStyle = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .proso-play-icon');
-      if (!icon) return { outline: 'none', opacity: '0' };
-      const style = getComputedStyle(icon);
-      return {
-        outline: style.outline,
-        outlineWidth: style.outlineWidth,
-        outlineStyle: style.outlineStyle,
-        opacity: style.opacity
-      };
-    });
-
-    // Play icon should be visible
-    expect(parseFloat(focusRingStyle.opacity)).toBe(1);
-
-    await expect(page).toHaveScreenshot('tab-to-play-button-focus-light.png', {
-      maxDiffPixelRatio: 0.02
-    });
-  });
-
-  // Test 4: Tab to play button shows focus ring (dark mode)
-  test('Tab to play button shows focus ring - dark mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Focus the body first
-    await page.focus('body');
-
-    // Tab through to second play icon
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // First paragraph
-    await page.keyboard.press('Tab'); // First play icon
-    await page.keyboard.press('Tab'); // Second paragraph
-    await page.keyboard.press('Tab'); // Second play icon
-
-    await waitForLayoutStable(page, '#p2 .proso-play-icon', 50);
-
-    await expect(page).toHaveScreenshot('tab-to-play-button-focus-dark.png', {
-      maxDiffPixelRatio: 0.02
-    });
-  });
-
-  // Test 5: Enter key on play button triggers action (simulated)
-  test('Enter key on focused play button triggers click event', async ({ page }) => {
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Add click listener to track activation
-    await page.evaluate(() => {
-      window.playButtonClicked = false;
-      window.clickedIndex = null;
-      document.querySelectorAll('.proso-play-icon').forEach((icon, index) => {
-        icon.addEventListener('click', () => {
-          window.playButtonClicked = true;
-          window.clickedIndex = index;
-        });
-        // Also handle keyboard activation
-        icon.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            window.playButtonClicked = true;
-            window.clickedIndex = index;
-          }
-        });
+      await expect(page).toHaveScreenshot(`tab-to-paragraph-${mode}.png`, {
+        maxDiffPixelRatio: 0.02
       });
     });
 
-    // Tab to first play icon
-    await page.focus('body');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // First paragraph
-    await page.keyboard.press('Tab'); // First play icon
+    // Test 3/4: Tab to play button shows focus ring
+    test(`Tab to play button shows focus ring - ${mode} mode`, async ({ page }) => {
+      await focusPlayButton(page, mode);
 
-    // Press Enter
-    await page.keyboard.press('Enter');
+      // Verify the focus ring is visible: the icon is at full opacity
+      const focusRingStyle = await readFocusRing(page, '#p1 .proso-play-icon');
+      expect(parseFloat(focusRingStyle.opacity)).toBe(1);
 
-    // Verify click was triggered
-    const result = await page.evaluate(() => ({
-      clicked: window.playButtonClicked,
-      index: window.clickedIndex
-    }));
-
-    expect(result.clicked).toBe(true);
-    expect(result.index).toBe(0);
-  });
-
-  // Test 6: Space key on play button triggers action
-  test('Space key on focused play button triggers click event', async ({ page }) => {
-    await setupTestPage(page);
-    await enableSelectionMode(page);
-
-    // Add click listener to track activation
-    await page.evaluate(() => {
-      window.playButtonClicked = false;
-      window.clickedIndex = null;
-      document.querySelectorAll('.proso-play-icon').forEach((icon, index) => {
-        icon.addEventListener('click', () => {
-          window.playButtonClicked = true;
-          window.clickedIndex = index;
-        });
-        icon.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            window.playButtonClicked = true;
-            window.clickedIndex = index;
-          }
-        });
+      await expect(page).toHaveScreenshot(`tab-to-play-button-focus-${mode}.png`, {
+        maxDiffPixelRatio: 0.02
       });
     });
+  }
 
-    // Tab to second play icon
-    await page.focus('body');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab'); // First paragraph
-    await page.keyboard.press('Tab'); // First play icon
-    await page.keyboard.press('Tab'); // Second paragraph
-    await page.keyboard.press('Tab'); // Second play icon
+  // Test 5/6: Enter/Space activate the focused play button (native button
+  // semantics — the browser fires a real click event on the button)
+  for (const { key, label, targets, expectedIndex } of [
+    { key: 'Enter', label: 'Enter key', targets: ['p#p1', 'button.proso-play-icon'], expectedIndex: 0 },
+    { key: 'Space', label: 'Space key', targets: ['p#p1', 'button.proso-play-icon', 'p#p2', 'button.proso-play-icon'], expectedIndex: 1 }
+  ]) {
+    test(`${label} on focused play button triggers click event`, async ({ page }) => {
+      await createKeyboardPage(page);
+      await trackPlayClicks(page);
+      await page.focus('body');
+      await tabToEach(page, targets);
 
-    // Press Space
-    await page.keyboard.press('Space');
+      // Press the activation key
+      await page.keyboard.press(key);
 
-    // Verify click was triggered
-    const result = await page.evaluate(() => ({
-      clicked: window.playButtonClicked,
-      index: window.clickedIndex
-    }));
+      // Verify click was triggered by the browser's native button activation
+      const result = await page.evaluate(() => ({
+        clicked: window.playButtonClicked,
+        index: window.clickedIndex
+      }));
 
-    expect(result.clicked).toBe(true);
-    expect(result.index).toBe(1);
-  });
+      expect(result.clicked).toBe(true);
+      expect(result.index).toBe(expectedIndex);
+    });
+  }
 
   // Test 7: Focus-within on paragraph shows play icon
   test('focus-within on paragraph shows play icon', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
+    await createKeyboardPage(page);
 
     // Directly focus the paragraph (not the play icon)
     await page.focus('#p1');
 
-    await waitForLayoutStable(page, '#p1', 50);
+    await waitForStableState(page, '#p1 .proso-play-icon', 'opacity', '1');
 
     // Check that play icon is visible
-    const playIconOpacity = await page.evaluate(() => {
-      const icon = document.querySelector('#p1 .proso-play-icon');
-      if (!icon) return '0';
-      return getComputedStyle(icon).opacity;
-    });
-
-    expect(parseFloat(playIconOpacity)).toBeGreaterThan(0);
+    expect(parseFloat(await playIconOpacity(page, '#p1 .proso-play-icon'))).toBeGreaterThan(0);
 
     await expect(page).toHaveScreenshot('focus-within-paragraph-light.png', {
       maxDiffPixelRatio: 0.02
     });
   });
 
-  // Test 8: ARIA attributes are correctly set
+  // Test 8: ARIA attributes are correctly set (shipped icon contract)
   test('play button has correct ARIA attributes', async ({ page }) => {
-    await setupTestPage(page);
-    await enableSelectionMode(page);
+    await createKeyboardPage(page);
 
     const ariaAttributes = await page.evaluate(() => {
       const icons = document.querySelectorAll('.proso-play-icon');
       return Array.from(icons).map((icon, index) => ({
-        role: icon.getAttribute('role'),
+        tagName: icon.tagName,
+        // Native <button> has the implicit role 'button'
+        role: icon.getAttribute('role') || (icon.tagName === 'BUTTON' ? 'button' : null),
         ariaLabel: icon.getAttribute('aria-label'),
         tabindex: icon.getAttribute('tabindex'),
+        type: icon.getAttribute('type'),
         hasCorrectLabel: icon.getAttribute('aria-label')?.includes(`paragraph ${index + 1}`)
       }));
     });
 
-    // Verify all icons have correct ARIA attributes
-    ariaAttributes.forEach((attrs, index) => {
+    // Verify all icons have the shipped ARIA contract
+    ariaAttributes.forEach((attrs) => {
       expect(attrs.role).toBe('button');
+      expect(attrs.type).toBe('button');
       expect(attrs.tabindex).toBe('0');
       expect(attrs.hasCorrectLabel).toBe(true);
     });
@@ -361,31 +129,43 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
 
   // Test 9: Focus order follows visual layout
   test('focus order follows visual layout', async ({ page }) => {
-    await setupTestPage(page);
-    await enableSelectionMode(page);
+    await createKeyboardPage(page);
 
     // Track focus order
     const focusOrder = [];
     await page.evaluate(() => {
       window.focusOrder = [];
-      document.querySelectorAll('[tabindex], a, button, input').forEach(el => {
+      document.querySelectorAll('[tabindex], a, button, input').forEach((el) => {
         el.addEventListener('focus', () => {
-          window.focusOrder.push(el.id || el.className || el.tagName);
+          const tag = el.tagName;
+          if (el.id) {
+            window.focusOrder.push(`${tag}#${el.id}`);
+          } else {
+            const firstClass = String(el.className || '').split(/\s+/)[0] ?? '';
+            window.focusOrder.push(firstClass ? `${tag}.${firstClass}` : tag);
+          }
         });
       });
     });
 
     // Tab through all focusable elements
     await page.focus('body');
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       await page.keyboard.press('Tab');
     }
 
     const order = await page.evaluate(() => window.focusOrder);
 
-    // Verify focus moves through paragraphs and their play icons in order
-    // Expected: p1 -> p1.play-icon -> p2 -> p2.play-icon -> p3 -> p3.play-icon
-    expect(order.length).toBeGreaterThanOrEqual(6);
+    // Focus must move through paragraphs and their play buttons in document
+    // order: p1 -> p1.play-icon -> p2 -> p2.play-icon -> p3 -> p3.play-icon
+    expect(order).toEqual([
+      'P#p1',
+      'BUTTON.proso-play-icon',
+      'P#p2',
+      'BUTTON.proso-play-icon',
+      'P#p3',
+      'BUTTON.proso-play-icon'
+    ]);
   });
 
   // Test 10: Reduced motion preference
@@ -394,13 +174,11 @@ test.describe('Keyboard Navigation Accessibility (T004)', () => {
       colorScheme: 'light',
       reducedMotion: 'reduce'
     });
-    await setupTestPage(page);
-    await enableSelectionMode(page);
+    await createKeyboardPage(page);
 
-    // Tab to first paragraph
+    // Tab to first paragraph, then to its play button
     await page.focus('body');
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
+    await tabToEach(page, ['p#p1', 'button.proso-play-icon']);
 
     await expect(page).toHaveScreenshot('keyboard-focus-reduced-motion.png', {
       maxDiffPixelRatio: 0.02
