@@ -1,0 +1,665 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (c) 2024-2026 Proso Contributors. All rights reserved.
+// Commercial licensing: https://proso.com.br/commercial
+
+/**
+ * `make chrome-mv3-diagnostics` — retained Chrome MV3 reading-journey diagnostic
+ * (Feature 106).
+ *
+ * Reproduces the two known Chrome MV3 failures from the reading-journey ledger
+ * as deterministic, committed assertions instead of a one-off Docker run:
+ *
+ *   (a) the popup/start message Promise response is lost (popup stuck on
+ *       `Loading...`), and
+ *   (b) `Audio` is undefined in the MV3 worker context.
+ *
+ * The diagnostic runs two legs:
+ *
+ *   - Chrome MV3 (Playwright Chromium, `--headless=new` with `--load-extension`):
+ *     asserts the worker audio context, the real popup start journey against a
+ *     local fixture article + local Proso API stub (a TTS request must actually
+ *     be observed leaving the extension), and a popup→background message
+ *     roundtrip. Red on current `main` (worker `Audio` undefined; the journey
+ *     dies at the first `new Audio()`).
+ *   - Firefox MV2 (raw geckodriver harness): the same assertions must stay
+ *     green — non-regression proven by assertion, not by absence. The Firefox
+ *     leg cannot address the real browser-action popup panel (WebDriver exposes
+ *     no window handle for it — see docs/agent-delivery-harness.md), so it
+ *     drives the shipped `popup.html` as a background tab; the Play click is
+ *     executed on that page's content window from chrome context while the
+ *     fixture article stays the active tab, which preserves the production
+ *     active-tab semantics `playback.start` relies on.
+ *
+ * Exit codes: 0 = every check passed on every requested leg, 1 = any check
+ * failed. A missing browser or build is a loud failure, never a skip.
+ *
+ * @module scripts/chrome-mv3-diagnostics
+ */
+
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { startFixtureServer } from './lib/reading-fixture-server.mjs';
+import { launch as launchFirefox, sleep, waitFor } from './lib/webdriver.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(here, '..');
+const extPkg = path.join(repoRoot, 'packages/extension');
+const chromeBuildDir = path.join(extPkg, '.output/chrome-mv3');
+const firefoxBuildDir = path.join(extPkg, '.output/firefox-mv2');
+
+// Playwright is a devDependency of the extension package; resolve through it so
+// the root script needs no new dependency.
+const requireExt = createRequire(path.join(extPkg, 'package.json'));
+const { chromium } = requireExt('@playwright/test');
+
+/** Pinning the internal UUID makes `moz-extension://` addressable up front. */
+const ADDON_ID = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
+const ADDON_UUID = '8b3f6f5a-2e1c-4a77-9f0d-4c2ab5d61b90';
+
+const STATUS_LOADING = 'Loading...';
+const PLAYING_STATUSES = new Set(['Playing', 'Paused']);
+
+const JOURNEY_LOADING_LEAVE_MS = 10_000;
+const JOURNEY_PLAYING_MS = 30_000;
+const ROUNDTRIP_MS = 5_000;
+
+const checks = [];
+
+function record(name, detail = '', ok = true) {
+  checks.push({ name, detail, ok });
+  process.stdout.write(`  ${ok ? 'ok ' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}\n`);
+}
+
+function fail(message) {
+  throw new Error(message);
+}
+
+function which(name) {
+  try {
+    return execFileSync('/bin/sh', ['-c', `command -v ${name}`], { encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** Ask the fixture server what it saw; requests are appended by the stub. */
+function ttsRequestCount(fixture) {
+  return fixture.requests.filter((r) => r.body && typeof r.body.text === 'string').length;
+}
+
+/**
+ * Poll a popup status getter until the status leaves `Loading...`.
+ * Returns { ok, text } — never throws.
+ */
+async function waitToLeaveLoading(readStatus, timeoutMs) {
+  return waitFor(
+    'popup status to leave Loading...',
+    async () => {
+      const text = await readStatus();
+      return text !== STATUS_LOADING ? text : null;
+    },
+    { timeoutMs, intervalMs: 250 },
+  ).then(
+    (text) => ({ ok: true, text }),
+    (error) => ({ ok: false, text: error instanceof Error ? error.message : String(error) }),
+  );
+}
+
+/**
+ * Poll a popup status getter until the status reaches Playing/Paused.
+ * Returns { ok, text } — never throws.
+ */
+async function waitForPlaying(readStatus, timeoutMs) {
+  return waitFor(
+    'popup status to reach Playing/Paused',
+    async () => {
+      const text = await readStatus();
+      return PLAYING_STATUSES.has(text) ? text : null;
+    },
+    { timeoutMs, intervalMs: 250 },
+  ).then(
+    (text) => ({ ok: true, text }),
+    (error) => ({ ok: false, text: error instanceof Error ? error.message : String(error) }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Chrome MV3 leg
+// ---------------------------------------------------------------------------
+
+/**
+ * The extension's service worker `Audio` context (FR-001b / FR-002b).
+ *
+ * Red when `Audio` is undefined in the MV3 worker — the playback path
+ * (`PlaybackService.attachAndPlay`) constructs `new Audio()` directly in the
+ * background, so an undefined `Audio` kills the journey at first playback.
+ * Green when a working `Audio` is present (native in an event page, or a
+ * worker-safe shim once the chosen fix lands). The offscreen-document probe is
+ * reported as context for the architecture decision, not gated: the shipped
+ * `offscreen.html` + protocol exist but nothing wires them today.
+ */
+async function checkWorkerAudioContext(sw) {
+  const audioType = await sw.evaluate(() => typeof Audio);
+  let offscreenContext = 'probe skipped';
+  try {
+    offscreenContext = await sw.evaluate(async () => {
+      const out = {
+        offscreenApi: typeof globalThis.chrome?.offscreen,
+        getContexts: typeof globalThis.chrome?.runtime?.getContexts,
+      };
+      if (
+        typeof globalThis.chrome?.offscreen !== 'undefined' &&
+        typeof globalThis.chrome?.runtime?.getContexts === 'function'
+      ) {
+        const before = await globalThis.chrome.runtime.getContexts({
+          contextTypes: ['OFFSCREEN_DOCUMENT'],
+        });
+        out.existingOffscreen = before.length;
+        if (before.length === 0) {
+          try {
+            await globalThis.chrome.offscreen.createDocument({
+              url: 'offscreen.html',
+              reasons: ['AUDIO_PLAYBACK'],
+              justification: 'Proso MV3 diagnostics',
+            });
+            out.created = true;
+          } catch (error) {
+            out.createError = error instanceof Error ? error.message : String(error);
+          }
+          const after = await globalThis.chrome.runtime.getContexts({
+            contextTypes: ['OFFSCREEN_DOCUMENT'],
+          });
+          out.offscreenAfterCreate = after.length;
+        }
+      }
+      return out;
+    });
+  } catch (error) {
+    offscreenContext = `probe failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+
+  if (audioType === 'undefined') {
+    record(
+      'C1 worker audio context',
+      `typeof Audio === 'undefined' in MV3 worker; offscreen probe: ${JSON.stringify(offscreenContext)}`,
+      false,
+    );
+  } else {
+    record('C1 worker audio context', `typeof Audio === '${audioType}' in MV3 worker`);
+  }
+}
+
+/**
+ * The popup start journey (FR-001a / FR-002 / FR-004), Chrome edition.
+ *
+ * Real popup page, real Play button, real `playback.start` handler, real
+ * extractor, real server-TTS adapter — the only doubles are outside the
+ * extension (fixture article + fixture Proso API stub on 127.0.0.1). Red when
+ * the response is lost (status stuck on `Loading...`), when the journey never
+ * reaches a playing/paused state, when no TTS request left the extension, or
+ * when the reading footer never appeared on the article page.
+ */
+async function checkChromeStartJourney(extId, fixture, article, popup) {
+  const sub = [];
+
+  const status = () =>
+    popup.evaluate(() => document.getElementById('status-text')?.textContent ?? null);
+
+  const initial = await status();
+  sub.push(`initial status '${initial}'`);
+
+  await popup.click('#play-pause-btn');
+
+  // (a) The response must not be lost: the status has to leave the transient
+  // `Loading...` state. A popup still on `Loading...` after the deadline is the
+  // ledger's stuck-popup failure mode, red by assertion.
+  const leftLoading = await waitToLeaveLoading(status, JOURNEY_LOADING_LEAVE_MS);
+  sub.push(`left Loading...: ${leftLoading.ok ? `'${leftLoading.text}'` : leftLoading.text}`);
+
+  // (b) The journey must reach a playing/paused state.
+  const playing = await waitForPlaying(status, JOURNEY_PLAYING_MS);
+  sub.push(`reached playing: ${playing.ok ? `'${playing.text}'` : playing.text}`);
+
+  // The TTS request must actually have left the extension (FR-004 — the
+  // existing Chromium E2E can pass without one; this gate cannot).
+  const requests = ttsRequestCount(fixture);
+  sub.push(`TTS requests observed by fixture stub: ${requests}`);
+
+  // The reading footer must be visible on the article page.
+  const footerVisible = await article.evaluate(
+    () => !!document.getElementById('proso-sticky-footer'),
+  );
+  sub.push(`footer on article: ${footerVisible ? 'visible' : 'missing'}`);
+
+  const passed = leftLoading.ok && playing.ok && requests >= 1 && footerVisible;
+  record(
+    'C2 popup start journey',
+    passed ? `all four sub-assertions passed (${sub.join('; ')})` : sub.join('; '),
+    passed,
+  );
+}
+
+/**
+ * Popup→background message roundtrip (FR-001a guard).
+ *
+ * The direct assertion that a runtime message sent from the popup receives its
+ * Promise response. Red when the response is lost — independent of the journey,
+ * so a messaging regression cannot hide behind an audio failure.
+ */
+async function checkChromeRoundtrip(popup) {
+  const result = await popup.evaluate(
+    (timeoutMs) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(
+          () => resolve({ arrived: false, reason: 'timeout' }),
+          timeoutMs,
+        );
+        globalThis.chrome.runtime.sendMessage({ type: 'playback.getState' }).then(
+          (response) => {
+            clearTimeout(timer);
+            resolve({ arrived: true, response: response ?? null });
+          },
+          (error) => {
+            clearTimeout(timer);
+            resolve({
+              arrived: false,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          },
+        );
+      }),
+    ROUNDTRIP_MS,
+  );
+  record(
+    'C3 popup roundtrip',
+    result.arrived
+      ? `playback.getState answered ${JSON.stringify(result.response ?? null).slice(0, 120)}`
+      : `response lost: ${result.reason}`,
+    result.arrived,
+  );
+}
+
+async function chromeLeg(fixture) {
+  if (!existsSync(path.join(chromeBuildDir, 'manifest.json'))) {
+    fail(
+      `Missing Chrome build at ${chromeBuildDir}. Run: pnpm --filter @proso/extension build:chrome`,
+    );
+  }
+  const systemChrome = which('google-chrome') || which('google-chrome-stable');
+  if (!systemChrome) {
+    fail('No Chromium found on PATH (google-chrome / google-chrome-stable).');
+  }
+
+  record('chrome-mv3 build present', chromeBuildDir);
+  const context = await chromium.launchPersistentContext('', {
+    headless: false,
+    executablePath: systemChrome,
+    args: [
+      `--disable-extensions-except=${chromeBuildDir}`,
+      `--load-extension=${chromeBuildDir}`,
+      '--headless=new',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--no-sandbox',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+    ],
+  });
+
+  try {
+    const sw = await waitFor(
+      'extension service worker',
+      () => context.serviceWorkers()[0] ?? null,
+      { timeoutMs: 30_000 },
+    );
+    const extId = sw.url().split('/')[2];
+    record('extension service worker', sw.url());
+
+    await checkWorkerAudioContext(sw);
+
+    // Point the extension at the fixture API and reboot it against that config
+    // (the API base URL is captured at container init — same reload step the
+    // Firefox smoke harness uses).
+    const settings = await context.newPage();
+    await settings.goto(`chrome-extension://${extId}/settings.html`);
+    await settings.evaluate(
+      (origin) =>
+        globalThis.browser.storage.local.set({
+          serverUrl: origin,
+          provider: 'openai',
+          licenseKey: null,
+          cacheType: 'memory',
+          speed: 1,
+          telemetryEnabled: false,
+        }),
+      fixture.origin,
+    );
+    await sw.evaluate(() => globalThis.chrome.runtime.reload()).catch(() => {});
+    await waitFor(
+      'reloaded service worker on fixture API',
+      async () => {
+        const worker = context.serviceWorkers()[0] ?? null;
+        if (!worker) return null;
+        try {
+          const serverUrl = await worker.evaluate(
+            () =>
+              new Promise((resolve) =>
+                globalThis.chrome.storage.local.get('serverUrl', (v) => resolve(v.serverUrl ?? null)),
+              ),
+          );
+          return serverUrl === fixture.origin ? worker : null;
+        } catch {
+          return null;
+        }
+      },
+      { timeoutMs: 30_000 },
+    );
+    record('extension reloaded against fixture API', fixture.origin);
+
+    // Fixture article tab — the active tab the real popup start extracts from.
+    const article = await context.newPage();
+    await article.goto(`${fixture.origin}/article`);
+    await article.waitForLoadState('domcontentloaded');
+    await sleep(750); // manifest content-script injection settle
+    await article.bringToFront();
+
+    const popup = await context.newPage();
+    await checkChromeRoundtrip(popup);
+    await checkChromeStartJourney(extId, fixture, article, popup);
+    await popup.close();
+    await article.close();
+  } finally {
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Firefox MV2 leg
+// ---------------------------------------------------------------------------
+
+/**
+ * Run `body` in an extension page tab from chrome context. `body` is a function
+ * body string receiving `(win, ...extraArgs)`; with `isAsync` the WebDriver
+ * async-done callback is appended as the last argument (for promise-returning
+ * bodies). The popup tab stays a background tab, so the fixture article keeps
+ * the active-tab role `playback.start` reads.
+ */
+async function inExtensionTab(driver, tabId, body, extraArgs = [], isAsync = false) {
+  await driver.session('POST', '/moz/context', { context: 'chrome' });
+  try {
+    const doneRef = 'arguments[arguments.length - 1]';
+    const callArgs = ['browser.contentWindow'];
+    for (let i = 0; i < extraArgs.length; i += 1) {
+      callArgs.push(`arguments[${i + 1}]`);
+    }
+    if (isAsync) callArgs.push(doneRef);
+    const script = `const { Services } = ChromeUtils.importESModule(
+        'resource://gre/modules/Services.sys.mjs',
+      );
+      const win = Services.wm.getMostRecentWindow('navigator:browser');
+      const browser = win.gBrowser.browsers.find((b) => b.browserId === arguments[0]);
+      if (!browser) {
+        return ${isAsync ? `${doneRef}({ error: 'extension tab not found' })` : `{ error: 'extension tab not found' }`};
+      }
+      return (${body})(${callArgs.join(', ')});`;
+    const call = isAsync ? driver.executeAsync.bind(driver) : driver.execute.bind(driver);
+    return await call(script, [tabId, ...extraArgs]);
+  } finally {
+    await driver.session('POST', '/moz/context', { context: 'content' });
+  }
+}
+
+async function firefoxLeg(fixture) {
+  if (!existsSync(path.join(firefoxBuildDir, 'manifest.json'))) {
+    fail(
+      `Missing Firefox build at ${firefoxBuildDir}. Run: pnpm --filter @proso/extension build:firefox`,
+    );
+  }
+  const binary = process.env.FIREFOX_BIN || which('firefox') || which('firefox-nightly');
+  if (!binary) {
+    fail('No Firefox found on PATH. Set FIREFOX_BIN to a Firefox executable.');
+  }
+
+  record('firefox-mv2 build present', firefoxBuildDir);
+  const driver = await launchFirefox({
+    binary,
+    headless: process.env.SMOKE_HEADED !== '1',
+    extraArgs: ['-remote-allow-system-access'],
+    prefs: {
+      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+      'media.autoplay.default': 0,
+      'media.autoplay.blocking_policy': 0,
+      'media.volume_scale': '0.0',
+      'browser.shell.checkDefaultBrowser': false,
+      'datareporting.policy.dataSubmissionEnabled': false,
+      'extensions.autoDisableScopes': 0,
+    },
+  });
+
+  try {
+    await driver.installAddon(firefoxBuildDir);
+    record('built extension installed in Firefox');
+
+    // Point the extension at the fixture API, then reboot it (same as the
+    // smoke harness; the API base URL is captured at background init).
+    const settingsTab = await openBackgroundExtensionTab(
+      driver,
+      `moz-extension://${ADDON_UUID}/settings.html`,
+    );
+    const configureResult = await inExtensionTab(
+      driver,
+      settingsTab,
+      (win, origin) =>
+        `win.browser.storage.local
+          .set({
+            serverUrl: origin,
+            provider: 'openai',
+            licenseKey: null,
+            cacheType: 'memory',
+            speed: 1,
+            telemetryEnabled: false,
+          })
+          .then(() => win.browser.runtime.reload())
+          .then(() => 'ok');`,
+      [fixture.origin],
+      true,
+    );
+    if (configureResult !== 'ok') {
+      fail(`Could not configure fixture API: ${JSON.stringify(configureResult)}`);
+    }
+    record('extension reloaded against fixture API', fixture.origin);
+    await sleep(1500);
+
+    // Fixture article becomes the active tab (the tab the real popup start
+    // extracts from).
+    await driver.navigate(`${fixture.origin}/article`);
+    await sleep(1000);
+
+    // Shipped popup page as a background tab; the article stays active.
+    const popupTab = await openBackgroundExtensionTab(
+      driver,
+      `moz-extension://${ADDON_UUID}/popup.html`,
+    );
+    await waitFor(
+      'popup tab to initialize',
+      async () => {
+        const result = await inExtensionTab(
+          driver,
+          popupTab,
+          (win) =>
+            `win.document.readyState === 'complete' && !!win.document.getElementById('play-pause-btn') ? 'ready' : null;`,
+        );
+        return result === 'ready';
+      },
+      { timeoutMs: 20_000 },
+    );
+    record('popup page loaded as background tab');
+
+    // C1 — the playback context must expose a working Audio (Firefox MV2 event
+    // page has DOM; the background page is the context PlaybackService runs in).
+    const backgroundAudio = await inExtensionTab(
+      driver,
+      popupTab,
+      (win) =>
+        `win.browser.runtime.getBackgroundPage().then((bg) =>
+           bg ? typeof bg.Audio : 'no background page');`,
+      [],
+      true,
+    );
+    record(
+      'C1 background audio context',
+      `typeof Audio === '${backgroundAudio}' in Firefox background page`,
+      backgroundAudio === 'function',
+    );
+
+    // C3 — popup→background message roundtrip must answer.
+    const roundtrip = await inExtensionTab(
+      driver,
+      popupTab,
+      (win) =>
+        `new Promise((resolve) => {
+           const timer = setTimeout(
+             () => resolve({ arrived: false, reason: 'timeout' }),
+             ${ROUNDTRIP_MS},
+           );
+           win.browser.runtime.sendMessage({ type: 'playback.getState' }).then(
+             (response) => { clearTimeout(timer); resolve({ arrived: true, response }); },
+             (error) => {
+               clearTimeout(timer);
+               resolve({ arrived: false, reason: error instanceof Error ? error.message : String(error) });
+             },
+           );
+         });`,
+      [],
+      true,
+    );
+    record(
+      'C3 popup roundtrip',
+      roundtrip.arrived
+        ? `playback.getState answered ${JSON.stringify(roundtrip.response ?? null).slice(0, 120)}`
+        : `response lost: ${roundtrip.reason}`,
+      roundtrip.arrived,
+    );
+
+    // C2 — the popup start journey. The Play click runs on the popup page's
+    // content window from chrome context while the article tab stays active,
+    // preserving the active-tab semantics `playback.start` depends on.
+    const readStatus = () =>
+      inExtensionTab(
+        driver,
+        popupTab,
+        (win) => `win.document.getElementById('status-text')?.textContent ?? null;`,
+      );
+
+    const clicked = await inExtensionTab(
+      driver,
+      popupTab,
+      (win) =>
+        `(() => {
+           const btn = win.document.getElementById('play-pause-btn');
+           if (!btn) return 'no button';
+           btn.click();
+           return 'clicked';
+         })();`,
+    );
+    if (clicked !== 'clicked') fail(`Could not click popup Play: ${clicked}`);
+    record('popup Play clicked (chrome-context, article tab active)');
+
+    const sub = [];
+    const leftLoading = await waitToLeaveLoading(readStatus, JOURNEY_LOADING_LEAVE_MS);
+    sub.push(`left Loading...: ${leftLoading.ok ? `'${leftLoading.text}'` : leftLoading.text}`);
+
+    const playing = await waitForPlaying(readStatus, JOURNEY_PLAYING_MS);
+    sub.push(`reached playing: ${playing.ok ? `'${playing.text}'` : playing.text}`);
+
+    const requests = ttsRequestCount(fixture);
+    sub.push(`TTS requests observed by fixture stub: ${requests}`);
+
+    const footer = await driver.execute(
+      `return {
+         footer: !!document.getElementById('proso-sticky-footer'),
+         highlighted: document.querySelectorAll('.proso-highlight').length,
+       };`,
+    );
+    sub.push(`footer on article: ${footer.footer ? 'visible' : 'missing'}`);
+
+    const passed = leftLoading.ok && playing.ok && requests >= 1 && footer.footer;
+    record(
+      'C2 popup start journey',
+      passed ? `all four sub-assertions passed (${sub.join('; ')})` : sub.join('; '),
+      passed,
+    );
+  } finally {
+    await driver.quit();
+  }
+}
+
+/**
+ * Open an extension page as a BACKGROUND tab in the focused window and return
+ * its `browserId` (retrieved later from chrome context). The selected tab is
+ * untouched, so the fixture article keeps the active-tab role.
+ */
+async function openBackgroundExtensionTab(driver, url) {
+  const tabId = await driver.session('POST', '/moz/context', { context: 'chrome' }).then(() =>
+    driver.execute(
+      `const { Services } = ChromeUtils.importESModule(
+         'resource://gre/modules/Services.sys.mjs',
+       );
+       const win = Services.wm.getMostRecentWindow('navigator:browser');
+       const tab = win.gBrowser.addTab(arguments[0], {
+         triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+       });
+       return win.gBrowser.getBrowserForTab(tab).browserId;`,
+      [url],
+    ),
+  );
+  await driver.session('POST', '/moz/context', { context: 'content' });
+  return tabId;
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const args = new Set(process.argv.slice(2));
+  const runChrome = args.size === 0 || args.has('--chrome');
+  const runFirefox = args.size === 0 || args.has('--firefox');
+  if (args.has('--help') || args.has('-h')) {
+    process.stdout.write(
+      'Usage: node scripts/chrome-mv3-diagnostics.mjs [--chrome] [--firefox]\n' +
+        '  Runs both legs by default. Exit 0 = all checks green, 1 = any check red.\n',
+    );
+    return;
+  }
+
+  const fixture = await startFixtureServer();
+  record('fixture server started', fixture.origin);
+
+  try {
+    if (runChrome) await chromeLeg(fixture);
+    if (runFirefox) await firefoxLeg(fixture);
+  } finally {
+    await fixture.close();
+  }
+
+  const failed = checks.filter((c) => !c.ok);
+  const failedNames = failed.map((c) => c.name);
+  const verdict = failed.length === 0 ? 'PASS' : 'FAIL';
+  process.stdout.write(
+    `chrome-mv3-diagnostics ${verdict} — ${checks.length} check(s), ` +
+      `${failed.length} failed${failedNames.length ? `: ${failedNames.join(', ')}` : ''}\n`,
+  );
+  if (failed.length > 0) process.exitCode = 1;
+}
+
+main().catch((error) => {
+  process.stderr.write(
+    `chrome-mv3-diagnostics ERROR — ${error instanceof Error ? error.stack : String(error)}\n`,
+  );
+  process.exitCode = 1;
+});
