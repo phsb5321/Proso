@@ -136,6 +136,7 @@ security: doctor build ## Build required fixtures, run security tests, and scan 
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
 		--selectProjects security --maxWorkers=100%
 	@./scripts/security-check.sh
+	@./scripts/dependency-audit.sh
 
 verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security ## Fast delivery floor.
 
