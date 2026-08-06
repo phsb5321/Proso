@@ -16,22 +16,26 @@
 
 ## Implement
 
-- [ ] Add `specs/106-chrome-mv3-diagnostics/{spec.md,plan.md,tasks.md}`.
-- [ ] Add `scripts/chrome-mv3-diagnostics.mjs` with Chrome MV3 and Firefox MV2
+- [x] Add `specs/106-chrome-mv3-diagnostics/{spec.md,plan.md,tasks.md}`.
+- [x] Add `scripts/chrome-mv3-diagnostics.mjs` with Chrome MV3 and Firefox MV2
   legs: worker/background audio-context assertion, popup start-journey
   assertion (fixture article + fixture TTS stub, TTS request observed), and
   message-roundtrip assertion.
-- [ ] Wire the gate: Makefile target + `packages/extension/package.json`
+- [x] Wire the gate: Makefile target + `packages/extension/package.json`
   script.
 
 ## Verify and deliver
 
-- [ ] Chrome MV3 leg RED on current main — capture command + exit code + RED
-  output.
-- [ ] Firefox MV2 leg GREEN — capture command + exit code + GREEN output.
-- [ ] Fill the Verdict section with one chosen smallest change and a falsifier
+- [x] Chrome MV3 leg RED on current main — C1 (`typeof Audio === 'undefined'`
+  in worker) and C2 (journey never reaches playing; 4 TTS requests observed,
+  footer visible) fail; receipt in spec.md and `/tmp/proso-106-chrome-red.log`.
+- [x] Firefox MV2 leg GREEN — C1 `typeof Audio === 'function'` in the
+  background page; C2 all four sub-assertions pass (Loading... → Playing, 3 TTS
+  requests, footer visible); receipt in spec.md and
+  `/tmp/proso-106-firefox-green.log`.
+- [x] Fill the Verdict section with one chosen smallest change and a falsifier
   per candidate.
-- [ ] `pnpm --filter @proso/extension check` passes; `git diff --check` passes.
+- [x] `pnpm --filter @proso/extension check` passes; `git diff --check` passes.
 - [ ] Commit, push, open the PR, wait for checks, squash-merge, and confirm
   `state=MERGED`.
 

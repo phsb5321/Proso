@@ -39,9 +39,17 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, mkdtempSync, openSync, readSync, readdirSync, rmSync } from 'node:fs';
-import os from 'node:os';
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -125,13 +133,7 @@ function isElf64(p) {
     const buf = Buffer.alloc(20);
     readSync(fd, buf, 0, 20, 0);
     closeSync(fd);
-    return (
-      buf[0] === 0x7f &&
-      buf[1] === 0x45 &&
-      buf[2] === 0x4c &&
-      buf[3] === 0x46 &&
-      buf[4] === 2
-    );
+    return buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46 && buf[4] === 2;
   } catch {
     return false;
   }
@@ -145,9 +147,7 @@ function isElf64(p) {
 function nixStoreLibraryPath() {
   const store = '/nix/store';
   if (!existsSync(store)) return '';
-  const entries = readdirSync(store).filter(
-    (e) => !e.endsWith('.drv') && !e.includes('-dev'),
-  );
+  const entries = readdirSync(store).filter((e) => !e.endsWith('.drv') && !e.includes('-dev'));
   const dirs = [];
   for (const [name, lib] of REQUIRED_CHROMIUM_LIBS) {
     const entry = entries.find(
@@ -215,7 +215,6 @@ async function launchChromeContext(profileDir, executablePath, ext) {
     return await chromium.launchPersistentContext(profileDir, options);
   }
 }
-
 
 /** Ask the fixture server what it saw; requests are appended by the stub. */
 function ttsRequestCount(fixture) {
@@ -334,7 +333,7 @@ async function checkWorkerAudioContext(sw) {
  * reaches a playing/paused state, when no TTS request left the extension, or
  * when the reading footer never appeared on the article page.
  */
-async function checkChromeStartJourney(extId, fixture, article, popup) {
+async function checkChromeStartJourney(fixture, article, popup) {
   const sub = [];
 
   const status = () =>
@@ -385,10 +384,7 @@ async function checkChromeRoundtrip(popup) {
   const result = await popup.evaluate(
     (timeoutMs) =>
       new Promise((resolve) => {
-        const timer = setTimeout(
-          () => resolve({ arrived: false, reason: 'timeout' }),
-          timeoutMs,
-        );
+        const timer = setTimeout(() => resolve({ arrived: false, reason: 'timeout' }), timeoutMs);
         globalThis.chrome.runtime.sendMessage({ type: 'playback.getState' }).then(
           (response) => {
             clearTimeout(timer);
@@ -457,9 +453,7 @@ async function chromeLeg(fixture) {
       const written = await sw.evaluate(
         () =>
           new Promise((resolve) =>
-            globalThis.chrome.storage.local.get('serverUrl', (v) =>
-              resolve(v.serverUrl ?? null),
-            ),
+            globalThis.chrome.storage.local.get('serverUrl', (v) => resolve(v.serverUrl ?? null)),
           ),
       );
       record('fixture API configured in profile', `${fixture.origin} (read back: ${written})`);
@@ -512,7 +506,7 @@ async function chromeLeg(fixture) {
       await popup.goto(`chrome-extension://${extId}/popup.html`);
       await article.bringToFront();
       await checkChromeRoundtrip(popup);
-      await checkChromeStartJourney(extId, fixture, article, popup);
+      await checkChromeStartJourney(fixture, article, popup);
       await popup.close();
       await article.close();
     } finally {
@@ -593,17 +587,12 @@ async function firefoxLeg(fixture) {
     // Configure the fixture API, then reboot the extension (the API base URL
     // is captured at background init; reload is fire-and-forget because it
     // kills the page mid-execute).
-    const settingsHandle = await openExtensionTab(
-      driver,
-      `moz-extension://${ADDON_UUID}/settings.html`,
-    );
+    await openExtensionTab(driver, `moz-extension://${ADDON_UUID}/settings.html`);
     await waitFor(
       'settings page ready',
       async () => {
         const state = await driver
-          .execute(
-            `return { ready: document.readyState, hasBrowser: typeof browser };`,
-          )
+          .execute('return { ready: document.readyState, hasBrowser: typeof browser };')
           .catch(() => null);
         return state && state.ready === 'complete' && state.hasBrowser === 'object';
       },
@@ -639,10 +628,7 @@ async function firefoxLeg(fixture) {
     const articleUrl = `${fixture.origin}/article`;
 
     // Shipped popup page in its own tab.
-    const popupHandle = await openExtensionTab(
-      driver,
-      `moz-extension://${ADDON_UUID}/popup.html`,
-    );
+    await openExtensionTab(driver, `moz-extension://${ADDON_UUID}/popup.html`);
     await waitFor(
       'popup page ready',
       async () => {

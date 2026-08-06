@@ -11,7 +11,7 @@ FC_SEED ?= 20260730
 FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
-	smoke-server-boot fuzz user-gate-diagnostic user-gate test-fast test build build-chrome build-all coverage architecture \
+	smoke-server-boot fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
 
@@ -74,6 +74,11 @@ fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUN
 		tests/unit/core/tts/tts-credit.property.spec.ts
 
 user-gate-diagnostic: fuzz smoke-reading ## Run seeded models and the internal-dispatch Firefox diagnostic.
+
+chrome-mv3-diagnostics: ## Reproduce the Chrome MV3 reading failures on current main (Feature 106).
+	$(PNPM) --filter @proso/extension build:chrome
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/chrome-mv3-diagnostics.mjs
 
 user-gate: user-gate-diagnostic ## Fail closed until a public-control Firefox actor satisfies Feature 095.
 	@echo 'BLOCKED: smoke-reading invokes Firefox internal shortcuts.onCommand and is diagnostic-only.' >&2
