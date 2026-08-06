@@ -15,7 +15,9 @@
  *
  * The diagnostic runs two legs:
  *
- *   - Chrome MV3 (Playwright Chromium, `--headless=new` with `--load-extension`):
+ *   - Chrome MV3 (Playwright Chromium, `--headless=new` with `--load-extension`;
+ *     branded Google Chrome rejects the extension flags, so the Playwright-
+ *     bundled Chromium or CHROMIUM_BIN is used):
  *     asserts the worker audio context, the real popup start journey against a
  *     local fixture article + local Proso API stub (a TTS request must actually
  *     be observed leaving the extension), and a popup→background message
@@ -37,7 +39,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, mkdtempSync, openSync, readSync, readdirSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,6 +88,134 @@ function which(name) {
     return '';
   }
 }
+
+/**
+ * 64-bit shared libraries the Playwright-bundled Chromium needs on NixOS, as
+ * [store-name-substring, lib file] pairs. The nix store keeps 32-bit and 64-bit
+ * builds of the same package side by side, so the resolver picks an ELF64 file
+ * explicitly rather than trusting the first store hit.
+ */
+const REQUIRED_CHROMIUM_LIBS = [
+  ['glib', 'libglib-2.0.so.0'],
+  ['at-spi2-core', 'libatk-1.0.so.0'],
+  ['cups', 'libcups.so.2'],
+  ['dbus', 'libdbus-1.so.3'],
+  ['expat', 'libexpat.so.1'],
+  ['mesa-libgbm', 'libgbm.so.1'],
+  ['nspr', 'libnspr4.so'],
+  ['nss', 'libnss3.so'],
+  ['systemd-minimal', 'libudev.so.1'],
+  ['libxcb', 'libxcb.so.1'],
+  ['libxcomposite', 'libXcomposite.so.1'],
+  ['libxdamage', 'libXdamage.so.1'],
+  ['libxext', 'libXext.so.6'],
+  ['libxfixes', 'libXfixes.so.3'],
+  ['libxkbcommon', 'libxkbcommon.so.0'],
+  ['libxrandr', 'libXrandr.so.2'],
+  ['alsa-lib', 'libasound.so.2'],
+  ['cairo', 'libcairo.so.2'],
+  ['pango', 'libpango-1.0.so.0'],
+  ['libx11', 'libX11.so.6'],
+];
+
+/** True when `p` is an ELF64 shared object (first 20 bytes of the header). */
+function isElf64(p) {
+  try {
+    const fd = openSync(p, 'r');
+    const buf = Buffer.alloc(20);
+    readSync(fd, buf, 0, 20, 0);
+    closeSync(fd);
+    return (
+      buf[0] === 0x7f &&
+      buf[1] === 0x45 &&
+      buf[2] === 0x4c &&
+      buf[3] === 0x46 &&
+      buf[4] === 2
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * An `LD_LIBRARY_PATH` covering the bundled Chromium's NixOS dependencies, or
+ * '' when /nix/store is absent. Machine-adaptive: resolves each library from
+ * whatever 64-bit store build exists locally instead of pinning store hashes.
+ */
+function nixStoreLibraryPath() {
+  const store = '/nix/store';
+  if (!existsSync(store)) return '';
+  const entries = readdirSync(store).filter(
+    (e) => !e.endsWith('.drv') && !e.includes('-dev'),
+  );
+  const dirs = [];
+  for (const [name, lib] of REQUIRED_CHROMIUM_LIBS) {
+    const entry = entries.find(
+      (e) =>
+        e.includes(`-${name}-`) &&
+        existsSync(path.join(store, e, 'lib', lib)) &&
+        isElf64(path.join(store, e, 'lib', lib)),
+    );
+    if (entry) dirs.push(path.join(store, entry, 'lib'));
+  }
+  return dirs.join(':');
+}
+
+/**
+ * A Chromium binary that honors --load-extension. Branded Google Chrome 137+
+ * ignores it ("--disable-extensions-except is not allowed in Google Chrome"),
+ * so the Playwright-bundled Chromium (or CHROMIUM_BIN) is required.
+ */
+function resolveChromium() {
+  const explicit = process.env.CHROMIUM_BIN;
+  if (explicit) {
+    if (!existsSync(explicit)) fail(`CHROMIUM_BIN does not exist: ${explicit}`);
+    return explicit;
+  }
+  const cacheRoot = path.join(os.homedir(), '.cache/ms-playwright');
+  if (existsSync(cacheRoot)) {
+    const candidates = readdirSync(cacheRoot)
+      .filter((d) => d.startsWith('chromium-'))
+      .map((d) => path.join(cacheRoot, d, 'chrome-linux64/chrome'))
+      .filter(existsSync)
+      .sort();
+    if (candidates.length > 0) return candidates[candidates.length - 1];
+  }
+  fail(
+    'No Chromium that allows --load-extension. Branded Google Chrome 137+ rejects ' +
+      '--load-extension, so it cannot host this diagnostic. Install the Playwright ' +
+      'Chromium (pnpm --filter @proso/extension exec playwright install chromium) or ' +
+      'set CHROMIUM_BIN to a Chromium / Chrome-for-Testing binary.',
+  );
+}
+
+/** Launch the extension context on `profile`, retrying once with nix-store libs on NixOS. */
+async function launchChromeContext(profileDir, executablePath, ext) {
+  const options = {
+    headless: false,
+    executablePath,
+    args: [
+      `--disable-extensions-except=${ext}`,
+      `--load-extension=${ext}`,
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+    ],
+  };
+  try {
+    return await chromium.launchPersistentContext(profileDir, options);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('error while loading shared libraries')) throw error;
+    const libs = nixStoreLibraryPath();
+    if (!libs) throw error;
+    process.env.LD_LIBRARY_PATH = libs;
+    record('nix-store LD_LIBRARY_PATH derived', libs.split(':').length + ' lib dirs');
+    return await chromium.launchPersistentContext(profileDir, options);
+  }
+}
+
 
 /** Ask the fixture server what it saw; requests are appended by the stub. */
 function ttsRequestCount(fixture) {
@@ -289,91 +420,106 @@ async function chromeLeg(fixture) {
       `Missing Chrome build at ${chromeBuildDir}. Run: pnpm --filter @proso/extension build:chrome`,
     );
   }
-  const systemChrome = which('google-chrome') || which('google-chrome-stable');
-  if (!systemChrome) {
-    fail('No Chromium found on PATH (google-chrome / google-chrome-stable).');
-  }
 
   record('chrome-mv3 build present', chromeBuildDir);
-  const context = await chromium.launchPersistentContext('', {
-    headless: false,
-    executablePath: systemChrome,
-    args: [
-      `--disable-extensions-except=${chromeBuildDir}`,
-      `--load-extension=${chromeBuildDir}`,
-      '--headless=new',
-      '--disable-gpu',
-      '--disable-dev-shm-usage',
-      '--no-sandbox',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-    ],
-  });
+  const executablePath = resolveChromium();
+  record('chromium binary', executablePath);
 
+  // The extension captures its API base URL at container init, and
+  // `chrome.runtime.reload()` leaves the extension unregistered in headless
+  // Chromium, so the fixture API is configured in a first launch (storage
+  // persists in the profile) and the extension boots against it in a second
+  // launch on the same profile.
+  const profile = mkdtempSync(path.join(os.tmpdir(), 'proso-mv3-diagnostics-'));
   try {
-    const sw = await waitFor(
-      'extension service worker',
-      () => context.serviceWorkers()[0] ?? null,
-      { timeoutMs: 30_000 },
-    );
-    const extId = sw.url().split('/')[2];
-    record('extension service worker', sw.url());
+    let context = await launchChromeContext(profile, executablePath, chromeBuildDir);
+    try {
+      const sw = await waitFor(
+        'extension service worker (phase 1)',
+        () => context.serviceWorkers()[0] ?? null,
+        { timeoutMs: 30_000 },
+      );
+      const extId = sw.url().split('/')[2];
+      const settings = await context.newPage();
+      await settings.goto(`chrome-extension://${extId}/settings.html`);
+      await settings.evaluate(
+        (origin) =>
+          globalThis.browser.storage.local.set({
+            serverUrl: origin,
+            provider: 'openai',
+            licenseKey: null,
+            cacheType: 'memory',
+            speed: 1,
+            telemetryEnabled: false,
+          }),
+        fixture.origin,
+      );
+      const written = await sw.evaluate(
+        () =>
+          new Promise((resolve) =>
+            globalThis.chrome.storage.local.get('serverUrl', (v) =>
+              resolve(v.serverUrl ?? null),
+            ),
+          ),
+      );
+      record('fixture API configured in profile', `${fixture.origin} (read back: ${written})`);
+      // Let chrome.storage.local's LevelDB write actually flush to the profile
+      // before the browser process is torn down; closing immediately after the
+      // set() promise resolves can drop the write (observed as phase-2 null).
+      await sleep(1500);
+    } finally {
+      await context.close();
+    }
 
-    await checkWorkerAudioContext(sw);
+    context = await launchChromeContext(profile, executablePath, chromeBuildDir);
+    try {
+      const sw = await waitFor(
+        'extension service worker',
+        () => context.serviceWorkers()[0] ?? null,
+        { timeoutMs: 30_000 },
+      );
+      const extId = sw.url().split('/')[2];
+      record('extension service worker', sw.url());
 
-    // Point the extension at the fixture API and reboot it against that config
-    // (the API base URL is captured at container init — same reload step the
-    // Firefox smoke harness uses).
-    const settings = await context.newPage();
-    await settings.goto(`chrome-extension://${extId}/settings.html`);
-    await settings.evaluate(
-      (origin) =>
-        globalThis.browser.storage.local.set({
-          serverUrl: origin,
-          provider: 'openai',
-          licenseKey: null,
-          cacheType: 'memory',
-          speed: 1,
-          telemetryEnabled: false,
-        }),
-      fixture.origin,
-    );
-    await sw.evaluate(() => globalThis.chrome.runtime.reload()).catch(() => {});
-    await waitFor(
-      'reloaded service worker on fixture API',
-      async () => {
-        const worker = context.serviceWorkers()[0] ?? null;
-        if (!worker) return null;
-        try {
-          const serverUrl = await worker.evaluate(
+      const bootUrl = await waitFor(
+        'extension booted against fixture API',
+        async () => {
+          const url = await sw.evaluate(
             () =>
               new Promise((resolve) =>
-                globalThis.chrome.storage.local.get('serverUrl', (v) => resolve(v.serverUrl ?? null)),
+                globalThis.chrome.storage.local.get('serverUrl', (v) =>
+                  resolve(v.serverUrl ?? null),
+                ),
               ),
           );
-          return serverUrl === fixture.origin ? worker : null;
-        } catch {
-          return null;
-        }
-      },
-      { timeoutMs: 30_000 },
-    );
-    record('extension reloaded against fixture API', fixture.origin);
+          return url === fixture.origin ? url : null;
+        },
+        { timeoutMs: 10_000, intervalMs: 500 },
+      );
+      record('extension booted against fixture API', bootUrl);
 
-    // Fixture article tab — the active tab the real popup start extracts from.
-    const article = await context.newPage();
-    await article.goto(`${fixture.origin}/article`);
-    await article.waitForLoadState('domcontentloaded');
-    await sleep(750); // manifest content-script injection settle
-    await article.bringToFront();
+      await checkWorkerAudioContext(sw);
 
-    const popup = await context.newPage();
-    await checkChromeRoundtrip(popup);
-    await checkChromeStartJourney(extId, fixture, article, popup);
-    await popup.close();
-    await article.close();
+      // Fixture article tab — the active tab the real popup start extracts from.
+      // The popup page is created first and the article is brought to front
+      // afterwards, because newPage() makes the newest tab active.
+      const article = await context.newPage();
+      await article.goto(`${fixture.origin}/article`);
+      await article.waitForLoadState('domcontentloaded');
+      await sleep(750); // manifest content-script injection settle
+
+      const popup = await context.newPage();
+      await popup.goto(`chrome-extension://${extId}/popup.html`);
+      await article.bringToFront();
+      await checkChromeRoundtrip(popup);
+      await checkChromeStartJourney(extId, fixture, article, popup);
+      await popup.close();
+      await article.close();
+    } finally {
+      await context.close();
+    }
   } finally {
-    await context.close();
+    rmSync(profile, { recursive: true, force: true });
   }
 }
 
