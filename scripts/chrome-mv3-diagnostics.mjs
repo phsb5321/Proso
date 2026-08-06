@@ -528,35 +528,34 @@ async function chromeLeg(fixture) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run `body` in an extension page tab from chrome context. `body` is a function
- * body string receiving `(win, ...extraArgs)`; with `isAsync` the WebDriver
- * async-done callback is appended as the last argument (for promise-returning
- * bodies). The popup tab stays a background tab, so the fixture article keeps
- * the active-tab role `playback.start` reads.
+ * Open an extension page as a tab and return its window handle (geckodriver
+ * exposes each tab as a window handle). The popup's Play click needs the
+ * fixture article to stay the ACTIVE tab — the tab `playback.start` extracts
+ * from — so the popup page is driven through webdriver (whose current handle
+ * is independent of the selected tab) while the selected tab is pinned to the
+ * article from chrome context before the click.
  */
-async function inExtensionTab(driver, tabId, body, extraArgs = [], isAsync = false) {
+async function openExtensionTab(driver, url) {
+  const before = await driver.session('GET', '/window/handles');
   await driver.session('POST', '/moz/context', { context: 'chrome' });
   try {
-    const doneRef = 'arguments[arguments.length - 1]';
-    const callArgs = ['browser.contentWindow'];
-    for (let i = 0; i < extraArgs.length; i += 1) {
-      callArgs.push(`arguments[${i + 1}]`);
-    }
-    if (isAsync) callArgs.push(doneRef);
-    const script = `const { Services } = ChromeUtils.importESModule(
-        'resource://gre/modules/Services.sys.mjs',
-      );
-      const win = Services.wm.getMostRecentWindow('navigator:browser');
-      const browser = win.gBrowser.browsers.find((b) => b.browserId === arguments[0]);
-      if (!browser) {
-        return ${isAsync ? `${doneRef}({ error: 'extension tab not found' })` : `{ error: 'extension tab not found' }`};
-      }
-      return (${body})(${callArgs.join(', ')});`;
-    const call = isAsync ? driver.executeAsync.bind(driver) : driver.execute.bind(driver);
-    return await call(script, [tabId, ...extraArgs]);
+    await driver.execute(
+      `const win = Services.wm.getMostRecentWindow('navigator:browser');
+       win.gBrowser.addTab(arguments[0], {
+         triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+       });
+       return true;`,
+      [url],
+    );
   } finally {
     await driver.session('POST', '/moz/context', { context: 'content' });
   }
+  const handle = await waitFor('the extension page tab', async () => {
+    const handles = await driver.session('GET', '/window/handles');
+    return handles.find((h) => !before.includes(h)) ?? null;
+  });
+  await driver.session('POST', '/window', { handle });
+  return handle;
 }
 
 async function firefoxLeg(fixture) {
@@ -589,72 +588,84 @@ async function firefoxLeg(fixture) {
   try {
     await driver.installAddon(firefoxBuildDir);
     record('built extension installed in Firefox');
+    const initialHandle = (await driver.session('GET', '/window/handles'))[0];
 
-    // Point the extension at the fixture API, then reboot it (same as the
-    // smoke harness; the API base URL is captured at background init).
-    const settingsTab = await openBackgroundExtensionTab(
+    // Configure the fixture API, then reboot the extension (the API base URL
+    // is captured at background init; reload is fire-and-forget because it
+    // kills the page mid-execute).
+    const settingsHandle = await openExtensionTab(
       driver,
       `moz-extension://${ADDON_UUID}/settings.html`,
     );
-    const configureResult = await inExtensionTab(
-      driver,
-      settingsTab,
-      (win, origin) =>
-        `win.browser.storage.local
-          .set({
-            serverUrl: origin,
-            provider: 'openai',
-            licenseKey: null,
-            cacheType: 'memory',
-            speed: 1,
-            telemetryEnabled: false,
-          })
-          .then(() => win.browser.runtime.reload())
-          .then(() => 'ok');`,
+    await waitFor(
+      'settings page ready',
+      async () => {
+        const state = await driver
+          .execute(
+            `return { ready: document.readyState, hasBrowser: typeof browser };`,
+          )
+          .catch(() => null);
+        return state && state.ready === 'complete' && state.hasBrowser === 'object';
+      },
+      { timeoutMs: 20_000 },
+    );
+    const configureResult = await driver.executeAsync(
+      `const [origin, done] = arguments;
+       browser.storage.local
+         .set({
+           serverUrl: origin,
+           provider: 'openai',
+           licenseKey: null,
+           cacheType: 'memory',
+           speed: 1,
+           telemetryEnabled: false,
+         })
+         .then(() => done('ok'))
+         .catch((error) => done('err: ' + String(error)));`,
       [fixture.origin],
-      true,
     );
     if (configureResult !== 'ok') {
-      fail(`Could not configure fixture API: ${JSON.stringify(configureResult)}`);
+      fail(`Could not configure fixture API: ${configureResult}`);
     }
+    await driver.execute('browser.runtime.reload(); return true;').catch(() => {});
     record('extension reloaded against fixture API', fixture.origin);
     await sleep(1500);
 
-    // Fixture article becomes the active tab (the tab the real popup start
-    // extracts from).
+    // The settings tab's browsing context was discarded by the reload; the
+    // fixture article lives in the initial tab instead.
+    await driver.session('POST', '/window', { handle: initialHandle });
     await driver.navigate(`${fixture.origin}/article`);
     await sleep(1000);
+    const articleUrl = `${fixture.origin}/article`;
 
-    // Shipped popup page as a background tab; the article stays active.
-    const popupTab = await openBackgroundExtensionTab(
+    // Shipped popup page in its own tab.
+    const popupHandle = await openExtensionTab(
       driver,
       `moz-extension://${ADDON_UUID}/popup.html`,
     );
     await waitFor(
-      'popup tab to initialize',
+      'popup page ready',
       async () => {
-        const result = await inExtensionTab(
-          driver,
-          popupTab,
-          (win) =>
-            `win.document.readyState === 'complete' && !!win.document.getElementById('play-pause-btn') ? 'ready' : null;`,
-        );
-        return result === 'ready';
+        const state = await driver
+          .execute(
+            `return {
+               ready: document.readyState,
+               btn: !!document.getElementById('play-pause-btn'),
+             };`,
+          )
+          .catch(() => null);
+        return state && state.ready === 'complete' && state.btn;
       },
       { timeoutMs: 20_000 },
     );
-    record('popup page loaded as background tab');
+    record('popup page loaded');
 
     // C1 — the playback context must expose a working Audio (Firefox MV2 event
     // page has DOM; the background page is the context PlaybackService runs in).
-    const backgroundAudio = await inExtensionTab(
-      driver,
-      popupTab,
-      (win) =>
-        `win.browser.runtime.getBackgroundPage().then((bg) =>
-           bg ? typeof bg.Audio : 'no background page');`,
-      [],
-      true,
+    const backgroundAudio = await driver.executeAsync(
+      `const [done] = arguments;
+       browser.runtime.getBackgroundPage().then((bg) =>
+         done(bg ? typeof bg.Audio : 'no background page'));`,
     );
     record(
       'C1 background audio context',
@@ -663,25 +674,22 @@ async function firefoxLeg(fixture) {
     );
 
     // C3 — popup→background message roundtrip must answer.
-    const roundtrip = await inExtensionTab(
-      driver,
-      popupTab,
-      (win) =>
-        `new Promise((resolve) => {
-           const timer = setTimeout(
-             () => resolve({ arrived: false, reason: 'timeout' }),
-             ${ROUNDTRIP_MS},
-           );
-           win.browser.runtime.sendMessage({ type: 'playback.getState' }).then(
-             (response) => { clearTimeout(timer); resolve({ arrived: true, response }); },
-             (error) => {
-               clearTimeout(timer);
-               resolve({ arrived: false, reason: error instanceof Error ? error.message : String(error) });
-             },
-           );
-         });`,
-      [],
-      true,
+    const roundtrip = await driver.executeAsync(
+      `const [done] = arguments;
+       const timer = setTimeout(
+         () => done({ arrived: false, reason: 'timeout' }),
+         ${ROUNDTRIP_MS},
+       );
+       browser.runtime.sendMessage({ type: 'playback.getState' }).then(
+         (response) => { clearTimeout(timer); done({ arrived: true, response }); },
+         (error) => {
+           clearTimeout(timer);
+           done({
+             arrived: false,
+             reason: error instanceof Error ? error.message : String(error),
+           });
+         },
+       );`,
     );
     record(
       'C3 popup roundtrip',
@@ -691,31 +699,62 @@ async function firefoxLeg(fixture) {
       roundtrip.arrived,
     );
 
-    // C2 — the popup start journey. The Play click runs on the popup page's
-    // content window from chrome context while the article tab stays active,
-    // preserving the active-tab semantics `playback.start` depends on.
-    const readStatus = () =>
-      inExtensionTab(
-        driver,
-        popupTab,
-        (win) => `win.document.getElementById('status-text')?.textContent ?? null;`,
+    // C2 — the popup start journey. The webdriver current handle stays on the
+    // popup page, while the fixture article is pinned as the selected (active)
+    // tab from chrome context — the active-tab arrangement the real popup
+    // panel has — then the real Play button is clicked.
+    await driver.session('POST', '/moz/context', { context: 'chrome' });
+    try {
+      await driver.execute(
+        `const win = Services.wm.getMostRecentWindow('navigator:browser');
+         const articleTab = win.gBrowser.tabs.find((t) =>
+           t.linkedBrowser && t.linkedBrowser.currentURI.spec.startsWith(arguments[0]));
+         if (!articleTab) return 'article tab not found';
+         win.gBrowser.selectedTab = articleTab;
+         return 'ok';`,
+        [articleUrl],
       );
+    } finally {
+      await driver.session('POST', '/moz/context', { context: 'content' });
+    }
 
-    const clicked = await inExtensionTab(
-      driver,
-      popupTab,
-      (win) =>
-        `(() => {
-           const btn = win.document.getElementById('play-pause-btn');
-           if (!btn) return 'no button';
-           btn.click();
-           return 'clicked';
-         })();`,
+    const clickOutcome = await driver.execute(
+      `(() => {
+         const btn = document.getElementById('play-pause-btn');
+         if (!btn) return { clicked: false, status: null };
+         btn.click();
+         return {
+           clicked: true,
+           status: document.getElementById('status-text')?.textContent ?? null,
+         };
+       })();`,
     );
-    if (clicked !== 'clicked') fail(`Could not click popup Play: ${clicked}`);
-    record('popup Play clicked (chrome-context, article tab active)');
+    if (clickOutcome && clickOutcome.clicked === false) {
+      fail(`Could not click popup Play: ${JSON.stringify(clickOutcome)}`);
+    }
+    // geckodriver returns null for IIFE-style scripts even when they run; the
+    // status transition below is the positive signal that the click registered.
+    record('popup Play clicked (article tab stays active)');
 
     const sub = [];
+    const readStatus = () =>
+      driver.execute(`return document.getElementById('status-text')?.textContent ?? null;`);
+
+    // Positive signal that the click registered: the status must leave 'Ready'
+    // (the popup sets Loading... synchronously in handlePlayPause).
+    const entered = await waitFor(
+      'popup status to enter the journey',
+      async () => {
+        const text = await readStatus();
+        return text === STATUS_LOADING || PLAYING_STATUSES.has(text) ? text : null;
+      },
+      { timeoutMs: 10_000, intervalMs: 250 },
+    ).then(
+      (text) => ({ ok: true, text }),
+      (error) => ({ ok: false, text: error instanceof Error ? error.message : String(error) }),
+    );
+    sub.push(`entered journey: ${entered.ok ? `'${entered.text}'` : entered.text}`);
+
     const leftLoading = await waitToLeaveLoading(readStatus, JOURNEY_LOADING_LEAVE_MS);
     sub.push(`left Loading...: ${leftLoading.ok ? `'${leftLoading.text}'` : leftLoading.text}`);
 
@@ -725,6 +764,7 @@ async function firefoxLeg(fixture) {
     const requests = ttsRequestCount(fixture);
     sub.push(`TTS requests observed by fixture stub: ${requests}`);
 
+    await driver.session('POST', '/window', { handle: initialHandle });
     const footer = await driver.execute(
       `return {
          footer: !!document.getElementById('proso-sticky-footer'),
@@ -733,7 +773,7 @@ async function firefoxLeg(fixture) {
     );
     sub.push(`footer on article: ${footer.footer ? 'visible' : 'missing'}`);
 
-    const passed = leftLoading.ok && playing.ok && requests >= 1 && footer.footer;
+    const passed = entered.ok && leftLoading.ok && playing.ok && requests >= 1 && footer.footer;
     record(
       'C2 popup start journey',
       passed ? `all four sub-assertions passed (${sub.join('; ')})` : sub.join('; '),
@@ -742,29 +782,6 @@ async function firefoxLeg(fixture) {
   } finally {
     await driver.quit();
   }
-}
-
-/**
- * Open an extension page as a BACKGROUND tab in the focused window and return
- * its `browserId` (retrieved later from chrome context). The selected tab is
- * untouched, so the fixture article keeps the active-tab role.
- */
-async function openBackgroundExtensionTab(driver, url) {
-  const tabId = await driver.session('POST', '/moz/context', { context: 'chrome' }).then(() =>
-    driver.execute(
-      `const { Services } = ChromeUtils.importESModule(
-         'resource://gre/modules/Services.sys.mjs',
-       );
-       const win = Services.wm.getMostRecentWindow('navigator:browser');
-       const tab = win.gBrowser.addTab(arguments[0], {
-         triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-       });
-       return win.gBrowser.getBrowserForTab(tab).browserId;`,
-      [url],
-    ),
-  );
-  await driver.session('POST', '/moz/context', { context: 'content' });
-  return tabId;
 }
 
 // ---------------------------------------------------------------------------
