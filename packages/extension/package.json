@@ -45,7 +45,8 @@
     "version:patch": "./scripts/version.sh patch",
     "version:minor": "./scripts/version.sh minor",
     "version:major": "./scripts/version.sh major",
-    "prerelease": "pnpm run test && pnpm run quality && pnpm run build:all"
+    "prerelease": "pnpm run test && pnpm run quality && pnpm run build:all",
+    "diagnostics:chrome-mv3": "node ../../scripts/chrome-mv3-diagnostics.mjs"
   },
   "dependencies": {
     "@proso/shared": "workspace:*",

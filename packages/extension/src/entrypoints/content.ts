@@ -17,7 +17,6 @@ import { browser } from 'wxt/browser';
 import type { TextQuoteSelector } from '../core/highlight';
 import { toAnchoringReport } from '../core/highlight/anchoring-report';
 import * as extractor from '../utils/content/extractor';
-import { createLogger } from '../utils/logging/logger';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
@@ -31,6 +30,7 @@ import {
   StickyFooter,
   type StorageState,
 } from '../utils/content/sticky-footer';
+import { createLogger } from '../utils/logging/logger';
 import type { HighlightColor } from '../utils/schemas/highlight.schema';
 import { hashUrlSync, usageTracker } from '../utils/telemetry/usage';
 
