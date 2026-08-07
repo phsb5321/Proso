@@ -178,8 +178,9 @@ sequenceDiagram
         Background->>Cache: get(cacheKey)
         Cache-->>Background: cachedAudio
     else Cache miss
-        Background->>TTS: synthesize(text, provider, voice, byokApiKey?)
-        TTS-->>Background: audioBlob (word timings estimated client-side; the server proxy does not return them)
+        Background->>TTS: synthesize text with provider, voice, optional BYOK key
+        TTS-->>Background: audioBlob
+        Note over Background,TTS: Word timings are estimated client-side,<br/>the server proxy does not return them
         Background->>Cache: set(cacheKey, audioBlob)
     end
 
