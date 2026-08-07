@@ -16,7 +16,7 @@ export default defineConfig({
     excludeEntrypoints: ['background', 'content'],
   },
   srcDir: 'src',
-  manifest: {
+  manifest: (env) => ({
     name: 'Proso',
     description: 'Text-to-speech for web pages with word-level highlighting',
     version: '1.2.1',
@@ -31,6 +31,11 @@ export default defineConfig({
       // so the MP3 export and the highlight export throw at their call sites
       // rather than failing a permission check.
       'downloads',
+      // Chrome MV3 only: lets the worker-safe Audio shim create the offscreen
+      // document (spec 106 verdict). `chrome.offscreen` is undefined without
+      // it. Not a Firefox permission — Firefox's event page has a native
+      // Audio and never touches this API.
+      ...(env.browser === 'chrome' ? ['offscreen'] : []),
     ],
     host_permissions: [
       'https://logs.proso.com.br/*', // Telemetry gateway
@@ -83,7 +88,6 @@ export default defineConfig({
         update_url: 'https://proso.com.br/updates.json',
         // Required by AMO for all new extensions (mandatory since 2026).
         // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
-        // @ts-expect-error - WXT types don't include this Firefox property yet
         data_collection_permissions: {
           required: ['none'],
           optional: ['websiteContent', 'technicalAndInteraction'],
@@ -94,7 +98,7 @@ export default defineConfig({
     // Firefox embeds options_ui pages inside about:addons which looks ugly.
     // Instead, we open our options page in a dedicated browser tab via
     // browser.tabs.create() - see popup and background handlers.
-  },
+  }),
 
   // Firefox-only build
   browser: 'firefox',
