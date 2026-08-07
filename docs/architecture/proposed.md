@@ -67,7 +67,11 @@ flowchart LR
 ```typescript
 /**
  * Port interface for TTS audio generation.
- * Implementations: ElevenLabsAdapter, BrowserTTSAdapter (future)
+ * Implementations: ServerTtsAudioAdapter (all providers route through the
+ * Proso server — spec [069-server-tts-centralization](../../specs/069-server-tts-centralization/)).
+ * An on-device adapter was planned here but never built; the client-side
+ * Web Speech provider was deliberately removed (commit `9797dc6`) — see
+ * `docs/reading-journey-status.md` before reintroducing it.
  *
  * @module ports/audio-generator.port
  */
