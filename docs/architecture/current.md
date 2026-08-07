@@ -159,7 +159,7 @@ sequenceDiagram
     participant Content as Content Script
     participant Background as Background SW
     participant Cache as IndexedDB Cache
-    participant TTS as Proso Server (POST /api/v1/tts/synthesize)
+    participant TTS as "Proso Server (POST /api/v1/tts/synthesize)"
 
     User->>Content: Click paragraph
     Content->>Background: PARAGRAPH_CLICKED {index, text}
