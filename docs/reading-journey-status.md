@@ -358,8 +358,26 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    failures RED on Chrome MV3 and stays GREEN on Firefox MV2. Follow-up (not started): implement
    the spec-106 verdict — worker-safe `Audio` shim proxying the shipped offscreen document
    protocol, `"offscreen"` manifest permission Chrome-only, zero `PlaybackService` changes.
-3. Reconcile the dated architecture audit and pre-launch checklist; they still contain historical
-   Browser TTS and browser-test claims.
+3. ~~Reconcile the dated architecture audit and pre-launch checklist; they still contain historical
+   Browser TTS and browser-test claims.~~ Delivered on 07/08 by PR #113 (`ddd0583`):
+   `docs/architecture/current.md` and `proposed.md` now describe the server-centralized route
+   (`ServerTtsAudioAdapter` → `ProsoApiAdapter` → `POST /api/v1/tts/synthesize`, spec 069) instead
+   of an extension-direct ElevenLabs flow, and the `BrowserTTSAdapter (future)` plan is replaced by
+   the real implementer plus the removal citation (`9797dc6`). `grep -rn -i
+   'speechSynthesis\|browser tts\|speech.synthesis' docs/architecture/ docs/PRE_LAUNCH_CHECKLIST.md`
+   returns zero. Every load-bearing claim was verified against code before merge:
+   `server-tts-audio.adapter.ts:30` (implements `IAudioGenerator`), `composition/factories.ts:69`
+   (wiring), `proso-api.adapter.ts:137` (endpoint), `shared/src/constants/tiers.ts:19-24`
+   (`FEATURE_MATRIX.managedTts`), `server-tts-audio.adapter.ts:96` (`wordTimings: null`, so the
+   client estimates them) and server `tts.service.ts:137` (the 402 gate). `findings.md` and
+   `PRE_LAUNCH_CHECKLIST.md` needed no edit (their hits are current ElevenLabs-license and
+   cross-browser-compatibility content); `docs/firefox-extension-testing-strategy.md` carries the
+   same claim class in a 15-line mocked-`speechSynthesis` example and is flagged, not edited — see
+   next-slices #12. The qa gate caught one defect the reconciliation introduced: the edited
+   sequence diagram stopped parsing (`mmdc` parse error on the arrow label), fixed in `4c02c2b`
+   and re-verified 6/6 mermaid blocks render. No different-family adversarial review is recorded:
+   codex is capped until 08/08 12:48 BRT and the DeepInfra lane has no balance, so this docs-only
+   diff landed on the qa gate plus the orch's own code verification above.
 4. Triage the 73 expiring Knip fingerprints and 60 OSV advisories before 30/10/2026; remove a
    fingerprint as soon as its finding disappears.
 5. Remediate critical/reachable dependency alerts in service-scoped PRs, then the remaining high
@@ -389,3 +407,8 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    plant and snapshots must exercise the styles users actually see. Wire the fixture to the
    shipped style surface or consolidate the two CSS copies; then tighten the 2 % snapshot
    threshold that misses small-area changes (the 28 px icon gap).
+12. Remove the historical mocked `window.speechSynthesis` example from
+   `docs/firefox-extension-testing-strategy.md` (15 lines, same claim class PR #113
+   reconciled elsewhere but deliberately left out of its scope). Replace it with the
+   server-route testing pattern or delete it; browser `speechSynthesis` was removed in
+   `9797dc6` and no test should model it.
