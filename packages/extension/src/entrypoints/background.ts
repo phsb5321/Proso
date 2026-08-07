@@ -16,6 +16,7 @@
 
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { installOffscreenAudioElementShim } from '../adapters/audio';
 import { createLogger } from '../utils/logging/logger';
 
 // Roadmap feature handlers (023-feature-roadmap)
@@ -47,6 +48,11 @@ import { logUnknownMessage } from '../utils/telemetry';
 
 // Usage observability (043-usage-observability-loki)
 import { installConsoleCapture, installErrorCapture, usageTracker } from '../utils/telemetry/usage';
+
+// Chrome MV3 has no worker DOM, so `Audio` is undefined there (spec 106
+// C1/C2). Installs a worker-safe shim before anything can call `new Audio()`;
+// a no-op everywhere `Audio` already exists (Firefox MV2's event page).
+installOffscreenAudioElementShim();
 
 const log = createLogger('background');
 
