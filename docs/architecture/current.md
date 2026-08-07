@@ -36,7 +36,7 @@ flowchart LR
 
 The background script is the "brain" of Proso:
 - **State Ownership**: Playback state, API keys, audio cache
-- **TTS Generation**: Calls ElevenLabs API, manages audio cache
+- **TTS Generation**: Delegates synthesis to the Proso server (`POST /api/v1/tts/synthesize` via `ServerTtsAudioAdapter`/`ProsoApiAdapter`, spec [069-server-tts-centralization](../../specs/069-server-tts-centralization/)); checks the local IndexedDB audio cache before calling out. Free-tier managed requests return 402 (`FEATURE_MATRIX.managedTts`); BYOK works on every tier (INV-002) — see [reading-journey-status.md](../reading-journey-status.md) for the current account-free-journey state
 - **Message Routing**: Handles 60+ message types via Strangler Fig pattern
 - **Prefetch**: Pre-generates audio for upcoming paragraphs
 
@@ -100,7 +100,7 @@ flowchart TB
     end
 
     subgraph Adapters[Adapters]
-        ElevenLabs[ElevenLabsAdapter]
+        ServerTts[ServerTtsAudioAdapter]
         IndexedDBCache[IndexedDBCacheAdapter]
         ContentMessaging[ContentMessagingAdapter]
         BrowserSettings[BrowserSettingsAdapter]
@@ -113,7 +113,7 @@ flowchart TB
     PlaybackService --> ISettingsStore
     ExtractionService --> ITextExtractor
 
-    ElevenLabs -.-> IAudioGenerator
+    ServerTts -.-> IAudioGenerator
     IndexedDBCache -.-> ICacheStore
     ContentMessaging -.-> IHighlightSync
     BrowserSettings -.-> ISettingsStore
@@ -159,7 +159,7 @@ sequenceDiagram
     participant Content as Content Script
     participant Background as Background SW
     participant Cache as IndexedDB Cache
-    participant TTS as ElevenLabs API
+    participant TTS as Proso Server (POST /api/v1/tts/synthesize)
 
     User->>Content: Click paragraph
     Content->>Background: PARAGRAPH_CLICKED {index, text}
@@ -178,8 +178,8 @@ sequenceDiagram
         Background->>Cache: get(cacheKey)
         Cache-->>Background: cachedAudio
     else Cache miss
-        Background->>TTS: generateAudio(text, voice)
-        TTS-->>Background: audioBlob + wordTimings
+        Background->>TTS: synthesize(text, provider, voice, byokApiKey?)
+        TTS-->>Background: audioBlob (word timings estimated client-side; the server proxy does not return them)
         Background->>Cache: set(cacheKey, audioBlob)
     end
 
