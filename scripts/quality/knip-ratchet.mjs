@@ -40,10 +40,10 @@ function collect(report, scope, categories) {
   return findings;
 }
 
-const full = runKnip(['--include', 'files,dependencies,devDependencies']);
+const full = runKnip(['--include', 'files,dependencies,devDependencies,exports']);
 const production = runKnip(['--production', '--include', 'files,exports,dependencies']);
 const current = [
-  ...collect(full, 'all', ['files', 'dependencies', 'devDependencies']),
+  ...collect(full, 'all', ['files', 'dependencies', 'devDependencies', 'exports']),
   ...collect(production, 'production', ['files', 'exports', 'dependencies']),
 ]
   .filter(
