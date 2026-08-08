@@ -19,28 +19,80 @@
       ],
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/generated/**", ".wxt/**", ".output/**"],
-      "ignoreDependencies": ["@webext-core/messaging", "webextension-polyfill"]
+      "ignoreDependencies": [
+        "@webext-core/messaging",
+        "webextension-polyfill",
+        // Production-scope false positives: each is imported by live files
+        // (verified 07/08/2026) — knip's --production dep analysis misses them.
+        "dexie", // src/utils/db/schema.ts (ProsoDB, live via adapters/storage/highlight-indexeddb.adapter.ts)
+        "franc-min", // src/utils/language/detector.ts (live via background/init-hexagonal.ts)
+        "lamejs", // src/utils/audio/mp3-worker.ts (entry) + mp3-encoder.ts
+        "zod", // 42 import sites incl. src/utils/queue/types.ts, src/utils/telemetry/usage/types.ts
+        "@proso/shared", // handlers + core (ErrorCode, Result, …)
+        "@wxt-dev/unocss", // wxt.config.ts modules: ['@wxt-dev/unocss'] — config-module string, not an import
+        "@iconify-json/lucide" // uno.config.ts presetIcons() — icon collection resolved by unocss at build time
+      ]
     },
     "packages/server": {
       "entry": [
         "src/main.ts",
         "src/**/*.module.ts",
         "src/**/*.controller.ts",
-        "tests/**/*.spec.ts"
+        "tests/**/*.spec.ts",
+        // Tests import testcontainers via this helper; without it knip cannot
+        // see the dev-tooling graph the contract specs actually run on.
+        "tests/helpers/**/*.ts"
       ],
       "project": ["src/**/*.ts"],
       "ignore": ["src/generated/**", "prisma/migrations/**", "dist/**"],
-      "ignoreDependencies": ["@nestjs/platform-express", "reflect-metadata"]
+      "ignoreDependencies": [
+        "@nestjs/platform-express",
+        "reflect-metadata",
+        // NestJS runtime deps: imported by live modules/controllers/main.ts
+        // (verified 07/08/2026); knip's production scope does not resolve the
+        // NestJS DI/decorator import graph. Same class as the two entries above.
+        "@nestjs/common", // 32 import sites, incl. every controller
+        "@nestjs/core", // app.module.ts, main.ts, guards
+        "@nestjs/config", // app.module.ts (ConfigModule)
+        "@nestjs/terminus", // health module
+        "@nestjs/throttler", // throttler module
+        "nestjs-pino", // logging.module.ts:3, main.ts:4
+        "pino-http", // peerDependency of nestjs-pino
+        "@sentry/nestjs", // src/instrument.ts
+        "@prisma/adapter-pg", // prisma.module.ts:8 (PrismaPg)
+        "@prisma/client", // the generated client (src/generated/prisma, knip-ignored) re-exports it
+        "@proso/shared", // 39 import sites (workspace package)
+        "prisma", // CLI, used only by package.json prisma:* scripts
+        "pino-loki", // logging.module.ts:19 — pino transport string target, not an import
+        "pino-pretty", // logging.module.ts:29 — pino transport string target, not an import
+        "zod" // src/infrastructure/pipes/zod-validation.pipe.ts:2 — type-only import
+      ]
+    },
+    "packages/site": {
+      "entry": ["index.html", "pricing.html", "privacy.html", "terms.html"],
+      "project": ["assets/**/*.js"],
+      // assets/js/main.js is referenced by <script src="assets/js/main.js" defer>
+      // in all four HTML pages (index.html:461, pricing.html:230, privacy.html:151,
+      // terms.html:207) — verified 07/08/2026. Knip does not track HTML script
+      // tags, so the file is flagged despite being load-bearing; this ignore
+      // models that reality (progressive-enhancement JS, not dead code).
+      "ignore": ["node_modules/**", "assets/js/main.js"]
     },
     "packages/shared": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"],
-      "ignore": ["dist/**"]
+      "ignore": ["dist/**"],
+      "ignoreDependencies": [
+        "zod" // src/schemas/{license,tts,credits}.ts — exported schema modules
+      ]
     },
     "services/proso-log-gateway": {
       "entry": ["src/index.ts", "tests/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
-      "ignore": ["dist/**", "coverage/**"]
+      "ignore": ["dist/**", "coverage/**"],
+      "ignoreDependencies": [
+        "zod" // src/schemas.ts:8 — request/response schemas
+      ]
     }
   }
 }
