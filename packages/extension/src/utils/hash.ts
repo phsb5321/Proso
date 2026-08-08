@@ -23,13 +23,19 @@ export function djb2Hash(str: string): string {
 }
 
 /**
- * SHA-256 hex digest (Web Crypto). Rejects when crypto.subtle is unavailable
- * (the caller decides whether to fall back to djb2Hash).
+ * SHA-256 hex digest (Web Crypto), falling back to the deterministic djb2Hash
+ * when crypto.subtle is unavailable — both call sites (cache-key hashing and
+ * telemetry redaction) treat a missing digest as "use the non-crypto hash",
+ * which also keeps the shared helper deterministic in every environment.
  */
 export async function sha256Hex(input: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return djb2Hash(input);
+  }
 }
