@@ -378,8 +378,33 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    and re-verified 6/6 mermaid blocks render. No different-family adversarial review is recorded:
    codex is capped until 08/08 12:48 BRT and the DeepInfra lane has no balance, so this docs-only
    diff landed on the qa gate plus the orch's own code verification above.
-4. Triage the 73 expiring Knip fingerprints and 60 OSV advisories before 30/10/2026; remove a
-   fingerprint as soon as its finding disappears.
+4. ~~Triage the 73 expiring Knip fingerprints and 60 OSV advisories before 30/10/2026; remove a
+   fingerprint as soon as its finding disappears.~~ Delivered on 07/08 by PR #117 (`0440b78`).
+   The 73/60 figures were already stale: the board-truth baselines were **55 knip findings**
+   (25 dependencies / 22 files / 8 devDependencies) and **9 OSV advisories** (vite 5 · uuid 3 ·
+   request 1). PR #117 drove them to **knip 0** and **OSV 6**. Knip: 20 genuinely-dead files
+   deleted (zero-import verified independently), 5 unused deps removed (`pg` — reached only
+   transitively via `@prisma/adapter-pg`, which stays — plus `rxjs`, `ts-loader`, `vite`,
+   `@types/webextension-polyfill`, `testcontainers`), and the remaining findings modeled in
+   `knip.json` as documented false positives, each citing a live import site (NestJS DI
+   decorators, WXT config-module strings, pino transport-string targets, `@proso/shared`/`zod`/
+   `franc-min`/`lamejs`/`dexie` imports, the site's `main.js` referenced from four HTML pages).
+   The load-bearing intentional ignores (`@webext-core/messaging`, `webextension-polyfill`,
+   `@nestjs/platform-express`, `reflect-metadata`) are untouched. OSV: the 5 vite advisories
+   closed by PR #109's `>=8.0.16` pin; 2 js-yaml + 1 nanoid closed by new override floors; 2
+   image-size advisories ADDED with a documented no-upstream-fix reason (GHSA-w3rx-r6r6-pgpr /
+   GHSA-5p2g-fcmc-qvqq, `last_affected 2.0.2`, transitive via `web-ext > addons-linter` dev
+   tooling). Remaining 6: uuid ×3 (fix >=11.1.1 unreachable through the pinned transitive
+   ranges), request ×1 and image-size ×2 (no upstream fix). **The js-yaml scanner discrepancy
+   recorded on 06/08 is resolved**: the code-slop gate was correct — OSV's DB carried
+   GHSA-5p4m-2wfm-xmqj (fixed 4.3.1/3.15.1) while pnpm's DB lagged. Consequence to know:
+   `pnpm audit --audit-level=high` now exits 1 on the two image-size highs, so the fail-closed
+   `make security` gate from PR #109 is **correctly red until upstream fixes image-size** — DB
+   drift, not a code regression (the same advisories are present on the pre-merge tree). The
+   knip ratchet's regression catch is falsifier-proven: planting an unused file turns it RED
+   (exit 1), reverting restores GREEN. QA gate: 6/6 PASS. No different-family adversarial
+   review is recorded (the codex harness was banned fleet-wide on 07/08; the DeepInfra lane has
+   no balance).
 5. Remediate critical/reachable dependency alerts in service-scoped PRs, then the remaining high
    alerts. Changing `.github/workflows/ci.yml` to remove the audit’s `continue-on-error` is a
    separately gated workflow change; until then, do not cite the green job as security evidence.
@@ -417,3 +442,14 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    untouched by PR #115; the Firefox MV2 equivalent answers correctly). Read as a
    handler-registration race — the diagnostic already asserts it, so the fix is falsifiable
    the moment it lands.
+14. Close the knip ratchet's unused-export blind spot: a planted unused FILE turns the ratchet
+   red, but a planted unused EXPORT does not (knip's export analysis covers entry files only in
+   this configuration) — disclosed with PR #117, so the ratchet currently guarantees less than
+   its name implies.
+15. Revisit the two `image-size` advisories when upstream publishes a fix
+   (GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq, transitive via `web-ext > addons-linter`). While
+   they stand, `pnpm audit --audit-level=high` exits 1 and the fail-closed `make security` gate
+   stays red. The `uuid` ×3 findings unblock the same way, once the pinned transitive ranges
+   admit >=11.1.1.
+16. Record that the two contract specs referencing `testcontainers` are environment-blocked on
+   this NixOS host (pre-existing, unrelated to PR #117) — they neither run nor gate here.
