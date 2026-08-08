@@ -442,10 +442,33 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    untouched by PR #115; the Firefox MV2 equivalent answers correctly). Read as a
    handler-registration race — the diagnostic already asserts it, so the fix is falsifiable
    the moment it lands.
-14. Close the knip ratchet's unused-export blind spot: a planted unused FILE turns the ratchet
-   red, but a planted unused EXPORT does not (knip's export analysis covers entry files only in
-   this configuration) — disclosed with PR #117, so the ratchet currently guarantees less than
-   its name implies.
+14. ~~Close the knip ratchet's unused-export blind spot~~ Delivered on 08/08 by PR #121
+   (`5aac585`). Cause: `scripts/quality/knip-ratchet.mjs` requested `exports` only in the
+   `--production` pass, which walks from production entry points, so an unused export inside a
+   still-imported module was invisible; the non-production pass never asked for `exports` at
+   all. The fix adds `exports` to that pass. Proven both directions by plant, re-run
+   independently by the orch on the merged branch: appending
+   `export const plantedUnusedThingOrch = 1;` to `core/playback/playback-service.ts` — a
+   non-entry module that *is* imported, so only the export is dead — exits 1 naming the symbol,
+   and the pre-existing unused-FILE catch still exits 1; both revert to 0 with a clean tree.
+   Enabling the check surfaced **337 raw export findings, triaged to a baseline of 47** across
+   54 files (747+/599-): dead exports deleted or privatized, a djb2 hash and the
+   language-preference readers deduped, and the unwired legacy `adapters/audio/offscreen.adapter.ts`
+   deleted (the live Chrome MV3 shim `offscreen-audio-element.adapter.ts` from PR #115 is a
+   different file and is untouched). The baseline rising from a blind 0 to an honest 47 is the
+   point: those 47 are tracked debt, not noise. Two traps were found on the way. First, the
+   entry globs matched only `tests/**/*.{test,spec}.ts` while the repo ships 27 `.test.js`
+   files, so exports imported solely by those tests looked dead — deleting them would have
+   broken live tests; the globs now match both extensions. Second, the different-family (groq)
+   review found that `sha256Hex` had been given a silent djb2 fallback: `redaction.ts` already
+   had that fallback, but `audio-chunk.schema.ts`'s cache-key path previously threw, so the
+   change would have let a 32-bit hash serve as a cache key (a collision returns the wrong
+   audio). It is now `sha256HexOrDjb2`, so no caller can assume 256 bits without reading the
+   name. The same review surfaced a latent double-baselining hazard — `collect()` embeds the
+   scope in each fingerprint, so one dead export found in both passes would be baselined twice
+   — removed at the source by dropping `exports` from the production pass now that the full
+   pass covers it. Five further review findings were checked against the code and did not hold.
+   QA gate: 8/8 PASS.
 15. ~~Revisit the two `image-size` advisories when upstream publishes a fix~~ — the *gate* half
    is delivered by PR #119 (`4b5ace6`, 07/08); the advisories themselves remain open upstream.
    `scripts/dependency-audit.sh` is now reachability-aware: `quality-baselines/audit-allowlist.json`
@@ -471,3 +494,8 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    by 2026-10-30.
 16. Record that the two contract specs referencing `testcontainers` are environment-blocked on
    this NixOS host (pre-existing, unrelated to PR #117) — they neither run nor gate here.
+17. Decide whether `audio-chunk.schema.ts` should reject the `sha256HexOrDjb2` fallback outright
+   rather than accepting a 32-bit djb2 cache key in crypto-less environments (PR #121 made the
+   tradeoff explicit and deliberate; it did not remove it).
+18. Work the 47 baselined knip findings down. They are real tracked debt from the PR #121 export
+   sweep, not false positives, and they expire 2026-10-30.
