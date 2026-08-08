@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "ghsa": "GHSA-w3rx-r6r6-pgpr",
+      "path": "packages__extension>web-ext>addons-linter>image-size",
+      "reason": "Unreachable at runtime: image-size is a transitive dependency of web-ext (extension devDependency, packages/extension/package.json devDependencies) via addons-linter. web-ext only lints and packages the extension at build time and is absent from the shipped artifact; no user-installed path imports image-size. No upstream fix exists: pnpm audit reports 'Patched versions: <0.0.0' and OSV lists last_affected 2.0.2 with no fixed release. Review when web-ext drops addons-linter, upstream fixes image-size, or web-ext moves to runtime deps.",
+      "reviewDate": "2026-10-30"
+    },
+    {
+      "ghsa": "GHSA-5p2g-fcmc-qvqq",
+      "path": "packages__extension>web-ext>addons-linter>image-size",
+      "reason": "Same unreachable dev-only chain as GHSA-w3rx-r6r6-pgpr: image-size via web-ext > addons-linter (extension devDependency). No upstream fix ('Patched versions: <0.0.0'; OSV last_affected 2.0.2). Review when web-ext drops addons-linter, upstream fixes image-size, or web-ext moves to runtime deps.",
+      "reviewDate": "2026-10-30"
+    }
+  ]
+}
