@@ -446,10 +446,28 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    red, but a planted unused EXPORT does not (knip's export analysis covers entry files only in
    this configuration) — disclosed with PR #117, so the ratchet currently guarantees less than
    its name implies.
-15. Revisit the two `image-size` advisories when upstream publishes a fix
-   (GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq, transitive via `web-ext > addons-linter`). While
-   they stand, `pnpm audit --audit-level=high` exits 1 and the fail-closed `make security` gate
-   stays red. The `uuid` ×3 findings unblock the same way, once the pinned transitive ranges
-   admit >=11.1.1.
+15. ~~Revisit the two `image-size` advisories when upstream publishes a fix~~ — the *gate* half
+   is delivered by PR #119 (`4b5ace6`, 07/08); the advisories themselves remain open upstream.
+   `scripts/dependency-audit.sh` is now reachability-aware: `quality-baselines/audit-allowlist.json`
+   is the only way a high/critical advisory passes, and an entry is an exact (GHSA id, dependency
+   path) pair carrying a written unreachability reason and a review date. The two `image-size`
+   advisories (GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq, `Patched versions: <0.0.0` — no upstream
+   fix exists) are allowlisted on `packages__extension>web-ext>addons-linter>image-size`, a
+   build-time-only chain (`web-ext` is an extension devDependency, absent from the shipped
+   artifact), review date 2026-10-30. `./scripts/dependency-audit.sh` exits 0 on `main` and
+   `make verify` reaches its end again. Fail-closed in five ways, each plant-proven: an advisory
+   not allowlisted fails; an allowlisted advisory on a *different* path fails (no bare GHSA
+   wildcards); an entry past its review date fails, naming it; a scanner error (any `pnpm audit`
+   exit besides 0/1) fails rather than reading as clean; and an advisory reported with **no
+   dependency path** fails as unassessable. That last hole was found by the different-family
+   (groq) adversarial review and reproduced before the fix — a pathless high advisory previously
+   exited 0 — and it is now guarded by a permanent self-test that runs before every audit: if the
+   verdict logic regresses, the gate refuses to run at all. The orch verified the expiry,
+   path-drift, and pathless plants independently; QA re-gated 7/7 PASS. No blanket
+   dev-dependency exemption was added and `--audit-level` was not lowered: a dev dependency with
+   a reachable exploit path still fails. Still open upstream: `uuid` ×3 (fix >=11.1.1 unreachable
+   through the pinned transitive ranges) and `request` ×1 — both moderate, below the gate's
+   threshold — plus the two allowlisted `image-size` highs, which must be re-verified or removed
+   by 2026-10-30.
 16. Record that the two contract specs referencing `testcontainers` are environment-blocked on
    this NixOS host (pre-existing, unrelated to PR #117) — they neither run nor gate here.
