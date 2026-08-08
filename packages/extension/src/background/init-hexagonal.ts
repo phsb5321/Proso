@@ -368,7 +368,7 @@ export async function dispatchToHexagonal<T = unknown>(
  * @param success - Whether the legacy handler succeeded
  * @param error - Error message if failed
  */
-export function logLegacyDispatch(
+function logLegacyDispatch(
   type: string,
   durationMs: number,
   success: boolean,
@@ -399,7 +399,7 @@ export function getHexagonalDispatchStats(): DispatchStats {
  * @param legacyHandlerNames - Names of legacy handlers for comparison
  * @returns Dispatch summary with migration status
  */
-export function getHexagonalDispatchSummary(legacyHandlerNames: string[] = []): DispatchSummary {
+function getHexagonalDispatchSummary(legacyHandlerNames: string[] = []): DispatchSummary {
   const registry = getGlobalInstrumentedRegistry();
   return getDispatchSummary(registry.getHandlerNames(), legacyHandlerNames);
 }

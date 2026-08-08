@@ -32,7 +32,7 @@ export type TextQuoteSelector = z.infer<typeof TextQuoteSelectorSchema>;
 /**
  * Highlight color presets
  */
-export const HighlightColorSchema = z.enum(['yellow', 'green', 'blue', 'pink', 'purple']);
+const HighlightColorSchema = z.enum(['yellow', 'green', 'blue', 'pink', 'purple']);
 
 export type HighlightColor = z.infer<typeof HighlightColorSchema>;
 

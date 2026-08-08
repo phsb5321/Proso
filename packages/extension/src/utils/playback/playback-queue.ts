@@ -24,7 +24,7 @@ const log = createLogger('service');
 /**
  * Queue item status enum
  */
-export const queueItemStatusSchema = z.enum([
+const queueItemStatusSchema = z.enum([
   'pending', // Not yet processed
   'prefetching', // Currently being prefetched
   'ready', // Audio available (cached or prefetched)

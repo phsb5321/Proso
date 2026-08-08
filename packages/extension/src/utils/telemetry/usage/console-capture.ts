@@ -317,7 +317,7 @@ export function installConsoleCapture(
  * Create a prefixed logger that doesn't get re-captured.
  * Useful for internal Proso logging that should appear locally but not be shipped.
  */
-export function createInternalLogger(prefix = '[Proso]') {
+function createInternalLogger(prefix = '[Proso]') {
   return {
     log: (...args: unknown[]) => console.log(prefix, ...args),
     debug: (...args: unknown[]) => console.debug(prefix, ...args),

@@ -79,7 +79,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
 /**
  * Test all configured API keys
  */
-export async function testAllApiKeys(
+async function testAllApiKeys(
   keys: Record<string, string>,
 ): Promise<Record<string, TestResult>> {
   const results: Record<string, TestResult> = {};
@@ -99,7 +99,7 @@ export async function testAllApiKeys(
 /**
  * Storage key mappings for each provider
  */
-export const API_KEY_STORAGE_KEYS: Record<string, string> = {
+const API_KEY_STORAGE_KEYS: Record<string, string> = {
   elevenlabs: 'elevenlabsApiKey',
   anthropic: 'anthropic:apiKey',
 };

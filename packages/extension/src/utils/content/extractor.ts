@@ -23,7 +23,7 @@ const log = createLogger('content');
 /**
  * Feature 015: Unwanted container configuration schema
  */
-export const unwantedConfigSchema = z.object({
+const unwantedConfigSchema = z.object({
   patterns: z.array(z.string()),
   unwantedTags: z.array(z.string()),
   wikiSelectors: z.array(z.string()),
@@ -34,7 +34,7 @@ export type UnwantedConfig = z.infer<typeof unwantedConfigSchema>;
 /**
  * Extracted content schema (from data-model.md)
  */
-export const extractedContentSchema = z.object({
+const extractedContentSchema = z.object({
   paragraphs: z.array(z.string()),
   title: z.string(),
   byline: z.string().nullable(),
@@ -47,7 +47,7 @@ export type ExtractedContent = z.infer<typeof extractedContentSchema>;
 /**
  * DOM element mapping schema (from data-model.md)
  */
-export const domMappingSchema = z.object({
+const domMappingSchema = z.object({
   paragraphIndex: z.number().int().nonnegative(),
   element: z.custom<Element>((val) => val instanceof Element),
   range: z.custom<Range>((val) => val instanceof Range),
@@ -65,7 +65,7 @@ export type ExtractionMode = z.infer<typeof extractionModeSchema>;
 /**
  * Content scoring result schema
  */
-export const contentScoreSchema = z.object({
+const contentScoreSchema = z.object({
   score: z.number(),
   linkDensity: z.number(),
   paragraphCount: z.number(),
@@ -77,7 +77,7 @@ export type ContentScore = z.infer<typeof contentScoreSchema>;
 /**
  * Text fingerprint schema (normalized text for matching)
  */
-export const textFingerprintSchema = z.string().min(1).max(50);
+const textFingerprintSchema = z.string().min(1).max(50);
 export type TextFingerprint = z.infer<typeof textFingerprintSchema>;
 
 // ============================================================================
@@ -88,7 +88,7 @@ export type TextFingerprint = z.infer<typeof textFingerprintSchema>;
  * Feature 015: Unwanted container configuration
  * Patterns for identifying non-content containers to filter
  */
-export const UNWANTED_CONFIG: UnwantedConfig = {
+const UNWANTED_CONFIG: UnwantedConfig = {
   patterns: [
     // Table of contents
     'toc',
@@ -322,7 +322,7 @@ export function extractFullPage(): string {
 /**
  * Find the best content block using a scoring algorithm
  */
-export function findBestContentBlock(): Element | null {
+function findBestContentBlock(): Element | null {
   const candidates = document.querySelectorAll('div, section, article, main');
   let bestElement: Element | null = null;
   let bestScore = 0;
@@ -344,7 +344,7 @@ export function findBestContentBlock(): Element | null {
 /**
  * Find content paragraphs within an element
  */
-export function findContentParagraphs(container: Element): Element[] {
+function findContentParagraphs(container: Element): Element[] {
   const paragraphs: Element[] = [];
   const seenTexts = new Set<string>();
 
@@ -1487,7 +1487,7 @@ function findParagraphElements(container: Element): Element[] {
 /**
  * Split text into paragraphs
  */
-export function splitTextIntoParagraphs(text: string): string[] {
+function splitTextIntoParagraphs(text: string): string[] {
   return text
     .split(/\n\n+/)
     .map((p) => p.trim())

@@ -15,7 +15,7 @@ import { type LogEntry, getEntrySize, loggingConstants, validateLogEntry } from 
 /**
  * Log buffer state schema
  */
-export const logBufferStateSchema = z.object({
+const logBufferStateSchema = z.object({
   count: z.number().int().nonnegative(),
   totalBytes: z.number().nonnegative(),
   maxBytes: z.number().positive(),
@@ -39,7 +39,7 @@ interface SavedBufferState {
 /**
  * Buffer options schema
  */
-export const bufferOptionsSchema = z.object({
+const bufferOptionsSchema = z.object({
   maxBytes: z.number().positive().optional(),
   maxEntries: z.number().int().positive().optional(),
 });

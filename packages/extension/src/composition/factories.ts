@@ -112,7 +112,7 @@ export function createHighlightSyncAdapter(useNoOp = false): IHighlightSynchroni
  *
  * @returns IHighlightSynchronizer adapter
  */
-export function createHighlightSyncAdapterWithFallback(): IHighlightSynchronizer {
+function createHighlightSyncAdapterWithFallback(): IHighlightSynchronizer {
   try {
     return new HighlightSyncAdapter();
   } catch {

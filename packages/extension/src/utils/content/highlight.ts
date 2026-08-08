@@ -32,7 +32,7 @@ const log = createLogger('content');
 /**
  * Word timing data schema
  */
-export const wordTimingSchema = z.object({
+const wordTimingSchema = z.object({
   word: z.string(),
   charOffset: z.number().int().nonnegative(),
   charLength: z.number().int().positive(),

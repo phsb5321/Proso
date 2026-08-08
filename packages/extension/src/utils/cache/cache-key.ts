@@ -117,7 +117,7 @@ export function generateCacheKey(
  * @param text - Paragraph text content (will be hashed)
  * @returns Promise resolving to cache key string
  */
-export async function generateCacheKeyFromText(
+async function generateCacheKeyFromText(
   url: string,
   paragraphIndex: number,
   provider: string,

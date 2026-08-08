@@ -219,14 +219,18 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
   return detected;
 }
 
+/** Read the persisted language-detection cache (or an empty map). */
+async function readLanguageCache(): Promise<Record<string, DetectedLanguage>> {
+  const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
+  return (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+}
+
 /**
  * Get cached language detection result for a URL
  */
 async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> =
-      (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+    const cache = await readLanguageCache();
     const cached = cache[url];
 
     if (!cached) return null;
@@ -249,9 +253,7 @@ async function getCachedLanguage(url: string): Promise<DetectedLanguage | null> 
  */
 async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<void> {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-    const cache: Record<string, DetectedLanguage> =
-      (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+    const cache = await readLanguageCache();
 
     // Limit cache size (max 100 entries)
     const urls = Object.keys(cache);
@@ -271,7 +273,7 @@ async function cacheLanguage(url: string, detected: DetectedLanguage): Promise<v
 /**
  * Get current language state for a tab
  */
-export async function getLanguageState(_tabId: number): Promise<LanguageState> {
+async function getLanguageState(_tabId: number): Promise<LanguageState> {
   const result = await browser.storage.local.get([
     STORAGE_KEYS.DETECTED_LANGUAGE,
     STORAGE_KEYS.LANGUAGE_PREFERENCE,
@@ -298,17 +300,23 @@ export async function getLanguageState(_tabId: number): Promise<LanguageState> {
 }
 
 /**
- * Set language override for current session
+ * Read the persisted language preference (auto-detect + overrides), or the
+ * default shape when nothing is stored yet.
  */
-export async function setLanguageOverride(languageCode: string): Promise<void> {
+async function readLanguagePreference(): Promise<LanguagePreference> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as
-    | LanguagePreference
-    | undefined) || {
+  return (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
     autoDetect: true,
     currentOverride: null,
     voicePreferences: {},
   };
+}
+
+/**
+ * Set language override for current session
+ */
+async function setLanguageOverride(languageCode: string): Promise<void> {
+  const preference = await readLanguagePreference();
 
   preference.currentOverride = languageCode;
 
@@ -322,15 +330,8 @@ export async function setLanguageOverride(languageCode: string): Promise<void> {
 /**
  * Clear language override (return to auto-detect)
  */
-export async function clearLanguageOverride(): Promise<void> {
-  const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  const preference: LanguagePreference = (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as
-    | LanguagePreference
-    | undefined) || {
-    autoDetect: true,
-    currentOverride: null,
-    voicePreferences: {},
-  };
+async function clearLanguageOverride(): Promise<void> {
+  const preference = await readLanguagePreference();
 
   preference.currentOverride = null;
 
@@ -344,7 +345,7 @@ export async function clearLanguageOverride(): Promise<void> {
 /**
  * Store detected language for the current page
  */
-export async function storeDetectedLanguage(detected: DetectedLanguage): Promise<void> {
+async function storeDetectedLanguage(detected: DetectedLanguage): Promise<void> {
   await browser.storage.local.set({
     [STORAGE_KEYS.DETECTED_LANGUAGE]: detected,
   });
@@ -354,7 +355,7 @@ export async function storeDetectedLanguage(detected: DetectedLanguage): Promise
  * Setup tab navigation listener to clear override on cross-domain URL change
  * Only clears language override when navigating to a different domain
  */
-export function setupNavigationListener(): void {
+function setupNavigationListener(): void {
   // Track previous URLs per tab for hostname comparison
   const tabUrls = new Map<number, string>();
 

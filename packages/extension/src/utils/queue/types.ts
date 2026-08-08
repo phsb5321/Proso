@@ -14,7 +14,7 @@ import { z } from 'zod';
 /**
  * Queue item status enum values
  */
-export const QUEUE_ITEM_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
+const QUEUE_ITEM_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
 
 /**
  * Queue item schema
@@ -67,7 +67,7 @@ export const queueMetadataSchema = z.object({
 /**
  * Queue state schema (metadata + items)
  */
-export const queueStateSchema = z.object({
+const queueStateSchema = z.object({
   metadata: queueMetadataSchema,
   items: z.array(queueItemSchema),
 });
@@ -75,7 +75,7 @@ export const queueStateSchema = z.object({
 /**
  * Queue action schema (discriminated union)
  */
-export const queueActionSchema = z.discriminatedUnion('type', [
+const queueActionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('add'),
     item: queueItemSchema.omit({ id: true, position: true, addedAt: true }),
@@ -109,7 +109,7 @@ export const queueActionSchema = z.discriminatedUnion('type', [
 /**
  * Add item request schema
  */
-export const addItemRequestSchema = z.object({
+const addItemRequestSchema = z.object({
   url: z.string().url(),
   title: z.string().max(100),
   excerpt: z.string().max(200).optional(),

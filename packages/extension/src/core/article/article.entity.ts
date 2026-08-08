@@ -119,7 +119,7 @@ export function createParagraph(
 /**
  * Get the total character count of an article
  */
-export function getArticleCharacterCount(article: Article): number {
+function getArticleCharacterCount(article: Article): number {
   return article.paragraphs.reduce((sum, p) => sum + p.text.length, 0);
 }
 
@@ -129,7 +129,7 @@ export function getArticleCharacterCount(article: Article): number {
  * @param article - Article to calculate reading time for
  * @param wordsPerMinute - Reading speed (default 200 wpm)
  */
-export function getEstimatedReadingTime(article: Article, wordsPerMinute = 200): number {
+function getEstimatedReadingTime(article: Article, wordsPerMinute = 200): number {
   return Math.ceil(article.length / wordsPerMinute);
 }
 
@@ -139,6 +139,6 @@ export function getEstimatedReadingTime(article: Article, wordsPerMinute = 200):
  * @param article - Article to calculate TTS duration for
  * @param wordsPerMinute - Speaking speed (default 150 wpm for TTS)
  */
-export function getEstimatedTTSDuration(article: Article, wordsPerMinute = 150): number {
+function getEstimatedTTSDuration(article: Article, wordsPerMinute = 150): number {
   return Math.ceil((article.length / wordsPerMinute) * 60);
 }

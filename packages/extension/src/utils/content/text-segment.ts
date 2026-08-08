@@ -26,7 +26,7 @@ export type WordBoundary = z.infer<typeof wordBoundarySchema>;
 /**
  * Segment type enum
  */
-export const SEGMENT_TYPES = ['paragraph', 'heading', 'listItem'] as const;
+const SEGMENT_TYPES = ['paragraph', 'heading', 'listItem'] as const;
 export type SegmentType = (typeof SEGMENT_TYPES)[number];
 
 /**
@@ -358,4 +358,4 @@ export class TextSegmentMap {
 /**
  * Singleton instance for content script usage
  */
-export const textSegmentMap = new TextSegmentMap();
+const textSegmentMap = new TextSegmentMap();

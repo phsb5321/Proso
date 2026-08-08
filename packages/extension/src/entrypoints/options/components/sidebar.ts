@@ -28,7 +28,7 @@ export interface SidebarOptions {
 /**
  * Default sections for the options page
  */
-export const DEFAULT_SECTIONS: SidebarSection[] = [
+const DEFAULT_SECTIONS: SidebarSection[] = [
   { id: 'quick-settings', label: 'Quick Settings' },
   { id: 'api-keys', label: 'API Keys' },
   { id: 'appearance', label: 'Appearance' },
@@ -41,7 +41,7 @@ export const DEFAULT_SECTIONS: SidebarSection[] = [
 /**
  * Create and initialize the sidebar navigation
  */
-export function createSidebar(options: SidebarOptions): HTMLElement {
+function createSidebar(options: SidebarOptions): HTMLElement {
   const { containerId, sections, onNavigate } = options;
 
   const container = document.getElementById(containerId);
@@ -107,7 +107,7 @@ export function createSidebar(options: SidebarOptions): HTMLElement {
 /**
  * Update sidebar active state
  */
-export function updateSidebarActive(sectionId: string): void {
+function updateSidebarActive(sectionId: string): void {
   const links = document.querySelectorAll('.proso-sidebar__link');
 
   links.forEach((link) => {

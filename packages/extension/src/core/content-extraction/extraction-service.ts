@@ -262,7 +262,7 @@ export class ContentExtractionService {
  * @param deps - Service dependencies
  * @returns Configured ContentExtractionService instance
  */
-export function createContentExtractionService(
+function createContentExtractionService(
   deps: ContentExtractionServiceDependencies,
 ): ContentExtractionService {
   return new ContentExtractionService(deps);

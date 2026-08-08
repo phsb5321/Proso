@@ -25,7 +25,7 @@ const log = createLogger('service');
 /**
  * Prefetch priority level - higher means more urgent
  */
-export const prefetchPrioritySchema = z.enum(['high', 'medium', 'low']);
+const prefetchPrioritySchema = z.enum(['high', 'medium', 'low']);
 export type PrefetchPriority = z.infer<typeof prefetchPrioritySchema>;
 
 /**

@@ -24,7 +24,7 @@ const log = createLogger('content');
 /**
  * Paragraph status enum
  */
-export const paragraphStatusSchema = z.enum(['cached', 'pending', 'loading', 'error', 'none']);
+const paragraphStatusSchema = z.enum(['cached', 'pending', 'loading', 'error', 'none']);
 export type ParagraphStatus = z.infer<typeof paragraphStatusSchema>;
 
 /**

@@ -17,7 +17,7 @@ const log = createLogger('service');
 /**
  * Timing data for a single paragraph
  */
-export const paragraphTimingSchema = z.object({
+const paragraphTimingSchema = z.object({
   index: z.number().int().nonnegative(),
   startTimeMs: z.number().nonnegative(),
   endTimeMs: z.number().nonnegative(),
@@ -588,7 +588,7 @@ export class PlaybackSyncState {
 /**
  * Normalize word timing data to handle both naming conventions
  */
-export function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoundary {
+function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoundary {
   const usedLegacyFormat = rawTiming.startMs !== undefined || rawTiming.start !== undefined;
   if (usedLegacyFormat) {
     log.debug('Proso: normalizeWordTiming converting legacy format', {
@@ -617,10 +617,10 @@ export function normalizeWordTiming(rawTiming: WordBoundary): NormalizedWordBoun
 /**
  * Normalize an array of word timings
  */
-export function normalizeWordTimeline(rawTimings: WordBoundary[]): NormalizedWordBoundary[] {
+function normalizeWordTimeline(rawTimings: WordBoundary[]): NormalizedWordBoundary[] {
   if (!Array.isArray(rawTimings)) return [];
   return rawTimings.map(normalizeWordTiming);
 }
 
 // Export singleton instance for convenience
-export const playbackSync = new PlaybackSyncState();
+const playbackSync = new PlaybackSyncState();

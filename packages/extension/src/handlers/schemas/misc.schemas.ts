@@ -83,13 +83,13 @@ export const highlightReportAnchoringParamsSchema = z.object({
 
 // ========== Prefetch Schemas ==========
 
-export const prefetchStartParamsSchema = z
+const prefetchStartParamsSchema = z
   .object({
     currentIndex: z.number().int().nonnegative().optional(),
   })
   .optional();
 
-export const prefetchClearBufferParamsSchema = z
+const prefetchClearBufferParamsSchema = z
   .object({
     keepIndices: z.array(z.number().int().nonnegative()).optional(),
   })
@@ -97,29 +97,29 @@ export const prefetchClearBufferParamsSchema = z
 
 // ========== Reader Schemas ==========
 
-export const readerExtractArticleParamsSchema = z.object({
+const readerExtractArticleParamsSchema = z.object({
   html: z.string().min(1),
   url: z.string().optional(),
 });
 
-export const readerGetParagraphsParamsSchema = z.object({
+const readerGetParagraphsParamsSchema = z.object({
   tabId: z.number().int().positive().optional(),
 });
 
-export const readerGetParagraphParamsSchema = z.object({
+const readerGetParagraphParamsSchema = z.object({
   index: z.number().int().nonnegative(),
   tabId: z.number().int().positive().optional(),
 });
 
-export const readerGetArticleInfoParamsSchema = z.object({
+const readerGetArticleInfoParamsSchema = z.object({
   tabId: z.number().int().positive().optional(),
 });
 
-export const readerClearArticleParamsSchema = z.object({
+const readerClearArticleParamsSchema = z.object({
   tabId: z.number().int().positive().optional(),
 });
 
-export const readerIsArticlePageParamsSchema = z.object({
+const readerIsArticlePageParamsSchema = z.object({
   html: z.string().min(1),
 });
 
@@ -134,6 +134,6 @@ export const loggingLogRemoteParamsSchema = z.object({
 
 // ========== Debug Schemas ==========
 
-export const debugGetDispatchSummaryParamsSchema = z.object({
+const debugGetDispatchSummaryParamsSchema = z.object({
   legacyHandlers: z.array(z.string()).optional(),
 });

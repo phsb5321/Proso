@@ -196,7 +196,7 @@ export function showConfirmModal(options: ModalOptions): Promise<boolean> {
 /**
  * Close any active modal
  */
-export function closeActiveModal(): void {
+function closeActiveModal(): void {
   if (activeModal) {
     activeModal.classList.add('proso-modal-overlay--closing');
 
@@ -215,6 +215,6 @@ export function closeActiveModal(): void {
 /**
  * Check if a modal is currently open
  */
-export function isModalOpen(): boolean {
+function isModalOpen(): boolean {
   return activeModal !== null;
 }

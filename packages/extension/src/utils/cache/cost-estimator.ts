@@ -169,7 +169,7 @@ export function formatSavings(savings: number, percentage: number): string {
 /**
  * Get paragraph cache status for a URL
  */
-export async function getParagraphCacheStatus(
+async function getParagraphCacheStatus(
   url: string,
   paragraphs: string[],
   provider: string,

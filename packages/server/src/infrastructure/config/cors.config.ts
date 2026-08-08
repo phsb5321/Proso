@@ -24,7 +24,7 @@ import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-option
  * Custom response headers the TTS controller sets on a successful synthesis.
  * The extension's API adapter reads all four.
  */
-export const TTS_METADATA_HEADERS = [
+const TTS_METADATA_HEADERS = [
   'X-Credits-Used',
   'X-Credits-Remaining',
   'X-Cache-Hit',

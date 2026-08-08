@@ -41,7 +41,7 @@ export interface ThemeManager {
  * Create a theme manager instance
  * Handles system theme detection, storage, and instant application
  */
-export function createThemeManager(options: ThemeManagerOptions = {}): ThemeManager {
+function createThemeManager(options: ThemeManagerOptions = {}): ThemeManager {
   const { storageKey = 'themeMode', onThemeChange } = options;
 
   let currentMode: ThemeMode = 'system';

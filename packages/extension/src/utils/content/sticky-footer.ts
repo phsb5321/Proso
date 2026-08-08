@@ -56,7 +56,7 @@ export const playbackStatusSchema = z.enum(['stopped', 'loading', 'playing', 'pa
 /**
  * Internal playback state schema (used by StickyFooter class)
  */
-export const playbackStateSchema = z.object({
+const playbackStateSchema = z.object({
   status: playbackStatusSchema,
   progress: z.number().min(0).max(100),
   currentTime: z.string(),
@@ -71,7 +71,7 @@ export const playbackStateSchema = z.object({
 /**
  * Button options schema
  */
-export const buttonOptionsSchema = z.object({
+const buttonOptionsSchema = z.object({
   className: z.string().optional(),
   ariaLabel: z.string().optional(),
   action: z.string().optional(),
@@ -83,7 +83,7 @@ export const buttonOptionsSchema = z.object({
 /**
  * Icon name schema
  */
-export const iconNameSchema = z.enum([
+const iconNameSchema = z.enum([
   'play',
   'pause',
   'skip-back',
@@ -112,7 +112,7 @@ export const footerActionSchema = z.enum([
 /**
  * Storage state schema (persisted to browser.storage.local)
  */
-export const storageStateSchema = z.object({
+const storageStateSchema = z.object({
   isMinimized: z.boolean(),
   position: footerPositionSchema,
 });

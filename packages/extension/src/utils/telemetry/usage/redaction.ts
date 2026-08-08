@@ -9,6 +9,8 @@
  * @module utils/telemetry/usage/redaction
  */
 
+import { djb2Hash, sha256Hex } from '../../hash';
+
 /**
  * Keys that should be redacted from logged data.
  */
@@ -88,16 +90,10 @@ export async function hashUrl(url: string): Promise<string> {
     const normalized = normalizeUrl(url);
 
     // Use Web Crypto API for hashing
-    const encoder = new TextEncoder();
-    const data = encoder.encode(normalized);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-
-    // Convert to hex string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return sha256Hex(normalized);
   } catch {
     // Fallback: simple hash if crypto not available
-    return simpleHash(url);
+    return djb2Hash(url);
   }
 }
 
@@ -106,7 +102,7 @@ export async function hashUrl(url: string): Promise<string> {
  * Uses a simple hash algorithm, not cryptographic.
  */
 export function hashUrlSync(url: string): string {
-  return simpleHash(normalizeUrl(url));
+  return djb2Hash(normalizeUrl(url));
 }
 
 /**
@@ -124,18 +120,6 @@ function normalizeUrl(url: string): string {
   }
 }
 
-/**
- * Simple non-cryptographic hash (DJB2 algorithm).
- * Used as fallback when crypto API not available.
- */
-function simpleHash(str: string): string {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  // Convert to positive hex string
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
 
 /**
  * Redact sensitive data from an object recursively.
