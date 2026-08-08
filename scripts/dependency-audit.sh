@@ -36,11 +36,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# pnpm's exit code is informational here — the verdict is computed from the
-# JSON report plus the allowlist, so a no-fix advisory cannot fail the gate
-# merely because the scanner is unhappy, and a swallowed advisory cannot pass
-# it. A missing/invalid report still fails closed below.
-pnpm audit --json --audit-level=high >"$report" || true
+# pnpm's exit code carries the scanner's own verdict (0 = nothing at level,
+# 1 = something at level) — but the JSON report plus the allowlist is the
+# authoritative decision, so both 0 and 1 proceed to the verdict below. ANY
+# other exit (network failure, corrupt registry, missing pnpm) fails closed:
+# a tooling error must never read as a clean audit.
+set +e
+pnpm audit --json --audit-level=high >"$report"
+pnpm_exit=$?
+set -e
+if [ "$pnpm_exit" -ne 0 ] && [ "$pnpm_exit" -ne 1 ]; then
+  printf 'dependency audit FAILED to run (pnpm audit exit %s) — failing closed.\n' "$pnpm_exit" >&2
+  exit 1
+fi
 
 python3 - "$ALLOWLIST" "$report" <<'PYEOF'
 import datetime
