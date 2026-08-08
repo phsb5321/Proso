@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFrom": "33aac63ec28175b02abcb6be1b71942a6810a56c",
+  "generatedFrom": "c2e1ce34157bb3fa1abd30d42ad96579fc21a1e2",
   "expires": "2026-10-30",
   "findings": [
     {
@@ -16,13 +16,13 @@
     },
     {
       "tool": "osv-scanner",
-      "fingerprint": "10a31576b7e85310906847072c7a4243213bfda234c43dd1affa020ea6752b64",
-      "package": "vite",
-      "version": "8.0.1",
-      "advisory": "GHSA-p9ff-h696-f583",
+      "fingerprint": "53613bbe95f119db84b8d80a827b75ddb02ddddc66485514d824e0adee84a0c2",
+      "package": "image-size",
+      "version": "1.2.1",
+      "advisory": "GHSA-w3rx-r6r6-pgpr",
       "severity": "HIGH",
       "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
+      "reason": "No upstream fix: GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq list last_affected 2.0.2 (no fixed release). Transitive via web-ext > addons-linter (dev tooling). Rebaseline when upstream publishes a fix.",
       "issue": "quality-depth-slice-2"
     },
     {
@@ -38,46 +38,13 @@
     },
     {
       "tool": "osv-scanner",
-      "fingerprint": "8182008b8e1321785c1922dfefe237c64daedfc97d9cad0704394286723e7d5b",
-      "package": "vite",
-      "version": "8.0.1",
-      "advisory": "GHSA-v6wh-96g9-6wx3",
-      "severity": "MODERATE",
-      "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "85639dc8a619825f526539552a7a1eae5c9fe85928720f72cd3cee1e8e17ecdc",
-      "package": "vite",
-      "version": "8.0.1",
-      "advisory": "GHSA-fx2h-pf6j-xcff",
+      "fingerprint": "b2e67ae06f45c5c3b1f69cb2be52ec0fd95a6a5adf047202fab92a2c4fe8a6b8",
+      "package": "image-size",
+      "version": "1.2.1",
+      "advisory": "GHSA-5p2g-fcmc-qvqq",
       "severity": "HIGH",
       "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "87318dd3cca9eaa82d0a0bcb19997b3c7b343a7ca495eeab78e1292fd68687ba",
-      "package": "vite",
-      "version": "8.0.1",
-      "advisory": "GHSA-4w7w-66w2-5vf9",
-      "severity": "MODERATE",
-      "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "a19f7b2ab47a3c2e8f484cb71e225a7458b1413de4c74b46c12a3fe8c48cf6b3",
-      "package": "vite",
-      "version": "8.0.1",
-      "advisory": "GHSA-v2wj-q39q-566r",
-      "severity": "HIGH",
-      "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
+      "reason": "No upstream fix: GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq list last_affected 2.0.2 (no fixed release). Transitive via web-ext > addons-linter (dev tooling). Rebaseline when upstream publishes a fix.",
       "issue": "quality-depth-slice-2"
     },
     {
