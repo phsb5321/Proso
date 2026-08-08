@@ -9,7 +9,7 @@
  * @module utils/telemetry/usage/redaction
  */
 
-import { djb2Hash, sha256Hex } from '../../hash';
+import { djb2Hash, sha256HexOrDjb2 } from '../../hash';
 
 /**
  * Keys that should be redacted from logged data.
@@ -90,7 +90,7 @@ export async function hashUrl(url: string): Promise<string> {
     const normalized = normalizeUrl(url);
 
     // Use Web Crypto API for hashing
-    return sha256Hex(normalized);
+    return sha256HexOrDjb2(normalized);
   } catch {
     // Fallback: simple hash if crypto not available
     return djb2Hash(url);

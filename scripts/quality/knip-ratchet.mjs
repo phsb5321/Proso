@@ -41,10 +41,12 @@ function collect(report, scope, categories) {
 }
 
 const full = runKnip(['--include', 'files,dependencies,devDependencies,exports']);
-const production = runKnip(['--production', '--include', 'files,exports,dependencies']);
+// Exports are covered by the full pass; including them here too would
+// double-baseline the same dead export under two scope fingerprints.
+const production = runKnip(['--production', '--include', 'files,dependencies']);
 const current = [
   ...collect(full, 'all', ['files', 'dependencies', 'devDependencies', 'exports']),
-  ...collect(production, 'production', ['files', 'exports', 'dependencies']),
+  ...collect(production, 'production', ['files', 'dependencies']),
 ]
   .filter(
     (finding, index, all) =>

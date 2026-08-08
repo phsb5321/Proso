@@ -23,12 +23,14 @@ export function djb2Hash(str: string): string {
 }
 
 /**
- * SHA-256 hex digest (Web Crypto), falling back to the deterministic djb2Hash
- * when crypto.subtle is unavailable — both call sites (cache-key hashing and
- * telemetry redaction) treat a missing digest as "use the non-crypto hash",
- * which also keeps the shared helper deterministic in every environment.
+ * SHA-256 hex digest when Web Crypto is available, falling back to the
+ * deterministic 32-bit djb2Hash when crypto.subtle is not. The name says what
+ * it returns: a CALLER USING THIS AS A 256-BIT CACHE KEY MUST NOT SILENTLY
+ * ACCEPT THE FALLBACK — 32-bit djb2 collisions can serve the wrong audio.
+ * Cache-key callers must either reject the fallback or accept the 32-bit
+ * collision risk deliberately.
  */
-export async function sha256Hex(input: string): Promise<string> {
+export async function sha256HexOrDjb2(input: string): Promise<string> {
   try {
     const encoder = new TextEncoder();
     const data = encoder.encode(input);

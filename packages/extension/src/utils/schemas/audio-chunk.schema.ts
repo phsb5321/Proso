@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { djb2Hash, sha256Hex } from '../hash';
+import { djb2Hash, sha256HexOrDjb2 } from '../hash';
 
 /**
  * AudioChunk schema - Cached TTS audio segment
@@ -89,7 +89,7 @@ async function createAudioChunk(params: {
   text: string;
 }): Promise<AudioChunk> {
   const id = generateAudioChunkId(params.url, params.paragraphIndex, params.voiceId);
-  const textHash = await sha256Hex(params.text);
+  const textHash = await sha256HexOrDjb2(params.text);
   const now = new Date().toISOString();
 
   return {
