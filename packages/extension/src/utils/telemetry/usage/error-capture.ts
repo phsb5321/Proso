@@ -51,7 +51,7 @@ interface RecentError {
 /**
  * Generate a fingerprint for an error for deduplication.
  */
-export function generateErrorFingerprint(error: Error): string {
+function generateErrorFingerprint(error: Error): string {
   const parts: string[] = [error.name, error.message];
 
   // Extract first meaningful stack frame
@@ -253,7 +253,7 @@ export function installErrorCapture(
 /**
  * Create a wrapper for async functions that captures errors.
  */
-export function withErrorCapture<T extends (...args: unknown[]) => Promise<unknown>>(
+function withErrorCapture<T extends (...args: unknown[]) => Promise<unknown>>(
   tracker: UsageTracker,
   fn: T,
   context?: string,
@@ -283,7 +283,7 @@ export function withErrorCapture<T extends (...args: unknown[]) => Promise<unkno
 /**
  * Track an error manually.
  */
-export function trackError(
+function trackError(
   tracker: UsageTracker,
   eventType: string,
   error: Error,

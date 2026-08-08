@@ -19,17 +19,17 @@ import type { Highlight } from '../schemas/highlight.schema';
  * Database version history:
  * - v1: Initial schema with highlights and audioCache
  */
-export const DB_VERSION = 1;
+const DB_VERSION = 1;
 
 /**
  * Database name
  */
-export const DB_NAME = 'proso';
+const DB_NAME = 'proso';
 
 /**
  * Proso Database class extending Dexie
  */
-export class ProsoDB extends Dexie {
+class ProsoDB extends Dexie {
   /**
    * Highlights table - User-created text annotations
    *
@@ -83,7 +83,7 @@ export function getDB(): ProsoDB {
  * Close and reset the database instance
  * Useful for testing and cleanup
  */
-export async function closeDB(): Promise<void> {
+async function closeDB(): Promise<void> {
   if (dbInstance) {
     dbInstance.close();
     dbInstance = null;
@@ -94,7 +94,7 @@ export async function closeDB(): Promise<void> {
  * Delete the entire database
  * Useful for testing and complete reset
  */
-export async function deleteDB(): Promise<void> {
+async function deleteDB(): Promise<void> {
   await closeDB();
   await Dexie.delete(DB_NAME);
 }
@@ -102,7 +102,7 @@ export async function deleteDB(): Promise<void> {
 /**
  * Check if IndexedDB is available
  */
-export function isIndexedDBAvailable(): boolean {
+function isIndexedDBAvailable(): boolean {
   try {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   } catch {

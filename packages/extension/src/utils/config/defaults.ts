@@ -99,7 +99,7 @@ export const queueDefaults: Readonly<QueueSettings> = Object.freeze({
 /**
  * Export settings defaults
  */
-export const exportDefaults: Readonly<ExportSettings> = Object.freeze({
+const exportDefaults: Readonly<ExportSettings> = Object.freeze({
   defaultQuality: '192' as ExportQuality,
   includeMetadata: true,
 });
@@ -107,7 +107,7 @@ export const exportDefaults: Readonly<ExportSettings> = Object.freeze({
 /**
  * AI summarization settings defaults
  */
-export const aiDefaults: Readonly<AISettings> = Object.freeze({
+const aiDefaults: Readonly<AISettings> = Object.freeze({
   defaultProvider: 'openai' as AIProvider,
   defaultBulletCount: 5,
   cacheEnabled: true,
@@ -118,7 +118,7 @@ export const aiDefaults: Readonly<AISettings> = Object.freeze({
  * Extended speed constraints (023-feature-roadmap)
  * Updated from 2.0x max to 4.0x max for extended speed support
  */
-export const extendedSpeedConstraints = Object.freeze({
+const extendedSpeedConstraints = Object.freeze({
   min: 0.5,
   max: 4.0,
 });
@@ -152,7 +152,7 @@ export const cacheDefaults: Readonly<CacheConfig> = Object.freeze({
 /**
  * Cache constraints for validation
  */
-export const cacheConstraints = Object.freeze({
+const cacheConstraints = Object.freeze({
   maxSizeBytes: { min: 50 * 1024 * 1024, max: 2 * 1024 * 1024 * 1024 }, // 50MB - 2GB
   maxEntries: { min: 100, max: 10000 },
   maxAgeDays: { min: 1, max: 365 },

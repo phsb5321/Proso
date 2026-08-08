@@ -135,7 +135,7 @@ export function getLanguageDisplayName(code: string): string {
  *
  * @returns Array of { code, displayName } objects
  */
-export function getSupportedLanguagesList(): Array<{ code: string; displayName: string }> {
+function getSupportedLanguagesList(): Array<{ code: string; displayName: string }> {
   return Object.entries(SUPPORTED_LANGUAGES).map(([code, displayName]) => ({
     code,
     displayName,

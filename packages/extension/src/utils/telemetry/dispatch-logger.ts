@@ -226,7 +226,7 @@ export function getUnknownMessageStats(): {
 /**
  * Export for testing and debugging.
  */
-export const _internal = {
+const _internal = {
   createEmptyStats,
   updatePercentage,
 };

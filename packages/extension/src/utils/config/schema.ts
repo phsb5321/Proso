@@ -31,12 +31,12 @@ export const DETECTION_SOURCES = ['metadata', 'text', 'user'] as const;
 /**
  * Valid theme mode values (027-settings-ux-overhaul)
  */
-export const THEME_MODES = ['light', 'dark', 'system'] as const;
+const THEME_MODES = ['light', 'dark', 'system'] as const;
 
 /**
  * Valid highlight color presets (045-pdf-removal-page-reader)
  */
-export const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
+const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple'] as const;
 
 /**
  * Footer position schema
@@ -155,31 +155,31 @@ export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
 /**
  * Valid AI summarization providers
  */
-export const AI_PROVIDERS = ['openai', 'anthropic'] as const;
+const AI_PROVIDERS = ['openai', 'anthropic'] as const;
 export type AIProvider = (typeof AI_PROVIDERS)[number];
 
 /**
  * Valid queue item statuses
  */
-export const QUEUE_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
+const QUEUE_STATUSES = ['pending', 'reading', 'completed', 'archived'] as const;
 export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
 /**
  * Valid export job statuses
  */
-export const EXPORT_STATUSES = ['pending', 'generating', 'encoding', 'complete', 'error'] as const;
+const EXPORT_STATUSES = ['pending', 'generating', 'encoding', 'complete', 'error'] as const;
 export type ExportStatus = (typeof EXPORT_STATUSES)[number];
 
 /**
  * Valid export quality levels (bitrate in kbps)
  */
-export const EXPORT_QUALITIES = ['128', '192', '256'] as const;
+const EXPORT_QUALITIES = ['128', '192', '256'] as const;
 export type ExportQuality = (typeof EXPORT_QUALITIES)[number];
 
 /**
  * Queue settings schema
  */
-export const queueSettingsSchema = z.object({
+const queueSettingsSchema = z.object({
   autoPlayNext: z.boolean().default(true),
   autoArchiveCompleted: z.boolean().default(false),
   archiveAfterDays: z.number().int().min(1).max(365).default(30),
@@ -189,7 +189,7 @@ export const queueSettingsSchema = z.object({
 /**
  * Export settings schema
  */
-export const exportSettingsSchema = z.object({
+const exportSettingsSchema = z.object({
   defaultQuality: z.enum(EXPORT_QUALITIES).default('192'),
   includeMetadata: z.boolean().default(true),
 });
@@ -197,7 +197,7 @@ export const exportSettingsSchema = z.object({
 /**
  * AI summarization settings schema
  */
-export const aiSettingsSchema = z.object({
+const aiSettingsSchema = z.object({
   defaultProvider: z.enum(AI_PROVIDERS).default('openai'),
   defaultBulletCount: z.number().int().min(3).max(7).default(5),
   cacheEnabled: z.boolean().default(true),

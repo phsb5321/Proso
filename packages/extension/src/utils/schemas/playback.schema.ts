@@ -59,7 +59,7 @@ export type PlaybackState = z.infer<typeof PlaybackStateSchema>;
 /**
  * Initial playback state factory
  */
-export function createInitialPlaybackState(params: {
+function createInitialPlaybackState(params: {
   url: string;
   tabId: number;
   totalParagraphs: number;
@@ -79,7 +79,7 @@ export function createInitialPlaybackState(params: {
 /**
  * State transition helpers
  */
-export const PlaybackTransitions = {
+const PlaybackTransitions = {
   /** Transition to loading state */
   toLoading(state: PlaybackState): PlaybackState {
     return { ...state, status: 'loading', errorMessage: undefined };
@@ -148,7 +148,7 @@ export const PlaybackTransitions = {
 /**
  * Calculate progress percentage
  */
-export function calculateProgress(state: PlaybackState): number {
+function calculateProgress(state: PlaybackState): number {
   if (state.totalParagraphs === 0) return 0;
   return Math.round((state.currentParagraph / state.totalParagraphs) * 100);
 }

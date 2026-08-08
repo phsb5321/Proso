@@ -60,7 +60,7 @@ function getToastContainer(): HTMLElement {
 /**
  * Show a toast notification
  */
-export function showToast(options: ToastOptions): HTMLElement {
+function showToast(options: ToastOptions): HTMLElement {
   const container = getToastContainer();
   const duration = options.duration ?? DEFAULT_DURATIONS[options.type];
   const dismissible = options.dismissible ?? true;
@@ -130,7 +130,7 @@ export function showToast(options: ToastOptions): HTMLElement {
 /**
  * Dismiss a toast notification with animation
  */
-export function dismissToast(toast: HTMLElement): void {
+function dismissToast(toast: HTMLElement): void {
   toast.classList.remove('toast--visible');
   toast.classList.add('toast--exiting');
 
@@ -154,7 +154,7 @@ export function dismissToast(toast: HTMLElement): void {
 /**
  * Dismiss all toasts
  */
-export function dismissAllToasts(): void {
+function dismissAllToasts(): void {
   const container = document.getElementById('toast-container');
   if (container) {
     const toasts = container.querySelectorAll('.toast');

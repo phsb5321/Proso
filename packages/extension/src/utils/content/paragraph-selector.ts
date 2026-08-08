@@ -25,7 +25,7 @@ const log = createLogger('content');
 /**
  * Paragraph selection state schema
  */
-export const paragraphSelectionStateSchema = z.object({
+const paragraphSelectionStateSchema = z.object({
   isActive: z.boolean(),
   selectedIndex: z.number().int().nullable(),
   paragraphElements: z.array(z.custom<Element>((val) => val instanceof Element)),

@@ -14,13 +14,13 @@ import { z } from 'zod';
 /**
  * Log levels enum
  */
-export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /**
  * Log components enum
  */
-export const COMPONENTS = [
+const COMPONENTS = [
   'background',
   'content',
   'popup',
@@ -43,7 +43,7 @@ export const loggingConstants = {
 /**
  * Log entry schema
  */
-export const logEntrySchema = z.object({
+const logEntrySchema = z.object({
   timestamp: z.string().length(19), // Nanosecond timestamp as 19-digit string
   level: z.enum(LOG_LEVELS),
   message: z.string().min(1).max(loggingConstants.maxMessageBytes),

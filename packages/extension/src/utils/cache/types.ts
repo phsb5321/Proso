@@ -178,7 +178,7 @@ export type EvictionResult = z.infer<typeof evictionResultSchema>;
 /**
  * Per-paragraph cost breakdown
  */
-export const paragraphCostSchema = z.object({
+const paragraphCostSchema = z.object({
   index: z.number().int().nonnegative(),
   characters: z.number().int().nonnegative(),
   isCached: z.boolean(),

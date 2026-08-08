@@ -21,7 +21,7 @@ export interface TTSError extends DomainError {
 }
 
 // Factory helpers for creating typed errors
-export function licenseError(
+function licenseError(
   code: LicenseError['code'],
   message: string,
   details?: Record<string, unknown>,

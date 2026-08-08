@@ -277,7 +277,7 @@ export function createConfiguredRegistry(): Registry {
  * @param options.enableInstrumentation - Whether to enable telemetry (default: true)
  * @returns Configured instrumented registry
  */
-export function createInstrumentedConfiguredRegistry(options?: {
+function createInstrumentedConfiguredRegistry(options?: {
   enableInstrumentation?: boolean;
 }): InstrReg {
   const registry = createInstrReg();

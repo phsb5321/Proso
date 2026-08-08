@@ -16,8 +16,8 @@
  * @module utils/telemetry/usage
  */
 
-export { UsageTracker, usageTracker } from './tracker';
-export { UsageShipper } from './shipper';
+export { usageTracker } from './tracker';
+
 export { installErrorCapture } from './error-capture';
 export { installConsoleCapture } from './console-capture';
-export { hashUrl, hashUrlSync } from './redaction';
+export { hashUrlSync } from './redaction';

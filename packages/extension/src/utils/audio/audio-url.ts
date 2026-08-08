@@ -70,7 +70,7 @@ export async function createAudioUrl(
  * @param mimeType - MIME type of the audio (default: 'audio/mpeg')
  * @returns A data URL string
  */
-export function createAudioDataUrl(buffer: ArrayBuffer, mimeType = 'audio/mpeg'): string {
+function createAudioDataUrl(buffer: ArrayBuffer, mimeType = 'audio/mpeg'): string {
   return arrayBufferToDataUrl(buffer, mimeType);
 }
 
@@ -83,7 +83,7 @@ export function createAudioDataUrl(buffer: ArrayBuffer, mimeType = 'audio/mpeg')
  * @returns A blob URL string
  * @throws Error if called in a context without URL.createObjectURL
  */
-export function createAudioBlobUrl(data: ArrayBuffer | Blob, mimeType = 'audio/mpeg'): string {
+function createAudioBlobUrl(data: ArrayBuffer | Blob, mimeType = 'audio/mpeg'): string {
   if (!supportsObjectUrl()) {
     throw new Error(
       'URL.createObjectURL is not available in this context. Use createAudioUrl() instead.',

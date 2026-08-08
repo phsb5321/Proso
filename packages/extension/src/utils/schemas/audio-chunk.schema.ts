@@ -11,13 +11,14 @@
  */
 
 import { z } from 'zod';
+import { djb2Hash, sha256HexOrDjb2 } from '../hash';
 
 /**
  * AudioChunk schema - Cached TTS audio segment
  *
  * Stored in IndexedDB for offline playback and reduced API costs.
  */
-export const AudioChunkSchema = z.object({
+const AudioChunkSchema = z.object({
   // Identity (composite key)
   /** Composite key: `${urlHash}:${paragraphIndex}:${voiceId}` */
   id: z.string().min(1),
@@ -61,23 +62,12 @@ export type AudioChunk = z.infer<typeof AudioChunkSchema>;
  * @param voiceId - ElevenLabs voice ID
  * @returns Composite key string
  */
-export function generateAudioChunkId(url: string, paragraphIndex: number, voiceId: string): string {
+function generateAudioChunkId(url: string, paragraphIndex: number, voiceId: string): string {
   // Hash URL for consistent key length
-  const urlHash = hashString(url);
+  const urlHash = djb2Hash(url);
   return `${urlHash}:${paragraphIndex}:${voiceId}`;
 }
 
-/**
- * Simple string hash (djb2 algorithm)
- * For cache key generation - not cryptographic
- */
-function hashString(str: string): string {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
 
 /**
  * Generate text hash for invalidation
@@ -86,18 +76,11 @@ function hashString(str: string): string {
  * @param text - Paragraph text
  * @returns Promise resolving to hex hash string
  */
-export async function generateTextHash(text: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
 
 /**
  * Create a new AudioChunk
  */
-export async function createAudioChunk(params: {
+async function createAudioChunk(params: {
   url: string;
   paragraphIndex: number;
   audioBlob: Blob;
@@ -106,7 +89,7 @@ export async function createAudioChunk(params: {
   text: string;
 }): Promise<AudioChunk> {
   const id = generateAudioChunkId(params.url, params.paragraphIndex, params.voiceId);
-  const textHash = await generateTextHash(params.text);
+  const textHash = await sha256HexOrDjb2(params.text);
   const now = new Date().toISOString();
 
   return {
@@ -128,6 +111,6 @@ export async function createAudioChunk(params: {
  * @param chunks - Array of AudioChunks
  * @returns Total size in bytes
  */
-export function calculateCacheSize(chunks: AudioChunk[]): number {
+function calculateCacheSize(chunks: AudioChunk[]): number {
   return chunks.reduce((total, chunk) => total + chunk.audioBlob.size, 0);
 }

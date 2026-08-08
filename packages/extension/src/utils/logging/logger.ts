@@ -23,7 +23,7 @@ import {
 /**
  * Logging configuration schema
  */
-export const loggingConfigSchema = z.object({
+const loggingConfigSchema = z.object({
   enabled: z.boolean().default(false),
   endpoint: z.string().url().nullable().default(null),
   authType: z.enum(['none', 'basic', 'bearer', 'cloudflare']).default('none'),
@@ -57,7 +57,7 @@ const STORAGE_KEY_RETRY = 'proso_log_retry_queue';
 /**
  * Remote logger class for sending logs to Loki
  */
-export class RemoteLogger {
+class RemoteLogger {
   private config: LoggingConfig;
   private buffer: LogBuffer;
   private sessionId: string | null = null;
@@ -362,7 +362,7 @@ let loggerInstance: RemoteLogger | null = null;
 /**
  * Get the singleton logger instance
  */
-export function getLogger(): RemoteLogger {
+function getLogger(): RemoteLogger {
   if (!loggerInstance) {
     loggerInstance = new RemoteLogger();
   }

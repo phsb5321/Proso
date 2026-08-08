@@ -40,7 +40,6 @@ export {
 } from './defaults';
 
 // Export store
-export { SettingsStore, settingsStore } from './store';
 
 // Export migrations
 export {

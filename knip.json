@@ -2,6 +2,11 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["scripts/**/*.{mjs,sh}"],
   "ignoreDependencies": ["dependency-cruiser"],
+  // An export used by another export in the same file is not dead; the
+  // package-level config (packages/extension/knip.json) already set this, and
+  // the PROSO-89 export sweep confirmed the in-file-used class (e.g.
+  // ProviderSchema referenced by a sibling export in the same module).
+  "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
       "entry": ["scripts/**/*.{mjs,sh}"],
@@ -14,8 +19,10 @@
         "src/**/*-worker.ts",
         "wxt.config.ts",
         "jest.config.{js,ts,mjs}",
-        "tests/**/*.test.ts",
-        "tests/**/*.spec.ts"
+        // The repo ships unit tests as both .test.ts and .test.js (27 .test.js
+        // files as of 08/08/2026); the previous globs only matched .ts, so
+        // exports imported solely by .test.js files looked unused.
+        "tests/**/*.{test,spec}.{js,ts}"
       ],
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/generated/**", ".wxt/**", ".output/**"],

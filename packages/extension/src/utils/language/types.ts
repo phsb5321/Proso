@@ -24,7 +24,7 @@ export type BCP47Tag = string;
 /**
  * Language detection result schema
  */
-export const languageDetectionResultSchema = z.object({
+const languageDetectionResultSchema = z.object({
   code: z.string().min(2).max(3), // ISO 639-1 (2-letter) or ISO 639-3 (3-letter)
   confidence: z.number().min(0).max(1),
   source: z.enum(['metadata', 'text', 'fallback']),
@@ -35,7 +35,7 @@ export type LanguageDetectionResult = z.infer<typeof languageDetectionResultSche
 /**
  * Page language extraction result schema
  */
-export const pageLanguageSchema = z.object({
+const pageLanguageSchema = z.object({
   metadata: z.string().nullable(), // HTML lang attribute or meta tag
   textSample: z.string(),
   url: z.string().url(),
@@ -46,7 +46,7 @@ export type PageLanguage = z.infer<typeof pageLanguageSchema>;
 /**
  * Language metadata with display information
  */
-export const languageMetadataSchema = z.object({
+const languageMetadataSchema = z.object({
   code: z.string(), // ISO 639-1
   name: z.string(), // Display name in English
   nativeName: z.string().optional(), // Native language name
@@ -59,7 +59,7 @@ export type LanguageMetadata = z.infer<typeof languageMetadataSchema>;
  * Provider language support mapping
  * Post-045: Only ElevenLabs is supported
  */
-export const providerLanguageSupportSchema = z.object({
+const providerLanguageSupportSchema = z.object({
   provider: z.enum(['elevenlabs']),
   supportedLanguages: z.array(z.string()), // Array of ISO 639-1 codes
   autoDetect: z.boolean(), // Provider supports auto language detection
@@ -70,7 +70,7 @@ export type ProviderLanguageSupport = z.infer<typeof providerLanguageSupportSche
 /**
  * Language detection state
  */
-export const languageStateSchema = z.object({
+const languageStateSchema = z.object({
   detectedLanguage: languageDetectionResultSchema.nullable(),
   userOverride: z.string().nullable(), // User-selected language override
   lastDetectionTimestamp: z.number().nullable(),
@@ -82,7 +82,7 @@ export type LanguageState = z.infer<typeof languageStateSchema>;
 /**
  * Common language codes
  */
-export const COMMON_LANGUAGES = [
+const COMMON_LANGUAGES = [
   'en', // English
   'es', // Spanish
   'fr', // French
