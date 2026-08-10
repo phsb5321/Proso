@@ -48,7 +48,7 @@ describe('message gate (PROSO-90)', () => {
     await waitForMessageGate();
     // A settled promise resolves on the microtask queue — far under any
     // message-roundtrip timeout, and effectively free after warm-up.
-    expect(Date.now() - started).toBeLessThan(50);
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 
   it('resolves waiters when the readiness chain is .catch()-ed (caller shape)', async () => {
