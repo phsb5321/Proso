@@ -97,6 +97,9 @@ const ROUNDTRIP_MS = 5_000;
 // far longer. Any first-answer latency below this means the stop failed and
 // a warm worker answered — a loud failure, never a vacuous green.
 const COLD_WAKE_MIN_MS = 20;
+// Relative cold-wake demand: the first cold answer must be several times the
+// warm roundtrip measured by C3 in the SAME run (warm ≈1-2ms, cold ≈45ms).
+const COLD_WAKE_RATIO = 5;
 
 const checks = [];
 
@@ -438,6 +441,7 @@ async function checkChromeRoundtrip(popup) {
         : `response lost: ${result.reason}`,
     ok,
   );
+  return result.elapsedMs;
 }
 
 /**
@@ -453,20 +457,38 @@ async function checkChromeRoundtrip(popup) {
  * service_unavailable mis-answer. Red when the gate is removed — that is
  * what pins it.
  *
- * Anti-vacuity: a failed stop must be a loud failure, never a green. The
- * worker handle cannot be probed for detachment — CDP evaluation on a
- * stopped service-worker target revives it — so the first answer's latency
- * is the stop signal: a genuinely cold wake takes measurably longer than the
- * warm roundtrip measured by C3 (a few ms), so the check demands a
- * cold-boot-sized first-answer latency in addition to real payloads.
+ * Two anti-vacuity layers (a failed stop must be a loud failure, never a
+ * green):
+ *   1. Deterministic stop proof via CDP `ServiceWorker.workerVersionUpdated`
+ *      events: after `stopAllWorkers` the extension worker's version must
+ *      report runningStatus 'stopped'. No evaluation is used to check this —
+ *      CDP evaluation on a stopped service-worker target revives it.
+ *   2. Same-run latency comparison: the first answer must take at least
+ *      `COLD_WAKE_MIN_MS` AND several times the warm roundtrip measured by
+ *      C3 in this same run — a spontaneously re-warmed worker answers at
+ *      warm latency and fails loudly instead of passing vacously. The
+ *      relative term makes the floor machine-independent.
  */
-async function checkColdWorkerRace(context, popup) {
+async function checkColdWorkerRace(context, popup, warmLatencyMs) {
   const cdp = await context.newCDPSession(popup);
+  let extVersionStopped = false;
+  cdp.on('ServiceWorker.workerVersionUpdated', (params) => {
+    for (const v of params?.versions ?? []) {
+      if (v.scriptURL?.endsWith('/background.js') && v.runningStatus === 'stopped') {
+        extVersionStopped = true;
+      }
+    }
+  });
   await cdp.send('ServiceWorker.enable');
   if (context.serviceWorkers().length === 0) {
     fail('C4: no extension service worker to stop');
   }
   await cdp.send('ServiceWorker.stopAllWorkers');
+  await waitFor(
+    'extension worker version stopped (CDP runningStatus)',
+    () => (extVersionStopped ? true : null),
+    { timeoutMs: 10_000, intervalMs: 100 },
+  );
 
   // Three sequential cold sends: the first wakes the worker (and is the one
   // that hits the init window without a gate); the rest land as init
@@ -507,17 +529,20 @@ async function checkColdWorkerRace(context, popup) {
     await sleep(50);
   }
 
-  const coldEnough = sends[0].elapsedMs >= COLD_WAKE_MIN_MS;
+  const coldEnough =
+    sends[0].elapsedMs >= Math.max(COLD_WAKE_MIN_MS, warmLatencyMs * COLD_WAKE_RATIO);
   const realAnswers = sends.every((s) => s.arrived && isRealPlaybackState(s.response));
   const ok = coldEnough && realAnswers;
   record(
     'C4 cold-worker race',
     ok
-      ? `all ${sends.length} cold wake-up answers real; first woke cold in ${sends[0].elapsedMs}ms`
+      ? `all ${sends.length} cold wake-up answers real; first woke cold in ${sends[0].elapsedMs}ms (warm ${warmLatencyMs}ms)`
       : [
           ...(coldEnough
             ? []
-            : [`first answer ${sends[0].elapsedMs}ms — warm, stop did not take`]),
+            : [
+                `first answer ${sends[0].elapsedMs}ms vs warm ${warmLatencyMs}ms — worker not cold`,
+              ]),
           ...sends.map((s) =>
             s.arrived
               ? `answer ${JSON.stringify(s.response ?? null).slice(0, 100)}`
@@ -622,7 +647,7 @@ async function chromeLeg(fixture) {
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extId}/popup.html`);
       await article.bringToFront();
-      await checkChromeRoundtrip(popup);
+      const warmLatencyMs = await checkChromeRoundtrip(popup);
       await checkChromeStartJourney(fixture, article, popup);
       // C5 — the offscreen document must actually exist after the journey:
       // the popup→background roundtrip checks only prove the answer is real
@@ -649,7 +674,7 @@ async function chromeLeg(fixture) {
 
       // C4 must run last: it stops the worker, which would re-warm for the
       // checks above if it ran before them.
-      await checkColdWorkerRace(context, popup);
+      await checkColdWorkerRace(context, popup, warmLatencyMs);
       await popup.close();
       await article.close();
     } finally {
