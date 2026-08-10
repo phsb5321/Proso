@@ -624,6 +624,29 @@ async function chromeLeg(fixture) {
       await article.bringToFront();
       await checkChromeRoundtrip(popup);
       await checkChromeStartJourney(fixture, article, popup);
+      // C5 — the offscreen document must actually exist after the journey:
+      // the popup→background roundtrip checks only prove the answer is real
+      // against the contexts that are open. If the offscreen document is
+      // missing here, the harness environment diverges from production (where
+      // its catch-all listener historically stole broadcast responses,
+      // PROSO-90) and the roundtrips cannot prove that defect stays fixed.
+      const offscreenCount = await popup.evaluate(
+        () =>
+          new Promise((resolve) => {
+            globalThis.chrome.runtime.getContexts({
+              contextTypes: ['OFFSCREEN_DOCUMENT'],
+            }).then(
+              (ctxs) => resolve(ctxs.length),
+              () => resolve(-1),
+            );
+          }),
+      );
+      record(
+        'C5 offscreen document present',
+        offscreenCount > 0 ? `offscreen contexts: ${offscreenCount}` : `found ${offscreenCount}`,
+        offscreenCount > 0,
+      );
+
       // C4 must run last: it stops the worker, which would re-warm for the
       // checks above if it ran before them.
       await checkColdWorkerRace(context, popup);
