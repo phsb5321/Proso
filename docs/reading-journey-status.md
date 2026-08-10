@@ -437,11 +437,38 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    reconciled elsewhere but deliberately left out of its scope). Replace it with the
    server-route testing pattern or delete it; browser `speechSynthesis` was removed in
    `9797dc6` and no test should model it.
-13. Fix the Chrome MV3 C3 `playback.getState` roundtrip: the first call answers "Unknown
-   message type" (deterministic across runs; responder `entrypoints/background.ts:368`,
-   untouched by PR #115; the Firefox MV2 equivalent answers correctly). Read as a
-   handler-registration race — the diagnostic already asserts it, so the fix is falsifiable
-   the moment it lands.
+13. ~~Fix the Chrome MV3 C3 `playback.getState` roundtrip~~ Delivered on 10/08 by PR #123
+   (`a983e22`). Two things in that original wording were wrong, and both matter. First, the
+   sentence "the diagnostic already asserts it, so the fix is falsifiable the moment it lands"
+   was **false**: C3 recorded `ok = result.arrived`, so it passed on ANY response — including
+   `{"success":false,"error":"Unknown message type"}` — and C2's `left Loading...`
+   sub-assertion carried the same mis-answer text without failing. Verified by running the
+   Chrome leg on `f615e8b` (pre-fix): exit 0, `PASS — 10 check(s), 0 failed`, while the log
+   showed the mis-answer in both places. The check could not fail on the bug it was cited for.
+   Second, the defect was not only a registration race. Strengthening the assertions (C3 now
+   requires a real `status` in the playback enum; C2 requires leaving `Loading...` via a real
+   status label) exposed a **second, load-bearing defect**: the offscreen document's
+   `onMessage` listener answered `{success:false, error:'Unknown message type'}` from its
+   `default:` branch for every message it did not own. `runtime.sendMessage` broadcasts to all
+   extension contexts, so once a reading session created the offscreen document, that listener
+   answered the popup's `playback.*` calls first and stole the response — which is why the
+   symptom looked intermittent rather than deterministic. The fix is therefore two parts:
+   `entrypoints/offscreen/main.ts` now returns `false` from the default branch (leave the
+   channel open for the background listener), and `background/message-gate.ts` closes the
+   original registration race — the `onMessage` listener awaits a single-shot gate holding the
+   `.catch()`-ed `initHexagonalArchitecture()` promise, so a message arriving before handler
+   registration is queued rather than mis-answered; after warm-up the await is a microtask.
+   Evidence: `node scripts/chrome-mv3-diagnostics.mjs` now reports `PASS — 18 check(s), 0
+   failed` with C3 answering real state and C2 leaving Loading via `'Playing'`, re-run
+   independently by the orch on a clean rebuild of both targets; Firefox MV2 stays 9/9;
+   extension unit suite 2329 tests. Falsifier receipts: reverting the offscreen fix turns the
+   strengthened assertions RED and restoring returns them to GREEN. Reverting the gate alone
+   produces no observable diagnostic change — its window is not exercisable end-to-end by this
+   harness — so the gate is pinned by unit tests instead (a message dispatched before
+   registration is served, not mis-answered), and closing that gap end-to-end is next-slice
+   #19. The QA gate's first verdict on this slice was FAIL, measured 25 minutes before the
+   offscreen fix landed; it was re-gated on the complete tree and returned PASS, and its
+   insistence on assertions that can actually fail is what surfaced the second defect.
 14. ~~Close the knip ratchet's unused-export blind spot~~ Delivered on 08/08 by PR #121
    (`5aac585`). Cause: `scripts/quality/knip-ratchet.mjs` requested `exports` only in the
    `--production` pass, which walks from production entry points, so an unused export inside a
@@ -499,3 +526,9 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    tradeoff explicit and deliberate; it did not remove it).
 18. Work the 47 baselined knip findings down. They are real tracked debt from the PR #121 export
    sweep, not false positives, and they expire 2026-10-30.
+19. Pin the PROSO-90 message gate at the integration level: reverting `background/message-gate.ts`
+   produces no observable change in `chrome-mv3-diagnostics`, because the harness cannot deliver
+   a message inside the pre-registration window (its two-phase launch warms the worker first).
+   The gate is unit-pinned only. A direct-race check — dispatch a message before handler
+   registration settles and assert it is served rather than mis-answered — would make that
+   mechanism falsifiable end-to-end.
