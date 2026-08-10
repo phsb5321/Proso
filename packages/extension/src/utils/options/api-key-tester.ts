@@ -79,9 +79,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
 /**
  * Test all configured API keys
  */
-async function testAllApiKeys(
-  keys: Record<string, string>,
-): Promise<Record<string, TestResult>> {
+async function testAllApiKeys(keys: Record<string, string>): Promise<Record<string, TestResult>> {
   const results: Record<string, TestResult> = {};
 
   const testPromises = Object.entries(keys)

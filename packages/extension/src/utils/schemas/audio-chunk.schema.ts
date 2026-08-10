@@ -68,7 +68,6 @@ function generateAudioChunkId(url: string, paragraphIndex: number, voiceId: stri
   return `${urlHash}:${paragraphIndex}:${voiceId}`;
 }
 
-
 /**
  * Generate text hash for invalidation
  * Uses SHA-256 via Web Crypto API
