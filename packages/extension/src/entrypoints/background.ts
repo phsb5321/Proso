@@ -30,6 +30,9 @@ import { getCacheStore } from '../utils/cache';
 // Hexagonal Architecture (034-hexagonal-architecture)
 import { dispatchToHexagonal, initHexagonalArchitecture } from '../background/init-hexagonal';
 
+// PROSO-90: inbound-message gate against the handler-registration window
+import { setMessageGate, waitForMessageGate } from '../background/message-gate';
+
 // Keyboard shortcuts + "Read with Proso" context menu
 import {
   READ_SELECTION_MENU_ID,
@@ -291,14 +294,20 @@ export default defineBackground(() => {
   };
   initUsageTracker();
 
-  // Initialize hexagonal architecture (034-hexagonal-architecture)
-  initHexagonalArchitecture()
+  // Initialize hexagonal architecture (034-hexagonal-architecture). The
+  // readiness promise gates inbound messages (PROSO-90): the listener below
+  // registers synchronously, but handler registration happens inside this
+  // async init — a message arriving in that window used to be mis-answered
+  // with "Unknown message type". The gate queues it until registration
+  // settles; the .catch keeps the gate non-rejecting.
+  const hexagonalReady = initHexagonalArchitecture()
     .then(() => {
       log.info('[Background] Hexagonal architecture initialized');
     })
     .catch((error) => {
       log.error('[Background] Failed to initialize hexagonal architecture', { error });
     });
+  setMessageGate(hexagonalReady);
 
   // T021: Initialize audio cache on extension startup
   const cacheStore = getCacheStore();
@@ -351,7 +360,7 @@ export default defineBackground(() => {
   }
 
   // Set up message listener
-  browser.runtime.onMessage.addListener((message, sender) => {
+  browser.runtime.onMessage.addListener(async (message, sender) => {
     // T007: Extract sender tab ID for per-tab state (Contract 7)
     const senderTabId = sender.tab?.id;
 
@@ -363,6 +372,10 @@ export default defineBackground(() => {
       if (type === 'playbackStateUpdate') {
         return;
       }
+
+      // PROSO-90: never mis-answer a message that arrived before handler
+      // registration settled — wait for the gate instead.
+      await waitForMessageGate();
 
       log.debug('[Background] Received message', { type });
 
@@ -386,6 +399,11 @@ export default defineBackground(() => {
     // Handle messages with 'action' field (legacy format from content script)
     if (message && typeof message === 'object' && 'action' in message) {
       const { action, ...data } = message as { action: string; [key: string]: unknown };
+
+      // PROSO-90: same gate as the type branch — legacy actions dispatch
+      // through the same registry and must not be mis-answered either.
+      await waitForMessageGate();
+
       log.debug('[Background] Received legacy action', { action });
 
       // T007: Inject sender tab ID into dispatch data

@@ -9,7 +9,7 @@
  *
  * Handles TTS audio playback in Chrome MV3 where the service worker
  * cannot play audio directly. Communicates with background script
- * via chrome.runtime messaging.
+ * via globalThis.chrome.runtime messaging.
  *
  * @module entrypoints/offscreen
  */
@@ -106,7 +106,7 @@ function init(): void {
 /**
  * Handle incoming messages from background script
  */
-chrome.runtime.onMessage.addListener(
+globalThis.chrome.runtime.onMessage.addListener(
   (message: unknown, _sender: unknown, sendResponse: unknown) => {
     const msg = message as AudioMessage;
     const respond = sendResponse as (response: unknown) => void;
@@ -141,7 +141,11 @@ chrome.runtime.onMessage.addListener(
         return true;
 
       default:
-        respond({ success: false, error: 'Unknown message type' });
+        // Not our message — leave the channel open so the background
+        // listener (or another extension context) can answer it. Responding
+        // here would steal every unrelated runtime message broadcast to the
+        // extension (e.g. the popup's playback.* calls) and mis-answer them
+        // with "Unknown message type" (PROSO-90).
         return false;
     }
   },
@@ -398,7 +402,7 @@ function handleLoadedMetadata(): void {
  */
 function sendEventToBackground(eventType: string, data: Record<string, unknown>): void {
   try {
-    chrome.runtime.sendMessage(
+    globalThis.chrome.runtime.sendMessage(
       {
         type: 'OFFSCREEN_EVENT',
         eventType,
@@ -406,8 +410,8 @@ function sendEventToBackground(eventType: string, data: Record<string, unknown>)
       },
       () => {},
     );
-  } catch (_error) {
-    // Ignore send errors (background may not be listening)
+  } catch (error) {
+    log.debug('[Offscreen] Background send failed', { error });
   }
 }
 

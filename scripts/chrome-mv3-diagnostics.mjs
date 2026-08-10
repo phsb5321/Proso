@@ -73,6 +73,21 @@ const ADDON_UUID = '8b3f6f5a-2e1c-4a77-9f0d-4c2ab5d61b90';
 
 const STATUS_LOADING = 'Loading...';
 const PLAYING_STATUSES = new Set(['Playing', 'Paused']);
+// The popup's status text leaves Loading via a REAL state only when it is one
+// of the status labels; a mis-answered message surfaces as an error string.
+const REAL_STATUS_TEXTS = new Set(['Ready', 'Playing', 'Paused']);
+// A REAL playback.getState answer carries the playback status enum; the
+// mis-answer (`{success:false, error:'Unknown message type'}`) does not.
+const PLAYBACK_STATE_STATUSES = new Set(['stopped', 'loading', 'playing', 'paused']);
+
+function isRealPlaybackState(response) {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    typeof response.status === 'string' &&
+    PLAYBACK_STATE_STATUSES.has(response.status)
+  );
+}
 
 const JOURNEY_LOADING_LEAVE_MS = 10_000;
 const JOURNEY_PLAYING_MS = 30_000;
@@ -348,7 +363,10 @@ async function checkChromeStartJourney(fixture, article, popup) {
   // `Loading...` state. A popup still on `Loading...` after the deadline is the
   // ledger's stuck-popup failure mode, red by assertion.
   const leftLoading = await waitToLeaveLoading(status, JOURNEY_LOADING_LEAVE_MS);
-  sub.push(`left Loading...: ${leftLoading.ok ? `'${leftLoading.text}'` : leftLoading.text}`);
+  const leftViaRealState = leftLoading.ok && REAL_STATUS_TEXTS.has(leftLoading.text);
+  sub.push(
+    `left Loading via real state: ${leftViaRealState ? `'${leftLoading.text}'` : leftLoading.text}`,
+  );
 
   // (b) The journey must reach a playing/paused state.
   const playing = await waitForPlaying(status, JOURNEY_PLAYING_MS);
@@ -365,7 +383,7 @@ async function checkChromeStartJourney(fixture, article, popup) {
   );
   sub.push(`footer on article: ${footerVisible ? 'visible' : 'missing'}`);
 
-  const passed = leftLoading.ok && playing.ok && requests >= 1 && footerVisible;
+  const passed = leftViaRealState && playing.ok && requests >= 1 && footerVisible;
   record(
     'C2 popup start journey',
     passed ? `all four sub-assertions passed (${sub.join('; ')})` : sub.join('; '),
@@ -401,12 +419,15 @@ async function checkChromeRoundtrip(popup) {
       }),
     ROUNDTRIP_MS,
   );
+  const ok = result.arrived && isRealPlaybackState(result.response);
   record(
     'C3 popup roundtrip',
-    result.arrived
-      ? `playback.getState answered ${JSON.stringify(result.response ?? null).slice(0, 120)}`
-      : `response lost: ${result.reason}`,
-    result.arrived,
+    ok
+      ? `playback.getState answered real state ${JSON.stringify(result.response ?? null).slice(0, 120)}`
+      : result.arrived
+        ? `playback.getState mis-answered ${JSON.stringify(result.response ?? null).slice(0, 120)}`
+        : `response lost: ${result.reason}`,
+    ok,
   );
 }
 
@@ -677,12 +698,15 @@ async function firefoxLeg(fixture) {
          },
        );`,
     );
+    const roundtripOk = roundtrip.arrived && isRealPlaybackState(roundtrip.response);
     record(
       'C3 popup roundtrip',
-      roundtrip.arrived
-        ? `playback.getState answered ${JSON.stringify(roundtrip.response ?? null).slice(0, 120)}`
-        : `response lost: ${roundtrip.reason}`,
-      roundtrip.arrived,
+      roundtripOk
+        ? `playback.getState answered real state ${JSON.stringify(roundtrip.response ?? null).slice(0, 120)}`
+        : roundtrip.arrived
+          ? `playback.getState mis-answered ${JSON.stringify(roundtrip.response ?? null).slice(0, 120)}`
+          : `response lost: ${roundtrip.reason}`,
+      roundtripOk,
     );
 
     // C2 — the popup start journey. The webdriver current handle stays on the
@@ -742,7 +766,10 @@ async function firefoxLeg(fixture) {
     sub.push(`entered journey: ${entered.ok ? `'${entered.text}'` : entered.text}`);
 
     const leftLoading = await waitToLeaveLoading(readStatus, JOURNEY_LOADING_LEAVE_MS);
-    sub.push(`left Loading...: ${leftLoading.ok ? `'${leftLoading.text}'` : leftLoading.text}`);
+    const leftViaRealState = leftLoading.ok && REAL_STATUS_TEXTS.has(leftLoading.text);
+    sub.push(
+      `left Loading via real state: ${leftViaRealState ? `'${leftLoading.text}'` : leftLoading.text}`,
+    );
 
     const playing = await waitForPlaying(readStatus, JOURNEY_PLAYING_MS);
     sub.push(`reached playing: ${playing.ok ? `'${playing.text}'` : playing.text}`);
@@ -759,7 +786,7 @@ async function firefoxLeg(fixture) {
     );
     sub.push(`footer on article: ${footer.footer ? 'visible' : 'missing'}`);
 
-    const passed = entered.ok && leftLoading.ok && playing.ok && requests >= 1 && footer.footer;
+    const passed = entered.ok && leftViaRealState && playing.ok && requests >= 1 && footer.footer;
     record(
       'C2 popup start journey',
       passed ? `all four sub-assertions passed (${sub.join('; ')})` : sub.join('; '),
