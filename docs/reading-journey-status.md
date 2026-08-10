@@ -421,11 +421,32 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 9. Decide, in `specs/100-local-appliance-tts/`, the granularity the 2 s latency clause binds to,
    and size synthesis requests to it. At RTF ~0.2 with no streaming, sentence-level chunking plus
    prefetch keeps time-to-first-audio near 1–2 s; a paragraph-sized request does not.
-10. Repair the 2 vacuous settings-page visual tests: the built settings page has no
-   `data-testid="settings-api-keys-section"` (9 testids present, none api-keys), so their
-   `count() > 0` guard never fires and they pass without asserting or having baselines —
-   they are the historical "2 passed" of PR #63 (PR #111, `0b8c1da`). Restore the testid in
-   the product or delete the dead tests.
+10. ~~Repair the 2 vacuous settings-page visual tests~~ Delivered on 10/08 by PR #125
+   (`2f3e60c`). The fork resolved toward *tagging*, not deleting: the API-keys UI is real —
+   `src/entrypoints/settings.html:499` renders an "API Keys (BYOK)" subsection with provider
+   cards and key inputs — it simply carried no `data-testid`, and it sits inside the collapsed
+   `#developer` accordion, which is why the built page appeared to have no api-keys section.
+   (An orch grep of `src/entrypoints/options/` rather than `entrypoints/settings.html`
+   initially concluded the opposite; the eng's independent check corrected it, which is the
+   check working as designed.) The tag is added, and the `count() > 0` guard that made the
+   tests vacuous is **removed entirely** rather than satisfied: the tests now assert
+   `toBeVisible()` on the section, on the ElevenLabs provider card, and on its key input, so a
+   future refactor dropping the testid FAILS instead of silently no-opping. Both light and dark
+   baselines now exist. Suite stays at 36 passed — the same count, but 34 real + 2 genuinely
+   asserting rather than 34 + 2 empty branches; verified independently by the orch on a clean
+   `build:firefox` (`36 passed (38.2s)`).
+   Two harness facts were established on the way and matter for every future visual test. The
+   suite opens the built page as `file://`, where the module script (`settings.html:11` →
+   `options/main.ts`, which imports the theme manager and `initOptionsPage()`) cannot
+   initialize — so `setupAccordions()` never binds and no accordion can be clicked open. The
+   tests therefore set the accordion's DOM state directly instead of depending on script that
+   cannot run; this is a harness limitation, not a product defect (the `#developer` markup and
+   the class-based binding are both well-formed, and every other settings test passes only
+   because its section ships open). For the same reason the page renders **unstyled** under
+   `file://`: the new api-keys baselines carry no product CSS — and neither do the
+   pre-existing ones from PR #111 (`appearance-section-light` is equally unstyled), so this is
+   the file's standing condition rather than a regression introduced here. Closing that gap is
+   next-slice #20.
 11. Resolve the visual-fixture style divergence: the fixture page loads
    `src/styles/content.css`, which is dead in the shipped path (the content script injects
    its own inline copy at `entrypoints/content.ts`, nothing imports `content.css`) — the CSS
@@ -532,3 +553,13 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    The gate is unit-pinned only. A direct-race check — dispatch a message before handler
    registration settles and assert it is served rather than mis-answered — would make that
    mechanism falsifiable end-to-end.
+20. Make the settings visual suite render the product's own styles. Every
+   `settings-page.test.js` baseline — the two added by PR #125 and the pre-existing ones from
+   PR #111 — is captured over `file://`, where neither the module script nor the stylesheet
+   loads, so the snapshots encode unstyled DOM. They still catch structural regressions, but
+   they cannot catch a styling regression, which is what a *visual* baseline is for. Serving
+   the built page over a local HTTP server (so `/chunks/*` and the CSS resolve) is the
+   direction the QA seat proposed and the one most likely to fix both at once.
+21. Repair the quick-settings visual tests: they carry the same vacuous `count() > 0` guard the
+   api-keys tests had before PR #125 — the eng demonstrated it by renaming their testid and
+   watching them still pass. Same treatment: assert the section exists, drop the guard.
