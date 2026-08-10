@@ -547,12 +547,28 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
    tradeoff explicit and deliberate; it did not remove it).
 18. Work the 47 baselined knip findings down. They are real tracked debt from the PR #121 export
    sweep, not false positives, and they expire 2026-10-30.
-19. Pin the PROSO-90 message gate at the integration level: reverting `background/message-gate.ts`
-   produces no observable change in `chrome-mv3-diagnostics`, because the harness cannot deliver
-   a message inside the pre-registration window (its two-phase launch warms the worker first).
-   The gate is unit-pinned only. A direct-race check — dispatch a message before handler
-   registration settles and assert it is served rather than mis-answered — would make that
-   mechanism falsifiable end-to-end.
+19. ~~Pin the PROSO-90 message gate at the integration level~~ Delivered on 10/08 by PR #127
+   (`39a32ba`). The harness constraint was real — both launch phases `waitFor` a service-worker
+   handle, and by the time Playwright yields one the background script has run and
+   registration has settled — so the fix does not race the boot; it **stops the worker via CDP
+   and messages it cold**, which reproduces the genuine wake-up race. New check **C4
+   cold-worker race**: three cold messages must all answer with real playback state. Verified
+   independently by the orch, both directions: neutering `waitForMessageGate()` to resolve
+   immediately (the faithful pre-#123 behavior — the module itself is new in #123, so a literal
+   `git checkout` of an earlier revision is not possible) makes the Chrome leg **exit 1** with
+   `C4 cold-worker race — answer {"success":false,...}`, and restoring it returns **exit 0**
+   with `all 3 cold wake-up answers real; first woke cold in 45ms (warm 2ms)`. The gate is no
+   longer unit-pinned only.
+   Two details make the check itself hard to fake, and they are the point of the slice. A
+   failed worker stop would leave a warm worker answering instantly and produce a vacuous
+   green, so C4 carries an **anti-vacuity latency floor**: the first cold answer must take
+   several times the same-run warm roundtrip (measured 45ms vs 2ms), and a CDP stop-proof
+   accompanies it — a stop that did not happen is a loud failure, not a pass. PR #127 also
+   added **C5**, an offscreen-context parity check, extending the pin to the response-theft
+   defect #123 fixed alongside the gate. `docs` note for future harness work: a stopped MV3
+   service-worker target cannot be probed for detachment, because CDP evaluation against it
+   revives the worker — which is why the stop is proven by latency and target state rather than
+   by asking the worker whether it is running.
 20. Make the settings visual suite render the product's own styles. Every
    `settings-page.test.js` baseline — the two added by PR #125 and the pre-existing ones from
    PR #111 — is captured over `file://`, where neither the module script nor the stylesheet
