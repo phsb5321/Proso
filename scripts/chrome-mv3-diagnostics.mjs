@@ -92,6 +92,14 @@ function isRealPlaybackState(response) {
 const JOURNEY_LOADING_LEAVE_MS = 10_000;
 const JOURNEY_PLAYING_MS = 30_000;
 const ROUNDTRIP_MS = 5_000;
+// Cold wake-up floor: the warm popup→background roundtrip (C3) answers in a
+// few ms; a genuinely cold MV3 worker boot (module eval + init + gate) takes
+// far longer. Any first-answer latency below this means the stop failed and
+// a warm worker answered — a loud failure, never a vacuous green.
+const COLD_WAKE_MIN_MS = 20;
+// Relative cold-wake demand: the first cold answer must be several times the
+// warm roundtrip measured by C3 in the SAME run (warm ≈1-2ms, cold ≈45ms).
+const COLD_WAKE_RATIO = 5;
 
 const checks = [];
 
@@ -402,11 +410,15 @@ async function checkChromeRoundtrip(popup) {
   const result = await popup.evaluate(
     (timeoutMs) =>
       new Promise((resolve) => {
-        const timer = setTimeout(() => resolve({ arrived: false, reason: 'timeout' }), timeoutMs);
+        const t0 = Date.now();
+        const timer = setTimeout(
+          () => resolve({ arrived: false, reason: 'timeout', elapsedMs: Date.now() - t0 }),
+          timeoutMs,
+        );
         globalThis.chrome.runtime.sendMessage({ type: 'playback.getState' }).then(
           (response) => {
             clearTimeout(timer);
-            resolve({ arrived: true, response: response ?? null });
+            resolve({ arrived: true, response: response ?? null, elapsedMs: Date.now() - t0 });
           },
           (error) => {
             clearTimeout(timer);
@@ -423,14 +435,123 @@ async function checkChromeRoundtrip(popup) {
   record(
     'C3 popup roundtrip',
     ok
-      ? `playback.getState answered real state ${JSON.stringify(result.response ?? null).slice(0, 120)}`
+      ? `playback.getState answered real state in ${result.elapsedMs}ms ${JSON.stringify(result.response ?? null).slice(0, 120)}`
       : result.arrived
         ? `playback.getState mis-answered ${JSON.stringify(result.response ?? null).slice(0, 120)}`
         : `response lost: ${result.reason}`,
     ok,
   );
+  return result.elapsedMs;
 }
 
+/**
+ * C4 — cold-worker message race (PROSO-100).
+ *
+ * Stops the MV3 service worker, then immediately messages it from the popup:
+ * the wake-up replays the background script while the message is already in
+ * flight, so the dispatch lands inside the initialization window the message
+ * gate (PROSO-90) protects. The gate defers dispatch until hexagonal init
+ * settles, so every cold answer must be REAL playback state — without the
+ * gate the first cold message dispatches while the Playback container is
+ * still being created (init is awaiting storage reads) and comes back as the
+ * service_unavailable mis-answer. Red when the gate is removed — that is
+ * what pins it.
+ *
+ * Two anti-vacuity layers (a failed stop must be a loud failure, never a
+ * green):
+ *   1. Deterministic stop proof via CDP `ServiceWorker.workerVersionUpdated`
+ *      events: after `stopAllWorkers` the extension worker's version must
+ *      report runningStatus 'stopped'. No evaluation is used to check this —
+ *      CDP evaluation on a stopped service-worker target revives it.
+ *   2. Same-run latency comparison: the first answer must take at least
+ *      `COLD_WAKE_MIN_MS` AND several times the warm roundtrip measured by
+ *      C3 in this same run — a spontaneously re-warmed worker answers at
+ *      warm latency and fails loudly instead of passing vacously. The
+ *      relative term makes the floor machine-independent.
+ */
+async function checkColdWorkerRace(context, popup, warmLatencyMs) {
+  const cdp = await context.newCDPSession(popup);
+  let extVersionStopped = false;
+  cdp.on('ServiceWorker.workerVersionUpdated', (params) => {
+    for (const v of params?.versions ?? []) {
+      if (v.scriptURL?.endsWith('/background.js') && v.runningStatus === 'stopped') {
+        extVersionStopped = true;
+      }
+    }
+  });
+  await cdp.send('ServiceWorker.enable');
+  if (context.serviceWorkers().length === 0) {
+    fail('C4: no extension service worker to stop');
+  }
+  await cdp.send('ServiceWorker.stopAllWorkers');
+  await waitFor(
+    'extension worker version stopped (CDP runningStatus)',
+    () => (extVersionStopped ? true : null),
+    { timeoutMs: 10_000, intervalMs: 100 },
+  );
+
+  // Three sequential cold sends: the first wakes the worker (and is the one
+  // that hits the init window without a gate); the rest land as init
+  // progresses. The gate makes every answer real regardless of timing.
+  const sends = [];
+  for (let i = 0; i < 3; i += 1) {
+    const result = await popup.evaluate(
+      (timeoutMs) =>
+        new Promise((resolve) => {
+          const t0 = Date.now();
+          const timer = setTimeout(
+            () =>
+              resolve({
+                arrived: false,
+                reason: 'timeout',
+                elapsedMs: Date.now() - t0,
+              }),
+            timeoutMs,
+          );
+          globalThis.chrome.runtime.sendMessage({ type: 'playback.getState' }).then(
+            (response) => {
+              clearTimeout(timer);
+              resolve({ arrived: true, response: response ?? null, elapsedMs: Date.now() - t0 });
+            },
+            (error) => {
+              clearTimeout(timer);
+              resolve({
+                arrived: false,
+                reason: error instanceof Error ? error.message : String(error),
+                elapsedMs: Date.now() - t0,
+              });
+            },
+          );
+        }),
+      ROUNDTRIP_MS,
+    );
+    sends.push(result);
+    await sleep(50);
+  }
+
+  const coldEnough =
+    sends[0].elapsedMs >= Math.max(COLD_WAKE_MIN_MS, warmLatencyMs * COLD_WAKE_RATIO);
+  const realAnswers = sends.every((s) => s.arrived && isRealPlaybackState(s.response));
+  const ok = coldEnough && realAnswers;
+  record(
+    'C4 cold-worker race',
+    ok
+      ? `all ${sends.length} cold wake-up answers real; first woke cold in ${sends[0].elapsedMs}ms (warm ${warmLatencyMs}ms)`
+      : [
+          ...(coldEnough
+            ? []
+            : [
+                `first answer ${sends[0].elapsedMs}ms vs warm ${warmLatencyMs}ms — worker not cold`,
+              ]),
+          ...sends.map((s) =>
+            s.arrived
+              ? `answer ${JSON.stringify(s.response ?? null).slice(0, 100)}`
+              : `lost: ${s.reason}`,
+          ),
+        ].join('; '),
+    ok,
+  );
+}
 async function chromeLeg(fixture) {
   if (!existsSync(path.join(chromeBuildDir, 'manifest.json'))) {
     fail(
@@ -526,8 +647,34 @@ async function chromeLeg(fixture) {
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extId}/popup.html`);
       await article.bringToFront();
-      await checkChromeRoundtrip(popup);
+      const warmLatencyMs = await checkChromeRoundtrip(popup);
       await checkChromeStartJourney(fixture, article, popup);
+      // C5 — the offscreen document must actually exist after the journey:
+      // the popup→background roundtrip checks only prove the answer is real
+      // against the contexts that are open. If the offscreen document is
+      // missing here, the harness environment diverges from production (where
+      // its catch-all listener historically stole broadcast responses,
+      // PROSO-90) and the roundtrips cannot prove that defect stays fixed.
+      const offscreenCount = await popup.evaluate(
+        () =>
+          new Promise((resolve) => {
+            globalThis.chrome.runtime.getContexts({
+              contextTypes: ['OFFSCREEN_DOCUMENT'],
+            }).then(
+              (ctxs) => resolve(ctxs.length),
+              () => resolve(-1),
+            );
+          }),
+      );
+      record(
+        'C5 offscreen document present',
+        offscreenCount > 0 ? `offscreen contexts: ${offscreenCount}` : `found ${offscreenCount}`,
+        offscreenCount > 0,
+      );
+
+      // C4 must run last: it stops the worker, which would re-warm for the
+      // checks above if it ran before them.
+      await checkColdWorkerRace(context, popup, warmLatencyMs);
       await popup.close();
       await article.close();
     } finally {
