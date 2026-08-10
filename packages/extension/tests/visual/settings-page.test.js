@@ -81,29 +81,45 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   });
 
   // Test API keys section expanded
-  test('api keys section expanded - light mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+  for (const mode of ['light', 'dark']) {
+    test(`api keys section - ${mode} mode`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: mode });
+      await page.goto(`file://${SETTINGS_PATH}`);
+      await page.waitForLoadState('domcontentloaded');
+      await disableAnimations(page);
+      await waitForLayoutStable(page, 'main', 100);
 
-    // Expand API keys section if collapsed
-    const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
-    if ((await apiKeysSection.count()) > 0) {
-      const header = apiKeysSection.locator('.proso-accordion__header');
-      const isExpanded = (await header.getAttribute('aria-expanded')) === 'true';
-      if (!isExpanded) {
-        await header.click();
-        await waitForLayoutStable(page, '[data-testid="settings-api-keys-section"]', 50);
-      }
+      // The API-keys content lives inside the collapsed Developer accordion.
+      // This harness loads the page as file:// with no extension context, so
+      // options/main.ts (which binds the accordion listeners) cannot run; the
+      // page's own click handler never exists here. Expand the accordion the
+      // way the page would (aria-expanded + un-hide the content), then assert
+      // the real UI below — a vanished accordion or testid still FAILS the
+      // toBeVisible assertions, so this is not a vacuous guard.
+      const developerSection = page.locator('[data-section="developer"]');
+      await expect(developerSection).toBeVisible();
+      await page.evaluate(() => {
+        const section = document.querySelector('[data-section="developer"]');
+        const header = section?.querySelector('.proso-accordion__header');
+        const content = section ? document.getElementById(header?.getAttribute('aria-controls') ?? '') : null;
+        header?.setAttribute('aria-expanded', 'true');
+        content?.removeAttribute('hidden');
+      });
+      await waitForLayoutStable(page, '[data-testid="settings-api-keys-section"]', 50);
+      const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
+      await expect(apiKeysSection).toBeVisible();
+      const elevenLabsCard = apiKeysSection.locator('.provider-card[data-provider="elevenlabs"]');
+      await expect(elevenLabsCard).toBeVisible();
+      await expect(elevenLabsCard.locator('input#elevenlabsKey')).toBeVisible();
+
       await apiKeysSection.scrollIntoViewIfNeeded();
+      await waitForLayoutStable(page, '[data-testid="settings-api-keys-section"]', 50);
 
-      await expect(apiKeysSection).toHaveScreenshot('api-keys-section-light.png', {
+      await expect(apiKeysSection).toHaveScreenshot(`api-keys-section-${mode}.png`, {
         maxDiffPixelRatio: 0.02,
       });
-    }
-  });
+    });
+  }
 
   // Test appearance section
   test('appearance section - light mode', async ({ page }) => {
@@ -141,30 +157,6 @@ test.describe('Settings Page Visual Tests (T040)', () => {
     const sidebar = page.locator('#settings-sidebar, .settings-sidebar');
     if ((await sidebar.count()) > 0) {
       await expect(sidebar).toHaveScreenshot('sidebar-navigation-light.png', {
-        maxDiffPixelRatio: 0.02,
-      });
-    }
-  });
-
-  // Test settings page in dark mode with sections
-  test('api keys section - dark mode', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
-
-    const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
-    if ((await apiKeysSection.count()) > 0) {
-      const header = apiKeysSection.locator('.proso-accordion__header');
-      const isExpanded = (await header.getAttribute('aria-expanded')) === 'true';
-      if (!isExpanded) {
-        await header.click();
-        await waitForLayoutStable(page, '[data-testid="settings-api-keys-section"]', 50);
-      }
-      await apiKeysSection.scrollIntoViewIfNeeded();
-
-      await expect(apiKeysSection).toHaveScreenshot('api-keys-section-dark.png', {
         maxDiffPixelRatio: 0.02,
       });
     }
