@@ -89,9 +89,28 @@ test.describe('Settings Page Visual Tests (T040)', () => {
       await disableAnimations(page);
       await waitForLayoutStable(page, 'main', 100);
 
-      // The API-keys subsection is always visible (not an accordion): it must
-      // exist, carry the tagged provider card, and render its key input. No
-      // count>0 guard — a missing section must FAIL, not silently no-op.
+      // The API-keys content lives inside the collapsed Developer accordion:
+      // expand it, then assert the tagged subsection and its provider card
+      // exist and render. No count>0 guard — a missing section must FAIL,
+      // not silently no-op (a vanished accordion or testid fails the
+      // toBeVisible assertions below, not an empty branch).
+      const developerSection = page.locator('[data-section="developer"]');
+      await expect(developerSection).toBeVisible();
+      const header = developerSection.locator('.proso-accordion__header');
+      // The accordion listener is bound by an async module script; a click can
+      // race it and be swallowed. Retry deterministically: click only while
+      // collapsed, and verify the attribute flipped (never double-toggle).
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if ((await header.getAttribute('aria-expanded')) !== 'true') {
+          await header.click();
+        }
+        try {
+          await expect(header).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
+          break;
+        } catch {
+          // raced — retry from the current state
+        }
+      }
       const apiKeysSection = page.locator('[data-testid="settings-api-keys-section"]');
       await expect(apiKeysSection).toBeVisible();
       const elevenLabsCard = apiKeysSection.locator('.provider-card[data-provider="elevenlabs"]');
