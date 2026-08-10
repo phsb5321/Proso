@@ -17,9 +17,17 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { setMessageGate, waitForMessageGate } from '../../../src/background/message-gate';
+import {
+  resetMessageGate,
+  setMessageGate,
+  waitForMessageGate,
+} from '../../../src/background/message-gate';
 
 describe('message gate (PROSO-90)', () => {
+  beforeEach(() => {
+    resetMessageGate();
+  });
+
   it('blocks until the readiness promise settles, then resolves', async () => {
     let release!: () => void;
     const readiness = new Promise<void>((resolve) => {
@@ -58,6 +66,18 @@ describe('message gate (PROSO-90)', () => {
     setMessageGate(readiness.catch(() => undefined));
 
     await expect(waitForMessageGate()).resolves.toBeUndefined();
+  });
+
+  it('is single-shot: a later setMessageGate cannot swap the gate', async () => {
+    setMessageGate(Promise.resolve('first'));
+    const late = new Promise<void>((resolve) => setTimeout(resolve, 5));
+    setMessageGate(late); // must be ignored
+    let resolved = false;
+    const waiter = waitForMessageGate().then(() => {
+      resolved = true;
+    });
+    await waiter;
+    expect(resolved).toBe(true);
   });
 
   it('rejects waiters when a raw rejecting promise is stored (why the caller must .catch)', async () => {

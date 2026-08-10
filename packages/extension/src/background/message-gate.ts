@@ -21,12 +21,24 @@
  */
 
 let gate: Promise<unknown> = Promise.resolve();
+let gateSet = false;
 
 /**
  * Point the gate at the readiness promise (handler registration settled).
+ * Single-shot: the background entrypoint sets it exactly once, and no later
+ * caller can swap in a rejecting promise after the fact.
  */
 export function setMessageGate(promise: Promise<unknown>): void {
-  gate = promise;
+  if (!gateSet) {
+    gate = promise;
+    gateSet = true;
+  }
+}
+
+/** Test seam: clear the single-shot latch between cases. */
+export function resetMessageGate(): void {
+  gate = Promise.resolve();
+  gateSet = false;
 }
 
 /**
