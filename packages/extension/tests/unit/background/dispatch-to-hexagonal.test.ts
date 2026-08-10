@@ -94,4 +94,20 @@ describe('dispatchToHexagonal (T035)', () => {
       expect(typeof result.error).toBe('string');
     }
   });
+
+  // PROSO-90 race precondition: BEFORE registerAllHandlers, the real dispatch
+  // path mis-answers playback messages with null (the legacy "Unknown message
+  // type" fallback); AFTER registration the same message is served. The gate
+  // in background.ts exists to keep messages out of that window — this pins
+  // what the gate protects.
+  it('serves playback.getState once handlers are registered (PROSO-90 race target)', async () => {
+    const before = await dispatchToHexagonal('playback.getState', undefined);
+    expect(before).toBeNull(); // would be mis-answered as Unknown message type
+
+    const registry = getGlobalInstrumentedRegistry();
+    registry.register('playback.getState', async () => Ok({ status: 'stopped' }));
+
+    const after = await dispatchToHexagonal('playback.getState', undefined);
+    expect(after).toEqual({ status: 'stopped' }); // served, not mis-answered
+  });
 });
