@@ -23,11 +23,17 @@ The Firefox-first route is:
 `POST /api/v1/tts/synthesize` → background `Audio` → footer, paragraph/word synchronization, and
 controls.
 
-The intended anonymous journey needs no account, license key, or provider key,
-but current `main` does not provide it: Free has no managed-TTS entitlement and
-the server returns 402, while browser `speechSynthesis` was deliberately removed
-in commit `9797dc6`. BYOK remains available on Free. A fixture that returns
-audio without applying this entitlement cannot prove the anonymous outcome.
+The intended anonymous journey needs no account, license key, or provider key.
+**As of 11/08/2026 it has a delivery path for the first time since `9797dc6`**: PR #129
+(`505ef0c`) added a user-operated synthesis host — the reader enters an address, grants
+permission to that exact origin, and page text is synthesized there. Proven live against a
+real host: `synthesizes a real article paragraph with no account, no key, no license` (PASS).
+Managed Free still returns 402 (`7e4cda0`) and browser `speechSynthesis` remains removed —
+neither changed. BYOK remains available on Free, and now covers OpenAI, Groq and Cartesia as
+well as ElevenLabs (PR #131, `07c11c5`); before that the adapters existed server-side while
+the settings UI shipped one provider card, so three of four were backend-reachable and
+user-unreachable. A fixture that returns audio without applying the entitlement still cannot
+prove the anonymous outcome — the receipt above is against a real host, not a fixture.
 
 Feature 100 proposes a user-operated local appliance as a second audio source that needs no
 account, license key, or provider key. Nothing of it is on `main`: the spec is at
@@ -38,7 +44,8 @@ into the route above. The route sentence stands unchanged until that lands.
 
 | Status | Claim | Evidence |
 |---|---|---|
-| ✗ | Current `main` allows a no-key managed request | Commit `7e4cda0` returns 402 before cache/provider work; the earlier behavior at `55add09` is superseded |
+| ✗ | Current `main` allows a no-key managed request | Commit `7e4cda0` returns 402 before cache/provider work; the earlier behavior at `55add09` is superseded. Unchanged by PR #129 — the account-free path is a host the reader operates, not a relaxation of the managed entitlement |
+| ✓ | A reader with no account, no license key and no provider key can hear an article | PR #129 (`505ef0c`, 11/08/2026). `LocalHostAudioAdapter` synthesizes against an address the reader enters; `tests/integration/local-host-live.test.ts` passed against a live host (env-gated by `LOCAL_HOST_E2E_URL`), re-run independently by the orch. All four conditions of constitution Principle I v2.1.0 (PR #92) verified in code before merge: **off by default** (`defaults.ts:47 localHostEnabled: false`, with a dedicated factory suite); **address from the reader only** — `grep -ri "orangepi\|tailf59220\|4pro" packages/extension/src` returns 0, and there is no mDNS/subnet/loopback probe; **runtime exact-origin permission** — `permissions.request({origins: ['${origin}/*']})` at configure time, with requestable-only manifest keys per browser (Firefox MV2 `optional_permissions`, Chrome MV3 `optional_host_permissions`) and install-time `host_permissions` unchanged; **the UI states the destination** — "the page's text is sent only to the host address you enter here, and nowhere else. It is never sent to the Proso servers." Latency is handled rather than hidden: the host does not stream, so synthesis is chunked at sentence granularity — measured live, first audio arrives in 0.52s instead of the 4.29s a paragraph-sized request takes |
 | ✓ | A deterministic downstream oracle joins extraction, fixture synthesis, audio adaptation, cache, highlight timeline, and controls | `make smoke-reader`; the fixture bypasses the current Free entitlement and is not anonymous-outcome evidence |
 | ✓ | Focused server route and extension orchestration suites pass | Commands below |
 | ✓ | Static gates process real code and changed evidence | `make quality` resolves 501 modules / 805 dependencies, classifies 73 Knip findings and 136 clone groups, and rejects new debt |
