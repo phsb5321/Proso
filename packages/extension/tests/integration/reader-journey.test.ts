@@ -224,8 +224,8 @@ describe('reader journey', () => {
     }
 
     const localFetch = jest.fn<typeof fetch>();
-    localFetch.mockImplementation(async (url: string) => {
-      if (url.endsWith('/v1/capabilities')) {
+    localFetch.mockImplementation(async (url: unknown) => {
+      if (String(url).endsWith('/v1/capabilities')) {
         return {
           ok: true,
           status: 200,
@@ -233,8 +233,8 @@ describe('reader journey', () => {
           json: async () => CAPABILITIES,
         } as unknown as Response;
       }
-      if (url.endsWith('/v1/tts')) return wavResponse(400);
-      throw new Error(`unexpected url ${url}`);
+      if (String(url).endsWith('/v1/tts')) return wavResponse(400);
+      throw new Error(`unexpected url ${String(url)}`);
     });
 
     const extractedText = extractText('article');
