@@ -109,6 +109,13 @@ interface OptionsElements {
   // Telemetry elements (T018)
   telemetryEnabled: HTMLInputElement;
 
+  // Local synthesis host (PROSO-110)
+  localHostEnabled: HTMLInputElement;
+  localHostUrl: HTMLInputElement;
+  localHostVoice: HTMLSelectElement;
+  localHostTestBtn: HTMLButtonElement;
+  localHostStatus: HTMLElement;
+
   // Server status elements
   serverStatusDot: HTMLElement;
   serverStatusText: HTMLElement;
@@ -178,6 +185,13 @@ function getElements(): OptionsElements {
     // Telemetry elements (T018)
     telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
 
+    // Local synthesis host (PROSO-110)
+    localHostEnabled: getElement<HTMLInputElement>('localHostEnabled'),
+    localHostUrl: getElement<HTMLInputElement>('localHostUrl'),
+    localHostVoice: getElement<HTMLSelectElement>('localHostVoice'),
+    localHostTestBtn: getElement<HTMLButtonElement>('testLocalHost'),
+    localHostStatus: getElement<HTMLElement>('localHostStatus'),
+
     // Server status elements
     serverStatusDot: getElement<HTMLElement>('serverStatusDot'),
     serverStatusText: getElement<HTMLElement>('serverStatusText'),
@@ -200,6 +214,7 @@ export async function initOptionsPage(): Promise<void> {
 
   await loadSettings();
   await loadQuickSettings();
+  await loadLocalHostSettings();
   await loadLoggingConfig();
   await loadQueueConfig();
   await loadCacheStats();
@@ -207,6 +222,7 @@ export async function initOptionsPage(): Promise<void> {
   await loadTelemetryConfig();
 
   setupQuickSettingsEventListeners();
+  setupLocalHostEventListeners();
   setupEventListeners();
   setupProviderCardEventListeners();
   setupLoggingEventListeners();
@@ -236,6 +252,177 @@ export async function initOptionsPage(): Promise<void> {
 const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> = {
   elevenlabs: [{ value: 'default', label: 'Default Voice' }],
 };
+
+// ========================================
+// LOCAL SYNTHESIS HOST (PROSO-110)
+// ========================================
+
+/** Voices last loaded from the host's /v1/capabilities (for the voice pickers). */
+let lastLocalHostVoices: Array<{ value: string; label: string }> | null = null;
+
+/**
+ * Load the local-host section state from storage.
+ */
+async function loadLocalHostSettings(): Promise<void> {
+  if (!elements) return;
+  try {
+    const result = await browser.storage.local.get([
+      'localHostUrl',
+      'localHostEnabled',
+      'localHostVoice',
+    ]);
+    elements.localHostUrl.value = (result.localHostUrl as string) || '';
+    elements.localHostEnabled.checked = result.localHostEnabled === true;
+    if (typeof result.localHostVoice === 'string' && result.localHostVoice) {
+      elements.localHostVoice.value = result.localHostVoice;
+    }
+  } catch (error) {
+    log.error('Error loading local host settings', { error });
+  }
+}
+
+/**
+ * Persist the local-host fields. Returns the normalized origin for the
+ * permission grant, or null when the address is invalid.
+ */
+function collectLocalHostOrigin(): string | null {
+  if (!elements) return null;
+  const raw = elements.localHostUrl.value.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'localhost')) {
+      return url.origin;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Save the local-host fields and, on the enable path, request the runtime
+ * host permission for the exact entered origin from the user gesture
+ * (constitution 2.1.0 condition 3; spec 100 FR-6). A denial leaves the
+ * provider disabled with a visible reason.
+ */
+async function saveLocalHostSettings(): Promise<void> {
+  if (!elements) return;
+  const url = elements.localHostUrl.value.trim();
+  const enabled = elements.localHostEnabled.checked;
+
+  const origin = collectLocalHostOrigin();
+  if (enabled && !origin) {
+    elements.localHostEnabled.checked = false;
+    elements.localHostStatus.textContent =
+      'Enable requires a valid https:// address (or http://localhost).';
+    return;
+  }
+
+  if (enabled) {
+    const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
+    if (!granted) {
+      elements.localHostEnabled.checked = false;
+      elements.localHostStatus.textContent =
+        'Host permission was not granted — the local route stays disabled.';
+      return;
+    }
+    elements.localHostStatus.textContent = `Permission granted for ${origin}.`;
+  }
+
+  await browser.storage.local.set({
+    localHostUrl: enabled ? url : null,
+    localHostEnabled: enabled,
+    localHostVoice: elements.localHostVoice.value || null,
+    // The local provider is the playback route; selecting it here keeps the
+    // provider dropdown and the section in agreement.
+    provider: enabled ? 'local' : elements.quickProvider.value,
+  });
+  if (enabled) {
+    await browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' });
+  }
+}
+
+/**
+ * Test the connection: request the host permission (user gesture), fetch
+ * /v1/capabilities, and populate the voice pickers from the published voices.
+ */
+async function testLocalHostConnection(): Promise<void> {
+  if (!elements) return;
+  const origin = collectLocalHostOrigin();
+  if (!origin) {
+    elements.localHostStatus.textContent = 'Enter a valid https:// address first.';
+    return;
+  }
+  elements.localHostStatus.textContent = 'Testing…';
+  try {
+    const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
+    if (!granted) {
+      elements.localHostStatus.textContent = 'Host permission was not granted.';
+      return;
+    }
+    const response = await fetch(`${origin}/v1/capabilities`, {
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok) {
+      elements.localHostStatus.textContent = `Host answered ${response.status} — check the address.`;
+      return;
+    }
+    const caps = (await response.json()) as {
+      ready?: boolean;
+      tts?: { voices?: Array<{ id: string; language: string }> };
+    };
+    if (!caps.ready) {
+      elements.localHostStatus.textContent = 'Host is not ready yet — try again shortly.';
+      return;
+    }
+    const voices = (caps.tts?.voices ?? []).map((voice) => ({
+      value: voice.id,
+      label: `${voice.id} (${voice.language})`,
+    }));
+    lastLocalHostVoices = voices;
+    while (elements.localHostVoice.firstChild) {
+      elements.localHostVoice.removeChild(elements.localHostVoice.firstChild);
+    }
+    const auto = document.createElement('option');
+    auto.value = '';
+    auto.textContent = 'Automatic (by article language)';
+    elements.localHostVoice.appendChild(auto);
+    for (const voice of voices) {
+      const option = document.createElement('option');
+      option.value = voice.value;
+      option.textContent = voice.label;
+      elements.localHostVoice.appendChild(option);
+    }
+    elements.localHostStatus.textContent = `Connected — ${voices.length} voice(s) found.`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    elements.localHostStatus.textContent = `Connection failed: ${message}`;
+  }
+}
+
+/**
+ * Local-host section listeners: debounced save on input, permission request
+ * on enable, and the Test connection button.
+ */
+function setupLocalHostEventListeners(): void {
+  if (!elements) return;
+
+  elements.localHostUrl.addEventListener('input', () => {
+    if (!elements) return;
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => void saveLocalHostSettings(), 600);
+  });
+  elements.localHostVoice.addEventListener('change', () => {
+    void saveLocalHostSettings();
+  });
+  elements.localHostEnabled.addEventListener('change', () => {
+    void saveLocalHostSettings();
+  });
+  elements.localHostTestBtn.addEventListener('click', () => {
+    void testLocalHostConnection();
+  });
+}
 
 /**
  * Load Quick Settings from storage
@@ -288,7 +475,10 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
   voiceSelect.appendChild(defaultOption);
 
   // Get voices for provider
-  const voices = PROVIDER_VOICES[provider] || [];
+  const voices =
+    provider === 'local'
+      ? (lastLocalHostVoices || [])
+      : (PROVIDER_VOICES[provider] || []);
 
   // Add voice options
   voices.forEach((voice) => {

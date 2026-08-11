@@ -28,13 +28,13 @@ const request: AudioRequest = {
 
 async function storageGet(keys: string[]): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
-  for (const key of keys) out[key] = (browser.storage.local.get as jest.Mock).mock.results[0]?.value ?? {};
+  for (const key of keys) out[key] = (permissioned.storage.local.get).mock.results[0]?.value ?? {};
   return out;
 }
 
 function makeStorageMock(values: Record<string, unknown>): void {
-  (browser.storage.local.get as jest.Mock).mockResolvedValue(values);
-  (browser.permissions.contains as jest.Mock).mockResolvedValue(true);
+  (permissioned.storage.local.get as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(values);
+  (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(true);
 }
 
 /** Assert a failed-gate result issued no network request (FR-2). */
@@ -46,8 +46,9 @@ function expectNoRequestsIssued(result: { ok: boolean }): void {
 }
 
 /** jsdom lacks fetch: install a call-tracking stub. */
-function withFetchStub(): jest.Mock {
-  const stub = jest.fn();
+type FetchStub = Mockable & { mock: { calls: Array<unknown[]> } };
+function withFetchStub(): FetchStub {
+  const stub = jest.fn() as unknown as FetchStub;
   (globalThis as Record<string, unknown>).fetch = stub;
   return stub;
 }
@@ -57,9 +58,19 @@ function restoreFetch(): void {
 }
 
 // The env's browser stub may lack the permissions API the gate uses.
-const permissioned = browser as typeof browser & { permissions: { contains: jest.Mock } };
+interface Mockable {
+  mockResolvedValue(value: unknown): void;
+}
+interface PermissionedBrowser {
+  storage: { local: { get: Mockable & { mock: { results: Array<{ value?: unknown }> } }; set: jest.Mock; remove: jest.Mock } };
+  permissions: { contains: Mockable; request: Mockable };
+}
+const permissioned = browser as unknown as PermissionedBrowser;
 if (!permissioned.permissions) {
-  permissioned.permissions = { contains: jest.fn().mockResolvedValue(true) };
+  permissioned.permissions = {
+    contains: jest.fn(async () => true) as unknown as Mockable,
+    request: jest.fn(async () => true) as unknown as Mockable,
+  };
 }
 
 describe('createAudioGeneratorAdapter local branch', () => {
@@ -78,12 +89,12 @@ describe('createAudioGeneratorAdapter local branch', () => {
     makeStorageMock({ localHostUrl: undefined, localHostEnabled: true });
     const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
     await adapter.generateAudio(request);
-    expect((browser.permissions.contains as jest.Mock)).not.toHaveBeenCalled();
+    expect((permissioned.permissions.contains)).not.toHaveBeenCalled();
   });
 
   it('configured and enabled but permission revoked: no request is issued', async () => {
     makeStorageMock({ localHostUrl: 'https://host.example', localHostEnabled: true });
-    (browser.permissions.contains as jest.Mock).mockResolvedValue(false);
+    (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(false);
 
     const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
     const result = await adapter.generateAudio(request);
@@ -95,7 +106,7 @@ describe('createAudioGeneratorAdapter local branch', () => {
 
   it('configured + enabled + permitted: local adapter is built and the host is contacted', async () => {
     makeStorageMock({ localHostUrl: 'https://host.example', localHostEnabled: true });
-    (browser.permissions.contains as jest.Mock).mockResolvedValue(true);
+    (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(true);
     const fetchStub = withFetchStub();
     const body = JSON.stringify({ ready: true, tts: { voices: [] } });
     fetchStub.mockResolvedValue({
@@ -110,7 +121,7 @@ describe('createAudioGeneratorAdapter local branch', () => {
     await adapter.generateAudio(request);
 
     // Capabilities were fetched from the configured origin.
-    expect(fetchStub).toHaveBeenCalled();
+    expect(fetchStub.mock.calls.length).toBeGreaterThan(0);
     const firstCall = fetchStub.mock.calls[0]?.[0] as string;
     expect(firstCall.startsWith('https://host.example/')).toBe(true);
     restoreFetch();
