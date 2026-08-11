@@ -763,13 +763,16 @@ export class PlaybackService {
       language: this.detectedLanguage,
     };
 
-    const generator = this.audioGenerator.generateAudioChunks;
-    if (!generator) {
+    if (!this.audioGenerator.generateAudioChunks) {
       const error = playbackError.playbackFailed('Generator advertises chunked synthesis but has none');
       await this.setError(error);
       return Err(error);
     }
-    const iterator = generator(request, this.currentAbortController?.signal);
+    // Called as a method so the generator keeps its `this` binding.
+    const iterator = this.audioGenerator.generateAudioChunks(
+      request,
+      this.currentAbortController?.signal,
+    );
 
     // Chunk 0 — the paragraph starts playing as soon as the first sentence is
     // synthesized (~1-2s warm, spec 100 FR-11).
