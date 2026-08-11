@@ -26,6 +26,11 @@ export interface AppConfig {
   readonly cacheType: 'indexeddb' | 'memory';
   readonly serverUrl: string | null;
   readonly licenseKey: string | null;
+  // PROSO-110: user-operated synthesis host. Off by default; the address is
+  // the reader's own entry, never a shipped constant.
+  readonly localHostUrl: string | null;
+  readonly localHostEnabled: boolean;
+  readonly localHostVoice: string | null;
 }
 
 /**

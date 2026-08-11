@@ -128,13 +128,15 @@ describe('Provider Handlers', () => {
 
       const { providers, currentProvider } = result.value;
       expect(currentProvider).toBe('elevenlabs');
-      expect(providers).toHaveLength(4);
+      expect(providers).toHaveLength(5);
 
       const ids = providers.map((p) => p.id);
       expect(ids).toContain('elevenlabs');
       expect(ids).toContain('openai');
       expect(ids).toContain('groq');
       expect(ids).toContain('cartesia');
+      // PROSO-110: the local synthesis host is a selectable provider.
+      expect(ids).toContain('local');
       expect(ids).not.toContain('browser');
 
       const elevenProvider = providers.find((p) => p.id === 'elevenlabs');

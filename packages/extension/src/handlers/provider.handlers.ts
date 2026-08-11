@@ -97,6 +97,13 @@ const PROVIDER_METADATA: Record<ProviderId, Omit<ProviderInfo, 'id'>> = {
     requiresApiKey: true,
     supportedLanguages: ['en'],
   },
+  local: {
+    name: 'Local synthesis host',
+    description: 'A reader-operated TTS host on your own network (no account, no key)',
+    supportsWordTiming: false,
+    requiresApiKey: false,
+    supportedLanguages: ['pt-BR', 'en-US'],
+  },
 };
 
 /**
@@ -157,7 +164,7 @@ export function registerProviderHandlers(registry: HandlerRegistry): void {
       if (!parsed.success) {
         return Err({
           type: 'invalid_params',
-          message: 'Invalid provider. Must be one of: elevenlabs, openai, groq, cartesia',
+          message: 'Invalid provider. Must be one of: elevenlabs, openai, groq, cartesia, local',
         });
       }
 

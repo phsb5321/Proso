@@ -153,6 +153,9 @@ const defaultConfig = {
   cacheType: 'memory' as const,
   serverUrl: null,
   licenseKey: null,
+  localHostUrl: null,
+  localHostEnabled: false,
+  localHostVoice: null,
 };
 
 const defaultApiKeys = {
@@ -514,7 +517,7 @@ describe('Container', () => {
 
   describe('container structure', () => {
     it('should expose config on the container object', () => {
-      const config = { provider: 'elevenlabs' as const, cacheType: 'memory' as const, serverUrl: null, licenseKey: null };
+      const config = { provider: 'elevenlabs' as const, cacheType: 'memory' as const, serverUrl: null, licenseKey: null, localHostUrl: null, localHostEnabled: false, localHostVoice: null };
       const container = createContainer(config, defaultApiKeys);
 
       expect(container.config).toBe(config);

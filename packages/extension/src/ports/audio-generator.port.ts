@@ -69,6 +69,25 @@ export interface IAudioGenerator {
   ): Promise<Result<AudioResponse, AudioError>>;
 
   /**
+   * Whether this provider supports sentence-granular chunked synthesis
+   * (PROSO-110 / spec 100 FR-7). A generator that advertises this MUST
+   * implement `generateAudioChunks`.
+   *
+   * Chunked synthesis exists because the local host cannot stream: a
+   * paragraph-sized request means ~8s of silence before playback starts, so
+   * playback consumes sentence chunks as they complete. Absent/undefined =
+   * paragraph-granular synthesis only.
+   */
+  readonly supportsChunkedSynthesis?: boolean;
+
+  /**
+   * Synthesize a request at sentence granularity, yielding each chunk as it
+   * completes. The first yielded result is the first sentence's audio; the
+   * consumer plays it while the generator prefetches the rest (at most one
+   * in flight plus at most one prefetched). Only required when
+   * `supportsChunkedSynthesis` is true.
+   */
+  /**
    * Get available voices for a language.
    * @param language - Optional BCP-47 language code
    * @returns Result with voice list or error
@@ -91,9 +110,16 @@ export interface IAudioGenerator {
    */
   readonly supportsWordTiming: boolean;
 
+  generateAudioChunks?(
+    request: AudioRequest,
+    signal?: AbortSignal,
+  ): AsyncGenerator<Result<AudioResponse, AudioError>, void, void>;
+
   /**
    * Supported languages (BCP-47 codes).
    * Empty array means all languages supported.
    */
   readonly supportedLanguages: readonly string[];
+
+
 }
