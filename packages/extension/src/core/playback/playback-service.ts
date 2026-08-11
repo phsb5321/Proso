@@ -259,6 +259,7 @@ export class PlaybackService {
 
     // Clear word timings
     this.clearWordTimings();
+    this.resetChunkState(-1);
 
     // Halt and discard prefetch state — a stopped sequence must not keep
     // fetching or hold onto blob URLs for paragraphs that won't play (FR-010,
@@ -295,6 +296,8 @@ export class PlaybackService {
     // Forward advance by exactly one — mirrors the queue's own advance()
     // semantics (marks the left paragraph 'completed', not just 'ready').
     this.deps.prefetch?.queue.advance();
+    // A paragraph transition ends any in-flight chunk sequence (PROSO-110).
+    this.resetChunkState(-1);
     return this.generateCurrentParagraph();
   }
 
@@ -311,6 +314,8 @@ export class PlaybackService {
     // Backward move is a re-target, not an advance — jumpTo() re-derives the
     // prefetch window around the new position (FR-010).
     this.deps.prefetch?.queue.jumpTo(this.state.currentParagraphIndex);
+    // A re-target ends any in-flight chunk sequence (PROSO-110).
+    this.resetChunkState(-1);
     return this.generateCurrentParagraph();
   }
 
@@ -325,6 +330,7 @@ export class PlaybackService {
     this.state = playbackStateTransitions.seekToParagraph(this.state, index);
     // Arbitrary jump — same re-target as previous() (FR-010).
     this.deps.prefetch?.queue.jumpTo(index);
+    this.resetChunkState(-1);
     return this.generateCurrentParagraph();
   }
 
@@ -713,11 +719,240 @@ export class PlaybackService {
   }
 
   /**
+   * PROSO-110 chunked playback: per-paragraph sentence chunks consumed on
+   * 'ended' instead of advancing. Only populated on the local-host path.
+   */
+  private chunkQueue: Array<{ audioBlob: Blob; durationMs: number; error?: string }> = [];
+  private chunkQueueDone = false;
+  private chunkTotalMs = 0;
+  private chunkPlayedMs = 0;
+  private chunkBaseMs = 0;
+  private chunkGeneration = -1;
+  private continueChunkedOrAdvance: () => void = () => {};
+  private funnelPlaybackError: (error: unknown) => void = () => {};
+
+  /**
    * Clear word sync state.
    */
   private clearWordTimings(): void {
     this.currentWordTimings = [];
     this.currentWordIndex = -1;
+  }
+
+  /**
+   * PROSO-110 chunked path: consume sentence chunks from the generator's
+   * iterator, play chunk 0 immediately, drain the rest in the background
+   * (adapter keeps at most one in flight + one prefetched), and replay each
+   * queued chunk on 'ended' before advancing to the next paragraph.
+   */
+  private async generateAndPlayChunkedParagraph(
+    index: number,
+    generation: number,
+  ): Promise<Result<PlaybackState, PlaybackError>> {
+    this.clearWordTimings();
+    this.resetChunkState(generation);
+
+    const textResult = await this.paragraphTextOrError(index);
+    if (isErr(textResult)) return textResult;
+    const text = textResult.value;
+
+    const request: AudioRequest = {
+      text,
+      voice: this.state.voice,
+      speed: this.state.speed,
+      language: this.detectedLanguage,
+    };
+
+    const generator = this.audioGenerator.generateAudioChunks;
+    if (!generator) {
+      const error = playbackError.playbackFailed('Generator advertises chunked synthesis but has none');
+      await this.setError(error);
+      return Err(error);
+    }
+    const iterator = generator(request, this.currentAbortController?.signal);
+
+    // Chunk 0 — the paragraph starts playing as soon as the first sentence is
+    // synthesized (~1-2s warm, spec 100 FR-11).
+    const first = await iterator.next();
+    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
+    if (first.done) {
+      const error = playbackError.playbackFailed(
+        'Local synthesis host produced no audio for this paragraph',
+      );
+      await this.setError(error);
+      return Err(error);
+    }
+    if (isErr(first.value)) {
+      const error = this.convertAudioError(first.value.error);
+      await this.setError(error);
+      return Err(error);
+    }
+    const firstChunk = first.value.value;
+    this.chunkTotalMs = firstChunk.durationMs;
+    this.chunkBaseMs = 0;
+
+    // Drain the remaining chunks ahead of playback (never starves at the
+    // measured RTF ~0.2: the producer runs ~5x ahead of the consumer).
+    void this.drainChunkQueue(iterator, generation);
+
+    const played = await this.playAudio(firstChunk.audioBlob, generation);
+    if (!played) return Ok(this.state);
+
+    // Timeline covers what has been received so far; it grows as chunks land.
+    return this.finalizeParagraphPlayback(index, generation, {
+      durationMs: firstChunk.durationMs + (this.chunkTotalMs - firstChunk.durationMs),
+      providerTimings: null,
+      preconvertedTimings: null,
+    });
+  }
+
+  /** Consume the chunk iterator into the queue, ahead of playback. */
+  private async drainChunkQueue(
+    iterator: AsyncGenerator<Result<AudioResponse, AudioError>, void, void>,
+    generation: number,
+  ): Promise<void> {
+    try {
+      for await (const chunk of iterator) {
+        if (!this.isCurrentGeneration(generation)) return;
+        if (isErr(chunk)) {
+          const message =
+            chunk.error.type === 'network' || chunk.error.type === 'provider_error'
+              ? chunk.error.message
+              : chunk.error.type === 'rate_limit'
+                ? 'Local synthesis host is busy; retrying'
+                : 'Local synthesis host failed';
+          this.chunkQueue.push({ audioBlob: new Blob(), durationMs: 0, error: message });
+        } else {
+          this.chunkQueue.push({ audioBlob: chunk.value.audioBlob, durationMs: chunk.value.durationMs });
+          this.chunkTotalMs += chunk.value.durationMs;
+        }
+      }
+    } catch {
+      // Iterator failure surfaces as the paragraph's next 'ended' handler
+      // finding the queue done-and-empty — the normal failure funnel reports
+      // it there rather than dying silently.
+    } finally {
+      this.chunkQueueDone = true;
+    }
+  }
+
+  /** Reset per-paragraph chunk state, binding it to a generation. */
+  private resetChunkState(generation: number): void {
+    this.chunkQueue = [];
+    this.chunkQueueDone = false;
+    this.chunkTotalMs = 0;
+    this.chunkPlayedMs = 0;
+    this.chunkBaseMs = 0;
+    this.chunkGeneration = generation;
+  }
+
+  /**
+   * Play the next queued chunk for the current paragraph (invoked from the
+   * audio element's 'ended' handler). Rebuilds the word timeline against the
+   * running paragraph total so highlighting keeps covering the whole
+   * paragraph as chunks land (spec 100 D-3: estimate from a real duration).
+   */
+  private async playNextChunk(): Promise<boolean> {
+    const chunk = this.chunkQueue.shift();
+    if (!chunk) {
+      this.chunkQueueDone = true;
+      return false;
+    }
+    const generation = this.chunkGeneration;
+    if (!this.isCurrentGeneration(generation)) return false;
+
+    if (chunk.error) {
+      await this.setError(playbackError.playbackFailed(chunk.error));
+      return false;
+    }
+
+    this.chunkBaseMs = this.chunkPlayedMs;
+    const played = await this.playAudio(chunk.audioBlob, generation);
+    if (!played) return false;
+    this.chunkPlayedMs += chunk.durationMs;
+
+    // Rebuild the timeline: paragraph time = chunkBaseMs + element time.
+    const paragraphText = this.state.paragraphs[this.state.currentParagraphIndex] ?? '';
+    const totalMs = this.chunkBaseMs + chunk.durationMs;
+    if (totalMs > 0 && this.state.activeTabId !== null) {
+      await this.buildAndSetWordTimeline(
+        this.state.currentParagraphIndex,
+        paragraphText,
+        totalMs,
+        null,
+        null,
+        generation,
+      );
+    }
+    return true;
+  }
+
+  /**
+   * Shared timeline builder (PROSO-110): convert provider timings when
+   * present, else estimate from a real duration; publish and bind the
+   * timeline to the current generation. Returns false when the generation
+   * moved on mid-build (caller should stop the tail).
+   */
+  private async buildAndSetWordTimeline(
+    index: number,
+    paragraphText: string,
+    durationMs: number,
+    preconvertedTimings: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }> | null,
+    providerTimings: readonly { word: string; startMs: number; endMs: number }[] | null,
+    generation: number,
+  ): Promise<boolean> {
+    if (durationMs <= 0) return true;
+    let wordTimings: Array<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startTimeMs: number;
+      endTimeMs: number;
+    }>;
+
+    if (preconvertedTimings && preconvertedTimings.length > 0) {
+      wordTimings = [...preconvertedTimings];
+    } else if (providerTimings && providerTimings.length > 0) {
+      // Use real provider timestamps (e.g. ElevenLabs, cached entries)
+      wordTimings = this.convertProviderTimings(providerTimings, paragraphText);
+    } else {
+      wordTimings = this.estimateWordTimings(paragraphText, durationMs);
+    }
+
+    this.currentWordTimings = wordTimings;
+    this.currentWordIndex = -1;
+
+    if (wordTimings.length === 0 || this.state.activeTabId === null) return true;
+
+    const timelineResult = await this.deps.highlightSync.setWordTimeline(
+      this.state.activeTabId,
+      index,
+      wordTimings,
+    );
+    await this.checkHighlight('setWordTimeline', timelineResult);
+    return this.isCurrentGeneration(generation);
+  }
+
+  /**
+   * Shared paragraph-text access: an invalid index becomes the same typed
+   * error on every path (cache, network, prefetch, chunked — PROSO-110).
+   */
+  private async paragraphTextOrError(
+    index: number,
+  ): Promise<Result<string, PlaybackError>> {
+    const text = this.state.paragraphs[index];
+    if (!text) {
+      const error = playbackError.invalidParagraphIndex(index, this.state.totalParagraphs);
+      await this.setError(error);
+      return Err(error);
+    }
+    return Ok(text);
   }
 
   /**
@@ -727,15 +962,22 @@ export class PlaybackService {
     index: number,
     generation: number,
   ): Promise<Result<PlaybackState, PlaybackError>> {
+    // PROSO-110: a chunked generator (the local synthesis host) synthesizes at
+    // sentence granularity so playback starts after the first sentence rather
+    // than after a paragraph-sized request (~8s of silence). The chunked path
+    // bypasses the paragraph cache: the host's idempotent replay is its own
+    // cache (~0.11s), and a paragraph-shaped cache entry would hold only the
+    // first sentence.
+    if (this.audioGenerator.supportsChunkedSynthesis && this.audioGenerator.generateAudioChunks) {
+      return this.generateAndPlayChunkedParagraph(index, generation);
+    }
+
     // Clear previous word timings on paragraph transition
     this.clearWordTimings();
 
-    const text = this.state.paragraphs[index];
-    if (!text) {
-      const error = playbackError.invalidParagraphIndex(index, this.state.totalParagraphs);
-      await this.setError(error);
-      return Err(error);
-    }
+    const textResult = await this.paragraphTextOrError(index);
+    if (isErr(textResult)) return textResult;
+    const text = textResult.value;
 
     // Consult the prefetch buffer first (T013): a buffered entry for this
     // index, tagged with the params that produced it (T016/FR-012), skips
@@ -806,15 +1048,7 @@ export class PlaybackService {
       audioResponse = generateResult.value;
 
       // Cache the generated audio
-      const cacheEntry: CacheEntry = {
-        audioBlob: audioResponse.audioBlob,
-        durationMs: audioResponse.durationMs,
-        wordTimings: audioResponse.wordTimings,
-        createdAt: Date.now(),
-        lastAccessedAt: Date.now(),
-        accessCount: 1,
-        sizeBytes: audioResponse.audioBlob.size,
-      };
+      const cacheEntry = makeCacheEntry(audioResponse);
 
       await this.deps.cacheStore.set(cacheKey, cacheEntry);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
@@ -825,6 +1059,35 @@ export class PlaybackService {
     const played = await this.playAudio(audioResponse.audioBlob, generation);
     if (!played) return Ok(this.state);
 
+    return this.finalizeParagraphPlayback(index, generation, {
+      durationMs: audioResponse.durationMs ?? 0,
+      providerTimings: audioResponse.wordTimings,
+      preconvertedTimings: null,
+    });
+  }
+
+  /**
+   * Shared highlight/footer tail after a paragraph's first audio starts
+   * (PROSO-110): moves the state to playing, marks the paragraph, and builds
+   * word timings from provider timings when present, else from the duration.
+   * `chunkExtraMs` lets the chunked path contribute already-received chunk
+   * durations to the timeline even before the whole paragraph has synthesized.
+   */
+  private async finalizeParagraphPlayback(
+    index: number,
+    generation: number,
+    source: {
+      readonly durationMs: number;
+      readonly providerTimings: readonly { word: string; startMs: number; endMs: number }[] | null;
+      readonly preconvertedTimings: ReadonlyArray<{
+        word: string;
+        charOffset: number;
+        charLength: number;
+        startTimeMs: number;
+        endTimeMs: number;
+      }> | null;
+    },
+  ): Promise<Result<PlaybackState, PlaybackError>> {
     // Update state to playing — unless the user paused while this clip loaded.
     // The highlight below still moves to `index` so a resume plays the
     // paragraph the reader can see is next.
@@ -848,36 +1111,18 @@ export class PlaybackService {
       // Use real provider word timings when available, else estimate
       const audioDurationMs = this.audioElement?.duration
         ? this.audioElement.duration * 1000
-        : (audioResponse.durationMs ?? 0);
+        : source.durationMs;
 
       if (audioDurationMs > 0) {
-        let wordTimings: Array<{
-          word: string;
-          charOffset: number;
-          charLength: number;
-          startTimeMs: number;
-          endTimeMs: number;
-        }>;
-
-        if (audioResponse.wordTimings && audioResponse.wordTimings.length > 0) {
-          // Use real provider timestamps (e.g. ElevenLabs, cached entries)
-          wordTimings = this.convertProviderTimings(audioResponse.wordTimings, paragraphText);
-        } else {
-          wordTimings = this.estimateWordTimings(paragraphText, audioDurationMs);
-        }
-
-        this.currentWordTimings = wordTimings;
-        this.currentWordIndex = -1;
-
-        if (wordTimings.length > 0) {
-          const timelineResult = await this.deps.highlightSync.setWordTimeline(
-            this.state.activeTabId,
-            index,
-            wordTimings,
-          );
-          await this.checkHighlight('setWordTimeline', timelineResult);
-          if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-        }
+        const continued = await this.buildAndSetWordTimeline(
+          index,
+          paragraphText,
+          audioDurationMs,
+          source.preconvertedTimings,
+          source.providerTimings,
+          generation,
+        );
+        if (!continued) return Ok(this.state);
       }
     }
 
@@ -908,43 +1153,13 @@ export class PlaybackService {
 
     this.deps.prefetch?.queue.markCached(index);
 
-    // Same rule as the cache/network tail: a pause taken while this clip was
-    // being attached wins, so the status must not claim `playing` for an
-    // element attachAndPlay() deliberately left paused.
-    if (this.state.status !== 'paused') {
-      this.state = playbackStateTransitions.startPlaying(this.state);
-    }
-
-    if (this.state.activeTabId !== null) {
-      const paragraphText = this.state.paragraphs[index] ?? '';
-      const highlightResult = await this.deps.highlightSync.highlightParagraph(
-        this.state.activeTabId,
-        index,
-        true,
-        paragraphText,
-        Date.now(),
-      );
-      await this.checkHighlight('highlightParagraph', highlightResult);
-      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-
-      this.currentWordTimings = prefetched.wordTimings;
-      this.currentWordIndex = -1;
-
-      if (prefetched.wordTimings.length > 0) {
-        const timelineResult = await this.deps.highlightSync.setWordTimeline(
-          this.state.activeTabId,
-          index,
-          prefetched.wordTimings,
-        );
-        await this.checkHighlight('setWordTimeline', timelineResult);
-        if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-      }
-    }
-
-    await this.updateFooterState();
-    if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-
-    return Ok(this.state);
+    // Shared highlight/footer tail (the prefetch path carries pre-converted
+    // word timings — providerTimings and duration are irrelevant to it).
+    return this.finalizeParagraphPlayback(
+      index,
+      generation,
+      { durationMs: 0, providerTimings: null, preconvertedTimings: prefetched.wordTimings },
+    );
   }
 
   /**
@@ -1083,15 +1298,7 @@ export class PlaybackService {
 
     // Durable cache write (INV-006) — see method doc.
     const cacheKey = this.createCacheKey(index, text);
-    const cacheEntry: CacheEntry = {
-      audioBlob: audioResponse.audioBlob,
-      durationMs: audioResponse.durationMs,
-      wordTimings: audioResponse.wordTimings,
-      createdAt: Date.now(),
-      lastAccessedAt: Date.now(),
-      accessCount: 1,
-      sizeBytes: audioResponse.audioBlob.size,
-    };
+    const cacheEntry = makeCacheEntry(audioResponse);
     await this.deps.cacheStore.set(cacheKey, cacheEntry);
 
     const audioUrl = await this.deps.audioUrlProvider.createUrl(audioResponse.audioBlob);
@@ -1144,9 +1351,16 @@ export class PlaybackService {
     if (!this.audioElement?.duration) return false;
     if (this.state.activeTabId === null) return false;
 
+    // PROSO-110: with a chunk queue active, element time is chunk-local;
+    // paragraph time is chunkBaseMs + element time.
+    const chunked = this.chunkGeneration >= 0;
+    const positionMs = chunked
+      ? this.chunkBaseMs + this.audioElement.currentTime * 1000
+      : this.audioElement.currentTime * 1000;
+
     this.deps.highlightSync.sendAudioPosition(
       this.state.activeTabId,
-      this.audioElement.currentTime * 1000,
+      positionMs,
       !this.audioElement.paused,
       this.state.speed,
     );
@@ -1162,7 +1376,13 @@ export class PlaybackService {
 
     this.audioElement.addEventListener('timeupdate', () => {
       if (this.audioElement && this.audioElement.duration) {
-        const progress = this.audioElement.currentTime / this.audioElement.duration;
+        // PROSO-110: chunked playback reports paragraph progress; the total
+        // grows as chunks land, so progress is an approximation until the
+        // paragraph is fully received.
+        const chunked = this.chunkGeneration >= 0 && this.chunkTotalMs > 0;
+        const progress = chunked
+          ? (this.chunkBaseMs + this.audioElement.currentTime * 1000) / this.chunkTotalMs
+          : this.audioElement.currentTime / this.audioElement.duration;
         this.state = playbackStateTransitions.updateProgress(this.state, progress);
         this.updateFooterState();
 
@@ -1179,13 +1399,48 @@ export class PlaybackService {
       // stay in agreement, which is the property that matters here.
       if (this.state.status === 'paused') return;
 
+      // PROSO-110: a queued sentence chunk continues the current paragraph
+      // instead of advancing — playback consumes chunk n+1 while the adapter
+      // prefetches n+2 (one in flight + one prefetched).
+      if (this.chunkQueue.length > 0) {
+        void this.playNextChunk().catch(this.funnelPlaybackError);
+        return;
+      }
+      if (!this.chunkQueueDone && this.chunkGeneration >= 0) {
+        // The drain is still running: wait briefly for the next chunk rather
+        // than advancing (synthesis is ~5x faster than playback, so this is a
+        // rare guard, not the common path).
+        setTimeout(() => this.continueChunkedOrAdvance(), 500);
+        return;
+      }
+      this.resetChunkState(-1);
+
       // Move to next paragraph; route rejection through the same failure
       // funnel so an unexpected throw is still reported (T008).
-      this.next().catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        void this.setError(playbackError.playbackFailed(message));
-      });
+      this.next().catch(this.funnelPlaybackError);
     });
+
+    /**
+     * PROSO-110 continuation: play the next queued chunk if one arrived
+     * during the drain wait, else advance (or advance anyway once the drain
+     * finished without producing one).
+     */
+    this.continueChunkedOrAdvance = (): void => {
+      if (this.chunkQueue.length > 0) {
+        void this.playNextChunk().catch(this.funnelPlaybackError);
+      } else {
+        this.resetChunkState(-1);
+        void this.next().catch(this.funnelPlaybackError);
+      }
+    };
+
+    /**
+     * Route an unexpected throw through the same failure funnel (T008).
+     */
+    this.funnelPlaybackError = (error: unknown): void => {
+      const message = error instanceof Error ? error.message : String(error);
+      void this.setError(playbackError.playbackFailed(message));
+    };
 
     this.audioElement.addEventListener('error', () => {
       const error = playbackError.playbackFailed('Audio playback error');
@@ -1269,4 +1524,21 @@ export class PlaybackService {
     );
     await this.checkHighlight('updateFooterState', result);
   }
+}
+
+
+/**
+ * Shared CacheEntry construction (PROSO-110 dedup): every path that writes a
+ * synthesized response to the cache builds the same entry shape.
+ */
+function makeCacheEntry(audioResponse: AudioResponse): CacheEntry {
+  return {
+    audioBlob: audioResponse.audioBlob,
+    durationMs: audioResponse.durationMs,
+    wordTimings: audioResponse.wordTimings,
+    createdAt: Date.now(),
+    lastAccessedAt: Date.now(),
+    accessCount: 1,
+    sizeBytes: audioResponse.audioBlob.size,
+  };
 }

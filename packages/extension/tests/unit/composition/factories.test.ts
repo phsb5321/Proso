@@ -28,11 +28,19 @@ const { AudioUrlAdapter } = await import(
 const { ServerTtsAudioAdapter } = await import(
   '../../../src/adapters/audio/server-tts-audio.adapter'
 );
+const { FallbackAudioAdapter } = await import(
+  '../../../src/adapters/audio/fallback-audio.adapter'
+);
+const { LocalHostAudioAdapter } = await import(
+  '../../../src/adapters/audio/local-host-audio.adapter'
+);
 
 // Mock the audio barrel to avoid importing offscreen.adapter.ts (uses chrome.* types)
 jest.unstable_mockModule(resolve(srcDir, 'adapters/audio'), () => ({
   AudioUrlAdapter,
   ServerTtsAudioAdapter,
+  FallbackAudioAdapter,
+  LocalHostAudioAdapter,
   OffscreenAudioAdapter: jest.fn(),
   DirectAudioAdapter: jest.fn(),
 }));
