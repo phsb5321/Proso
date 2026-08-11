@@ -34,6 +34,9 @@ const { FallbackAudioAdapter } = await import(
 const { LocalHostAudioAdapter } = await import(
   '../../../src/adapters/audio/local-host-audio.adapter'
 );
+const { NoOpAudioGeneratorAdapter } = await import(
+  '../../../src/adapters/audio/noop-audio-generator.adapter'
+);
 
 // Mock the audio barrel to avoid importing offscreen.adapter.ts (uses chrome.* types)
 jest.unstable_mockModule(resolve(srcDir, 'adapters/audio'), () => ({
@@ -41,6 +44,7 @@ jest.unstable_mockModule(resolve(srcDir, 'adapters/audio'), () => ({
   ServerTtsAudioAdapter,
   FallbackAudioAdapter,
   LocalHostAudioAdapter,
+  NoOpAudioGeneratorAdapter,
   OffscreenAudioAdapter: jest.fn(),
   DirectAudioAdapter: jest.fn(),
 }));

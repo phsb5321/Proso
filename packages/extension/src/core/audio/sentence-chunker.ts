@@ -61,23 +61,32 @@ export function splitSentences(text: string): Result<string[], AudioError> {
 
   while (index < input.length) {
     const char = input[index]!;
-    if (char === '.' || char === '!' || char === '?') {
-      // Ellipsis "…" is its own terminator; a "." sequence like "..." is
-      // consumed as a unit so "lang…graph" stays one sentence's tail.
+    if (char === '!' || char === '?') {
+      chunks.push(input.slice(start, index + 1).trim());
+      start = index + 1;
+      index += 1;
+      continue;
+    }
+    if (char === '.') {
       let end = index + 1;
       while (end < input.length && input[end] === '.') end += 1;
-      if (end < input.length && input[end] !== ' ') {
-        // A period inside an abbreviation/number ("v1.2", "Mr. X") is not a
-        // boundary — keep scanning. Cheap heuristic: no boundary when the
-        // terminator is immediately followed by a non-space and the next
-        // token is lowercase or a digit.
-        const next = input[end]!;
-        const after = end + 1 < input.length ? input[end + 1]! : '';
-        if (/[a-z0-9]/.test(next) && /[^.!?]/.test(after)) {
-          index = end;
-          continue;
-        }
+
+      // Mid-token periods are not boundaries: decimals ("v1.2", "2.5") and
+      // short abbreviations ("Mr.", "Dr.", "St.") keep their sentence. The
+      // abbreviation rule is deliberately narrow — over-splitting an odd
+      // abbreviation only makes a smaller chunk (harmless for TTS), while
+      // splitting a decimal corrupts the spoken text.
+      const prevChar = index > 0 ? input[index - 1]! : '';
+      const nextChar = end < input.length ? input[end]! : ' ';
+      let wordLen = 0;
+      for (let w = index - 1; w >= 0 && /[A-Za-z]/.test(input[w]!); w -= 1) wordLen += 1;
+      const isDecimal = /[0-9]/.test(prevChar) || /[0-9]/.test(nextChar);
+      const isAbbrev = wordLen <= 2 && nextChar === ' ';
+      if (isDecimal || isAbbrev) {
+        index = end;
+        continue;
       }
+
       chunks.push(input.slice(start, end).trim());
       start = end;
       index = end;

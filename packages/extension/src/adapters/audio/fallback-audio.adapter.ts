@@ -183,9 +183,9 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     const gate = await this.gate();
     if (!gate.ok) return this.secondary.getVoices(language);
     const voices = await (await this.getPrimary()).getVoices(language);
-    return voices.ok || voices.error.type === 'unsupported_language'
-      ? voices
-      : this.secondary.getVoices(language);
+    // A declined or failed language falls back to the secondary's voice list
+    // (spec D-2: the local route declines; the reader still gets a picker).
+    return voices.ok ? voices : this.secondary.getVoices(language);
   }
 
   async validateCredentials(): Promise<boolean> {

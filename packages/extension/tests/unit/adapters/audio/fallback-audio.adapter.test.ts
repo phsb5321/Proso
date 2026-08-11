@@ -1,0 +1,156 @@
+/**
+ * Fallback audio adapter unit tests (spec 100 FR-4/FR-2).
+ *
+ * The decorator owns the fallback decision: gate failure routes to the
+ * secondary with the reason retained; the lazy primary is NEVER constructed
+ * when the gate fails (FR-2 — an unconfigured/unpermitted local host issues
+ * no request and builds no adapter); abort is never a fallback trigger.
+ *
+ * @module tests/unit/adapters/audio/fallback-audio
+ */
+
+import { describe, expect, it, jest } from '@jest/globals';
+import { FallbackAudioAdapter } from '../../../../src/adapters/audio/fallback-audio.adapter';
+import { createMockAudioGenerator } from '../../../mocks';
+import { audioError } from '../../../../src/core/shared/errors';
+import { isErr, isOk } from '../../../../src/core/shared/result';
+import type { AudioRequest } from '../../../../src/ports/audio-generator.port';
+
+const request: AudioRequest = {
+  text: 'Hello from the fallback suite.',
+  voice: null,
+  speed: 1,
+  language: 'en',
+};
+
+/**
+ * Shared constructor: every case needs a primary (or factory), a secondary,
+ * and a gate; the helper keeps the individual cases about their own concern.
+ */
+function makeAdapter(
+  overrides: {
+    primary?: ReturnType<typeof createMockAudioGenerator>;
+    primaryFactory?: () => Promise<ReturnType<typeof createMockAudioGenerator>>;
+    secondary?: ReturnType<typeof createMockAudioGenerator>;
+    gate?: () => Promise<{ ok: boolean; reason?: string }>;
+  } = {},
+): {
+  adapter: FallbackAudioAdapter;
+  primary: ReturnType<typeof createMockAudioGenerator>;
+  secondary: ReturnType<typeof createMockAudioGenerator>;
+} {
+  const primary = overrides.primary ?? createMockAudioGenerator({ providerId: 'local' });
+  const secondary = overrides.secondary ?? createMockAudioGenerator();
+  const adapter = new FallbackAudioAdapter({
+    ...(overrides.primaryFactory
+      ? { primaryFactory: overrides.primaryFactory }
+      : { primary }),
+    secondary,
+    gate: overrides.gate ?? (async () => ({ ok: true })),
+  });
+  return { adapter, primary, secondary };
+}
+
+describe('FallbackAudioAdapter', () => {
+  it('serves from the primary when the gate passes', async () => {
+    const { adapter, primary, secondary } = makeAdapter();
+    const result = await adapter.generateAudio(request);
+    expect(isOk(result)).toBe(true);
+    expect(primary.generateAudioCalls).toHaveLength(1);
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+    expect(adapter.lastFallbackReason).toBeNull();
+  });
+
+  it('gate failure routes to the secondary exactly once and never builds the primary (FR-2)', async () => {
+    let built = false;
+    const { adapter, secondary } = makeAdapter({
+      primaryFactory: async () => {
+        built = true;
+        return createMockAudioGenerator({ providerId: 'local' });
+      },
+      gate: async () => ({ ok: false, reason: 'Local synthesis host is disabled' }),
+    });
+
+    const result = await adapter.generateAudio(request);
+    expect(isOk(result)).toBe(true);
+    expect(built).toBe(false);
+    expect(secondary.generateAudioCalls).toHaveLength(1);
+    expect(adapter.lastFallbackReason).toBe('Local synthesis host is disabled');
+  });
+
+  it('primary error falls back to the secondary once, retaining the reason', async () => {
+    const { adapter, primary, secondary } = makeAdapter();
+    primary.setForceError(audioError.network('Host unreachable'));
+    const result = await adapter.generateAudio(request);
+    expect(isOk(result)).toBe(true);
+    expect(secondary.generateAudioCalls).toHaveLength(1);
+    expect(adapter.lastFallbackReason).toContain('Host unreachable');
+  });
+
+  it('abort is never a fallback trigger', async () => {
+    const { adapter, primary, secondary } = makeAdapter();
+    primary.setForceError(audioError.providerError('appliance_aborted', 'Request aborted'));
+    const result = await adapter.generateAudio(request);
+    expect(isErr(result)).toBe(true);
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+  });
+
+  it('chunked synthesis falls back to the secondary as a single chunk on gate failure', async () => {
+    const { adapter, secondary } = makeAdapter({
+      primaryFactory: async () => createMockAudioGenerator({ providerId: 'local' }),
+      gate: async () => ({ ok: false, reason: 'Host permission revoked' }),
+    });
+
+    const chunks = [];
+    for await (const chunk of adapter.generateAudioChunks!(request)) {
+      chunks.push(chunk);
+    }
+    expect(chunks).toHaveLength(1);
+    expect(isOk(chunks[0]!)).toBe(true);
+    expect(secondary.generateAudioCalls).toHaveLength(1);
+    expect(adapter.lastFallbackReason).toBe('Host permission revoked');
+  });
+
+  it('lazy primary is built once and cached', async () => {
+    let builds = 0;
+    const { adapter } = makeAdapter({
+      primaryFactory: async () => {
+        builds += 1;
+        return createMockAudioGenerator({ providerId: 'local' });
+      },
+    });
+
+    await adapter.generateAudio(request);
+    await adapter.generateAudio(request);
+    expect(builds).toBe(1);
+  });
+
+  it('primary factory failure routes to the secondary with the reason', async () => {
+    const { adapter, secondary } = makeAdapter({
+      primaryFactory: async () => {
+        throw new Error('Local synthesis host URL is not configured');
+      },
+    });
+
+    const result = await adapter.generateAudio(request);
+    expect(isOk(result)).toBe(true);
+    expect(secondary.generateAudioCalls).toHaveLength(1);
+    expect(adapter.lastFallbackReason).toContain('not configured');
+  });
+
+  it('validateCredentials respects the gate', async () => {
+    const { adapter } = makeAdapter({
+      gate: async () => ({ ok: false, reason: 'disabled' }),
+    });
+    expect(await adapter.validateCredentials()).toBe(false);
+  });
+
+  it('getVoices falls back when the primary declines a language', async () => {
+    const { adapter, primary } = makeAdapter();
+    jest.spyOn(primary, 'getVoices').mockImplementation(async () =>
+      ({ ok: false, error: audioError.unsupportedLanguage('de') }) as never,
+    );
+    const result = await adapter.getVoices('de');
+    expect(isOk(result)).toBe(true);
+  });
+});
