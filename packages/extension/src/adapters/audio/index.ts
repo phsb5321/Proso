@@ -11,6 +11,10 @@
 // TTS Generator Adapters (IAudioGenerator)
 export { ServerTtsAudioAdapter } from './server-tts-audio.adapter';
 export { NoOpAudioGeneratorAdapter } from './noop-audio-generator.adapter';
+export { FallbackAudioAdapter } from './fallback-audio.adapter';
+export type { FallbackGateResult } from './fallback-audio.adapter';
+export { LocalHostAudioAdapter } from './local-host-audio.adapter';
+export { parseWavDurationMs, APPLIANCE_MAX_TEXT_UTF8_BYTES } from './local-host-audio.adapter';
 export { AudioUrlAdapter } from './audio-url.adapter';
 
 // Playback Adapters (IAudioPlayer)

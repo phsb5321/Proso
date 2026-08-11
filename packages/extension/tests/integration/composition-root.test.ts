@@ -27,6 +27,9 @@ const testConfig: AppConfig = {
   cacheType: 'memory',
   serverUrl: null,
   licenseKey: null,
+  localHostUrl: null,
+  localHostEnabled: false,
+  localHostVoice: null,
 };
 
 const testApiKeys: ApiKeys = {

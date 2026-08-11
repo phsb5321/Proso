@@ -122,12 +122,12 @@ describe('Configuration Schema (TypeScript/Zod)', () => {
 
   describe('PROVIDERS constant', () => {
     test('contains all TTS providers', () => {
-      // Post-071: 4 providers (browser removed)
-      expect(PROVIDERS).toContain('elevenlabs');
-      expect(PROVIDERS).toContain('openai');
-      expect(PROVIDERS).toContain('groq');
-      expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toHaveLength(4);
+      // Post-071: 4 providers (browser removed); PROSO-110 adds the local host.
+      const expected = ['elevenlabs', 'openai', 'groq', 'cartesia', 'local'];
+      for (const provider of expected) {
+        expect(PROVIDERS).toContain(provider);
+      }
+      expect(PROVIDERS).toHaveLength(expected.length);
     });
 
     test('default provider is in PROVIDERS', () => {

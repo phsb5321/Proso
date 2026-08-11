@@ -23,7 +23,7 @@ export type ExtractionMode = 'selection' | 'article' | 'full';
  * Provider ID type
  * Post-045: Only ElevenLabs is supported
  */
-export type ProviderId = 'elevenlabs' | 'openai' | 'groq' | 'cartesia';
+export type ProviderId = 'elevenlabs' | 'openai' | 'groq' | 'cartesia' | 'local';
 
 /**
  * Log level type

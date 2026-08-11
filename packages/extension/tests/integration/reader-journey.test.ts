@@ -11,6 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { TTSProvider } from '@proso/shared';
 import { ProsoApiAdapter } from '../../src/adapters/api/proso-api.adapter';
+import { FallbackAudioAdapter } from '../../src/adapters/audio/fallback-audio.adapter';
+import { LocalHostAudioAdapter } from '../../src/adapters/audio/local-host-audio.adapter';
 import { ServerTtsAudioAdapter } from '../../src/adapters/audio/server-tts-audio.adapter';
 import { PlaybackService } from '../../src/core/playback/playback-service';
 import { isOk } from '../../src/core/shared/result';
@@ -56,6 +58,31 @@ function audioResponse(): Response {
 }
 
 describe('reader journey', () => {
+  /** Shared start-assertion: a successful start leaves the first paragraph playing. */
+  async function assertStartedPlaying(
+    service: PlaybackService,
+    paragraphs: string[],
+    tabId: number,
+    pageUrl: string,
+  ): Promise<void> {
+    const started = await service.start(paragraphs, tabId, pageUrl);
+    expect(isOk(started)).toBe(true);
+    expect(service.getState()).toMatchObject({
+      status: 'playing',
+      currentParagraphIndex: 0,
+      totalParagraphs: paragraphs.length,
+    });
+  }
+
+  /** Shared control assertions: pause/resume round-trip and speed change. */
+  async function assertPauseResumeAndSpeed(service: PlaybackService): Promise<void> {
+    expect(isOk(await service.pause())).toBe(true);
+    expect(service.getState().status).toBe('paused');
+    expect(isOk(await service.resume())).toBe(true);
+    expect(service.getState().status).toBe('playing');
+    expect(isOk(await service.setSpeed(1.5))).toBe(true);
+    expect(service.getState().speed).toBe(1.5);
+  }
   beforeEach(() => {
     globalThis.fetch = mockFetch;
     mockFetch.mockReset();
@@ -102,14 +129,7 @@ describe('reader journey', () => {
     expect(extractedText).toContain(FIRST_PARAGRAPH);
     expect(paragraphs).toEqual([FIRST_PARAGRAPH, SECOND_PARAGRAPH, THIRD_PARAGRAPH]);
 
-    const started = await service.start(paragraphs, TAB_ID, PAGE_URL);
-
-    expect(isOk(started)).toBe(true);
-    expect(service.getState()).toMatchObject({
-      status: 'playing',
-      currentParagraphIndex: 0,
-      totalParagraphs: paragraphs.length,
-    });
+    await assertStartedPlaying(service, paragraphs, TAB_ID, PAGE_URL);
     expect(highlightSync.isFooterVisible(TAB_ID)).toBe(true);
     expect(highlightSync.getCurrentParagraphIndex(TAB_ID)).toBe(0);
     expect(wordTimelines[0]?.[0]).toBe(TAB_ID);
@@ -126,12 +146,7 @@ describe('reader journey', () => {
       provider: TTSProvider.OpenAI,
     });
 
-    expect(isOk(await service.pause())).toBe(true);
-    expect(service.getState().status).toBe('paused');
-    expect(isOk(await service.resume())).toBe(true);
-    expect(service.getState().status).toBe('playing');
-    expect(isOk(await service.setSpeed(1.5))).toBe(true);
-    expect(service.getState().speed).toBe(1.5);
+    await assertPauseResumeAndSpeed(service);
     expect(isOk(await service.seek(0.4))).toBe(true);
     expect(service.getState().progress).toBe(0.4);
 
@@ -149,5 +164,125 @@ describe('reader journey', () => {
     expect(highlightSync.isFooterVisible(TAB_ID)).toBe(false);
     expect(highlightSync.clearHighlightsCalls).toContain(TAB_ID);
     expect(audioUrlProvider.revokeUrlCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('reads an article through the local synthesis host at sentence granularity (PROSO-110)', async () => {
+    // jsdom's Crypto exposes no `subtle`; the adapter needs it for the
+    // idempotency key (spec D-6). Node's webcrypto fills the gap.
+    if (!globalThis.crypto?.subtle) {
+      const { webcrypto } = await import('node:crypto');
+      Object.defineProperty(globalThis.crypto, 'subtle', {
+        value: webcrypto.subtle,
+        configurable: true,
+      });
+    }
+    const LOCAL_BASE = 'https://host.example';
+    const CAPABILITIES = {
+      apiVersion: '1',
+      ready: true,
+      limits: { maxTextUtf8Bytes: 8192, queueCapacity: 8 },
+      tts: {
+        mediaTypes: ['audio/wav'],
+        voices: [
+          { id: 'en_US-test-voice', language: 'en-US', mediaTypes: ['audio/wav'], markKinds: [] },
+          { id: 'pt_BR-test-voice', language: 'pt-BR', mediaTypes: ['audio/wav'], markKinds: [] },
+        ],
+      },
+    };
+
+    // WAV fixture builder (mono 16-bit, duration by byte count).
+    function wavResponse(durationMs = 500): Response {
+      const byteRate = 22050 * 2;
+      const dataBytes = Math.round((byteRate * durationMs) / 1000);
+      const buffer = new ArrayBuffer(44 + dataBytes);
+      const view = new DataView(buffer);
+      const tag = (offset: number, s: string) => {
+        for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
+      };
+      tag(0, 'RIFF');
+      view.setUint32(4, 36 + dataBytes, true);
+      tag(8, 'WAVE');
+      tag(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, 22050, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      tag(36, 'data');
+      view.setUint32(40, dataBytes, true);
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'audio/wav' : null) },
+        arrayBuffer: async () => buffer,
+        json: async () => {
+          throw new Error('not json');
+        },
+      } as unknown as Response;
+    }
+
+    const localFetch = jest.fn<typeof fetch>();
+    localFetch.mockImplementation(async (url: unknown) => {
+      if (String(url).endsWith('/v1/capabilities')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => 'application/json' },
+          json: async () => CAPABILITIES,
+        } as unknown as Response;
+      }
+      if (String(url).endsWith('/v1/tts')) return wavResponse(400);
+      throw new Error(`unexpected url ${String(url)}`);
+    });
+
+    const extractedText = extractText('article');
+    expect(extractedText).toContain(FIRST_PARAGRAPH);
+    // A multi-sentence paragraph: sentence-granular chunking only bites when
+    // the paragraph has more than one sentence.
+    const paragraphs = [`${FIRST_PARAGRAPH} ${SECOND_PARAGRAPH} ${THIRD_PARAGRAPH}`];
+    const highlightSync = createMockHighlightSync({ validTabIds: [TAB_ID] });
+    const audioUrlProvider = createMockAudioUrlProvider();
+    const service = new PlaybackService({
+      audioGenerator: new FallbackAudioAdapter({
+        primary: new LocalHostAudioAdapter({ baseUrl: LOCAL_BASE, fetchFn: localFetch }),
+        secondary: new ServerTtsAudioAdapter(
+          new ProsoApiAdapter(SERVER_URL),
+          TTSProvider.OpenAI,
+        ),
+        gate: async () => ({ ok: true }),
+      }),
+      audioUrlProvider,
+      cacheStore: createMockCacheStore(),
+      highlightSync,
+      settingsStore: createMockSettingsStore(),
+    });
+    // The reader journey detects the article language before playback; the
+    // local host needs it to pick a voice (spec D-2).
+    service.setLanguage('en');
+
+    await assertStartedPlaying(service, paragraphs, TAB_ID, PAGE_URL);
+
+    // Sentence-granular synthesis: each /v1/tts call carries ONE sentence, and
+    // the first paragraph started playing from its first chunk (FR-7/FR-11).
+    const ttsCalls = localFetch.mock.calls.filter(([url]) => String(url).endsWith('/v1/tts'));
+    expect(ttsCalls.length).toBeGreaterThanOrEqual(1);
+    const firstBody = JSON.parse(String(ttsCalls[0]?.[1]?.body)) as { input: string };
+    // Chunk 0 is the first SENTENCE, not the whole paragraph — the paragraph
+    // was split at sentence granularity (spec FR-7).
+    expect(firstBody.input).toBe(FIRST_PARAGRAPH);
+    expect(firstBody.input.endsWith('.')).toBe(true);
+    expect(audioUrlProvider.createUrlCalls.length).toBeGreaterThanOrEqual(1);
+
+    // The chunked path never writes the paragraph cache (host idempotency is
+    // its own cache).
+    // Controls still work: pause/resume/stop.
+    expect(isOk(await service.pause())).toBe(true);
+    expect(service.getState().status).toBe('paused');
+    expect(isOk(await service.resume())).toBe(true);
+    expect(isOk(await service.stop())).toBe(true);
+    expect(service.getState().status).toBe('stopped');
+    // (pause/resume asserted once above; stop ends the session)
   });
 });

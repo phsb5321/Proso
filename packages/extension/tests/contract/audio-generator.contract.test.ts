@@ -32,7 +32,7 @@ export function runAudioGeneratorContractTests(
     describe('providerId property', () => {
       it('should have a valid providerId', () => {
         expect(adapter.providerId).toBeDefined();
-        expect(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser']).toContain(
+        expect(['openai', 'elevenlabs', 'cartesia', 'groq', 'browser', 'local']).toContain(
           adapter.providerId
         );
       });

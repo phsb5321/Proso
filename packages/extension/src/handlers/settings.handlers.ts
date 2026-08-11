@@ -126,7 +126,7 @@ function getSettingsStore(): ISettingsStore {
  * Validate provider ID.
  */
 function isValidProvider(provider: string): provider is ProviderId {
-  return ['elevenlabs', 'openai', 'groq', 'cartesia'].includes(provider);
+  return ['elevenlabs', 'openai', 'groq', 'cartesia', 'local'].includes(provider);
 }
 
 // ============================================
@@ -202,6 +202,7 @@ async function handleSetApiKey(params: ApiKeyParams): Promise<ApiKeySetResponse>
  * These providers no longer make direct API calls from the extension.
  */
 const SERVER_VALIDATED_TTS_PROVIDERS = new Set(['elevenlabs', 'openai', 'groq', 'cartesia']);
+// The local provider takes no key and is never server-validated (PROSO-110).
 
 /**
  * API test endpoints for non-TTS providers (tested directly from extension).

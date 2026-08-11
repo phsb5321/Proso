@@ -103,7 +103,8 @@ describe('Configuration Defaults', () => {
       expect(PROVIDERS).toContain('openai');
       expect(PROVIDERS).toContain('groq');
       expect(PROVIDERS).toContain('cartesia');
-      expect(PROVIDERS).toHaveLength(4);
+      expect(PROVIDERS).toContain('local'); // PROSO-110 selectable provider
+      expect(PROVIDERS).toHaveLength(5);
     });
 
     test('default provider is in PROVIDERS', () => {

@@ -20,6 +20,9 @@ const API_KEY_STORAGE: Record<ProviderId, string> = {
   openai: 'openaiApiKey',
   groq: 'groqApiKey',
   cartesia: 'cartesiaApiKey',
+  // The local host takes no key (PROSO-110): getApiKey('local') returns null
+  // through the falsy-storageKey path below.
+  local: '',
 };
 
 /**

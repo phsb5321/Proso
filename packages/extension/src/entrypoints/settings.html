@@ -172,6 +172,7 @@
               <option value="openai">OpenAI</option>
               <option value="groq">Groq (English only)</option>
               <option value="cartesia">Cartesia (English only)</option>
+              <option value="local">Local synthesis host</option>
             </select>
             <p id="quickProviderHint" class="form-hint">Select your preferred text-to-speech provider</p>
           </div>
@@ -191,6 +192,59 @@
               <span id="quickSpeedValue" class="range-value">1.0x</span>
             </div>
             <p id="quickSpeedHint" class="form-hint">Adjust playback speed (0.5x - 2.0x)</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Local synthesis host (PROSO-110): reader-operated TTS, no account -->
+      <section id="local-host" class="proso-card proso-accordion" data-section="local-host">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="local-host-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 2a7 7 0 0 0-7 7v4a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7z"/>
+              <path d="M19 11a7 7 0 0 1-7 7M8 21h8"/>
+            </svg>
+            Local synthesis host
+          </h2>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+        </button>
+        <div id="local-host-content" class="proso-accordion__content" hidden>
+          <div class="developer-subsection" data-testid="settings-local-host-section">
+            <p class="developer-subsection__description">
+              Use a speech synthesizer on your own network — no account, no license key, no
+              provider key. Your Orange Pi (or any host that speaks the same API) is the first
+              instance. Reading works for Portuguese and English articles.
+            </p>
+            <p class="developer-subsection__description" data-testid="settings-local-host-destination">
+              <strong>Where page text goes:</strong> the page's text is sent only to the host
+              address you enter here, and nowhere else. It is never sent to the Proso servers.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" for="localHostEnabled">
+                <input type="checkbox" id="localHostEnabled" data-testid="settings-local-host-enabled">
+                Enable the local synthesis host
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="localHostUrl">Host address</label>
+              <input type="url" id="localHostUrl" class="proso-input" placeholder="https://host.example" autocomplete="off" spellcheck="false" data-testid="settings-local-host-url">
+              <p class="form-hint">The address must start with https:// (or http:// for localhost).</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="localHostVoice">Voice</label>
+              <select id="localHostVoice" class="proso-select" data-testid="settings-local-host-voice">
+                <option value="">Automatic (by article language)</option>
+              </select>
+              <p class="form-hint">Click "Test connection" to load the voices the host publishes.</p>
+            </div>
+
+            <div class="provider-card__actions">
+              <button type="button" id="testLocalHost" class="proso-button proso-button--secondary" data-testid="settings-local-host-test">Test connection</button>
+            </div>
+            <div id="localHostStatus" class="provider-card__status" role="status" aria-live="polite" data-testid="settings-local-host-status"></div>
           </div>
         </div>
       </section>

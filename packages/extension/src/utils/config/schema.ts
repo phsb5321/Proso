@@ -21,7 +21,7 @@ export const MODES = ['selection', 'article', 'full'] as const;
  * Valid TTS provider values
  * Post-063: All 5 providers supported via hexagonal adapters
  */
-export const PROVIDERS = ['elevenlabs', 'openai', 'groq', 'cartesia'] as const;
+export const PROVIDERS = ['elevenlabs', 'openai', 'groq', 'cartesia', 'local'] as const;
 
 /**
  * Valid language detection sources
@@ -113,6 +113,13 @@ export const settingsSchema = z.object({
   // Proso server integration (064-monorepo-nestjs-dokku)
   serverUrl: z.string().url().nullable().default(null),
   licenseKey: z.string().nullable().default(null),
+
+  // Local synthesis host (PROSO-110): a reader-operated TTS appliance. Off by
+  // default; the address is user-entered and never shipped. `localHostVoice`
+  // overrides voice selection; null = pick from the host's capabilities.
+  localHostUrl: z.string().url().nullable().default(null),
+  localHostEnabled: z.boolean().default(false),
+  localHostVoice: z.string().nullable().default(null),
 });
 
 /**

@@ -20,7 +20,14 @@ import type { ITextExtractor } from '../ports/text-extractor.port';
 import type { ApiKeys } from './types';
 
 // Audio adapters
-import { AudioUrlAdapter, ServerTtsAudioAdapter } from '../adapters/audio';
+import { browser } from 'wxt/browser';
+import {
+  AudioUrlAdapter,
+  FallbackAudioAdapter,
+  LocalHostAudioAdapter,
+  NoOpAudioGeneratorAdapter,
+  ServerTtsAudioAdapter,
+} from '../adapters/audio';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -52,21 +59,92 @@ import { NoOpApiClientAdapter, ProsoApiAdapter } from '../adapters/api';
  *
  * @throws Error if no server is configured
  */
+/** ProviderId -> server TTSProvider mapping (single definition). */
+const SERVER_PROVIDER_MAP: Record<string, TTSProvider> = {
+  openai: TTSProvider.OpenAI,
+  elevenlabs: TTSProvider.ElevenLabs,
+  groq: TTSProvider.Groq,
+  cartesia: TTSProvider.Cartesia,
+};
+
+/**
+ * Secondary for the local provider: the existing server route when
+ * configured, otherwise a no-op with the reason (today's behaviour when
+ * nothing is configured).
+ */
+function createServerOrNoOpSecondary(apiClient?: IApiClient): IAudioGenerator {
+  if (apiClient?.isConfigured) {
+    return new ServerTtsAudioAdapter(
+      apiClient,
+      SERVER_PROVIDER_MAP.elevenlabs ?? TTSProvider.ElevenLabs,
+      undefined,
+    );
+  }
+  return new NoOpAudioGeneratorAdapter(
+    'Proso server is required for TTS. Configure server URL in settings.',
+  );
+}
+
 export function createAudioGeneratorAdapter(
   provider: ProviderId,
   apiKey: string | null,
   apiClient?: IApiClient,
 ): IAudioGenerator {
+  // PROSO-110: the local synthesis host is the reader's own route. The
+  // adapter is constructed lazily inside the gate, so a build with no user
+  // configuration never builds it and issues no request (FR-2). The gate
+  // enforces: enabled flag set, URL configured, and the runtime host
+  // permission granted for the entered origin (constitution 2.1.0).
+  if (provider === 'local') {
+    const gate = async (): Promise<{ ok: boolean; reason?: string }> => {
+      const stored = await browser.storage.local.get([
+        'localHostUrl',
+        'localHostEnabled',
+      ]);
+      if (stored.localHostEnabled !== true) {
+        return { ok: false, reason: 'Local synthesis host is disabled' };
+      }
+      const url = stored.localHostUrl as string | undefined;
+      if (!url) {
+        return { ok: false, reason: 'Local synthesis host URL is not configured' };
+      }
+      let origin: string;
+      try {
+        origin = new URL(url).origin;
+      } catch {
+        return { ok: false, reason: `Local synthesis host URL is invalid: ${url}` };
+      }
+      const granted = await browser.permissions.contains({ origins: [`${origin}/*`] });
+      if (!granted) {
+        return {
+          ok: false,
+          reason: 'Host permission not granted for the configured origin — enable it in settings',
+        };
+      }
+      return { ok: true };
+    };
+
+    return new FallbackAudioAdapter({
+      primaryFactory: async () => {
+        const stored = await browser.storage.local.get(['localHostUrl']);
+        const url = stored.localHostUrl as string;
+        // Voice selection flows through the request (`voice` setting), which
+        // the adapter resolves against the host's published voices.
+        return new LocalHostAudioAdapter({ baseUrl: url });
+      },
+      secondary: createServerOrNoOpSecondary(apiClient),
+      gate,
+    });
+  }
+
   // All providers route through the server
   if (apiClient?.isConfigured) {
-    const providerMap: Record<string, TTSProvider> = {
-      openai: TTSProvider.OpenAI,
-      elevenlabs: TTSProvider.ElevenLabs,
-      groq: TTSProvider.Groq,
-      cartesia: TTSProvider.Cartesia,
-    };
     // Pass BYOK key (if any) to server adapter for forwarding
-    return new ServerTtsAudioAdapter(apiClient, providerMap[provider], apiKey ?? undefined);
+    return new ServerTtsAudioAdapter(
+      apiClient,
+      SERVER_PROVIDER_MAP[provider] ?? TTSProvider.ElevenLabs,
+      apiKey ?? undefined,
+    );
   }
 
   // No server configured — error
@@ -174,6 +252,9 @@ export function getApiKeyForProvider(keys: ApiKeys, provider: ProviderId): strin
       return keys.groq;
     case 'cartesia':
       return keys.cartesia;
+    case 'local':
+      // The local synthesis host takes no key (PROSO-110).
+      return null;
     default:
       return null;
   }

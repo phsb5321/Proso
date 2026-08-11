@@ -42,6 +42,10 @@ export const defaults: Readonly<Settings> = Object.freeze({
   // 064-monorepo-nestjs-dokku
   serverUrl: 'https://api.proso.com.br',
   licenseKey: null,
+  // PROSO-110: local synthesis host — off by default, address user-entered.
+  localHostUrl: null,
+  localHostEnabled: false,
+  localHostVoice: null,
 });
 
 /**
@@ -54,6 +58,8 @@ export const defaultVoices: Readonly<Record<Provider, string | null>> = Object.f
   openai: null,
   groq: null,
   cartesia: null,
+  // PROSO-110: null = pick from the host's capabilities by language.
+  local: null,
 });
 
 /**

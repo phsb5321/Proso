@@ -77,6 +77,9 @@ async function loadAppConfig(): Promise<AppConfig> {
     'cacheType',
     'serverUrl',
     'licenseKey',
+    'localHostUrl',
+    'localHostEnabled',
+    'localHostVoice',
   ]);
 
   return {
@@ -84,6 +87,10 @@ async function loadAppConfig(): Promise<AppConfig> {
     cacheType: (stored.cacheType as 'indexeddb' | 'memory') || 'indexeddb',
     serverUrl: (stored.serverUrl as string) || 'https://api.proso.com.br',
     licenseKey: (stored.licenseKey as string) || null,
+    // PROSO-110: default-off local synthesis host, address user-entered.
+    localHostUrl: (stored.localHostUrl as string | null) ?? null,
+    localHostEnabled: stored.localHostEnabled === true,
+    localHostVoice: (stored.localHostVoice as string | null) ?? null,
   };
 }
 
