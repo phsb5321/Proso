@@ -525,6 +525,75 @@
               <div id="elevenlabsKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="elevenlabs"></div>
               <a class="provider-card__docs-link" href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
             </div>
+
+            <!-- OpenAI Provider Card -->
+            <div class="provider-card" data-provider="openai" style="--provider-color: #10a37f;">
+              <div class="provider-card__header">
+                <span class="proso-badge proso-badge--openai">OpenAI</span>
+              </div>
+              <p class="provider-card__description">GPT-4o TTS with strong multilingual coverage</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="openaiKey" class="proso-input provider-card__input" placeholder="sk-..." autocomplete="off" spellcheck="false" data-testid="settings-api-keys-openai">
+                <button type="button" class="proso-button proso-button--ghost proso-button--icon provider-card__toggle toggle-visibility" data-target="openaiKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="proso-button proso-button--secondary provider-card__test-btn" data-provider="openai">Test</button>
+                <button type="button" class="proso-button proso-button--primary provider-card__save-btn" data-provider="openai">Save</button>
+              </div>
+              <div id="openaiKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="openai"></div>
+              <a class="provider-card__docs-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
+
+            <!-- Groq Provider Card -->
+            <div class="provider-card" data-provider="groq" style="--provider-color: #f55036;">
+              <div class="provider-card__header">
+                <span class="proso-badge proso-badge--groq">Groq</span>
+              </div>
+              <p class="provider-card__description">Ultra-fast open-model TTS (English only)</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="groqKey" class="proso-input provider-card__input" placeholder="gsk_..." autocomplete="off" spellcheck="false" data-testid="settings-api-keys-groq">
+                <button type="button" class="proso-button proso-button--ghost proso-button--icon provider-card__toggle toggle-visibility" data-target="groqKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="proso-button proso-button--secondary provider-card__test-btn" data-provider="groq">Test</button>
+                <button type="button" class="proso-button proso-button--primary provider-card__save-btn" data-provider="groq">Save</button>
+              </div>
+              <div id="groqKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="groq"></div>
+              <a class="provider-card__docs-link" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
+
+            <!-- Cartesia Provider Card -->
+            <div class="provider-card" data-provider="cartesia" style="--provider-color: #2e5cff;">
+              <div class="provider-card__header">
+                <span class="proso-badge proso-badge--cartesia">Cartesia</span>
+              </div>
+              <p class="provider-card__description">Low-latency neural voice synthesis (English only)</p>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="cartesiaKey" class="proso-input provider-card__input" placeholder="sk_..." autocomplete="off" spellcheck="false" data-testid="settings-api-keys-cartesia">
+                <button type="button" class="proso-button proso-button--ghost proso-button--icon provider-card__toggle toggle-visibility" data-target="cartesiaKey" aria-label="Toggle API key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="provider-card__actions">
+                <button type="button" class="proso-button proso-button--secondary provider-card__test-btn" data-provider="cartesia">Test</button>
+                <button type="button" class="proso-button proso-button--primary provider-card__save-btn" data-provider="cartesia">Save</button>
+              </div>
+              <div id="cartesiaKeyStatus" class="provider-card__status" role="status" aria-live="polite" data-provider="cartesia"></div>
+              <a class="provider-card__docs-link" href="https://console.cartesia.ai/api-keys" target="_blank" rel="noopener noreferrer">Get API Key</a>
+            </div>
           </div>
         </div>
 
