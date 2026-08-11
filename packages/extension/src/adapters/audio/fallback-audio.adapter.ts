@@ -36,7 +36,14 @@ export interface FallbackGateResult {
 }
 
 export interface FallbackAudioAdapterOptions {
-  readonly primary: IAudioGenerator;
+  /** Primary adapter (e.g. the local host). Either this or primaryFactory. */
+  readonly primary?: IAudioGenerator;
+  /**
+   * Lazy primary constructor (PROSO-110): the primary is only ever built when
+   * the gate passes, so an unconfigured or unpermitted local host never
+   * constructs its adapter — and therefore issues no request (FR-2).
+   */
+  readonly primaryFactory?: () => Promise<IAudioGenerator>;
   readonly secondary: IAudioGenerator;
   /**
    * Pre-flight gate: e.g. host configured + runtime host permission granted.
@@ -53,15 +60,31 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   readonly supportsWordTiming = false;
   readonly supportsChunkedSynthesis = true;
 
-  private readonly primary: IAudioGenerator;
+  private readonly primaryFactory: (() => Promise<IAudioGenerator>) | null;
   private readonly secondary: IAudioGenerator;
   private readonly gate: () => Promise<FallbackGateResult>;
   private lastReason: string | null = null;
+  private primary: IAudioGenerator | null = null;
 
   constructor(options: FallbackAudioAdapterOptions) {
-    this.primary = options.primary;
+    this.primaryFactory = options.primaryFactory ?? (options.primary ? async () => options.primary! : null);
+    const factory = this.primaryFactory;
+    if (!factory) {
+      throw new Error('FallbackAudioAdapter requires primary or primaryFactory');
+    }
+    this.primaryFactory = factory;
     this.secondary = options.secondary;
     this.gate = options.gate ?? (async () => ({ ok: true }));
+  }
+
+  /** Build (once) and cache the primary adapter. */
+  private async getPrimary(): Promise<IAudioGenerator> {
+    const factory = this.primaryFactory;
+    if (!factory) throw new Error('FallbackAudioAdapter requires primary or primaryFactory');
+    if (!this.primary) {
+      this.primary = await factory();
+    }
+    return this.primary;
   }
 
   /** Last fallback reason (null when the local route served the request). */
@@ -70,7 +93,8 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   }
 
   get supportedLanguages(): readonly string[] {
-    return this.primary.supportedLanguages;
+    // The primary is built lazily (FR-2); before that, nothing is known.
+    return this.primary?.supportedLanguages ?? [];
   }
 
   async generateAudio(
@@ -83,7 +107,13 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return this.secondary.generateAudio(request, signal);
     }
 
-    const local = await this.primary.generateAudio(request, signal);
+    let local;
+    try {
+      local = await (await this.getPrimary()).generateAudio(request, signal);
+    } catch (error) {
+      this.lastReason = error instanceof Error ? error.message : String(error);
+      return this.secondary.generateAudio(request, signal);
+    }
     if (local.ok) {
       this.lastReason = null;
       return local;
@@ -109,7 +139,15 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return;
     }
 
-    const local = this.primary.generateAudioChunks;
+    let primary;
+    try {
+      primary = await this.getPrimary();
+    } catch (error) {
+      this.lastReason = error instanceof Error ? error.message : String(error);
+      yield await this.secondary.generateAudio(request, signal);
+      return;
+    }
+    const local = primary.generateAudioChunks;
     if (!local) {
       yield await this.secondary.generateAudio(request, signal);
       return;
@@ -144,7 +182,7 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   async getVoices(language?: string): Promise<Result<Voice[], AudioError>> {
     const gate = await this.gate();
     if (!gate.ok) return this.secondary.getVoices(language);
-    const voices = await this.primary.getVoices(language);
+    const voices = await (await this.getPrimary()).getVoices(language);
     return voices.ok || voices.error.type === 'unsupported_language'
       ? voices
       : this.secondary.getVoices(language);
@@ -153,7 +191,7 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   async validateCredentials(): Promise<boolean> {
     const gate = await this.gate();
     if (!gate.ok) return false;
-    return this.primary.validateCredentials();
+    return (await this.getPrimary()).validateCredentials();
   }
 }
 
