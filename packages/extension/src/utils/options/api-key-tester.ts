@@ -99,6 +99,9 @@ async function testAllApiKeys(keys: Record<string, string>): Promise<Record<stri
  */
 const API_KEY_STORAGE_KEYS: Record<string, string> = {
   elevenlabs: 'elevenlabsApiKey',
+  openai: 'openaiApiKey',
+  groq: 'groqApiKey',
+  cartesia: 'cartesiaApiKey',
   anthropic: 'anthropic:apiKey',
 };
 
