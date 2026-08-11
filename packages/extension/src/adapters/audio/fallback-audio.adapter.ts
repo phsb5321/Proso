@@ -147,13 +147,13 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
-    const local = primary.generateAudioChunks;
-    if (!local) {
+    if (!primary.generateAudioChunks) {
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
 
-    const iterator = local(request, signal);
+    // Called as a method so the generator keeps its `this` binding.
+    const iterator = primary.generateAudioChunks(request, signal);
     const first = await iterator.next();
     if (first.done) {
       this.lastReason = 'local route produced no audio';
