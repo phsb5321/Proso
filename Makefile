@@ -138,7 +138,10 @@ security: doctor build ## Build required fixtures, run security tests, and scan 
 	@./scripts/security-check.sh
 	@./scripts/dependency-audit.sh
 
-verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security ## Fast delivery floor.
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security icons ## Fast delivery floor.
+
+icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
+	$(PNPM) --filter @proso/extension icons:check
 
 verify-full: verify coverage build-all quality dependencies ## Deep deterministic gate before review.
 	@./scripts/write-gate-receipt.sh

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="g" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#0D9488"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+  </defs>
+  <!-- A-pagewave 128px: page with fold + 5 ascending bars, gradient permitted (store size). -->
+  <g fill="url(#g)">
+    <path d="M8 10 h44 v118 h-44 z M34 10 L52 10 L52 26 z" fill-rule="evenodd"/>
+    <rect x="60" y="100" width="8" height="28" rx="4"/>
+    <rect x="74" y="76" width="8" height="52" rx="4"/>
+    <rect x="88" y="52" width="8" height="76" rx="4"/>
+    <rect x="102" y="28" width="8" height="100" rx="4"/>
+    <rect x="116" y="10" width="8" height="118" rx="4"/>
+  </g>
+</svg>
