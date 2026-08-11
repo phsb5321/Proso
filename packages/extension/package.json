@@ -84,12 +84,6 @@
     "web-ext": "^7.11.0",
     "wxt": "^0.20.13"
   },
-  "keywords": [
-    "firefox",
-    "extension",
-    "tts",
-    "text-to-speech",
-    "accessibility"
-  ],
+  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
   "license": "MIT"
 }
