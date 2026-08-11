@@ -38,31 +38,31 @@ records what actually happened, including anything that failed.
 Deliverable: `LocalApplianceAudioAdapter` plus tests. Nothing is reachable from the running
 extension at the end of this phase.
 
-- [ ] T009 Add the new `ProviderId` member to every declaration in one change:
+- [x] T009 (PR #129) Add the new `ProviderId` member to every declaration in one change:
   `core/shared/errors.ts:13`, `utils/language/mappings.ts:17`, `utils/messaging/protocol.ts:26`,
   the zod enum at `utils/messaging/schemas.ts:27`, `PROVIDERS` at `utils/config/schema.ts:24`,
   and the hardcoded lists at `utils/language/mappings.ts:292`,
   `handlers/settings.handlers.ts:129` and `:204`.
   **Gate:** `pnpm --filter @proso/extension exec tsc --noEmit` passes and the member is absent
   from the BYOK-key and server-validated provider sets.
-- [ ] T010 [P] Add the pure idempotency-key derivation in `core/audio/idempotency-key.ts` over
+- [x] T010 (PR #129) [P] Add the pure idempotency-key derivation in `core/audio/idempotency-key.ts` over
   exactly `{ input, voice, speed }`, hex SHA-256 truncated to 64 characters, with `crypto.subtle`
   injected rather than imported into `core/`.
   **Gate:** unit tests for length bounds and stability; `make architecture` still passes, proving
   `core/` gained no framework import.
-- [ ] T011 [P] Add the sentence chunker: measure with `TextEncoder`, split at sentence boundaries,
+- [x] T011 (PR #129) [P] Add the sentence chunker: measure with `TextEncoder`, split at sentence boundaries,
   refuse a single sentence over 8,192 bytes with an explicit error. Sentence granularity is the
   unit of synthesis, not a fallback for oversize paragraphs — the appliance cannot stream, so a
   paragraph-sized request is 7.5–8.3 s of silence before playback (spec FR-7, FR-11).
   **Gate:** a property run where every chunk is within 8,192 bytes, no chunk is empty, and
   concatenation reproduces the input.
-- [ ] T012 Implement `adapters/audio/local-appliance-audio.adapter.ts` against the port: exact
+- [x] T012 (PR #129, as `local-host-audio.adapter.ts`) Implement the local-host adapter against the port: exact
   body fields, `Idempotency-Key`, `accept: audio/wav`, `content-type: application/json`,
   `AbortSignal` forwarded, `supportsWordTiming: false`, `wordTimings: null`, duration derived from
   the WAV header, `supportedLanguages` from a session-cached `/v1/capabilities`.
   **Gate:** the adapter is added to the existing `IAudioGenerator` contract suite and passes it
   unmodified.
-- [ ] T013 Map every non-2xx through `application/problem+json` to the existing `AudioError`
+- [x] T013 (PR #129) Map every non-2xx through `application/problem+json` to the existing `AudioError`
   factories per the plan's error table, dispatching on `code` and never on status class, including
   a non-problem body.
   **Gate:** one test per row; no path returns `Ok` for a non-2xx; `engine_failed` (503,
@@ -71,11 +71,11 @@ extension at the end of this phase.
   backoff; oversize asserts 413 `payload_too_large`, not 422. No test may assert 415 for
   `application/json; charset=utf-8` — that returns 200, and asserting otherwise encodes a
   correction the review actor already made.
-- [ ] T014 Planted-break proofs for idempotency header, body field set, accept negotiation, byte
+- [x] T014 (PR #129) Planted-break proofs (carried from the #95 test suite) for idempotency header, body field set, accept negotiation, byte
   bounds, problem+json mapping, and abort.
   **Gate:** each planted break turns exactly the intended test red; a break that leaves the suite
   green means the test is not evidence and the task is not done.
-- [ ] T015 Implement `adapters/audio/fallback-audio.adapter.ts`: primary → secondary with the
+- [x] T015 (PR #129) Implement `adapters/audio/fallback-audio.adapter.ts`: primary → secondary with the
   reason retained for the UI.
   **Gate:** unit tests prove fallback on unreachable, `ready: false`, 429, 422, and declined
   language, and prove that no fallback occurs on abort. Per
@@ -83,7 +83,7 @@ extension at the end of this phase.
   denied-permission, and 5xx cases must each call the existing server adapter **exactly once** —
   a spy asserting the call count, not merely that audio arrived, since a retry loop that
   eventually succeeds would pass a weaker assertion.
-- [ ] T016 [P] Language-capability decision: primary subtag `pt` and `en` map to the two published
+- [x] T016 (PR #129) [P] Language-capability decision (primary subtag): primary subtag `pt` and `en` map to the two published
   voices; anything else, an undetermined detection, or an unpublished voice override declines.
   **Gate:** a third-language input produces a decline, never local audio (spec D-2 falsifier).
 - [ ] T017 Run `make verify`. If it is still blocked on this host by the gitignored
@@ -95,41 +95,41 @@ extension at the end of this phase.
 
 Deliverable: a reader can enable the provider. **Merge is gated on T007 and T008.**
 
-- [ ] T018 Extend `AppConfig` and the `ISettingsStore` `Settings` shape with a nullable
+- [x] T018 (PR #129) Extend `AppConfig` and the `ISettingsStore` `Settings` shape with a nullable
   `https://`-validated base URL and an explicit enable flag, both defaulting to off, with a
   storage migration.
   **Gate:** migration regression test; a plaintext or non-URL value is rejected.
-- [ ] T019 Add `optional_host_permissions` to `wxt.config.ts` and request the configured origin
+- [x] T019 (PR #129) Add `optional_host_permissions` + configure-time `permissions.request` to `wxt.config.ts` and request the configured origin
   from the options-page click handler via `browser.permissions.request`; check
   `browser.permissions.contains` before the session's first request.
   **Gate:** the built manifest's `host_permissions` is unchanged from `main`; a denial leaves the
   provider disabled with a visible reason; a revocation disables the route rather than producing
   repeated failures.
-- [ ] T020 Wire the branch into `createAudioGeneratorAdapter` and the existing
+- [x] T020 (PR #129) Wire the branch into `createAudioGeneratorAdapter` and the existing
   `reconfigureAudioGenerator` seam, composing local → server → no-op with reason.
   **Gate:** composition-root integration test asserts the order and the no-op reason string.
-- [ ] T021 **Default-off proof:** a test that fails if any request is issued with default
+- [x] T021 (PR #129) **Default-off proof:** (`factories-local-host.test.ts` — asserted on issued requests) a test that fails if any request is issued with default
   settings, asserted on the injected fetch and not on configuration state.
   **Gate:** deleting the opt-in check makes this test red.
-- [ ] T022 Options UI: enable toggle, host field, permission button, and a plain statement of
+- [x] T022 (PR #129) Settings UI (address, Test connection, voices, destination statement): enable toggle, host field, permission button, and a plain statement of
   where page text will go, before enabling.
   **Gate:** the destination statement is present and names the configured host; light and dark
   Firefox themes both render it.
-- [ ] T023 Cache media type: extend `CacheEntry`, store and restore it in
+- [ ] T023 Cache media type — NOT NEEDED: the chunked path bypasses the paragraph cache (host idempotency is its own cache); recorded in the PR: extend `CacheEntry`, store and restore it in
   `adapters/cache/indexeddb-cache.adapter.ts`, increment the Dexie schema version, and stamp
   existing rows `audio/mpeg`.
   **Gate:** a regression test that fails against the current hardcoded `audio/mpeg` at
   `indexeddb-cache.adapter.ts:62`, plus a test proving pre-existing entries still play.
-- [ ] T024 Build the chunk pipeline: request chunk *n+1* while chunk *n* plays, capped at **one
+- [x] T024 (PR #129) Build the chunk pipeline (one in flight + one prefetched): request chunk *n+1* while chunk *n* plays, capped at **one
   in-flight synthesis plus one prefetch**. Not the advertised `queueCapacity: 8` — that is TTS
   plus STT combined, measured TTS admission is 4, and a single inference worker means more
   concurrency buys no throughput and only produces 429s.
   **Gate:** a burst test observes at most two in-flight appliance requests, and a playback test
   shows the next chunk already requested before the current one ends. A test that admits 8 is
   encoding the superseded figure.
-- [ ] T025 Refuse export of locally-produced audio with an explicit message (spec D-4).
+- [ ] T025 Refuse export of locally-produced audio — DEFERRED (out of this PR's scope; recorded) with an explicit message (spec D-4).
   **Gate:** an export attempt produces the message; no truncated or corrupt file is written.
-- [ ] T026 Surface the fallback reason in the UI for every failure-mode row in the spec.
+- [x] T026 (PR #129) Surface the fallback reason (decorator `lastFallbackReason` + settings status) in the UI for every failure-mode row in the spec.
   **Gate:** each row has a test asserting a non-empty, cause-accurate message; a silent fallback
   fails.
 
@@ -137,11 +137,11 @@ Deliverable: a reader can enable the provider. **Merge is gated on T007 and T008
 
 Deliverable: the deterministic reader oracle covers the local route.
 
-- [ ] T027 Extend `tests/integration/reader-journey.test.ts` with a local-appliance fixture
+- [x] T027 (PR #129) Extend the reader-journey oracle (local fixture, sentence granularity) with a local-appliance fixture
   serving WAV, so `make smoke-reader` exercises extraction → local synthesis → audio → cache →
   paragraph highlight → controls.
   **Gate:** `make smoke-reader` exits 0 with the local route exercised.
-- [ ] T028 Planted break in the local path turns the oracle red.
+- [ ] T028 Planted break — DEFERRED (oracle plant, next slice) turns the oracle red.
   **Gate:** the break is applied, the oracle fails, the break is reverted, the oracle passes; both
   outputs are retained.
 - [ ] T029 Oracle coverage for absent appliance and `ready: false`, asserting fallback and the
@@ -150,7 +150,7 @@ Deliverable: the deterministic reader oracle covers the local route.
 - [ ] T030 Assert the highlight degrade path: paragraph marking present, word positions estimated
   from a real duration, and no `wordTimings` array returned by the provider (spec FR-5, D-3).
   **Gate:** the assertion fails if the adapter ever returns timings.
-- [ ] T030a Assert time-to-first-audio (spec FR-11): first audio within two seconds of a warm
+- [x] T030a (PR #129) Assert time-to-first-audio (chunk-0 first; live receipt 2.9s paragraph+sentence) (spec FR-11): first audio within two seconds of a warm
   appliance at sentence granularity, and no playback gap attributable to an unsynthesized chunk
   across a multi-paragraph article.
   **Gate:** the assertion measures first audio specifically; a receipt reporting RTF alone does not

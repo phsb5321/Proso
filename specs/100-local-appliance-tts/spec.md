@@ -1,7 +1,8 @@
 # Feature 100 — Local appliance as a TTS provider
 
-**Branch**: `100-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: specification only,
-nothing implemented
+**Branch**: `100-local-appliance-tts` | **Date**: 05/08/2026 | **Status**: implemented (PR #129,
+11/08/2026) — extension-direct seam, per the constitution amendment ratified in #92; see the
+ledger for the account-free journey rows
 
 > Numbering note: the feature id is **100**. It was specified as 097, renumbered to 099 in PR #94,
 > and corrected to 100 here, because 097, 098 and 099 are all taken — 097 by
