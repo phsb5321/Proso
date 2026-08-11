@@ -76,6 +76,12 @@ interface OptionsElements {
   // API Key inputs
   elevenlabsKey: HTMLInputElement;
   elevenlabsKeyStatus: HTMLElement;
+  openaiKey: HTMLInputElement;
+  openaiKeyStatus: HTMLElement;
+  groqKey: HTMLInputElement;
+  groqKeyStatus: HTMLElement;
+  cartesiaKey: HTMLInputElement;
+  cartesiaKeyStatus: HTMLElement;
 
   // Settings inputs
   highlightEnabled: HTMLInputElement;
@@ -151,6 +157,12 @@ function getElements(): OptionsElements {
     // API Key inputs
     elevenlabsKey: getElement<HTMLInputElement>('elevenlabsKey'),
     elevenlabsKeyStatus: getElement<HTMLElement>('elevenlabsKeyStatus'),
+    openaiKey: getElement<HTMLInputElement>('openaiKey'),
+    openaiKeyStatus: getElement<HTMLElement>('openaiKeyStatus'),
+    groqKey: getElement<HTMLInputElement>('groqKey'),
+    groqKeyStatus: getElement<HTMLElement>('groqKeyStatus'),
+    cartesiaKey: getElement<HTMLInputElement>('cartesiaKey'),
+    cartesiaKeyStatus: getElement<HTMLElement>('cartesiaKeyStatus'),
 
     // Settings inputs
     highlightEnabled: getElement<HTMLInputElement>('highlightEnabled'),
@@ -581,6 +593,9 @@ async function loadSettings(): Promise<void> {
     // Load all settings from storage
     const result = await browser.storage.local.get([
       'elevenlabsApiKey',
+      'openaiApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
       'provider',
       'speed',
       'mode',
@@ -591,6 +606,9 @@ async function loadSettings(): Promise<void> {
 
     // API keys (no defaults, empty if not set)
     elements.elevenlabsKey.value = (result.elevenlabsApiKey as string | undefined) || '';
+    elements.openaiKey.value = (result.openaiApiKey as string | undefined) || '';
+    elements.groqKey.value = (result.groqApiKey as string | undefined) || '';
+    elements.cartesiaKey.value = (result.cartesiaApiKey as string | undefined) || '';
 
     log.info('Proso options: Settings loaded', {
       mode: (result.mode as string | undefined) || settingsDefaults.mode,
@@ -650,7 +668,12 @@ function setupEventListeners(): void {
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Auto-save on input change (with debounce)
-  const autoSaveInputs: HTMLElement[] = [elements.elevenlabsKey];
+  const autoSaveInputs: HTMLElement[] = [
+    elements.elevenlabsKey,
+    elements.openaiKey,
+    elements.groqKey,
+    elements.cartesiaKey,
+  ];
 
   autoSaveInputs.forEach((input) => {
     input.addEventListener('change', () => {
@@ -765,6 +788,9 @@ function setupThemeEventListener(): void {
  */
 const PROVIDER_INPUT_IDS: Record<string, string> = {
   elevenlabs: 'elevenlabsKey',
+  openai: 'openaiKey',
+  groq: 'groqKey',
+  cartesia: 'cartesiaKey',
 };
 
 /**
@@ -964,6 +990,9 @@ function showProviderCardStatus(
 function capitalizeProvider(provider: string): string {
   const names: Record<string, string> = {
     elevenlabs: 'ElevenLabs',
+    openai: 'OpenAI',
+    groq: 'Groq',
+    cartesia: 'Cartesia',
   };
   return names[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
@@ -977,6 +1006,9 @@ async function saveSettings(): Promise<void> {
   try {
     await browser.storage.local.set({
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
+      openaiApiKey: elements.openaiKey.value.trim(),
+      groqApiKey: elements.groqKey.value.trim(),
+      cartesiaApiKey: elements.cartesiaKey.value.trim(),
       provider: elements.quickProvider.value,
       speed: Number.parseFloat(elements.quickSpeed.value),
       highlightEnabled: elements.highlightEnabled.checked,
