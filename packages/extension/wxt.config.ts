@@ -19,7 +19,7 @@ export default defineConfig({
   manifest: (env) => ({
     name: 'Proso',
     description: 'Text-to-speech for web pages with word-level highlighting',
-    version: '1.2.7',
+    version: '1.2.8',
     permissions: [
       'storage',
       'unlimitedStorage', // 028-smart-audio-cache: IndexedDB audio cache (500MB+)

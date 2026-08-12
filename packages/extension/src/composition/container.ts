@@ -118,7 +118,7 @@ function createAdapters(config: AppConfig, apiKeys: ApiKeys): ContainerAdapters 
  * T015: Removed conditional service creation - adapters now always available
  * due to fallback adapters, so services should always be created.
  */
-function createServices(adapters: ContainerAdapters): ContainerServices {
+function createServices(adapters: ContainerAdapters, config: AppConfig): ContainerServices {
   // T015: PlaybackService is always created now that adapters have fallbacks
   // All required adapters are guaranteed to exist (see createAdapters)
   const playback = new PlaybackService({
@@ -127,6 +127,11 @@ function createServices(adapters: ContainerAdapters): ContainerServices {
     cacheStore: adapters.cacheStore,
     highlightSync: adapters.highlightSync,
     settingsStore: adapters.settingsStore,
+    // PROSO-136: the service used to be born with the hardcoded 'elevenlabs'
+    // default while the adapters beside it were built from the real config, so
+    // its reported provider and its actual route could disagree from the first
+    // instant. Pass the resolved provider so they cannot.
+    provider: config.provider,
     // S3/T012: lookahead prefetch pipeline. Bound to `playback` itself so the
     // producer/checkCache callbacks reuse the exact same cache-key + network
     // path as live playback (see PlaybackService.generatePrefetchAudio /
@@ -160,7 +165,7 @@ function createServices(adapters: ContainerAdapters): ContainerServices {
  */
 export function createContainer(config: AppConfig, apiKeys: ApiKeys): Container {
   const adapters = createAdapters(config, apiKeys);
-  const services = createServices(adapters);
+  const services = createServices(adapters, config);
 
   const container: Container = {
     adapters,
