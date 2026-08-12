@@ -204,6 +204,11 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return;
     }
     if (!primary.generateAudioChunks) {
+      this.lastReason = 'local route does not support chunked synthesis';
+      if (this.failClosedOnGate) {
+        yield Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+        return;
+      }
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
@@ -213,6 +218,17 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     const first = await iterator.next();
     if (first.done) {
       this.lastReason = 'local route produced no audio';
+      // PROSO-147: these two fall-throughs were the last unguarded ones.
+      // PROSO-137 closed the gate path, the throw path and the single-shot Err
+      // path, but `LocalHostAudioAdapter.supportsChunkedSynthesis` is true, so
+      // the local route ALWAYS arrives here — and here it still handed the
+      // request to the server, whose answer for an unentitled tier is a 402
+      // about billing. The reader's own host failing therefore still read as
+      // "buy a plan", which is the exact misdiagnosis PROSO-137 set out to end.
+      if (this.failClosedOnGate) {
+        yield Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+        return;
+      }
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
@@ -222,6 +238,10 @@ export class FallbackAudioAdapter implements IAudioGenerator {
         return;
       }
       this.lastReason = errorMessage(first.value.error);
+      if (this.failClosedOnGate) {
+        yield Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+        return;
+      }
       yield await this.secondary.generateAudio(request, signal);
       return;
     }

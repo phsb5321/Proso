@@ -7,6 +7,14 @@
  * synthesize call is recorded, which is what lets the smoke assert that a
  * non-empty TTS request actually left the extension.
  *
+ * The same server also speaks the reader-operated synthesis host's wire
+ * contract (`/v1/capabilities`, `/v1/tts`) so the local-host journey can be
+ * driven without a machine on the tailnet. The two surfaces record into
+ * separate arrays: `requests` is the managed server route, `localRequests` is
+ * the reader's own host. Which array a run fills is the whole question behind
+ * PROSO-135/136/137 — a provider that silently stayed on the server route is
+ * what produced two days of 402s.
+ *
  * @module scripts/lib/reading-fixture-server
  */
 
@@ -64,12 +72,71 @@ function audioFixture() {
 }
 
 /**
+ * Voices the synthesis host publishes, mirroring the appliance's own list
+ * (`markKinds: []` — the host emits no word marks, so the adapter must never
+ * return word timings). Language matching is on the primary subtag, so an
+ * English article reaches `en-US` here exactly as it does on the real host.
+ */
+export const LOCAL_HOST_VOICES = [
+  { id: 'en_US-ljspeech-medium', language: 'en-US', mediaTypes: ['audio/wav'], markKinds: [] },
+  { id: 'pt_BR-faber-medium', language: 'pt-BR', mediaTypes: ['audio/wav'], markKinds: [] },
+];
+
+/** The host's published input bound, in UTF-8 bytes. */
+export const LOCAL_HOST_MAX_TEXT_UTF8_BYTES = 2000;
+
+/**
+ * Synthesize silence as a real RIFF/WAVE buffer.
+ *
+ * The adapter reads duration from the `fmt ` byte rate and the `data` chunk
+ * size, so the header has to be genuine — a fake body would be rejected as
+ * `appliance_invalid_response`, which is a different failure from the one this
+ * fixture exists to exercise. 16-bit mono at 16 kHz matches the appliance's
+ * own output format. Duration tracks input length the way real synthesis does,
+ * so a sentence yields seconds of audio rather than an instant clip that ends
+ * before pause and resume can be observed.
+ */
+function wavForText(text) {
+  const sampleRate = 16_000;
+  const bytesPerSample = 2;
+  const seconds = Math.min(12, Math.max(1.2, text.length * 0.04));
+  const frames = Math.round(sampleRate * seconds);
+  const dataBytes = frames * bytesPerSample;
+
+  const buffer = Buffer.alloc(44 + dataBytes);
+  buffer.write('RIFF', 0, 'ascii');
+  buffer.writeUInt32LE(36 + dataBytes, 4);
+  buffer.write('WAVE', 8, 'ascii');
+  buffer.write('fmt ', 12, 'ascii');
+  buffer.writeUInt32LE(16, 16); // PCM fmt chunk size
+  buffer.writeUInt16LE(1, 20); // audio format: PCM
+  buffer.writeUInt16LE(1, 22); // channels
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * bytesPerSample, 28); // byte rate
+  buffer.writeUInt16LE(bytesPerSample, 32); // block align
+  buffer.writeUInt16LE(16, 34); // bits per sample
+  buffer.write('data', 36, 'ascii');
+  buffer.writeUInt32LE(dataBytes, 40);
+  // Samples stay zero: the gate mutes output anyway, and silence keeps the
+  // fixture deterministic byte-for-byte for a given input length.
+  return buffer;
+}
+
+/** RFC-9457 problem document, the only error shape the host produces. */
+function problem(res, status, code, detail) {
+  const body = JSON.stringify({ type: `about:blank#${code}`, title: code, status, code, detail });
+  res.writeHead(status, { 'Content-Type': 'application/problem+json' });
+  res.end(body);
+}
+
+/**
  * Start the fixture server.
  *
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer() {
   const requests = [];
+  const localRequests = [];
   const audio = audioFixture();
 
   const server = createServer((req, res) => {
@@ -126,9 +193,77 @@ export async function startFixtureServer() {
       return;
     }
 
+    // ---- reader-operated synthesis host surface (PROSO-110) ----
+    // Deliberately NOT CORS-enabled: the real host publishes no CORS headers,
+    // and the extension reaches it through the host permission the reader
+    // grants. A fixture that allowed the origin outright would let the journey
+    // pass without the grant that makes it work in the product.
+    if (url.pathname === '/v1/capabilities' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          ready: true,
+          limits: { maxTextUtf8Bytes: LOCAL_HOST_MAX_TEXT_UTF8_BYTES },
+          tts: { voices: LOCAL_HOST_VOICES },
+        }),
+      );
+      return;
+    }
+
+    if (url.pathname === '/v1/tts' && req.method === 'POST') {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        let body = null;
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          problem(res, 400, 'invalid_json', 'Body is not JSON');
+          return;
+        }
+
+        // The host's real admission rules, mirrored so the fixture cannot pass
+        // a request the appliance would refuse.
+        const key = req.headers['idempotency-key'];
+        if (typeof key !== 'string' || key.length < 16 || key.length > 128) {
+          problem(res, 400, 'missing_idempotency_key', 'Idempotency-Key must be 16-128 chars');
+          return;
+        }
+        const extra = Object.keys(body).filter((k) => !['input', 'voice', 'speed'].includes(k));
+        if (extra.length > 0) {
+          problem(res, 422, 'unknown_field', `Unknown field(s): ${extra.join(', ')}`);
+          return;
+        }
+        if (typeof body.speed !== 'number') {
+          problem(res, 422, 'unknown_field', 'speed is required and must be a number');
+          return;
+        }
+        if (!LOCAL_HOST_VOICES.some((voice) => voice.id === body.voice)) {
+          problem(res, 422, 'unknown_voice', `Unknown voice: ${body.voice}`);
+          return;
+        }
+        if (Buffer.byteLength(String(body.input), 'utf8') > LOCAL_HOST_MAX_TEXT_UTF8_BYTES) {
+          problem(res, 413, 'payload_too_large', 'input exceeds maxTextUtf8Bytes');
+          return;
+        }
+
+        localRequests.push({ at: Date.now(), body, idempotencyKey: key });
+        const wav = wavForText(String(body.input));
+        res.writeHead(200, {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(wav.length),
+        });
+        res.end(wav);
+      });
+      return;
+    }
+
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end('{"status":"ok"}');
+      // `ready` is what the host's own readiness gate answers on; the managed
+      // server's `/health` ignores it, so one body serves both callers.
+      res.end('{"status":"ok","ready":true}');
       return;
     }
 
@@ -142,6 +277,7 @@ export async function startFixtureServer() {
   return {
     origin: `http://127.0.0.1:${port}`,
     requests,
+    localRequests,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }

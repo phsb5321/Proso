@@ -16,12 +16,12 @@ import {
 } from '../../utils/config';
 import { downloadJson } from '../../utils/download/download-json';
 import { createLogger } from '../../utils/logging/logger';
-import { confirmDialog } from '../../utils/ui/confirm-dialog';
 import {
   collectProviderStateFromUI,
   deriveProviderState,
   syncProviderUI,
 } from '../../utils/options/provider-state';
+import { confirmDialog } from '../../utils/ui/confirm-dialog';
 
 // UI defaults (inline since they're simple)
 const uiDefaults = {
@@ -383,7 +383,17 @@ async function saveLocalHostSettings(): Promise<void> {
   // dropdown and the section cannot disagree after the save.
   const uiState = collectProviderStateFromUI(elements);
   const stored: Record<string, unknown> = {
-    localHostUrl: enabled ? url : null,
+    // PROSO-147: the address is persisted whether or not the route is enabled.
+    // It used to be `enabled ? url : null`, and the debounced save on `input`
+    // (600ms after typing, while the enable box is still unchecked — the order
+    // every reader uses) therefore wrote null over the address the reader had
+    // just typed. The storage.onChanged listener then pushed that null back
+    // into the field through syncProviderUI, so the input cleared itself and
+    // the next click on enable failed with "requires a valid https:// address".
+    // Remembering an address is not enabling a route: nothing is sent anywhere
+    // until `localHostEnabled` is true AND the exact origin is granted, both
+    // still enforced by the gate in composition/factories.ts.
+    localHostUrl: url || null,
     localHostEnabled: enabled,
     localHostVoice: uiState.localHostVoice,
     provider: enabled ? 'local' : uiState.provider,
@@ -536,10 +546,7 @@ async function updateVoiceDropdown(provider: string): Promise<void> {
   voiceSelect.appendChild(defaultOption);
 
   // Get voices for provider
-  const voices =
-    provider === 'local'
-      ? (lastLocalHostVoices || [])
-      : (PROVIDER_VOICES[provider] || []);
+  const voices = provider === 'local' ? lastLocalHostVoices || [] : PROVIDER_VOICES[provider] || [];
 
   // Add voice options
   voices.forEach((voice) => {
@@ -2152,7 +2159,11 @@ async function checkServerStatus(): Promise<void> {
     serverDetailVersion.textContent = '';
     serverDetailUptime.textContent = '';
     serverDetailError.textContent = '';
-    if (config.localHostEnabled === true && typeof config.localHostUrl === 'string' && config.localHostUrl) {
+    if (
+      config.localHostEnabled === true &&
+      typeof config.localHostUrl === 'string' &&
+      config.localHostUrl
+    ) {
       setServerStatusState('connected', 'Local host');
       serverDetailUrl.textContent = `URL: ${config.localHostUrl}`;
     } else {

@@ -35,6 +35,13 @@ the settings UI shipped one provider card, so three of four were backend-reachab
 user-unreachable. A fixture that returns audio without applying the entitlement still cannot
 prove the anonymous outcome — the receipt above is against a real host, not a fixture.
 
+**As of 12/08/2026 that path is also observed end-to-end in a real browser.** PR #147 added
+`scripts/local-host-journey-gate.mjs`: a public-control actor configures a host in settings,
+grants the origin with a real click, presses Play, and the article is synthesized by the reader's
+own host with **zero** requests to `/api/v1/tts/synthesize`. Getting there required fixing three
+defects that were still live after PROSO-135/136/137 — see
+[Update — 12/08/2026](#update--12082026-the-account-free-journey-observed-end-to-end-and-three-defects-it-found).
+
 Feature 100 proposes a user-operated local appliance as a second audio source that needs no
 account, license key, or provider key. Nothing of it is on `main`: the spec is at
 `specs/100-local-appliance-tts/`, the adapter is open in PR #95, and no local provider is wired
@@ -55,6 +62,7 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✓ | The current Chromium E2E command completes | PR #63 reported 27 passed; this still does not exercise or prove the current reading/audio route |
 | ✓ | Packaged Chrome reading works | PR #115 (`ef89924`, merged 07/08/2026 16:0x BRT) implements the spec-106 verdict: a worker-safe `Audio` shim (`OffscreenAudioElement`, `packages/extension/src/adapters/audio/offscreen-audio-element.adapter.ts`, 263 lines) installed on `globalThis.Audio` only when `typeof Audio === 'undefined'` (`:259-263`, wired at `entrypoints/background.ts:55` before any `new Audio()`), proxying to the shipped offscreen-document protocol, plus the `"offscreen"` manifest permission scoped to Chrome via a WXT per-browser transform (`env.browser === 'chrome'`). `make chrome-mv3-diagnostics` goes GREEN on both legs (18 checks, 0 failed, exit 0) — C1 `typeof Audio === 'function'` in the MV3 worker, C2 popup start journey completes with a TTS request observed and the footer visible. Falsified both directions: reverting the shim reproduces the original C1/C2 RED failures identically (exit 1); the Firefox MV2 leg (9/9) and `PlaybackService`'s own 54-test unit suite are unchanged and green; zero `PlaybackService` edits. Verified independently before merge: the built manifests carry `offscreen` 1× in `.output/chrome-mv3` and 0× in `.output/firefox-mv2`, and every `PlaybackService` touchpoint (`src`, `play`, `pause`, `currentTime`, `duration`, `paused`, `playbackRate`, `timeupdate`/`ended`/`error`) has a shim implementation with native semantics (`duration` returns `NaN` before metadata, which the caller's truthiness guard at `playback-service.ts:351` handles correctly). QA gate: 6/6 PASS re-run from the branch. **No different-family adversarial review is recorded** — the codex harness was banned fleet-wide on 07/08 and the DeepInfra lane has no balance, so this landed on the qa gate plus the orch's own code verification. One known gap, unrelated to this change: the Chrome leg's C3 `playback.getState` roundtrip answers "Unknown message type" on the first call (a pre-existing handler-registration race in untouched code at `background.ts:368`; the Firefox equivalent is correct) — see next-slices #13. Environment findings retained from the gate: `chrome.offscreen` is `undefined` without the permission (Chrome for Testing 151); branded Google Chrome 137+ rejects `--load-extension`, so the gate drives Chrome for Testing with a NixOS `LD_LIBRARY_PATH`, and the repo's own `test:e2e:ext` fixture uses the same dead pattern on this host (adjacent debt) |
 | ◐ | The real Firefox downstream reader route works | On 02/08, a built MV2 extension reached fixture TTS, visible footer/highlight, pause, and resume. The actor directly invoked `ExtensionParent`/`shortcuts.onCommand()`, so this is diagnostic-only and does not prove public controls or the full invariant/anomaly contract |
+| ✓ | A public-control actor reads an article **from the reader's own host, with no account** | `node scripts/local-host-journey-gate.mjs` (PR #147) exited 0 with `local-host-journey-gate PASS at bda64a0`, 12/08/2026 16:2x BRT. The actor types a host address into settings, clicks "Test connection", clicks "Enable the local synthesis host" (a REAL WebDriver click — `permissions.request()` refuses to run without a genuine user gesture, so the grant cannot be simulated), then reads the article through the Unified Extensions button, the browser action and the popup's "Play". The receipt: `the reader's own host synthesized the article — 130 chars, voice en_US-ljspeech-medium` and `the managed route was never called — 0 requests to /api/v1/tts/synthesize`. Nothing about the local host is seeded; the gate fails closed if the engine only *claims* to have adopted the host. Synthesis is a fixture speaking the appliance's wire contract, so this proves the account-free ROUTE, not the appliance itself (that stays with `local-host-live.test.ts`) |
 | ◐ | A public-control actor reads an article in a real Firefox | `node scripts/public-actor-gate.mjs` (PR #97) exited 0 with `public-actor-gate PASS at 1e339b6e4f143401b6de7253860fca13603ee9ab`, re-run 05/08/2026 18:39 BRT. Its 20 assertions open the Unified Extensions panel, click the browser action by its visible label `Proso`, address `Play` and `Previous paragraph` by accessible name, observe a 130-char TTS request and the page-visible highlight, hold position across pause, and advance after resume. Synthesis is still the local fixture, so this proves the public control path, not the account-free outcome. Partial for a second reason: the run relaxes the process model — see the row below |
 | ◐ | The public gate runs the process model users run | It sets `extensions.webextensions.remote=false` (`scripts/public-actor-gate.mjs:384`, documented at `docs/agent-delivery-harness.md:85`). Both modes were measured: WebDriver exposes no window handle for an extension popup panel, and a remote popup's `contentDocument` is opaque to the parent process, so out-of-process the popup's own DOM — and its accessible names — cannot be read at all. The click, the listener and the rendered popup are real; only the process boundary is relaxed. The gate therefore proves the public control path under a non-default process model, not under the one users actually run |
 | ✓ | That public gate is falsifiable rather than green by construction | `node scripts/public-actor-plants.mjs` at `adc99f6` (PR #98, merged `24f0e09`) exited 0 with `public-actor-plants PASS — 10 runs, every break caught`, re-run 05/08/2026 19:03 BRT: unplanted baseline PASS, 4 severed-journey plants FAIL (TTS request, visible reading UI, paused position, resume advance), 4 missing-surface plants BLOCKED (hidden Unified Extensions button, absent browser-action widget, popup that never opens, renamed `Play` control), and a self-check that points the runner at a missing script and requires CRASH. Missing surface never reports as a pass, and neither does a run that never launched a browser |
@@ -353,6 +361,74 @@ from a merged 03/2026 PR). Remaining candidates are account-level: Actions billi
 billing API needs `user` scope, which `gh` lacks here) or a GitHub server-side change. Diagnosis
 stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 
+## Update — 12/08/2026: the account-free journey observed end-to-end, and three defects it found
+
+**The three-PR chain did not fix the 402.** PROSO-135 (#144), PROSO-136 (#145) and PROSO-137
+(#146) were each real, each verified, and after all three a reader with a configured, granted,
+reachable host still pressed Play and got a billing error. `scripts/local-host-journey-gate.mjs`
+(PR #147) is the observation whose absence allowed that: it reports **which endpoint received the
+synthesis request**. Its first run on `bda64a0` said
+`route taken: 4 managed /api/v1/tts/synthesize, 0 local /v1/tts`.
+
+The adapter-level receipt passed throughout all three bugs and could not have caught any of them
+— `tests/integration/local-host-live.test.ts` synthesizes real audio against the real appliance
+(re-run live 12/08, PASS in 2.8 s) and never touches the wiring between the popup click and the
+adapter, which is where every one of these defects lived.
+
+Three defects were live on `main` after the chain, each found by this gate and each fixed here:
+
+1. **The settings page discarded the address the reader typed.** `saveLocalHostSettings` stored
+   `localHostUrl: enabled ? url : null`. The debounced save on `input` fires 600 ms after typing,
+   while the enable box is still unchecked — the order every reader uses — so it wrote `null` over
+   the address; `storage.onChanged` then pushed that `null` back into the field through
+   `syncProviderUI` and the input cleared itself. Enable then failed with "Enable requires a valid
+   https:// address", the provider stayed managed, and playback 402'd. Measured directly: after
+   typing, storage held `localHostUrl: null` and the field read `""`. Fix: persist the address
+   independently of `enabled` — remembering an address is not enabling a route, and nothing is sent
+   anywhere until `localHostEnabled` is true AND the exact origin is granted, both still enforced
+   in `composition/factories.ts`.
+2. **The local route still fell through to the managed one.** PROSO-137 closed the gate path, the
+   throw path and the single-shot `Err` path, but not the chunked path's first-chunk
+   fall-throughs. `LocalHostAudioAdapter` sets `supportsChunkedSynthesis = true`, so the local
+   route ALWAYS takes the chunked path — the one still unguarded. That is why the reader's own
+   host failing still read as "buy a plan". Fix: honour `failClosedOnGate` in all three remaining
+   chunked fall-throughs. Managed requests went 4 → 0.
+3. **`PlaybackService.setLanguage()` was called from nowhere**, so `detectedLanguage` was `null`
+   for every request. Managed providers hid it by choosing a voice server-side; the reader's own
+   host cannot, and declines an undetermined language rather than reading English text in a
+   Portuguese voice (spec 100 D-2) — so the local route answered "Language not supported: und" for
+   every article. Same dead-wiring shape PROSO-136 found with `subscribeToSettings()`. Fix:
+   `playback.start` derives the language once and gives it to both the footer and synthesis, so
+   the language the reader is told is the language they hear.
+
+Falsifiability. `node scripts/local-host-journey-plants.mjs` reports
+`local-host-journey-plants PASS — 6 runs, every break caught`: the unsevered run PASSes,
+`server-route` (the PROSO-135/136 shape — provider forced back to a managed one) FAILs,
+`no-enable` FAILs (storing an address alone never routes audio to it), `host-down` FAILs, a
+renamed enable control is BLOCKED, and a gate pointed at a missing script reports CRASH rather
+than scoring as a caught plant. Scoring is on the gate's own verdict line, not its exit code — the
+lesson PR #98 paid for. Source-level falsifier of the load-bearing fix: reverting the
+`setLanguage` call turns the gate red (`Language not supported: und`, 0 local requests, and
+notably 0 managed — so the fail-closed fix holds independently); restoring it returns PASS.
+
+The extraction that made this possible: the sibling gate's actor vocabulary moved to
+`scripts/lib/firefox-popup.mjs` and both gates now share one copy. `public-actor-gate` was re-run
+after the extraction and still reports `PASS at bda64a0`. One genuine improvement rode along — a
+control's accessible name is its `aria-label` when it has one and its own visible text when it
+does not, because the popup's "Grant access" button is named only by its text and a screen reader
+announces it.
+
+What this does NOT prove, recorded in the gate's own receipt rather than left implicit: the
+optional-permission doorhanger is not exercised (`extensions.webextOptionalPermissionPrompts=false`
+— the request, its user gesture and the resulting grant are real, the prompt is not); the process
+model is still relaxed (`extensions.webextensions.remote=false`, inherited and unchanged); and the
+synthesis host is a fixture speaking the appliance's wire contract, not the appliance.
+
+Extension unit suite 2446 passed (was 2443; the 4 new tests include two that pin the chunked
+fail-closed paths). The `playback.handlers` mock had no `setLanguage`, which is how the dead
+wiring stayed invisible — the same shape PR #144 found with `setProvider`, and the mock is fixed
+rather than worked around.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
@@ -586,3 +662,14 @@ stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 21. Repair the quick-settings visual tests: they carry the same vacuous `count() > 0` guard the
    api-keys tests had before PR #125 — the eng demonstrated it by renaming their testid and
    watching them still pass. Same treatment: assert the section exists, drop the guard.
+22. Stop `syncProviderUI` rewriting an input the reader is currently typing into. The listener
+   exists for cross-tab sync, but it also fires for the page's own writes, so it reassigns
+   `localHostUrl.value` mid-typing and the caret jumps to the end. Before PR #147 this destroyed
+   the typed address outright; now the value written back is the same string, so the damage is
+   cosmetic — but a listener that clobbers focused input is still wrong. Skip the sync for changes
+   this page just wrote, or leave a focused field alone.
+23. Exercise the optional-permission doorhanger. PR #147's gate sets
+   `extensions.webextOptionalPermissionPrompts=false`, so the grant request, its user gesture and
+   the resulting permission are all real but the prompt the reader accepts is not. Closing this
+   needs chrome-context WebDriver Actions dispatched against the panel, which is also what would
+   let the popup's own "Grant access" button be driven with a genuine gesture.

@@ -14,6 +14,7 @@ import { FallbackAudioAdapter } from '../../../../src/adapters/audio/fallback-au
 import { createMockAudioGenerator } from '../../../mocks';
 import { audioError } from '../../../../src/core/shared/errors';
 import { isErr, isOk } from '../../../../src/core/shared/result';
+import type { AudioError } from '../../../../src/core/shared/errors';
 import type { AudioRequest } from '../../../../src/ports/audio-generator.port';
 
 const request: AudioRequest = {
@@ -188,6 +189,83 @@ describe('FallbackAudioAdapter', () => {
     expect(chunks[0]?.ok).toBe(false);
     if (chunks[0]?.ok) return;
     expect(chunks[0]?.error.type).toBe('provider_error');
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+  });
+
+  /**
+   * A chunk-capable primary. `createMockAudioGenerator` has no
+   * `generateAudioChunks`, and the local host adapter does — which is why the
+   * chunked path is the one that actually runs in the product, and the one
+   * PROSO-147 found still handing failures to the server.
+   */
+  function chunkedPrimary(chunks: ReadonlyArray<{ ok: false; error: AudioError }>) {
+    return {
+      providerId: 'local' as const,
+      supportsWordTiming: false,
+      supportsChunkedSynthesis: true,
+      supportedLanguages: ['en'],
+      generateAudio: async () => chunks[0] ?? { ok: false, error: audioError.network('none') },
+      async *generateAudioChunks() {
+        for (const chunk of chunks) yield chunk;
+      },
+      getVoices: async () => ({ ok: true as const, value: [] }),
+      validateCredentials: async () => true,
+    };
+  }
+
+  /**
+   * Drain the chunked path of a fail-closed local adapter. The gate passes in
+   * every case here: the concern is what happens AFTER it passes and the local
+   * route then fails.
+   */
+  async function drainFailClosed(primary: unknown) {
+    const secondary = createMockAudioGenerator();
+    const adapter = new FallbackAudioAdapter({
+      primary: primary as never,
+      secondary,
+      failClosedOnGate: true,
+      gate: async () => ({ ok: true }),
+    });
+    const chunks = [];
+    for await (const chunk of adapter.generateAudioChunks!(request)) {
+      chunks.push(chunk);
+    }
+    return { adapter, secondary, chunks };
+  }
+
+  it('failClosedOnGate: a chunked primary whose FIRST chunk errors reports its own failure (PROSO-147)', async () => {
+    const { secondary, chunks } = await drainFailClosed(
+      chunkedPrimary([{ ok: false, error: audioError.network('Host refused the connection') }]),
+    );
+
+    expect(chunks).toHaveLength(1);
+    const first = chunks[0];
+    expect(first?.ok).toBe(false);
+    if (!first || first.ok || first.error.type !== 'provider_error') return;
+    // The reader's own host failed; the answer must say so rather than hand the
+    // request to the server, whose reply for an unentitled tier is a 402 about
+    // billing. That misdiagnosis is what PROSO-137 set out to end, and this
+    // path — the only one the local route actually takes — still produced it.
+    expect(first.error.message).toContain('Host refused the connection');
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+  });
+
+  it('failClosedOnGate: a chunked primary that yields nothing reports its own failure (PROSO-147)', async () => {
+    const { adapter, secondary, chunks } = await drainFailClosed(chunkedPrimary([]));
+
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]?.ok).toBe(false);
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+    expect(adapter.lastFallbackReason).toBe('local route produced no audio');
+  });
+
+  it('failClosedOnGate: a primary without chunked support reports its own failure (PROSO-147)', async () => {
+    const { secondary, chunks } = await drainFailClosed(
+      createMockAudioGenerator({ providerId: 'local' }),
+    );
+
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]?.ok).toBe(false);
     expect(secondary.generateAudioCalls).toHaveLength(0);
   });
 
