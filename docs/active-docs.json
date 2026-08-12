@@ -48,6 +48,12 @@
       "owner": "proso",
       "reviewedAt": "2026-08-12",
       "expires": "2026-11-12"
+    },
+    {
+      "path": "docs/money-path.md",
+      "owner": "proso",
+      "reviewedAt": "2026-08-12",
+      "expires": "2026-11-12"
     }
   ]
 }
