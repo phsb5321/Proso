@@ -45,6 +45,18 @@ export interface PlaybackServiceDependencies {
   readonly highlightSync: IHighlightSynchronizer;
   readonly settingsStore: ISettingsStore;
   /**
+   * The provider the container resolved from configuration (PROSO-136).
+   *
+   * Without this the service adopted `initialPlaybackState`, whose provider is
+   * the hardcoded literal `'elevenlabs'` — so a reader configured for any other
+   * provider had a service that was BORN believing it was ElevenLabs. Playback
+   * branches on that reported state, so a correctly configured local host still
+   * routed to the managed server and answered a billing 402. Optional so the
+   * many tests that construct a service without it keep working; when absent the
+   * previous default stands.
+   */
+  readonly provider?: ProviderId;
+  /**
    * Optional lookahead prefetch pipeline (S3, T012). When absent, playback
    * degrades to the pre-existing serial cache→network path unchanged — every
    * test that constructs a PlaybackService without this field keeps working.
@@ -87,8 +99,17 @@ export class PlaybackService {
   private audioGenerator: IAudioGenerator;
 
   constructor(private readonly deps: PlaybackServiceDependencies) {
-    this.state = initialPlaybackState;
+    // PROSO-136: seed from the resolved configuration rather than adopting the
+    // hardcoded vendor default wholesale. `subscribeToSettings()` exists to keep
+    // this current, but nothing called it, so the birth value was the ONLY value
+    // the service ever held.
+    this.state = deps.provider
+      ? { ...initialPlaybackState, provider: deps.provider }
+      : initialPlaybackState;
     this.audioGenerator = deps.audioGenerator;
+    // PROSO-136: the subscription was dead wiring — defined, never invoked. It is
+    // what keeps `state.provider` honest when settings change at runtime.
+    this.subscribeToSettings();
   }
 
   /**

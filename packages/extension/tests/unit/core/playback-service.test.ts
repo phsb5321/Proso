@@ -390,11 +390,42 @@ describe('PlaybackService', () => {
     });
   });
 
+  // PROSO-136 regression. The service adopted `initialPlaybackState` wholesale,
+  // whose provider is the hardcoded literal 'elevenlabs'. Combined with the dead
+  // `subscribeToSettings()` wiring, a reader configured for any other provider
+  // had a service that was born believing it was ElevenLabs and never learned
+  // otherwise — so a configured, granted, reachable local host still routed to
+  // the managed server and answered a billing 402.
+  describe('provider seeded from configuration', () => {
+    it('reports the configured provider, not the hardcoded vendor default', () => {
+      const configured = new PlaybackService({
+        audioGenerator: mockAudioGenerator,
+        audioUrlProvider: mockAudioUrlProvider,
+        cacheStore: mockCacheStore,
+        highlightSync: mockHighlightSync,
+        settingsStore: mockSettingsStore,
+        provider: 'local',
+      });
+
+      expect(configured.getState().provider).toBe('local');
+    });
+
+    it('falls back to the default when no provider is supplied', () => {
+      expect(service.getState().provider).toBe('elevenlabs');
+    });
+  });
+
   describe('subscribeToSettings()', () => {
-    it('should subscribe to settings store', () => {
+    // PROSO-136: the constructor now subscribes, because nothing else ever did —
+    // the method was defined and never called, so `state.provider` had no live
+    // source and kept its hardcoded birth value forever. This test previously
+    // asserted exactly one call, which only held while the wiring was dead.
+    it('subscribes at construction, and re-subscribing replaces rather than stacks', () => {
+      expect(mockSettingsStore.subscribeCalls).toBe(1);
+
       service.subscribeToSettings();
 
-      expect(mockSettingsStore.subscribeCalls).toBe(1);
+      expect(mockSettingsStore.subscribeCalls).toBe(2);
     });
 
     it('should update state when settings change', () => {
