@@ -11,8 +11,11 @@
 
 import { describe, expect, it } from '@jest/globals';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isExtensionPage } from '../../../../src/utils/content/extension-page';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 describe('isExtensionPage', () => {
   it("covers the extension's own pages", () => {
