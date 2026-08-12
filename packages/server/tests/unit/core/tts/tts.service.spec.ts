@@ -492,9 +492,14 @@ describe('TTSService.synthesize', () => {
       if (!isErr(result)) return;
       expect(result.error.code).toBe(ErrorCode.InsufficientCredits);
       expect(result.error.message).toBe(
-        'Managed TTS is not included in this tier. Add a provider API key in settings, or use a plan that includes managed TTS.',
+        'Managed TTS is not included in this tier. Attach your own provider API key in settings (free on every tier), or use a local synthesis host you run yourself.',
       );
       expect(result.error.message).not.toMatch(/browser TTS|upgrade to Pro/i);
+      // PROSO-15 falsifier A: the message names ONLY remedies that exist today
+      // (BYOK + the local host) and never a removed capability.
+      expect(result.error.message).toMatch(/API key/);
+      expect(result.error.message).toMatch(/local synthesis host/);
+      expect(result.error.message).toMatch(/free on every tier/);
     });
 
     it('does not reach any provider adapter on a Free tier managed request', async () => {
@@ -508,16 +513,19 @@ describe('TTSService.synthesize', () => {
     });
 
     it('still allows Free tier BYOK — the gate sits after the BYOK branch (INV-002)', async () => {
-      const request = makeDefaultRequest({
-        tier: SubscriptionTier.Free,
-        provider: TTSProvider.OpenAI,
-        byokApiKey: 'sk-user-supplied-key',
-      });
-      const result = await synthesize(request, deps);
+      const outcome = await synthesize(
+        makeDefaultRequest({
+          tier: SubscriptionTier.Free,
+          provider: TTSProvider.OpenAI,
+          byokApiKey: 'sk-user-supplied-key',
+        }),
+        deps,
+      );
 
-      expect(isOk(result)).toBe(true);
-      if (!isOk(result)) return;
-      expect(result.value.creditsUsed).toBe(0);
+      // PROSO-15 falsifier B: BYOK on Free synthesizes with zero credits
+      // (zero deduction is asserted generically in tts-service-byok.spec.ts).
+      expect(outcome.ok).toBe(true);
+      expect(outcome.ok && outcome.value.creditsUsed).toBe(0);
     });
 
     it('meters a Pro tier managed request, which the gate lets through', async () => {
