@@ -58,6 +58,7 @@ type LogViewerResponse = {
 import { saveApiKey, testApiKey } from '../../utils/options/api-key-tester';
 import { type ScrollSpyInstance, createScrollSpy } from '../../utils/options/scroll-spy';
 import { type ThemeMode, getThemeManager } from '../../utils/options/theme-manager';
+import { originCoveredByGrantedPatterns } from '../../utils/permissions/match-pattern';
 import { usageTracker } from '../../utils/telemetry/usage';
 import { showConfirmModal } from './components/modal';
 import { setupSidebarKeyboardNav } from './components/sidebar';
@@ -293,8 +294,38 @@ async function loadLocalHostSettings(): Promise<void> {
     if (typeof result.localHostVoice === 'string' && result.localHostVoice) {
       elements.localHostVoice.value = result.localHostVoice;
     }
+    await refreshLocalHostPermissionStatus();
   } catch (error) {
     log.error('Error loading local host settings', { error });
+  }
+}
+
+/**
+ * PROSO-131: configured is NOT granted. When the section is enabled with a
+ * URL but the runtime host grant is missing, the section must say so instead
+ * of looking configured-and-working while playback silently falls back to a
+ * 402. Uses the SAME effective-access check as the playback gate
+ * (permissions.getAll + pattern coverage — composition/factories.ts), so the
+ * settings UI and the gate cannot disagree.
+ */
+async function refreshLocalHostPermissionStatus(): Promise<void> {
+  if (!elements) return;
+  const url = elements.localHostUrl.value.trim();
+  const enabled = elements.localHostEnabled.checked;
+  if (!enabled || !url) return;
+  let origin: string;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return;
+  }
+  const granted = await browser.permissions.getAll();
+  const covered = originCoveredByGrantedPatterns(origin, granted.origins ?? []);
+  if (!covered) {
+    elements.localHostStatus.textContent =
+      'Needs permission — enable the host or click "Test connection" to grant access.';
+  } else if (elements.localHostStatus.textContent.startsWith('Needs permission')) {
+    elements.localHostStatus.textContent = '';
   }
 }
 
@@ -359,6 +390,7 @@ async function saveLocalHostSettings(): Promise<void> {
   };
   await browser.storage.local.set(stored);
   syncProviderUI(elements, deriveProviderState(stored));
+  await refreshLocalHostPermissionStatus();
   if (enabled) {
     await browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' });
   }
