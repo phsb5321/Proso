@@ -69,6 +69,14 @@
   },
   "overrides": [
     {
+      "include": ["knip.json"],
+      "json": {
+        "parser": {
+          "allowComments": true
+        }
+      }
+    },
+    {
       "include": ["packages/server/**"],
       "linter": {
         "rules": {

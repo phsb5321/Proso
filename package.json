@@ -27,13 +27,7 @@
     "lefthook": "^2.1.2",
     "typescript": "^5.9.3"
   },
-  "keywords": [
-    "firefox",
-    "extension",
-    "tts",
-    "text-to-speech",
-    "accessibility"
-  ],
+  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
   "license": "MIT",
   "pnpm": {
     "onlyBuiltDependencies": [
