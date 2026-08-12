@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" role="img" aria-label="Proso mark, 16 pixel optical size">
   <title>Proso mark — 16 px optical size</title>
-  <!-- Integer coordinates and even stroke: browser silhouette only at this band. -->
-  <rect x="2" y="2" width="11" height="11" rx="2" fill="none" stroke="#0A164C" stroke-width="2"/>
-  <!-- The play disc replaces chrome/text/fold/waves as the one semantic interior detail. -->
-  <circle cx="9" cy="9" r="4" fill="#03B9BB"/>
-  <path d="M7 6v6l4-3Z" fill="#0A164C"/>
+  <!-- PROSO-142: the navy mark vanishes on dark surfaces (the settings page and
+       the toolbar are dark by default). A fixed light tile keeps the mark legible
+       on BOTH themes — the standard pattern for a mark verified against light. -->
+  <rect x="0.5" y="0.5" width="15" height="15" rx="3.5" fill="#FFFFFF" stroke="#0A164C" stroke-opacity="0.15"/>
+  <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="none" stroke="#0A164C" stroke-width="2"/>
+  <circle cx="8.5" cy="8.5" r="3.5" fill="#03B9BB"/>
+  <path d="M7 6.5v4l2.5-2Z" fill="#FFFFFF"/>
 </svg>
