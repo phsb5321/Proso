@@ -157,15 +157,18 @@ export async function synthesize(
     // zero (TIER_CREDITS.Free), so every managed request is short by its full
     // price. That is already the 402 the extension branches on.
     // This message is shown to the reader verbatim by the extension, so it names
-    // only remedies the extension actually offers. Browser TTS is deliberately
-    // absent: INV-005 guarantees it is unlimited, but the extension's provider
-    // list is the four managed providers and its playback path has no Web Speech
-    // route, so suggesting it would send the reader looking for a setting that
-    // does not exist.
+    // only remedies the extension actually offers — and says plainly that they
+    // are free. The remedy set today (PROSO-15): BYOK (INV-002 — the BYOK
+    // branch above this gate synthesizes with the reader's own key and deducts
+    // zero credits on every tier) and the reader-operated local synthesis host
+    // (constitution Principle I v2.1.0). Browser TTS is deliberately absent:
+    // INV-005 guarantees it is unlimited, but the extension's playback path
+    // has no Web Speech route, so suggesting it would send the reader looking
+    // for a setting that does not exist.
     return Err(
       creditError(
         ErrorCode.InsufficientCredits,
-        'Managed TTS is not included in this tier. Add a provider API key in settings, or use a plan that includes managed TTS.',
+        'Managed TTS is not included in this tier. Attach your own provider API key in settings (free on every tier), or use a local synthesis host you run yourself.',
         { tier: request.tier },
       ),
     );
