@@ -98,10 +98,7 @@ export function createAudioGeneratorAdapter(
   // permission granted for the entered origin (constitution 2.1.0).
   if (provider === 'local') {
     const gate = async (): Promise<{ ok: boolean; reason?: string }> => {
-      const stored = await browser.storage.local.get([
-        'localHostUrl',
-        'localHostEnabled',
-      ]);
+      const stored = await browser.storage.local.get(['localHostUrl', 'localHostEnabled']);
       if (stored.localHostEnabled !== true) {
         return { ok: false, reason: 'Local synthesis host is disabled' };
       }
@@ -201,21 +198,6 @@ export function createHighlightSyncAdapter(useNoOp = false): IHighlightSynchroni
   return new HighlightSyncAdapter();
 }
 
-/**
- * Create a highlight synchronizer adapter with fallback to no-op.
- *
- * Attempts to create real adapter first, falls back to no-op on error.
- *
- * @returns IHighlightSynchronizer adapter
- */
-function createHighlightSyncAdapterWithFallback(): IHighlightSynchronizer {
-  try {
-    return new HighlightSyncAdapter();
-  } catch {
-    console.warn('[Factory] HighlightSyncAdapter failed, using NoOp fallback');
-    return new NoOpHighlightSyncAdapter();
-  }
-}
 
 /**
  * Create a text extractor adapter.

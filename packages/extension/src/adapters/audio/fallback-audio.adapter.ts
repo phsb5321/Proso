@@ -26,7 +26,12 @@ import type { AudioError, ProviderId } from '../../core/shared/errors';
 import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
 import { Err } from '../../core/shared/result';
-import type { AudioRequest, AudioResponse, IAudioGenerator, Voice } from '../../ports/audio-generator.port';
+import type {
+  AudioRequest,
+  AudioResponse,
+  IAudioGenerator,
+  Voice,
+} from '../../ports/audio-generator.port';
 
 /**
  * Result of the pre-flight gate: may the local route be attempted?
@@ -82,7 +87,8 @@ export class FallbackAudioAdapter implements IAudioGenerator {
 
   constructor(options: FallbackAudioAdapterOptions) {
     this.failClosedOnGate = options.failClosedOnGate ?? false;
-    this.primaryFactory = options.primaryFactory ?? (options.primary ? async () => options.primary! : null);
+    this.primaryFactory =
+      options.primaryFactory ?? (options.primary ? async () => options.primary! : null);
     const factory = this.primaryFactory;
     if (!factory) {
       throw new Error('FallbackAudioAdapter requires primary or primaryFactory');
@@ -125,7 +131,7 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return this.secondary.generateAudio(request, signal);
     }
 
-    let local;
+    let local: Result<AudioResponse, AudioError>;
     try {
       local = await (await this.getPrimary()).generateAudio(request, signal);
     } catch (error) {
@@ -161,7 +167,7 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return;
     }
 
-    let primary;
+    let primary: IAudioGenerator;
     try {
       primary = await this.getPrimary();
     } catch (error) {
