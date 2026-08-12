@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your licence key &mdash; Proso</title>
+  <meta name="description" content="Your Proso licence key and where to paste it.">
+  <meta name="robots" content="noindex, follow">
+
+  <link rel="canonical" href="https://proso.com.br/success.html">
+  <link rel="icon" type="image/png" href="assets/images/favicon.png">
+
+  <link rel="stylesheet" href="assets/css/style.css">
+  <noscript><style>.site-nav__links{display:flex!important;position:static!important;flex-wrap:wrap;background:none!important;border:none!important}.nav-toggle{display:none!important}</style></noscript>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" aria-label="Proso home">Proso</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+          <span></span><span></span><span></span>
+        </button>
+        <ul class="site-nav__links" id="nav-links" role="list">
+          <li><a href="index.html#features" class="site-nav__link">Features</a></li>
+          <li><a href="pricing.html" class="site-nav__link">Pricing</a></li>
+          <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
+          <li><a href="terms.html" class="site-nav__link">Terms</a></li>
+        </ul>
+        <a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--sm">Install for Firefox</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="pricing-hero">
+      <div class="container container--narrow">
+        <h1>Thank you &mdash; your subscription is active</h1>
+        <p>Below is the licence key that unlocks managed voices in the extension. Keep it: it is the only thing that identifies your subscription.</p>
+      </div>
+    </section>
+
+    <section id="license">
+      <div class="container container--narrow">
+
+        <div class="license-panel" id="checkout-waiting" role="status" aria-live="polite">
+          <h2>Issuing your key</h2>
+          <p>Your payment went through. We are waiting for the confirmation that mints your licence key &mdash; this usually takes a few seconds. Leave this page open.</p>
+        </div>
+
+        <div class="license-panel" id="checkout-key" hidden>
+          <h2>Your licence key</h2>
+          <p class="license-key" id="license-key-value"></p>
+          <div class="license-panel__actions">
+            <button type="button" class="btn btn--primary" id="license-key-copy">Copy licence key</button>
+            <span class="license-panel__status" id="license-key-copy-status" role="status" aria-live="polite"></span>
+          </div>
+          <p class="license-panel__tier" id="license-key-tier" hidden></p>
+          <h3>Where to paste it</h3>
+          <p>Open Proso&rsquo;s settings (the extension&rsquo;s toolbar button, then the gear icon), find the licence key field, paste the key and save. Managed voices become available immediately.</p>
+          <p><strong>Copy it before you close this tab.</strong> Only the tab that started the checkout can collect this key &mdash; the link alone will not show it again. If you lose it, email <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a> with the transaction id below.</p>
+        </div>
+
+        <div class="license-panel license-panel--problem" id="checkout-problem" hidden>
+          <h2>We could not show your key</h2>
+          <p id="checkout-problem-text" role="status" aria-live="polite"></p>
+          <p>Your payment is unaffected and your subscription is real. The key exists once the purchase is confirmed, and support can hand it over against the transaction id below.</p>
+        </div>
+
+        <p class="license-panel__meta">Transaction id: <span id="transaction-id-value">not provided</span></p>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="index.html#features">Features</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="mailto:commercial@proso.com.br">Commercial Licensing</a>
+      </nav>
+      <div class="footer-info">
+        <p>&copy; 2026 Proso. All rights reserved.</p>
+        <p>Made with care in Recife, Brazil.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+  <script src="assets/js/checkout-config.js" defer></script>
+  <script src="assets/js/success.js" defer></script>
+</body>
+</html>

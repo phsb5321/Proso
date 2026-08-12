@@ -12,6 +12,7 @@ FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot local-host-journey-gate local-host-journey-plants \
+	checkout-surface-gate checkout-surface-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
@@ -72,6 +73,12 @@ local-host-journey-plants: ## Prove every local-host-journey-gate assertion catc
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter '@proso/server...' build
 	@node scripts/smoke-server-boot.mjs
+
+checkout-surface-gate: ## Drive the purchase surface (buy controls, claim secret, licence handoff) in jsdom.
+	@node scripts/checkout-surface-gate.mjs
+
+checkout-surface-plants: ## Prove every checkout-surface-gate assertion catches a planted break.
+	@node scripts/checkout-surface-gate.mjs --plants
 
 fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUNS.
 	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) NODE_OPTIONS='--experimental-vm-modules' \

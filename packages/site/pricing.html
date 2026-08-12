@@ -101,7 +101,8 @@
               <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Cloud sync</span></li>
               <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">PDF reading</span></li>
             </ul>
-            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+            <button type="button" class="btn btn--primary" data-checkout-tier="pro" aria-describedby="checkout-note-basic">Subscribe to Basic</button>
+            <p class="checkout-note" id="checkout-note-basic" role="status" aria-live="polite" hidden></p>
           </div>
 
           <!-- Pro -->
@@ -122,7 +123,8 @@
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> PDF reading</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Credit rollover (up to 100K)</li>
             </ul>
-            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+            <button type="button" class="btn btn--primary" data-checkout-tier="enterprise" aria-describedby="checkout-note-pro">Subscribe to Pro</button>
+            <p class="checkout-note" id="checkout-note-pro" role="status" aria-live="polite" hidden></p>
           </div>
 
           <!-- Multilingual -->
@@ -228,5 +230,7 @@
   </footer>
 
   <script src="assets/js/main.js" defer></script>
+  <script src="assets/js/checkout-config.js" defer></script>
+  <script src="assets/js/checkout.js" defer></script>
 </body>
 </html>

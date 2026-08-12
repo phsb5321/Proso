@@ -1106,6 +1106,80 @@
     font-size: var(--text-lg);
     margin-inline: auto;
   }
+
+  /* Checkout — the reason a buy control is inert, stated next to it */
+  .checkout-note {
+    margin-top: var(--space-3);
+    font-size: var(--text-xs);
+    color: var(--accent-warm);
+  }
+
+  /* Post-checkout licence panel */
+  .license-panel {
+    padding: var(--space-8);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius-lg);
+  }
+
+  .license-panel--problem {
+    border-color: var(--accent-warm);
+  }
+
+  .license-panel h2 {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-3);
+  }
+
+  .license-panel h3 {
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-3);
+  }
+
+  .license-panel p {
+    color: var(--text-secondary);
+  }
+
+  .license-panel p + p {
+    margin-top: var(--space-3);
+  }
+
+  .license-key {
+    margin-block: var(--space-4);
+    padding: var(--space-4);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .license-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .license-panel__status {
+    font-size: var(--text-sm);
+    color: var(--accent-success);
+  }
+
+  .license-panel__tier {
+    margin-top: var(--space-4);
+    font-size: var(--text-sm);
+  }
+
+  .license-panel__meta {
+    margin-top: var(--space-6);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
 }
 
 /* --- Utilities --- */
