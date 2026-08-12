@@ -322,13 +322,24 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         // Send initial language state to footer
         const langState = tabLanguageStates.get(tabId);
         const langOverride = langState?.override;
+        // One derived value for both the footer and synthesis. PROSO-147:
+        // `PlaybackService.setLanguage()` existed and was called from nowhere,
+        // so `detectedLanguage` stayed null for every request. The managed
+        // providers hid it by choosing a voice server-side; the reader's own
+        // host cannot, and declines an undetermined language rather than
+        // reading English text in a Portuguese voice (spec D-2) — so the local
+        // route answered "Language not supported: und" for every article.
+        // Deriving it here from the same state the footer shows means the
+        // language the reader is told is the language they hear.
+        const effectiveLanguage = langOverride ?? langState?.detected?.code ?? 'en';
         await sendToContentScript(tabId, {
           action: 'FOOTER_LANGUAGE_UPDATE',
-          languageCode: langOverride ?? langState?.detected?.code ?? 'en',
+          languageCode: effectiveLanguage,
           isAutoDetected: !langOverride,
         });
 
         // Step 4: Start PlaybackService
+        service.setLanguage(effectiveLanguage);
         const result = await service.start(paragraphs, tabId, pageUrl);
 
         if (!result.ok) {

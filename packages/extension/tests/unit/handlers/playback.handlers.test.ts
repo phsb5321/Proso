@@ -34,6 +34,11 @@ const mockPlaybackService = {
   setSpeed: jest.fn<() => any>(),
   seek: jest.fn<() => Promise<any>>(),
   resyncPosition: jest.fn<() => boolean>(),
+  // PROSO-147: the real service has had this since the language feature and
+  // nothing ever called it, so `detectedLanguage` stayed null for every audio
+  // request. A mock that omits it is how the dead wiring stayed invisible —
+  // the same shape PR #144 found with `setProvider`.
+  setLanguage: jest.fn<(language: string | null) => void>(),
 };
 
 const mockGetPlaybackService = jest.fn<() => any>(() => mockPlaybackService);
@@ -393,6 +398,27 @@ describe('Playback Handlers', () => {
         42,
         'https://example.com',
       );
+    });
+
+    it('gives PlaybackService the language it shows in the footer (PROSO-147)', async () => {
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
+      mockTabsSendMessage.mockResolvedValue({ paragraphs: ['Some article text'] });
+
+      const raw = await registry.dispatch('playback.start', {});
+      const result = unwrapDispatch(raw);
+
+      expect(result.ok).toBe(true);
+      // The setter existed and nothing called it, so every request carried a
+      // null language. Managed providers chose a voice server-side and hid it;
+      // the reader's own host declines an undetermined language, so the local
+      // route answered "Language not supported: und" for every article.
+      const footerCall = mockTabsSendMessage.mock.calls.find(
+        (call: any[]) => call[1]?.action === 'FOOTER_LANGUAGE_UPDATE',
+      );
+      expect(footerCall).toBeDefined();
+      expect(mockPlaybackService.setLanguage).toHaveBeenCalledWith(footerCall![1].languageCode);
+      // Nothing detected for this tab: the product default, not null.
+      expect(mockPlaybackService.setLanguage).toHaveBeenCalledWith('en');
     });
 
     it('should fall back to splitting raw selection text when paragraphs are empty', async () => {

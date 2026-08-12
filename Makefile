@@ -11,7 +11,8 @@ FC_SEED ?= 20260730
 FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
-	smoke-server-boot fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
+	smoke-server-boot local-host-journey-gate local-host-journey-plants \
+	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
 
@@ -59,6 +60,14 @@ public-actor-gate: ## Drive the built extension through public controls only (no
 public-actor-plants: ## Prove every public-actor-gate assertion catches a planted break.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/public-actor-plants.mjs
+
+local-host-journey-gate: ## Prove the account-free read: the reader's own host serves the article and the managed route is never called.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/local-host-journey-gate.mjs
+
+local-host-journey-plants: ## Prove every local-host-journey-gate assertion catches a planted break.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/local-host-journey-plants.mjs
 
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter '@proso/server...' build

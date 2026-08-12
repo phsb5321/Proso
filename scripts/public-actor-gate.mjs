@@ -34,6 +34,21 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  Blocked,
+  JOURNEY_PREFS,
+  READ_PAGE,
+  blocked,
+  chromeEval,
+  clickBrowserAction as clickBrowserActionIn,
+  clickByName as clickByNameIn,
+  ensurePopupOpen as ensurePopupOpenIn,
+  openExtensionPage,
+  openExtensionsPanel as openExtensionsPanelIn,
+  popupOpen,
+  readPopup,
+  resolveFirefox,
+} from './lib/firefox-popup.mjs';
 import { ARTICLE_PARAGRAPHS, startFixtureServer } from './lib/reading-fixture-server.mjs';
 import { launch, sleep, waitFor } from './lib/webdriver.mjs';
 
@@ -77,13 +92,6 @@ function act(control, via) {
   actions.push({ control, via, at: new Date().toISOString() });
 }
 
-/** A missing prerequisite: the journey could not run. Never a pass. */
-class Blocked extends Error {}
-
-function blocked(message) {
-  throw new Blocked(message);
-}
-
 function fail(message) {
   throw new Error(message);
 }
@@ -97,264 +105,42 @@ function requestText(request) {
   return typeof text === 'string' ? text : '';
 }
 
-/**
- * Locate a Firefox to drive: `FIREFOX_BIN` wins, otherwise the first Firefox on
- * `PATH`. A missing browser is BLOCKED, never a skip.
- */
-function resolveFirefox() {
-  const explicit = process.env.FIREFOX_BIN;
-  if (explicit) {
-    if (!existsSync(explicit)) blocked(`FIREFOX_BIN does not exist: ${explicit}`);
-    return explicit;
-  }
-  for (const name of ['firefox', 'firefox-nightly', 'firefox-developer-edition']) {
-    try {
-      return execFileSync('/bin/sh', ['-c', `command -v ${name}`], { encoding: 'utf8' }).trim();
-    } catch {
-      // Not on PATH under this name; try the next.
-    }
-  }
-  return blocked('No Firefox found on PATH. Set FIREFOX_BIN to a Firefox executable.');
-}
-
-/** Run `script` in the parent process with chrome privileges, then restore content context. */
-async function chromeEval(driver, script, args = []) {
-  await driver.session('POST', '/moz/context', { context: 'chrome' });
-  try {
-    return await driver.execute(script, args);
-  } finally {
-    await driver.session('POST', '/moz/context', { context: 'content' });
-  }
-}
 
 /**
- * Open an in-extension page and focus it.
- *
- * Firefox refuses `moz-extension://` navigation driven from content context, so
- * the tab is opened from chrome context with the system principal. This is
- * setup, not an actor action — the actor never opens a settings tab.
- */
-async function openExtensionPage(driver, url) {
-  const before = await driver.session('GET', '/window/handles');
-  await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const tab = win.gBrowser.addTab(arguments[0], {
-       triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-     });
-     win.gBrowser.selectedTab = tab;
-     return true;`,
-    [url],
-  );
-  const handle = await waitFor('the extension page tab', async () => {
-    const handles = await driver.session('GET', '/window/handles');
-    return handles.find((h) => !before.includes(h)) ?? null;
-  });
-  await driver.session('POST', '/window', { handle });
-  await waitFor('the extension page to load', async () => {
-    const state = await driver.execute(
-      'return JSON.stringify({ href: location.href, api: typeof browser });',
-    );
-    if (typeof state !== 'string') return false;
-    const { href, api } = JSON.parse(state);
-    return href.startsWith(url) && api === 'object';
-  });
-  return handle;
-}
-
-/**
- * Click the toolbar's Unified Extensions button — the public entry point to an
- * unpinned browser action in Firefox 109+.
+ * Plant-aware wrappers over the shared actor primitives. The plant vocabulary
+ * stays here; the mechanics live in `scripts/lib/firefox-popup.mjs`.
  */
 async function openExtensionsPanel(driver) {
-  if (PLANT === 'panel') {
-    await chromeEval(
-      driver,
-      `const win = Services.wm.getMostRecentWindow('navigator:browser');
-       const btn = win.document.getElementById('unified-extensions-button');
-       if (btn) btn.hidden = true;
-       return true;`,
-    );
-  }
-
-  const outcome = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const btn = win.document.getElementById('unified-extensions-button');
-     if (!btn) return 'no unified-extensions-button in the toolbar';
-     if (btn.hidden) return 'the Unified Extensions button is hidden';
-     btn.click();
-     return 'ok';`,
-  );
-  if (outcome !== 'ok') blocked(`Could not reach the Unified Extensions button: ${outcome}`);
-  const state = await waitFor('the Unified Extensions panel to open', async () => {
-    const open = await chromeEval(
-      driver,
-      `const win = Services.wm.getMostRecentWindow('navigator:browser');
-       const panel = win.document.getElementById('unified-extensions-panel');
-       return panel ? panel.state : 'missing';`,
-    );
-    return open === 'open' ? open : null;
-  }).catch(() => null);
-  if (!state) blocked('The Unified Extensions panel never opened');
+  await openExtensionsPanelIn(driver, { hideButton: PLANT === 'panel' });
   act('Unified Extensions button', 'toolbar id unified-extensions-button');
 }
 
-/**
- * Click the Proso browser action inside the panel.
- *
- * The widget is addressed by the extension id Firefox itself stamps on the
- * item (`data-extensionid`) and verified by the visible label the user reads,
- * so a renamed internal widget id cannot silently pass.
- */
 async function clickBrowserAction(driver) {
-  if (PLANT === 'button') {
-    await chromeEval(
-      driver,
-      `const win = Services.wm.getMostRecentWindow('navigator:browser');
-       const node = win.document.querySelector('[data-extensionid="' + arguments[0] + '"]');
-       node?.remove();
-       return true;`,
-      [ADDON_ID],
-    );
-  }
-
-  const found = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const item = win.document.querySelector('toolbaritem[data-extensionid="' + arguments[0] + '"]');
-     if (!item) return JSON.stringify({ ok: false, why: 'no browser action widget for the extension' });
-     const action = item.querySelector('.unified-extensions-item-action-button');
-     if (!action) return JSON.stringify({ ok: false, why: 'the widget exposes no action button' });
-     if (action.disabled) return JSON.stringify({ ok: false, why: 'the browser action is disabled' });
-     return JSON.stringify({ ok: true, label: action.getAttribute('label') });`,
-    [ADDON_ID],
-  );
-  const widget = JSON.parse(found);
-  if (!widget.ok) blocked(`Browser action unreachable: ${widget.why}`);
-  if (!widget.label) blocked('The browser action carries no visible label');
-
-  // The `popup` plant clicks the item's overflow menu instead of its action
-  // button: a real control, but not the one that opens the popup.
-  const selector =
-    PLANT === 'popup'
-      ? '.unified-extensions-item-menu-button'
-      : '.unified-extensions-item-action-button';
-  const clicked = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const item = win.document.querySelector('toolbaritem[data-extensionid="' + arguments[0] + '"]');
-     const action = item.querySelector(arguments[1]);
-     if (!action) return 'no element matched ' + arguments[1];
-     action.click();
-     return 'ok';`,
-    [ADDON_ID, selector],
-  );
-  if (clicked !== 'ok') blocked(`Clicking the browser action failed: ${clicked}`);
-  act(`browser action "${widget.label}"`, 'Unified Extensions panel item');
-  return widget.label;
+  const label = await clickBrowserActionIn(driver, ADDON_ID, {
+    removeWidget: PLANT === 'button',
+    // The `popup` plant clicks the item's overflow menu instead of its action
+    // button: a real control, but not the one that opens the popup.
+    useMenuButton: PLANT === 'popup',
+  });
+  act(`browser action "${label}"`, 'Unified Extensions panel item');
+  return label;
 }
 
-/** True when the extension popup document is open and parsed. */
-async function popupOpen(driver) {
-  const state = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const b = Array.from(win.document.querySelectorAll('browser'))
-       .find((x) => x.currentURI && x.currentURI.spec.includes('/popup.html'));
-     if (!b) return 'absent';
-     if (!b.contentDocument) return 'opaque';
-     return b.contentDocument.readyState;`,
-  );
-  return state === 'complete' || state === 'interactive';
-}
-
-/** Open the popup through its public controls, reopening it if it dismissed itself. */
-async function ensurePopupOpen(driver) {
-  if (await popupOpen(driver)) return;
+/** How this gate reopens a popup that dismissed itself: its own planted path. */
+async function openPopup(driver) {
   await openExtensionsPanel(driver);
   await clickBrowserAction(driver);
-  const ok = await waitFor('the Proso popup to open', async () =>
-    (await popupOpen(driver)) ? true : null,
-  ).catch(() => false);
-  if (!ok) blocked('The browser action opened no popup document');
 }
 
-/**
- * Read the popup's public state: the accessible names it currently offers and
- * the status text it announces through `aria-live`.
- */
-async function readPopup(driver) {
-  const raw = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const b = Array.from(win.document.querySelectorAll('browser'))
-       .find((x) => x.currentURI && x.currentURI.spec.includes('/popup.html'));
-     if (!b || !b.contentDocument) return JSON.stringify({ open: false });
-     const doc = b.contentDocument;
-     const named = Array.from(doc.querySelectorAll('[aria-label]'))
-       .filter((el) => el.getAttribute('aria-label'))
-       .map((el) => el.getAttribute('aria-label'));
-     const status = doc.querySelector('[aria-live]');
-     return JSON.stringify({
-       open: true,
-       names: named,
-       // Double backslash: this script is a template literal, and an untagged
-       // template turns \s into a bare s, which would collapse the regex to /s+/g.
-       status: status ? status.textContent.replace(/\\s+/g, ' ').trim() : null,
-     });`,
-  );
-  return JSON.parse(raw);
+async function ensurePopupOpen(driver) {
+  await ensurePopupOpenIn(driver, () => openPopup(driver));
 }
 
-/**
- * Click a popup control by the accessible name a screen reader would announce.
- *
- * A name that is absent, hidden, or disabled is BLOCKED: the actor could not
- * have used it either.
- */
 async function clickByName(driver, name) {
-  await ensurePopupOpen(driver);
   const target = PLANT === 'play-name' && name === NAME.play ? 'Play the article aloud' : name;
-  const raw = await chromeEval(
-    driver,
-    `const win = Services.wm.getMostRecentWindow('navigator:browser');
-     const b = Array.from(win.document.querySelectorAll('browser'))
-       .find((x) => x.currentURI && x.currentURI.spec.includes('/popup.html'));
-     if (!b || !b.contentDocument) return JSON.stringify({ ok: false, why: 'the popup is not open' });
-     const doc = b.contentDocument;
-     const el = doc.querySelector('[aria-label="' + arguments[0] + '"]');
-     if (!el) return JSON.stringify({ ok: false, why: 'no control has that accessible name' });
-     if (el.disabled) return JSON.stringify({ ok: false, why: 'the control is disabled' });
-     const box = el.getBoundingClientRect();
-     if (box.width === 0 || box.height === 0) {
-       return JSON.stringify({ ok: false, why: 'the control is not visible' });
-     }
-     el.click();
-     return JSON.stringify({ ok: true, tag: el.tagName.toLowerCase() });`,
-    [target],
-  );
-  const outcome = JSON.parse(raw);
-  if (!outcome.ok) blocked(`Public control "${target}" is unusable: ${outcome.why}`);
+  await clickByNameIn(driver, target, () => openPopup(driver));
   act(`popup control "${target}"`, 'accessible name');
 }
-
-/**
- * Read the reading state the user can see in the page.
- *
- * The sticky footer attaches a CLOSED shadow root by design, so the harness
- * reads what the page itself exposes: the footer container, the body padding
- * the footer reserves, and the paragraph highlight the reader watches move.
- */
-const READ_PAGE = `
-  return {
-    footer: Boolean(document.getElementById('proso-sticky-footer')),
-    bodyPadding: document.body.style.paddingBottom || null,
-    highlighted: Array.from(document.querySelectorAll('.proso-highlight'))
-      .map((el) => el.textContent.replace(/\\s+/g, ' ').trim())
-      .filter(Boolean),
-  };
-`;
 
 async function main() {
   if (!existsSync(path.join(buildDir, 'manifest.json'))) {
@@ -376,18 +162,7 @@ async function main() {
     extraArgs: ['-remote-allow-system-access'],
     prefs: {
       'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
-      // WebDriver exposes no window handle for an extension popup panel, and a
-      // remote popup's document is opaque to the parent process. Running the
-      // extension in-process is what makes the popup's own DOM — and therefore
-      // its accessible names — readable at all. The click, the listener and the
-      // rendered popup are real; only the process boundary is relaxed.
-      'extensions.webextensions.remote': false,
-      'media.autoplay.default': 0,
-      'media.autoplay.blocking_policy': 0,
-      'media.volume_scale': '0.0',
-      'browser.shell.checkDefaultBrowser': false,
-      'datareporting.policy.dataSubmissionEnabled': false,
-      'extensions.autoDisableScopes': 0,
+      ...JOURNEY_PREFS,
     },
   });
 
