@@ -90,6 +90,14 @@
           <div class="proso-popup__paragraph" id="paragraph-info">
             <span id="paragraph-current">-</span> / <span id="paragraph-total">-</span>
           </div>
+          <!-- PROSO-131: gate-failure affordance. Shown only when the local
+               host is configured but the runtime host grant is missing; the
+               button runs permissions.request() from this click (a user
+               gesture), then retries playback. -->
+          <div class="proso-popup__grant" id="grant-access-row" hidden>
+            <span class="proso-popup__grant-reason" id="grant-access-reason"></span>
+            <button type="button" id="grant-access-btn" class="proso-button proso-button--secondary proso-popup__grant-btn">Grant access</button>
+          </div>
         </section>
 
         <!-- Progress Bar -->
