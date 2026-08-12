@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import appConfig from './infrastructure/config/app.config';
+import { AuthModule } from './infrastructure/modules/auth.module';
 import { BillingModule } from './infrastructure/modules/billing.module';
 import { CreditsModule } from './infrastructure/modules/credits.module';
 import { HealthModule } from './infrastructure/modules/health.module';
@@ -34,6 +35,9 @@ import { TTSModule } from './infrastructure/modules/tts.module';
 
     // License validation
     LicenseModule,
+
+    // Optional licence-key identity for every route (global guard)
+    AuthModule,
 
     // Subscription management
     SubscriptionModule,
