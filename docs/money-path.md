@@ -67,7 +67,7 @@ is an unbuilt one with a substantial amount of code standing in for it.
 | ✓ | The webhook is unreachable in production today | `PaddleWebhookGuard` requires a `paddle-signature` header (`paddle-webhook.guard.ts:27-29`) and then calls the throwing verifier, converting any outcome to `403 Invalid webhook signature` (`:42`). Live: `POST https://api.proso.com.br/webhooks/paddle` with a body and no signature → `403 {"message":"Missing Paddle signature header"}`. The route itself is registered (`billing.module.ts:23`) and `rawBody: true` is enabled (`main.ts:10`) |
 | ◐ | The webhook creates a subscription and allocates credits | The code path exists — `webhook.controller.ts:93-129` saves a subscription then calls `creditRepository.createAllocation` when `TIER_CREDITS[tier] > 0`. It is proven only against mocks (`tests/unit/infrastructure/webhook.controller.spec.ts`), never against a database or a real Paddle delivery. Against the real schema it would fail: `Subscription.userId` is a foreign key to `User.id` (`prisma/schema.prisma:62`), and **no user row is ever created** — see the next row |
 | ✗ | A paying customer gets a user record | `UserRepositoryPort.create` (`user-repository.port.ts:7`) is implemented at `prisma-user.repository.ts:25` and **called from nowhere**: `grep -rn "userRepository\." packages/server/src --exclude-dir=generated` yields exactly one line, `findByLicenseKeyHash` in `license-validation.service.ts:36`. The webhook takes `user_id` from Paddle `custom_data` (`webhook.controller.ts:241-247`) and throws if absent — it never creates the user it references |
-| ✗ | A licence key is ever minted | `grep -rn "licenseKey.create\|createLicenseKey\|generateLicense\|issueLicense" packages/server/src --exclude-dir=generated` → 0 hits. Broader: `grep -rn "licenseKey\.\(create\|upsert\|update\)" packages/server/src --exclude-dir=generated` → 0 hits. `--exclude-dir=generated` is required and is not a way of hiding a hit: `packages/server/src/generated/` is the Prisma client, gitignored at `packages/server/.gitignore:5`, and its 4 + 9 matches are all JSDoc usage examples on `prisma.licenseKey.create*` (e.g. `generated/models/LicenseKey.ts:945`), never a call. The `LicenseKey` table exists in the schema (`prisma/schema.prisma:142-157`) and the only code that touches it is a read (`prisma-user.repository.ts:17`) |
+| ✗ | A licence key is ever minted | `grep -rn "licenseKey.create\|createLicenseKey\|generateLicense\|issueLicense" packages/server/src --exclude-dir=generated` → 0 hits. Broader: `grep -rn "licenseKey\.\(create\|upsert\|update\)" packages/server/src --exclude-dir=generated` → 0 hits. `--exclude-dir=generated` is required and is not a way of hiding a hit: `packages/server/src/generated/` is the Prisma client, gitignored at `packages/server/.gitignore:5`, and its 4 + 9 matches are all JSDoc usage examples on `prisma.licenseKey.create*` (e.g. `generated/models/LicenseKey.ts:945`), never a call. The `LicenseKey` table exists in the schema (`prisma/schema.prisma:142-156`) and the only code that touches it is a read (`prisma-user.repository.ts:17`) |
 | ✗ | A minted key would be retrievable even if minting existed | Two independent breaks. (1) `PrismaUserRepository.create` writes the hash to `User.licenseKey` (`:29`) while `findByLicenseKeyHash` reads `LicenseKey.keyHash` (`:17-22`) — **different tables**, so a user created through this repository is unfindable by key. (2) There is no delivery surface: no endpoint returns a key (`license.controller.ts` exposes only `POST validate`), no email is sent (no mailer dependency in `packages/server`), no account page exists |
 | ✓ | `POST /api/v1/license/validate` answers, and answers `free` for any key | Live: `curl -X POST https://api.proso.com.br/api/v1/license/validate -d '{"licenseKey":"PROSO-AUDIT-0000-0000"}'` → `200 {"valid":false,"tier":"free","features":{"managedTts":false,…},"credits":{"total":0,…}}`. This is correct by INV-001 (`license-validation.service.ts:39-47`): an unknown key yields Free defaults rather than an error. It is also, today, the answer for **every** key, because no key is ever minted |
 | ✗ | The extension has no licence-key plumbing | The plumbing is complete except for the UI. `licenseKey` is in the config schema (`utils/config/schema.ts:115`), the defaults (`utils/config/defaults.ts:44`, `null`), the storage read (`background/init-hexagonal.ts:79,89`), the container wiring (`composition/container.ts:49`), and the HTTP layer sends it as `X-License-Key` (`adapters/api/proso-api.adapter.ts:176-177`, `:256-257`) |
@@ -82,6 +82,7 @@ is an unbuilt one with a substantial amount of code standing in for it.
 | ✗ | The webhook grants the tier the customer paid for | `extractTier` (`webhook.controller.ts:265-283`) looks for `custom_data.tier`, then `items[0].price.custom_data.tier`, and otherwise **returns `SubscriptionTier.Pro`** (`:282`). A subscription whose Paddle metadata is missing or misnamed silently grants Pro and `TIER_CREDITS[Pro] = 500,000`. Nothing validates the returned string against the enum before it reaches `subscriptionRepository.save` and `TIER_CREDITS[tier]`, so an unrecognised tier string yields a Prisma enum error (swallowed to 200) and a recognised-but-wrong one yields the wrong entitlement with no error at all |
 | ✗ | The webhook binds the subscription to the right user | `extractUserId` (`webhook.controller.ts:241-259`) falls back to treating a non-JSON `passthrough` string as a raw user ID (`:254`). Any string Paddle sends becomes a `userId`, and it is written straight into a foreign-key column with no existence check. The resulting FK violation is caught and converted to `200` |
 | ✗ | A webhook failure is visible to Paddle or to anyone | `webhook.controller.ts:74-85` catches every handler error, logs it, marks the event processed, and returns `200 {received: true}`. Paddle therefore stops retrying, and the event ID is blacklisted so a manual replay is a no-op. The comment at `:78-79` names the missing mitigation — "In production, dead-letter queue or alerting would handle this" — and no dead-letter queue or alert exists. The behavior is codified as intended by `webhook.controller.spec.ts:397` `'still marks event as processed even when handler throws'`. A customer who paid during such a failure has no subscription, no credits, no key, and no trace beyond one log line |
+| ✗ | A Paddle transaction ID is a secret, and therefore a sufficient credential for licence retrieval | Paddle's own documentation puts the transaction ID in the URL the customer's browser navigates to. [Pass a transaction to a checkout](https://developer.paddle.com/build/transactions/pass-transaction-checkout/), §"Use checkout payment link", fetched 12/08/2026 (HTTP 200): the transaction's `checkout.url` "is made up of your default payment link, with a **`_ptxn` query parameter and the transaction ID appended**". A query parameter is not a secret: it lands in the address bar, browser and OS history, the `Referer` header sent to every third-party asset on the payment-link page, any analytics or session-replay script on that page, upstream proxy and CDN access logs, and any URL the customer copies or shares. Anyone who obtains a `txn_…` could then claim that purchase's key. This is a claim about the design space, not about shipped code — Proso mints no key today — and it binds the issuance work: see below |
 | ✓ | The deployed server is healthy and current for its own package | `curl -s -o /dev/null -w "%{http_code}" https://api.proso.com.br/health` → `200`. `GIT_REV e6b412f`; per [`docs/health/deploy-status.md`](health/deploy-status.md) the commits since are extension-only |
 | ✗ | Any GitHub Actions result is currently evidence for this path | Repo-wide `startup_failure` since 05/08/2026 — see the corresponding row in [`docs/reading-journey-status.md`](reading-journey-status.md). Every verification above is local or against the live host |
 
@@ -149,6 +150,11 @@ table understates the problem in a way that matters for sequencing.
 - **That the GitHub Pages XPI is the current build.** `updates.json` advertises
   `1.1.3` and `1.2.1`; `packages/extension/package.json` is at `1.2.9`. I
   verified the `1.1.3` XPI returns HTTP 200; I did not verify what is in it.
+- **That Paddle's `_ptxn` parameter is the only place a transaction ID becomes
+  public.** The cited page documents the checkout URL; I did not audit Paddle's
+  success-redirect or webhook-replay surfaces for further exposure. The
+  requirement below holds regardless — one documented public channel is enough
+  to disqualify the ID as a credential — but it is a floor, not a survey.
 - **The Plane item numbers cited below.** This seat cannot reach the tracker
   (`plane-cli` → "Herdr Plane mapping is required but unresolved"). The numbers
   are the orchestrator's; the underlying facts are independently verified here.
@@ -200,6 +206,29 @@ Run 12/08/2026 through the groq lane (`openai/gpt-oss-120b`) with the full sourc
 of twelve money-path files inlined, since that lane has no repository access.
 The fleet rule is that the reviewer must not share a model family with whoever
 wrote the code; this code was written by prior Anthropic-family sessions.
+
+### Binding requirement for `148-license-issuance`
+
+**Licence retrieval must not authenticate on the Paddle transaction ID alone.**
+The evidence is the `_ptxn` row above: Paddle publishes the transaction ID into
+the checkout URL by design, so `GET /api/v1/license?transaction_id=txn_…` — or
+any endpoint whose only credential is that ID — hands the key to whoever learns
+it from a history entry, a `Referer` header or a log line.
+
+The smallest correct shape: at `subscription.created` / `transaction.completed`,
+mint a second high-entropy value — a claim secret — alongside the key, store
+only its hash (the `LicenseKey.keyHash` pattern already in
+`prisma/schema.prisma:142-156` is the right precedent), and require it on
+retrieval. The transaction ID may still be used to *locate* the record; it must
+not be what *authorises* reading it. Deliver the claim secret over a channel the
+transaction ID is not already in — the success page's own response body, or
+email — and make it single-use or short-TTL so a leaked success URL does not
+stay redeemable. Do not derive the claim secret from the transaction ID: a
+derivation whose only input is a public value is public.
+
+This is also the shape of the failure this repository keeps producing. A
+retrieval endpoint keyed on a public ID returns `200` with a real key to the
+wrong person; every party involved observes success.
 
 Result: six findings, **no new ones**. Findings 1–4 are the `AuthModule` break,
 the swallowed webhook failure, the stub checkout URL, and the guard that never
