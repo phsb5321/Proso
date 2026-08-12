@@ -270,6 +270,15 @@ export function reconfigureAudioGenerator(
   // Without this, PlaybackService holds a stale reference to the old generator
   if (containerInstance.services.playback) {
     containerInstance.services.playback.setAudioGenerator(newAudioGenerator);
+    // PROSO-135: the adapter swap above is not enough. PlaybackService keeps its
+    // OWN `state.provider`, which only moved via `subscribeToSettings()` — and
+    // `provider.select` writes `browser.storage.local` directly, bypassing the
+    // settings store, so the subscription never fired. The handler answered
+    // `{success:true, provider:'local'}` while `playback.getState` kept reporting
+    // `elevenlabs`, and playback routed to the server and 402'd with a billing
+    // message even though the reader's own host was configured, granted and
+    // reachable. `setProvider()` existed for exactly this and nothing called it.
+    containerInstance.services.playback.setProvider(provider);
   }
 }
 
