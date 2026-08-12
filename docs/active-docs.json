@@ -42,6 +42,12 @@
       "owner": "proso",
       "reviewedAt": "2026-08-05",
       "expires": "2026-11-05"
+    },
+    {
+      "path": "docs/health/deploy-status.md",
+      "owner": "proso",
+      "reviewedAt": "2026-08-12",
+      "expires": "2026-11-12"
     }
   ]
 }
