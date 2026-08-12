@@ -32,3 +32,9 @@ rules:
     severity: ERROR
     languages: [generic]
     pattern-regex: 'z-index:\s*[0-9]'
+    # Markdown prose legitimately mentions raw values (UI-SYSTEM.md's own
+    # examples); the rule guards shipped CSS, not documentation.
+    paths:
+      exclude:
+        - '**/*.md'
+        - 'docs/**'
