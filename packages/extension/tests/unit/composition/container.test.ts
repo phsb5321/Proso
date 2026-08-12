@@ -61,9 +61,13 @@ const StubNoOpHighlightSyncAdapter = jest.fn(() => createStubHighlightSync());
 
 // Stub PlaybackService class
 const mockSetAudioGenerator = jest.fn();
+// PROSO-135: the stub used to omit setProvider, so a test could not observe that
+// reconfigureAudioGenerator never called it. The mock's shape hid the defect.
+const mockSetProvider = jest.fn();
 const StubPlaybackService = jest.fn().mockImplementation(() => ({
   getState: jest.fn().mockReturnValue({ status: 'idle' }),
   setAudioGenerator: mockSetAudioGenerator,
+  setProvider: mockSetProvider,
   start: jest.fn(),
   pause: jest.fn(),
   stop: jest.fn(),
@@ -432,6 +436,24 @@ describe('Container', () => {
       reconfigureAudioGenerator('groq', 'groq-key');
 
       expect(mockSetAudioGenerator).toHaveBeenCalledWith(newGenerator);
+    });
+
+    // PROSO-135 regression: swapping the adapter is not enough. PlaybackService
+    // keeps its own `state.provider`, which only moved via the settings-store
+    // subscription — and `provider.select` writes storage directly, bypassing it.
+    // The handler answered {success:true, provider:'local'} while getState kept
+    // reporting 'elevenlabs', so playback routed to the server and 402'd even
+    // though the reader's own host was configured, granted and reachable.
+    it('should call setProvider on PlaybackService so the reported state cannot drift', () => {
+      createContainer(defaultConfig, defaultApiKeys);
+      mockSetProvider.mockClear();
+
+      const newGenerator = createStubAudioGenerator('local');
+      mockCreateAudioGeneratorAdapter.mockReturnValue(newGenerator);
+
+      reconfigureAudioGenerator('local', null);
+
+      expect(mockSetProvider).toHaveBeenCalledWith('local');
     });
 
     it('should preserve other adapters when reconfiguring', () => {
