@@ -18,6 +18,13 @@
   (`node scripts/smoke-server-boot.mjs`).
 - [x] **T-008** Run the server suite, Biome, and `tsc --noEmit`; record the one
   environment-gated failure and how it was resolved.
+- [x] **T-009** Pre-gate BLOCK, both findings fixed in a follow-up commit:
+  (a) the guard attached the raw key to `request.licenseKey` and no code read
+  it — removed, along with the field on the request type, and pinned by the
+  suite's `rawKeyRetained: false` assertion; (b) the spec claimed unauthenticated
+  `GET /api/v1/subscription` answered 401 — it answers 200 with free-tier
+  defaults (`subscription.controller.ts:31`), corrected in the narrative and the
+  routes table.
 
 ## Executed evidence
 

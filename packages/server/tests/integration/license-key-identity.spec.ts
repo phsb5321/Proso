@@ -56,14 +56,24 @@ const PAID_USER: UserRecord = {
 class IdentityProbeController {
   @Get('guarded')
   guarded(@Req() req: Request & { userId?: string }) {
-    return { userId: req.userId ?? null };
+    return observed(req);
   }
 
   @Get('public')
   @Public()
   publicRoute(@Req() req: Request & { userId?: string }) {
-    return { userId: req.userId ?? null };
+    return observed(req);
   }
+}
+
+/**
+ * What the request carries by the time a handler runs. `rawKeyRetained` is
+ * asserted false everywhere: the guard must attach the resolved id and never
+ * park the secret itself on an object that request logging and error capture
+ * both serialize.
+ */
+function observed(req: Request & { userId?: string }) {
+  return { userId: req.userId ?? null, rawKeyRetained: 'licenseKey' in req };
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +176,7 @@ describe('licence key identity (real AppModule graph)', () => {
   /** Served, with nobody attached and no key resolved. */
   const expectAnonymous = async (response: Response) => {
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ userId: null });
+    expect(await response.json()).toEqual({ userId: null, rawKeyRetained: false });
     expect(findByLicenseKeyHash).not.toHaveBeenCalled();
   };
 
@@ -182,11 +192,11 @@ describe('licence key identity (real AppModule graph)', () => {
 
   // ─── Valid key: identity reaches the route ─────────────────────────
 
-  it('attaches the repository user id when a valid key is presented', async () => {
+  it('attaches the repository user id, and only the id, when a valid key is presented', async () => {
     const response = await get('/__identity-probe/guarded', { 'X-License-Key': PAID_KEY });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ userId: PAID_USER_ID });
+    expect(await response.json()).toEqual({ userId: PAID_USER_ID, rawKeyRetained: false });
     expect(findByLicenseKeyHash).toHaveBeenCalledWith(PAID_KEY_HASH);
   });
 
