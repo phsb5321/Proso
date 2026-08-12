@@ -143,7 +143,7 @@ const FOOTER_HEIGHT = 64;
 const FOOTER_HEIGHT_MINIMIZED = 48;
 const FOOTER_PILL_WIDTH = 160;
 const FOOTER_MAX_WIDTH = 720;
-const Z_INDEX = 2147483647;
+const Z_INDEX = 2147483647; // == var(--z-max) fallback: tokens.css is not loaded in page context
 
 // Speed options
 const SPEED_OPTIONS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] as const;

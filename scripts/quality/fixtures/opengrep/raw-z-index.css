@@ -1,0 +1,14 @@
+.status-detail {
+  /* ruleid: proso.raw-numeric-z-index */
+  z-index: 10;
+}
+
+.modal-overlay {
+  /* ok: tokens are the rule */
+  z-index: var(--z-modal);
+}
+
+.play-icon {
+  /* ruleid: proso.raw-numeric-z-index */
+  z-index: 10000 !important;
+}

@@ -18,6 +18,7 @@ import type { TextQuoteSelector } from '../core/highlight';
 import { toAnchoringReport } from '../core/highlight/anchoring-report';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
+import { isExtensionPage } from '../utils/content/extension-page';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
@@ -415,11 +416,25 @@ interface FooterShowMessage extends LegacyMessage {
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  // PROSO-130: the extension's own pages are never article pages. The
+  // manifest key cannot express this: BOTH browsers reject extension-scheme
+  // match patterns in content_scripts (measured — Firefox: "Extension is
+  // invalid"; Chrome MV3: the extension fails to load, no service worker).
+  // `isExtensionPage()` in main() is therefore the enforced boundary, and
+  // the tests pin that it stays first in main().
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
 
   main() {
     log.info('Proso: Content script starting (WXT TypeScript)');
+
+    // PROSO-130: never touch the extension's own pages, even if the manifest
+    // registration drifts. The guard must run before any injection or
+    // listener registration below.
+    if (isExtensionPage(window.location.href)) {
+      log.debug('Proso: Skipping extension page — content script is article-only');
+      return;
+    }
 
     // Inject highlight CSS into page
     injectContentStyles();

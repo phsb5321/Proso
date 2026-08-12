@@ -26,3 +26,15 @@ rules:
     severity: ERROR
     languages: [generic]
     pattern-regex: '\|\|\s+true(?:\s|$)'
+
+  - id: proso.raw-numeric-z-index
+    message: "Raw numeric z-index. Use a --z-* layer token: extension pages take var(--z-<layer>); content-script styles injected into arbitrary pages take var(--z-<layer>, <fallback>). See styles/tokens.css and docs/UI-SYSTEM.md."
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: 'z-index:\s*[0-9]'
+    # Markdown prose legitimately mentions raw values (UI-SYSTEM.md's own
+    # examples); the rule guards shipped CSS, not documentation.
+    paths:
+      exclude:
+        - '**/*.md'
+        - 'docs/**'

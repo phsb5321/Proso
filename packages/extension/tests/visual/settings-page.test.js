@@ -17,12 +17,31 @@ const __dirname = path.dirname(__filename);
 // Path to built extension settings page
 const EXTENSION_PATH = path.resolve(__dirname, '../../.output/firefox-mv2');
 const SETTINGS_PATH = path.join(EXTENSION_PATH, 'settings.html');
+// Served by the webServer (scripts/serve-built.mjs) so the suite renders the
+// BUILT page's real CSS (PROSO-130c) — file:// resolves the absolute asset
+// paths to the filesystem root and screenshots an unstyled page.
+const APP_URL = 'http://127.0.0.1:4273/settings.html';
 
 /**
  * Check if settings page exists in build
  */
 function settingsExists() {
   return fs.existsSync(SETTINGS_PATH);
+}
+
+/**
+ * Open the BUILT settings page over HTTP (PROSO-130c): file:// renders the
+ * page unstyled because the built HTML references assets by absolute path —
+ * baselines taken that way can never catch a styling regression. The build's
+ * entry chunks are aborted: the tests drive static markup, and the module
+ * scripts would otherwise run against an extension-less page.
+ */
+async function openSettings(page) {
+  await page.route('**/chunks/*.js', (route) => route.abort());
+  await page.goto(APP_URL);
+  await page.waitForLoadState('domcontentloaded');
+  await disableAnimations(page);
+  await waitForLayoutStable(page, 'main', 100);
 }
 
 test.describe('Settings Page Visual Tests (T040)', () => {
@@ -35,10 +54,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test settings page default state - light mode
   test('settings page default - light mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     await expect(page).toHaveScreenshot('settings-default-light.png', {
       maxDiffPixelRatio: 0.02,
@@ -49,10 +65,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test settings page default state - dark mode
   test('settings page default - dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     await expect(page).toHaveScreenshot('settings-default-dark.png', {
       maxDiffPixelRatio: 0.02,
@@ -63,10 +76,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test quick settings section
   test('quick settings section - light mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     // Focus on quick settings section
     const quickSettings = page.locator('[data-testid="settings-quick-settings-section"]');
@@ -84,7 +94,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   for (const mode of ['light', 'dark']) {
     test(`api keys section - ${mode} mode`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: mode });
-      await page.goto(`file://${SETTINGS_PATH}`);
+      await openSettings(page);
       await page.waitForLoadState('domcontentloaded');
       await disableAnimations(page);
       await waitForLayoutStable(page, 'main', 100);
@@ -124,10 +134,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test appearance section
   test('appearance section - light mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     // Expand appearance section if collapsed
     const appearanceSection = page.locator('[data-testid="settings-appearance-section"]');
@@ -149,10 +156,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test settings page with sidebar navigation
   test('sidebar navigation visible - light mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     const sidebar = page.locator('#settings-sidebar, .settings-sidebar');
     if ((await sidebar.count()) > 0) {
@@ -165,10 +169,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   // Test form controls interaction states
   test('form controls focus state', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     // Focus on provider select
     const providerSelect = page.locator('[data-testid="settings-provider-select"]');
@@ -189,10 +190,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
       colorScheme: 'light',
       reducedMotion: 'reduce',
     });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     await expect(page).toHaveScreenshot('settings-reduced-motion.png', {
       maxDiffPixelRatio: 0.02,
@@ -204,10 +202,7 @@ test.describe('Settings Page Visual Tests (T040)', () => {
   test('settings page narrow viewport', async ({ page }) => {
     await page.setViewportSize({ width: 600, height: 800 });
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`file://${SETTINGS_PATH}`);
-    await page.waitForLoadState('domcontentloaded');
-    await disableAnimations(page);
-    await waitForLayoutStable(page, 'main', 100);
+    await openSettings(page);
 
     await expect(page).toHaveScreenshot('settings-narrow-viewport.png', {
       maxDiffPixelRatio: 0.02,
