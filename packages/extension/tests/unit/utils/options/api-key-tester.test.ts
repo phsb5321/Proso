@@ -32,12 +32,20 @@ const { saveApiKey, loadApiKeys, testApiKey } = await import(
   '../../../../src/utils/options/api-key-tester'
 );
 
+/** jest.Mock's default generic is `never`; loosen for mockResolvedValue calls. */
+type Mockable = { mockResolvedValue(value: unknown): void };
+const mockSet = browser.storage.local.set as unknown as Mockable;
+const mockGet = browser.storage.local.get as unknown as Mockable;
+const mockSend = browser.runtime.sendMessage as unknown as Mockable;
+
 describe('api-key-tester BYOK storage (PROSO-113)', () => {
   beforeEach(() => {
     (browser.storage.local.set as jest.Mock).mockClear();
     (browser.storage.local.get as jest.Mock).mockClear();
     (browser.runtime.sendMessage as jest.Mock).mockClear();
   });
+
+  void mockSet; void mockGet; void mockSend;
 
   it('saves each provider key to its canonical storage key', async () => {
     await saveApiKey('openai', 'sk-openai-123');
@@ -51,7 +59,7 @@ describe('api-key-tester BYOK storage (PROSO-113)', () => {
   });
 
   it('loads every provider key back from storage', async () => {
-    (browser.storage.local.get as jest.Mock).mockResolvedValue({
+    (browser.storage.local.get as unknown as Mockable).mockResolvedValue({
       elevenlabsApiKey: 'xi-1',
       openaiApiKey: 'sk-2',
       groqApiKey: 'gsk-3',
@@ -68,7 +76,7 @@ describe('api-key-tester BYOK storage (PROSO-113)', () => {
   });
 
   it('routes a groq test through the background handler with the entered key', async () => {
-    (browser.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (browser.runtime.sendMessage as unknown as Mockable).mockResolvedValue({
       success: true,
       message: 'API key is valid',
     });
@@ -82,7 +90,7 @@ describe('api-key-tester BYOK storage (PROSO-113)', () => {
   });
 
   it('reports a server-side failure truthfully (bad key never passes silently)', async () => {
-    (browser.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (browser.runtime.sendMessage as unknown as Mockable).mockResolvedValue({
       success: false,
       error: 'Invalid API key',
     });

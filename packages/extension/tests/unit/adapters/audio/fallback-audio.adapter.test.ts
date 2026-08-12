@@ -145,6 +145,52 @@ describe('FallbackAudioAdapter', () => {
     expect(await adapter.validateCredentials()).toBe(false);
   });
 
+  it('failClosedOnGate: gate failure returns the gate reason as a typed error, secondary never called (PROSO-114)', async () => {
+    let built = false;
+    const secondary = createMockAudioGenerator();
+    const adapter = new FallbackAudioAdapter({
+      primaryFactory: async () => {
+        built = true;
+        return createMockAudioGenerator({ providerId: 'local' });
+      },
+      secondary,
+      failClosedOnGate: true,
+      gate: async () => ({ ok: false, reason: 'Local synthesis host is disabled' }),
+    });
+
+    const result = await adapter.generateAudio(request);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.type).toBe('provider_error');
+    if (result.error.type === 'provider_error') {
+      expect(result.error.code).toBe('local_host_gate');
+      expect(result.error.message).toBe('Local synthesis host is disabled');
+    }
+    expect(built).toBe(false);
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+    expect(adapter.lastFallbackReason).toBe('Local synthesis host is disabled');
+  });
+
+  it('failClosedOnGate: chunked path yields the gate error, no secondary fallback (PROSO-114)', async () => {
+    const secondary = createMockAudioGenerator();
+    const adapter = new FallbackAudioAdapter({
+      primary: createMockAudioGenerator({ providerId: 'local' }),
+      secondary,
+      failClosedOnGate: true,
+      gate: async () => ({ ok: false, reason: 'The extension has no access to the configured host origin' }),
+    });
+
+    const chunks = [];
+    for await (const chunk of adapter.generateAudioChunks!(request)) {
+      chunks.push(chunk);
+    }
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]?.ok).toBe(false);
+    if (chunks[0]?.ok) return;
+    expect(chunks[0]?.error.type).toBe('provider_error');
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+  });
+
   it('getVoices falls back when the primary declines a language', async () => {
     const { adapter, primary } = makeAdapter();
     jest.spyOn(primary, 'getVoices').mockImplementation(async () =>

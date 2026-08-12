@@ -34,7 +34,7 @@ async function storageGet(keys: string[]): Promise<Record<string, unknown>> {
 
 function makeStorageMock(values: Record<string, unknown>): void {
   (permissioned.storage.local.get as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(values);
-  (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(true);
+  (permissioned.permissions.getAll as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({ origins: [] });
 }
 
 /** Assert a failed-gate result issued no network request (FR-2). */
@@ -63,14 +63,48 @@ interface Mockable {
 }
 interface PermissionedBrowser {
   storage: { local: { get: Mockable & { mock: { results: Array<{ value?: unknown }> } }; set: jest.Mock; remove: jest.Mock } };
-  permissions: { contains: Mockable; request: Mockable };
+  permissions: { getAll: Mockable & { mock: { calls: Array<unknown[]> } }; request: Mockable };
 }
 const permissioned = browser as unknown as PermissionedBrowser;
 if (!permissioned.permissions) {
   permissioned.permissions = {
-    contains: jest.fn(async () => true) as unknown as Mockable,
+    // PROSO-114: the gate consults EFFECTIVE access via getAll(), never the
+    // optional-grant proxy contains().
+    getAll: Object.assign(jest.fn(async () => ({ origins: [] })), { mock: { calls: [] as unknown[] } }) as unknown as PermissionedBrowser['permissions']['getAll'],
     request: jest.fn(async () => true) as unknown as Mockable,
   };
+}
+
+/** Grant a set of origin patterns for the gate's getAll() probe. */
+function grantOrigins(patterns: string[]): void {
+  (permissioned.permissions.getAll as unknown as {
+    mockResolvedValue: (v: unknown) => void;
+  }).mockResolvedValue({ origins: patterns });
+}
+
+/**
+ * Shared host-contact proof: stub fetch with a capabilities response, run one
+ * synthesis through the composition root, and assert the request went to the
+ * configured host — never to the Proso API (falsifier A).
+ */
+async function expectHostContacted(adapter: IAudioGenerator): Promise<void> {
+  const fetchStub = withFetchStub();
+  const body = JSON.stringify({ ready: true, tts: { voices: [] } });
+  fetchStub.mockResolvedValue({
+    ok: true,
+    status: 200,
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    json: async () => JSON.parse(body) as unknown,
+    arrayBuffer: async () => new TextEncoder().encode(body).buffer,
+  } as unknown as Response);
+
+  await adapter.generateAudio(request);
+
+  expect(fetchStub.mock.calls.length).toBeGreaterThan(0);
+  const firstCall = fetchStub.mock.calls[0]?.[0] as string;
+  expect(firstCall.startsWith('https://host.example/')).toBe(true);
+  expect(firstCall).not.toContain('api.proso.com.br');
+  restoreFetch();
 }
 
 describe('createAudioGeneratorAdapter local branch', () => {
@@ -85,45 +119,48 @@ describe('createAudioGeneratorAdapter local branch', () => {
     expectNoRequestsIssued(result);
   });
 
-  it('enabled but no URL: gate fails, no local adapter built', async () => {
+  it('enabled but no URL: gate fails before any permission probe, with the URL reason', async () => {
     makeStorageMock({ localHostUrl: undefined, localHostEnabled: true });
     const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
-    await adapter.generateAudio(request);
-    expect((permissioned.permissions.contains)).not.toHaveBeenCalled();
+    const result = await adapter.generateAudio(request);
+    expect((permissioned.permissions.getAll).mock.calls).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const message = 'message' in result.error ? result.error.message : '';
+    expect(message).toContain('Local synthesis host URL is not configured');
   });
 
-  it('configured and enabled but permission revoked: no request is issued', async () => {
+  it('configured + enabled but no granted pattern covers the origin: fail closed with the gate reason (PROSO-114)', async () => {
     makeStorageMock({ localHostUrl: 'https://host.example', localHostEnabled: true });
-    (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(false);
+    grantOrigins([]);
 
     const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
     const result = await adapter.generateAudio(request);
 
-    // The permission gate failed: the local adapter was never constructed, so
-    // nothing was fetched; the no-op secondary reports the error.
+    // The gate failed: the local adapter was never constructed, so nothing
+    // was fetched; the failure is the GATE's reason (failClosedOnGate), NOT
+    // a fallback into the server's 402 tier message (falsifier C).
     expectNoRequestsIssued(result);
+    if (result.ok) return;
+    const message = 'message' in result.error ? result.error.message : '';
+    expect(message).toContain('no access to the configured host origin');
+    expect(message).not.toContain('Managed TTS is not included');
   });
 
-  it('configured + enabled + permitted: local adapter is built and the host is contacted', async () => {
+  it('REGRESSION (PROSO-114): install-time all_urls grant covers the origin — the gate must pass', async () => {
     makeStorageMock({ localHostUrl: 'https://host.example', localHostEnabled: true });
-    (permissioned.permissions.contains as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue(true);
-    const fetchStub = withFetchStub();
-    const body = JSON.stringify({ ready: true, tts: { voices: [] } });
-    fetchStub.mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'application/json' : null) },
-      json: async () => JSON.parse(body) as unknown,
-      arrayBuffer: async () => new TextEncoder().encode(body).buffer,
-    } as unknown as Response);
-
+    // Pedro's profile: userPermissions.origins includes <all_urls> at install
+    // time; contains() returns false for the exact pattern, so the gate must
+    // consult effective access (getAll).
+    grantOrigins(['https://logs.proso.com.br/*', '<all_urls>']);
     const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
-    await adapter.generateAudio(request);
+    await expectHostContacted(adapter);
+  });
 
-    // Capabilities were fetched from the configured origin.
-    expect(fetchStub.mock.calls.length).toBeGreaterThan(0);
-    const firstCall = fetchStub.mock.calls[0]?.[0] as string;
-    expect(firstCall.startsWith('https://host.example/')).toBe(true);
-    restoreFetch();
+  it('configured + enabled + explicit grant covers the origin: local adapter is built and the host is contacted', async () => {
+    makeStorageMock({ localHostUrl: 'https://host.example', localHostEnabled: true });
+    grantOrigins(['https://host.example/*']);
+    const adapter = createAudioGeneratorAdapter('local', null, undefined) as IAudioGenerator;
+    await expectHostContacted(adapter);
   });
 });
