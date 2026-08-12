@@ -28,6 +28,17 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1, // FR-020: 1 retry for extension tests
   workers: 1, // Single worker prevents rendering inconsistencies
 
+  // PROSO #12: the visual suite must render the BUILT page's real CSS.
+  // Built settings.html references assets by absolute path (/assets/...),
+  // which 404s under file:// — the old baselines screenshot an unstyled page
+  // and can never catch a styling regression. Serve the build over HTTP.
+  webServer: {
+    command: 'node scripts/serve-built.mjs',
+    url: 'http://127.0.0.1:4173/settings.html',
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  },
+
   // Reporter configuration - FR-016: HTML report generation
   reporter: [
     ['html', { open: 'never', outputFolder: 'playwright-report' }],

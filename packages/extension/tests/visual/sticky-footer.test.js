@@ -81,7 +81,7 @@ async function setupTestPage(page, options = {}) {
           display: flex;
           align-items: center;
           gap: 16px;
-          z-index: 10000;
+          z-index: var(--z-max, 10000);
         }
         .proso-sticky-footer.minimized {
           width: auto;

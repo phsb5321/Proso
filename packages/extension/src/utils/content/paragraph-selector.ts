@@ -533,7 +533,7 @@ export class ParagraphSelector {
         'position: fixed !important',
         'bottom: 16px !important',
         'left: 16px !important',
-        'z-index: 2147483647 !important',
+        'z-index: var(--z-max, 2147483647) !important',
         'max-width: 320px',
         'padding: 12px 16px',
         'border-radius: 8px',

@@ -301,7 +301,7 @@ export class PersistentHighlightManager {
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         padding: 4px;
-        z-index: 10000;
+        z-index: var(--z-max, 10000);
         min-width: 140px;
       }
 

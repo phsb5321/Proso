@@ -336,7 +336,7 @@
   --footer-height-minimized: 48px;
   --footer-pill-width: 160px;
   --footer-max-width: 600px;
-  --footer-z-index: 2147483647;
+  --footer-z-index: var(--z-max); /* Page chrome (content-script footer) */
 
   /* Footer control tokens (047-architecture-ui-polish) */
   --footer-button-size: 40px;
@@ -393,14 +393,24 @@
    Z-INDEX / STACKING LAYER TOKENS
    ======================================== */
 :root {
-  /* Stacking layer system - use these instead of arbitrary z-index values */
+  /* Stacking layer system — use these instead of arbitrary z-index values.
+     Rules:
+       - Extension pages (popup/options/settings): z-index: var(--z-<layer>).
+       - Content-script styles injected into ARBITRARY pages: the token is
+         not defined there, so use var(--z-<layer>, <fallback>) — the
+         fallback is the page-context value. Never a bare number.
+     A raw numeric z-index in any shipped CSS fails the
+     `proso.raw-numeric-z-index` opengrep rule (scripts/opengrep-check.sh). */
   --z-base: auto; /* Normal document flow */
   --z-elevated: 1; /* Hover states, focus rings */
   --z-dropdown: 50; /* Dropdowns, tooltips */
   --z-sticky: 60; /* Sticky headers */
-  --z-overlay: 100; /* Modals, overlays */
+  --z-popover: 80; /* Floating panels above cards: status detail, hint popovers */
+  --z-overlay: 100; /* Modal scrims/backdrops (legacy name, see --z-modal) */
+  --z-modal: 100; /* Modal surfaces (canonical name) */
   --z-overlay-content: 101; /* Content within overlays */
   --z-toast: 200; /* Toast notifications */
+  --z-max: 2147483647; /* Page chrome that must win: sticky footer, content toasts */
 }
 
 /* ========================================

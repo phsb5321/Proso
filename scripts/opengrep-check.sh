@@ -45,6 +45,7 @@ node -e '
     ["proso.codecov-fail-open", 1],
     ["proso.focused-or-skipped-test", 2],
     ["proso.shell-success-mask", 1],
+    ["proso.raw-numeric-z-index", 2],
   ]);
   for (const [rule, count] of expected) {
     if (counts.get(rule) !== count) {

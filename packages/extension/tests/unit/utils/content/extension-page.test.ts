@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { isExtensionPage } from '../../../../src/utils/content/extension-page';
 
 describe('isExtensionPage', () => {
-  it('covers the extension's own pages', () => {
+  it("covers the extension's own pages", () => {
     expect(isExtensionPage('moz-extension://8b3f6f5a-2e1c-4a77-9f0d-4c2ab5d61b90/settings.html')).toBe(true);
     expect(isExtensionPage('chrome-extension://okijlcbmbfleifobcjkamiibfkdimd/popup.html')).toBe(true);
   });
@@ -37,24 +37,19 @@ describe('content-script boundary is pinned (falsifier D)', () => {
     resolve(__dirname, '../../../../src/entrypoints/content.ts'),
     'utf8',
   );
-  const wxtSource = readFileSync(
-    resolve(__dirname, '../../../../wxt.config.ts'),
-    'utf8',
-  );
 
-  it('injects exclude_matches into the MV3 manifest (per-browser: Firefox rejects extension-scheme patterns)', () => {
-    expect(wxtSource).toContain('build:manifestGenerated');
-    expect(wxtSource).toContain('exclude_matches');
-    expect(wxtSource).toContain('chrome-extension://*/*');
-  });
-
-  it('keeps the early-return guard in content.ts main()', () => {
+  it('keeps the early-return guard in content.ts main(), before any injection', () => {
     expect(contentSource).toContain('isExtensionPage(window.location.href)');
-    // The guard must run before any injection: it appears before the styles
-    // injection call.
     const guardIndex = contentSource.indexOf('isExtensionPage(window.location.href)');
     const injectIndex = contentSource.indexOf('injectContentStyles();');
     expect(guardIndex).toBeGreaterThan(-1);
     expect(injectIndex).toBeGreaterThan(guardIndex);
+  });
+
+  it('never reintroduces the broken manifest key (both browsers reject extension-scheme content-script patterns — measured PROSO-130)', () => {
+    // Firefox: "Extension is invalid"; Chrome MV3: extension fails to load.
+    // If someone re-adds exclude_matches with extension schemes, the builds
+    // break and this test fails BEFORE the user does.
+    expect(contentSource).not.toMatch(/excludeMatches\s*:\s*\[['"]moz-extension/);
   });
 });

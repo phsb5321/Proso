@@ -417,11 +417,11 @@ interface FooterShowMessage extends LegacyMessage {
 export default defineContentScript({
   matches: ['<all_urls>'],
   // PROSO-130: the extension's own pages are never article pages. The
-  // exclude_matches key is injected per-browser in wxt.config.ts (Firefox
-  // rejects extension-scheme match patterns, so only the MV3 build can
-  // carry it); `isExtensionPage()` in main() is the belt-and-braces guard
-  // that survives a manifest refactor and is the enforceable layer on
-  // Firefox.
+  // manifest key cannot express this: BOTH browsers reject extension-scheme
+  // match patterns in content_scripts (measured — Firefox: "Extension is
+  // invalid"; Chrome MV3: the extension fails to load, no service worker).
+  // `isExtensionPage()` in main() is therefore the enforced boundary, and
+  // the tests pin that it stays first in main().
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
 
