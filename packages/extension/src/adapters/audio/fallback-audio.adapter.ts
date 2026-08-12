@@ -39,6 +39,16 @@ import type {
 /** Error code the fail-closed gate path reports (PROSO-114). */
 export const LOCAL_GATE_ERROR_CODE = 'local_host_gate';
 
+/**
+ * Error code for a local route that was PERMITTED but then failed (PROSO-137).
+ *
+ * Distinct from the gate code on purpose: the gate refusing ("you have not
+ * granted this host") and the host itself failing ("your host returned 500")
+ * are different problems with different fixes, and collapsing either into the
+ * server's 402 tells the reader to buy a plan for a fault that is not billing.
+ */
+export const LOCAL_PRIMARY_ERROR_CODE = 'local_host_failed';
+
 export interface FallbackGateResult {
   readonly ok: boolean;
   /** Human-readable reason for a failed gate (also surfaced in the UI). */
@@ -136,6 +146,14 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       local = await (await this.getPrimary()).generateAudio(request, signal);
     } catch (error) {
       this.lastReason = error instanceof Error ? error.message : String(error);
+      // PROSO-137: fail closed here too. `failClosedOnGate` covered a refused
+      // GATE, but a primary that THREW fell through to the secondary, whose
+      // answer for an unentitled tier is a 402 about billing. The reader was
+      // told to buy a plan when their own host had failed — an error naming a
+      // sibling's cause instead of its own, which is undiagnosable from the UI.
+      if (this.failClosedOnGate) {
+        return Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+      }
       return this.secondary.generateAudio(request, signal);
     }
     if (local.ok) {
@@ -147,6 +165,11 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     if (isAbortError(local.error)) return local;
 
     this.lastReason = errorMessage(local.error);
+    // PROSO-137: same reasoning as the throw path above — a local route that
+    // returned Err must report ITS failure, not the server's tier message.
+    if (this.failClosedOnGate) {
+      return Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+    }
     return this.secondary.generateAudio(request, signal);
   }
 
@@ -172,6 +195,11 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       primary = await this.getPrimary();
     } catch (error) {
       this.lastReason = error instanceof Error ? error.message : String(error);
+      // PROSO-137: chunked path, same rule as generateAudio above.
+      if (this.failClosedOnGate) {
+        yield Err(audioError.providerError(LOCAL_PRIMARY_ERROR_CODE, this.lastReason));
+        return;
+      }
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
