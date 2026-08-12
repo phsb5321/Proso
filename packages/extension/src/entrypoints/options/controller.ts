@@ -17,6 +17,11 @@ import {
 import { downloadJson } from '../../utils/download/download-json';
 import { createLogger } from '../../utils/logging/logger';
 import { confirmDialog } from '../../utils/ui/confirm-dialog';
+import {
+  collectProviderStateFromUI,
+  deriveProviderState,
+  syncProviderUI,
+} from '../../utils/options/provider-state';
 
 // UI defaults (inline since they're simple)
 const uiDefaults = {
@@ -342,14 +347,18 @@ async function saveLocalHostSettings(): Promise<void> {
     elements.localHostStatus.textContent = `Permission granted for ${origin}.`;
   }
 
-  await browser.storage.local.set({
+  // PROSO-130d: the save is derived from the UI controls and the dropdown is
+  // re-derived from the stored result — a single source of truth, so the
+  // dropdown and the section cannot disagree after the save.
+  const uiState = collectProviderStateFromUI(elements);
+  const stored: Record<string, unknown> = {
     localHostUrl: enabled ? url : null,
     localHostEnabled: enabled,
-    localHostVoice: elements.localHostVoice.value || null,
-    // The local provider is the playback route; selecting it here keeps the
-    // provider dropdown and the section in agreement.
-    provider: enabled ? 'local' : elements.quickProvider.value,
-  });
+    localHostVoice: uiState.localHostVoice,
+    provider: enabled ? 'local' : uiState.provider,
+  };
+  await browser.storage.local.set(stored);
+  syncProviderUI(elements, deriveProviderState(stored));
   if (enabled) {
     await browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' });
   }
@@ -444,11 +453,19 @@ async function loadQuickSettings(): Promise<void> {
   if (!elements) return;
 
   try {
-    const result = await browser.storage.local.get(['provider', 'voice', 'speed']);
+    const result = await browser.storage.local.get([
+      'provider',
+      'voice',
+      'speed',
+      'localHostEnabled',
+      'localHostUrl',
+      'localHostVoice',
+    ]);
 
-    // Provider dropdown
-    const provider = (result.provider as string) || settingsDefaults.provider;
-    elements.quickProvider.value = provider;
+    // PROSO-130d: the dropdown + local-host section derive from the SAME
+    // stored state — they cannot disagree.
+    syncProviderUI(elements, deriveProviderState(result));
+    const provider = elements.quickProvider.value;
 
     // Voice dropdown - populate based on provider
     await updateVoiceDropdown(provider);
@@ -588,13 +605,20 @@ async function saveQuickSetting(key: string, value: string | number): Promise<vo
  * T013/FR-036: Cross-tab sync
  */
 function setupStorageChangeListener(): void {
-  browser.storage.onChanged.addListener((changes, areaName) => {
+  browser.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName !== 'local' || !elements) return;
 
-    // Update Quick Settings if changed from another tab
-    if (changes.provider) {
-      elements.quickProvider.value = changes.provider.newValue as string;
-      updateVoiceDropdown(changes.provider.newValue as string);
+    // Update Quick Settings if changed from another tab (PROSO-130d: one
+    // derived state — a provider change elsewhere re-derives every surface).
+    if (changes.provider || changes.localHostEnabled || changes.localHostUrl) {
+      const stored = await browser.storage.local.get([
+        'provider',
+        'localHostEnabled',
+        'localHostUrl',
+        'localHostVoice',
+      ]);
+      syncProviderUI(elements, deriveProviderState(stored));
+      await updateVoiceDropdown(elements.quickProvider.value);
     }
 
     if (changes.voice) {
@@ -683,12 +707,12 @@ function setupSidebarNavigation(): void {
     sectionSelector: 'section[id]',
     navLinkSelector: '.sidebar-link',
     onActiveChange: (sectionId) => {
-      // Update URL hash silently (without scrolling)
-      if (sectionId) {
-        const url = new URL(window.location.href);
-        url.hash = sectionId;
-        window.history.replaceState(null, '', url.toString());
-      }
+      // PROSO-130: writing the hash here silently is NOT silent — Firefox
+      // fragment-scrolls when a hash is ADDED via replaceState, which on load
+      // scrolled the header out of view (the ~250px dead band). The URL
+      // deep-link is the sidebar CLICK's job (see setupSidebarNavigation);
+      // the scroll-spy only maintains the active nav highlight.
+      void sectionId;
     },
   });
 
@@ -704,6 +728,12 @@ function setupSidebarNavigation(): void {
 
       const sectionId = href.slice(1);
       scrollToSection(sectionId);
+
+      // Deep-link URL: the reader is already AT the section after the scroll,
+      // so adding the hash cannot jump the viewport (PROSO-130).
+      const url = new URL(window.location.href);
+      url.hash = sectionId;
+      window.history.replaceState(null, '', url.toString());
 
       // Update scroll-spy active state immediately
       if (scrollSpyInstance) {
@@ -2076,9 +2106,30 @@ async function checkServerStatus(): Promise<void> {
 
   const { serverDetailUrl, serverDetailVersion, serverDetailUptime, serverDetailError } = elements;
 
-  // Read serverUrl from storage
-  const result = await browser.storage.local.get('serverUrl');
-  const serverUrl = result.serverUrl as string | undefined;
+  // PROSO-130: the pill reflects the ACTIVE audio path, not the managed API.
+  // With the local synthesis host selected, the managed-API status is a
+  // false alarm ("Not configured" on a working install).
+  const config = await browser.storage.local.get([
+    'serverUrl',
+    'provider',
+    'localHostEnabled',
+    'localHostUrl',
+  ]);
+  if (config.provider === 'local') {
+    serverDetailUrl.textContent = '';
+    serverDetailVersion.textContent = '';
+    serverDetailUptime.textContent = '';
+    serverDetailError.textContent = '';
+    if (config.localHostEnabled === true && typeof config.localHostUrl === 'string' && config.localHostUrl) {
+      setServerStatusState('connected', 'Local host');
+      serverDetailUrl.textContent = `URL: ${config.localHostUrl}`;
+    } else {
+      setServerStatusState('not-configured', 'Local host not configured');
+    }
+    return;
+  }
+
+  const serverUrl = config.serverUrl as string | undefined;
 
   // Clear detail rows
   serverDetailUrl.textContent = '';

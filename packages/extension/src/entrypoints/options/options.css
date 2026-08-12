@@ -207,6 +207,14 @@ body {
   gap: var(--spacing-xl);
 }
 
+/** Icon sprite (settings.html): carries `hidden`, but a generic `svg`
+ * display rule (UnoCSS preflight) defeats the UA [hidden] style and renders
+ * the 300×150 sprite as a visible block — the 150px dead band above the
+ * header (PROSO-130). Author-level display:none wins over both. */
+svg[hidden] {
+  display: none;
+}
+
 /* Section cards */
 .proso-card {
   scroll-margin-top: var(--spacing-xl);
