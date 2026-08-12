@@ -1,10 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <!-- A-pagewave 16px: page corner (bottom-left L) + 3 ascending bars. Solid fill, whole pixels. -->
-  <g fill="#0D9488">
-    <rect x="1" y="9" width="2" height="4" rx="1"/>
-    <rect x="4" y="6" width="2" height="7" rx="1"/>
-    <rect x="7" y="3" width="2" height="10" rx="1"/>
-    <rect x="10" y="11" width="5" height="2" rx="1"/>
-    <rect x="12" y="4" width="2" height="9" rx="1"/>
+  <!-- wa mark 16px: OPTICAL REDRAW, not a scaled trace. The traced mark's `>_`
+       prompt and dot are unreadable below ~48px (measured: mush at 32px), so this
+       band keeps only what survives — the hexagonal bubble silhouette with its
+       tail, and a single heavy chevron. Whole-pixel geometry, no half-pixel edges.
+       Serves 16 and 32. -->
+  <g fill="none" stroke="#07BD82" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- bubble: hexagonal body + tail, one closed path -->
+    <path d="M8 1.5 L13.5 4.5 V10 L10 12 L5.5 12 L3 14.5 L3.5 11.6 L2.5 10.6 V4.5 Z"/>
   </g>
+  <!-- chevron: the one interior mark that holds at 16px -->
+  <path d="M6 6 L8.4 8 L6 10" fill="none" stroke="#262A31" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
