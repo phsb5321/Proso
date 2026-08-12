@@ -95,12 +95,16 @@ export {
 
 export {
   LICENSE_BY_TRANSACTION_PATH,
-  LicenseByTransactionRequestSchema,
-  type LicenseByTransactionRequestParsed,
+  LICENSE_CLAIM_SECRET_BYTES,
+  LICENSE_CLAIM_STORAGE_KEY,
+  LICENSE_CLAIM_HASH_FIELD,
+  LicenseClaimHashSchema,
+  LicenseClaimRequestSchema,
+  type LicenseClaimRequestParsed,
   LicenseIssuedSchema,
   type LicenseIssuedParsed,
   LicensePendingSchema,
   type LicensePendingParsed,
-  LicenseByTransactionResponseSchema,
-  type LicenseByTransactionResponseParsed,
+  LicenseClaimResponseSchema,
+  type LicenseClaimResponseParsed,
 } from './schemas/checkout.js';
