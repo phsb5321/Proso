@@ -92,3 +92,15 @@ export {
   CreditHistoryParamsSchema,
   type CreditHistoryParamsParsed,
 } from './schemas/credits.js';
+
+export {
+  LICENSE_BY_TRANSACTION_PATH,
+  LicenseByTransactionRequestSchema,
+  type LicenseByTransactionRequestParsed,
+  LicenseIssuedSchema,
+  type LicenseIssuedParsed,
+  LicensePendingSchema,
+  type LicensePendingParsed,
+  LicenseByTransactionResponseSchema,
+  type LicenseByTransactionResponseParsed,
+} from './schemas/checkout.js';
