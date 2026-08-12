@@ -17,6 +17,10 @@ const __dirname = path.dirname(__filename);
 // Path to built extension settings page
 const EXTENSION_PATH = path.resolve(__dirname, '../../.output/firefox-mv2');
 const SETTINGS_PATH = path.join(EXTENSION_PATH, 'settings.html');
+// Served by the webServer (scripts/serve-built.mjs) so the suite renders the
+// BUILT page's real CSS (PROSO-130c) — file:// resolves the absolute asset
+// paths to the filesystem root and screenshots an unstyled page.
+const APP_URL = 'http://127.0.0.1:4273/settings.html';
 
 /**
  * Check if settings page exists in build

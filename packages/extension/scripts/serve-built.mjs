@@ -17,7 +17,10 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PORT = Number(process.env.PROSO_BUILT_PORT ?? 4173);
+// 4273, not 4173: that port is vite's default and collides with unrelated
+// dev servers on shared hosts (measured 12/08/2026 — a different project
+// held it). PROSO_BUILT_PORT overrides for CI.
+const PORT = Number(process.env.PROSO_BUILT_PORT ?? 4273);
 const HOST = '127.0.0.1';
 const ROOT = fileURLToPath(new URL('../.output/firefox-mv2/', import.meta.url));
 

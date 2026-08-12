@@ -34,7 +34,7 @@ export default defineConfig({
   // and can never catch a styling regression. Serve the build over HTTP.
   webServer: {
     command: 'node scripts/serve-built.mjs',
-    url: 'http://127.0.0.1:4173/settings.html',
+    url: 'http://127.0.0.1:4273/settings.html',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
