@@ -16,6 +16,21 @@ export default defineConfig({
     excludeEntrypoints: ['background', 'content'],
   },
   srcDir: 'src',
+  hooks: {
+    // PROSO-130: the content script must never run on the extension's own
+    // pages. Firefox rejects extension-scheme match patterns (moz-extension)
+    // in content_scripts, so the exclude_matches key can only ship on the
+    // MV3 build; the Firefox build relies on isExtensionPage() in content.ts
+    // (the belt-and-braces guard). The built manifest is asserted by
+    // tests/unit/utils/content/extension-page.test.ts (falsifier D).
+    'build:manifestGenerated': (_wxt, manifest) => {
+      if (manifest.manifest_version === 3) {
+        for (const script of manifest.content_scripts ?? []) {
+          script.exclude_matches = ['chrome-extension://*/*'];
+        }
+      }
+    },
+  },
   manifest: (env) => ({
     name: 'Proso',
     description: 'Text-to-speech for web pages with word-level highlighting',
