@@ -23,12 +23,22 @@
  */
 
 import type { AudioError, ProviderId } from '../../core/shared/errors';
+import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
-import type { AudioRequest, AudioResponse, IAudioGenerator, Voice } from '../../ports/audio-generator.port';
+import { Err } from '../../core/shared/result';
+import type {
+  AudioRequest,
+  AudioResponse,
+  IAudioGenerator,
+  Voice,
+} from '../../ports/audio-generator.port';
 
 /**
  * Result of the pre-flight gate: may the local route be attempted?
  */
+/** Error code the fail-closed gate path reports (PROSO-114). */
+export const LOCAL_GATE_ERROR_CODE = 'local_host_gate';
+
 export interface FallbackGateResult {
   readonly ok: boolean;
   /** Human-readable reason for a failed gate (also surfaced in the UI). */
@@ -36,6 +46,14 @@ export interface FallbackGateResult {
 }
 
 export interface FallbackAudioAdapterOptions {
+  /**
+   * Fail closed on a failed gate instead of falling back to the secondary
+   * (PROSO-114): the gate failure is returned as a typed error carrying the
+   * gate's own reason. Used for the local host — falling back to the server
+   * route on a local-host gate failure mis-diagnoses it as a tier problem
+   * (a 402 the reader cannot act on).
+   */
+  readonly failClosedOnGate?: boolean;
   /** Primary adapter (e.g. the local host). Either this or primaryFactory. */
   readonly primary?: IAudioGenerator;
   /**
@@ -61,13 +79,16 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   readonly supportsChunkedSynthesis = true;
 
   private readonly primaryFactory: (() => Promise<IAudioGenerator>) | null;
+  private readonly failClosedOnGate: boolean;
   private readonly secondary: IAudioGenerator;
   private readonly gate: () => Promise<FallbackGateResult>;
   private lastReason: string | null = null;
   private primary: IAudioGenerator | null = null;
 
   constructor(options: FallbackAudioAdapterOptions) {
-    this.primaryFactory = options.primaryFactory ?? (options.primary ? async () => options.primary! : null);
+    this.failClosedOnGate = options.failClosedOnGate ?? false;
+    this.primaryFactory =
+      options.primaryFactory ?? (options.primary ? async () => options.primary! : null);
     const factory = this.primaryFactory;
     if (!factory) {
       throw new Error('FallbackAudioAdapter requires primary or primaryFactory');
@@ -104,10 +125,13 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     const gate = await this.gate();
     if (!gate.ok) {
       this.lastReason = gate.reason ?? 'local route not permitted';
+      if (this.failClosedOnGate) {
+        return Err(audioError.providerError(LOCAL_GATE_ERROR_CODE, this.lastReason));
+      }
       return this.secondary.generateAudio(request, signal);
     }
 
-    let local;
+    let local: Result<AudioResponse, AudioError>;
     try {
       local = await (await this.getPrimary()).generateAudio(request, signal);
     } catch (error) {
@@ -133,13 +157,17 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     const gate = await this.gate();
     if (!gate.ok) {
       this.lastReason = gate.reason ?? 'local route not permitted';
+      if (this.failClosedOnGate) {
+        yield Err(audioError.providerError(LOCAL_GATE_ERROR_CODE, this.lastReason));
+        return;
+      }
       // The secondary (server route) is paragraph-granular: fall back to its
       // single-shot result as one chunk.
       yield await this.secondary.generateAudio(request, signal);
       return;
     }
 
-    let primary;
+    let primary: IAudioGenerator;
     try {
       primary = await this.getPrimary();
     } catch (error) {

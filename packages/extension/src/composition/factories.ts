@@ -21,6 +21,7 @@ import type { ApiKeys } from './types';
 
 // Audio adapters
 import { browser } from 'wxt/browser';
+import { originCoveredByGrantedPatterns } from '../utils/permissions/match-pattern';
 import {
   AudioUrlAdapter,
   FallbackAudioAdapter,
@@ -97,10 +98,7 @@ export function createAudioGeneratorAdapter(
   // permission granted for the entered origin (constitution 2.1.0).
   if (provider === 'local') {
     const gate = async (): Promise<{ ok: boolean; reason?: string }> => {
-      const stored = await browser.storage.local.get([
-        'localHostUrl',
-        'localHostEnabled',
-      ]);
+      const stored = await browser.storage.local.get(['localHostUrl', 'localHostEnabled']);
       if (stored.localHostEnabled !== true) {
         return { ok: false, reason: 'Local synthesis host is disabled' };
       }
@@ -114,17 +112,34 @@ export function createAudioGeneratorAdapter(
       } catch {
         return { ok: false, reason: `Local synthesis host URL is invalid: ${url}` };
       }
-      const granted = await browser.permissions.contains({ origins: [`${origin}/*`] });
-      if (!granted) {
+      // Effective access, not the optional-grant proxy (PROSO-114):
+      // permissions.contains() only consults the optional-grant table, so on
+      // a build whose manifest grants <all_urls> at install (the reading
+      // journey's host access) it returns false for an origin the extension
+      // ALREADY has access to — the gate could never pass. getAll() returns
+      // every granted pattern, install-time and optional alike; the gate
+      // passes when any of them covers the configured origin. The
+      // constitutional condition (runtime permission for the exact origin)
+      // still holds on builds without <all_urls>: nothing is granted until
+      // the settings flow calls permissions.request().
+      const granted = await browser.permissions.getAll();
+      if (!originCoveredByGrantedPatterns(origin, granted.origins ?? [])) {
         return {
           ok: false,
-          reason: 'Host permission not granted for the configured origin — enable it in settings',
+          reason:
+            'The extension has no access to the configured host origin — enable it in settings to grant it',
         };
       }
       return { ok: true };
     };
 
     return new FallbackAudioAdapter({
+      // PROSO-114: a reader who chose their own host and has no account gets
+      // a 402 from the server route that points them at tiers and API keys —
+      // the wrong diagnosis. On gate failure the local route fails closed
+      // with the gate's own reason instead of falling back to a route that
+      // cannot succeed.
+      failClosedOnGate: true,
       primaryFactory: async () => {
         const stored = await browser.storage.local.get(['localHostUrl']);
         const url = stored.localHostUrl as string;
@@ -183,21 +198,6 @@ export function createHighlightSyncAdapter(useNoOp = false): IHighlightSynchroni
   return new HighlightSyncAdapter();
 }
 
-/**
- * Create a highlight synchronizer adapter with fallback to no-op.
- *
- * Attempts to create real adapter first, falls back to no-op on error.
- *
- * @returns IHighlightSynchronizer adapter
- */
-function createHighlightSyncAdapterWithFallback(): IHighlightSynchronizer {
-  try {
-    return new HighlightSyncAdapter();
-  } catch {
-    console.warn('[Factory] HighlightSyncAdapter failed, using NoOp fallback');
-    return new NoOpHighlightSyncAdapter();
-  }
-}
 
 /**
  * Create a text extractor adapter.
