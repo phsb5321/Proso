@@ -76,14 +76,21 @@
       ]
     },
     "packages/site": {
-      "entry": ["index.html", "pricing.html", "privacy.html", "terms.html"],
+      "entry": ["index.html", "pricing.html", "privacy.html", "terms.html", "success.html"],
       "project": ["assets/**/*.js"],
-      // assets/js/main.js is referenced by <script src="assets/js/main.js" defer>
-      // in all four HTML pages (index.html:461, pricing.html:230, privacy.html:151,
-      // terms.html:207) — verified 07/08/2026. Knip does not track HTML script
-      // tags, so the file is flagged despite being load-bearing; this ignore
-      // models that reality (progressive-enhancement JS, not dead code).
-      "ignore": ["node_modules/**", "assets/js/main.js"]
+      // Every file below is referenced by a <script src="…" defer> tag: main.js
+      // from all five pages, checkout-config.js and checkout.js from
+      // pricing.html, checkout-config.js and success.js from success.html.
+      // Knip does not track HTML script tags, so each is flagged despite being
+      // load-bearing; this ignore models that reality (progressive-enhancement
+      // and checkout JS, not dead code).
+      "ignore": [
+        "node_modules/**",
+        "assets/js/main.js",
+        "assets/js/checkout-config.js",
+        "assets/js/checkout.js",
+        "assets/js/success.js"
+      ]
     },
     "packages/shared": {
       "entry": ["src/index.ts"],
