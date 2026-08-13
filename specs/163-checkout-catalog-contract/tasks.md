@@ -9,5 +9,5 @@
 | T-005 | Add the named catalog-drift falsifier and focused assertion | done |
 | T-006 | Run focused clean/plant gates and prove the falsifier discriminates | done |
 | T-007 | Run doctor, full relevant quality/verify/security/dependency gates | done |
-| T-008 | Obtain direct DeepSeek ALLOW on immutable head | pending |
+| T-008 | Obtain direct DeepSeek ALLOW on immutable head | done |
 | T-009 | Push, open PR, poll checks, squash-merge, and complete PROSO-41 | pending |
