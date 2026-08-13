@@ -86,30 +86,41 @@ the checklist below is satisfied.
 4. **Paddle sandbox server gate** — set `PADDLE_WEBHOOK_SECRET` and the four
    `PADDLE_PRICE_*` ids (sandbox values). Gates: missing secret → 403;
    missing/unknown price → 503; nothing invented.
-5. **Backend probe gate** — with the backend deployed, the claim endpoint must
-   be registered and answer the canonical 202: `make checkout-deploy-readiness`
-   holds this as one of its oracles (`scripts/checkout-deploy-readiness.mjs`).
-6. **Site sandbox staging gate (no publish)** — fill `checkout-config.js` with
-   the sandbox `environment`, `test_` client token, and four sandbox price ids
-   in a staged, non-published deploy. The four site price ids must equal the
-   four `PADDLE_PRICE_*` ids for the same tier/cadence — this parity is a
-   **human/catalog evidence gate**, checked by the operator against the Paddle
-   catalog: `checkout-config.js:43-44` warns that a cross-wired *known* id
-   sells the wrong card, and the machine checks cannot catch it (only unknown
-   ids fail 503).
-7. **Sandbox end-to-end gate** — one real sandbox purchase against the staged
-   values → signed webhook → claim → validate → paid tier/credits. The
-   operator records the attestation for the readiness gate. Not proven yet.
-8. **Publish gate** — only after 6–7 pass, run
+5. **Backend probe gate** — with the backend deployed, probe the claim
+   endpoint DIRECTLY and require the canonical 202: `POST
+   /api/v1/license/by-transaction` must answer `202 { status: 'pending',
+   retryAfterMs }`. Do not treat `checkout-deploy-readiness --live` as this
+   oracle yet: with the shipped EMPTY site config it exits 0 with
+   "PASS (purchase disabled)" even against a 404 endpoint — the live-202
+   hold only binds when the config is complete
+   (`checkout-deploy-readiness.mjs:232,249`).
+6. **Site sandbox staging gate (never published)** — fill `checkout-config.js`
+   with the sandbox `environment`, `test_` client token, and four sandbox
+   price ids in a local/staged deploy only; the public site keeps its empty
+   config. The four site price ids must equal the four `PADDLE_PRICE_*` ids
+   for the same tier/cadence — this parity is a **human/catalog evidence
+   gate**, checked by the operator against the Paddle catalog:
+   `checkout-config.js:43-44` warns that a cross-wired *known* id sells the
+   wrong card, and the machine checks cannot catch it (only unknown ids fail
+   503).
+7. **Sandbox end-to-end gate (staged only)** — one real sandbox purchase
+   against the staged values → signed webhook → claim → validate → paid
+   tier/credits. The operator records the attestation locally; a sandbox
+   `--live` readiness run against the staged deploy is a rehearsal and never
+   authorises a publish. Not proven yet.
+8. **Live/KYC gate (Pedro)** — Paddle business verification first. Then stage
+   matched production/live values on BOTH server (`PADDLE_PRICE_*` live ids,
+   live webhook secret) and site (`production` environment, `live_` token,
+   live price ids), with the parity re-check. Nothing publishes yet.
+9. **Production publish gate** — obtain fresh end-to-end checkout evidence
+   against the configured LIVE values (sandbox evidence cannot attest
+   different production values); then run
    `node scripts/checkout-deploy-readiness.mjs --live` with
-   `PROSO_PADDLE_EVIDENCE_FILE` pointing at the operator attestation. Gate:
-   the script must pass every hold — claim route in deployed code, wallet
-   input shipped, complete well-formed config, canonical 202 from the live
-   endpoint, and the evidence file — before the non-empty site config is
-   published. A failing verdict must stop the deploy.
-9. **Live/KYC gate (Pedro)** — only after sandbox E2E and the publish gate:
-   Paddle business verification, then swap site and server to
-   `production`/`live_` values with the parity re-check, then redeploy both.
+   `PROSO_PADDLE_EVIDENCE_FILE` pointing at the live attestation. With the
+   config complete every hold binds — claim route in deployed code, wallet
+   input shipped, canonical 202 from the live endpoint, evidence file — and
+   only a passing verdict allows publishing the production site config. A
+   failing verdict must stop the deploy.
 10. **Distribution gate** — public install path and onboarding
    (Plane #19/#16/#27) before advertising the paid path.
 
