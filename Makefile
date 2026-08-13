@@ -15,7 +15,7 @@ FC_NUM_RUNS ?= 100
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -168,7 +168,16 @@ security: doctor build ## Build required fixtures, run security tests, and scan 
 	@./scripts/security-check.sh
 	@./scripts/dependency-audit.sh
 
-verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons ## Fast delivery floor.
+preflight-test: ## Run the deterministic fake-boundary plant suite for the Dokku deploy preflight.
+	@node scripts/dokku-deploy-preflight.self-test.mjs
+
+dokku-check: ## Read-only deploy verdict (NOOP/SAFE/HELD) against the Dokku app.
+	@node scripts/dokku-deploy-preflight.mjs --check
+
+dokku-deploy: ## Fail-closed deploy: refuses HELD, gates, pushes, verifies /health.revision.
+	@node scripts/dokku-deploy-preflight.mjs --deploy
+
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
 
 brand-assets: ## Brand segments, SVG masters, proofs, and icon topology must stay reproducible.
 	node scripts/verify-brand-assets.mjs
