@@ -24,6 +24,7 @@ proven is listed in its own section rather than left implied.
 | Status | Claim | Receipt |
 |---|---|---|
 | ✓ | Optional auth: the licence guard runs globally (`app.module.ts:6,40`, APP_GUARD in `auth.module.ts`); account-free routes stay public (`license.controller.ts:67,103`). Three distinct outcomes hold: no key at all = anonymous Free (INV-001); an unknown key on the public `POST /api/v1/license/validate` = Free defaults, `valid:false`, no error; an explicitly presented invalid `X-License-Key` on guarded routes = visible 401 (`license-key.guard.ts:77`) | PR #150 `2899773` |
+| ✓ | The deploy-readiness receipt never prints an unproven claim endpoint CLOSED: while no configured tier/period can enable purchase the hold is NOT REQUIRED (exit 0, no probe sent); as soon as any usable price can enable a buy control, every hold binds, incomplete configuration stays OPEN, and only a registered route answering the canonical 202 closes the endpoint hold | PROSO-40 fix; falsifier matrix in `checkout-surface-gate.mjs` (`the deploy receipt fails closed and its oracles are runnable, not greppable`) |
 | ✓ | Hash-only, race-safe issuance/claim: `LicenseKey.userId @unique` (`schema.prisma:176`) with atomic upsert + P2002 convergence (`prisma-license-key.repository.ts:42`); account-free claim endpoint `POST /api/v1/license/by-transaction` (`license.controller.ts:102`), throttled 5/min (`:105`); the transaction id routes, the buyer's claim secret authorises | PR #153 `1ab8dbc`; `specs/148-license-issuance/spec.md` |
 | ✓ | Extension Wallet: public settings surface (labelled password field, Save & validate) with serialized validation → readback → storage → live adoption (`license.handlers.ts:85,326,339`) and masked reload; invalid/network failures keep the working key | PR #154 `2ecd180`; `specs/153-license-settings/spec.md` |
 | ✓ | Truthful fail-closed site/claim recovery: buy controls disabled with the reason stated while Paddle config is empty — the shipped values are `clientToken: ''` and four empty price ids (`checkout-config.js:48-52`), which `configProblem` turns into inert controls with a named reason (`checkout.js:64,81,114,145,327`); success page says the transaction id alone is not enough and recovery verifies the purchaser through Paddle's records (`success.html:78`, `success.js:136`) | PRs #151 `4d1e132`, #155 `00b9e81` |
@@ -90,10 +91,10 @@ the checklist below is satisfied.
    endpoint DIRECTLY and require the canonical 202: `POST
    /api/v1/license/by-transaction` must answer `202 { status: 'pending',
    retryAfterMs }`. Do not treat `checkout-deploy-readiness --live` as this
-   oracle yet: with the shipped EMPTY site config it exits 0 with
-   "PASS (purchase disabled)" even against a 404 endpoint — the live-202
-   hold only binds when the config is complete
-   (`checkout-deploy-readiness.mjs:232,249`).
+   oracle: with the shipped EMPTY site config the claim-endpoint hold reads
+   NOT REQUIRED and no probe is even sent. The live-202 hold binds as soon as
+   any configured tier/period can enable a buy control; a partial price matrix
+   is still unsafe and fails the complete-configuration hold.
 6. **Site sandbox staging gate (never published)** — fill `checkout-config.js`
    with the sandbox `environment`, `test_` client token, and four sandbox
    price ids in a local/staged deploy only; the public site keeps its empty
