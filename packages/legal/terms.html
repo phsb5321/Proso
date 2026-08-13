@@ -57,10 +57,10 @@
     <div class="legal-meta">
       <h1>Proso Terms of Service</h1>
       <div class="legal-meta__dates">
-        <span>Effective: <time datetime="2026-03-18">March 18, 2026</time></span>
-        <span>Last updated: <time datetime="2026-02-16">February 16, 2026</time></span>
+        <span>Effective: <time datetime="2026-09-18">September 18, 2026</time></span>
+        <span>Last updated: <time datetime="2026-08-12">August 12, 2026</time></span>
       </div>
-      <p class="legal-meta__version">Version 1.0 &middot; <a href="#changes">Previous versions</a></p>
+      <p class="legal-meta__version">Version 2.0 &middot; <a href="#changes">Previous versions</a></p>
     </div>
 
     <p class="legal-disclaimer">This document is provided for informational purposes. It does not constitute legal advice. Consult a qualified legal professional for advice specific to your situation.</p>
@@ -110,13 +110,13 @@
         <dd>A feature that allows you to use your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server for synthesis, enabling premium voice synthesis without using managed credits.</dd>
 
         <dt>&ldquo;Free Tier&rdquo;</dt>
-        <dd>The always-free usage tier that provides unlimited browser-native TTS, word-level highlighting, and BYOK support without requiring account creation.</dd>
+        <dd>The always-free usage tier that provides word-level highlighting, smart text extraction, and BYOK support without requiring account creation.</dd>
 
         <dt>&ldquo;Content&rdquo;</dt>
         <dd>Any text content you process through Proso for text-to-speech conversion, including web page text, selected text, and other textual input.</dd>
 
         <dt>&ldquo;Provider&rdquo;</dt>
-        <dd>A third-party text-to-speech service integrated with Proso, such as OpenAI, ElevenLabs, Groq, Cartesia, or Google Cloud Text-to-Speech.</dd>
+        <dd>A third-party text-to-speech service integrated with Proso, such as OpenAI, ElevenLabs, Groq, or Cartesia.</dd>
 
         <dt>&ldquo;Paddle&rdquo;</dt>
         <dd>Paddle.com Market Limited, our payment processor and Merchant of Record, which handles all payment processing, tax compliance, and invoicing for Proso subscriptions.</dd>
@@ -132,7 +132,6 @@
       <p>Proso is a browser extension that converts web page text into spoken audio using text-to-speech technology. It offers multiple modes of operation:</p>
 
       <ul>
-        <li><strong>Browser TTS</strong>: Uses your browser&rsquo;s built-in speech synthesis engine. Browser TTS is always unlimited and free on all tiers.</li>
         <li><strong>Managed TTS</strong>: Uses Proso&rsquo;s server to process text through premium TTS providers. Managed TTS consumes credits from your subscription.</li>
         <li><strong>BYOK</strong>: Uses your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server. BYOK is always available on all tiers and always free. Your keys are never stored on Proso servers.</li>
       </ul>
@@ -140,7 +139,7 @@
       <h3>Core Guarantees</h3>
       <ul>
         <li>The Free Tier is always available without creating an account or providing payment information.</li>
-        <li>Browser-native text-to-speech is always unlimited and incurs no charges.</li>
+        <li>Managed TTS requires a paid subscription and consumes managed credits.</li>
         <li>BYOK (Bring Your Own Key) is available on all subscription tiers at no additional cost.</li>
         <li>Word-level synchronization and highlighting is a free feature available on all tiers.</li>
       </ul>
@@ -156,10 +155,10 @@
       <h2>4. Accounts &amp; Registration</h2>
 
       <h3>Free Tier</h3>
-      <p>The Free Tier does not require account creation. You may use browser TTS, BYOK, word-level highlighting, and all free features without providing any personal information.</p>
+      <p>The Free Tier does not require account creation. You may use BYOK, word-level highlighting, smart text extraction, and all free features without providing any personal information.</p>
 
       <h3>Paid Features</h3>
-      <p>Access to managed TTS credits, MP3 export, cloud sync, and other premium features requires creating a Proso account. When creating an account, you agree to:</p>
+      <p>Access to managed TTS credits requires a paid subscription purchased through Paddle. When subscribing, you agree to:</p>
       <ul>
         <li>Provide accurate and complete information</li>
         <li>Keep your login credentials secure</li>
@@ -199,37 +198,19 @@
             <td>Free</td>
             <td>$0</td>
             <td>$0</td>
-            <td>Browser TTS unlimited</td>
-          </tr>
-          <tr>
-            <td>Basic</td>
-            <td>$4.99</td>
-            <td>$39.99/yr</td>
-            <td>100,000 characters</td>
+            <td>Word-level highlighting and BYOK</td>
           </tr>
           <tr>
             <td>Pro</td>
-            <td>$14.99</td>
-            <td>$119.99/yr</td>
-            <td>300,000 characters</td>
-          </tr>
-          <tr>
-            <td>Multilingual</td>
-            <td>$19.99</td>
-            <td>$159.99/yr</td>
-            <td>300,000 characters</td>
-          </tr>
-          <tr>
-            <td>Team</td>
-            <td>$14.99/user</td>
-            <td>&mdash;</td>
-            <td>300,000/user</td>
+            <td>$4.99</td>
+            <td>$39.99/yr</td>
+            <td>500,000 characters</td>
           </tr>
           <tr>
             <td>Enterprise</td>
-            <td>Custom</td>
-            <td>Custom</td>
-            <td>Custom</td>
+            <td>$14.99</td>
+            <td>$119.99/yr</td>
+            <td>2,000,000 characters</td>
           </tr>
         </tbody>
       </table>
@@ -252,7 +233,7 @@
       <p>Subscriptions are billed either monthly or annually, depending on the plan selected. All subscriptions auto-renew at the end of each billing period unless cancelled before the renewal date.</p>
 
       <h3>Failed Payments</h3>
-      <p>If a payment fails, Proso provides a 7-day grace period during which your subscription remains active. If payment is not resolved within the grace period, your account will be downgraded to the Free Tier. You will retain access to browser TTS and BYOK features.</p>
+      <p>If a payment fails, Paddle handles retries and notifications under its Checkout Buyer Terms. When a paid subscription lapses, managed voices pause; BYOK keeps working without a subscription.</p>
 
       <h3>Currency</h3>
       <p>All prices are listed in United States Dollars (USD). Paddle may display prices in your local currency at checkout for convenience, but billing is processed in USD.</p>
@@ -276,21 +257,17 @@
       <h3>No Mid-Cycle Expiration</h3>
       <p>Credits never expire during an active billing cycle. Your full monthly allocation remains available until the billing cycle ends or renews.</p>
 
-      <h3>Rollover</h3>
-      <ul>
-        <li><strong>Pro, Multilingual, and Team tiers</strong>: Up to 100,000 unused characters roll over to the next billing period.</li>
-        <li><strong>Free and Basic tiers</strong>: Credits do not roll over. Unused credits are forfeited at the end of each billing cycle.</li>
-        <li>Rolled-over credits exceeding the 100,000-character cap are forfeited.</li>
-      </ul>
+      <h3>No Carry-Over</h3>
+      <p>Unused managed credits are not carried into the next billing cycle. Your full monthly allocation remains available until the billing cycle ends or renews.</p>
 
       <h3>Cache Efficiency</h3>
       <p>Proso caches previously generated audio. Listening to cached content does not consume additional credits &mdash; you are never charged twice for the same content.</p>
 
       <h3>Credit Exhaustion</h3>
-      <p>When your managed credits are exhausted, Proso automatically falls back to your browser&rsquo;s built-in TTS engine (always unlimited and free) or to BYOK if you have API keys configured. You are never locked out of text-to-speech functionality.</p>
+      <p>When your managed credits are exhausted, managed voices pause until your next allocation. BYOK keeps working on every tier if you have API keys configured, so you are never locked out of text-to-speech functionality.</p>
 
       <h3>Transferability</h3>
-      <p>Credits are non-transferable between individual accounts. Team tier subscribers share a pooled credit allocation among team members.</p>
+      <p>Credits are non-transferable between individual accounts.</p>
     </section>
 
     <!-- ============================================================
@@ -347,7 +324,7 @@
       </ul>
 
       <h3>Liability</h3>
-      <p>Proso is not liable for charges, service interruptions, or data processing that occurs between Proso&rsquo;s server and your third-party provider when using BYOK. Proso&rsquo;s role is limited to securely forwarding your key for a single request. If a BYOK provider is unavailable, Proso falls back to browser-native TTS.</p>
+      <p>Proso is not liable for charges, service interruptions, or data processing that occurs between Proso&rsquo;s server and your third-party provider when using BYOK. Proso&rsquo;s role is limited to securely forwarding your key for a single request. If a BYOK provider is unavailable, Proso falls back to another configured provider.</p>
     </section>
 
     <!-- ============================================================
@@ -387,16 +364,6 @@
             <td><a href="https://cartesia.ai/legal/terms.html">Terms of Service</a></td>
             <td>Free tier is non-commercial only (see below)</td>
           </tr>
-          <tr>
-            <td>Google Cloud TTS</td>
-            <td><a href="https://developers.google.com/terms">APIs Terms</a></td>
-            <td>Standard Google API compliance</td>
-          </tr>
-          <tr>
-            <td>Browser (native)</td>
-            <td>N/A</td>
-            <td>No restrictions (client-side only)</td>
-          </tr>
         </tbody>
       </table>
 
@@ -410,7 +377,7 @@
       <p>Cartesia restricts free-tier usage to non-commercial purposes only. If you use a free Cartesia API key through BYOK, you must not use the generated audio for commercial purposes. Commercial use requires a paid Cartesia plan.</p>
 
       <h3>Provider Availability</h3>
-      <p>Proso is not responsible for the availability, pricing changes, service quality, or terms modifications of any third-party provider. If a provider becomes unavailable, Proso will fall back to browser-native TTS or another configured provider.</p>
+      <p>Proso is not responsible for the availability, pricing changes, service quality, or terms modifications of any third-party provider. If a provider becomes unavailable, Proso will fall back to another configured provider.</p>
     </section>
 
     <!-- ============================================================
@@ -602,7 +569,10 @@
       <p>If changes to these Terms materially affect paid subscribers, affected users may cancel their subscription without penalty within the notice period and receive a prorated refund for the unused portion of their current billing period.</p>
 
       <h3>Previous Versions</h3>
-      <p>This is version 1.0 of the Proso Terms of Service. Previous versions will be listed here when updates are published.</p>
+      <p>This is version 2.0 of the Proso Terms of Service.</p>
+      <ul>
+        <li><strong>Version 1.0</strong> &mdash; effective March 18, 2026, superseded by version 2.0. Its tier names, feature descriptions, and pricing no longer reflect the product and are replaced by the descriptions in Section&nbsp;5 and Section&nbsp;7 of this version.</li>
+      </ul>
     </section>
 
     <!-- ============================================================

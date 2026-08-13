@@ -31,36 +31,29 @@
     "@type": "SoftwareApplication",
     "name": "Proso",
     "applicationCategory": "BrowserApplication",
-    "operatingSystem": "Firefox 112+",
+    "operatingSystem": "Firefox 109+",
     "description": "Open-source text-to-speech browser extension with premium AI voices and word-level highlighting",
     "url": "https://phsb5321.github.io/Proso/",
-    "downloadUrl": "https://github.com/phsb5321/Proso/releases",
-    "softwareVersion": "1.0.0",
+    "softwareVersion": "1.2.9",
     "license": "https://www.gnu.org/licenses/agpl-3.0.html",
     "offers": [
       {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD",
-        "description": "Free tier with unlimited browser TTS and BYOK support"
+        "description": "Free tier with BYOK support"
       },
       {
         "@type": "Offer",
         "price": "4.99",
         "priceCurrency": "USD",
-        "description": "Basic tier with 100K managed credits and OpenAI voices"
+        "description": "Pro tier with 500,000 managed credits and premium voices"
       },
       {
         "@type": "Offer",
         "price": "14.99",
         "priceCurrency": "USD",
-        "description": "Pro tier with 300K managed credits, MP3 export, and cloud sync"
-      },
-      {
-        "@type": "Offer",
-        "price": "19.99",
-        "priceCurrency": "USD",
-        "description": "Multilingual tier with Google Cloud voices in 40+ languages"
+        "description": "Enterprise tier with 2,000,000 managed credits and priority support"
       }
     ],
     "author": {
@@ -87,7 +80,7 @@
           <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
           <li><a href="terms.html" class="site-nav__link">Terms</a></li>
         </ul>
-        <a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--sm">Install for Firefox</a>
+        <a href="#install-status" class="btn btn--primary btn--sm">Install for Firefox</a>
       </nav>
     </div>
   </header>
@@ -99,7 +92,7 @@
         <h1>Listen to the web.<br><span class="text-gradient">Your way.</span></h1>
         <p class="hero__subtitle">A free, open-source Firefox extension that reads any webpage aloud with premium AI voices and real-time word-level highlighting.</p>
         <div class="hero__ctas">
-          <a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--lg">Install Free for Firefox</a>
+          <a href="#install-status" class="btn btn--primary btn--lg">Install for Firefox</a>
           <a href="pricing.html" class="btn btn--secondary btn--lg">View Pricing</a>
         </div>
 
@@ -152,6 +145,17 @@
       </div>
     </section>
 
+    <!-- Install status -->
+    <section id="install-status">
+      <div class="container container--narrow">
+        <div class="callout">
+          <h2>Firefox installation is not available yet</h2>
+          <p>Proso&rsquo;s Firefox extension is real and open source, but the signed build is pending <strong>Mozilla signing (AMO)</strong> and our self-hosted release automation. Until the signed build is published, we will not link a build that is stale or unreachable &mdash; this notice is the honest state of the install button.</p>
+          <p>When the signed build ships, the install button on this site will point straight at it.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- Trust Bar -->
     <section id="trust" aria-label="Trust indicators">
       <div class="container">
@@ -174,7 +178,7 @@
           </span>
           <span class="trust-badge">
             <svg class="trust-badge__icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            Firefox 112+
+            Firefox 109+
           </span>
         </div>
       </div>
@@ -193,7 +197,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </div>
             <h3>Premium AI Voices</h3>
-            <p>Choose from OpenAI, ElevenLabs, Groq, Cartesia, or your browser's built-in voices. Bring your own API key or use managed credits.</p>
+            <p>Choose from OpenAI, ElevenLabs, Groq, or Cartesia. Bring your own API key or use managed credits.</p>
           </div>
           <div class="feature-card">
             <div class="feature-card__icon" aria-hidden="true">
@@ -232,7 +236,7 @@
             <div class="step__number">1</div>
             <div class="step__content">
               <h3>Install the Extension</h3>
-              <p>One click from Firefox. No account needed, no signup forms. The free tier works immediately.</p>
+              <p>Once the signed Firefox build ships (pending Mozilla AMO review), one click from this site. No account needed, no signup forms. The free tier works immediately.</p>
             </div>
           </div>
           <div class="step">
@@ -277,19 +281,21 @@
               <span class="pricing-card__period">/forever</span>
             </div>
             <ul class="pricing-card__features" role="list">
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Unlimited browser TTS</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Word-level highlighting</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> BYOK &mdash; all providers</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Smart text extraction</li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed credits</span></li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">MP3 export</span></li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Speed control</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Paragraph navigation</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> BYOK &mdash; your own API key, any provider</li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed voices</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Premium voices</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>
             </ul>
-            <a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary">Install Now</a>
+            <a href="#install-status" class="btn btn--primary">Install for Firefox</a>
           </div>
 
-          <!-- Basic -->
+          <!-- Pro -->
           <div class="pricing-card">
-            <div class="pricing-card__name">Basic</div>
+            <div class="pricing-card__name">Pro</div>
             <div class="pricing-card__price">
               <span class="pricing-card__amount pricing-card__monthly">$4.99</span>
               <span class="pricing-card__amount pricing-card__annual">$3.33</span>
@@ -298,18 +304,17 @@
             </div>
             <ul class="pricing-card__features" role="list">
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Free</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 100K chars/month credits</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> OpenAI voices included</li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">MP3 export</span></li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Cloud sync</span></li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">PDF reading</span></li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 500,000 managed characters per month</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Managed voices</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Premium voices</li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>
             </ul>
-            <a href="pricing.html#pricing-cards" class="btn btn--secondary">Subscribe to Basic</a>
+            <a href="pricing.html#pricing-cards" class="btn btn--secondary">View Pro plan</a>
           </div>
 
-          <!-- Pro -->
+          <!-- Enterprise -->
           <div class="pricing-card pricing-card--highlighted">
-            <div class="pricing-card__name">Pro</div>
+            <div class="pricing-card__name">Enterprise</div>
             <div class="pricing-card__price">
               <span class="pricing-card__amount pricing-card__monthly">$14.99</span>
               <span class="pricing-card__amount pricing-card__annual">$9.99</span>
@@ -317,34 +322,13 @@
               <span class="pricing-card__period pricing-card__annual">/mo (billed $119.99/yr)</span>
             </div>
             <ul class="pricing-card__features" role="list">
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Basic</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 300K chars/month credits</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> OpenAI voices included</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> MP3 export</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Cloud sync</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> PDF reading</li>
-            </ul>
-            <a href="pricing.html#pricing-cards" class="btn btn--secondary">Subscribe to Pro</a>
-          </div>
-
-          <!-- Multilingual -->
-          <div class="pricing-card">
-            <div class="pricing-card__name">Multilingual</div>
-            <div class="pricing-card__price">
-              <span class="pricing-card__amount pricing-card__monthly">$19.99</span>
-              <span class="pricing-card__amount pricing-card__annual">$13.33</span>
-              <span class="pricing-card__period pricing-card__monthly">/month</span>
-              <span class="pricing-card__period pricing-card__annual">/mo (billed $159.99/yr)</span>
-            </div>
-            <ul class="pricing-card__features" role="list">
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Pro</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 300K chars/month credits</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Google Cloud voices (40+ langs)</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> MP3 export</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Cloud sync</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> PDF reading</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 2,000,000 managed characters per month</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Managed voices</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Premium voices</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Priority support</li>
             </ul>
-            <span class="btn btn--secondary btn--disabled">Coming Soon</span>
+            <a href="pricing.html#pricing-cards" class="btn btn--secondary">View Enterprise plan</a>
           </div>
         </div>
 
@@ -375,7 +359,7 @@
             <tbody>
               <tr>
                 <th scope="row">Free tier</th>
-                <td class="proso-col">Unlimited browser TTS</td>
+                <td class="proso-col">Free forever, BYOK included</td>
                 <td>Limited</td>
                 <td>Limited</td>
               </tr>
@@ -394,7 +378,7 @@
               <tr>
                 <th scope="row">Word-level sync</th>
                 <td class="proso-col"><span class="check">&#10003;</span> Free</td>
-                <td>Basic free, advanced paid</td>
+                <td>Limited on free tier</td>
                 <td>Available (paywall unclear)</td>
               </tr>
               <tr>
