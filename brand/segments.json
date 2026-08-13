@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "source": {
+    "path": "brand/source/proso-brand-board.png",
+    "sha256": "114a6c227a33822a00184ec6547371519cdea4f0063c5e2dc8b45be4e33b8550",
+    "width": 1254,
+    "height": 1254
+  },
+  "segments": [
+    {
+      "id": "hero-panel",
+      "purpose": "Complete primary lockup panel on the hero navy",
+      "crop": { "x": 0, "y": 0, "width": 1254, "height": 681 },
+      "output": "brand/segments/01-hero-panel.png"
+    },
+    {
+      "id": "primary-lockup",
+      "purpose": "Tight horizontal mark and lowercase wordmark reference",
+      "crop": { "x": 120, "y": 220, "width": 1020, "height": 320 },
+      "output": "brand/segments/02-primary-lockup.png"
+    },
+    {
+      "id": "primary-mark",
+      "purpose": "Primary two-pill mark with four-bar waveform",
+      "crop": { "x": 120, "y": 220, "width": 450, "height": 320 },
+      "output": "brand/segments/03-primary-mark.png"
+    },
+    {
+      "id": "wordmark",
+      "purpose": "Lowercase proso wordmark reference",
+      "crop": { "x": 590, "y": 280, "width": 550, "height": 220 },
+      "output": "brand/segments/04-wordmark.png"
+    },
+    {
+      "id": "light-variant-family",
+      "purpose": "Dark-tile mark and labelled size ladder on the light panel",
+      "crop": { "x": 0, "y": 683, "width": 627, "height": 290 },
+      "output": "brand/segments/05-light-variant-family.png"
+    },
+    {
+      "id": "compact-variant-family",
+      "purpose": "All-green compact dot mark and labelled size ladder",
+      "crop": { "x": 628, "y": 683, "width": 626, "height": 290 },
+      "output": "brand/segments/06-compact-variant-family.png"
+    },
+    {
+      "id": "meaning-panel",
+      "purpose": "Text-to-voice semantic decomposition",
+      "crop": { "x": 0, "y": 976, "width": 533, "height": 278 },
+      "output": "brand/segments/07-meaning-panel.png"
+    },
+    {
+      "id": "construction-panel",
+      "purpose": "Four-stage mark construction sequence",
+      "crop": { "x": 533, "y": 976, "width": 721, "height": 278 },
+      "output": "brand/segments/08-construction-panel.png"
+    }
+  ]
+}
