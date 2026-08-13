@@ -14,8 +14,9 @@ becomes shipping geometry.
 
 ## Technical context
 
-- **Runtime:** Node.js 20+ ESM for manifests/gates; ImageMagick only for explicit
-  crop regeneration; existing SVGO + `@resvg/resvg-js` for shipping raster output.
+- **Runtime:** Node.js 20+ ESM for manifests/gates; ImageMagick 7 for crop,
+  mask, and proof processing; Inkscape for deterministic SVG proof rasterization;
+  existing SVGO + `@resvg/resvg-js` for shipping extension-icon raster output.
 - **Storage:** tracked PNG/SVG/JSON/Markdown assets; no database.
 - **Testing:** Node deterministic asset gate, existing icon freshness gate,
   `make verify`, and cross-family adversarial review.
@@ -54,6 +55,8 @@ brand/
 
 scripts/
 ├── segment-brand-board.mjs
+├── generate-brand-vectors.mjs
+├── render-brand-proofs.mjs
 └── verify-brand-assets.mjs
 
 packages/extension/assets/icons/

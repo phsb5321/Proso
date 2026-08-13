@@ -59,7 +59,11 @@ function loadManifest() {
 
     const { x, y, width, height } = segment.crop;
     for (const [name, value] of Object.entries({ x, y, width, height })) {
-      if (!Number.isInteger(value) || value < 0 || ((name === 'width' || name === 'height') && value === 0)) {
+      if (
+        !Number.isInteger(value) ||
+        value < 0 ||
+        ((name === 'width' || name === 'height') && value === 0)
+      ) {
         fail(`${segment.id} has invalid ${name}: ${value}`);
       }
     }
@@ -133,7 +137,9 @@ function runCrop(segment, sourcePath, outputPath) {
   );
   if (result.error) fail(`ImageMagick failed for ${segment.id}: ${result.error.message}`);
   if (result.status !== 0) {
-    fail(`ImageMagick failed for ${segment.id}: ${result.stderr.trim() || `exit ${result.status}`}`);
+    fail(
+      `ImageMagick failed for ${segment.id}: ${result.stderr.trim() || `exit ${result.status}`}`,
+    );
   }
 }
 
