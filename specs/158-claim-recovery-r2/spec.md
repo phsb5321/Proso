@@ -1,4 +1,4 @@
-# Feature 154 — Claim Shield: the purchase surface cannot misclaim
+# Feature 158 — Claim Shield: the purchase surface cannot misclaim
 
 ## Goal
 
