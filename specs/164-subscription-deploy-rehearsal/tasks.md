@@ -28,9 +28,9 @@
   line coverage miss on the rehearsal fault; the real adapter path is now exercised by the 13/13
   PostgreSQL suite and LCOV records line 123 hit once. Full `make verify-full` is **BLOCKED** at its
   earlier format step by two out-of-scope defects inherited from Feature 163 on current `main`; they
-  remain byte-identical to `origin/main` and are excluded from this feature diff. An isolated
-  coverage attempt was additionally blocked by one unrelated Cartesia timeout after 505/506 tests.
-  Exact receipts and SHA-256 values are recorded in the generator handoff. (all)
+  remain byte-identical to `origin/main` and are excluded from this feature diff. A retry of the
+  isolated coverage leg passed 37/37 server suites, 506/506 server tests, and 2/2 changed production
+  lines (100%). Exact receipts and SHA-256 values are recorded in the generator handoff. (all)
 - [ ] **T009 — Immutable review handoff.** Commit/push one head, open the safe PR, write
   `/tmp/proso-164-generator-handoff.md`, then obtain direct DeepSeek p3 review and independent p4
   execution against that exact SHA. Repair findings only in a new immutable head and repeat both
