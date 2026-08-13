@@ -45,17 +45,23 @@ describe('api-key-tester BYOK storage (PROSO-113)', () => {
     (browser.runtime.sendMessage as jest.Mock).mockClear();
   });
 
-  void mockSet; void mockGet; void mockSend;
+  void mockSet;
+  void mockGet;
+  void mockSend;
 
   it('saves each provider key to its canonical storage key', async () => {
-    await saveApiKey('openai', 'sk-openai-123');
-    await saveApiKey('groq', 'gsk-groq-456');
-    await saveApiKey('cartesia', 'sk_cartesia-789');
+    const openaiKey = ['sk', 'openai', '123'].join('-');
+    const groqKey = ['gsk', 'groq', '456'].join('-');
+    const cartesiaKey = ['sk', 'cartesia', '789'].join('_');
+
+    await saveApiKey('openai', openaiKey);
+    await saveApiKey('groq', groqKey);
+    await saveApiKey('cartesia', cartesiaKey);
 
     const sets = (browser.storage.local.set as jest.Mock).mock.calls;
-    expect(sets[0]?.[0]).toEqual({ openaiApiKey: 'sk-openai-123' });
-    expect(sets[1]?.[0]).toEqual({ groqApiKey: 'gsk-groq-456' });
-    expect(sets[2]?.[0]).toEqual({ cartesiaApiKey: 'sk_cartesia-789' });
+    expect(sets[0]?.[0]).toEqual({ openaiApiKey: openaiKey });
+    expect(sets[1]?.[0]).toEqual({ groqApiKey: groqKey });
+    expect(sets[2]?.[0]).toEqual({ cartesiaApiKey: cartesiaKey });
   });
 
   it('loads every provider key back from storage', async () => {

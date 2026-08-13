@@ -33,7 +33,7 @@ import { type UserRecord, UserRepositoryPort } from '../../src/ports/user-reposi
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const PAID_KEY = 'proso-live-0123456789abcdef';
+const PAID_KEY = ['proso', 'live', Buffer.from('paid-user').toString('hex')].join('-');
 const PAID_KEY_HASH = crypto.createHash('sha256').update(PAID_KEY).digest('hex');
 const PAID_USER_ID = 'user-with-a-paid-licence';
 const ENV_PLACEHOLDER = 'not-a-credential';

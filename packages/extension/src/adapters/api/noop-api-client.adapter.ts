@@ -36,13 +36,24 @@ export class NoOpApiClientAdapter implements IApiClient {
     return false;
   }
 
+  /**
+   * Accepted and discarded: with no server URL there is nothing to
+   * authenticate against, and a stored key stays inert until a server is
+   * configured and the container is rebuilt with it.
+   */
+  setLicenseKey(_key: string | null): void {
+    // Intentionally empty — see the class doc: every call is not_configured.
+  }
+
   async validateLicense(
     _licenseKey: string,
   ): Promise<Result<LicenseValidateResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 
-  async getSubscription(): Promise<Result<SubscriptionDetailsResponse, ApiClientError>> {
+  async getSubscription(
+    _licenseKey?: string,
+  ): Promise<Result<SubscriptionDetailsResponse, ApiClientError>> {
     return Err(NOT_CONFIGURED);
   }
 

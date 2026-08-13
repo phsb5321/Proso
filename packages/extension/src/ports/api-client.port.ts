@@ -59,6 +59,18 @@ export type ApiClientError =
  */
 export interface IApiClient {
   /**
+   * Adopt a license key (or clear it with null) for every subsequent call.
+   *
+   * The settings page's "Save & validate" is the production caller: the key it
+   * accepts has to reach the live client, not only storage, or managed
+   * synthesis keeps sending the key the container was born with until the next
+   * browser start.
+   *
+   * @param key - Raw license key, or null to send no key at all
+   */
+  setLicenseKey(key: string | null): void;
+
+  /**
    * Validate a license key against the server.
    * Returns the user's tier, features, and credit balance.
    *
@@ -70,9 +82,13 @@ export interface IApiClient {
   validateLicense(licenseKey: string): Promise<Result<LicenseValidateResponse, ApiClientError>>;
 
   /**
-   * Get the current subscription details for the authenticated user.
+   * Get subscription details using an explicit candidate key when supplied,
+   * otherwise the key currently adopted by the live client. Candidate
+   * confirmation must not mutate the key concurrent synthesis uses.
    */
-  getSubscription(): Promise<Result<SubscriptionDetailsResponse, ApiClientError>>;
+  getSubscription(
+    licenseKey?: string,
+  ): Promise<Result<SubscriptionDetailsResponse, ApiClientError>>;
 
   /**
    * Get the current credit balance for the authenticated user.

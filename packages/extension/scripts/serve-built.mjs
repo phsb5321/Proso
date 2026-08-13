@@ -12,8 +12,8 @@
  * Usage (via Playwright webServer): node scripts/serve-built.mjs
  * Serves packages/extension/.output/firefox-mv2 on http://127.0.0.1:4173
  */
-import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,7 +31,9 @@ const ROOT = fileURLToPath(new URL('../.output/firefox-mv2/', import.meta.url));
 {
   const { existsSync } = await import('node:fs');
   if (!existsSync(join(ROOT, 'settings.html'))) {
-    console.error(`serve-built: build missing — run pnpm --filter @proso/extension build first (expected ${ROOT})`);
+    console.error(
+      `serve-built: build missing — run pnpm --filter @proso/extension build first (expected ${ROOT})`,
+    );
     process.exit(1);
   }
 }

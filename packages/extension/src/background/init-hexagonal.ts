@@ -31,6 +31,7 @@ import {
   setHighlightRepository,
   setHighlightSync,
   setLanguageDependencies,
+  setLicenseApiClient,
   setLoggingDependencies,
   setSettingsApiClient,
   setSettingsStore,
@@ -135,6 +136,11 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
 
     // 069: Wire API client for settings handlers (TTS key validation via server)
     setSettingsApiClient(container.adapters.apiClient);
+
+    // PROSO-153: Wire API client for licence handlers. The same instance the
+    // audio generator holds, so a key accepted in settings is the key the very
+    // next synthesis sends.
+    setLicenseApiClient(container.adapters.apiClient);
 
     // T001: Wire highlight sync for footer handlers
     setHighlightSync(container.adapters.highlightSync);

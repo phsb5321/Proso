@@ -63,6 +63,7 @@ import { usageTracker } from '../../utils/telemetry/usage';
 import { showConfirmModal } from './components/modal';
 import { setupSidebarKeyboardNav } from './components/sidebar';
 import { toast } from './components/toast';
+import { createLicenseSettingsController } from './license-settings';
 
 const log = createLogger('options');
 
@@ -227,12 +228,20 @@ function getElements(): OptionsElements {
 export async function initOptionsPage(): Promise<void> {
   elements = getElements();
 
+  // Register the paid disclosure and action before network-backed hydration. A
+  // stored licence whose server is slow must not leave these already-rendered
+  // controls clickable-but-inert while its status waits. Other settings keep
+  // their established load-before-listen ordering.
+  const licenseSettings = createLicenseSettingsController();
+  setupAccordions();
+
   // T018: Initialize telemetry for settings page
   await initTelemetry();
 
   await loadSettings();
   await loadQuickSettings();
   await loadLocalHostSettings();
+  await licenseSettings.loadStatus();
   await loadLoggingConfig();
   await loadQueueConfig();
   await loadCacheStats();
@@ -248,7 +257,6 @@ export async function initOptionsPage(): Promise<void> {
   setupCacheEventListeners();
   setupHighlightsEventListeners();
   setupTelemetryEventListeners();
-  setupAccordions();
   setupStorageChangeListener();
   setupSidebarNavigation();
   setupThemeEventListener();

@@ -12,7 +12,7 @@ FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot local-host-journey-gate local-host-journey-plants \
-	checkout-surface-gate checkout-surface-plants \
+	checkout-surface-gate checkout-surface-plants license-settings-gate license-settings-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
@@ -70,6 +70,14 @@ local-host-journey-plants: ## Prove every local-host-journey-gate assertion catc
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/local-host-journey-plants.mjs
 
+license-settings-gate: ## Prove the paid-account settings surface: a typed licence key is validated, saved, and still configured after a reopen.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/license-settings-gate.mjs
+
+license-settings-plants: ## Prove every license-settings-gate assertion catches a planted break.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/license-settings-plants.mjs
+
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter '@proso/server...' build
 	@node scripts/smoke-server-boot.mjs
@@ -83,7 +91,8 @@ checkout-surface-plants: ## Prove every checkout-surface-gate assertion catches 
 fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUNS.
 	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) NODE_OPTIONS='--experimental-vm-modules' \
 		$(PNPM) --filter @proso/extension exec jest --selectProjects unit --runInBand \
-		tests/unit/playback/playback-state.property.test.ts
+		tests/unit/playback/playback-state.property.test.ts \
+		tests/unit/license/license-mask.property.test.ts
 	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) \
 		$(PNPM) --filter @proso/server exec jest --runInBand \
 		tests/unit/core/shared/tts-schema.property.spec.ts \
