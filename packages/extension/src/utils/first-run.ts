@@ -63,7 +63,7 @@ const LOCAL_GATE_MARKER = 'no access to the configured host origin';
  */
 export function classifyFailure(
   errorMsg: string,
-  opts: { hasHost: boolean; hasByok: boolean },
+  opts: { hasHost: boolean; hasByok: boolean; hasManaged?: boolean },
 ): FailureClass {
   if (errorMsg.includes(LOCAL_GATE_MARKER)) return 'grant-missing';
   if (
@@ -71,12 +71,29 @@ export function classifyFailure(
     errorMsg.includes('payment_required') ||
     /managed tts is not included|insufficient.?credits/i.test(errorMsg)
   ) {
-    return opts.hasHost || opts.hasByok ? 'entitlement' : 'unconfigured';
+    return opts.hasHost || opts.hasByok || opts.hasManaged === true
+      ? 'entitlement'
+      : 'unconfigured';
   }
-  if (opts.hasHost && /unreachable|not.?responding|fetch failed/i.test(errorMsg)) {
+  // Shipped local-host transport shapes (local-host-audio.adapter.ts): DNS
+  // failure and ordinary fetch transport errors.
+  if (
+    opts.hasHost &&
+    /unreachable|not.?responding|fetch failed|failed to fetch|host could not be resolved|network error/i.test(
+      errorMsg,
+    )
+  ) {
     return 'host-unreachable';
   }
-  if (opts.hasByok && /key|401|403/i.test(errorMsg)) return 'key-rejected';
+  // Shipped BYOK rejection shapes: the server proxy maps a provider 401 to
+  // invalid_credentials, which the playback layer surfaces as
+  // "Provider unavailable: <provider>".
+  if (
+    opts.hasByok &&
+    /key|401|403|invalid_credentials|provider unavailable/i.test(errorMsg)
+  ) {
+    return 'key-rejected';
+  }
   return 'unconfigured';
 }
 

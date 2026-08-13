@@ -76,16 +76,33 @@ describe('classifyFailure (R-2, R-6)', () => {
     );
   });
 
-  it('host errors with a host configured are host-unreachable', () => {
+  it('host errors with a host configured are host-unreachable — SHIPPED shapes', () => {
     expect(
-      classifyFailure('fetch failed — host not responding', { hasHost: true, hasByok: false }),
+      classifyFailure('Host could not be resolved: getaddrinfo ENOTFOUND', {
+        hasHost: true,
+        hasByok: false,
+      }),
+    ).toBe('host-unreachable');
+    expect(
+      classifyFailure('Failed to fetch', { hasHost: true, hasByok: false }),
     ).toBe('host-unreachable');
   });
 
-  it('key errors with a BYOK key are key-rejected', () => {
-    expect(classifyFailure('HTTP 401: invalid key', { hasHost: false, hasByok: true })).toBe(
+  it('key errors with a BYOK key are key-rejected — SHIPPED shapes', () => {
+    // server-tts-audio.adapter.ts maps a provider 401 to invalid_credentials;
+    // playback-service.ts surfaces it as "Provider unavailable: <provider>".
+    expect(
+      classifyFailure('Provider unavailable: openai', { hasHost: false, hasByok: true }),
+    ).toBe('key-rejected');
+    expect(classifyFailure('invalid_credentials', { hasHost: false, hasByok: true })).toBe(
       'key-rejected',
     );
+  });
+
+  it('a managed-only reader (serverUrl, no key, no host) is ENTITLED on a 402 — never unconfigured', () => {
+    expect(
+      classifyFailure(TIER_COPY, { hasHost: false, hasByok: false, hasManaged: true }),
+    ).toBe('entitlement');
   });
 
   it('every class has exactly one fix action (no dead end)', () => {

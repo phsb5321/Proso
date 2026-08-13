@@ -617,6 +617,7 @@ async function handleFirstRunByok(event: Event): Promise<void> {
 async function routeFailure(errorMsg: string): Promise<void> {
   const stored = await browser.storage.local.get([
     'localHostEnabled',
+    'serverUrl',
     'openaiApiKey',
     'elevenlabsApiKey',
     'groqApiKey',
@@ -626,7 +627,9 @@ async function routeFailure(errorMsg: string): Promise<void> {
   const hasByok = ['openaiApiKey', 'elevenlabsApiKey', 'groqApiKey', 'cartesiaApiKey'].some(
     (k) => typeof stored[k] === 'string' && (stored[k] as string).length > 0,
   );
-  const cls = classifyFailure(errorMsg, { hasHost, hasByok });
+  const hasManaged =
+    typeof stored.serverUrl === 'string' && (stored.serverUrl as string).length > 0;
+  const cls = classifyFailure(errorMsg, { hasHost, hasByok, hasManaged });
   switch (cls) {
     case 'unconfigured':
       pendingPlayAfterConnect = true;
@@ -637,7 +640,9 @@ async function routeFailure(errorMsg: string): Promise<void> {
       await refreshFirstRun(errorMsg);
       return;
     case 'grant-missing':
-      // The existing PROSO-131 affordance owns this class.
+      // The existing PROSO-131 affordance owns this class. The failure-row
+      // button must perform THIS action, never a previous failure's.
+      fixActionKind = 'grant';
       await maybeShowGrantAffordance(errorMsg);
       return;
     case 'host-unreachable':
@@ -1872,6 +1877,7 @@ async function init(): Promise<void> {
       'localHostEnabled',
       'localHostUrl',
       'licenseKey',
+      'serverUrl',
       'openaiApiKey',
       'elevenlabsApiKey',
       'groqApiKey',
