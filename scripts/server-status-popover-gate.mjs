@@ -141,7 +141,8 @@ async function assertNarrowLayout(driver, label) {
   record(`${label}: narrow layout sane`, `header=${m.headerHeight}px, columns=${m.columns}`);
 }
 
-async function assertTopmostUnclipped(driver, label) {
+async function assertTopmostUnclipped(driver, label, options = {}) {
+  const expectOverlap = options.expectOverlap === true;
   await populateDetailRows(driver);
   const m = await driver.execute(`
     const detail = document.getElementById('serverStatusDetail');
@@ -163,6 +164,8 @@ async function assertTopmostUnclipped(driver, label) {
       rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
       innerWidth: window.innerWidth,
       innerHeight: window.innerHeight,
+      cardTop: cardRect ? cardRect.top : null,
+      cardBottom: cardRect ? cardRect.bottom : null,
       foreignProbes: probes,
     };
   `);
@@ -179,7 +182,27 @@ async function assertTopmostUnclipped(driver, label) {
     fail(`${label}: detail clipped by the viewport`, JSON.stringify(m.rect));
     return;
   }
-  if (m.foreignProbes.length > 0) {
+  if (expectOverlap) {
+    // The vacuity guard (Codex round 1): without a card, a positive overlap,
+    // and at least one executed probe, the topmost assertion proves nothing.
+    if (m.cardTop === null) {
+      fail(`${label}: topmost assertion vacuous — no .proso-card found`);
+      return;
+    }
+    const overlapTop = Math.max(m.rect.top, m.cardTop);
+    const overlapBottom = Math.min(m.rect.bottom, m.cardBottom);
+    if (overlapBottom - overlapTop < 8) {
+      fail(
+        `${label}: topmost assertion vacuous — popover does not overlap the card`,
+        `overlap=${overlapBottom - overlapTop}px`,
+      );
+      return;
+    }
+    if (m.foreignProbes.length > 0) {
+      fail(`${label}: detail covered by another element`, `y=${m.foreignProbes.join(',')}`);
+      return;
+    }
+  } else if (m.foreignProbes.length > 0) {
     fail(`${label}: detail covered by another element`, `y=${m.foreignProbes.join(',')}`);
     return;
   }
@@ -204,7 +227,39 @@ async function assertAriaReflection(driver, label) {
   }
   await focusRefresh();
   await sleep(100);
-  if (PLANT === 'aria-static') {
+  if (PLANT === 'card-covers') {
+  // Plant run: cover the card over the popover (z-index escalation on the
+  // card) — the topmost overlap probe must go red.
+  const plantDriver = await launch({
+    binary: resolveFirefox(),
+    headless: process.env.GATE_HEADED !== '1',
+    extraArgs: ['-remote-allow-system-access'],
+    prefs: {
+      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+      [SCHEME_PREF]: 1,
+    },
+  });
+  try {
+    await plantDriver.installAddon(buildDir);
+    await openExtensionPage(plantDriver, `moz-extension://${ADDON_UUID}/settings.html`);
+    await sleep(1000);
+    await plantDriver.execute(`
+      const style = document.createElement('style');
+      style.textContent = '.proso-card{position:relative!important;z-index:9999!important}';
+      document.head.appendChild(style);
+      return true;
+    `);
+    await setViewport(plantDriver, 1024, 768);
+    await assertTopmostUnclipped(plantDriver, 'plant card-covers desktop 1024', {
+      expectOverlap: true,
+    });
+  } finally {
+    await plantDriver.quit().catch(() => {});
+  }
+  process.exit(verdict());
+}
+
+if (PLANT === 'aria-static') {
     await driver.execute(
       `document.getElementById('serverStatusDetail').setAttribute('aria-hidden', 'true'); return true;`,
     );
@@ -279,14 +334,14 @@ async function main() {
 
     // Desktop light: topmost + unclipped + touch target.
     await setViewport(lightDriver, 1024, 768);
-    await assertTopmostUnclipped(lightDriver, 'desktop light 1024');
+    await assertTopmostUnclipped(lightDriver, 'desktop light 1024', { expectOverlap: true });
     await assertAriaReflection(lightDriver, 'desktop light 1024');
     await assertTouchTarget(lightDriver, 'desktop light 1024');
 
     // Narrow light: the regression the defect lived in.
     await setViewport(lightDriver, 375, 740);
     await assertNarrowLayout(lightDriver, 'narrow light 375');
-    await assertTopmostUnclipped(lightDriver, 'narrow light 375');
+    await assertTopmostUnclipped(lightDriver, 'narrow light 375', { expectOverlap: false });
     await assertAriaReflection(lightDriver, 'narrow light 375');
 
     // Zoom: Firefox's real page zoom must keep the narrow layout sane
@@ -298,7 +353,7 @@ async function main() {
       fail('zoom narrow: zoom did not shrink the CSS viewport', `innerWidth=${zoomed}`);
     } else {
       await assertNarrowLayout(lightDriver, 'zoom light (150%)');
-      await assertTopmostUnclipped(lightDriver, 'zoom light (150%)');
+      await assertTopmostUnclipped(lightDriver, 'zoom light (150%)', { expectOverlap: false });
     }
     await setZoom(lightDriver, 1);
 
@@ -318,7 +373,7 @@ async function main() {
       await sleep(1200);
       await setViewport(darkDriver, 375, 740);
       await assertNarrowLayout(darkDriver, 'narrow dark 375');
-      await assertTopmostUnclipped(darkDriver, 'narrow dark 375');
+      await assertTopmostUnclipped(darkDriver, 'narrow dark 375', { expectOverlap: false });
       await assertAriaReflection(darkDriver, 'narrow dark 375');
     } finally {
       await darkDriver.quit().catch(() => {});
@@ -365,6 +420,38 @@ if (PLANT === 'grid-areas') {
     `);
     await setViewport(plantDriver, 375, 740);
     await assertNarrowLayout(plantDriver, 'plant grid-areas narrow 375');
+  } finally {
+    await plantDriver.quit().catch(() => {});
+  }
+  process.exit(verdict());
+}
+
+if (PLANT === 'card-covers') {
+  // Plant run: cover the card over the popover (z-index escalation on the
+  // card) — the topmost overlap probe must go red.
+  const plantDriver = await launch({
+    binary: resolveFirefox(),
+    headless: process.env.GATE_HEADED !== '1',
+    extraArgs: ['-remote-allow-system-access'],
+    prefs: {
+      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+      [SCHEME_PREF]: 1,
+    },
+  });
+  try {
+    await plantDriver.installAddon(buildDir);
+    await openExtensionPage(plantDriver, `moz-extension://${ADDON_UUID}/settings.html`);
+    await sleep(1000);
+    await plantDriver.execute(`
+      const style = document.createElement('style');
+      style.textContent = '.proso-card{position:relative!important;z-index:9999!important}';
+      document.head.appendChild(style);
+      return true;
+    `);
+    await setViewport(plantDriver, 1024, 768);
+    await assertTopmostUnclipped(plantDriver, 'plant card-covers desktop 1024', {
+      expectOverlap: true,
+    });
   } finally {
     await plantDriver.quit().catch(() => {});
   }

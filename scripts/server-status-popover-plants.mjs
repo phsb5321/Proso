@@ -36,6 +36,12 @@ const PLANTS = [
       'the narrow single-column grid areas — the planted pre-170 base .container (no named areas) must turn the narrow-header assertion red',
   },
   {
+    plant: 'card-covers',
+    expect: 'FAIL',
+    guards:
+      'the topmost overlap probe — a card stacked over the popover must turn the topmost assertion red (vacuous-oracle guard)',
+  },
+  {
     plant: 'aria-static',
     expect: 'FAIL',
     guards:
