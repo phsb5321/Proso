@@ -1,18 +1,8 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-} from '@nestjs/common';
-import type { CheckoutRequest, CheckoutResponse, SubscriptionDetailsResponse } from '@proso/shared';
+import { Controller, Get, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import type { SubscriptionDetailsResponse } from '@proso/shared';
 import { SubscriptionStatus, SubscriptionTier } from '@proso/shared';
 import type { Request } from 'express';
 import { getFreeTierDefaults } from '../../core/subscription/feature-gate';
-import { BillingGatewayPort } from '../../ports/billing-gateway.port';
 import { CreditRepositoryPort } from '../../ports/credit-repository.port';
 import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
 
@@ -21,7 +11,6 @@ export class SubscriptionController {
   constructor(
     private readonly subscriptionRepository: SubscriptionRepositoryPort,
     private readonly creditRepository: CreditRepositoryPort,
-    private readonly billingGateway: BillingGatewayPort,
   ) {}
 
   @Get()
@@ -64,29 +53,5 @@ export class SubscriptionController {
         periodEnd: subscription.currentPeriodEnd.toISOString(),
       },
     };
-  }
-
-  @Post('checkout')
-  @HttpCode(HttpStatus.OK)
-  async createCheckout(
-    @Req() req: Request,
-    @Body() body: CheckoutRequest,
-  ): Promise<CheckoutResponse> {
-    const userId = (req as Request & { userId?: string }).userId;
-    if (!userId) {
-      throw new BadRequestException('Authentication required for checkout');
-    }
-
-    const validTiers = [SubscriptionTier.Pro, SubscriptionTier.Enterprise];
-    if (!validTiers.includes(body.tier)) {
-      throw new BadRequestException('Invalid tier for checkout');
-    }
-
-    const checkoutUrl = await this.billingGateway.createCheckoutUrl({
-      tier: body.tier,
-      userId,
-    });
-
-    return { checkoutUrl };
   }
 }

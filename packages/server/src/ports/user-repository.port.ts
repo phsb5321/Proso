@@ -11,7 +11,9 @@ export abstract class UserRepositoryPort {
 export interface UserRecord {
   id: string;
   email?: string;
+  /** Deprecated legacy field; licence validation uses LicenseKey.keyHash. */
   licenseKeyHash?: string;
+  paddleCustomerId?: string;
   deviceId?: string;
   tier: string;
   createdAt: Date;

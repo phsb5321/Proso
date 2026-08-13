@@ -34,11 +34,14 @@ enum TransactionType {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  licenseKey String  @unique
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id String @id @default(uuid())
+  // Deprecated compatibility column. Paid-key lookup uses LicenseKey.keyHash;
+  // new Paddle users never receive a value here.
+  licenseKey       String? @unique
+  paddleCustomerId String? @unique
+  email            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   subscriptions      Subscription[]
   creditAllocations  CreditAllocation[]
@@ -60,11 +63,18 @@ model Subscription {
   // through Paddle as `custom_data.license_claim_hash`. This is what AUTHORISES
   // retrieval. The secret itself is never persisted.
   licenseClaimHash     String?
+  // Most recent completed transaction applied to state. Unlike the initial
+  // claim-routing transaction above, renewals update this value.
+  paddleLastTransactionId String?
   tier                 SubscriptionTier
   status               SubscriptionStatus
   currentPeriodStart   DateTime
   currentPeriodEnd     DateTime
   cancelledAt          DateTime?
+  // Last event allowed to update tier/status/period. Nullable for legacy rows.
+  paddleOccurredAt     DateTime?
+  paddleEventType      String?
+  paddleEventId        String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -75,10 +85,13 @@ model Subscription {
 }
 
 model CreditAllocation {
-  id               String   @id @default(uuid())
-  userId           String
-  subscriptionId   String
-  totalCredits     Int
+  id                      String   @id @default(uuid())
+  userId                  String
+  subscriptionId          String
+  // Null only for allocations created before the Paddle bridge. Every new paid
+  // period records its source transaction and the database rejects a replay.
+  paddleTransactionId     String?  @unique
+  totalCredits            Int
   remainingCredits Int
   periodStart      DateTime
   periodEnd        DateTime
@@ -146,6 +159,13 @@ model RoutingDecision {
   createdAt        DateTime    @default(now())
 
   ttsRequest TTSRequest @relation(fields: [ttsRequestId], references: [id])
+}
+
+model PaddleWebhookEvent {
+  eventId     String   @id
+  eventType   String
+  occurredAt  DateTime
+  processedAt DateTime @default(now())
 }
 
 model LicenseKey {

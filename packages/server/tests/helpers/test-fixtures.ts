@@ -9,7 +9,7 @@ import type { PrismaService } from '../../src/infrastructure/modules/prisma.modu
 
 export interface TestUser {
   id: string;
-  licenseKey: string;
+  licenseKey: string | null;
   email: string | null;
 }
 
@@ -39,7 +39,7 @@ export interface TestCreditAllocation {
  */
 export async function createTestUser(
   prisma: PrismaService,
-  overrides: Partial<{ id: string; licenseKey: string; email: string | null }> = {},
+  overrides: Partial<{ id: string; licenseKey: string | null; email: string | null }> = {},
 ): Promise<TestUser> {
   const user = await prisma.user.create({
     data: {

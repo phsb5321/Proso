@@ -27,6 +27,8 @@ export interface CreditAllocationRecord {
   remainingCredits: number;
   periodStart: Date;
   periodEnd: Date;
+  /** Source transaction for Paddle-funded periods; absent on legacy/manual rows. */
+  paddleTransactionId?: string;
   createdAt: Date;
 }
 

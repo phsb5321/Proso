@@ -24,7 +24,10 @@ export function licenseIssuanceDeps(
 ): LicenseIssuanceDeps {
   return {
     licenseKeyRepository,
-    secret: config.get<string>('LICENSE_KEY_SECRET') ?? '',
-    environment: licenseKeyEnvironment(config.get<string>('NODE_ENV')),
+    secret:
+      config.get<string>('app.licenseKeySecret') ?? config.get<string>('LICENSE_KEY_SECRET') ?? '',
+    environment: licenseKeyEnvironment(
+      config.get<string>('app.nodeEnv') ?? config.get<string>('NODE_ENV'),
+    ),
   };
 }

@@ -16,10 +16,6 @@ export interface LicenseError {
   details?: Record<string, unknown>;
 }
 
-export interface SubscriptionError extends DomainError {
-  code: ErrorCode.SubscriptionNotFound | ErrorCode.SubscriptionInactive;
-}
-
 export interface CreditError extends DomainError {
   code: ErrorCode.InsufficientCredits | ErrorCode.NoActiveAllocation;
 }
@@ -42,14 +38,6 @@ export function licenseIssuanceError(
   details?: Record<string, unknown>,
 ): LicenseError {
   return licenseError(LICENSE_ISSUANCE_FAILED, message, details);
-}
-
-export function subscriptionError(
-  code: SubscriptionError['code'],
-  message: string,
-  details?: Record<string, unknown>,
-): SubscriptionError {
-  return { code, message, details };
 }
 
 export function creditError(

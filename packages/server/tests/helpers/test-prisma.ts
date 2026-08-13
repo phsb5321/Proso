@@ -34,7 +34,7 @@ export async function createTestPrismaService(): Promise<PrismaService> {
   execSync(`npx prisma db push --url "${connectionString}" --schema "${schemaPath}"`, {
     cwd: path.resolve(__dirname, '../..'),
     stdio: 'pipe',
-    env: { ...process.env, DATABASE_URL: connectionString },
+    env: withNixPrismaEngine({ ...process.env, DATABASE_URL: connectionString }),
   });
 
   // Create PrismaService with test connection
@@ -64,6 +64,7 @@ export async function cleanupTestData(prisma: PrismaService): Promise<void> {
   await prisma.creditTransaction.deleteMany();
   await prisma.tTSRequest.deleteMany();
   await prisma.creditAllocation.deleteMany();
+  await prisma.paddleWebhookEvent.deleteMany();
   await prisma.licenseKey.deleteMany();
   await prisma.subscription.deleteMany();
   await prisma.user.deleteMany();
@@ -73,6 +74,20 @@ export async function cleanupTestData(prisma: PrismaService): Promise<void> {
  * Tear down the test container and disconnect PrismaService.
  * Call this in afterAll.
  */
+function withNixPrismaEngine(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  if (env.PRISMA_SCHEMA_ENGINE_BINARY || !process.platform.includes('linux')) return env;
+  try {
+    const engineRoot = execSync('nix build --no-link --print-out-paths nixpkgs#prisma-engines', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    return { ...env, PRISMA_SCHEMA_ENGINE_BINARY: `${engineRoot}/bin/schema-engine` };
+  } catch {
+    // Let Prisma emit its canonical engine error on non-Nix Linux hosts.
+    return env;
+  }
+}
+
 export async function teardownTestPrisma(): Promise<void> {
   if (prismaService) {
     await prismaService.$disconnect();

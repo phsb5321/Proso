@@ -1,27 +1,22 @@
-// Billing module — wires Paddle webhook processing infrastructure
-//
-// Provides:
-//   - PaddleWebhookGuard (signature verification)
-//   - IdempotencyService (duplicate event detection)
-//   - WebhookController (POST /webhooks/paddle)
-//
-// Imports SubscriptionModule for repository access (subscription + credit repos).
-// BillingGatewayPort is re-used from SubscriptionModule where PaddleAdapter is bound.
-
 import { Module } from '@nestjs/common';
+import { PaddleAdapter } from '../../adapters/billing/paddle.adapter';
+import { PrismaPaddleProvisioner } from '../../adapters/persistence/prisma-paddle-provisioner';
+import { PaddleProvisioningPort } from '../../ports/paddle-provisioning.port';
+import { WebhookVerifierPort } from '../../ports/webhook-verifier.port';
 import { WebhookController } from '../controllers/webhook.controller';
 import { PaddleWebhookGuard } from '../guards/paddle-webhook.guard';
-import { IdempotencyService } from '../services/idempotency.service';
-import { SubscriptionModule } from './subscription.module';
+import { PaddleWebhookProcessor } from '../services/paddle-webhook.processor';
+import { PrismaModule } from './prisma.module';
 
+/** Composition root for signed Paddle webhook fulfilment. */
 @Module({
-  imports: [
-    // Re-use SubscriptionModule exports: SubscriptionRepositoryPort,
-    // CreditRepositoryPort, BillingGatewayPort (PaddleAdapter)
-    SubscriptionModule,
-  ],
+  imports: [PrismaModule],
   controllers: [WebhookController],
-  providers: [PaddleWebhookGuard, IdempotencyService],
-  exports: [IdempotencyService],
+  providers: [
+    PaddleWebhookGuard,
+    PaddleWebhookProcessor,
+    { provide: WebhookVerifierPort, useClass: PaddleAdapter },
+    { provide: PaddleProvisioningPort, useClass: PrismaPaddleProvisioner },
+  ],
 })
 export class BillingModule {}
