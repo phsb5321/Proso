@@ -17,11 +17,11 @@ site. Measured on main @ bb699b3 (13/08/2026):
 
 - `packages/site/assets/images/favicon.png` — 32×32, dated Feb 18, palette
   white + `#0A317F` ring + teal play triangle (the pre-#161 wa mark). Byte
-  compare: `5aa6545e…` ≠ old extension `icon-32` (`4b762294…`) ≠ canonical
-  `icon-32` (`e2d7f628…`). It is its own stale asset, unrelated to any
+  compare: `50ec4d72…` ≠ old extension `icon-32` (`961b9e4d…`) ≠ canonical
+  `icon-32` (`e147cbc6…`). It is its own stale asset, unrelated to any
   canonical source.
-- `packages/site/assets/images/og-image.svg` — declares the pre-rebrand name
-  **"VoxPage"** in a `<text>` element (Georgia font), the retired
+- `packages/site/assets/images/og-image.svg` — declares the pre-rebrand
+  product name in a `<text>` element (Georgia font), the retired
   `#0f0f1a`/`#f59e0b`/`#06b6d4` gradient palette, and badge pills with
   `<text>`. It violates every rule the brand vector policy ships
   (no live text, no font, canonical palette only) — and it advertises a
@@ -78,7 +78,7 @@ canonical file, it is not re-authored by hand).
 
 ### US3 — Fail-closed gate for site identity (P1)
 
-Planting the retired favicon, the VoxPage og-image, or any untracked site
+Planting the retired favicon, the pre-rebrand og-image, or any untracked site
 identity turns `verify-brand-assets.mjs` red.
 
 **Independent test:** a plant fixture swaps in the retired assets (byte
@@ -97,7 +97,7 @@ restoring the canonical assets returns it to zero.
 ## Acceptance criteria
 
 - `node scripts/verify-brand-assets.mjs` exits 0 on canonical assets.
-- The same gate exits non-zero when the retired favicon or the VoxPage
+- The same gate exits non-zero when the retired favicon or the pre-rebrand
   og-image is planted.
 - `make verify` (run stepwise) reaches its end.
 - Fresh Firefox + Brave (dedicated profiles only) observations of the static

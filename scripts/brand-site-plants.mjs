@@ -4,7 +4,7 @@
  *
  * A green harness is evidence of nothing until each of its assertions has been
  * shown to catch a break. Feature 166 replaced the retired wa-era favicon and
- * the VoxPage og-image on the public site; this runner swaps those retired
+ * the pre-rebrand og-image on the public site; this runner swaps those retired
  * assets (and a plausible-but-untracked og-image) back in, one plant per run,
  * and requires `scripts/verify-brand-assets.mjs` to go red NAMING the planted
  * asset. A plant that comes back PASS is the failure this script exists to
@@ -17,9 +17,9 @@
  * an ancestor of `main`, so the snapshot is available in every clone.
  *
  * Scoring reads the gate's own verdict line rather than its exit code, and the
- * sweep ends with a control run proving the assets were restored — a gate that
- * never started is never counted as a caught plant (inherited from
- * `scripts/public-actor-plants.mjs`).
+ * sweep ends with a final gate run proving the assets were restored and
+ * canonical — a gate that never started is never counted as a caught plant
+ * (inherited from `scripts/public-actor-plants.mjs`).
  *
  * @module scripts/brand-site-plants
  */
@@ -63,7 +63,7 @@ function gitShow(commit, relative) {
 
 function snapshot(originals) {
   for (const relative of ASSETS) {
-    originals.set(relative, readFileSync(path.join(siteImages, relative)));
+    originals.set(relative, gitShow('HEAD', relative));
   }
 }
 
@@ -109,7 +109,7 @@ const PLANTS = [
   {
     plant: 'retired-og-image',
     expect: 'FAIL',
-    guards: 'the retired VoxPage og-image is rejected',
+    guards: 'the retired pre-rebrand og-image is rejected',
     names: ['og-image'],
   },
   {
@@ -149,6 +149,7 @@ async function main() {
   const originals = new Map();
   snapshot(originals);
   const results = [];
+  let restoredOk = false;
 
   try {
     for (const entry of PLANTS) {
@@ -182,13 +183,32 @@ async function main() {
       // gate run (restore is idempotent; the finally below is a safety net).
       restore(originals);
     }
+
+    // Proven restoration, not just intent: after every plant the gate must
+    // come back green on the restored canonical assets.
+    const restored = await runGate();
+    const restoredMatch = restored.output.match(VERDICT_LINE);
+    restoredOk = restoredMatch && restoredMatch[1] === 'PASS' && restored.code === 0;
+    results.push({
+      plant: 'post-restore',
+      guards: 'the assets are restored and canonical after every plant',
+      expect: 'PASS',
+      verdict: restoredMatch ? restoredMatch[1] : 'NEVER-RAN',
+      named: true,
+      code: restored.code,
+      message: restoredMatch ? restoredMatch[2].trim() : '',
+      caught: restoredOk,
+    });
+    console.log(
+      `plant post-restore: ${restoredOk ? 'CAUGHT' : 'FAILED'} — gate ${restoredMatch ? restoredMatch[1] : 'NEVER-RAN'} (expected PASS)`,
+    );
   } finally {
     restore(originals);
   }
 
   writeFileSync(
     path.join(artifactDir, 'plants.json'),
-    JSON.stringify({ results, restored: true, retiredCommit: RETIRED_COMMIT }, null, 2),
+    JSON.stringify({ results, restored: restoredOk, retiredCommit: RETIRED_COMMIT }, null, 2),
   );
 
   const allCaught = results.every((result) => result.caught);

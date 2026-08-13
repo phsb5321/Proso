@@ -343,7 +343,7 @@ function assertDeterministicIcons() {
 /**
  * Site identity assets must be freshness-bound to the canonical sources.
  *
- * Feature 166 replaced the retired wa-era favicon and the VoxPage og-image
+ * Feature 166 replaced the retired wa-era favicon and the pre-rebrand og-image
  * with derivatives of the canonical pipeline. These checks make that
  * permanent: the favicon must be byte-identical to the canonical 32px mark,
  * the og-image must be the canonical lockup composed on the navy canvas (no
