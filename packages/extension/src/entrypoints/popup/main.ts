@@ -512,9 +512,7 @@ async function refreshFirstRun(preamble = '', force = false): Promise<void> {
   elements.panelPlayer.classList.toggle('proso-popup__panel--firstrun', showPanel);
   if (showPanel) {
     elements.firstRunSubtitle.textContent =
-      preamble.length > 0
-        ? preamble
-        : 'Two free ways to start — no account, no licence key.';
+      preamble.length > 0 ? preamble : 'Two free ways to start — no account, no licence key.';
     // Offer, never probe: prefill only from the reader's own prior entry.
     const prev = stored.localHostUrl as string | undefined;
     if (prev) elements.firstRunHostUrl.value = prev;
@@ -550,7 +548,10 @@ async function showFixAction(action: string, message: string): Promise<void> {
 /** Route A: validate → grant → test → save → play, from the Connect click. */
 async function handleFirstRunConnect(event: Event): Promise<void> {
   event.preventDefault();
-  setRouteStatus(elements.firstRunHostStatus, 'Contacting the host and asking which voices it has…');
+  setRouteStatus(
+    elements.firstRunHostStatus,
+    'Contacting the host and asking which voices it has…',
+  );
   elements.firstRunHostConnect.disabled = true;
   elements.firstRunHostConnect.textContent = 'Connecting…';
   const result = await connectLocalHost({
