@@ -8,6 +8,17 @@
  * buyer can read and copy — against a secret that browser minted, never against
  * the transaction id Paddle publishes in the URL.
  *
+ * Feature 154 extends the claim to the promises the surface makes to humans:
+ * recovery copy never treats the transaction id as identity, the success page
+ * claims nothing the server has not confirmed, every priced tier and credit
+ * volume on the site equals the shared source of truth, install controls link
+ * nowhere private and name the Firefox signing wait, a malformed retry delay
+ * cannot hot-loop the licence service, a hung request is aborted, one checkout
+ * (and one claim secret) exists at a time, a failed provider load is not
+ * cached, a non-string configuration value disables visibly instead of
+ * throwing, and the deploy-readiness receipt fails closed while purchase holds
+ * are open.
+ *
  * The shipped `pricing.html`, `success.html`, `assets/js/checkout.js` and
  * `assets/js/success.js` are loaded from disk into jsdom and driven through
  * their public surface — a click on the button a person sees, a click on the
@@ -32,7 +43,10 @@
  */
 
 import { webcrypto } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,6 +63,13 @@ const sharedCheckoutSchema = path.join(
 );
 
 class Blocked extends Error {}
+
+// Assembled from parts so the gate source never contains a credential-shaped
+// literal a secret scanner could flag — and so a real credential can never
+// hide among the fixtures.
+const plantClientToken = `test_${'0'.repeat(23)}`;
+const plantPriceId = (index) =>
+  `pri_${'plant'.repeat(2).slice(0, 5)}${String(index).padStart(4, '0')}`;
 
 /** Source rewrites that each break exactly one shipped behaviour. */
 const PLANTS = {
@@ -100,24 +121,174 @@ const PLANTS = {
     to: '        customData[CLAIM_HASH_FIELD] = window.sessionStorage.getItem(CLAIM_STORAGE_KEY);',
     breaks: 'only the digest of the claim secret leaves the browser',
   },
+
+  // Feature 154 — claim-shield regressions. Each plant re-breaks exactly one
+  // shipped behaviour and must turn at least one assertion red.
+  'we-will-send-your-key': {
+    file: 'success.js',
+    from: "'its own is not proof of payment. Email ' +",
+    to: "'its own is not proof of payment. Email us and we will send your key; also ' +",
+    breaks: 'recovery copy names Paddle verification and never releases a key against the id alone',
+  },
+  'claims-active': {
+    file: 'success.html',
+    from: '<h1>Claiming your licence key</h1>',
+    to: '<h1>Thank you &mdash; your subscription is active</h1>',
+    breaks: 'the success page never claims an active subscription before an issued response',
+  },
+  'credit-volume': {
+    file: 'pricing.html',
+    from: '500,000 managed characters per month',
+    to: '300,000 managed characters per month',
+    breaks: 'the priced credit volume matches the shared TIER_CREDITS table',
+  },
+  'github-install': {
+    file: 'index.html',
+    from: '<a href="#install-status" class="btn btn--primary btn--lg">',
+    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--lg">',
+    breaks: 'install controls never link a private GitHub releases page',
+  },
+  'stale-jsonld': {
+    file: 'index.html',
+    from: '"softwareVersion": "1.2.9",',
+    to: '"softwareVersion": "1.0.0",',
+    breaks: 'JSON-LD advertises the extension version in packages/extension/package.json',
+  },
+  'hot-loop': {
+    file: 'success.js',
+    from: "      return { status: 'pending', retryAfterMs: clampRetryAfterMs(retry) };",
+    to: "      return { status: 'pending', retryAfterMs: retry };",
+    breaks: 'a pending retry delay is clamped to a safe floor and ceiling',
+  },
+  'double-mint': {
+    file: 'checkout.js',
+    from: "        if (button.getAttribute('aria-disabled') === 'true') {\n          const note = noteFor(button);\n          if (note) note.hidden = false;\n          return;\n        }\n        if (checkoutInFlight) return;\n        holdControls(buttons, config);\n        openCheckout(button, config);",
+    to: "        if (button.getAttribute('aria-disabled') === 'true') {\n          const note = noteFor(button);\n          if (note) note.hidden = false;\n          return;\n        }\n        openCheckout(button, config);",
+    breaks: 'one active checkout and one preserved claim secret at a time',
+  },
+  'hung-forever': {
+    file: 'success.js',
+    from: '    const timer = window.setTimeout(() => controller.abort(), timeoutMs);',
+    to: '    const timer = null;',
+    breaks: 'a hung licence-service request is aborted instead of stalling the page',
+  },
+  'poisoned-loader': {
+    file: 'checkout.js',
+    from: '    window.__prosoPaddleLoading.catch(() => {\n      window.__prosoPaddleLoading = null;\n    });',
+    to: '    void window.__prosoPaddleLoading;',
+    breaks: 'a failed provider load is not cached against the next buy click',
+  },
+  'throws-on-numeric': {
+    file: 'checkout.js',
+    from: "    if (typeof config.clientToken !== 'string' || config.clientToken.length === 0) {",
+    to: '    if (!config.clientToken) {',
+    breaks: 'a non-string configuration value disables the control with a stated reason',
+  },
+  'live-config': {
+    file: 'checkout-config.js',
+    from: "  clientToken: '',\n  apiBaseUrl: 'https://api.proso.com.br',\n  prices: {\n    pro: { monthly: '', yearly: '' },\n    enterprise: { monthly: '', yearly: '' },\n  },",
+    to:
+      `  clientToken: '${plantClientToken}',\n` +
+      "  apiBaseUrl: 'https://api.proso.com.br',\n" +
+      '  prices: {\n' +
+      `    pro: { monthly: '${plantPriceId(1)}', yearly: '${plantPriceId(2)}' },\n` +
+      `    enterprise: { monthly: '${plantPriceId(3)}', yearly: '${plantPriceId(4)}' },\n` +
+      '  },',
+    breaks: 'the deploy receipt fails closed while purchase holds are open',
+  },
+
+  // GPT-5.6 Sol review regressions. Each plant re-breaks one reviewed behaviour.
+  'event-callback-seam': {
+    file: 'checkout.js',
+    from: "    paddle.Initialize({\n      token: config.clientToken,\n      eventCallback: (event) => {\n        if (event && (event.name === 'checkout.closed' || event.name === 'checkout.completed')) {\n          releaseCheckout();\n        }\n      },\n    });",
+    to: '    paddle.Initialize({ token: config.clientToken, eventCallback: null });',
+    breaks: 'the lifecycle callback is registered at the Initialize seam, not on Checkout.open',
+  },
+  'live-controls': {
+    file: 'checkout.js',
+    from: '        if (checkoutInFlight) return;\n        holdControls(buttons, config);\n        openCheckout(button, config);',
+    to: '        if (checkoutInFlight) return;\n        checkoutInFlight = true;\n        openCheckout(button, config);',
+    breaks: 'all buy controls stay visibly disabled with a stated reason while checkout is open',
+  },
+  'bad-api-url': {
+    file: 'checkout.js',
+    from: "    if (typeof config.apiBaseUrl !== 'string' || !/^https:\\/\\//i.test(config.apiBaseUrl)) {",
+    to: '    if (!config.apiBaseUrl) {',
+    breaks: 'a malformed API address disables purchase in checkout',
+  },
+  'sync-throw': {
+    file: 'success.js',
+    from: "    const apiBaseUrl =\n      config && typeof config.apiBaseUrl === 'string' && /^https:\\/\\//i.test(config.apiBaseUrl)\n        ? config.apiBaseUrl\n        : null;\n    if (!apiBaseUrl) {\n      fail('Checkout is unavailable: the Proso API address is not a valid HTTPS URL.');\n      return;\n    }",
+    to: "    const apiBaseUrl = config ? config.apiBaseUrl : null;\n    if (!apiBaseUrl) {\n      fail('Checkout is unavailable: the Proso API address is not configured on this site.');\n      return;\n    }",
+    breaks:
+      'a malformed API address lands in the visible problem panel, never a stuck waiting panel',
+  },
+  'active-headline': {
+    file: 'success.html',
+    from: '<meta name="description" content="The page that exchanges a Paddle purchase for the Proso licence key.">',
+    to: '<meta name="description" content="Your licence key is ready &mdash; your completed purchase is confirmed.">',
+    breaks: 'success-page metadata stays neutral until the server issues the key',
+  },
+  'hidden-panels': {
+    file: 'success.html',
+    from: 'id="checkout-waiting" role="status" aria-live="polite" hidden',
+    to: 'id="checkout-waiting" role="status" aria-live="polite"',
+    breaks: 'every outcome panel starts hidden and JavaScript reveals exactly one',
+  },
+  'stale-legal': {
+    file: 'packages/legal/terms.html',
+    from: '500,000 characters',
+    to: '300,000 characters',
+    breaks: 'the authoritative legal terms match the shared tier truth',
+  },
+  'builtin-voices': {
+    file: 'index.html',
+    from: '<p>Choose from OpenAI, ElevenLabs, Groq, or Cartesia. Bring your own API key or use managed credits.</p>',
+    to: '<p>Choose from OpenAI, ElevenLabs, Groq, Cartesia, or your browser&rsquo;s built-in voices. Bring your own API key or use managed credits.</p>',
+    breaks: 'no deployed surface advertises browser-built-in voices',
+  },
+  'subscribe-links': {
+    file: 'index.html',
+    from: '>View Pro plan<',
+    to: '>Subscribe to Pro<',
+    breaks: 'landing page CTAs read as navigation to plans, not as live checkout',
+  },
+  'free-managed-voices': {
+    file: 'pricing.html',
+    from: '              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed voices</span></li>\n              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Premium voices</span></li>\n              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>',
+    to: '              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Managed voices</li>\n              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Premium voices</span></li>\n              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>',
+    breaks: 'each priced card claims exactly the features its tier has in the shared matrix',
+  },
+  'gullible-receipt': {
+    file: 'scripts/checkout-deploy-readiness.mjs',
+    from: "      if (pattern.test(stripComments(readFileSync(full, 'utf8')))) return true;",
+    to: "      if (pattern.test(readFileSync(full, 'utf8'))) return true;",
+    breaks: 'the deploy receipt oracles are not fooled by comments',
+  },
 };
 
 // ── harness ──────────────────────────────────────────────────────────
 
 function readSite(relative, plant) {
-  const file = path.join(siteDir, relative);
+  const file = /^(packages|scripts)\//.test(relative)
+    ? path.join(repoRoot, relative)
+    : path.join(siteDir, relative);
   let source;
   try {
     source = readFileSync(file, 'utf8');
   } catch {
-    throw new Blocked(`site file missing: packages/site/${relative}`);
+    throw new Blocked(`file missing: ${relative}`);
   }
-  if (plant && PLANTS[plant].file === path.basename(relative)) {
-    const { from, to } = PLANTS[plant];
-    if (!source.includes(from)) {
-      throw new Blocked(`plant "${plant}" no longer matches ${relative} — rewrite the plant`);
+  if (plant) {
+    const wanted = PLANTS[plant].file;
+    const matches = wanted.includes('/') ? wanted === relative : wanted === path.basename(relative);
+    if (matches) {
+      const { from, to } = PLANTS[plant];
+      if (!source.includes(from)) {
+        throw new Blocked(`plant "${plant}" no longer matches ${relative} — rewrite the plant`);
+      }
+      source = source.replace(from, to);
     }
-    source = source.replace(from, to);
   }
   return source;
 }
@@ -134,8 +305,11 @@ async function loadJsdom() {
  * Build a page the way a browser does: markup first, then the deferred
  * scripts, in document order, followed by DOMContentLoaded.
  */
-async function openPage(JSDOM, { html, url, config, scripts, plant, beforeScripts }) {
-  const dom = new JSDOM(readSite(html), { url, runScripts: 'outside-only' });
+async function openPage(
+  JSDOM,
+  { html, url, config, scripts, plant, beforeScripts, clockStep = 0 },
+) {
+  const dom = new JSDOM(readSite(html, plant), { url, runScripts: 'outside-only' });
   const { window } = dom;
 
   // jsdom ships getRandomValues but no SubtleCrypto. Node's Web Crypto is the
@@ -148,6 +322,10 @@ async function openPage(JSDOM, { html, url, config, scripts, plant, beforeScript
   // harness's limitation from reading as a site defect.
   window.TextEncoder = TextEncoder;
 
+  // jsdom also exposes no AbortController; browsers that implement fetch
+  // implement it. Node's is the same specification.
+  window.AbortController = AbortController;
+
   // jsdom implements no media queries; the site's progressive-enhancement JS
   // asks for prefers-reduced-motion. Answering "no preference" is the browser
   // default and keeps the gap from masquerading as a site defect.
@@ -158,6 +336,38 @@ async function openPage(JSDOM, { html, url, config, scripts, plant, beforeScript
     addListener: () => {},
     removeListener: () => {},
   });
+
+  // A virtual clock, so the page's own retry budget and request deadlines can
+  // be exercised without waiting for them in real time. When present, timers
+  // fire only while __advanceClock runs, and the delay each timer asked for is
+  // recorded for the clamping assertions.
+  if (clockStep > 0) {
+    const start = Date.now();
+    let now = start;
+    const timers = [];
+    window.Date.now = () => now;
+    window.setTimeout = (fn, ms) => {
+      const delay = typeof ms === 'number' ? ms : 0;
+      const timer = { at: now + (delay > 0 ? delay : 0), delay, fn, cleared: false };
+      timers.push(timer);
+      timers.sort((a, b) => a.at - b.at);
+      return timer;
+    };
+    window.clearTimeout = (timer) => {
+      if (timer) timer.cleared = true;
+    };
+    window.__pendingTimers = () => timers;
+    window.__advanceClock = (ms) => {
+      now += ms;
+      const due = timers.filter((timer) => !timer.cleared && timer.at <= now);
+      due.forEach((timer) => {
+        timer.cleared = true;
+      });
+      due.forEach((timer) => {
+        timer.fn();
+      });
+    };
+  }
 
   window.PROSO_CHECKOUT_CONFIG =
     config === undefined ? undefined : window.eval(`(${JSON.stringify(config)})`);
@@ -178,12 +388,27 @@ async function openPage(JSDOM, { html, url, config, scripts, plant, beforeScript
   }
 
   await domReady;
-  await tick(window);
+  await tick(window, 3, clockStep);
   return window;
 }
 
-function tick(window, times = 3) {
+function tick(window, times = 3, stepMs = 0) {
   return new Promise((resolve) => {
+    const advance = window.__advanceClock;
+    if (advance && stepMs > 0) {
+      (async () => {
+        for (let i = 0; i < times; i += 1) {
+          advance(stepMs);
+          // A macrotask yield, so every promise chain the fired timers
+          // unblocked settles — and schedules its next timer — before the
+          // clock moves again. A microtask await would interleave with the
+          // page's own chains and stretch one poll over several advances.
+          await new Promise((resolve) => setImmediate(resolve));
+        }
+        resolve();
+      })();
+      return;
+    }
     let left = times;
     const step = () => (left-- > 0 ? window.setTimeout(step, 0) : resolve());
     step();
@@ -234,6 +459,12 @@ const configured = {
   },
 };
 
+async function sha256hex(text) {
+  return Buffer.from(
+    await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(text)),
+  ).toString('hex');
+}
+
 const unconfigured = JSON.parse(JSON.stringify(configured));
 unconfigured.prices.pro = { monthly: '', yearly: '' };
 unconfigured.prices.enterprise = { monthly: '', yearly: '' };
@@ -269,8 +500,8 @@ check('buy controls are real, named, keyboard-operable buttons', async (JSDOM, p
   });
 
   for (const [tier, expected] of [
-    ['pro', 'Basic'],
-    ['enterprise', 'Pro'],
+    ['pro', 'Pro'],
+    ['enterprise', 'Enterprise'],
   ]) {
     const button = buyButton(window, tier);
     assert(
@@ -527,35 +758,50 @@ check('a period configured monthly but not annually disables on toggle', async (
 
 function successPage(
   JSDOM,
-  { query, responses, plant, clipboard, claim = CLAIM_SECRET, clockStep = 0 },
+  {
+    query,
+    responses,
+    plant,
+    clipboard,
+    claim = CLAIM_SECRET,
+    clockStep = 0,
+    hung = false,
+    config = configured,
+  },
 ) {
   const calls = [];
   return openPage(JSDOM, {
     html: 'success.html',
     url: `${SUCCESS_URL}${query}`,
-    config: configured,
+    config,
     scripts: ['main.js', 'success.js'],
     plant,
+    clockStep,
     beforeScripts: (window) => {
       if (claim) window.sessionStorage.setItem(CLAIM_STORAGE_KEY, claim);
-      if (clockStep > 0) {
-        // Reaching the page's own retry budget in real time would take a minute.
-        // Advancing the clock the page reads exercises the shipped budget rather
-        // than a shortened copy of it.
-        const start = Date.now();
-        let elapsed = 0;
-        window.Date.now = () => {
-          elapsed += clockStep;
-          return start + elapsed;
-        };
-      }
       window.fetch = (url, init) => {
         calls.push({ url, init });
-        const next = responses[Math.min(calls.length - 1, responses.length - 1)];
-        return Promise.resolve({
-          ok: next.status >= 200 && next.status < 300,
-          status: next.status,
-          json: () => Promise.resolve(next.body),
+        return new Promise((resolve, reject) => {
+          const next = responses[Math.min(calls.length - 1, responses.length - 1)];
+          if (hung) {
+            // A hung connection: never answers unless the page's own
+            // AbortController fires, exactly as a stalled socket behaves.
+            if (init && init.signal) {
+              init.signal.addEventListener('abort', () => {
+                reject(
+                  Object.assign(new Error('The operation was aborted.'), {
+                    name: 'AbortError',
+                  }),
+                );
+              });
+            }
+            return;
+          }
+          resolve({
+            ok: next.status >= 200 && next.status < 300,
+            status: next.status,
+            json: () => Promise.resolve(next.body),
+          });
         });
       };
       if (clipboard) {
@@ -666,8 +912,10 @@ check('a pending answer is retried until the key exists', async (JSDOM, plant) =
       { status: 200, body: issuedBody },
     ],
     plant,
+    clockStep: 250,
   });
-  await tick(window, 40);
+  await tick(window, 12, 250);
+  await tick(window, 12, 250);
 
   assert(
     calls.length >= 3,
@@ -740,7 +988,7 @@ check('a claim that never resolves times out without revealing why', async (JSDO
     plant,
     clockStep: 9000,
   });
-  await tick(window, 60);
+  await tick(window, 60, 9000);
 
   assert(calls.length > 1, `the page gave up after ${calls.length} request(s) instead of retrying`);
   assert(panel(window, 'checkout-key').hidden, 'a licence key appeared without an issued answer');
@@ -756,6 +1004,817 @@ check('a claim that never resolves times out without revealing why', async (JSDO
     `the page turned an ambiguous answer into an existence claim: "${text}"`,
   );
 });
+
+check('recovery copy never turns the transaction id into an identity', async (JSDOM, plant) => {
+  const html = readSite('success.html', plant);
+  assert(
+    !/we will send your key/i.test(html),
+    'the success page promises to send a key to whoever writes in the transaction id',
+  );
+  assert(
+    !/hand it over against the transaction id/i.test(html),
+    'the success page says support hands keys over against the transaction id',
+  );
+
+  const { window, calls } = await successPage(JSDOM, {
+    query: '?_ptxn=txn_01hv8example',
+    responses: [{ status: 200, body: issuedBody }],
+    plant,
+    claim: null,
+  });
+  await tick(window, 10);
+
+  assert(calls.length === 0, 'a browser holding only the transaction id made claim requests');
+  const text = window.document.getElementById('checkout-problem-text').textContent.trim();
+  assert(
+    /paddle/i.test(text),
+    `the recovery explanation does not name Paddle-identity verification: "${text}"`,
+  );
+  assert(
+    /(on its own|alone|not enough|not proof of payment)/i.test(text),
+    `the recovery explanation does not say the transaction id is insufficient: "${text}"`,
+  );
+  assert(
+    !/we will send your key/i.test(text),
+    `the recovery explanation promises key release against the transaction id: "${text}"`,
+  );
+});
+
+check('the success page claims nothing before the server issues the key', async (JSDOM, plant) => {
+  const html = readSite('success.html', plant);
+  assert(
+    !/(subscription is active|payment is unaffected|subscription is real|payment went through)/i.test(
+      html,
+    ),
+    'the success page claims payment or activation it has not verified',
+  );
+
+  const { window, calls } = await successPage(JSDOM, {
+    query: '?_ptxn=txn_01hv8waiting',
+    responses: [{ status: 202, body: { status: 'pending', retryAfterMs: 5000 } }],
+    plant,
+    clockStep: 1000,
+  });
+  await tick(window, 1, 1000);
+
+  assert(calls.length === 1, `a still-pending claim made ${calls.length} requests`);
+  assert(
+    !panel(window, 'checkout-waiting').hidden,
+    'the waiting panel hid before any issued response',
+  );
+  const waiting = panel(window, 'checkout-waiting').textContent;
+  assert(
+    !/(payment went through|subscription is active|subscription is real|confirmed)/i.test(waiting),
+    `the waiting panel claims a success nobody confirmed: "${waiting.trim()}"`,
+  );
+  assert(
+    /licence service|checking|confirm/i.test(waiting),
+    'the waiting panel does not say what the page is doing',
+  );
+});
+
+check(
+  'pricing tiers, credits, and features match the shared source of truth',
+  async (JSDOM, plant) => {
+    const tiersPath = path.join(repoRoot, 'packages', 'shared', 'src', 'constants', 'tiers.ts');
+    let tiersSource;
+    try {
+      tiersSource = readFileSync(tiersPath, 'utf8');
+    } catch {
+      throw new Blocked('packages/shared/src/constants/tiers.ts is missing');
+    }
+
+    const credits = {};
+    for (const match of tiersSource.matchAll(/\[SubscriptionTier\.(\w+)\]:\s*([\d_]+)/g)) {
+      credits[match[1]] = Number(match[2].replace(/_/g, ''));
+    }
+    assert(
+      credits.Free === 0 && credits.Pro === 500000 && credits.Enterprise === 2000000,
+      `the shared credit table changed under this gate: ${JSON.stringify(credits)}`,
+    );
+
+    // Feature matrix, derived from the same file the cards must obey.
+    const matrix = {};
+    for (const match of tiersSource.matchAll(/\[SubscriptionTier\.(\w+)\]:\s*\{([^}]*)\}/g)) {
+      matrix[match[1]] = {
+        managedTts: /managedTts:\s*true/.test(match[2]),
+        premiumVoices: /premiumVoices:\s*true/.test(match[2]),
+        prioritySupport: /prioritySupport:\s*true/.test(match[2]),
+      };
+    }
+    assert(
+      matrix.Free && matrix.Pro && matrix.Enterprise,
+      `the shared feature matrix changed under this gate: ${JSON.stringify(matrix)}`,
+    );
+    assert(
+      matrix.Free.managedTts === false &&
+        matrix.Pro.managedTts === true &&
+        matrix.Enterprise.prioritySupport === true,
+      'the shared feature matrix no longer matches the product the site describes',
+    );
+
+    const pages = {
+      'pricing.html': readSite('pricing.html', plant),
+      'index.html': readSite('index.html', plant),
+      'terms.html': readSite('terms.html', plant),
+      'privacy.html': readSite('privacy.html', plant),
+      'legal/terms.html': readSite('packages/legal/terms.html', plant),
+    };
+
+    const pricing = pages['pricing.html'];
+    for (const tier of ['Free', 'Pro', 'Enterprise']) {
+      assert(pricing.includes(tier), `pricing.html no longer names the ${tier} tier`);
+    }
+    for (const forbidden of [
+      'Basic',
+      'Multilingual',
+      'Team',
+      '$19.99',
+      '100K',
+      '300K',
+      '100,000',
+      '300,000',
+      'MP3',
+      'cloud sync',
+      'PDF',
+      'rollover',
+      'free trial',
+      '7-day',
+      '7-day grace',
+      'browser TTS',
+      'Browser TTS',
+      'built-in TTS',
+      'browser-native',
+      'built-in',
+      'Google Cloud',
+    ]) {
+      for (const [name, source] of Object.entries(pages)) {
+        assert(!source.includes(forbidden), `${name} still promises "${forbidden}"`);
+      }
+    }
+    for (const [tier, volume] of Object.entries(credits)) {
+      if (tier === 'Free') continue;
+      const formatted = volume.toLocaleString('en-US');
+      for (const name of ['pricing.html', 'index.html', 'legal/terms.html']) {
+        assert(
+          pages[name].includes(formatted),
+          `${name} does not advertise the ${tier} allocation of ${formatted}`,
+        );
+      }
+    }
+
+    // The authoritative legal document names the real tiers and carries the
+    // version/effective-date treatment its README requires.
+    const legal = pages['legal/terms.html'];
+    assert(legal.includes('Version 2.0'), 'the authoritative terms no longer carry a version');
+    assert(
+      /<time datetime="20\d\d-\d\d-\d\d">September/.test(legal) ||
+        legal.includes('Previous versions'),
+      'the authoritative terms lost their effective-date or previous-version treatment',
+    );
+
+    // Per-card feature truth on both pages that show cards: a tier must claim
+    // exactly the features its matrix row grants, and deny exactly the ones it
+    // does not — a check-marked claim on the Free card is the near-miss this
+    // assertion exists to catch.
+    for (const page of ['pricing.html', 'index.html']) {
+      const window = await openPage(JSDOM, {
+        html: page,
+        url: page === 'pricing.html' ? PRICING_URL : 'https://proso.com.br/',
+        config: page === 'pricing.html' ? configured : undefined,
+        scripts: ['main.js'],
+        plant,
+      });
+      const cards = Array.from(window.document.querySelectorAll('.pricing-card')).map((card) => ({
+        name: (card.querySelector('.pricing-card__name')?.textContent || '').trim(),
+        node: card,
+      }));
+      const byName = Object.fromEntries(cards.map((card) => [card.name, card.node]));
+      assert(
+        byName.Free && byName.Pro && byName.Enterprise,
+        `${page} cards are ${Object.keys(byName).join(', ')}`,
+      );
+      const featureState = (card, text) => {
+        let claimed = false;
+        let denied = false;
+        for (const line of card.querySelectorAll('li')) {
+          const label = line.textContent || '';
+          if (!label.includes(text)) continue;
+          if (line.querySelector('.pricing-card__check')) claimed = true;
+          else if (line.querySelector('.pricing-card__dash')) denied = true;
+          else claimed = true;
+        }
+        return { claimed, denied };
+      };
+      for (const [tier, features] of Object.entries(matrix)) {
+        for (const [label, key] of [
+          ['Managed voices', 'managedTts'],
+          ['Premium voices', 'premiumVoices'],
+          ['Priority support', 'prioritySupport'],
+        ]) {
+          const state = featureState(byName[tier], label);
+          assert(
+            state.claimed === features[key] && state.denied === !features[key],
+            `${page} ${tier} card ${features[key] ? 'lost' : 'claims'} ${label.toLowerCase()}`,
+          );
+        }
+      }
+    }
+
+    const pricingWindow = await openPage(JSDOM, {
+      html: 'pricing.html',
+      url: PRICING_URL,
+      config: configured,
+      scripts: ['main.js'],
+      plant,
+    });
+    const byName = Object.fromEntries(
+      Array.from(pricingWindow.document.querySelectorAll('.pricing-card')).map((card) => [
+        (card.querySelector('.pricing-card__name')?.textContent || '').trim(),
+        card.textContent || '',
+      ]),
+    );
+    assert(byName.Free.includes('$0'), 'the Free card is not free');
+    assert(byName.Pro.includes('$4.99'), 'the Pro card does not carry the $4.99 price');
+    assert(
+      byName.Enterprise.includes('$14.99'),
+      'the Enterprise card does not carry the $14.99 price',
+    );
+  },
+);
+
+check(
+  'install controls name the Firefox signing wait and link nowhere private',
+  async (JSDOM, plant) => {
+    for (const page of [
+      'index.html',
+      'pricing.html',
+      'success.html',
+      'privacy.html',
+      'terms.html',
+    ]) {
+      const source = readSite(page, plant);
+      assert(!/github\.com/i.test(source), `${page} still links github.com`);
+    }
+
+    const indexHtml = readSite('index.html', plant);
+    let extensionPkg;
+    try {
+      extensionPkg = JSON.parse(
+        readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
+      );
+    } catch {
+      throw new Blocked('packages/extension/package.json is missing');
+    }
+    assert(
+      indexHtml.includes(`"softwareVersion": "${extensionPkg.version}"`),
+      `JSON-LD does not advertise the extension's real version ${extensionPkg.version}`,
+    );
+    assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a download it cannot serve');
+
+    const window = await openPage(JSDOM, {
+      html: 'index.html',
+      url: 'https://proso.com.br/',
+      config: undefined,
+      scripts: ['main.js'],
+      plant,
+    });
+    const installs = Array.from(window.document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
+      (link) => /install/i.test(link.textContent || ''),
+    );
+    assert(installs.length > 0, 'the landing page has no install control to check');
+    for (const link of installs) {
+      const href = link.getAttribute('href') || '';
+      assert(
+        !/^https?:\/\//i.test(href),
+        `an install control still navigates away from the site: "${href}"`,
+      );
+    }
+
+    const status = window.document.getElementById('install-status');
+    assert(status, 'the landing page has no install-status section');
+    const statusText = status.textContent || '';
+    assert(
+      /AMO|Mozilla|signing/i.test(statusText),
+      `the install status does not name the Firefox signing wait: "${statusText.trim()}"`,
+    );
+  },
+);
+
+check('a pending retry delay is clamped to a safe floor and ceiling', async (JSDOM, plant) => {
+  const source = readSite(path.join('assets', 'js', 'success.js'), plant);
+  const min = Number((source.match(/MIN_RETRY_MS = (\d+)/) || [])[1]);
+  const max = Number((source.match(/MAX_RETRY_MS = (\d+)/) || [])[1]);
+  const fallback = Number((source.match(/DEFAULT_RETRY_MS = (\d+)/) || [])[1]);
+  assert(
+    min > 0 && max >= min && fallback > 0,
+    'the success page does not declare sane retry bounds',
+  );
+
+  const scenarios = [
+    {
+      label: 'negative',
+      value: -50,
+      holds: (delays) => delays.length > 0 && delays.every((delay) => delay >= min),
+    },
+    {
+      label: 'huge',
+      value: 99999999,
+      holds: (delays) => delays.length > 0 && delays.every((delay) => delay <= max),
+    },
+    {
+      label: 'NaN',
+      value: Number.NaN,
+      holds: (delays) => delays.length > 0 && Math.min(...delays) === fallback,
+    },
+    {
+      label: 'Infinity',
+      value: Number.POSITIVE_INFINITY,
+      holds: (delays) => delays.length > 0 && delays.every((delay) => delay <= max),
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const { window } = await successPage(JSDOM, {
+      query: '?_ptxn=txn_01hv8clamp',
+      responses: [{ status: 202, body: { status: 'pending', retryAfterMs: scenario.value } }],
+      plant,
+      clockStep: 2500,
+    });
+    await tick(window, 8, 2500);
+    const delays = window
+      .__pendingTimers()
+      .filter((timer) => !timer.cleared)
+      .map((timer) => timer.delay);
+    assert(
+      scenario.holds(delays),
+      `the ${scenario.label} retry delay was not clamped: [${delays.join(', ')}]`,
+    );
+  }
+});
+
+check('one active checkout at a time, released only on a proved close', async (JSDOM, plant) => {
+  const window = await openPage(JSDOM, {
+    html: 'pricing.html',
+    url: PRICING_URL,
+    config: configured,
+    scripts: PRICING_SCRIPTS,
+    plant,
+    beforeScripts: installPaddle,
+  });
+
+  const captured = [];
+  const initialised = [];
+  window.Paddle.Checkout.open = (options) => captured.push(options);
+  window.Paddle.Initialize = (options) => initialised.push(options);
+
+  const pro = buyButton(window, 'pro');
+  const enterprise = buyButton(window, 'enterprise');
+  pro.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+
+  // The lifecycle callback lives on the Initialize seam Paddle documents, not
+  // on Checkout.open — a contract-conforming Paddle build must still unlock.
+  assert(initialised.length === 1, 'checkout was opened without initialising the provider');
+  assert(
+    typeof initialised[0].eventCallback === 'function',
+    'the Initialize seam registers no lifecycle callback',
+  );
+  assert(
+    !('eventCallback' in captured[0]),
+    'a lifecycle callback was passed to Checkout.open instead of the Initialize seam',
+  );
+
+  // While checkout is open, every buy control is visibly disabled and states
+  // why — a silent second click must not mint a second claim secret.
+  for (const button of [pro, enterprise]) {
+    assert(
+      button.getAttribute('aria-disabled') === 'true',
+      'a buy control stayed live while checkout was open',
+    );
+    assert(
+      button.classList.contains('btn--disabled'),
+      'an open checkout left a control looking enabled',
+    );
+    const note = noteText(window, button);
+    assert(
+      !note.hidden && /already open/i.test(note.text),
+      `an open checkout announced no reason: "${note.text}"`,
+    );
+  }
+
+  enterprise.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+  pro.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+
+  assert(captured.length === 1, `checkout opened ${captured.length} times for one purchase intent`);
+
+  const secret = window.sessionStorage.getItem(CLAIM_STORAGE_KEY);
+  assert(secret, 'the buy click stored no claim secret');
+  assert(
+    captured[0].customData?.license_claim_hash === (await sha256hex(secret)),
+    'the stored claim secret no longer matches the digest that opened checkout',
+  );
+
+  initialised[0].eventCallback({ name: 'checkout.closed' });
+  await tick(window, 10);
+  for (const button of [pro, enterprise]) {
+    assert(
+      button.getAttribute('aria-disabled') === 'false',
+      'a proved close left a buy control disabled',
+    );
+    assert(noteText(window, button).hidden, 'a proved close left a reason visible');
+  }
+
+  enterprise.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+  assert(captured.length === 2, 'a proved checkout close did not allow the next purchase');
+  const nextSecret = window.sessionStorage.getItem(CLAIM_STORAGE_KEY);
+  assert(
+    captured[1].customData?.license_claim_hash === (await sha256hex(nextSecret)),
+    'the reopened checkout did not carry the freshly minted claim',
+  );
+});
+
+check('a hung licence service cannot stall the page past its budget', async (JSDOM, plant) => {
+  const { window, calls } = await successPage(JSDOM, {
+    query: '?_ptxn=txn_01hv8hung',
+    responses: [{ status: 202, body: { status: 'pending', retryAfterMs: 5000 } }],
+    plant,
+    hung: true,
+    clockStep: 2000,
+  });
+  await tick(window, 20, 2000);
+
+  assert(calls.length === 1, `the page made ${calls.length} requests to a hung service`);
+  assert(
+    !panel(window, 'checkout-problem').hidden,
+    'a hung request produced no visible explanation',
+  );
+  const text = window.document.getElementById('checkout-problem-text').textContent.trim();
+  assert(
+    /did not answer/i.test(text),
+    `the hung-request explanation does not say the service did not answer: "${text}"`,
+  );
+  assert(/commercial@proso\.com\.br/.test(text), 'the hung-request explanation offers no way out');
+});
+
+check('a failed provider load does not poison the next buy click', async (JSDOM, plant) => {
+  const window = await openPage(JSDOM, {
+    html: 'pricing.html',
+    url: PRICING_URL,
+    config: configured,
+    scripts: PRICING_SCRIPTS,
+    plant,
+  });
+
+  const created = [];
+  const originalCreate = window.document.createElement.bind(window.document);
+  window.document.createElement = (tag, ...rest) => {
+    const node = originalCreate(tag, ...rest);
+    // The src attribute is assigned after creation, so filtering happens at
+    // assertion time, not here.
+    if (tag === 'script') created.push(node);
+    return node;
+  };
+  const providerScripts = () => created.filter((node) => /paddle/i.test(String(node.src || '')));
+
+  const button = buyButton(window, 'pro');
+  button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+  assert(
+    providerScripts().length === 1,
+    `the buy click requested ${providerScripts().length} provider scripts`,
+  );
+  providerScripts()[0].onerror();
+  await tick(window, 10);
+
+  const note = noteText(window, button);
+  assert(
+    !note.hidden && /could not be reached/i.test(note.text),
+    `the failed load states no reason: "${note.text}"`,
+  );
+
+  button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 10);
+  assert(providerScripts().length === 2, 'the retry click did not fetch the provider script again');
+
+  installPaddle(window);
+  const captured = [];
+  window.Paddle.Checkout.open = (options) => captured.push(options);
+  providerScripts()[1].onload();
+  await tick(window, 10);
+  assert(captured.length === 1, 'the retry click did not open checkout once the provider loaded');
+});
+
+check(
+  'a non-string configuration value disables the control with a stated reason',
+  async (JSDOM, plant) => {
+    const numericToken = JSON.parse(JSON.stringify(configured));
+    numericToken.clientToken = 1234567890;
+
+    let window = await openPage(JSDOM, {
+      html: 'pricing.html',
+      url: PRICING_URL,
+      config: numericToken,
+      scripts: PRICING_SCRIPTS,
+      plant,
+      beforeScripts: installPaddle,
+    });
+    let button = buyButton(window, 'pro');
+    assert(
+      button.getAttribute('aria-disabled') === 'true',
+      'a numeric client token left the buy control live',
+    );
+    let note = noteText(window, button);
+    assert(
+      !note.hidden && note.text.includes('token'),
+      `the numeric token reason was "${note.text}"`,
+    );
+
+    const numericPrice = JSON.parse(JSON.stringify(configured));
+    numericPrice.prices.pro.monthly = 12345;
+
+    window = await openPage(JSDOM, {
+      html: 'pricing.html',
+      url: PRICING_URL,
+      config: numericPrice,
+      scripts: PRICING_SCRIPTS,
+      plant,
+      beforeScripts: installPaddle,
+    });
+    button = buyButton(window, 'pro');
+    assert(
+      button.getAttribute('aria-disabled') === 'true',
+      'a numeric price id left the buy control live',
+    );
+    note = noteText(window, button);
+    assert(
+      !note.hidden && note.text.includes('price id'),
+      `the numeric price id reason was "${note.text}"`,
+    );
+  },
+);
+
+check('the success page stays neutral until the server issues the key', async (_JSDOM, plant) => {
+  const html = readSite('success.html', plant);
+  assert(
+    !/<title>Your licence key/i.test(html),
+    'the success page title claims a key it has not shown',
+  );
+  const description = (html.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  assert(description.length > 0, 'the success page has no description');
+  assert(
+    !/(completed|ready|confirmed|active)/i.test(description),
+    `the success-page description claims an outcome: "${description}"`,
+  );
+  assert(
+    !html.includes('completed Paddle purchase'),
+    'the success page calls the purchase completed before the server confirms it',
+  );
+  for (const panel of ['checkout-waiting', 'checkout-key', 'checkout-problem']) {
+    assert(
+      new RegExp(`id="${panel}"[^>]*hidden`).test(html),
+      `the ${panel} panel is not hidden until JavaScript reveals it`,
+    );
+  }
+  assert(/<noscript>/i.test(html), 'the success page has no no-JS fallback');
+  const noScriptBlocks = html.match(/<noscript>[\s\S]*?<\/noscript>/gi) || [];
+  assert(
+    noScriptBlocks.some(
+      (block) => /Paddle/i.test(block) && /commercial@proso\.com\.br/i.test(block),
+    ),
+    'the no-JS fallback is not actionable',
+  );
+});
+
+check(
+  'landing page CTAs read as plan navigation, and no surface advertises built-in voices',
+  async (JSDOM, plant) => {
+    const indexHtml = readSite('index.html', plant);
+    assert(
+      !/built-in/i.test(indexHtml),
+      'the landing page still advertises browser-built-in voices',
+    );
+
+    const window = await openPage(JSDOM, {
+      html: 'index.html',
+      url: 'https://proso.com.br/',
+      config: undefined,
+      scripts: ['main.js'],
+      plant,
+    });
+    const ctas = Array.from(
+      window.document.querySelectorAll('#pricing-cards a[href^="pricing.html"]'),
+    );
+    assert(ctas.length === 2, `the landing pricing section has ${ctas.length} plan CTAs`);
+    for (const cta of ctas) {
+      const label = (cta.textContent || '').trim();
+      assert(
+        /^View .+ plan$/.test(label),
+        `a landing CTA still reads like live checkout: "${label}"`,
+      );
+    }
+  },
+);
+
+check(
+  'a malformed API address disables purchase and lands visibly on the success page',
+  async (JSDOM, plant) => {
+    const numericUrl = JSON.parse(JSON.stringify(configured));
+    numericUrl.apiBaseUrl = 12345;
+
+    const window = await openPage(JSDOM, {
+      html: 'pricing.html',
+      url: PRICING_URL,
+      config: numericUrl,
+      scripts: PRICING_SCRIPTS,
+      plant,
+      beforeScripts: installPaddle,
+    });
+    for (const tier of ['pro', 'enterprise']) {
+      const button = buyButton(window, tier);
+      assert(
+        button.getAttribute('aria-disabled') === 'true',
+        `a numeric API address left the ${tier} buy control live`,
+      );
+      const note = noteText(window, button);
+      assert(
+        !note.hidden && /API address/i.test(note.text) && /HTTPS/i.test(note.text),
+        `the numeric API address reason was "${note.text}"`,
+      );
+    }
+
+    const success = await successPage(JSDOM, {
+      query: '?_ptxn=txn_01hv8badurl',
+      responses: [{ status: 200, body: issuedBody }],
+      plant,
+      config: numericUrl,
+    });
+    await tick(success.window, 10);
+    assert(success.calls.length === 0, 'a malformed API address still produced claim requests');
+    assert(
+      !panel(success.window, 'checkout-problem').hidden,
+      'a malformed API address produced no visible problem',
+    );
+    const text = success.window.document.getElementById('checkout-problem-text').textContent.trim();
+    assert(/not a valid HTTPS URL/i.test(text), `the success-page reason was "${text}"`);
+  },
+);
+
+function runReceipt(receiptPath, env, args = []) {
+  // spawn, not execFileSync: the receipt's --live probe may target a server
+  // running in THIS process, and a synchronous exec would block the event loop
+  // that server needs.
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [receiptPath, ...args], { cwd: repoRoot, env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('close', (code) => resolve({ exitCode: code ?? 1, output: `${stdout}${stderr}` }));
+    child.on('error', (error) =>
+      resolve({ exitCode: 1, output: error instanceof Error ? error.message : String(error) }),
+    );
+  });
+}
+
+check(
+  'the deploy receipt fails closed and its oracles are runnable, not greppable',
+  async (_JSDOM, plant) => {
+    const receiptSource =
+      plant === 'gullible-receipt'
+        ? readSite('scripts/checkout-deploy-readiness.mjs', plant)
+        : readFileSync(path.join(repoRoot, 'scripts', 'checkout-deploy-readiness.mjs'), 'utf8');
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'proso-receipt-'));
+    const receiptPath = path.join(dir, 'checkout-deploy-readiness.mjs');
+    writeFileSync(receiptPath, receiptSource);
+
+    // Disabled configuration: PASS, and every hold is named. The shipped config
+    // is read through readSite so the live-config plant (a complete config in
+    // the shipped file) turns this scenario red.
+    const shippedConfig = readSite(path.join('assets', 'js', 'checkout-config.js'), plant);
+    const shippedFile = path.join(dir, 'checkout-shipped.js');
+    writeFileSync(shippedFile, shippedConfig);
+    const baseEnv = { ...process.env, PROSO_CHECKOUT_CONFIG_FILE: shippedFile };
+
+    // Disabled configuration: PASS, and every hold is named.
+    const clean = await runReceipt(receiptPath, baseEnv);
+    assert(
+      clean.exitCode === 0,
+      `the receipt exited ${clean.exitCode} on a disabled config:\n${clean.output}`,
+    );
+    assert(
+      /Keyforge|claim endpoint/i.test(clean.output) &&
+        /wallet/i.test(clean.output) &&
+        /Paddle/i.test(clean.output),
+      `the receipt does not name its holds:\n${clean.output}`,
+    );
+
+    // A configuration that would enable purchase fails closed while holds are open.
+    const completeConfig = readSite(path.join('assets', 'js', 'checkout-config.js'), 'live-config');
+    const completeFile = path.join(dir, 'checkout-complete.js');
+    writeFileSync(completeFile, completeConfig);
+    const liveEnv = { ...baseEnv, PROSO_CHECKOUT_CONFIG_FILE: completeFile };
+    const failClosed = await runReceipt(receiptPath, liveEnv);
+    assert(
+      failClosed.exitCode === 1,
+      `the receipt did not fail closed with a live config and open holds:\n${failClosed.output}`,
+    );
+
+    // Comment-only fixtures must not close the oracles: a comment that quotes
+    // the exact oracle pattern, or an HTML comment wrapping a fake input, proves
+    // nothing — only comment-stripped source may match.
+    const commentServerDir = path.join(dir, 'server-comment');
+    mkdirSync(commentServerDir);
+    writeFileSync(
+      path.join(commentServerDir, 'planned.controller.ts'),
+      '// Planned: @Post(LICENSE_BY_TRANSACTION_PATH) claimByTransaction() {}\n',
+    );
+    const proseExtDir = path.join(dir, 'ext-prose');
+    mkdirSync(proseExtDir);
+    writeFileSync(
+      path.join(proseExtDir, 'settings.html'),
+      '<p>No account needed.</p>\n<!-- <input id="license-key" name="licenseKey"> -->\n',
+    );
+    const commentEnv = {
+      ...baseEnv,
+      PROSO_SCAN_SERVER_DIR: commentServerDir,
+      PROSO_SCAN_EXTENSION_DIR: proseExtDir,
+    };
+    const commentRun = await runReceipt(receiptPath, commentEnv);
+    assert(
+      commentRun.exitCode === 0,
+      `the receipt exited ${commentRun.exitCode} on comment-only fixtures:\n${commentRun.output}`,
+    );
+    assert(
+      /hold OPEN .*Keyforge claim endpoint/i.test(commentRun.output),
+      `a comment closed the claim-endpoint oracle:\n${commentRun.output}`,
+    );
+    assert(
+      /hold OPEN .*licence-key wallet/i.test(commentRun.output),
+      `prose closed the wallet oracle:\n${commentRun.output}`,
+    );
+
+    // Runnable contracts close them: a real route registration and a real input.
+    const routeServerDir = path.join(dir, 'server-route');
+    mkdirSync(routeServerDir);
+    writeFileSync(
+      path.join(routeServerDir, 'license.controller.ts'),
+      '@Post(LICENSE_BY_TRANSACTION_PATH)\n  claimByTransaction() {}\n',
+    );
+    const inputExtDir = path.join(dir, 'ext-input');
+    mkdirSync(inputExtDir);
+    writeFileSync(
+      path.join(inputExtDir, 'settings.html'),
+      '<input id="license-key" name="licenseKey" type="text">\n',
+    );
+
+    // --live: only the canonical 202 pending answer counts as deployed.
+    let liveMode = 'bad';
+    const server = http.createServer((req, res) => {
+      if (String(req.url || '').includes('by-transaction')) {
+        if (liveMode === 'canonical') {
+          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'pending', retryAfterMs: 5000 }));
+        } else {
+          res.writeHead(501, { 'Content-Type': 'text/plain' });
+          res.end('Not Implemented');
+        }
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+    const liveEnvBoth = {
+      ...liveEnv,
+      PROSO_SCAN_SERVER_DIR: routeServerDir,
+      PROSO_SCAN_EXTENSION_DIR: inputExtDir,
+      PROSO_PROBE_URL: `http://127.0.0.1:${port}`,
+    };
+    try {
+      const bad = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
+      assert(bad.exitCode === 1, `a 501 live answer did not fail closed:\n${bad.output}`);
+      assert(
+        /claim endpoint/i.test(bad.output) && /202/.test(bad.output),
+        `the non-canonical live answer does not name the canonical 202:\n${bad.output}`,
+      );
+
+      liveMode = 'canonical';
+      const good = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
+      assert(good.exitCode === 0, `a canonical live answer did not pass:\n${good.output}`);
+    } finally {
+      server.close();
+    }
+  },
+);
 
 check('the site speaks the licence contract declared in @proso/shared', async () => {
   let contract;
@@ -853,8 +1912,10 @@ async function main() {
     process.stdout.write(
       `\ncheckout-surface-gate ${failed.length === 0 ? 'PASS' : 'FAIL'}: ${results.length - failed.length}/${results.length} checks held\n`,
     );
-    process.exitCode = failed.length === 0 ? 0 : 1;
-    return;
+    // Explicit exit: a jsdom page that runs a recurring animation (the landing
+    // page's hero highlight loop) would otherwise keep the Node process alive
+    // forever after the verdict is printed.
+    process.exit(failed.length === 0 ? 0 : 1);
   }
 
   // Plant mode: every planted break must turn at least one check red. A plant
@@ -862,8 +1923,30 @@ async function main() {
   const clean = await runChecks(null);
   if (clean.some((result) => !result.ok)) {
     process.stdout.write('checkout-surface-gate CRASH: the clean run is already failing\n');
-    process.exitCode = 1;
-    return;
+    process.exit(1);
+  }
+
+  // Self-check: an HTML plant must reach the DOM actor, not just the source
+  // greps. If a planted label is invisible to the jsdom page, plant mode is
+  // blind to DOM-only regressions and must crash rather than report green.
+  {
+    const JSDOM = await loadJsdom();
+    const plantedWindow = await openPage(JSDOM, {
+      html: 'index.html',
+      url: 'https://proso.com.br/',
+      config: undefined,
+      scripts: ['main.js'],
+      plant: 'subscribe-links',
+    });
+    const plantedLabels = Array.from(
+      plantedWindow.document.querySelectorAll('#pricing-cards a[href^="pricing.html"]'),
+    ).map((cta) => (cta.textContent || '').trim());
+    if (!plantedLabels.some((label) => /subscribe/i.test(label))) {
+      process.stdout.write(
+        'checkout-surface-plants CRASH: an HTML plant did not reach the DOM actor\n',
+      );
+      process.exit(1);
+    }
   }
 
   let survivors = 0;
@@ -881,7 +1964,7 @@ async function main() {
   process.stdout.write(
     `\ncheckout-surface-plants ${survivors === 0 ? 'PASS' : 'FAIL'}: ${Object.keys(PLANTS).length - survivors}/${Object.keys(PLANTS).length} plants caught\n`,
   );
-  process.exitCode = survivors === 0 ? 0 : 1;
+  process.exit(survivors === 0 ? 0 : 1);
 }
 
 main().catch((error) => {
@@ -889,5 +1972,5 @@ main().catch((error) => {
   process.stderr.write(
     `\ncheckout-surface-gate ${blocked ? 'BLOCKED' : 'CRASH'}: ${error.message}\n`,
   );
-  process.exitCode = blocked ? 2 : 1;
+  process.exit(blocked ? 2 : 1);
 });

@@ -12,7 +12,7 @@ FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot local-host-journey-gate local-host-journey-plants \
-	checkout-surface-gate checkout-surface-plants \
+	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify \
 	verify-full adversarial gate ci status
@@ -79,6 +79,9 @@ checkout-surface-gate: ## Drive the purchase surface (buy controls, claim secret
 
 checkout-surface-plants: ## Prove every checkout-surface-gate assertion catches a planted break.
 	@node scripts/checkout-surface-gate.mjs --plants
+
+checkout-deploy-readiness: ## Fail closed: purchase must stay disabled until the claim endpoint, the licence-key wallet, and a complete Paddle config exist.
+	@node scripts/checkout-deploy-readiness.mjs
 
 fuzz: ## Run seeded extension/server properties; override FC_SEED and FC_NUM_RUNS.
 	FC_SEED=$(FC_SEED) FC_NUM_RUNS=$(FC_NUM_RUNS) NODE_OPTIONS='--experimental-vm-modules' \
