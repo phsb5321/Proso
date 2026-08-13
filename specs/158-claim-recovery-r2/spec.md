@@ -84,7 +84,7 @@ its falsifier below.
 
 ```bash
 node scripts/checkout-surface-gate.mjs           # 26/26 checks held
-node scripts/checkout-surface-gate.mjs --plants  # 30/30 plants caught
+node scripts/checkout-surface-gate.mjs --plants  # 31/31 plants caught
 node scripts/checkout-deploy-readiness.mjs       # PASS (purchase disabled), holds listed
 node scripts/quality/check-active-docs.mjs       # 9 owned documents, no expired reviews
 gitleaks git --log-opts="origin/main..HEAD"      # 0 leaks
@@ -151,6 +151,25 @@ fix, in review order:
 10. **Credential-shaped literal in the gate.** The plant token and price ids
     are assembled from parts at runtime; the PR commit range scans clean
     under Gitleaks.
+
+## GPT Revenue Judge R2 fix (third head)
+
+The only remaining race: while `checkoutInFlight` was true, the billing toggle
+rewrote `data-billing`, the `MutationObserver` re-ran `refresh()`, and every
+buy control came back enabled with its reason hidden — reproduced during a
+delayed Paddle load. Fixes:
+
+- `refresh()` now preserves the in-flight state first: while a checkout is
+  loading or open, every buy control stays `aria-disabled` + visually disabled
+  with `CHECKOUT_OPEN_REASON` announced, regardless of period mutation.
+- The lifecycle check now runs the **public** billing toggle while the
+  provider is still loading and again while the overlay is open, then asserts
+  both controls stay disabled with the announced reason, the opened checkout
+  still carries the period the click selected (not the toggled one), the
+  claim secret is unchanged, the provider script count stays one, and a tier
+  click while open opens nothing.
+- Plant `toggle-unlock` removes the in-flight preservation from `refresh()`
+  and turns the new check red at the loading-toggle assertion.
 
 A plant-mode self-check now proves an HTML plant reaches the DOM actor
 (`openPage` constructs the page from the planted source), so DOM-only

@@ -210,6 +210,12 @@ const PLANTS = {
     to: '        if (checkoutInFlight) return;\n        checkoutInFlight = true;\n        openCheckout(button, config);',
     breaks: 'all buy controls stay visibly disabled with a stated reason while checkout is open',
   },
+  'toggle-unlock': {
+    file: 'checkout.js',
+    from: '      if (checkoutInFlight) {\n        setInert(button, CHECKOUT_OPEN_REASON);\n        return;\n      }',
+    to: '      void checkoutInFlight;',
+    breaks: 'the billing toggle never re-enables buy controls while checkout is in flight',
+  },
   'bad-api-url': {
     file: 'checkout.js',
     from: "    if (typeof config.apiBaseUrl !== 'string' || !/^https:\\/\\//i.test(config.apiBaseUrl)) {",
@@ -1354,24 +1360,78 @@ check('a pending retry delay is clamped to a safe floor and ceiling', async (JSD
 });
 
 check('one active checkout at a time, released only on a proved close', async (JSDOM, plant) => {
+  // No provider stub up front: the load is delayed, so the window between the
+  // buy click and the overlay opening is exercised — exactly the window in
+  // which the billing toggle used to re-enable the controls.
   const window = await openPage(JSDOM, {
     html: 'pricing.html',
     url: PRICING_URL,
     config: configured,
     scripts: PRICING_SCRIPTS,
     plant,
-    beforeScripts: installPaddle,
   });
+
+  const created = [];
+  const originalCreate = window.document.createElement.bind(window.document);
+  window.document.createElement = (tag, ...rest) => {
+    const node = originalCreate(tag, ...rest);
+    if (tag === 'script') created.push(node);
+    return node;
+  };
+  const providerScripts = () => created.filter((node) => /paddle/i.test(String(node.src || '')));
 
   const captured = [];
   const initialised = [];
-  window.Paddle.Checkout.open = (options) => captured.push(options);
-  window.Paddle.Initialize = (options) => initialised.push(options);
-
   const pro = buyButton(window, 'pro');
   const enterprise = buyButton(window, 'enterprise');
+
   pro.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await tick(window, 10);
+
+  assert(
+    providerScripts().length === 1,
+    `the buy click requested ${providerScripts().length} provider scripts`,
+  );
+  const secretBeforeToggle = window.sessionStorage.getItem(CLAIM_STORAGE_KEY);
+  assert(secretBeforeToggle, 'the buy click stored no claim secret');
+
+  const assertInFlight = (label) => {
+    for (const button of [pro, enterprise]) {
+      assert(
+        button.getAttribute('aria-disabled') === 'true',
+        `${label}: a buy control stayed live while checkout was in flight`,
+      );
+      assert(
+        button.classList.contains('btn--disabled'),
+        `${label}: an in-flight checkout left a control looking enabled`,
+      );
+      const note = noteText(window, button);
+      assert(
+        !note.hidden && /already open/i.test(note.text),
+        `${label}: an in-flight checkout announced no reason: "${note.text}"`,
+      );
+    }
+  };
+
+  // The PUBLIC billing toggle must not re-enable the controls while the
+  // provider is still loading.
+  clickToggle(window);
+  await tick(window, 8);
+  assertInFlight('toggle while the provider was loading');
+
+  // The provider arrives and the overlay opens with the period the click
+  // selected — the toggle that happened afterwards must not change it.
+  installPaddle(window);
+  window.Paddle.Initialize = (options) => initialised.push(options);
+  window.Paddle.Checkout.open = (options) => captured.push(options);
+  providerScripts()[0].onload();
+  await tick(window, 10);
+
+  assert(captured.length === 1, `checkout opened ${captured.length} times for one purchase intent`);
+  assert(
+    captured[0].items?.[0]?.priceId === configured.prices.pro.monthly,
+    `the toggled period leaked into the open checkout: "${captured[0].items?.[0]?.priceId}"`,
+  );
 
   // The lifecycle callback lives on the Initialize seam Paddle documents, not
   // on Checkout.open — a contract-conforming Paddle build must still unlock.
@@ -1385,35 +1445,26 @@ check('one active checkout at a time, released only on a proved close', async (J
     'a lifecycle callback was passed to Checkout.open instead of the Initialize seam',
   );
 
-  // While checkout is open, every buy control is visibly disabled and states
-  // why — a silent second click must not mint a second claim secret.
-  for (const button of [pro, enterprise]) {
-    assert(
-      button.getAttribute('aria-disabled') === 'true',
-      'a buy control stayed live while checkout was open',
-    );
-    assert(
-      button.classList.contains('btn--disabled'),
-      'an open checkout left a control looking enabled',
-    );
-    const note = noteText(window, button);
-    assert(
-      !note.hidden && /already open/i.test(note.text),
-      `an open checkout announced no reason: "${note.text}"`,
-    );
-  }
+  // Toggle again while the overlay is OPEN: still disabled, still announced.
+  clickToggle(window);
+  await tick(window, 8);
+  assertInFlight('toggle while the overlay was open');
 
+  // A second tier click while open does nothing: no second open, no second
+  // provider script, no second claim secret.
   enterprise.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await tick(window, 10);
-  pro.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await tick(window, 10);
-
-  assert(captured.length === 1, `checkout opened ${captured.length} times for one purchase intent`);
-
-  const secret = window.sessionStorage.getItem(CLAIM_STORAGE_KEY);
-  assert(secret, 'the buy click stored no claim secret');
+  assert(captured.length === 1, 'a tier click while checkout was open opened a second checkout');
   assert(
-    captured[0].customData?.license_claim_hash === (await sha256hex(secret)),
+    providerScripts().length === 1,
+    'a tier click while checkout was open requested another provider script',
+  );
+  assert(
+    window.sessionStorage.getItem(CLAIM_STORAGE_KEY) === secretBeforeToggle,
+    'the claim secret changed while checkout was in flight',
+  );
+  assert(
+    captured[0].customData?.license_claim_hash === (await sha256hex(secretBeforeToggle)),
     'the stored claim secret no longer matches the digest that opened checkout',
   );
 

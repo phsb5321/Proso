@@ -311,6 +311,14 @@
 
   function refresh(buttons, config) {
     buttons.forEach((button) => {
+      // The billing toggle rewrites data-billing and re-runs this refresh
+      // while a checkout is loading or open. In-flight state must survive it:
+      // every buy control stays disabled with the announced reason until the
+      // checkout provably closes or fails.
+      if (checkoutInFlight) {
+        setInert(button, CHECKOUT_OPEN_REASON);
+        return;
+      }
       const problem = configProblem(
         config,
         button.getAttribute('data-checkout-tier'),
