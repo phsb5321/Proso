@@ -16,6 +16,12 @@ import { browser } from 'wxt/browser';
 import { createLogger } from '../../utils/logging/logger';
 import { usageTracker } from '../../utils/telemetry/usage';
 import { showPlaybackStartFailure } from './playback-failure';
+import {
+  classifyFailure,
+  connectLocalHost,
+  isUnconfigured,
+  saveByokKey,
+} from '../../utils/first-run';
 
 const log = createLogger('popup');
 
@@ -43,6 +49,16 @@ const elements = {
   grantRow: document.getElementById('grant-access-row') as HTMLDivElement,
   grantReason: document.getElementById('grant-access-reason') as HTMLSpanElement,
   grantBtn: document.getElementById('grant-access-btn') as HTMLButtonElement,
+  firstRunPanel: document.getElementById('first-run-panel') as HTMLElement,
+  firstRunSubtitle: document.getElementById('first-run-subtitle') as HTMLParagraphElement,
+  firstRunHostForm: document.getElementById('first-run-host-form') as HTMLFormElement,
+  firstRunHostUrl: document.getElementById('first-run-host-url') as HTMLInputElement,
+  firstRunHostConnect: document.getElementById('first-run-host-connect') as HTMLButtonElement,
+  firstRunHostStatus: document.getElementById('first-run-host-status') as HTMLParagraphElement,
+  firstRunByokProvider: document.getElementById('first-run-byok-provider') as HTMLSelectElement,
+  firstRunByokKey: document.getElementById('first-run-byok-key') as HTMLInputElement,
+  firstRunByokSave: document.getElementById('first-run-byok-save') as HTMLButtonElement,
+  firstRunByokStatus: document.getElementById('first-run-byok-status') as HTMLParagraphElement,
   paragraphCurrent: document.getElementById('paragraph-current') as HTMLSpanElement,
   paragraphTotal: document.getElementById('paragraph-total') as HTMLSpanElement,
 
@@ -451,8 +467,8 @@ async function handlePlayPause(): Promise<void> {
         const errorMsg = String(result.error || 'Playback failed');
         log.warn('[Popup] Playback start failed', { error: errorMsg });
         showPlaybackStartFailure(elements.statusDot, elements.statusText, errorMsg);
-        // PROSO-131: a local-host gate failure is actionable in the popup.
-        void maybeShowGrantAffordance(errorMsg);
+        // PROSO-131/134: every fixable failure pairs with its action.
+        void routeFailure(errorMsg);
       }
     }
   } catch (error) {
@@ -463,7 +479,189 @@ async function handlePlayPause(): Promise<void> {
     });
     log.error('[Popup] Play/pause error', { error });
     showPlaybackStartFailure(elements.statusDot, elements.statusText, error);
-    void maybeShowGrantAffordance(errorMsg);
+    void routeFailure(errorMsg);
+  }
+}
+
+// ============================================
+// FIRST-RUN ONBOARDING (PROSO-134 / #27)
+// ============================================
+
+/** Set when the panel appeared because a Play failed; connecting auto-retries. */
+let pendingPlayAfterConnect = false;
+
+/**
+ * Read the configured-route storage and toggle the first-run panel. When
+ * shown, the player controls are hidden so the routes are the only surface.
+ */
+async function refreshFirstRun(preamble = '', force = false): Promise<void> {
+  const stored = await browser.storage.local.get([
+    'openaiApiKey',
+    'elevenlabsApiKey',
+    'groqApiKey',
+    'cartesiaApiKey',
+    'localHostEnabled',
+    'localHostUrl',
+    'licenseKey',
+    'serverUrl',
+  ]);
+  // `force` shows the free routes even for a configured reader — the
+  // entitlement case: the 402 carries "Show free routes", never a dead end.
+  const showPanel = force || isUnconfigured(stored);
+  elements.firstRunPanel.hidden = !showPanel;
+  elements.panelPlayer.classList.toggle('proso-popup__panel--firstrun', showPanel);
+  if (showPanel) {
+    elements.firstRunSubtitle.textContent =
+      preamble.length > 0
+        ? preamble
+        : 'Two free ways to start — no account, no licence key.';
+    // Offer, never probe: prefill only from the reader's own prior entry.
+    const prev = stored.localHostUrl as string | undefined;
+    if (prev) elements.firstRunHostUrl.value = prev;
+  }
+  // NOTE: pendingPlayAfterConnect is intentionally NOT cleared here — the
+  // connect handlers consume it once, after the panel hides.
+}
+
+function setRouteStatus(
+  el: HTMLElement,
+  text: string,
+  kind: 'info' | 'error' | 'ok' = 'info',
+): void {
+  el.textContent = text;
+  el.className = `proso-popup__route-status${
+    kind === 'error'
+      ? ' proso-popup__route-status--error'
+      : kind === 'ok'
+        ? ' proso-popup__route-status--ok'
+        : ''
+  }`;
+}
+
+/** The failure row (grant-row markup) doubles as the classified fix action. */
+let fixActionKind: 'grant' | 'retry' | 'edit-key' = 'grant';
+
+async function showFixAction(action: string, message: string): Promise<void> {
+  elements.grantReason.textContent = message;
+  elements.grantBtn.textContent = action;
+  elements.grantRow.hidden = false;
+}
+
+/** Route A: validate → grant → test → save → play, from the Connect click. */
+async function handleFirstRunConnect(event: Event): Promise<void> {
+  event.preventDefault();
+  setRouteStatus(elements.firstRunHostStatus, 'Contacting the host and asking which voices it has…');
+  elements.firstRunHostConnect.disabled = true;
+  elements.firstRunHostConnect.textContent = 'Connecting…';
+  const result = await connectLocalHost({
+    address: elements.firstRunHostUrl.value,
+    event,
+    perms: browser.permissions as never,
+    storage: browser.storage.local as never,
+    fetchFn: (url, init) => fetch(url, init),
+  });
+  elements.firstRunHostConnect.disabled = false;
+  elements.firstRunHostConnect.textContent = 'Connect';
+  if (!result.ok) {
+    setRouteStatus(elements.firstRunHostStatus, result.error.message, 'error');
+    return;
+  }
+  try {
+    await browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' });
+  } catch {
+    // storage change listeners re-derive; a missed notification recovers.
+  }
+  setRouteStatus(
+    elements.firstRunHostStatus,
+    `Connected — ${result.value} voice(s) found. Starting playback…`,
+    'ok',
+  );
+  await refreshFirstRun();
+  const shouldRetry = pendingPlayAfterConnect;
+  pendingPlayAfterConnect = false;
+  if (shouldRetry) {
+    await handlePlayPause();
+  }
+}
+
+/** Route B: save the BYOK key, then play. */
+async function handleFirstRunByok(event: Event): Promise<void> {
+  event.preventDefault();
+  const provider = elements.firstRunByokProvider.value;
+  setRouteStatus(elements.firstRunByokStatus, 'Checking the key…');
+  const result = await saveByokKey(provider, elements.firstRunByokKey.value, {
+    storage: browser.storage.local as never,
+    notify: (p) => browser.runtime.sendMessage({ type: 'provider.select', provider: p }),
+  });
+  if (!result.ok) {
+    setRouteStatus(
+      elements.firstRunByokStatus,
+      `The ${provider} key was rejected — check it and try again.`,
+      'error',
+    );
+    return;
+  }
+  setRouteStatus(
+    elements.firstRunByokStatus,
+    `Key saved — ${provider} is free on every tier. Starting playback…`,
+    'ok',
+  );
+  await refreshFirstRun();
+  const shouldRetry = pendingPlayAfterConnect;
+  pendingPlayAfterConnect = false;
+  if (shouldRetry) {
+    await handlePlayPause();
+  }
+}
+
+/**
+ * Classify a playback-start failure and surface the fix in the same surface.
+ * unconfigured/entitlement → the first-run panel (a 402 is never the
+ * introduction); grant-missing/host-unreachable/key-rejected → the failure
+ * row with its action (the grant button relabels per class).
+ */
+async function routeFailure(errorMsg: string): Promise<void> {
+  const stored = await browser.storage.local.get([
+    'localHostEnabled',
+    'serverUrl',
+    'openaiApiKey',
+    'elevenlabsApiKey',
+    'groqApiKey',
+    'cartesiaApiKey',
+  ]);
+  const hasHost = stored.localHostEnabled === true;
+  const hasByok = ['openaiApiKey', 'elevenlabsApiKey', 'groqApiKey', 'cartesiaApiKey'].some(
+    (k) => typeof stored[k] === 'string' && (stored[k] as string).length > 0,
+  );
+  const hasManaged =
+    typeof stored.serverUrl === 'string' && (stored.serverUrl as string).length > 0;
+  const cls = classifyFailure(errorMsg, { hasHost, hasByok, hasManaged });
+  switch (cls) {
+    case 'unconfigured':
+      pendingPlayAfterConnect = true;
+      await refreshFirstRun('Choose a free route below to start listening.');
+      return;
+    case 'entitlement':
+      // The reader has a route (managed server) but no entitlement — the 402
+      // must carry the free routes, so the panel is FORCED open even though
+      // isUnconfigured is false.
+      pendingPlayAfterConnect = true;
+      await refreshFirstRun(errorMsg, true);
+      return;
+    case 'grant-missing':
+      // The existing PROSO-131 affordance owns this class. The failure-row
+      // button must perform THIS action, never a previous failure's.
+      fixActionKind = 'grant';
+      await maybeShowGrantAffordance(errorMsg);
+      return;
+    case 'host-unreachable':
+      fixActionKind = 'retry';
+      await showFixAction('Retry', 'The local host stopped responding. Playback paused.');
+      return;
+    case 'key-rejected':
+      fixActionKind = 'edit-key';
+      await showFixAction('Edit key', errorMsg);
+      return;
   }
 }
 
@@ -1342,7 +1540,25 @@ function setupEventListeners(): void {
   // PROSO-131: the grant button is the popup-side repair for a missing
   // runtime host grant — permissions.request() must run from this click.
   elements.grantBtn.addEventListener('click', () => {
+    if (fixActionKind === 'retry') {
+      void handlePlayPause();
+      return;
+    }
+    if (fixActionKind === 'edit-key') {
+      pendingPlayAfterConnect = true;
+      void refreshFirstRun('Edit your provider key below, then press Play.');
+      return;
+    }
     void handleGrantAccessClick();
+  });
+
+  // PROSO-134/#27: first-run actions. Both connect handlers pass the click
+  // event so permissions.request() fires from the gesture (falsifier D).
+  elements.firstRunHostForm.addEventListener('submit', (event) => {
+    void handleFirstRunConnect(event);
+  });
+  elements.firstRunByokSave.addEventListener('click', (event) => {
+    void handleFirstRunByok(event);
   });
 
   elements.playPauseBtn.addEventListener('click', handlePlayPause);
@@ -1660,6 +1876,26 @@ async function init(): Promise<void> {
 
   // Update section visibility based on configured API keys
   await updateSectionVisibility();
+
+  // PROSO-134/#27: first-run state at init, re-checked on storage change.
+  await refreshFirstRun();
+  // The webextension test env mocks storage.local but not onChanged — guard.
+  browser.storage.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    const routeKeys = [
+      'localHostEnabled',
+      'localHostUrl',
+      'licenseKey',
+      'serverUrl',
+      'openaiApiKey',
+      'elevenlabsApiKey',
+      'groqApiKey',
+      'cartesiaApiKey',
+    ];
+    if (routeKeys.some((k) => k in changes)) {
+      void refreshFirstRun();
+    }
+  });
 
   // Fetch cost estimate (non-blocking)
   fetchCostEstimate().catch((err) => {

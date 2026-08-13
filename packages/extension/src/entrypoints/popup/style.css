@@ -1247,3 +1247,102 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ========================================
+   FIRST-RUN PANEL (PROSO-134 / #27)
+   Tokens only — no raw colors. The panel replaces the player status area
+   while visible: .proso-popup__panel--firstrun hides status/progress/controls.
+   ======================================== */
+
+.proso-popup__first-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md, 12px);
+}
+
+.proso-popup__first-run-title {
+  font-size: var(--font-size-lg, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #ffffff);
+  margin: 0;
+}
+
+.proso-popup__first-run-subtitle {
+  font-size: var(--font-size-sm, 12px);
+  color: var(--color-text-secondary, #b8c5d6);
+  margin: 0;
+}
+
+.proso-popup__route {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+  padding: var(--spacing-md, 12px);
+  border: 1px solid var(--color-border, #3f3f46);
+  border-radius: var(--radius-md, 10px);
+}
+
+.proso-popup__route-title {
+  font-size: var(--font-size-md, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin: 0;
+}
+
+.proso-popup__route-desc {
+  font-size: var(--font-size-sm, 12px);
+  line-height: 1.4;
+  color: var(--color-text-secondary, #b8c5d6);
+  margin: 0;
+}
+
+.proso-popup__host-form {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+  align-items: center;
+}
+
+.proso-popup__host-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.proso-popup__byok-row {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+  align-items: center;
+}
+
+.proso-popup__byok-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.proso-popup__route-note {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-text-muted, #8b94a3);
+  margin: 0;
+}
+
+.proso-popup__route-status {
+  font-size: var(--font-size-sm, 12px);
+  line-height: 1.4;
+  color: var(--color-text-secondary, #b8c5d6);
+  min-height: 16px;
+  margin: 0;
+}
+
+.proso-popup__route-status--error {
+  color: var(--color-danger, #ef4444);
+}
+
+.proso-popup__route-status--ok {
+  color: var(--color-success, #22c55e);
+}
+
+.proso-popup__panel--firstrun .proso-popup__status,
+.proso-popup__panel--firstrun .proso-popup__progress,
+.proso-popup__panel--firstrun .proso-popup__controls,
+.proso-popup__panel--firstrun .proso-popup__speed {
+  display: none;
+}
