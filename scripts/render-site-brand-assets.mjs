@@ -54,6 +54,19 @@ const LOCKUP_Y = Number(((OG_HEIGHT - 320 * LOCKUP_SCALE) / 2).toFixed(4));
 /** Per-invocation scratch directory; created in main(), removed in finally. */
 let TEMP;
 
+/**
+ * OS-released exclusive lock serializing every Inkscape invocation.
+ *
+ * Inkscape 1.4 initializes shared GTK/D-Bus session state at startup, and two
+ * concurrent `inkscape` processes race that state (`Gio::DBus::Error`); the
+ * per-run render directories alone do not isolate it. `flock` holds an
+ * exclusive lock on a uid-scoped file and releases it automatically when the
+ * process exits, so a parallel `--check` cannot both proceed at once. The
+ * lock only serializes the render step — per-run output directories are
+ * preserved for the byte-comparison.
+ */
+const INKSCAPE_LOCK = join(tmpdir(), `proso-inkscape-render-${process.getuid?.() ?? 0}.lock`);
+
 function fail(message) {
   throw new Error(message);
 }
@@ -108,8 +121,10 @@ ${indent(inner, '    ')}
 function renderOgPng(svgPath, destination) {
   const transparent = join(TEMP, `${OG_PNG}.transparent.png`);
   run(
-    'inkscape',
+    'flock',
     [
+      INKSCAPE_LOCK,
+      'inkscape',
       svgPath,
       `--export-filename=${transparent}`,
       `--export-width=${OG_WIDTH}`,
