@@ -50,6 +50,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
@@ -94,8 +95,8 @@ const PLANTS = {
   },
   'monthly-only': {
     file: 'checkout.js',
-    from: "    return section && section.getAttribute('data-billing') === 'annual' ? 'yearly' : 'monthly';",
-    to: "    void section;\n    return 'monthly';",
+    from: "    return section && section.getAttribute('data-billing') === 'annual' ? yearly : monthly;",
+    to: '    void yearly;\n    return monthly;',
     breaks: 'the annual toggle selects the annual price',
   },
   'blank-key': {
@@ -187,10 +188,14 @@ const PLANTS = {
   },
   'live-config': {
     file: 'checkout-config.js',
-    from: "  clientToken: '',\n  apiBaseUrl: 'https://api.proso.com.br',\n  prices: {\n    pro: { monthly: '', yearly: '' },\n    enterprise: { monthly: '', yearly: '' },\n  },",
+    from: "  clientToken: '',\n  apiBaseUrl: 'https://api.proso.com.br',\n  catalog: Object.freeze({\n    tiers: Object.freeze(['pro', 'enterprise']),\n    periods: Object.freeze(['monthly', 'yearly']),\n  }),\n  prices: {\n    pro: { monthly: '', yearly: '' },\n    enterprise: { monthly: '', yearly: '' },\n  },",
     to:
       `  clientToken: '${plantClientToken}',\n` +
       "  apiBaseUrl: 'https://api.proso.com.br',\n" +
+      '  catalog: Object.freeze({\n' +
+      "    tiers: Object.freeze(['pro', 'enterprise']),\n" +
+      "    periods: Object.freeze(['monthly', 'yearly']),\n" +
+      '  }),\n' +
       '  prices: {\n' +
       `    pro: { monthly: '${plantPriceId(1)}', yearly: '${plantPriceId(2)}' },\n` +
       `    enterprise: { monthly: '${plantPriceId(3)}', yearly: '${plantPriceId(4)}' },\n` +
@@ -283,6 +288,18 @@ const PLANTS = {
     from: '  const purchaseCanEnable = status.canEnablePurchase;',
     to: '  const purchaseCanEnable = status.complete;',
     breaks: 'one usable price binds every readiness hold even when other prices are missing',
+  },
+  'catalog-drift-paid-control': {
+    file: 'pricing.html',
+    from: '          <!-- Enterprise -->',
+    to:
+      '          <button type="button" class="btn btn--primary" data-checkout-tier = "team" aria-describedby="checkout-note-team">Subscribe to paid plan</button>\n' +
+      '          <p class="checkout-note" id="checkout-note-team" role="status" aria-live="polite" hidden></p>\n\n' +
+      '          <!-- Enterprise -->',
+    breaks:
+      'a whitespace-separated paid control outside the readiness catalog is named as checkout catalog drift',
+    mustFailCheck: 'the deploy receipt fails closed and its oracles are runnable, not greppable',
+    mustFailMessage: /catalog-drift falsifier fired and named Team/i,
   },
 };
 
@@ -472,6 +489,10 @@ const configured = {
   environment: 'sandbox',
   clientToken: fakeClientToken('sandbox'),
   apiBaseUrl: 'https://api.proso.com.br',
+  catalog: {
+    tiers: ['pro', 'enterprise'],
+    periods: ['monthly', 'yearly'],
+  },
   prices: {
     pro: { monthly: 'pri_basic_monthly', yearly: 'pri_basic_yearly' },
     enterprise: { monthly: 'pri_pro_monthly', yearly: 'pri_pro_yearly' },
@@ -653,6 +674,59 @@ check('the annual toggle switches the price the click buys', async (JSDOM, plant
   assert(
     captured[0].customData.billing_period === 'yearly',
     `custom_data.billing_period was "${captured[0].customData.billing_period}"`,
+  );
+});
+
+check('the runtime derives period values from the toggle catalog attributes', async (JSDOM) => {
+  const custom = JSON.parse(JSON.stringify(configured));
+  custom.catalog.periods = ['monthly-v2', 'yearly-v2'];
+  custom.prices.pro = { monthly: '', yearly: '' };
+  custom.prices.pro['monthly-v2'] = 'pri_custom_monthly';
+  custom.prices.pro['yearly-v2'] = 'pri_custom_yearly';
+
+  const html = readSite('pricing.html')
+    .replace('data-checkout-period="monthly"', 'data-checkout-period="monthly-v2"')
+    .replace(
+      'data-checkout-alternate-period="yearly"',
+      'data-checkout-alternate-period="yearly-v2"',
+    );
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'proso-period-contract-'));
+  const page = path.join(dir, 'pricing.html');
+  writeFileSync(page, html);
+  const dom = new JSDOM(readFileSync(page, 'utf8'), {
+    url: PRICING_URL,
+    runScripts: 'outside-only',
+  });
+  const { window } = dom;
+  Object.defineProperty(window, 'crypto', { value: webcrypto, configurable: true });
+  window.TextEncoder = TextEncoder;
+  window.AbortController = AbortController;
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  window.PROSO_CHECKOUT_CONFIG = window.eval(`(${JSON.stringify(custom)})`);
+  const paddle = installPaddle(window);
+  window.eval(readSite(path.join('assets', 'js', 'main.js')));
+  window.eval(readSite(path.join('assets', 'js', 'checkout.js')));
+  await new Promise((resolve) =>
+    window.document.addEventListener('DOMContentLoaded', resolve, { once: true }),
+  );
+  await tick(window, 3);
+
+  buyButton(window, 'pro').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 8);
+  assert(
+    paddle.opened[0]?.items[0]?.priceId === 'pri_custom_monthly',
+    `monthly runtime ignored data-checkout-period: ${JSON.stringify(paddle.opened[0])}`,
+  );
+  const lifecycle = paddle.initialised.find((entry) => typeof entry.eventCallback === 'function');
+  assert(lifecycle, 'custom-period runtime registered no checkout lifecycle callback');
+  lifecycle.eventCallback({ name: 'checkout.closed' });
+  clickToggle(window);
+  await tick(window, 4);
+  buyButton(window, 'pro').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 8);
+  assert(
+    paddle.opened[1]?.items[0]?.priceId === 'pri_custom_yearly',
+    `annual runtime ignored data-checkout-alternate-period: ${JSON.stringify(paddle.opened[1])}`,
   );
 });
 
@@ -1767,10 +1841,27 @@ check(
     const shippedConfig = readSite(path.join('assets', 'js', 'checkout-config.js'), plant);
     const shippedFile = path.join(dir, 'checkout-shipped.js');
     writeFileSync(shippedFile, shippedConfig);
-    const baseEnv = { ...process.env, PROSO_CHECKOUT_CONFIG_FILE: shippedFile };
+    const checkoutPage = readSite('pricing.html', plant);
+    const checkoutPageFile = path.join(dir, 'pricing.html');
+    writeFileSync(checkoutPageFile, checkoutPage);
+    const baseEnv = {
+      ...process.env,
+      PROSO_CHECKOUT_CONFIG_FILE: shippedFile,
+      PROSO_CHECKOUT_PAGE_FILE: checkoutPageFile,
+    };
 
     // Disabled configuration: PASS, and every hold is named.
     const clean = await runReceipt(receiptPath, baseEnv);
+    if (plant === 'catalog-drift-paid-control') {
+      if (
+        clean.exitCode === 1 &&
+        /checkout catalog drift/i.test(clean.output) &&
+        /team/i.test(clean.output)
+      ) {
+        throw new Error(`catalog-drift falsifier fired and named Team:\n${clean.output}`);
+      }
+      return;
+    }
     assert(
       clean.exitCode === 0,
       `the receipt exited ${clean.exitCode} on a disabled config:\n${clean.output}`,
@@ -2009,6 +2100,33 @@ check(
   },
 );
 
+check('runtime controls and selectable periods match the readiness catalog', async () => {
+  const source = readSite(path.join('assets', 'js', 'checkout-config.js'));
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  vm.runInContext(source, sandbox);
+  const catalog = sandbox.window.PROSO_CHECKOUT_CONFIG?.catalog;
+  assert(catalog, 'checkout-config.js does not declare the canonical catalog');
+
+  const pricing = readSite('pricing.html');
+  const tiers = Array.from(
+    pricing.matchAll(/\bdata-checkout-tier\s*=\s*["']([^"']+)["']/g),
+    (match) => match[1],
+  );
+  assert(
+    JSON.stringify(tiers) === JSON.stringify(Array.from(catalog.tiers)),
+    `runtime paid controls ${JSON.stringify(tiers)} drift from readiness catalog ${JSON.stringify(Array.from(catalog.tiers))}`,
+  );
+  const periods = Array.from(
+    pricing.matchAll(/\bdata-checkout-(?:alternate-)?period\s*=\s*["']([^"']+)["']/g),
+    (match) => match[1],
+  );
+  assert(
+    JSON.stringify(periods) === JSON.stringify(Array.from(catalog.periods)),
+    `runtime periods ${JSON.stringify(periods)} drift from readiness catalog ${JSON.stringify(Array.from(catalog.periods))}`,
+  );
+});
+
 check('the site speaks the licence contract declared in @proso/shared', async () => {
   let contract;
   try {
@@ -2145,7 +2263,13 @@ async function main() {
   let survivors = 0;
   for (const [id, plant] of Object.entries(PLANTS)) {
     const results = await runChecks(id);
-    const caught = results.filter((result) => !result.ok);
+    const failures = results.filter((result) => !result.ok);
+    const caught = plant.mustFailCheck
+      ? failures.filter(
+          (result) =>
+            result.name === plant.mustFailCheck && plant.mustFailMessage.test(result.message),
+        )
+      : failures;
     const verdict = caught.length > 0 ? 'caught' : 'SURVIVED';
     if (caught.length === 0) survivors += 1;
     process.stdout.write(`  ${verdict.padEnd(9)} ${id} — ${plant.breaks}\n`);

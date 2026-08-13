@@ -19,8 +19,12 @@
  *                tokens. Starts with `test_` (sandbox) or `live_`
  *                (production) and must match `environment`.
  *
+ *   catalog      The complete set of paid tiers and billing periods the page
+ *                may enable. Runtime and deploy readiness both consume it;
+ *                adding a control outside it is a blocking contract drift.
+ *
  *   prices.*     Paddle > Catalog > Products > (product) > Prices. One id per
- *                tier and billing period, each starting with `pri_`.
+ *                catalog tier and billing period, each starting with `pri_`.
  *
  * TIER MAPPING — read this before pasting anything.
  *
@@ -47,6 +51,10 @@ window.PROSO_CHECKOUT_CONFIG = {
   environment: 'sandbox',
   clientToken: '',
   apiBaseUrl: 'https://api.proso.com.br',
+  catalog: Object.freeze({
+    tiers: Object.freeze(['pro', 'enterprise']),
+    periods: Object.freeze(['monthly', 'yearly']),
+  }),
   prices: {
     pro: { monthly: '', yearly: '' },
     enterprise: { monthly: '', yearly: '' },
