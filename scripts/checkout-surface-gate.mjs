@@ -278,6 +278,12 @@ const PLANTS = {
     to: "    endpointState = 'CLOSED';",
     breaks: 'an unproven claim endpoint never reads CLOSED while purchase is disabled',
   },
+  'partial-config-ignored': {
+    file: 'scripts/checkout-deploy-readiness.mjs',
+    from: '  const purchaseCanEnable = status.canEnablePurchase;',
+    to: '  const purchaseCanEnable = status.complete;',
+    breaks: 'one usable price binds every readiness hold even when other prices are missing',
+  },
 };
 
 // ── harness ──────────────────────────────────────────────────────────
@@ -481,6 +487,10 @@ async function sha256hex(text) {
 const unconfigured = JSON.parse(JSON.stringify(configured));
 unconfigured.prices.pro = { monthly: '', yearly: '' };
 unconfigured.prices.enterprise = { monthly: '', yearly: '' };
+
+const partiallyConfigured = JSON.parse(JSON.stringify(configured));
+partiallyConfigured.prices.pro.yearly = '';
+partiallyConfigured.prices.enterprise = { monthly: '', yearly: '' };
 
 function buyButton(window, tier) {
   const button = window.document.querySelector(`[data-checkout-tier="${tier}"]`);
@@ -735,35 +745,36 @@ check(
   },
 );
 
-check('a period configured monthly but not annually disables on toggle', async (JSDOM, plant) => {
-  const halfConfigured = JSON.parse(JSON.stringify(configured));
-  halfConfigured.prices.pro.yearly = '';
-
+check('one usable price enables only its tier and period', async (JSDOM, plant) => {
   const window = await openPage(JSDOM, {
     html: 'pricing.html',
     url: PRICING_URL,
-    config: halfConfigured,
+    config: partiallyConfigured,
     scripts: PRICING_SCRIPTS,
     plant,
     beforeScripts: installPaddle,
   });
 
-  const button = buyButton(window, 'pro');
+  const proButton = buyButton(window, 'pro');
   assert(
-    button.getAttribute('aria-disabled') === 'false',
-    'the configured monthly price did not enable the button',
+    proButton.getAttribute('aria-disabled') === 'false',
+    'the sole configured monthly price did not enable the Pro button',
+  );
+  assert(
+    buyButton(window, 'enterprise').getAttribute('aria-disabled') === 'true',
+    'an unconfigured Enterprise price left its button live',
   );
 
   clickToggle(window);
   await tick(window, 6);
 
   assert(
-    button.getAttribute('aria-disabled') === 'true',
-    'switching to a period with no price id left the button live',
+    proButton.getAttribute('aria-disabled') === 'true',
+    'switching to a period with no price id left the Pro button live',
   );
   assert(
-    noteText(window, button).text.includes('yearly'),
-    `the toggled reason does not name the period: "${noteText(window, button).text}"`,
+    noteText(window, proButton).text.includes('yearly'),
+    `the toggled reason does not name the period: "${noteText(window, proButton).text}"`,
   );
 });
 
@@ -1782,6 +1793,29 @@ check(
       `the receipt did not fail closed with a live config and open holds:\n${failClosed.output}`,
     );
 
+    // One valid tier/period can take money even though the full matrix is
+    // incomplete. It binds every safety hold and leaves full configuration
+    // OPEN; treating only a complete matrix as live is the old false-green.
+    const partialFile = path.join(dir, 'checkout-partial.js');
+    writeFileSync(
+      partialFile,
+      `window.PROSO_CHECKOUT_CONFIG = ${JSON.stringify(partiallyConfigured, null, 2)};\n`,
+    );
+    const partialEnv = { ...baseEnv, PROSO_CHECKOUT_CONFIG_FILE: partialFile };
+    const partialFailClosed = await runReceipt(receiptPath, partialEnv);
+    assert(
+      partialFailClosed.exitCode === 1,
+      `one usable price bypassed the readiness holds:\n${partialFailClosed.output}`,
+    );
+    assert(
+      !/hold NOT REQUIRED .*Keyforge claim endpoint/i.test(partialFailClosed.output),
+      `one usable price left the claim endpoint NOT REQUIRED:\n${partialFailClosed.output}`,
+    );
+    assert(
+      /complete Paddle configuration/i.test(partialFailClosed.output),
+      `a partial price matrix did not leave full configuration OPEN:\n${partialFailClosed.output}`,
+    );
+
     // Comment-only fixtures must not close the oracles: a comment that quotes
     // the exact oracle pattern, or an HTML comment wrapping a fake input, proves
     // nothing — only comment-stripped source may match.
@@ -1872,6 +1906,10 @@ check(
       PROSO_PROBE_URL: `http://127.0.0.1:${port}`,
       PROSO_PADDLE_EVIDENCE_FILE: evidenceFile,
     };
+    const partialEnvBoth = {
+      ...liveEnvBoth,
+      PROSO_CHECKOUT_CONFIG_FILE: partialFile,
+    };
     try {
       const bad = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
       assert(bad.exitCode === 1, `a 501 live answer did not fail closed:\n${bad.output}`);
@@ -1909,7 +1947,26 @@ check(
       );
       assert(probeHits === hitsBefore, 'a --live probe was sent while purchase is disabled');
 
-      // Row 2 — complete config + a 404 endpoint: exit 1, the hold stays OPEN.
+      // Row 2 — one usable price + a 404 endpoint: exit 1, the endpoint is
+      // required and the probe is sent even though the full matrix is OPEN.
+      const hitsBeforePartial = probeHits;
+      const partial404 = await runReceipt(receiptPath, partialEnvBoth, ['--live']);
+      assert(
+        partial404.exitCode === 1,
+        `partial config with a usable price did not fail closed:\n${partial404.output}`,
+      );
+      assert(
+        !/hold NOT REQUIRED .*Keyforge claim endpoint/i.test(partial404.output) &&
+          /claim endpoint/i.test(partial404.output) &&
+          /404/.test(partial404.output),
+        `partial config did not bind the failed claim-endpoint probe:\n${partial404.output}`,
+      );
+      assert(
+        probeHits === hitsBeforePartial + 1,
+        'one usable price did not trigger the live probe',
+      );
+
+      // Row 3 — complete config + a 404 endpoint: exit 1, the hold stays OPEN.
       const complete404 = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
       assert(
         complete404.exitCode === 1,
@@ -1920,7 +1977,7 @@ check(
         `the 404 failure does not name the endpoint and its answer:\n${complete404.output}`,
       );
 
-      // Row 3 — complete config + the canonical 202: exit 0 and the hold is
+      // Row 4 — complete config + the canonical 202: exit 0 and the hold is
       // printed CLOSED with the proven answer.
       liveMode = 'canonical';
       const good = await runReceipt(receiptPath, liveEnvBoth, ['--live']);

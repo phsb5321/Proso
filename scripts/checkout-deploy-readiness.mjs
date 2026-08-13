@@ -17,11 +17,12 @@
  *      independent Paddle evidence that the values are real, which only the
  *      operator who verified checkout end to end can supply.
  *
- * A site whose configuration is empty is SAFE: its buy controls render
- * disabled and state why, so deploying the page cannot take money. A site
- * whose configuration is complete (purchase could go live) is only safe when
- * all three holds are closed — anything else exits 1 and the deploy pipeline
- * must stop.
+ * A site whose configuration cannot enable any buy control is SAFE: its buy
+ * controls render disabled and state why, so deploying the page cannot take
+ * money. As soon as the shared token/API fields and any one tier/period price
+ * are usable, purchase could go live and every safety hold binds. A missing
+ * price elsewhere keeps the complete-configuration hold OPEN; it never makes
+ * an already-usable buy control safe.
  *
  * The oracles are runnable, not greppable:
  *   - the claim-endpoint oracle looks for an actual NestJS `@Post` route
@@ -37,8 +38,8 @@
  * The claim-endpoint hold is three-valued. While purchase is disabled the
  * hold is NOT REQUIRED: the site cannot take money, nothing needs live proof,
  * and no `--live` probe is sent — registration is printed as information
- * only. Once the configuration is complete enough to enable purchase the
- * hold binds: CLOSED only for a registered route that answered the canonical
+ * only. Once any tier/period is configured well enough to enable purchase,
+ * the hold binds: CLOSED only for a registered route that answered the canonical
  * 202, OPEN otherwise. A hold that is merely not required is never printed
  * CLOSED, so an operator cannot read a 404 as proof that the money path is
  * proven.
@@ -76,6 +77,11 @@ const extensionEntrypointsDir =
 const TOKEN_PREFIX = { sandbox: 'test_', production: 'live_' };
 const LICENSE_BY_TRANSACTION_PATH = '/api/v1/license/by-transaction';
 
+// OpenGrep misparses the literal HTML-comment token, so the equivalent
+// constructor keeps its fail-closed changed-file scan runnable.
+// biome-ignore lint/complexity/useRegexLiterals: required for OpenGrep parser compatibility.
+const HTML_COMMENT_PATTERN = new RegExp('<!--[\\s\\S]*?-->', 'g');
+
 /**
  * The operator's attestation that a checkout completed end to end against the
  * configured Paddle account. The script cannot verify Paddle from here, so it
@@ -90,7 +96,7 @@ function paddleEvidencePresent() {
 function stripComments(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(HTML_COMMENT_PATTERN, '')
     .replace(/(^|[^:'"])\/\/[^\n]*/g, '$1');
 }
 
@@ -143,42 +149,73 @@ function walletFieldPresent() {
 }
 
 /**
- * Structural completeness, with the same rules checkout.js applies before it
- * will enable a buy control.
+ * Report both full catalog completeness and whether any buy control could
+ * enable. The shared fields and each price use the same structural rules as
+ * checkout.js; one usable price is enough for a visitor to buy, even when a
+ * different tier/period is missing.
  */
 function configStatus(config) {
-  if (!config) return { complete: false, reason: 'checkout-config.js did not load' };
+  if (!config) {
+    return {
+      complete: false,
+      canEnablePurchase: false,
+      reason: 'checkout-config.js did not load',
+    };
+  }
 
   const expectedPrefix = TOKEN_PREFIX[config.environment];
   if (!expectedPrefix) {
-    return { complete: false, reason: `unknown environment "${config.environment}"` };
+    return {
+      complete: false,
+      canEnablePurchase: false,
+      reason: `unknown environment "${config.environment}"`,
+    };
   }
 
   if (typeof config.clientToken !== 'string' || config.clientToken.length === 0) {
-    return { complete: false, reason: 'the client-side token is empty' };
+    return { complete: false, canEnablePurchase: false, reason: 'the client-side token is empty' };
   }
   if (!config.clientToken.startsWith(expectedPrefix)) {
     return {
       complete: false,
+      canEnablePurchase: false,
       reason: `the client-side token does not start with "${expectedPrefix}" for the ${config.environment} environment`,
     };
   }
 
   if (typeof config.apiBaseUrl !== 'string' || !/^https:\/\//i.test(config.apiBaseUrl)) {
-    return { complete: false, reason: 'the API address is not a valid HTTPS URL' };
+    return {
+      complete: false,
+      canEnablePurchase: false,
+      reason: 'the API address is not a valid HTTPS URL',
+    };
   }
 
   const prices = config.prices || {};
-  for (const tier of ['pro', 'enterprise']) {
+  const tiers = ['pro', 'enterprise'];
+  const periods = ['monthly', 'yearly'];
+  const canEnablePurchase = tiers.some((tier) =>
+    periods.some((period) => {
+      const priceId = (prices[tier] || {})[period];
+      return typeof priceId === 'string' && priceId.startsWith('pri_');
+    }),
+  );
+
+  for (const tier of tiers) {
     const tierPrices = prices[tier] || {};
-    for (const period of ['monthly', 'yearly']) {
+    for (const period of periods) {
       const priceId = tierPrices[period];
       if (typeof priceId !== 'string' || priceId.length === 0) {
-        return { complete: false, reason: `the ${period} price id for the ${tier} tier is empty` };
+        return {
+          complete: false,
+          canEnablePurchase,
+          reason: `the ${period} price id for the ${tier} tier is empty`,
+        };
       }
       if (!priceId.startsWith('pri_')) {
         return {
           complete: false,
+          canEnablePurchase,
           reason: `the ${period} price id for the ${tier} tier does not start with "pri_"`,
         };
       }
@@ -187,6 +224,7 @@ function configStatus(config) {
 
   return {
     complete: true,
+    canEnablePurchase: true,
     reason: 'token, API address, and every tier/period price id present and well-formed',
   };
 }
@@ -238,7 +276,7 @@ async function liveClaimEndpointProbe(probeUrl) {
 async function main() {
   const config = loadConfig();
   const status = configStatus(config);
-  const purchaseLive = status.complete;
+  const purchaseCanEnable = status.canEnablePurchase;
   const live = process.argv.includes('--live');
 
   const registered = claimEndpointRegistered();
@@ -246,7 +284,7 @@ async function main() {
   // The live probe exists to prove a deployment hold. While purchase is
   // disabled there is nothing to prove: probing would only produce noise, and
   // a 404 answer must never appear next to a closed-looking hold.
-  if (live && purchaseLive) {
+  if (live && purchaseCanEnable) {
     const probeUrl = process.env.PROSO_PROBE_URL ?? (config ? config.apiBaseUrl : '');
     if (!probeUrl) {
       probe = { deployed: false, detail: 'no API address to probe' };
@@ -255,13 +293,13 @@ async function main() {
     }
   }
 
-  // The claim-endpoint hold is three-valued: NOT REQUIRED while purchase is
-  // disabled (nothing to prove), OPEN while purchase is enabled but the
-  // endpoint is unproven, CLOSED only for a registered route that answered
-  // the canonical 202 pending contract.
+  // The claim-endpoint hold is three-valued: NOT REQUIRED while no buy
+  // control can enable, OPEN while any purchase is possible but the endpoint
+  // is unproven, CLOSED only for a registered route that answered the
+  // canonical 202 pending contract.
   let endpointState;
   let endpointHow;
-  if (!purchaseLive) {
+  if (!purchaseCanEnable) {
     endpointState = 'NOT REQUIRED';
     endpointHow =
       'purchase is disabled, so the site cannot take money and no live proof is needed; ' +
@@ -298,7 +336,7 @@ async function main() {
       how: status.reason,
     },
   ];
-  if (purchaseLive) {
+  if (purchaseCanEnable) {
     holds.push({
       name: 'independent Paddle evidence',
       state: paddleEvidencePresent() ? 'CLOSED' : 'OPEN',
@@ -309,14 +347,14 @@ async function main() {
   const openHolds = holds.filter((hold) => hold.state === 'OPEN');
 
   const operatorChecks = [];
-  if (!purchaseLive) {
+  if (!purchaseCanEnable) {
     operatorChecks.push(
       'before enabling purchase, complete the staged configuration and run with --live to prove the deployed claim endpoint answers the canonical 202',
       'Paddle evidence: before enabling purchase, a checkout must complete end to end against the configured Paddle values, verified by the operator who holds the Paddle account (PROSO_PADDLE_EVIDENCE_FILE)',
     );
   }
 
-  if (!purchaseLive) {
+  if (!purchaseCanEnable) {
     process.stdout.write(
       'checkout-deploy-readiness PASS (purchase disabled): the buy controls render inert, so the site can deploy without taking money.\n',
     );
