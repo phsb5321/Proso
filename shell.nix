@@ -5,7 +5,7 @@
 #   nix-shell --run "pnpm test:e2e:ext"  # Run E2E tests directly
 #
 # This provides:
-#   - Node.js 20.x
+#   - Node.js 22.x (current LTS; project supports Node.js 20+)
 #   - pnpm package manager
 #   - System Chromium for Playwright extension tests
 #   - Firefox for visual tests
@@ -18,11 +18,15 @@ pkgs.mkShell {
 
   buildInputs = with pkgs; [
     # Node.js and package manager
-    nodejs_20
-    nodePackages.pnpm
+    nodejs_22
+    pnpm_10
 
     # Delivery harness (`make verify`, `make gate`, ...)
     gnumake
+
+    # Deterministic brand crop, SVG proof, and raster verification tools
+    imagemagick
+    inkscape
 
     # Browsers for Playwright
     chromium

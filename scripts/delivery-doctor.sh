@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-readonly REQUIRED_COMMANDS=(git node pnpm jq gitleaks)
+readonly REQUIRED_COMMANDS=(git node pnpm jq gitleaks magick inkscape)
 
 for command_name in "${REQUIRED_COMMANDS[@]}"; do
   if ! command -v "$command_name" >/dev/null 2>&1; then

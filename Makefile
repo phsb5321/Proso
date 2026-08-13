@@ -15,7 +15,7 @@ FC_NUM_RUNS ?= 100
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -168,7 +168,10 @@ security: doctor build ## Build required fixtures, run security tests, and scan 
 	@./scripts/security-check.sh
 	@./scripts/dependency-audit.sh
 
-verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security icons ## Fast delivery floor.
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons ## Fast delivery floor.
+
+brand-assets: ## Brand segments, SVG masters, proofs, and icon topology must stay reproducible.
+	node scripts/verify-brand-assets.mjs
 
 icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
 	$(PNPM) --filter @proso/extension icons:check

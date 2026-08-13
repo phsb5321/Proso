@@ -1,7 +1,7 @@
 # Icon Design Conventions
 
-**Last Updated**: 2026-01-20
-**Feature Branch**: `047-architecture-ui-polish`
+**Last Updated**: 13/08/2026
+**Feature Branch**: `161-brand-vector-system`
 
 This document summarizes icon design conventions for browser extensions, derived from Mozilla, Google, and Apple guidelines.
 
@@ -63,7 +63,7 @@ Proso's toolbar icon must be:
 | Dark theme | `#FFFFFF` | Monochrome icon |
 | Light theme | `#20123A` | Monochrome icon |
 | Accent | `#0060DF` | Firefox blue (avoid unless partnered) |
-| Proso accent | `#0D9488` | Teal - our brand color |
+| Proso accent | `#21F299` | Spring green from the canonical identity board |
 
 ### Do's and Don'ts
 
@@ -116,13 +116,16 @@ Proso's toolbar icon must be:
 
 ### Current Design
 
-The toolbar icon (landed 11/08/2026, PROSO-112) is **candidate A: page + rising bars** — a page
-corner (bottom-left L) with three ascending waveform bars, the "3 essential elements" this
-document asked for. At 16px it reduces to page corner + 3 bars, solid teal fill, whole-pixel
-snapped; 48px adds the page fold and a fourth bar; 128px carries five bars and the
-`#0D9488 → #14B8A6` gradient. The mark is filled (product mark, not a stroked UI glyph) and
-uses the Proso accent `#0D9488`, which measures ≥3:1 against both light (`#F9F9FB` 3.56:1) and
-dark (`#2A2A2E` 3.82:1, `#1C1B22` 4.56:1) Firefox toolbars.
+Feature 161 replaces the interim page-bars icon with the canonical
+**text-to-voice bubble** recovered from the supplied identity board. The mark is
+protected by a navy `#010616` tile so one deterministic full-colour asset works
+on light and dark browser surfaces. Essential spring-green `#21F299` detail has
+13.69:1 contrast on that tile.
+
+At 16px the drawing reduces to the bubble silhouette plus one voice dot. At
+48px/96px it adds the two text pills and four waveform bars. The independently
+tuned 128px store source keeps that full semantic topology with more generous
+coordinates. This is deliberate optical sizing, not one master scaled down.
 
 Source of truth is now SVG, per band: `packages/extension/assets/icons/band-{16,48,128}.svg`
 (three separate optical-size drawings — never one drawing scaled). PNGs are build artifacts
@@ -132,10 +135,10 @@ fails on any stale binary, so the Feb-2026 committed-mystery-binary rot cannot r
 
 ### Recommended Improvements (status)
 
-1. **Simplify for 16px**: Reduce to 3 essential elements — DONE (16px = page corner + 3 bars)
-2. **Increase contrast**: Ensure 3:1 ratio against toolbar — DONE (measured 3.56–5.08:1)
-3. **Add visual metaphor**: Consider combining speech/page elements — DONE (page + waveform)
-4. **Test dark mode**: Icon must work on dark toolbar backgrounds — DONE (3.82:1 on #2A2A2E)
+1. **Simplify for 16px**: DONE — protective tile + bubble + voice dot.
+2. **Increase contrast**: DONE — green/navy 13.69:1; navy/white 20.21:1.
+3. **Use the canonical metaphor**: DONE — text pills become a voice waveform.
+4. **Test dark mode**: DONE — the navy tile protects the full-colour mark.
 
 ### Icon Concepts
 
@@ -172,10 +175,10 @@ fails on any stale binary, so the Feb-2026 committed-mystery-binary rot cannot r
 
 ### Export Process
 
-1. Design master icon at 128px in SVG
-2. Export PNG at each required size
-3. Verify pixel-perfect alignment at 16px
-4. Test on both light and dark backgrounds
+1. Draw independent 16px, 48px, and 128px SVG optical sources.
+2. Generate 16/32, 48/96, and 128 PNG outputs deterministically.
+3. Verify native bounding boxes, topology, and core-pixel component counts.
+4. Test contrast and deterministic reproduction on light and dark backgrounds.
 
 ### Quality Checks
 
@@ -230,7 +233,7 @@ Run `pnpm --filter @proso/extension icons:generate` after editing a band SVG; th
 |------|--------|
 | Research documented | Complete |
 | Design concepts | Complete |
-| Master SVG creation | Complete — band SVGs landed (PROSO-112, 11/08/2026) |
+| Master SVG creation | Complete — canonical bubble bands (Feature 161, 13/08/2026) |
 | PNG exports | Build artifacts — `icons:generate` (svgo → resvg), freshness-gated in `make verify` |
 | Manifest verification | Complete |
 
