@@ -11,6 +11,10 @@ const SVG_DIR = resolve(ROOT, 'brand/svg');
 const ICON_SOURCE_DIR = resolve(ROOT, 'packages/extension/assets/icons');
 const ICON_OUTPUT_DIR = resolve(ROOT, 'packages/extension/public/icons');
 const WORDMARK_SOURCE = resolve(ROOT, 'brand/source/proso-wordmark-construction.svg');
+const SITE_IMAGE_DIR = resolve(ROOT, 'packages/site/assets/images');
+const SITE_FAVICON = resolve(SITE_IMAGE_DIR, 'favicon.png');
+const SITE_OG_SVG = resolve(SITE_IMAGE_DIR, 'og-image.svg');
+const SITE_OG_PNG = resolve(SITE_IMAGE_DIR, 'og-image.png');
 const NAVY = '#010616';
 const GREEN = '#21F299';
 const ALLOWED_COLORS = new Set([NAVY, '#F8F8F9', GREEN, '#FFFFFF']);
@@ -336,6 +340,55 @@ function assertDeterministicIcons() {
     fail('icon generation is nondeterministic');
 }
 
+/**
+ * Site identity assets must be freshness-bound to the canonical sources.
+ *
+ * Feature 166 replaced the retired wa-era favicon and the VoxPage og-image
+ * with derivatives of the canonical pipeline. These checks make that
+ * permanent: the favicon must be byte-identical to the canonical 32px mark,
+ * the og-image must be the canonical lockup composed on the navy canvas (no
+ * live text, no font, canonical palette only), and every committed site asset
+ * must byte-match a fresh derivation (run first, so drift is caught even if
+ * the structural assertions below were never reached).
+ */
+function assertSiteAssets() {
+  run('node', ['scripts/render-site-brand-assets.mjs', '--check'], 'site asset freshness gate');
+
+  const favicon = readFileSync(SITE_FAVICON);
+  const canonicalIcon32 = readFileSync(resolve(ICON_OUTPUT_DIR, 'icon-32.png'));
+  if (!favicon.equals(canonicalIcon32)) {
+    fail('site favicon is not byte-identical to canonical icon-32.png');
+  }
+
+  const ogSvg = readFileSync(SITE_OG_SVG, 'utf8');
+  const { idSet } = assertSvg('og-image.svg', SITE_OG_SVG);
+  if (!/viewBox="0 0 1200 630"/u.test(ogSvg)) {
+    fail('og-image.svg must declare a 1200x630 composition viewBox');
+  }
+  if (!idSet.has('site-lockup')) fail('og-image.svg must wrap the canonical lockup group');
+  if (!idSet.has('canvas')) fail('og-image.svg must declare the navy canvas rect');
+  requireIds('og-image.svg', idSet, [
+    'bubble-outline',
+    'text-pill-primary',
+    'text-pill-secondary',
+    'waveform-1',
+    'waveform-2',
+    'waveform-3',
+    'waveform-4',
+    'p-bowl',
+    'p-stem',
+    'letter-r',
+    'letter-o-1',
+    'letter-s',
+    'letter-o-2',
+  ]);
+
+  const ogPng = pngDimensions(SITE_OG_PNG);
+  if (ogPng.width !== 1200 || ogPng.height !== 630) {
+    fail(`og-image.png must be exactly 1200x630, got ${ogPng.width}x${ogPng.height}`);
+  }
+}
+
 function main() {
   run('node', ['scripts/segment-brand-board.mjs', '--check'], 'segment gate');
   run('node', ['scripts/generate-brand-vectors.mjs', '--check'], 'vector freshness gate');
@@ -344,6 +397,7 @@ function main() {
   assertWordmarkSource();
   assertDeterministicIcons();
   assertIcons();
+  assertSiteAssets();
 
   const greenOnNavy = contrast(GREEN, NAVY);
   const navyOnWhite = contrast(NAVY, '#FFFFFF');
@@ -354,6 +408,7 @@ function main() {
   console.log(
     `contrast: green/navy ${greenOnNavy.toFixed(2)}:1; navy/white ${navyOnWhite.toFixed(2)}:1`,
   );
+  console.log('site assets: favicon canonical; og-image canonical lockup on navy');
   console.log('brand assets: PASS');
 }
 
