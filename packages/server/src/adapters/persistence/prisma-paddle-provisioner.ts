@@ -198,32 +198,37 @@ export class PrismaPaddleProvisioner extends PaddleProvisioningPort {
       update.paddleEventId = command.eventId;
     }
 
-    const initialClaimEvent =
-      command.kind === 'sync-subscription' ||
-      command.paddleTransactionId === existing.paddleTransactionId;
-    if (initialClaimEvent && (command.paddleTransactionId || command.licenseClaimHash)) {
-      if (!command.paddleTransactionId || !command.licenseClaimHash) {
+    const incomingPair =
+      command.paddleTransactionId && command.licenseClaimHash
+        ? {
+            paddleTransactionId: command.paddleTransactionId,
+            licenseClaimHash: command.licenseClaimHash,
+          }
+        : null;
+    const hasPartialIncomingPair = Boolean(command.paddleTransactionId || command.licenseClaimHash);
+    if (!hasTransaction) {
+      if (incomingPair) {
+        update.paddleTransactionId = incomingPair.paddleTransactionId;
+        update.licenseClaimHash = incomingPair.licenseClaimHash;
+      } else if (hasPartialIncomingPair) {
         throw new ProvisioningInvariantError(
           'INVALID_PAYLOAD',
           'Paddle claim routing must arrive as a transaction/hash pair',
         );
-      }
-      if (!hasTransaction) {
-        update.paddleTransactionId = command.paddleTransactionId;
-        update.licenseClaimHash = command.licenseClaimHash;
-      } else if (
-        command.paddleTransactionId !== existing.paddleTransactionId ||
-        command.licenseClaimHash !== existing.licenseClaimHash
-      ) {
+      } else if (command.kind === 'provision-period') {
         throw new ProvisioningInvariantError(
-          'PERSISTENCE_FAILED',
-          'Paddle claim pair conflicts with the existing subscription',
+          'INVALID_PAYLOAD',
+          'Paid provisioning requires a complete transaction/hash claim pair',
         );
       }
-    } else if (command.kind === 'provision-period' && !hasTransaction) {
+    } else if (
+      incomingPair &&
+      incomingPair.paddleTransactionId === existing.paddleTransactionId &&
+      incomingPair.licenseClaimHash !== existing.licenseClaimHash
+    ) {
       throw new ProvisioningInvariantError(
-        'INVALID_PAYLOAD',
-        'Paid provisioning cannot create transaction-only claim routing',
+        'PERSISTENCE_FAILED',
+        'Paddle claim pair conflicts with the existing subscription',
       );
     }
 

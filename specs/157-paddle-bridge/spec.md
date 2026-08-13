@@ -143,6 +143,30 @@ the repository has no maintained Gherkin runner for this boundary, so no
   AppModule/PostgreSQL journey passed 11/11
   (`/tmp/proso-157-postgres-green-5.log`, SHA-256
   `5bf2293c44a5d57720aaa0d9bd64ecfbdcef77c8f73bdfe2e838241066778d24`).
+- Native DeepSeek's immutable-head review of `b5ef72f` found that a pairless
+  `subscription.created` row could not later accept the complete canonical
+  transaction/hash pair from `transaction.completed`. The new real AppModule/
+  PostgreSQL journey reproduced the old branch red
+  (`/tmp/proso-157-pairfill-mutation-red.log`, SHA-256
+  `4e46300d01ee4ad87f83e48341f797aaeb3f1df071d687f7cb658d325f195670`), then
+  proved atomic rollback/retry, pair fill, exactly-one allocation/key, incomplete-
+  pair 503, and conflict preservation green
+  (`/tmp/proso-157-pairfill-focused-green-final2.log`, SHA-256
+  `71b4a59e43ec1d3d6cc46f9f442141c7c63d339d05581624a9d033050325092b`).
+
+## Residual LOW notes from DeepSeek review
+
+- Paddle pause/resume/activation/past-due/trialing event types remain marker-only;
+  Proso currently has no pause/resume surface and later subscription updates
+  converge state.
+- The webhook-event ledger has no retention job yet; operations must define one
+  before ledger growth becomes material.
+- Missing webhook-secret configuration deliberately returns 403 at the guard,
+  so Paddle retries configuration faults; the Paddle dashboard remains the
+  operator-visible signal.
+- `paddleLastTransactionId` is retained as write-only renewal provenance.
+- Equal-timestamp ordering is now pinned through event-type precedence and the
+  final event-id tie-break unit oracle.
 
 ## Non-goals
 

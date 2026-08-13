@@ -235,6 +235,34 @@ describe('isPaddleStateNewer', () => {
     ).toBe(true);
   });
 
+  it('uses event id as the stable final tie-break for equal type and timestamp', () => {
+    const occurredAt = new Date('2026-08-12T20:00:02.000Z');
+    const stored = {
+      occurredAt,
+      eventType: 'subscription.updated',
+      eventId: 'evt_equal_b',
+    };
+
+    expect(
+      isPaddleStateNewer(
+        { occurredAt, eventType: 'subscription.updated', eventId: 'evt_equal_c' },
+        stored,
+      ),
+    ).toBe(true);
+    expect(
+      isPaddleStateNewer(
+        { occurredAt, eventType: 'subscription.updated', eventId: 'evt_equal_a' },
+        stored,
+      ),
+    ).toBe(false);
+    expect(
+      isPaddleStateNewer(
+        { occurredAt, eventType: 'subscription.updated', eventId: 'evt_equal_b' },
+        stored,
+      ),
+    ).toBe(false);
+  });
+
   it('normalizes cancellation to cancelled without allocating a new period', () => {
     const event: WebhookEvent = {
       ...subscriptionEvent({ status: undefined, canceled_at: '2026-08-20T00:00:00.000Z' }),

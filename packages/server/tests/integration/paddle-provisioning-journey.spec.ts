@@ -188,6 +188,19 @@ async function snapshot(prisma: PrismaService) {
   };
 }
 
+async function expectPairlessState(
+  harness: Harness,
+  processedEventId: string,
+): Promise<void> {
+  const state = await snapshot(harness.prisma);
+  expect(state.subscriptions).toEqual([
+    expect.objectContaining({ paddleTransactionId: null, licenseClaimHash: null }),
+  ]);
+  expect(state.allocations).toHaveLength(0);
+  expect(state.licenseKeys).toHaveLength(0);
+  expect(state.events).toEqual([expect.objectContaining({ eventId: processedEventId })]);
+}
+
 async function claimAndValidate(harness: Harness): Promise<void> {
   const claimedResponse = await fetch(`${harness.baseUrl}${LICENSE_BY_TRANSACTION_PATH}`, {
     method: 'POST',
@@ -392,6 +405,54 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
     },
     60_000,
   );
+
+  it('atomically fills a pairless created subscription from a completed canonical pair', async () => {
+    const faultHarness = await createHarness(true);
+    harness = faultHarness;
+    const pairlessCreated = subscriptionEvent('evt_pairlesscreated00000000000001', {
+      custom_data: null,
+    });
+    const completedWithPair = transactionEvent('evt_pairfillcompleted000000000001');
+
+    faultHarness.fault!.fail = false;
+    expect((await deliver(harness, pairlessCreated)).status).toBe(200);
+    await expectPairlessState(harness, pairlessCreated.event_id as string);
+
+    faultHarness.fault!.fail = true;
+    expect((await deliver(harness, completedWithPair)).status).toBe(503);
+    await expectPairlessState(harness, pairlessCreated.event_id as string);
+
+    faultHarness.fault!.fail = false;
+    expect((await deliver(harness, completedWithPair)).status).toBe(200);
+    expect((await deliver(harness, completedWithPair)).status).toBe(200);
+    const completed = await snapshot(harness.prisma);
+    expect(completed.subscriptions).toEqual([
+      expect.objectContaining({
+        paddleTransactionId: TRANSACTION_ID,
+        licenseClaimHash: CLAIM_HASH,
+      }),
+    ]);
+    expect(completed.allocations).toEqual([
+      expect.objectContaining({ paddleTransactionId: TRANSACTION_ID }),
+    ]);
+    expect(completed.licenseKeys).toEqual([expect.objectContaining({ isActive: true })]);
+    expect(completed.events).toHaveLength(2);
+    await claimAndValidate(harness);
+  }, 60_000);
+
+  it('keeps pairless provisioning retryable when the completed event has no claim hash', async () => {
+    harness = await createHarness();
+    const pairlessCreated = subscriptionEvent('evt_pairlessincompletecreated000001', {
+      custom_data: null,
+    });
+    const incompleteCompletion = transactionEvent('evt_pairlessincompletecompleted0001', {
+      custom_data: null,
+    });
+
+    expect((await deliver(harness, pairlessCreated)).status).toBe(200);
+    expect((await deliver(harness, incompleteCompletion)).status).toBe(503);
+    await expectPairlessState(harness, pairlessCreated.event_id as string);
+  }, 60_000);
 
   it('lets subscription.created stage state but not credits or a licence before completion', async () => {
     harness = await createHarness();

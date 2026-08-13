@@ -58,3 +58,17 @@
 - [ ] **T011 — Deliver without merge.** Commit atomically, rebase on current
   `origin/main`, push, open a PR, obtain native DeepSeek v4 Pro ALLOW on the
   clean head, fix every BLOCK finding and re-review, then stop without merging.
+- [x] **T012 — Close DeepSeek pair-fill BLOCK.** A real AppModule/PostgreSQL
+  journey first failed on the old branch when pairless `subscription.created`
+  was followed by `transaction.completed` carrying the complete canonical pair
+  (`/tmp/proso-157-pairfill-mutation-red.log`, SHA-256
+  `4e46300d01ee4ad87f83e48341f797aaeb3f1df071d687f7cb658d325f195670`).
+  The adapter now fills both null claim columns together in the same transaction
+  as exactly one allocation/key, while an incomplete pair remains 503 and an
+  existing conflicting pair remains protected. Focused integration and equal-
+  timestamp ordering oracles passed
+  (`/tmp/proso-157-pairfill-focused-green-final2.log`, SHA-256
+  `71b4a59e43ec1d3d6cc46f9f442141c7c63d339d05581624a9d033050325092b`);
+  full server passed 501/501
+  (`/tmp/proso-157-pairfill-full-server-final.log`, SHA-256
+  `52af08272cb8d4d6d29d259e77b79993018e919ac0509821df70a742ad0d2d55`).
