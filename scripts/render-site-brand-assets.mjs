@@ -120,10 +120,24 @@ ${indent(inner, '    ')}
 
 function renderOgPng(svgPath, destination) {
   const transparent = join(TEMP, `${OG_PNG}.transparent.png`);
+  // Serialize Inkscape behind an OS-released exclusive lock (flock releases
+  // it automatically when the holder exits, even on crash), with BOUNDED
+  // acquisition and a BOUNDED render: `-w 30 -E 75` fails the caller after
+  // 30s of waiting for a hung holder (exit 75), and `timeout` caps the
+  // Inkscape child at 60s (SIGKILL after a further 5s). A wedged holder or
+  // render must produce a NAMED `render og-image.svg` failure, never stall
+  // every later verifier forever.
   run(
     'flock',
     [
+      '-w',
+      '30',
+      '-E',
+      '75',
       INKSCAPE_LOCK,
+      'timeout',
+      '--kill-after=5s',
+      '60s',
       'inkscape',
       svgPath,
       `--export-filename=${transparent}`,
