@@ -141,7 +141,7 @@ function runtimeCatalogDrift(catalog) {
   }
 
   const controls = Array.from(
-    source.matchAll(/\bdata-checkout-tier=["']([^"']+)["']/g),
+    source.matchAll(/\bdata-checkout-tier\s*=\s*["']([^"']+)["']/g),
     (match) => match[1],
   );
   const unknownTier = controls.find((tier) => !catalog.tiers.includes(tier));
@@ -159,7 +159,7 @@ function runtimeCatalogDrift(catalog) {
 
   const selectablePeriods = new Set(
     Array.from(
-      source.matchAll(/\bdata-checkout-(?:alternate-)?period=["']([^"']+)["']/g),
+      source.matchAll(/\bdata-checkout-(?:alternate-)?period\s*=\s*["']([^"']+)["']/g),
       (match) => match[1],
     ),
   );

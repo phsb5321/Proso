@@ -293,13 +293,13 @@ const PLANTS = {
     file: 'pricing.html',
     from: '          <!-- Enterprise -->',
     to:
-      '          <div class="pricing-card">\n' +
-      '            <div class="pricing-card__name">Team</div>\n' +
-      '            <button type="button" class="btn btn--primary" data-checkout-tier="team" aria-describedby="checkout-note-team">Subscribe to Team</button>\n' +
-      '            <p class="checkout-note" id="checkout-note-team" role="status" aria-live="polite" hidden></p>\n' +
-      '          </div>\n\n' +
+      '          <button type="button" class="btn btn--primary" data-checkout-tier = "team" aria-describedby="checkout-note-team">Subscribe to paid plan</button>\n' +
+      '          <p class="checkout-note" id="checkout-note-team" role="status" aria-live="polite" hidden></p>\n\n' +
       '          <!-- Enterprise -->',
-    breaks: 'a paid control outside the readiness catalog is named as checkout catalog drift',
+    breaks:
+      'a whitespace-separated paid control outside the readiness catalog is named as checkout catalog drift',
+    mustFailCheck: 'the deploy receipt fails closed and its oracles are runnable, not greppable',
+    mustFailMessage: /catalog-drift falsifier fired and named Team/i,
   },
 };
 
@@ -1853,13 +1853,14 @@ check(
     // Disabled configuration: PASS, and every hold is named.
     const clean = await runReceipt(receiptPath, baseEnv);
     if (plant === 'catalog-drift-paid-control') {
-      throw new Error(
+      if (
         clean.exitCode === 1 &&
-          /checkout catalog drift/i.test(clean.output) &&
-          /team/i.test(clean.output)
-          ? `catalog-drift falsifier fired and named Team:\n${clean.output}`
-          : `catalog drift escaped or was unnamed:\n${clean.output}`,
-      );
+        /checkout catalog drift/i.test(clean.output) &&
+        /team/i.test(clean.output)
+      ) {
+        throw new Error(`catalog-drift falsifier fired and named Team:\n${clean.output}`);
+      }
+      return;
     }
     assert(
       clean.exitCode === 0,
@@ -2109,7 +2110,7 @@ check('runtime controls and selectable periods match the readiness catalog', asy
 
   const pricing = readSite('pricing.html');
   const tiers = Array.from(
-    pricing.matchAll(/\bdata-checkout-tier=["']([^"']+)["']/g),
+    pricing.matchAll(/\bdata-checkout-tier\s*=\s*["']([^"']+)["']/g),
     (match) => match[1],
   );
   assert(
@@ -2117,7 +2118,7 @@ check('runtime controls and selectable periods match the readiness catalog', asy
     `runtime paid controls ${JSON.stringify(tiers)} drift from readiness catalog ${JSON.stringify(Array.from(catalog.tiers))}`,
   );
   const periods = Array.from(
-    pricing.matchAll(/\bdata-checkout-(?:alternate-)?period=["']([^"']+)["']/g),
+    pricing.matchAll(/\bdata-checkout-(?:alternate-)?period\s*=\s*["']([^"']+)["']/g),
     (match) => match[1],
   );
   assert(
@@ -2262,7 +2263,13 @@ async function main() {
   let survivors = 0;
   for (const [id, plant] of Object.entries(PLANTS)) {
     const results = await runChecks(id);
-    const caught = results.filter((result) => !result.ok);
+    const failures = results.filter((result) => !result.ok);
+    const caught = plant.mustFailCheck
+      ? failures.filter(
+          (result) =>
+            result.name === plant.mustFailCheck && plant.mustFailMessage.test(result.message),
+        )
+      : failures;
     const verdict = caught.length > 0 ? 'caught' : 'SURVIVED';
     if (caught.length === 0) survivors += 1;
     process.stdout.write(`  ${verdict.padEnd(9)} ${id} — ${plant.breaks}\n`);
