@@ -50,6 +50,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
@@ -187,10 +188,14 @@ const PLANTS = {
   },
   'live-config': {
     file: 'checkout-config.js',
-    from: "  clientToken: '',\n  apiBaseUrl: 'https://api.proso.com.br',\n  prices: {\n    pro: { monthly: '', yearly: '' },\n    enterprise: { monthly: '', yearly: '' },\n  },",
+    from: "  clientToken: '',\n  apiBaseUrl: 'https://api.proso.com.br',\n  catalog: Object.freeze({\n    tiers: Object.freeze(['pro', 'enterprise']),\n    periods: Object.freeze(['monthly', 'yearly']),\n  }),\n  prices: {\n    pro: { monthly: '', yearly: '' },\n    enterprise: { monthly: '', yearly: '' },\n  },",
     to:
       `  clientToken: '${plantClientToken}',\n` +
       "  apiBaseUrl: 'https://api.proso.com.br',\n" +
+      '  catalog: Object.freeze({\n' +
+      "    tiers: Object.freeze(['pro', 'enterprise']),\n" +
+      "    periods: Object.freeze(['monthly', 'yearly']),\n" +
+      '  }),\n' +
       '  prices: {\n' +
       `    pro: { monthly: '${plantPriceId(1)}', yearly: '${plantPriceId(2)}' },\n` +
       `    enterprise: { monthly: '${plantPriceId(3)}', yearly: '${plantPriceId(4)}' },\n` +
@@ -283,6 +288,18 @@ const PLANTS = {
     from: '  const purchaseCanEnable = status.canEnablePurchase;',
     to: '  const purchaseCanEnable = status.complete;',
     breaks: 'one usable price binds every readiness hold even when other prices are missing',
+  },
+  'catalog-drift-paid-control': {
+    file: 'pricing.html',
+    from: '          <!-- Enterprise -->',
+    to:
+      '          <div class="pricing-card">\n' +
+      '            <div class="pricing-card__name">Team</div>\n' +
+      '            <button type="button" class="btn btn--primary" data-checkout-tier="team" aria-describedby="checkout-note-team">Subscribe to Team</button>\n' +
+      '            <p class="checkout-note" id="checkout-note-team" role="status" aria-live="polite" hidden></p>\n' +
+      '          </div>\n\n' +
+      '          <!-- Enterprise -->',
+    breaks: 'a paid control outside the readiness catalog is named as checkout catalog drift',
   },
 };
 
@@ -472,6 +489,10 @@ const configured = {
   environment: 'sandbox',
   clientToken: fakeClientToken('sandbox'),
   apiBaseUrl: 'https://api.proso.com.br',
+  catalog: {
+    tiers: ['pro', 'enterprise'],
+    periods: ['monthly', 'yearly'],
+  },
   prices: {
     pro: { monthly: 'pri_basic_monthly', yearly: 'pri_basic_yearly' },
     enterprise: { monthly: 'pri_pro_monthly', yearly: 'pri_pro_yearly' },
@@ -1767,10 +1788,26 @@ check(
     const shippedConfig = readSite(path.join('assets', 'js', 'checkout-config.js'), plant);
     const shippedFile = path.join(dir, 'checkout-shipped.js');
     writeFileSync(shippedFile, shippedConfig);
-    const baseEnv = { ...process.env, PROSO_CHECKOUT_CONFIG_FILE: shippedFile };
+    const checkoutPage = readSite('pricing.html', plant);
+    const checkoutPageFile = path.join(dir, 'pricing.html');
+    writeFileSync(checkoutPageFile, checkoutPage);
+    const baseEnv = {
+      ...process.env,
+      PROSO_CHECKOUT_CONFIG_FILE: shippedFile,
+      PROSO_CHECKOUT_PAGE_FILE: checkoutPageFile,
+    };
 
     // Disabled configuration: PASS, and every hold is named.
     const clean = await runReceipt(receiptPath, baseEnv);
+    if (plant === 'catalog-drift-paid-control') {
+      throw new Error(
+        clean.exitCode === 1 &&
+          /checkout catalog drift/i.test(clean.output) &&
+          /team/i.test(clean.output)
+          ? `catalog-drift falsifier fired and named Team:\n${clean.output}`
+          : `catalog drift escaped or was unnamed:\n${clean.output}`,
+      );
+    }
     assert(
       clean.exitCode === 0,
       `the receipt exited ${clean.exitCode} on a disabled config:\n${clean.output}`,
@@ -2008,6 +2045,33 @@ check(
     }
   },
 );
+
+check('runtime controls and selectable periods match the readiness catalog', async () => {
+  const source = readSite(path.join('assets', 'js', 'checkout-config.js'));
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  vm.runInContext(source, sandbox);
+  const catalog = sandbox.window.PROSO_CHECKOUT_CONFIG?.catalog;
+  assert(catalog, 'checkout-config.js does not declare the canonical catalog');
+
+  const pricing = readSite('pricing.html');
+  const tiers = Array.from(
+    pricing.matchAll(/\bdata-checkout-tier=["']([^"']+)["']/g),
+    (match) => match[1],
+  );
+  assert(
+    JSON.stringify(tiers) === JSON.stringify(Array.from(catalog.tiers)),
+    `runtime paid controls ${JSON.stringify(tiers)} drift from readiness catalog ${JSON.stringify(Array.from(catalog.tiers))}`,
+  );
+  const periods = Array.from(
+    pricing.matchAll(/\bdata-checkout-(?:alternate-)?period=["']([^"']+)["']/g),
+    (match) => match[1],
+  );
+  assert(
+    JSON.stringify(periods) === JSON.stringify(Array.from(catalog.periods)),
+    `runtime periods ${JSON.stringify(periods)} drift from readiness catalog ${JSON.stringify(Array.from(catalog.periods))}`,
+  );
+});
 
 check('the site speaks the licence contract declared in @proso/shared', async () => {
   let contract;

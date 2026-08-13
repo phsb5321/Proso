@@ -30,6 +30,9 @@ collect_file() {
   # stubs inside them were never written to Biome's formatting rules and are not
   # built, linted, or published. Production paths are unaffected.
   [[ "$candidate" == specs/* ]] && return 0
+  # `main.js` is the one pre-Biome progressive-enhancement file and retains its
+  # own ES5 formatting; checkout contracts execute it in jsdom instead.
+  [[ "$candidate" == packages/site/assets/js/main.js ]] && return 0
   [[ "$candidate" =~ \.(cjs|js|jsx|json|mjs|ts|tsx)$ ]] || return 0
   [[ -n "${seen[$candidate]+present}" ]] && return 0
   seen["$candidate"]=1

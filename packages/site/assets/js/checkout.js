@@ -31,6 +31,15 @@
   const PRICE_ID_PREFIX = 'pri_';
   const TOKEN_PREFIX = { sandbox: 'test_', production: 'live_' };
 
+  function catalogValues(config, key) {
+    const values = config && config.catalog ? config.catalog[key] : null;
+    return Array.isArray(values) ? values : [];
+  }
+
+  function catalogHas(config, key, value) {
+    return catalogValues(config, key).indexOf(value) !== -1;
+  }
+
   // Mirrors @proso/shared/schemas/checkout.ts.
   const CLAIM_SECRET_BYTES = 32;
   const CLAIM_STORAGE_KEY = 'proso.license-claim-secret';
@@ -64,6 +73,13 @@
   function configProblem(config, tier, period) {
     if (!config) {
       return 'Checkout is unavailable: assets/js/checkout-config.js did not load.';
+    }
+
+    if (!catalogHas(config, 'tiers', tier)) {
+      return 'Checkout is unavailable: the ' + tier + ' tier is outside the checkout catalog.';
+    }
+    if (!catalogHas(config, 'periods', period)) {
+      return 'Checkout is unavailable: the ' + period + ' period is outside the checkout catalog.';
     }
 
     const browserProblem = cryptoProblem();

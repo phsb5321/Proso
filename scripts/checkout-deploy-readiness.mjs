@@ -13,7 +13,8 @@
  *      pastes the key into — without it, an issued key has nowhere to go.
  *   3. The Paddle configuration must be complete and well-formed — a
  *      client-side token matching the declared environment and a price id for
- *      every tier and billing period, each starting with `pri_` — plus
+ *      every tier and billing period in the canonical checkout catalog, each
+ *      starting with `pri_` — plus
  *      independent Paddle evidence that the values are real, which only the
  *      operator who verified checkout end to end can supply.
  *
@@ -50,9 +51,13 @@
  * every verdict and becomes a binding hold once purchase can be enabled; no
  * script in this repository can supply it, and nothing here fakes it.
  *
+ * The same config object declares the canonical catalog consumed by checkout.js.
+ * Readiness also scans the shipped pricing controls and selectable billing
+ * states; a paid control/period outside that catalog is a named blocking drift.
+ *
  * Test seams (used by the checkout-surface gate): PROSO_CHECKOUT_CONFIG_FILE,
- * PROSO_SCAN_SERVER_DIR, PROSO_SCAN_EXTENSION_DIR, and PROSO_PROBE_URL
- * override the corresponding inputs.
+ * PROSO_CHECKOUT_PAGE_FILE, PROSO_SCAN_SERVER_DIR, PROSO_SCAN_EXTENSION_DIR,
+ * and PROSO_PROBE_URL override the corresponding inputs.
  *
  * @module scripts/checkout-deploy-readiness
  */
@@ -68,6 +73,8 @@ const repoRoot = path.resolve(here, '..');
 const configFile =
   process.env.PROSO_CHECKOUT_CONFIG_FILE ??
   path.join(repoRoot, 'packages', 'site', 'assets', 'js', 'checkout-config.js');
+const checkoutPageFile =
+  process.env.PROSO_CHECKOUT_PAGE_FILE ?? path.join(repoRoot, 'packages', 'site', 'pricing.html');
 const serverSrcDir =
   process.env.PROSO_SCAN_SERVER_DIR ?? path.join(repoRoot, 'packages', 'server', 'src');
 const extensionEntrypointsDir =
@@ -106,6 +113,67 @@ function loadConfig() {
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   return sandbox.window.PROSO_CHECKOUT_CONFIG || null;
+}
+
+function catalogStatus(config) {
+  const catalog = config && config.catalog;
+  const tiers = catalog && Array.isArray(catalog.tiers) ? Array.from(catalog.tiers) : [];
+  const periods = catalog && Array.isArray(catalog.periods) ? Array.from(catalog.periods) : [];
+  const valid = (values) =>
+    values.length > 0 &&
+    new Set(values).size === values.length &&
+    values.every((value) => typeof value === 'string' && /^[a-z][a-z0-9-]*$/.test(value));
+
+  if (!valid(tiers))
+    return { valid: false, tiers, periods, reason: 'catalog tiers are missing or malformed' };
+  if (!valid(periods)) {
+    return { valid: false, tiers, periods, reason: 'catalog periods are missing or malformed' };
+  }
+  return { valid: true, tiers, periods, reason: 'canonical checkout catalog is well-formed' };
+}
+
+function runtimeCatalogDrift(catalog) {
+  let source;
+  try {
+    source = stripComments(readFileSync(checkoutPageFile, 'utf8'));
+  } catch {
+    return `checkout catalog drift: pricing page is missing at ${checkoutPageFile}`;
+  }
+
+  const controls = Array.from(
+    source.matchAll(/\bdata-checkout-tier=["']([^"']+)["']/g),
+    (match) => match[1],
+  );
+  const unknownTier = controls.find((tier) => !catalog.tiers.includes(tier));
+  if (unknownTier) {
+    return `checkout catalog drift: paid control tier "${unknownTier}" is not enumerated by readiness`;
+  }
+  const duplicateTier = controls.find((tier, index) => controls.indexOf(tier) !== index);
+  if (duplicateTier) {
+    return `checkout catalog drift: paid control tier "${duplicateTier}" appears more than once`;
+  }
+  const missingTier = catalog.tiers.find((tier) => !controls.includes(tier));
+  if (missingTier) {
+    return `checkout catalog drift: catalog tier "${missingTier}" has no shipped paid control`;
+  }
+
+  const selectablePeriods = new Set(
+    Array.from(
+      source.matchAll(/\bdata-checkout-(?:alternate-)?period=["']([^"']+)["']/g),
+      (match) => match[1],
+    ),
+  );
+  const unknownPeriod = Array.from(selectablePeriods).find(
+    (period) => !catalog.periods.includes(period),
+  );
+  if (unknownPeriod) {
+    return `checkout catalog drift: selectable period "${unknownPeriod}" is not enumerated by readiness`;
+  }
+  const missingPeriod = catalog.periods.find((period) => !selectablePeriods.has(period));
+  if (missingPeriod) {
+    return `checkout catalog drift: catalog period "${missingPeriod}" is not selectable by the runtime`;
+  }
+  return null;
 }
 
 /** Walk a directory and test comment-stripped file contents. */
@@ -163,6 +231,20 @@ function configStatus(config) {
     };
   }
 
+  const catalog = catalogStatus(config);
+  if (!catalog.valid) {
+    return {
+      complete: false,
+      canEnablePurchase: false,
+      contractError: `checkout catalog drift: ${catalog.reason}`,
+      reason: catalog.reason,
+    };
+  }
+  const drift = runtimeCatalogDrift(catalog);
+  if (drift) {
+    return { complete: false, canEnablePurchase: false, contractError: drift, reason: drift };
+  }
+
   const expectedPrefix = TOKEN_PREFIX[config.environment];
   if (!expectedPrefix) {
     return {
@@ -192,18 +274,16 @@ function configStatus(config) {
   }
 
   const prices = config.prices || {};
-  const tiers = ['pro', 'enterprise'];
-  const periods = ['monthly', 'yearly'];
-  const canEnablePurchase = tiers.some((tier) =>
-    periods.some((period) => {
+  const canEnablePurchase = catalog.tiers.some((tier) =>
+    catalog.periods.some((period) => {
       const priceId = (prices[tier] || {})[period];
       return typeof priceId === 'string' && priceId.startsWith('pri_');
     }),
   );
 
-  for (const tier of tiers) {
+  for (const tier of catalog.tiers) {
     const tierPrices = prices[tier] || {};
-    for (const period of periods) {
+    for (const period of catalog.periods) {
       const priceId = tierPrices[period];
       if (typeof priceId !== 'string' || priceId.length === 0) {
         return {
@@ -278,6 +358,15 @@ async function main() {
   const status = configStatus(config);
   const purchaseCanEnable = status.canEnablePurchase;
   const live = process.argv.includes('--live');
+
+  // Catalog drift is a broken oracle, not a safely disabled checkout. Fail
+  // before any live probe: otherwise an added control could sit outside the
+  // hold boundary while the receipt misleadingly reports a safe deployment.
+  if (status.contractError) {
+    process.stderr.write(`checkout-deploy-readiness FAIL: ${status.contractError}\n`);
+    process.stderr.write('Stop the deploy until runtime and readiness use the same catalog.\n');
+    process.exit(1);
+  }
 
   const registered = claimEndpointRegistered();
   let probe = { deployed: false, detail: '' };
