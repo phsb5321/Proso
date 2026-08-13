@@ -81,6 +81,96 @@
     <div class="proso-popup__panels">
       <!-- Player Panel -->
       <div id="panel-player" class="proso-popup__panel proso-popup__panel--active" role="tabpanel" aria-labelledby="tab-player">
+        <!-- PROSO-134/#27 first-run panel: shown when the reader has no route
+             configured (see utils/first-run.ts). Replaces the player's
+             status/progress/controls while visible. -->
+        <section class="proso-popup__first-run" id="first-run-panel" hidden data-testid="popup-first-run">
+          <h2 class="proso-popup__first-run-title">Listen to this page</h2>
+          <p class="proso-popup__first-run-subtitle" id="first-run-subtitle">
+            Two free ways to start — no account, no licence key.
+          </p>
+
+          <div class="proso-popup__route" data-route="local-host">
+            <h3 class="proso-popup__route-title">Use a synthesis host you run</h3>
+            <p class="proso-popup__route-desc">
+              Point Proso at a machine on your network that speaks audio — like an
+              Orange Pi. The page's text is sent only to the address you enter.
+            </p>
+            <form class="proso-popup__host-form" id="first-run-host-form">
+              <label class="sr-only" for="first-run-host-url">Host address</label>
+              <input
+                type="url"
+                id="first-run-host-url"
+                class="proso-input proso-popup__host-input"
+                placeholder="https://your-host:port"
+                autocomplete="off"
+                spellcheck="false"
+                inputmode="url"
+                data-testid="popup-first-run-host-url"
+              />
+              <button
+                type="submit"
+                id="first-run-host-connect"
+                class="proso-button proso-button--primary proso-popup__host-connect"
+                data-testid="popup-first-run-host-connect"
+              >
+                Connect
+              </button>
+            </form>
+            <p class="proso-popup__route-note">
+              The page's text is sent only to the address you enter here — and nowhere
+              else. This stays off until you Connect.
+            </p>
+            <p
+              class="proso-popup__route-status"
+              id="first-run-host-status"
+              role="status"
+              aria-live="polite"
+              data-testid="popup-first-run-host-status"
+            ></p>
+          </div>
+
+          <div class="proso-popup__route" data-route="byok">
+            <h3 class="proso-popup__route-title">Use your own API key</h3>
+            <p class="proso-popup__route-desc">
+              Bring an OpenAI, ElevenLabs, Groq or Cartesia key. Free on every tier —
+              your keys, your usage, your control.
+            </p>
+            <div class="proso-popup__byok-row" id="first-run-byok-row">
+              <select id="first-run-byok-provider" class="proso-select" aria-label="API key provider" data-testid="popup-first-run-byok-provider">
+                <option value="openai">OpenAI</option>
+                <option value="elevenlabs">ElevenLabs</option>
+                <option value="groq">Groq</option>
+                <option value="cartesia">Cartesia</option>
+              </select>
+              <input
+                type="password"
+                id="first-run-byok-key"
+                class="proso-input"
+                placeholder="API key"
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="API key"
+                data-testid="popup-first-run-byok-key"
+              />
+              <button
+                type="button"
+                id="first-run-byok-save"
+                class="proso-button proso-button--primary"
+                data-testid="popup-first-run-byok-save"
+              >
+                Use this key
+              </button>
+            </div>
+            <p
+              class="proso-popup__route-status"
+              id="first-run-byok-status"
+              role="status"
+              aria-live="polite"
+              data-testid="popup-first-run-byok-status"
+            ></p>
+          </div>
+        </section>
         <!-- Status Section -->
         <section class="proso-popup__status" aria-live="polite" data-testid="popup-status-section">
           <div class="proso-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">
