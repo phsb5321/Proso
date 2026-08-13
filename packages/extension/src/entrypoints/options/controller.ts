@@ -130,9 +130,11 @@ interface OptionsElements {
   localHostStatus: HTMLElement;
 
   // Server status elements
+  serverStatus: HTMLElement;
   serverStatusDot: HTMLElement;
   serverStatusText: HTMLElement;
   serverStatusRefresh: HTMLButtonElement;
+  serverStatusDetail: HTMLElement;
   serverDetailUrl: HTMLElement;
   serverDetailVersion: HTMLElement;
   serverDetailUptime: HTMLElement;
@@ -212,9 +214,11 @@ function getElements(): OptionsElements {
     localHostStatus: getElement<HTMLElement>('localHostStatus'),
 
     // Server status elements
+    serverStatus: getElement<HTMLElement>('serverStatus'),
     serverStatusDot: getElement<HTMLElement>('serverStatusDot'),
     serverStatusText: getElement<HTMLElement>('serverStatusText'),
     serverStatusRefresh: getElement<HTMLButtonElement>('serverStatusRefresh'),
+    serverStatusDetail: getElement<HTMLElement>('serverStatusDetail'),
     serverDetailUrl: getElement<HTMLElement>('serverDetailUrl'),
     serverDetailVersion: getElement<HTMLElement>('serverDetailVersion'),
     serverDetailUptime: getElement<HTMLElement>('serverDetailUptime'),
@@ -2270,4 +2274,20 @@ function setupServerStatusListeners(): void {
       elements?.serverStatusRefresh.classList.remove('server-status__refresh--spinning');
     }, 800);
   });
+
+  // Feature 170: the detail's visibility is CSS-driven (`:hover` /
+  // `:focus-within`), so `aria-hidden` must mirror the real rendered state.
+  // It was a static `"true"` that hid the popover from assistive tech even
+  // while it was visible on screen. Pointer and focus boundary events on the
+  // status container cover mouse, touch-tap, and keyboard paths.
+  const syncDetailAria = (): void => {
+    if (!elements) return;
+    const visible =
+      elements.serverStatus.matches(':hover') || elements.serverStatus.matches(':focus-within');
+    elements.serverStatusDetail.setAttribute('aria-hidden', String(!visible));
+  };
+  for (const event of ['pointerenter', 'pointerleave', 'focusin', 'focusout'] as const) {
+    elements.serverStatus.addEventListener(event, syncDetailAria);
+  }
+  syncDetailAria();
 }
