@@ -20,9 +20,10 @@ describe('server schema deployment', () => {
     expect(procfile).toContain('release: sh scripts/predeploy.sh');
     expect(appJson.scripts.dokku.predeploy).toBe('sh scripts/predeploy.sh');
     expect(predeploy.match(/prisma db execute/g)).toHaveLength(2);
-    expect(predeploy).toContain('/app/scripts/prepare-license-issuance-schema.sql');
+    expect(predeploy).toContain('APP_ROOT="${PROSO_APP_ROOT:-/app}"');
+    expect(predeploy).toContain('"$APP_ROOT/scripts/prepare-license-issuance-schema.sql"');
     expect(predeploy).toContain('prisma db push');
-    expect(predeploy).toContain('/app/prisma/schema.prisma');
+    expect(predeploy).toContain('"$APP_ROOT/prisma/schema.prisma"');
 
     const bridge = readFileSync(
       resolve(serverRoot, 'scripts/prepare-license-issuance-schema.sql'),
