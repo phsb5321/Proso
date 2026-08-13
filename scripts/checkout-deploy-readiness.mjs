@@ -67,6 +67,17 @@ const extensionEntrypointsDir =
 const TOKEN_PREFIX = { sandbox: 'test_', production: 'live_' };
 const LICENSE_BY_TRANSACTION_PATH = '/api/v1/license/by-transaction';
 
+/**
+ * The operator's attestation that a checkout completed end to end against the
+ * configured Paddle account. The script cannot verify Paddle from here, so it
+ * requires a nonempty file the operator wrote — never a repo file, never
+ * generated. Absent or empty, the hold is open.
+ */
+function paddleEvidencePresent() {
+  const file = process.env.PROSO_PADDLE_EVIDENCE_FILE ?? '';
+  return file.length > 0 && existsSync(file) && statSync(file).size > 0;
+}
+
 function stripComments(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -222,33 +233,36 @@ async function main() {
   const live = process.argv.includes('--live');
 
   const registered = claimEndpointRegistered();
-  let liveDeployed = true;
-  let liveDetail = '';
+  let probe = { deployed: false, detail: '' };
   if (live) {
     const probeUrl = process.env.PROSO_PROBE_URL ?? (config ? config.apiBaseUrl : '');
     if (!probeUrl) {
-      liveDeployed = false;
-      liveDetail = 'no API address to probe';
+      probe = { deployed: false, detail: 'no API address to probe' };
     } else {
-      const probe = await liveClaimEndpointProbe(probeUrl);
-      liveDeployed = probe.deployed;
-      liveDetail = probe.detail;
+      probe = await liveClaimEndpointProbe(probeUrl);
     }
   }
 
-  const deployed = registered && liveDeployed;
-  const endpointParts = [];
-  if (!registered) endpointParts.push('not registered as a runnable route in server sources');
-  if (live && !liveDeployed)
-    endpointParts.push(liveDetail || 'the live probe found no canonical answer');
-  const endpointHow = deployed
-    ? liveDetail || 'registered in server sources'
-    : endpointParts.join('; ') || 'absent';
+  // Registration alone closes the hold only while purchase is disabled. A
+  // configuration that would enable purchase must prove the deployed
+  // endpoint answers the canonical contract.
+  const endpointClosed = purchaseLive ? registered && probe.deployed : registered;
+  let endpointHow;
+  if (!registered) {
+    endpointHow =
+      'not registered as a runnable route in server sources — money could be taken and no key could ever be minted';
+  } else if (purchaseLive && !probe.deployed) {
+    endpointHow = live
+      ? probe.detail
+      : 'registered in server sources, but deployment is unproven — run with --live to probe the canonical answer';
+  } else {
+    endpointHow = live ? probe.detail : 'registered in server sources';
+  }
 
   const holds = [
     {
       name: 'Keyforge claim endpoint (POST /api/v1/license/by-transaction)',
-      closed: deployed,
+      closed: endpointClosed,
       how: endpointHow,
     },
     {
@@ -262,13 +276,24 @@ async function main() {
       how: status.reason,
     },
   ];
+  if (purchaseLive) {
+    holds.push({
+      name: 'independent Paddle evidence',
+      closed: paddleEvidencePresent(),
+      how: 'the operator who verified a checkout end to end against the configured Paddle account must point PROSO_PADDLE_EVIDENCE_FILE at their attestation',
+    });
+  }
 
   const openHolds = holds.filter((hold) => !hold.closed);
 
   const operatorChecks = [
-    'Paddle evidence: a checkout completed end to end against the configured Paddle values, verified by the operator who holds the Paddle account',
     'the claim endpoint is deployed at the configured apiBaseUrl (run with --live to probe it)',
   ];
+  if (!purchaseLive) {
+    operatorChecks.push(
+      'Paddle evidence: before enabling purchase, a checkout must complete end to end against the configured Paddle values, verified by the operator who holds the Paddle account (PROSO_PADDLE_EVIDENCE_FILE)',
+    );
+  }
 
   if (!purchaseLive) {
     process.stdout.write(

@@ -1793,11 +1793,14 @@ check(
     });
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const port = server.address().port;
+    const evidenceFile = path.join(dir, 'paddle-evidence.txt');
+    writeFileSync(evidenceFile, 'verified by the operator\n');
     const liveEnvBoth = {
       ...liveEnv,
       PROSO_SCAN_SERVER_DIR: routeServerDir,
       PROSO_SCAN_EXTENSION_DIR: inputExtDir,
       PROSO_PROBE_URL: `http://127.0.0.1:${port}`,
+      PROSO_PADDLE_EVIDENCE_FILE: evidenceFile,
     };
     try {
       const bad = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
@@ -1810,6 +1813,22 @@ check(
       liveMode = 'canonical';
       const good = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
       assert(good.exitCode === 0, `a canonical live answer did not pass:\n${good.output}`);
+
+      // Without the operator's Paddle evidence, even a proven endpoint and a
+      // complete config must fail closed.
+      const noEvidence = await runReceipt(
+        receiptPath,
+        { ...liveEnvBoth, PROSO_PADDLE_EVIDENCE_FILE: '' },
+        ['--live'],
+      );
+      assert(
+        noEvidence.exitCode === 1,
+        `missing Paddle evidence did not fail closed:\n${noEvidence.output}`,
+      );
+      assert(
+        /Paddle evidence/i.test(noEvidence.output),
+        `the missing-evidence failure does not name the evidence hold:\n${noEvidence.output}`,
+      );
     } finally {
       server.close();
     }
