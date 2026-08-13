@@ -395,6 +395,13 @@ body {
   background: color-mix(in srgb, var(--color-warning, #f59e0b) 8%, transparent);
 }
 
+/* The platform `hidden` attribute must win over the display:flex above, or a
+   fresh unconfigured reader sees an empty, focusable Grant-access action. The
+   controller removes `hidden` only when it has a nonempty reason to show. */
+.proso-popup__grant[hidden] {
+  display: none;
+}
+
 .proso-popup__grant-reason {
   font-size: 12px;
   line-height: 1.4;
