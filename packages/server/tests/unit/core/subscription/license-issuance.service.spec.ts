@@ -1,6 +1,6 @@
 // Unit tests for reusable, idempotent licence issuance.
 
-import { ErrorCode, isOk, unwrapErr } from '@proso/shared';
+import { isOk, unwrapErr } from '@proso/shared';
 import {
   type LicenseIssuanceDeps,
   ensureLicenseKey,
@@ -89,7 +89,7 @@ describe('ensureLicenseKey', () => {
 
     expect(isOk(result)).toBe(false);
     if (isOk(result)) return;
-    expect(unwrapErr(result).code).toBe(ErrorCode.LicenseIssuanceFailed);
+    expect(unwrapErr(result).code).toBe('LICENSE_ISSUANCE_FAILED');
     expect(deps.licenseKeyRepository.rows).toHaveLength(0);
   });
 

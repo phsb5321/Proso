@@ -4,12 +4,16 @@
 import { ErrorCode } from '@proso/shared';
 import type { DomainError } from '@proso/shared';
 
-export interface LicenseError extends DomainError {
+const LICENSE_ISSUANCE_FAILED = 'LICENSE_ISSUANCE_FAILED' as const;
+
+export interface LicenseError {
   code:
     | ErrorCode.LicenseInvalid
     | ErrorCode.LicenseExpired
     | ErrorCode.LicenseDeviceLimitReached
-    | ErrorCode.LicenseIssuanceFailed;
+    | typeof LICENSE_ISSUANCE_FAILED;
+  message: string;
+  details?: Record<string, unknown>;
 }
 
 export interface SubscriptionError extends DomainError {
@@ -37,7 +41,7 @@ export function licenseIssuanceError(
   message: string,
   details?: Record<string, unknown>,
 ): LicenseError {
-  return licenseError(ErrorCode.LicenseIssuanceFailed, message, details);
+  return licenseError(LICENSE_ISSUANCE_FAILED, message, details);
 }
 
 export function subscriptionError(

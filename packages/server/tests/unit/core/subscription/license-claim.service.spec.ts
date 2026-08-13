@@ -4,13 +4,7 @@
 // `_ptxn` reaches browser history and logs, so the id alone must never yield a
 // reusable key.
 
-import {
-  ErrorCode,
-  LicenseClaimHashSchema,
-  SubscriptionTier,
-  isOk,
-  unwrapErr,
-} from '@proso/shared';
+import { LicenseClaimHashSchema, SubscriptionTier, isOk, unwrapErr } from '@proso/shared';
 import { hashClaimSecret } from '../../../../src/core/subscription/license-key';
 import {
   type LicenseClaimDeps,
@@ -169,6 +163,6 @@ describe('claimLicenseByTransaction', () => {
 
     expect(isOk(result)).toBe(false);
     if (isOk(result)) return;
-    expect(unwrapErr(result).code).toBe(ErrorCode.LicenseIssuanceFailed);
+    expect(unwrapErr(result).code).toBe('LICENSE_ISSUANCE_FAILED');
   });
 });
