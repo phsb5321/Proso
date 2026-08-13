@@ -41,11 +41,12 @@ reviewed heads; the extension wallet and checkout-surface gates run locally.
 - Purchase configuration is empty by design: `clientToken: ''` and all four
   price ids `''` — buy controls render disabled with the reason beside them.
   No visitor can be charged, and no money can be taken by any shipped surface.
-- No non-empty Paddle values have been provisioned anywhere: the site's
+- No non-empty Paddle values have been provisioned in the repository or on
+  the deployed server (the surfaces observable from this host): the site's
   `clientToken` and four price ids are `''` (`checkout-config.js:48-52`); the
   `PADDLE_WEBHOOK_SECRET` and four `PADDLE_PRICE_*` env names exist in source
-  (`app.config.ts`) but have never been given values, and the deployed server
-  carries none of them (checked 13/08/2026).
+  (`app.config.ts:51-55`) but have never been given values, and the deployed
+  server carries none of them (checked 13/08/2026).
 - Live business verification/KYC remains Pedro-gated. Sandbox configuration
   (token + price ids) is an operator prerequisite, not a KYC gate — none has
   been created yet.
@@ -69,36 +70,47 @@ metadata never selects identity or entitlement; every failure leaves no
 partial state and stays retryable; nothing Proso ships can take money until
 the checklist below is satisfied.
 
-### Activation checklist (fail-closed gates)
+### Activation checklist (fail-closed gates, backend-first)
 
 1. **CI gate** — restore site deployment (Actions currently
-   `startup_failure`). Gate: live `pricing.html` serves the #155 copy with
-   zero `Coming Soon`.
-2. **Site-config gate (sandbox)** — fill `checkout-config.js` with a sandbox
-   `environment`, a `test_` client token, and four sandbox price ids, then
-   redeploy the site. Gates: buy controls stay inert with a named reason
-   until every value is non-empty and prefix-valid (`checkout.js:64,81,114`);
-   nothing invented.
-3. **Price-parity gate** — the four site price ids must be exactly the four
-   `PADDLE_PRICE_*` ids on the server for the same tier/cadence
-   (`checkout-config.js` mapping comment). Gate: a mismatched pair is rejected
-   by the config checks or by unknown-price 503, never silently re-mapped.
-4. **Env gate (pre-deploy)** — set `LICENSE_KEY_SECRET` (≥32 bytes) on
+   `startup_failure`). The deployed site keeps its **empty** configuration:
+   empty values are the safe state (`checkout.js:64,81,114` render disabled
+   controls), so publishing the page cannot take money.
+2. **Server env gate (pre-deploy)** — set `LICENSE_KEY_SECRET` (≥32 bytes) on
    `proso-api`. Gate: production boot refuses to start without it; there is no
    default.
-5. **Schema gate** — deploy through the checked-in predeploy (idempotent
-   bridge runs twice; `db push`; fail-closed unique indexes). Gate:
-   `Subscription_paddle_claim_pair_check` exists and duplicate legacy rows
-   abort rather than being rewritten.
-6. **Paddle sandbox gate** — set `PADDLE_WEBHOOK_SECRET` and the four
-   `PADDLE_PRICE_*` ids (sandbox values matching the site). Gates: missing
-   secret → 403; missing/unknown price → 503; nothing invented.
-7. **Sandbox end-to-end** — one real sandbox purchase → signed webhook →
-   claim → validate → paid tier/credits. Not proven yet.
-8. **Live/KYC gate (Pedro)** — only after sandbox E2E passes: Paddle business
-   verification, then swap site and server to `production`/`live_` values with
-   price parity re-checked, then redeploy both.
-9. **Distribution gate** — public install path and onboarding
+3. **Schema gate** — deploy the server through the checked-in predeploy
+   (idempotent bridge runs twice; `db push`; fail-closed unique indexes).
+   Gate: `Subscription_paddle_claim_pair_check` exists and duplicate legacy
+   rows abort rather than being rewritten.
+4. **Paddle sandbox server gate** — set `PADDLE_WEBHOOK_SECRET` and the four
+   `PADDLE_PRICE_*` ids (sandbox values). Gates: missing secret → 403;
+   missing/unknown price → 503; nothing invented.
+5. **Backend probe gate** — with the backend deployed, the claim endpoint must
+   be registered and answer the canonical 202: `make checkout-deploy-readiness`
+   holds this as one of its oracles (`scripts/checkout-deploy-readiness.mjs`).
+6. **Site sandbox staging gate (no publish)** — fill `checkout-config.js` with
+   the sandbox `environment`, `test_` client token, and four sandbox price ids
+   in a staged, non-published deploy. The four site price ids must equal the
+   four `PADDLE_PRICE_*` ids for the same tier/cadence — this parity is a
+   **human/catalog evidence gate**, checked by the operator against the Paddle
+   catalog: `checkout-config.js:43-44` warns that a cross-wired *known* id
+   sells the wrong card, and the machine checks cannot catch it (only unknown
+   ids fail 503).
+7. **Sandbox end-to-end gate** — one real sandbox purchase against the staged
+   values → signed webhook → claim → validate → paid tier/credits. The
+   operator records the attestation for the readiness gate. Not proven yet.
+8. **Publish gate** — only after 6–7 pass, run
+   `node scripts/checkout-deploy-readiness.mjs --live` with
+   `PROSO_PADDLE_EVIDENCE_FILE` pointing at the operator attestation. Gate:
+   the script must pass every hold — claim route in deployed code, wallet
+   input shipped, complete well-formed config, canonical 202 from the live
+   endpoint, and the evidence file — before the non-empty site config is
+   published. A failing verdict must stop the deploy.
+9. **Live/KYC gate (Pedro)** — only after sandbox E2E and the publish gate:
+   Paddle business verification, then swap site and server to
+   `production`/`live_` values with the parity re-check, then redeploy both.
+10. **Distribution gate** — public install path and onboarding
    (Plane #19/#16/#27) before advertising the paid path.
 
 ## What a customer experiences today, end to end
