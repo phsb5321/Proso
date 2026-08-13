@@ -33,7 +33,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const repositoryRoot = process.cwd();
-const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'proso-preflight-self-test.'));
+// TMPDIR-honoring sandbox root: the plant suite needs a writable temp dir and
+// must never assume /tmp (e.g. read-only sandboxes fail with EROFS).
+const fixtureRoot = mkdtempSync(
+  path.join(process.env.TMPDIR ?? tmpdir(), 'proso-preflight-self-test.'),
+);
 const runner = path.join(repositoryRoot, 'scripts', 'dokku-deploy-preflight.mjs');
 
 const MAIN_SHA = 'e8e4ec54e19dad18f52860da2c9d3f47c4af7672';
@@ -256,6 +260,10 @@ try {
       '[drift-migrations-only] reports bridge SQL drift',
     );
     assert(!r.stdout.includes('no changes'), '[drift-migrations-only] never prints "no changes"');
+    assert(
+      !r.stdout.includes('schema untouched'),
+      '[drift-migrations-only] never prints "schema untouched" while drift exists',
+    );
   }
   {
     // Plant: absent LICENSE_KEY_SECRET -> HELD, no push.
@@ -430,6 +438,11 @@ try {
       r.stdout.includes('migrations changed'),
       '[held-drift-visible] reports migrations drift',
     );
+    assert(
+      !r.stdout.includes('schema untouched'),
+      '[held-drift-visible] never prints "schema untouched" while drift exists',
+    );
+    assert(!hasPushed(dir), '[held-drift-visible] never pushes while HELD');
   }
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });

@@ -235,7 +235,7 @@ function main() {
   const missing = required.filter((name) => !hostKeys.has(name));
   if (missing.length > 0) {
     log(`HELD: missing required env key NAME(s) on ${APP}: ${missing.join(', ')}`);
-    log('HELD: no push, no predeploy — schema is untouched by this run');
+    log('HELD: no push, no predeploy — schema is not mutated by this run');
     return HELD;
   }
 
