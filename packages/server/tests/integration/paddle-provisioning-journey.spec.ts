@@ -188,10 +188,7 @@ async function snapshot(prisma: PrismaService) {
   };
 }
 
-async function expectPairlessState(
-  harness: Harness,
-  processedEventId: string,
-): Promise<void> {
+async function expectPairlessState(harness: Harness, processedEventId: string): Promise<void> {
   const state = await snapshot(harness.prisma);
   expect(state.subscriptions).toEqual([
     expect.objectContaining({ paddleTransactionId: null, licenseClaimHash: null }),
