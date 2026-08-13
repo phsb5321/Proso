@@ -1,10 +1,14 @@
 import { registerAs } from '@nestjs/config';
+import { hasStrongLicenseKeySecret } from '../../core/subscription/license-key';
 
 /**
  * Required environment variables in production.
  * The server will refuse to start if any of these are missing or empty.
  */
-const REQUIRED_IN_PRODUCTION = ['DATABASE_URL', 'JWT_SECRET'] as const;
+// LICENSE_KEY_SECRET deterministically re-derives customer-facing keys while
+// storing only their hashes. A production process without a strong secret must
+// stop before it can expose an issuance endpoint that can never succeed.
+const REQUIRED_IN_PRODUCTION = ['DATABASE_URL', 'JWT_SECRET', 'LICENSE_KEY_SECRET'] as const;
 
 function validateProductionEnv(): void {
   if (process.env.NODE_ENV !== 'production') return;
@@ -16,6 +20,10 @@ function validateProductionEnv(): void {
       `Missing required environment variables in production: ${missing.join(', ')}. ` +
         'Refusing to start with insecure defaults.',
     );
+  }
+
+  if (!hasStrongLicenseKeySecret(process.env.LICENSE_KEY_SECRET ?? '')) {
+    throw new Error('LICENSE_KEY_SECRET must contain at least 32 bytes in production.');
   }
 }
 
@@ -34,6 +42,9 @@ export default registerAs('app', () => ({
 
   // Auth
   jwtSecret: process.env.JWT_SECRET || '',
+
+  // License key derivation (HMAC secret; see core/subscription/license-key.ts)
+  licenseKeySecret: process.env.LICENSE_KEY_SECRET || '',
 
   // Paddle billing
   paddleApiKey: process.env.PADDLE_API_KEY || '',

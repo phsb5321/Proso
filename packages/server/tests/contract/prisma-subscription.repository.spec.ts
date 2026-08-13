@@ -7,6 +7,7 @@
  */
 import { PrismaSubscriptionRepository } from '../../src/adapters/persistence/prisma-subscription.repository';
 import type { PrismaService } from '../../src/infrastructure/modules/prisma.module';
+import { CLAIM_HASH, TRANSACTION_ID } from '../helpers/license-fixtures';
 import { createTestSubscription, createTestUser } from '../helpers/test-fixtures';
 import {
   cleanupTestData,
@@ -41,6 +42,8 @@ describe('PrismaSubscriptionRepository (contract)', () => {
         id: '11111111-1111-1111-1111-111111111111',
         userId: user.id,
         paddleSubscriptionId: 'paddle-sub-001',
+        paddleTransactionId: TRANSACTION_ID,
+        licenseClaimHash: CLAIM_HASH,
         tier: 'pro',
         status: 'active',
         currentPeriodStart: now,
@@ -54,6 +57,8 @@ describe('PrismaSubscriptionRepository (contract)', () => {
       expect(result.tier).toBe('pro');
       expect(result.status).toBe('active');
       expect(result.paddleSubscriptionId).toBe('paddle-sub-001');
+      expect(result.paddleTransactionId).toBe(TRANSACTION_ID);
+      expect(result.licenseClaimHash).toBe(CLAIM_HASH);
       expect(result.createdAt).toBeInstanceOf(Date);
       expect(result.updatedAt).toBeInstanceOf(Date);
     });
@@ -143,6 +148,32 @@ describe('PrismaSubscriptionRepository (contract)', () => {
     it('should return null for non-existent Paddle id', async () => {
       const found = await repo.findByPaddleId('paddle-non-existent');
       expect(found).toBeNull();
+    });
+  });
+
+  describe('findByPaddleTransactionId', () => {
+    it('returns the subscription and claim hash by its routing transaction id', async () => {
+      const user = await createTestUser(prisma);
+      await repo.save({
+        id: '55555555-5555-5555-5555-555555555555',
+        userId: user.id,
+        paddleSubscriptionId: 'paddle-sub-transaction',
+        paddleTransactionId: TRANSACTION_ID,
+        licenseClaimHash: CLAIM_HASH,
+        tier: 'pro',
+        status: 'active',
+        currentPeriodStart: new Date('2026-08-12T18:00:00.000Z'),
+        currentPeriodEnd: new Date('2026-09-12T18:00:00.000Z'),
+        createdAt: new Date('2026-08-12T18:00:00.000Z'),
+        updatedAt: new Date('2026-08-12T18:00:00.000Z'),
+      });
+
+      const found = await repo.findByPaddleTransactionId(TRANSACTION_ID);
+
+      expect(found).toMatchObject({
+        paddleTransactionId: TRANSACTION_ID,
+        licenseClaimHash: CLAIM_HASH,
+      });
     });
   });
 

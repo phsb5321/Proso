@@ -3,7 +3,7 @@
   "description": "Proso backend API server",
   "scripts": {
     "dokku": {
-      "predeploy": "npx prisma migrate deploy"
+      "predeploy": "sh scripts/predeploy.sh"
     }
   },
   "healthchecks": {

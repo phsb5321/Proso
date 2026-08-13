@@ -1,11 +1,19 @@
 // Domain error types — discriminated unions for each domain
 // ZERO NestJS imports — pure TypeScript
 
-import type { ErrorCode } from '@proso/shared';
+import { ErrorCode } from '@proso/shared';
 import type { DomainError } from '@proso/shared';
 
-export interface LicenseError extends DomainError {
-  code: ErrorCode.LicenseInvalid | ErrorCode.LicenseExpired | ErrorCode.LicenseDeviceLimitReached;
+const LICENSE_ISSUANCE_FAILED = 'LICENSE_ISSUANCE_FAILED' as const;
+
+export interface LicenseError {
+  code:
+    | ErrorCode.LicenseInvalid
+    | ErrorCode.LicenseExpired
+    | ErrorCode.LicenseDeviceLimitReached
+    | typeof LICENSE_ISSUANCE_FAILED;
+  message: string;
+  details?: Record<string, unknown>;
 }
 
 export interface SubscriptionError extends DomainError {
@@ -27,6 +35,13 @@ function licenseError(
   details?: Record<string, unknown>,
 ): LicenseError {
   return { code, message, details };
+}
+
+export function licenseIssuanceError(
+  message: string,
+  details?: Record<string, unknown>,
+): LicenseError {
+  return licenseError(LICENSE_ISSUANCE_FAILED, message, details);
 }
 
 export function subscriptionError(

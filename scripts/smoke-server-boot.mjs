@@ -51,6 +51,7 @@ const PROBE_ENV = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://smoke:smoke@127.0.0.1:5432/smoke',
   JWT_SECRET: ABSENT,
+  LICENSE_KEY_SECRET: ABSENT.repeat(3),
   OPENAI_API_KEY: ABSENT,
   ELEVENLABS_API_KEY: ABSENT,
   STRIPE_SECRET_KEY: ABSENT,
