@@ -224,8 +224,12 @@ async function main() {
 
   // `driver` is nullable so the finally can close both it and the fixture even
   // when launch() itself throws (a Firefox startup failure must not leak the
-  // fixture server — Codex review round 3).
+  // fixture server — Codex review round 3). The exit code is carried out of the
+  // try/catch instead of calling process.exit() inside it: process.exit()
+  // terminates Node before the finally runs, which would leak the fixture on
+  // every failure path (Codex review round 4).
   let driver = null;
+  let exitCode = 0;
   try {
     driver = await launch({
       binary,
@@ -612,23 +616,28 @@ async function main() {
   } catch (error) {
     if (error instanceof Blocked) {
       process.stderr.write(`BLOCKED: ${error.message}\n`);
-      process.exit(2);
+      exitCode = 2;
+    } else {
+      const receipt = {
+        gate: 'popup-hidden-grant-gate',
+        verdict: 'FAIL',
+        error: error instanceof Error ? error.message : String(error),
+        actions,
+        at: new Date().toISOString(),
+      };
+      mkdirSync(artifactDir, { recursive: true });
+      writeFileSync(
+        path.join(artifactDir, 'failure.json'),
+        `${JSON.stringify(receipt, null, 2)}\n`,
+      );
+      process.stderr.write(`FAIL: ${error instanceof Error ? error.message : String(error)}\n`);
+      exitCode = 1;
     }
-    const receipt = {
-      gate: 'popup-hidden-grant-gate',
-      verdict: 'FAIL',
-      error: error instanceof Error ? error.message : String(error),
-      actions,
-      at: new Date().toISOString(),
-    };
-    mkdirSync(artifactDir, { recursive: true });
-    writeFileSync(path.join(artifactDir, 'failure.json'), `${JSON.stringify(receipt, null, 2)}\n`);
-    process.stderr.write(`FAIL: ${error instanceof Error ? error.message : String(error)}\n`);
-    process.exit(1);
   } finally {
     await driver?.quit().catch(() => {});
     await fixture.close().catch(() => {});
   }
+  if (exitCode !== 0) process.exit(exitCode);
 }
 
 main().catch((error) => {
