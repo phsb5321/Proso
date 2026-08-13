@@ -494,7 +494,7 @@ let pendingPlayAfterConnect = false;
  * Read the configured-route storage and toggle the first-run panel. When
  * shown, the player controls are hidden so the routes are the only surface.
  */
-async function refreshFirstRun(preamble = ''): Promise<void> {
+async function refreshFirstRun(preamble = '', force = false): Promise<void> {
   const stored = await browser.storage.local.get([
     'openaiApiKey',
     'elevenlabsApiKey',
@@ -505,10 +505,12 @@ async function refreshFirstRun(preamble = ''): Promise<void> {
     'licenseKey',
     'serverUrl',
   ]);
-  const unconfigured = isUnconfigured(stored);
-  elements.firstRunPanel.hidden = !unconfigured;
-  elements.panelPlayer.classList.toggle('proso-popup__panel--firstrun', unconfigured);
-  if (unconfigured) {
+  // `force` shows the free routes even for a configured reader — the
+  // entitlement case: the 402 carries "Show free routes", never a dead end.
+  const showPanel = force || isUnconfigured(stored);
+  elements.firstRunPanel.hidden = !showPanel;
+  elements.panelPlayer.classList.toggle('proso-popup__panel--firstrun', showPanel);
+  if (showPanel) {
     elements.firstRunSubtitle.textContent =
       preamble.length > 0
         ? preamble
@@ -516,9 +518,9 @@ async function refreshFirstRun(preamble = ''): Promise<void> {
     // Offer, never probe: prefill only from the reader's own prior entry.
     const prev = stored.localHostUrl as string | undefined;
     if (prev) elements.firstRunHostUrl.value = prev;
-  } else {
-    pendingPlayAfterConnect = false;
   }
+  // NOTE: pendingPlayAfterConnect is intentionally NOT cleared here — the
+  // connect handlers consume it once, after the panel hides.
 }
 
 function setRouteStatus(
@@ -575,7 +577,9 @@ async function handleFirstRunConnect(event: Event): Promise<void> {
     'ok',
   );
   await refreshFirstRun();
-  if (pendingPlayAfterConnect) {
+  const shouldRetry = pendingPlayAfterConnect;
+  pendingPlayAfterConnect = false;
+  if (shouldRetry) {
     await handlePlayPause();
   }
 }
@@ -603,7 +607,9 @@ async function handleFirstRunByok(event: Event): Promise<void> {
     'ok',
   );
   await refreshFirstRun();
-  if (pendingPlayAfterConnect) {
+  const shouldRetry = pendingPlayAfterConnect;
+  pendingPlayAfterConnect = false;
+  if (shouldRetry) {
     await handlePlayPause();
   }
 }
@@ -636,8 +642,11 @@ async function routeFailure(errorMsg: string): Promise<void> {
       await refreshFirstRun('Choose a free route below to start listening.');
       return;
     case 'entitlement':
+      // The reader has a route (managed server) but no entitlement — the 402
+      // must carry the free routes, so the panel is FORCED open even though
+      // isUnconfigured is false.
       pendingPlayAfterConnect = true;
-      await refreshFirstRun(errorMsg);
+      await refreshFirstRun(errorMsg, true);
       return;
     case 'grant-missing':
       // The existing PROSO-131 affordance owns this class. The failure-row

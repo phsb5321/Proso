@@ -61,4 +61,12 @@ describe('first-run wiring pins', () => {
     expect(popupSource).toContain('void routeFailure(errorMsg)');
     expect(popupSource).toContain('classifyFailure(');
   });
+
+  it('the entitlement 402 forces the free-routes panel open (no dead end)', () => {
+    expect(popupSource).toContain("refreshFirstRun(errorMsg, true)");
+  });
+
+  it('the pending-play retry is consumed once, after the panel hides (R-3 play step)', () => {
+    expect(popupSource).toMatch(/const shouldRetry = pendingPlayAfterConnect;\s*pendingPlayAfterConnect = false;\s*if \(shouldRetry\)/s);
+  });
 });
