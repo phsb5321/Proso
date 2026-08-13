@@ -9,6 +9,14 @@
  *
  * Paddle's script is fetched on the first activation, not on page load — the
  * pricing page stays free of third-party code until a visitor chooses to buy.
+ * A failed load is not cached, so a later click can try again.
+ *
+ * Exactly one checkout — and therefore one claim secret — can be in flight at
+ * a time. While it is, every buy control is visibly disabled with a stated
+ * reason; a second click must not mint a second secret over the one the open
+ * checkout is already carrying, or a paid purchase could strand. The lock
+ * releases only on a proved close or completion (registered through Paddle's
+ * initialization seam) or on a failure the buyer saw.
  *
  * Each purchase carries a secret this browser mints. Paddle puts the
  * transaction id in the success URL by design, so that id is routing metadata
@@ -66,7 +74,7 @@
       return 'Checkout is unavailable: environment must be "sandbox" or "production".';
     }
 
-    if (!config.clientToken) {
+    if (typeof config.clientToken !== 'string' || config.clientToken.length === 0) {
       return 'Checkout is unavailable: the Paddle client-side token is not configured.';
     }
 
@@ -80,6 +88,12 @@
       );
     }
 
+    // The success page needs this URL to claim the key the buyer paid for;
+    // selling without a claim target would sell a key nobody can receive.
+    if (typeof config.apiBaseUrl !== 'string' || !/^https:\/\//i.test(config.apiBaseUrl)) {
+      return 'Checkout is unavailable: the Proso API address is not a valid HTTPS URL.';
+    }
+
     const prices = config.prices || {};
     const tierPrices = prices[tier];
     if (!tierPrices) {
@@ -87,7 +101,7 @@
     }
 
     const priceId = tierPrices[period];
-    if (!priceId) {
+    if (typeof priceId !== 'string' || priceId.length === 0) {
       return (
         'Checkout is unavailable: the ' +
         period +
@@ -167,15 +181,61 @@
       document.head.appendChild(script);
     });
 
+    // A failed load must not poison every later attempt until a page reload:
+    // the next buy click starts a fresh load.
+    window.__prosoPaddleLoading.catch(() => {
+      window.__prosoPaddleLoading = null;
+    });
+
     return window.__prosoPaddleLoading;
   }
 
   let initialised = false;
 
+  const CHECKOUT_OPEN_REASON =
+    'Checkout is already open in this tab. Complete or close it, then try again.';
+
+  /**
+   * True from the click that starts a checkout until that checkout provably
+   * closed, completed, or failed. While true, every buy control is visibly
+   * disabled and states why; a second click must not mint a second claim
+   * secret over the one the open checkout is carrying.
+   */
+  let checkoutInFlight = false;
+  let inFlightButtons = null;
+  let inFlightConfig = null;
+
+  function holdControls(buttons, config) {
+    checkoutInFlight = true;
+    inFlightButtons = buttons;
+    inFlightConfig = config;
+    buttons.forEach((button) => setInert(button, CHECKOUT_OPEN_REASON));
+  }
+
+  function releaseCheckout() {
+    checkoutInFlight = false;
+    if (inFlightButtons && inFlightConfig) {
+      refresh(inFlightButtons, inFlightConfig);
+    }
+    inFlightButtons = null;
+    inFlightConfig = null;
+  }
+
   function initialisePaddle(paddle, config) {
     if (initialised) return;
     paddle.Environment.set(config.environment);
-    paddle.Initialize({ token: config.clientToken });
+    // Paddle Billing registers checkout lifecycle callbacks at initialization,
+    // not per Checkout.open call. The lock above must be released through this
+    // documented seam, so a contract-conforming Paddle build cannot strand the
+    // page as permanently busy.
+    paddle.Initialize({
+      token: config.clientToken,
+      eventCallback: (event) => {
+        if (event && (event.name === 'checkout.closed' || event.name === 'checkout.completed')) {
+          releaseCheckout();
+        }
+      },
+    });
     initialised = true;
   }
 
@@ -238,6 +298,7 @@
         });
       })
       .catch((error) => {
+        releaseCheckout();
         if (note) {
           note.textContent = error && error.message ? error.message : String(error);
           note.hidden = false;
@@ -275,6 +336,8 @@
           if (note) note.hidden = false;
           return;
         }
+        if (checkoutInFlight) return;
+        holdControls(buttons, config);
         openCheckout(button, config);
       });
     });
