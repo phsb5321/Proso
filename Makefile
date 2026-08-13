@@ -15,7 +15,7 @@ FC_NUM_RUNS ?= 100
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -176,6 +176,12 @@ dokku-check: ## Read-only deploy verdict (NOOP/SAFE/HELD) against the Dokku app.
 
 dokku-deploy: ## Fail-closed deploy: refuses HELD, gates, pushes, verifies /health.revision.
 	@node scripts/dokku-deploy-preflight.mjs --deploy
+
+server-status-popover-gate: ## Prove the settings server-status popover stays visible, topmost, unclipped and keyboard reachable (Feature 170).
+	@node scripts/server-status-popover-gate.mjs
+
+server-status-popover-plants: ## Prove every server-status-popover-gate assertion catches a planted break.
+	@node scripts/server-status-popover-plants.mjs
 
 verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
 
