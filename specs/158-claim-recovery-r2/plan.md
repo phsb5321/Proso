@@ -73,7 +73,7 @@ site stays static.
 
 ## Step 7 — Spec artifacts and verification
 
-- `specs/154-claim-recovery/{spec,plan,tasks}.md` committed with the code.
+- `specs/158-claim-recovery-r2/{spec,plan,tasks}.md` committed with the code.
 - `node scripts/checkout-surface-gate.mjs` 23/23; `--plants` 19/19;
   `checkout-deploy-readiness.mjs` exit 0 with holds listed;
   `check-active-docs.mjs` clean; biome format/lint clean; workspace
