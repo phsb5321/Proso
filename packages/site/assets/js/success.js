@@ -22,6 +22,17 @@
  * retries until its budget runs out, then says both things that could be true.
  * Every outcome ends in a sentence the buyer can act on; none ends in a blank
  * panel.
+ *
+ * Two bounds sit between this page and a misbehaving service. The retry delay
+ * the server suggests is clamped to a safe floor and ceiling — a zero,
+ * negative or unbounded delay must never hot-loop the licence service — and
+ * every request is aborted when it does not answer in time, so a hung
+ * connection cannot stall the page past its budget.
+ *
+ * Human recovery never treats the transaction id as identity. Paddle puts
+ * `_ptxn` in URLs by design, so anyone may hold one; support releases a key
+ * only after verifying the purchaser through Paddle's records (the checkout
+ * email and receipt). Every recovery sentence on this page says so.
  */
 
 (() => {
@@ -30,6 +41,9 @@
   const CLAIM_STORAGE_KEY = 'proso.license-claim-secret';
   const MAX_WAIT_MS = 60000;
   const DEFAULT_RETRY_MS = 3000;
+  const MIN_RETRY_MS = 1000;
+  const MAX_RETRY_MS = 30000;
+  const REQUEST_TIMEOUT_MS = 10000;
   const SUPPORT_EMAIL = 'commercial@proso.com.br';
 
   function el(id) {
@@ -54,6 +68,20 @@
     return params.get('_ptxn') || params.get('transaction_id') || '';
   }
 
+  /**
+   * The shared contract promises a positive integer delay, but the page must
+   * not trust that promise at its own expense: zero, negatives, NaN, Infinity
+   * and anything else malformed collapse to the default, and every finite
+   * value is bounded to the floor and ceiling below.
+   */
+  function clampRetryAfterMs(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_RETRY_MS;
+    const rounded = Math.round(value);
+    if (rounded < MIN_RETRY_MS) return MIN_RETRY_MS;
+    if (rounded > MAX_RETRY_MS) return MAX_RETRY_MS;
+    return rounded;
+  }
+
   /** Accepts only what the shared contract describes; anything else is an error. */
   function readResponseBody(body) {
     if (!body || typeof body !== 'object') return null;
@@ -63,7 +91,7 @@
     }
     if (body.status === 'pending') {
       const retry = typeof body.retryAfterMs === 'number' ? body.retryAfterMs : DEFAULT_RETRY_MS;
-      return { status: 'pending', retryAfterMs: retry };
+      return { status: 'pending', retryAfterMs: clampRetryAfterMs(retry) };
     }
     return null;
   }
@@ -97,23 +125,62 @@
     }
   }
 
-  function requestKey(apiBaseUrl, transactionId, secret) {
+  /** The one sentence for every "the retry budget ran out" outcome. */
+  function budgetMessage() {
+    return (
+      'No licence key came back for this purchase. Either the payment confirmation ' +
+      'is still in flight, or this browser is not the one that started the ' +
+      'checkout. Reload this page in a minute, or email ' +
+      SUPPORT_EMAIL +
+      ' \u2014 support will verify the purchaser against Paddle\u2019s records before ' +
+      'releasing any key. The transaction id alone is not enough.'
+    );
+  }
+
+  /**
+   * One claim request, bounded in time. A connection that hangs is aborted and
+   * read as a transport failure, so the page can never wait on it forever, and
+   * a request that would start after the budget is not started at all.
+   */
+  function requestKey(apiBaseUrl, transactionId, secret, deadline) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error(budgetMessage());
+
+    const controller = new AbortController();
+    const timeoutMs = Math.min(REQUEST_TIMEOUT_MS, remaining);
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
     return fetch(apiBaseUrl.replace(/\/+$/, '') + LICENSE_BY_TRANSACTION_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ transactionId: transactionId, claimSecret: secret }),
-    }).then((response) => {
-      if (!response.ok && response.status !== 202) {
-        throw new Error(
-          'The licence service answered with an error (HTTP ' + response.status + ').',
-        );
-      }
-      return response.json();
-    });
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok && response.status !== 202) {
+          throw new Error(
+            'The licence service answered with an error (HTTP ' + response.status + ').',
+          );
+        }
+        return response.json();
+      })
+      .catch((error) => {
+        if (error && error.name === 'AbortError') {
+          throw new Error(
+            'The licence service did not answer in time. It may be busy or unreachable. ' +
+              'Reload this page in a minute, or email ' +
+              SUPPORT_EMAIL +
+              ' \u2014 support will verify the purchaser against Paddle\u2019s records before ' +
+              'releasing any key.',
+          );
+        }
+        throw error;
+      })
+      .finally(() => window.clearTimeout(timer));
   }
 
   function poll(apiBaseUrl, transactionId, secret, deadline) {
-    return requestKey(apiBaseUrl, transactionId, secret).then((body) => {
+    return requestKey(apiBaseUrl, transactionId, secret, deadline).then((body) => {
       const result = readResponseBody(body);
       if (!result) {
         throw new Error('The licence service sent an answer this page could not read.');
@@ -123,13 +190,7 @@
         return;
       }
       if (Date.now() + result.retryAfterMs > deadline) {
-        throw new Error(
-          'No licence key came back for this purchase. Either the payment confirmation ' +
-            'is still in flight, or this browser is not the one that started the ' +
-            'checkout. Reload this page in a minute, or email ' +
-            SUPPORT_EMAIL +
-            ' with the transaction id above and we will send your key.',
-        );
+        throw new Error(budgetMessage());
       }
       return new Promise((resolve) => {
         window.setTimeout(resolve, result.retryAfterMs);
@@ -182,14 +243,18 @@
         'This page needs the transaction id Paddle adds when it sends you here. ' +
           'Open the link in your payment confirmation email, or email ' +
           SUPPORT_EMAIL +
-          ' and we will look it up.',
+          ' and support will look the purchase up through Paddle\u2019s records.',
       );
       return;
     }
 
     const config = window.PROSO_CHECKOUT_CONFIG;
-    if (!config || !config.apiBaseUrl) {
-      fail('Checkout is unavailable: the Proso API address is not configured on this site.');
+    const apiBaseUrl =
+      config && typeof config.apiBaseUrl === 'string' && /^https:\/\//i.test(config.apiBaseUrl)
+        ? config.apiBaseUrl
+        : null;
+    if (!apiBaseUrl) {
+      fail('Checkout is unavailable: the Proso API address is not a valid HTTPS URL.');
       return;
     }
 
@@ -202,15 +267,23 @@
           'collected in the tab that started the checkout \u2014 the transaction id on ' +
           'its own is not proof of payment. Email ' +
           SUPPORT_EMAIL +
-          ' with the transaction id above and we will send your key.',
+          ' and support will verify the purchaser against Paddle\u2019s records \u2014 your ' +
+          'checkout email and receipt \u2014 before releasing any key.',
       );
       return;
     }
 
     show('checkout-waiting');
-    poll(config.apiBaseUrl, transactionId, secret, Date.now() + MAX_WAIT_MS).catch((error) => {
+    try {
+      poll(apiBaseUrl, transactionId, secret, Date.now() + MAX_WAIT_MS).catch((error) => {
+        fail(error && error.message ? error.message : String(error));
+      });
+    } catch (error) {
+      // A synchronous claim-setup failure (a regression letting a malformed
+      // configuration through) must land in the visible problem panel, never
+      // in a waiting panel that pretends the claim is underway.
       fail(error && error.message ? error.message : String(error));
-    });
+    }
   }
 
   if (document.readyState === 'loading') {
