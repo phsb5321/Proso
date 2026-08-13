@@ -19,10 +19,7 @@
 
         // Update all pricing sections on this page
         document.querySelectorAll('.pricing-grid').forEach(function (grid) {
-          var period = newState
-            ? toggle.getAttribute('data-checkout-alternate-period')
-            : toggle.getAttribute('data-checkout-period');
-          grid.closest('section').setAttribute('data-billing', period === 'yearly' ? 'annual' : 'monthly');
+          grid.closest('section').setAttribute('data-billing', newState ? 'annual' : 'monthly');
         });
 
         // Update toggle label active states

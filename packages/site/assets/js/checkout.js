@@ -149,7 +149,10 @@
    */
   function currentPeriod(button) {
     const section = button.closest('section');
-    return section && section.getAttribute('data-billing') === 'annual' ? 'yearly' : 'monthly';
+    const toggle = section ? section.querySelector('[data-checkout-period]') : null;
+    const monthly = toggle ? toggle.getAttribute('data-checkout-period') : null;
+    const yearly = toggle ? toggle.getAttribute('data-checkout-alternate-period') : null;
+    return section && section.getAttribute('data-billing') === 'annual' ? yearly : monthly;
   }
 
   /** The note element that carries a button's stated reason. */

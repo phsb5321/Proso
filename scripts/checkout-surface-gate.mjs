@@ -95,8 +95,8 @@ const PLANTS = {
   },
   'monthly-only': {
     file: 'checkout.js',
-    from: "    return section && section.getAttribute('data-billing') === 'annual' ? 'yearly' : 'monthly';",
-    to: "    void section;\n    return 'monthly';",
+    from: "    return section && section.getAttribute('data-billing') === 'annual' ? yearly : monthly;",
+    to: '    void yearly;\n    return monthly;',
     breaks: 'the annual toggle selects the annual price',
   },
   'blank-key': {
@@ -674,6 +674,59 @@ check('the annual toggle switches the price the click buys', async (JSDOM, plant
   assert(
     captured[0].customData.billing_period === 'yearly',
     `custom_data.billing_period was "${captured[0].customData.billing_period}"`,
+  );
+});
+
+check('the runtime derives period values from the toggle catalog attributes', async (JSDOM) => {
+  const custom = JSON.parse(JSON.stringify(configured));
+  custom.catalog.periods = ['monthly-v2', 'yearly-v2'];
+  custom.prices.pro = { monthly: '', yearly: '' };
+  custom.prices.pro['monthly-v2'] = 'pri_custom_monthly';
+  custom.prices.pro['yearly-v2'] = 'pri_custom_yearly';
+
+  const html = readSite('pricing.html')
+    .replace('data-checkout-period="monthly"', 'data-checkout-period="monthly-v2"')
+    .replace(
+      'data-checkout-alternate-period="yearly"',
+      'data-checkout-alternate-period="yearly-v2"',
+    );
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'proso-period-contract-'));
+  const page = path.join(dir, 'pricing.html');
+  writeFileSync(page, html);
+  const dom = new JSDOM(readFileSync(page, 'utf8'), {
+    url: PRICING_URL,
+    runScripts: 'outside-only',
+  });
+  const { window } = dom;
+  Object.defineProperty(window, 'crypto', { value: webcrypto, configurable: true });
+  window.TextEncoder = TextEncoder;
+  window.AbortController = AbortController;
+  window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  window.PROSO_CHECKOUT_CONFIG = window.eval(`(${JSON.stringify(custom)})`);
+  const paddle = installPaddle(window);
+  window.eval(readSite(path.join('assets', 'js', 'main.js')));
+  window.eval(readSite(path.join('assets', 'js', 'checkout.js')));
+  await new Promise((resolve) =>
+    window.document.addEventListener('DOMContentLoaded', resolve, { once: true }),
+  );
+  await tick(window, 3);
+
+  buyButton(window, 'pro').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 8);
+  assert(
+    paddle.opened[0]?.items[0]?.priceId === 'pri_custom_monthly',
+    `monthly runtime ignored data-checkout-period: ${JSON.stringify(paddle.opened[0])}`,
+  );
+  const lifecycle = paddle.initialised.find((entry) => typeof entry.eventCallback === 'function');
+  assert(lifecycle, 'custom-period runtime registered no checkout lifecycle callback');
+  lifecycle.eventCallback({ name: 'checkout.closed' });
+  clickToggle(window);
+  await tick(window, 4);
+  buyButton(window, 'pro').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(window, 8);
+  assert(
+    paddle.opened[1]?.items[0]?.priceId === 'pri_custom_yearly',
+    `annual runtime ignored data-checkout-alternate-period: ${JSON.stringify(paddle.opened[1])}`,
   );
 });
 

@@ -42,7 +42,7 @@ Gherkin is intentionally not used: this repository has no Gherkin runner for
 static checkout contracts. The executable oracle is
 `scripts/checkout-surface-gate.mjs`.
 
-- `node scripts/checkout-surface-gate.mjs` reports at least 27 passing checks,
+- `node scripts/checkout-surface-gate.mjs` reports at least 28 passing checks,
   including a named catalog/readiness contract.
 - `node scripts/checkout-surface-gate.mjs --plants` catches at least 34
   mutations, including a paid-control catalog-drift plant whose failure names
