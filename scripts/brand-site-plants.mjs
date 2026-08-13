@@ -105,11 +105,10 @@ function runGate(workDir) {
  */
 function createDisposableWorktree() {
   const workDir = mkdtempSync(path.join(tmpdir(), 'proso-brand-plants-'));
-  const created = spawnSync(
-    'git',
-    ['worktree', 'add', '--detach', workDir, 'HEAD'],
-    { cwd: repoRoot, encoding: 'utf8' },
-  );
+  const created = spawnSync('git', ['worktree', 'add', '--detach', workDir, 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
   if (created.status !== 0) {
     rmSync(workDir, { recursive: true, force: true });
     fail(`disposable worktree create failed: ${created.stderr.trim()}`);

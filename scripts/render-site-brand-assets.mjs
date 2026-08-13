@@ -168,7 +168,9 @@ function main() {
         }
         const expected = hash(join(TEMP, relative));
         if (actual !== expected) {
-          fail(`${relative} is stale: expected ${expected.slice(0, 16)}, got ${actual.slice(0, 16)}`);
+          fail(
+            `${relative} is stale: expected ${expected.slice(0, 16)}, got ${actual.slice(0, 16)}`,
+          );
         }
         console.log(`checked ${relative}`);
       } else {
