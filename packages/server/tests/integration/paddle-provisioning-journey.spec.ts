@@ -320,22 +320,25 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
     expect(state.licenseKeys).toHaveLength(1);
   }, 60_000);
 
-  it('rolls every write back on a pre-commit fault and succeeds on retry', async () => {
-    const faultHarness = await createHarness(true);
-    harness = faultHarness;
+  it('rolls every write back on the rehearsal fault and succeeds on retry', async () => {
+    process.env.PROSO_REHEARSAL_FAIL_BEFORE_COMMIT = '1';
+    try {
+      harness = await createHarness();
+      expect((await deliver(harness, transactionEvent())).status).toBe(503);
+      expect(await snapshot(harness.prisma)).toMatchObject({
+        users: [],
+        subscriptions: [],
+        allocations: [],
+        licenseKeys: [],
+        events: [],
+      });
 
-    expect((await deliver(harness, transactionEvent())).status).toBe(503);
-    expect(await snapshot(harness.prisma)).toMatchObject({
-      users: [],
-      subscriptions: [],
-      allocations: [],
-      licenseKeys: [],
-      events: [],
-    });
-
-    faultHarness.fault!.fail = false;
-    expect((await deliver(harness, transactionEvent())).status).toBe(200);
-    expect((await snapshot(harness.prisma)).events).toHaveLength(1);
+      Reflect.deleteProperty(process.env, 'PROSO_REHEARSAL_FAIL_BEFORE_COMMIT');
+      expect((await deliver(harness, transactionEvent())).status).toBe(200);
+      expect((await snapshot(harness.prisma)).events).toHaveLength(1);
+    } finally {
+      Reflect.deleteProperty(process.env, 'PROSO_REHEARSAL_FAIL_BEFORE_COMMIT');
+    }
   }, 60_000);
 
   it('durably records and acknowledges an unsupported authentic event', async () => {

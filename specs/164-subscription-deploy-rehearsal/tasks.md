@@ -24,9 +24,12 @@
   focused schema/canonical/PostgreSQL suites passed 20/20; full server passed 36 suites and 501/501;
   ordered shared→server build, built boot, checkout readiness, seeded fuzz (`20260813`, 200 runs),
   quality, dependency, security, source-secret scan, and `make verify` passed. The focused green
-  rehearsal and bypass plant both passed their own oracles. `make verify-full` is explicitly
-  **PENDING** at handoff by operator direction; p4 independently executes the immutable head before
-  any merge. Receipts and SHA-256 values are recorded in the generator handoff. (all)
+  rehearsal and bypass plant both passed their own oracles. Independent QA then exposed a changed-
+  line coverage miss on the rehearsal fault; the real adapter path is now exercised by the 13/13
+  PostgreSQL suite and LCOV records line 123 hit once. Full `make verify-full` remains **BLOCKED** by
+  two formatting defects inherited from Feature 163 on current `main`; an isolated coverage run is
+  additionally blocked by one unrelated Cartesia timeout after 505/506 tests. Exact receipts and
+  SHA-256 values are recorded in the generator handoff. (all)
 - [ ] **T009 — Immutable review handoff.** Commit/push one head, open the safe PR, write
   `/tmp/proso-164-generator-handoff.md`, then obtain direct DeepSeek p3 review and independent p4
   execution against that exact SHA. Repair findings only in a new immutable head and repeat both
