@@ -23,10 +23,10 @@ proven is listed in its own section rather than left implied.
 
 | Status | Claim | Receipt |
 |---|---|---|
-| ✓ | Optional auth: the licence guard runs globally (`app.module.ts:6,40`, APP_GUARD in `auth.module.ts`); account-free routes stay public (`license.controller.ts:67,103`); unknown keys answer Free defaults by INV-001, never errors | PR #150 `2899773` |
+| ✓ | Optional auth: the licence guard runs globally (`app.module.ts:6,40`, APP_GUARD in `auth.module.ts`); account-free routes stay public (`license.controller.ts:67,103`). Three distinct outcomes hold: no key at all = anonymous Free (INV-001); an unknown key on the public `POST /api/v1/license/validate` = Free defaults, `valid:false`, no error; an explicitly presented invalid `X-License-Key` on guarded routes = visible 401 (`license-key.guard.ts:77`) | PR #150 `2899773` |
 | ✓ | Hash-only, race-safe issuance/claim: `LicenseKey.userId @unique` (`schema.prisma:176`) with atomic upsert + P2002 convergence (`prisma-license-key.repository.ts:42`); account-free claim endpoint `POST /api/v1/license/by-transaction` (`license.controller.ts:102`), throttled 5/min (`:105`); the transaction id routes, the buyer's claim secret authorises | PR #153 `1ab8dbc`; `specs/148-license-issuance/spec.md` |
 | ✓ | Extension Wallet: public settings surface (labelled password field, Save & validate) with serialized validation → readback → storage → live adoption (`license.handlers.ts:85,326,339`) and masked reload; invalid/network failures keep the working key | PR #154 `2ecd180`; `specs/153-license-settings/spec.md` |
-| ✓ | Truthful fail-closed site/claim recovery: buy controls disabled with the reason stated while Paddle config is empty (`checkout-config.js:18`); success page says the transaction id alone is not enough and recovery verifies the purchaser through Paddle's records (`success.html:78`, `success.js:136`) | PRs #151 `4d1e132`, #155 `00b9e81` |
+| ✓ | Truthful fail-closed site/claim recovery: buy controls disabled with the reason stated while Paddle config is empty — the shipped values are `clientToken: ''` and four empty price ids (`checkout-config.js:48-52`), which `configProblem` turns into inert controls with a named reason (`checkout.js:64,81,114,145,327`); success page says the transaction id alone is not enough and recovery verifies the purchaser through Paddle's records (`success.html:78`, `success.js:136`) | PRs #151 `4d1e132`, #155 `00b9e81` |
 | ✓ | Raw-body Paddle HMAC: exact `ts:body` bytes, multi-`h1` rotation, ±5 s tolerance, JSON parsed only after authentication (`paddle.adapter.ts:17`, `paddle-webhook.guard.ts:18`, `main.ts:10`) | PR #156 `de57d29`; `specs/157-paddle-bridge/spec.md` falsifier receipts |
 | ✓ | Signed customer identity: user upsert keyed only by `data.customer_id`; buyer `custom_data.user_id`/`tier` never select identity or tier (`prisma-paddle-provisioner.ts:64`; exact four-price catalog in `paddle-webhook.service.ts:106`) | PR #156 |
 | ✓ | Persistent event idempotency: `PaddleWebhookEvent.eventId` primary key (`schema.prisma:164`) committed in the same Serializable transaction as every entitlement write; replay → 200, no double grant | PR #156 |
@@ -41,9 +41,14 @@ reviewed heads; the extension wallet and checkout-surface gates run locally.
 - Purchase configuration is empty by design: `clientToken: ''` and all four
   price ids `''` — buy controls render disabled with the reason beside them.
   No visitor can be charged, and no money can be taken by any shipped surface.
-- No real Paddle credentials: sandbox/live verification and KYC are
-  Pedro-gated; no `PADDLE_*` value exists in the workspace or on the deployed
-  server.
+- No non-empty Paddle values have been provisioned anywhere: the site's
+  `clientToken` and four price ids are `''` (`checkout-config.js:48-52`); the
+  `PADDLE_WEBHOOK_SECRET` and four `PADDLE_PRICE_*` env names exist in source
+  (`app.config.ts`) but have never been given values, and the deployed server
+  carries none of them (checked 13/08/2026).
+- Live business verification/KYC remains Pedro-gated. Sandbox configuration
+  (token + price ids) is an operator prerequisite, not a KYC gate — none has
+  been created yet.
 - Server not deployed: Dokku `proso-api` is still `GIT_REV e6b412f`; the
   predeploy bridge and `db push` have not run against production;
   `LICENSE_KEY_SECRET` (required, ≥32 bytes, by production boot validation) is
@@ -69,19 +74,31 @@ the checklist below is satisfied.
 1. **CI gate** — restore site deployment (Actions currently
    `startup_failure`). Gate: live `pricing.html` serves the #155 copy with
    zero `Coming Soon`.
-2. **Env gate (pre-deploy)** — set `LICENSE_KEY_SECRET` (≥32 bytes) on
+2. **Site-config gate (sandbox)** — fill `checkout-config.js` with a sandbox
+   `environment`, a `test_` client token, and four sandbox price ids, then
+   redeploy the site. Gates: buy controls stay inert with a named reason
+   until every value is non-empty and prefix-valid (`checkout.js:64,81,114`);
+   nothing invented.
+3. **Price-parity gate** — the four site price ids must be exactly the four
+   `PADDLE_PRICE_*` ids on the server for the same tier/cadence
+   (`checkout-config.js` mapping comment). Gate: a mismatched pair is rejected
+   by the config checks or by unknown-price 503, never silently re-mapped.
+4. **Env gate (pre-deploy)** — set `LICENSE_KEY_SECRET` (≥32 bytes) on
    `proso-api`. Gate: production boot refuses to start without it; there is no
    default.
-3. **Schema gate** — deploy through the checked-in predeploy (idempotent
+5. **Schema gate** — deploy through the checked-in predeploy (idempotent
    bridge runs twice; `db push`; fail-closed unique indexes). Gate:
    `Subscription_paddle_claim_pair_check` exists and duplicate legacy rows
    abort rather than being rewritten.
-4. **Paddle gate (Pedro/KYC)** — after sandbox verification, set
-   `PADDLE_WEBHOOK_SECRET` and the four `PADDLE_PRICE_*` ids. Gates: missing
+6. **Paddle sandbox gate** — set `PADDLE_WEBHOOK_SECRET` and the four
+   `PADDLE_PRICE_*` ids (sandbox values matching the site). Gates: missing
    secret → 403; missing/unknown price → 503; nothing invented.
-5. **Sandbox end-to-end** — one real sandbox purchase → signed webhook →
+7. **Sandbox end-to-end** — one real sandbox purchase → signed webhook →
    claim → validate → paid tier/credits. Not proven yet.
-6. **Distribution gate** — public install path and onboarding
+8. **Live/KYC gate (Pedro)** — only after sandbox E2E passes: Paddle business
+   verification, then swap site and server to `production`/`live_` values with
+   price parity re-checked, then redeploy both.
+9. **Distribution gate** — public install path and onboarding
    (Plane #19/#16/#27) before advertising the paid path.
 
 ## What a customer experiences today, end to end
