@@ -590,9 +590,9 @@ async function main() {
           btnText: needed.btnText,
         },
         afterGrantClick: {
-          rowHiddenAgain: repaired.playing !== undefined,
+          rowHiddenAgain: repaired.rowHidden === true,
           status: repaired.status,
-          playing: repaired.playing,
+          originMaterialised: grantedAfterClick,
         },
       },
       relaxations: [
@@ -623,6 +623,7 @@ async function main() {
     process.exit(1);
   } finally {
     await driver.quit().catch(() => {});
+    await fixture.close().catch(() => {});
   }
 }
 
