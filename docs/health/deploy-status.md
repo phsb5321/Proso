@@ -13,18 +13,27 @@ that is restored (or a separate deploy workflow is approved), the Dokku seat is
 **the deploy path**: a human-operated agent seat that checks, deploys, and
 verifies against reality.
 
-The repeatable runner lives at **`~/.local/bin/proso-dokku-deploy`** (local
-tooling, deliberately NOT in `.github/workflows` — deploy automation there is a
-separately gated decision). It:
+The canonical runner is now repo-owned and review-gated:
+**`scripts/dokku-deploy-preflight.mjs`** (Feature 168) via
+`make dokku-check` (read-only verdict NOOP/SAFE/HELD) and
+`make dokku-deploy` (refuses HELD, runs server build + full test suite,
+pushes, and succeeds ONLY when live `/health.revision` equals the intended
+full SHA). Its deterministic fake-boundary plant suite is
+`make preflight-test` (part of `make verify`). The operator-local
+`~/.local/bin/proso-dokku-deploy` is superseded by it. The preflight:
 
 1. compares deployed SHA (`git ls-remote dokku main`) vs `origin/main`;
 2. deploys only when `packages/server` or `packages/shared` changed;
-3. gates on server build + unit tests (contract tests excluded — known
-   local-only Prisma engine 404 for `linux-nixos`);
-4. `git push dokku main`, watching for the deploy-lock failure mode
+3. HELD — lists missing required env key NAMES only (derived from the target
+   tree's `app.config.ts`, incl. the matched Paddle group when commerce
+   config is present) and never pushes: a plain deploy must not mutate
+   schema (predeploy) before discovering missing boot/commerce env;
+4. reports drift in `schema.prisma`, predeploy/bridge `scripts/*.sql`, and
+   migrations — never claims "schema untouched" when any changed;
+5. `git push dokku main`, watching for the deploy-lock failure mode
    (`dokku-event-listener` rebuild loop — do not fight it, report it);
-5. verifies `/health` + the corrected 402 copy (the deploy's done-criterion);
-6. advisories on `proso-log-gateway` staleness/divergence.
+6. final success requires live `/health.revision === intended SHA` — an old
+   container's 402 copy cannot prove success.
 
 **`/health` revision field (Feature 165, introduced 13/08/2026).** The
 `/health` response additionally returns `revision`: the trimmed
