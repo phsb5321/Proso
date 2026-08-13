@@ -26,6 +26,15 @@ separately gated decision). It:
 5. verifies `/health` + the corrected 402 copy (the deploy's done-criterion);
 6. advisories on `proso-log-gateway` staleness/divergence.
 
+**`/health` revision field (Feature 165, introduced 13/08/2026).** The
+`/health` response additionally returns `revision`: the trimmed
+`GIT_REV` process variable Dokku injects into the container, or `null` when
+the platform supplied nothing. `version` stays the semantic package version
+and must never be used to identify a deployment. Verification MUST fail
+closed when `revision` is null or does not equal the pushed SHA — an old
+container answers `/health` identically to the new one and a null revision
+cannot be distinguished by `version` alone.
+
 Log: `~/.local/state/proso-dokku/deploy.log`. Run `--check` for report-only.
 
 ## Current state (updated 12/08/2026)

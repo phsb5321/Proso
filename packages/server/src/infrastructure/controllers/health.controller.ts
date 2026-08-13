@@ -22,9 +22,17 @@ export class HealthController {
       () => this.memory.checkHeap('memory', 256 * 1024 * 1024), // 256MB
     ]);
 
+    // Runtime revision, sourced ONLY from process configuration (Dokku injects
+    // GIT_REV into the container). Never derived from request input and never
+    // from `version`, which is a semantic product version and cannot identify
+    // a deployment. Null means the platform did not supply a revision;
+    // deploy verification must fail closed on null, not fall back to `version`.
+    const revision = process.env.GIT_REV?.trim() || null;
+
     return {
       status: result.status,
       version: APP_VERSION,
+      revision,
       uptime: Math.floor((Date.now() - startTime) / 1000),
       details: result.details,
     };
