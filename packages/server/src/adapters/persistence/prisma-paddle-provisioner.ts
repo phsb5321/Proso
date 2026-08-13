@@ -221,15 +221,27 @@ export class PrismaPaddleProvisioner extends PaddleProvisioningPort {
           'Paid provisioning requires a complete transaction/hash claim pair',
         );
       }
-    } else if (
-      incomingPair &&
-      incomingPair.paddleTransactionId === existing.paddleTransactionId &&
-      incomingPair.licenseClaimHash !== existing.licenseClaimHash
-    ) {
-      throw new ProvisioningInvariantError(
-        'PERSISTENCE_FAILED',
-        'Paddle claim pair conflicts with the existing subscription',
-      );
+    } else {
+      const targetsInitialClaim =
+        command.kind === 'sync-subscription' ||
+        command.paddleTransactionId === existing.paddleTransactionId;
+      if (targetsInitialClaim && hasPartialIncomingPair) {
+        if (!incomingPair) {
+          throw new ProvisioningInvariantError(
+            'INVALID_PAYLOAD',
+            'Paddle claim routing must arrive as a transaction/hash pair',
+          );
+        }
+        if (
+          incomingPair.paddleTransactionId !== existing.paddleTransactionId ||
+          incomingPair.licenseClaimHash !== existing.licenseClaimHash
+        ) {
+          throw new ProvisioningInvariantError(
+            'PERSISTENCE_FAILED',
+            'Paddle claim pair conflicts with the existing subscription',
+          );
+        }
+      }
     }
 
     if (
