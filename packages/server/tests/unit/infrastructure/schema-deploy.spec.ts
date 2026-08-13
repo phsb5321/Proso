@@ -19,9 +19,19 @@ describe('server schema deployment', () => {
 
     expect(procfile).toContain('release: sh scripts/predeploy.sh');
     expect(appJson.scripts.dokku.predeploy).toBe('sh scripts/predeploy.sh');
-    expect(predeploy).toContain('prisma db execute');
+    expect(predeploy.match(/prisma db execute/g)).toHaveLength(2);
     expect(predeploy).toContain('/app/scripts/prepare-license-issuance-schema.sql');
     expect(predeploy).toContain('prisma db push');
     expect(predeploy).toContain('/app/prisma/schema.prisma');
+
+    const bridge = readFileSync(
+      resolve(serverRoot, 'scripts/prepare-license-issuance-schema.sql'),
+      'utf8',
+    );
+    expect(bridge).toContain('ALTER COLUMN "licenseKey" DROP NOT NULL');
+    expect(bridge).toContain('"User_paddleCustomerId_key"');
+    expect(bridge).toContain('"CreditAllocation_paddleTransactionId_key"');
+    expect(bridge).toContain('"PaddleWebhookEvent_pkey"');
+    expect(bridge).toContain('"Subscription_paddle_claim_pair_check"');
   });
 });

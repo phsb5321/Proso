@@ -1,5 +1,5 @@
 // Paddle webhook signature guard — verifies incoming webhook authenticity
-// Extracts paddle-signature header, verifies via BillingGatewayPort,
+// Extracts paddle-signature header, verifies via WebhookVerifierPort,
 // and attaches parsed WebhookEvent to the request object for downstream use.
 
 import {
@@ -9,7 +9,8 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { BillingGatewayPort, type WebhookEvent } from '../../ports/billing-gateway.port';
+import type { WebhookEvent } from '../../ports/paddle-provisioning.port';
+import { WebhookVerifierPort } from '../../ports/webhook-verifier.port';
 
 /** Extended Request type with webhook event and raw body attached. */
 export interface WebhookRequest extends Request {
@@ -19,7 +20,7 @@ export interface WebhookRequest extends Request {
 
 @Injectable()
 export class PaddleWebhookGuard implements CanActivate {
-  constructor(private readonly billingGateway: BillingGatewayPort) {}
+  constructor(private readonly webhookVerifier: WebhookVerifierPort) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<WebhookRequest>();
@@ -35,7 +36,7 @@ export class PaddleWebhookGuard implements CanActivate {
     }
 
     try {
-      const event = await this.billingGateway.verifyWebhookSignature(rawBody, signature);
+      const event = await this.webhookVerifier.verifyWebhookSignature(rawBody, signature);
       request.webhookEvent = event;
       return true;
     } catch {

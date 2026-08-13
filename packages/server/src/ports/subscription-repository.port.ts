@@ -25,11 +25,16 @@ export interface SubscriptionRecord {
   paddleTransactionId?: string;
   /** SHA-256 of the buyer's claim secret; absent for purchases made before the claim contract. */
   licenseClaimHash?: string;
+  /** Last completed paid transaction seen for allocation idempotency. */
+  paddleLastTransactionId?: string;
   tier: string;
   status: string;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   cancelledAt?: Date;
+  paddleOccurredAt?: Date;
+  paddleEventType?: string;
+  paddleEventId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

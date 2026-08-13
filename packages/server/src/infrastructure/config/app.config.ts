@@ -46,9 +46,13 @@ export default registerAs('app', () => ({
   // License key derivation (HMAC secret; see core/subscription/license-key.ts)
   licenseKeySecret: process.env.LICENSE_KEY_SECRET || '',
 
-  // Paddle billing
-  paddleApiKey: process.env.PADDLE_API_KEY || '',
+  // Paddle billing. Values stay empty until sandbox/live configuration is
+  // supplied; webhook processing then fails closed rather than inventing ids.
   paddleWebhookSecret: process.env.PADDLE_WEBHOOK_SECRET || '',
+  paddlePriceProMonthly: process.env.PADDLE_PRICE_PRO_MONTHLY || '',
+  paddlePriceProYearly: process.env.PADDLE_PRICE_PRO_YEARLY || '',
+  paddlePriceEnterpriseMonthly: process.env.PADDLE_PRICE_ENTERPRISE_MONTHLY || '',
+  paddlePriceEnterpriseYearly: process.env.PADDLE_PRICE_ENTERPRISE_YEARLY || '',
 
   // TTS providers
   openaiApiKey: process.env.OPENAI_API_KEY || '',

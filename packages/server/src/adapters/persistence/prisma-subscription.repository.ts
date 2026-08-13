@@ -70,11 +70,15 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
         paddleSubscriptionId: subscription.paddleSubscriptionId ?? '',
         paddleTransactionId: subscription.paddleTransactionId ?? null,
         licenseClaimHash: this.claimHashToStore(subscription.licenseClaimHash),
+        paddleLastTransactionId: subscription.paddleLastTransactionId,
         tier: subscription.tier as 'free' | 'pro' | 'enterprise',
         status: subscription.status as 'active' | 'cancelled' | 'expired' | 'past_due' | 'trialing',
         currentPeriodStart: subscription.currentPeriodStart,
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelledAt: subscription.cancelledAt,
+        paddleOccurredAt: subscription.paddleOccurredAt,
+        paddleEventType: subscription.paddleEventType,
+        paddleEventId: subscription.paddleEventId,
       },
     });
     return this.toRecord(sub);
@@ -88,12 +92,17 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
       updateData.currentPeriodStart = data.currentPeriodStart;
     if (data.currentPeriodEnd !== undefined) updateData.currentPeriodEnd = data.currentPeriodEnd;
     if (data.cancelledAt !== undefined) updateData.cancelledAt = data.cancelledAt;
+    if (data.paddleOccurredAt !== undefined) updateData.paddleOccurredAt = data.paddleOccurredAt;
+    if (data.paddleEventType !== undefined) updateData.paddleEventType = data.paddleEventType;
+    if (data.paddleEventId !== undefined) updateData.paddleEventId = data.paddleEventId;
     if (data.paddleSubscriptionId !== undefined)
       updateData.paddleSubscriptionId = data.paddleSubscriptionId;
     if (data.paddleTransactionId !== undefined)
       updateData.paddleTransactionId = data.paddleTransactionId;
     if (data.licenseClaimHash !== undefined)
       updateData.licenseClaimHash = this.claimHashToStore(data.licenseClaimHash);
+    if (data.paddleLastTransactionId !== undefined)
+      updateData.paddleLastTransactionId = data.paddleLastTransactionId;
 
     const sub = await this.prisma.subscription.update({
       where: { id },
@@ -108,11 +117,15 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     paddleSubscriptionId: string;
     paddleTransactionId: string | null;
     licenseClaimHash: string | null;
+    paddleLastTransactionId: string | null;
     tier: string;
     status: string;
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
     cancelledAt: Date | null;
+    paddleOccurredAt: Date | null;
+    paddleEventType: string | null;
+    paddleEventId: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): SubscriptionRecord {
@@ -122,11 +135,15 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
       paddleSubscriptionId: sub.paddleSubscriptionId || undefined,
       paddleTransactionId: sub.paddleTransactionId ?? undefined,
       licenseClaimHash: sub.licenseClaimHash ?? undefined,
+      paddleLastTransactionId: sub.paddleLastTransactionId ?? undefined,
       tier: sub.tier,
       status: sub.status,
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
       cancelledAt: sub.cancelledAt ?? undefined,
+      paddleOccurredAt: sub.paddleOccurredAt ?? undefined,
+      paddleEventType: sub.paddleEventType ?? undefined,
+      paddleEventId: sub.paddleEventId ?? undefined,
       createdAt: sub.createdAt,
       updatedAt: sub.updatedAt,
     };

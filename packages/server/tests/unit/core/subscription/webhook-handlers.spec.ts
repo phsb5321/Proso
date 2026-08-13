@@ -1,642 +1,251 @@
-// Unit tests for pure domain webhook handler functions
-// Tests: handleSubscriptionCreated, handleSubscriptionUpdated,
-//        handleSubscriptionCanceled, handleRenewal
-// from src/core/subscription/subscription.service.ts
-
+import { SubscriptionStatus, SubscriptionTier, isErr, isOk, unwrapErr } from '@proso/shared';
 import {
-  SubscriptionTier,
-  SubscriptionStatus,
-  TIER_CREDITS,
-  ErrorCode,
-  isOk,
-  isErr,
-} from '@proso/shared';
-import {
-  handleSubscriptionCreated,
-  handleSubscriptionUpdated,
-  handleSubscriptionCanceled,
-  handleRenewal,
-  type WebhookDeps,
-  type SubscriptionCreatedParams,
-  type SubscriptionUpdatedParams,
-  type SubscriptionCanceledParams,
-  type RenewalParams,
-} from '../../../../src/core/subscription/subscription.service';
-import type { SubscriptionRecord } from '../../../../src/ports/subscription-repository.port';
-import type { CreditAllocationRecord } from '../../../../src/ports/credit-repository.port';
+  isPaddleStateNewer,
+  normalizePaddleWebhook,
+  processPaddleWebhook,
+} from '../../../../src/core/subscription/paddle-webhook.service';
+import type {
+  PaddleProvisioningCommand,
+  PaddleProvisioningPort,
+  WebhookEvent,
+} from '../../../../src/ports/paddle-provisioning.port';
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
+const CLAIM_HASH = 'a'.repeat(64);
+const PRICES = {
+  proMonthly: 'pri_promonth',
+  proYearly: 'pri_proyear',
+  enterpriseMonthly: 'pri_enterprisemonth',
+  enterpriseYearly: 'pri_enterpriseyear',
+};
 
-function createMockDeps(): WebhookDeps {
+function priceItem(
+  id = PRICES.proMonthly,
+  interval: 'month' | 'year' = 'month',
+): Record<string, unknown> {
   return {
-    subscriptionRepository: {
-      findById: jest.fn(),
-      findByUserId: jest.fn(),
-      findActiveByUserId: jest.fn(),
-      findByPaddleId: jest.fn(),
-      save: jest.fn().mockImplementation(
-        (sub: SubscriptionRecord): Promise<SubscriptionRecord> =>
-          Promise.resolve({ ...sub, id: sub.id || 'sub-gen-123' }),
-      ),
-      update: jest.fn().mockImplementation(
-        (id: string, data: Partial<SubscriptionRecord>): Promise<SubscriptionRecord> =>
-          Promise.resolve({
-            id,
-            userId: 'user-1',
-            paddleSubscriptionId: 'paddle-sub-1',
-            tier: SubscriptionTier.Pro,
-            status: SubscriptionStatus.Active,
-            currentPeriodStart: new Date(),
-            currentPeriodEnd: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            ...data,
-          } as SubscriptionRecord),
-      ),
-    } as unknown as WebhookDeps['subscriptionRepository'],
-    creditRepository: {
-      findCurrentAllocation: jest.fn(),
-      deductCredits: jest.fn(),
-      getAllocationHistory: jest.fn(),
-      createAllocation: jest.fn().mockImplementation(
-        (alloc: Omit<CreditAllocationRecord, 'id' | 'createdAt'>): Promise<CreditAllocationRecord> =>
-          Promise.resolve({
-            ...alloc,
-            id: 'alloc-gen-123',
-            createdAt: new Date(),
-          } as CreditAllocationRecord),
-      ),
-    } as unknown as WebhookDeps['creditRepository'],
+    recurring: true,
+    price: { id, billing_cycle: { interval, frequency: 1 } },
   };
 }
 
-function makeExistingSubscription(overrides: Partial<SubscriptionRecord> = {}): SubscriptionRecord {
-  const now = new Date();
+function transactionEvent(overrides: Record<string, unknown> = {}): WebhookEvent {
   return {
-    id: 'sub-existing-1',
-    userId: 'user-1',
-    paddleSubscriptionId: 'paddle-sub-1',
-    tier: SubscriptionTier.Pro,
-    status: SubscriptionStatus.Active,
-    currentPeriodStart: now,
-    currentPeriodEnd: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-    createdAt: now,
-    updatedAt: now,
-    ...overrides,
-  };
-}
-
-const periodStart = new Date('2026-02-01T00:00:00Z');
-const periodEnd = new Date('2026-03-01T00:00:00Z');
-
-// ---------------------------------------------------------------------------
-// handleSubscriptionCreated
-// ---------------------------------------------------------------------------
-
-describe('handleSubscriptionCreated', () => {
-  let deps: WebhookDeps;
-
-  beforeEach(() => {
-    deps = createMockDeps();
-  });
-
-  it('creates subscription with correct fields', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-42',
-      paddleSubscriptionId: 'paddle-sub-99',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionCreated(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.subscriptionRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: 'user-42',
-        paddleSubscriptionId: 'paddle-sub-99',
-        tier: SubscriptionTier.Pro,
-        status: SubscriptionStatus.Active,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-      }),
-    );
-  });
-
-  it('sets status to Active for new subscriptions', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionCreated(params, deps);
-
-    expect(deps.subscriptionRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: SubscriptionStatus.Active,
-      }),
-    );
-  });
-
-  it('allocates 500,000 credits for Pro tier', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionCreated(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: 500_000,
-        remainingCredits: 500_000,
-      }),
-    );
-  });
-
-  it('allocates 2,000,000 credits for Enterprise tier', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Enterprise,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionCreated(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: 2_000_000,
-        remainingCredits: 2_000_000,
-      }),
-    );
-  });
-
-  it('allocates 0 credits for Free tier', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Free,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionCreated(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: 0,
-        remainingCredits: 0,
-      }),
-    );
-  });
-
-  it('returns Ok with both subscription and allocation', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionCreated(params, deps);
-    expect(isOk(result)).toBe(true);
-    if (!isOk(result)) return;
-
-    expect(result.value.subscription).toBeDefined();
-    expect(result.value.allocation).toBeDefined();
-    expect(result.value.allocation.totalCredits).toBe(TIER_CREDITS[SubscriptionTier.Pro]);
-  });
-
-  it('passes correct userId to credit allocation', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-abc',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionCreated(params, deps);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: 'user-abc',
-      }),
-    );
-  });
-
-  it('passes period dates to credit allocation', async () => {
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionCreated(params, deps);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        periodStart,
-        periodEnd,
-      }),
-    );
-  });
-
-  it('sets createdAt timestamp on subscription', async () => {
-    const before = new Date();
-
-    const params: SubscriptionCreatedParams = {
-      userId: 'user-1',
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionCreated(params, deps);
-
-    const savedArg = (deps.subscriptionRepository.save as jest.Mock).mock.calls[0][0];
-    const createdAt = savedArg.createdAt as Date;
-    expect(createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-    expect(createdAt.getTime()).toBeLessThanOrEqual(Date.now());
-  });
-});
-
-// ---------------------------------------------------------------------------
-// handleSubscriptionUpdated
-// ---------------------------------------------------------------------------
-
-describe('handleSubscriptionUpdated', () => {
-  let deps: WebhookDeps;
-
-  beforeEach(() => {
-    deps = createMockDeps();
-  });
-
-  it('updates tier, status, and period dates on existing subscription', async () => {
-    const existing = makeExistingSubscription();
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Enterprise,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleSubscriptionUpdated(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.subscriptionRepository.update).toHaveBeenCalledWith(
-      existing.id,
-      expect.objectContaining({
+    eventId: 'evt_transaction000000000000000001',
+    eventType: 'transaction.completed',
+    occurredAt: new Date('2026-08-12T20:00:02.000Z'),
+    data: {
+      id: 'txn_purchase0000000000000000001',
+      customer_id: 'ctm_buyer00000000000000000001',
+      subscription_id: 'sub_purchase000000000000000001',
+      custom_data: {
+        license_claim_hash: CLAIM_HASH,
+        user_id: 'attacker-chosen-user',
         tier: SubscriptionTier.Enterprise,
-        status: SubscriptionStatus.Active,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-      }),
-    );
+      },
+      items: [priceItem()],
+      billing_period: {
+        starts_at: '2026-08-12T20:00:00.000Z',
+        ends_at: '2026-09-12T20:00:00.000Z',
+      },
+      ...overrides,
+    },
+  };
+}
+
+function subscriptionEvent(overrides: Record<string, unknown> = {}): WebhookEvent {
+  return {
+    eventId: 'evt_subscription00000000000000001',
+    eventType: 'subscription.created',
+    occurredAt: new Date('2026-08-12T20:00:01.000Z'),
+    data: {
+      id: 'sub_purchase000000000000000001',
+      transaction_id: 'txn_purchase0000000000000000001',
+      customer_id: 'ctm_buyer00000000000000000001',
+      status: 'active',
+      custom_data: { license_claim_hash: CLAIM_HASH },
+      items: [priceItem()],
+      current_billing_period: {
+        starts_at: '2026-08-12T20:00:00.000Z',
+        ends_at: '2026-09-12T20:00:00.000Z',
+      },
+      ...overrides,
+    },
+  };
+}
+
+describe('normalizePaddleWebhook', () => {
+  it('derives Pro from the exact price even when client custom_data claims Enterprise', () => {
+    const result = normalizePaddleWebhook(transactionEvent(), PRICES);
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result) || result.value.kind !== 'provision-period') return;
+    expect(result.value).toMatchObject({
+      paddleCustomerId: 'ctm_buyer00000000000000000001',
+      tier: SubscriptionTier.Pro,
+      paddleTransactionId: 'txn_purchase0000000000000000001',
+      totalCredits: 500_000,
+      licenseClaimHash: CLAIM_HASH,
+    });
+    expect(JSON.stringify(result.value)).not.toContain('attacker-chosen-user');
   });
 
-  it('returns Err(SubscriptionNotFound) when paddle ID does not match', async () => {
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(null);
+  it('maps all four configured price ids and verifies their cadence', () => {
+    const cases = [
+      [PRICES.proMonthly, 'month', SubscriptionTier.Pro],
+      [PRICES.proYearly, 'year', SubscriptionTier.Pro],
+      [PRICES.enterpriseMonthly, 'month', SubscriptionTier.Enterprise],
+      [PRICES.enterpriseYearly, 'year', SubscriptionTier.Enterprise],
+    ] as const;
 
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-unknown',
-      tier: SubscriptionTier.Pro,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
+    for (const [priceId, interval, tier] of cases) {
+      const result = normalizePaddleWebhook(
+        transactionEvent({ items: [priceItem(priceId, interval)] }),
+        PRICES,
+      );
+      expect(isOk(result)).toBe(true);
+      if (isOk(result) && result.value.kind === 'provision-period') {
+        expect(result.value.tier).toBe(tier);
+      }
+    }
+  });
 
-    const result = await handleSubscriptionUpdated(params, deps);
+  it.each([
+    ['unknown', [priceItem('pri_unknown')]],
+    ['missing', []],
+    ['mixed', [priceItem(PRICES.proMonthly), priceItem(PRICES.enterpriseMonthly)]],
+  ])('rejects a %s recurring price selection', (_case, items) => {
+    const result = normalizePaddleWebhook(transactionEvent({ items }), PRICES);
     expect(isErr(result)).toBe(true);
-    if (!isErr(result)) return;
-
-    expect(result.error.code).toBe(ErrorCode.SubscriptionNotFound);
   });
 
-  it('calls findByPaddleId with correct paddle subscription ID', async () => {
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(null);
-
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-xyz',
-      tier: SubscriptionTier.Pro,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionUpdated(params, deps);
-
-    expect(deps.subscriptionRepository.findByPaddleId).toHaveBeenCalledWith('paddle-sub-xyz');
-  });
-
-  it('allocates new credits when tier changes', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Pro });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Enterprise,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionUpdated(params, deps);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: TIER_CREDITS[SubscriptionTier.Enterprise],
-        remainingCredits: TIER_CREDITS[SubscriptionTier.Enterprise],
-      }),
+  it('rejects a missing or duplicate operator price mapping', () => {
+    expect(isErr(normalizePaddleWebhook(transactionEvent(), { ...PRICES, proMonthly: '' }))).toBe(
+      true,
     );
+    expect(
+      isErr(
+        normalizePaddleWebhook(transactionEvent(), {
+          ...PRICES,
+          enterpriseMonthly: PRICES.proMonthly,
+        }),
+      ),
+    ).toBe(true);
   });
 
-  it('does not allocate credits when tier remains the same', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Pro });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionUpdated(params, deps);
-
-    expect(deps.creditRepository.createAllocation).not.toHaveBeenCalled();
+  it('stages the canonical subscription.created transaction/claim pair but waits to fulfil', () => {
+    const result = normalizePaddleWebhook(subscriptionEvent(), PRICES);
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        kind: 'sync-subscription',
+        paddleSubscriptionId: 'sub_purchase000000000000000001',
+        paddleTransactionId: 'txn_purchase0000000000000000001',
+        licenseClaimHash: CLAIM_HASH,
+      },
+    });
   });
 
-  it('preserves userId when updating subscription', async () => {
-    const existing = makeExistingSubscription({ userId: 'user-preserve-me' });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
+  it('rejects malformed claim hashes, periods, statuses, and Paddle identities', () => {
+    const cases = [
+      transactionEvent({ custom_data: { license_claim_hash: CLAIM_HASH.toUpperCase() } }),
+      transactionEvent({ customer_id: 'not-a-customer' }),
+      transactionEvent({ billing_period: { starts_at: 'bad', ends_at: 'also-bad' } }),
+      subscriptionEvent({ status: 'unknown-status' }),
+    ];
+    for (const event of cases) expect(isErr(normalizePaddleWebhook(event, PRICES))).toBe(true);
+  });
 
-    const params: SubscriptionUpdatedParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      tier: SubscriptionTier.Pro,
-      status: SubscriptionStatus.Active,
-      periodStart,
-      periodEnd,
-    };
-
-    await handleSubscriptionUpdated(params, deps);
-
-    // update is called with existing.id but no userId in the update payload
-    const updateCall = (deps.subscriptionRepository.update as jest.Mock).mock.calls[0];
-    expect(updateCall[0]).toBe(existing.id);
-    // The update data should NOT contain userId (it is not changed)
-    expect(updateCall[1]).not.toHaveProperty('userId');
+  it('records an unsupported authentic event without requiring price configuration', () => {
+    const event = { ...transactionEvent(), eventType: 'customer.updated' };
+    expect(normalizePaddleWebhook(event, { ...PRICES, proMonthly: '' })).toEqual({
+      ok: true,
+      value: {
+        kind: 'unsupported',
+        eventId: event.eventId,
+        eventType: 'customer.updated',
+        occurredAt: event.occurredAt,
+      },
+    });
   });
 });
 
-// ---------------------------------------------------------------------------
-// handleSubscriptionCanceled
-// ---------------------------------------------------------------------------
+describe('processPaddleWebhook', () => {
+  it('passes only a hash-only key candidate to persistence', async () => {
+    const process = jest.fn(async () => ({ ok: true, value: { status: 'processed' as const } }));
+    const port = { process } as unknown as PaddleProvisioningPort;
 
-describe('handleSubscriptionCanceled', () => {
-  let deps: WebhookDeps;
-
-  beforeEach(() => {
-    deps = createMockDeps();
-  });
-
-  it('sets status to Cancelled with cancelledAt timestamp', async () => {
-    const existing = makeExistingSubscription();
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const before = new Date();
-
-    const params: SubscriptionCanceledParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-    };
-
-    const result = await handleSubscriptionCanceled(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.subscriptionRepository.update).toHaveBeenCalledWith(
-      existing.id,
-      expect.objectContaining({
-        status: SubscriptionStatus.Cancelled,
-      }),
+    const result = await processPaddleWebhook(
+      transactionEvent(),
+      { ...PRICES, licenseKeySecret: 's'.repeat(32), nodeEnv: 'test' },
+      port,
+      () => new Date('2026-08-12T20:00:03.000Z'),
     );
 
-    const updateData = (deps.subscriptionRepository.update as jest.Mock).mock.calls[0][1];
-    expect(updateData.cancelledAt).toBeInstanceOf(Date);
-    expect(updateData.cancelledAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(isOk(result)).toBe(true);
+    const [command, candidate] = process.mock.calls[0] as [PaddleProvisioningCommand, unknown];
+    expect(command.kind).toBe('provision-period');
+    expect(candidate).toMatchObject({
+      id: expect.stringMatching(/^[0-9a-f]{64}$/),
+      keyHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      activatedAt: new Date('2026-08-12T20:00:03.000Z'),
+    });
+    expect(JSON.stringify(candidate)).not.toContain('proso_test_');
   });
 
-  it('does NOT revoke credits (INV-004)', async () => {
-    const existing = makeExistingSubscription();
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
+  it('fails before persistence when the licence derivation secret is weak', async () => {
+    const process = jest.fn();
+    const result = await processPaddleWebhook(
+      transactionEvent(),
+      { ...PRICES, licenseKeySecret: 'short', nodeEnv: 'test' },
+      { process } as unknown as PaddleProvisioningPort,
+    );
 
-    const params: SubscriptionCanceledParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-    };
-
-    await handleSubscriptionCanceled(params, deps);
-
-    // No credit-related operations should be called
-    expect(deps.creditRepository.createAllocation).not.toHaveBeenCalled();
-    expect(deps.creditRepository.deductCredits).not.toHaveBeenCalled();
-  });
-
-  it('returns Err(SubscriptionNotFound) when paddle ID not found', async () => {
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(null);
-
-    const params: SubscriptionCanceledParams = {
-      paddleSubscriptionId: 'paddle-sub-missing',
-    };
-
-    const result = await handleSubscriptionCanceled(params, deps);
     expect(isErr(result)).toBe(true);
-    if (!isErr(result)) return;
-
-    expect(result.error.code).toBe(ErrorCode.SubscriptionNotFound);
-  });
-
-  it('includes paddle subscription ID in error message', async () => {
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(null);
-
-    const params: SubscriptionCanceledParams = {
-      paddleSubscriptionId: 'paddle-sub-specific-id',
-    };
-
-    const result = await handleSubscriptionCanceled(params, deps);
-    expect(isErr(result)).toBe(true);
-    if (!isErr(result)) return;
-
-    expect(result.error.message).toContain('paddle-sub-specific-id');
+    if (isErr(result)) expect(unwrapErr(result).code).toBe('LICENSE_CONFIGURATION');
+    expect(process).not.toHaveBeenCalled();
   });
 });
 
-// ---------------------------------------------------------------------------
-// handleRenewal
-// ---------------------------------------------------------------------------
-
-describe('handleRenewal', () => {
-  let deps: WebhookDeps;
-
-  beforeEach(() => {
-    deps = createMockDeps();
-  });
-
-  it('updates period dates and sets status to Active', async () => {
-    const existing = makeExistingSubscription();
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      periodStart,
-      periodEnd,
+describe('isPaddleStateNewer', () => {
+  it('rejects older state and gives cancellation deterministic precedence at equal time', () => {
+    const stored = {
+      occurredAt: new Date('2026-08-12T20:00:02.000Z'),
+      eventType: 'transaction.completed',
+      eventId: 'evt_b',
     };
-
-    const result = await handleRenewal(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.subscriptionRepository.update).toHaveBeenCalledWith(
-      existing.id,
-      expect.objectContaining({
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        status: SubscriptionStatus.Active,
-      }),
-    );
+    expect(
+      isPaddleStateNewer(
+        {
+          occurredAt: new Date('2026-08-12T20:00:01.000Z'),
+          eventType: 'subscription.created',
+          eventId: 'evt_a',
+        },
+        stored,
+      ),
+    ).toBe(false);
+    expect(
+      isPaddleStateNewer(
+        {
+          occurredAt: stored.occurredAt,
+          eventType: 'subscription.canceled',
+          eventId: 'evt_a',
+        },
+        stored,
+      ),
+    ).toBe(true);
   });
 
-  it('creates new credit allocation for new period', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Pro });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      periodStart,
-      periodEnd,
+  it('normalizes cancellation to cancelled without allocating a new period', () => {
+    const event: WebhookEvent = {
+      ...subscriptionEvent({ status: undefined, canceled_at: '2026-08-20T00:00:00.000Z' }),
+      eventId: 'evt_cancel000000000000000000001',
+      eventType: 'subscription.canceled',
+      occurredAt: new Date('2026-08-20T00:00:01.000Z'),
     };
-
-    const result = await handleRenewal(params, deps);
-    expect(isOk(result)).toBe(true);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: existing.userId,
-        subscriptionId: existing.id,
-        periodStart,
-        periodEnd,
-      }),
-    );
-  });
-
-  it('allocates correct credits based on subscription tier (Pro)', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Pro });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      periodStart,
-      periodEnd,
-    };
-
-    await handleRenewal(params, deps);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: 500_000,
-        remainingCredits: 500_000,
-      }),
-    );
-  });
-
-  it('allocates correct credits based on subscription tier (Enterprise)', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Enterprise });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      periodStart,
-      periodEnd,
-    };
-
-    await handleRenewal(params, deps);
-
-    expect(deps.creditRepository.createAllocation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalCredits: 2_000_000,
-        remainingCredits: 2_000_000,
-      }),
-    );
-  });
-
-  it('returns Err(SubscriptionNotFound) when paddle ID not found', async () => {
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(null);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-gone',
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleRenewal(params, deps);
-    expect(isErr(result)).toBe(true);
-    if (!isErr(result)) return;
-
-    expect(result.error.code).toBe(ErrorCode.SubscriptionNotFound);
-  });
-
-  it('returns Ok with both subscription and allocation on success', async () => {
-    const existing = makeExistingSubscription({ tier: SubscriptionTier.Pro });
-    (deps.subscriptionRepository.findByPaddleId as jest.Mock).mockResolvedValue(existing);
-
-    const params: RenewalParams = {
-      paddleSubscriptionId: 'paddle-sub-1',
-      periodStart,
-      periodEnd,
-    };
-
-    const result = await handleRenewal(params, deps);
-    expect(isOk(result)).toBe(true);
-    if (!isOk(result)) return;
-
-    expect(result.value.subscription).toBeDefined();
-    expect(result.value.allocation).toBeDefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Cross-cutting: tier credit amounts
-// ---------------------------------------------------------------------------
-
-describe('Tier credit allocations (TIER_CREDITS consistency)', () => {
-  it('Free tier allocates 0 credits', () => {
-    expect(TIER_CREDITS[SubscriptionTier.Free]).toBe(0);
-  });
-
-  it('Pro tier allocates 500,000 credits', () => {
-    expect(TIER_CREDITS[SubscriptionTier.Pro]).toBe(500_000);
-  });
-
-  it('Enterprise tier allocates 2,000,000 credits', () => {
-    expect(TIER_CREDITS[SubscriptionTier.Enterprise]).toBe(2_000_000);
+    const result = normalizePaddleWebhook(event, PRICES);
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: 'sync-subscription', status: SubscriptionStatus.Cancelled },
+    });
   });
 });

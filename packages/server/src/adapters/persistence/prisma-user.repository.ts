@@ -26,7 +26,8 @@ export class PrismaUserRepository extends UserRepositoryPort {
     const created = await this.prisma.user.create({
       data: {
         email: user.email,
-        licenseKey: user.licenseKeyHash ?? '',
+        licenseKey: user.licenseKeyHash,
+        paddleCustomerId: user.paddleCustomerId,
       },
     });
     return this.toRecord(created);
@@ -47,7 +48,8 @@ export class PrismaUserRepository extends UserRepositoryPort {
     user: {
       id: string;
       email: string | null;
-      licenseKey: string;
+      licenseKey: string | null;
+      paddleCustomerId: string | null;
       createdAt: Date;
       updatedAt: Date;
     } & Record<string, unknown>,
@@ -55,7 +57,8 @@ export class PrismaUserRepository extends UserRepositoryPort {
     return {
       id: user.id,
       email: user.email ?? undefined,
-      licenseKeyHash: user.licenseKey,
+      licenseKeyHash: user.licenseKey ?? undefined,
+      paddleCustomerId: user.paddleCustomerId ?? undefined,
       tier: 'free', // Tier is determined by subscription, not User model
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

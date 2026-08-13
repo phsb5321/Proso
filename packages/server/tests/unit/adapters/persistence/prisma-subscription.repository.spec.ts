@@ -16,6 +16,10 @@ function createReturning(id: string) {
       id,
       paddleTransactionId: data.paddleTransactionId ?? null,
       licenseClaimHash: data.licenseClaimHash ?? null,
+      paddleLastTransactionId: data.paddleLastTransactionId ?? null,
+      paddleOccurredAt: data.paddleOccurredAt ?? null,
+      paddleEventType: data.paddleEventType ?? null,
+      paddleEventId: data.paddleEventId ?? null,
       cancelledAt: null,
     }),
   );
@@ -75,6 +79,10 @@ describe('PrismaSubscriptionRepository claim fields', () => {
       ...makeSubscriptionRecord(),
       paddleTransactionId: null,
       licenseClaimHash: CLAIM_HASH,
+      paddleLastTransactionId: null,
+      paddleOccurredAt: null,
+      paddleEventType: null,
+      paddleEventId: null,
       cancelledAt: null,
     });
     const repository = makeRepository({ update });

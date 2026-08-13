@@ -19,4 +19,13 @@ npx prisma db execute \
 
 echo "Running prisma db push..."
 npx prisma db push --url "$DB_URL" --schema /app/prisma/schema.prisma
+
+# A fresh database had no tables during the first bridge pass. Re-run the
+# idempotent bridge so database-only checks (which Prisma cannot express) are
+# present there too; existing deployments see no-op DDL.
+echo "Finalizing Paddle provisioning constraints..."
+npx prisma db execute \
+  --config /app/prisma/prisma.config.ts \
+  --file /app/scripts/prepare-license-issuance-schema.sql
+
 echo "Predeploy complete."

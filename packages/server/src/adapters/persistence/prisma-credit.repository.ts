@@ -101,6 +101,7 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
         remainingCredits: allocation.remainingCredits,
         periodStart: allocation.periodStart,
         periodEnd: allocation.periodEnd,
+        paddleTransactionId: allocation.paddleTransactionId,
       },
     });
     return this.toAllocationRecord(created);
@@ -114,6 +115,7 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
     remainingCredits: number;
     periodStart: Date;
     periodEnd: Date;
+    paddleTransactionId: string | null;
     createdAt: Date;
   }): CreditAllocationRecord {
     return {
@@ -124,6 +126,7 @@ export class PrismaCreditRepository extends CreditRepositoryPort {
       remainingCredits: a.remainingCredits,
       periodStart: a.periodStart,
       periodEnd: a.periodEnd,
+      paddleTransactionId: a.paddleTransactionId ?? undefined,
       createdAt: a.createdAt,
     };
   }

@@ -1,37 +1,24 @@
-// Webhook controller — HTTP boundary for Paddle billing webhooks
-// Routes incoming webhook events to appropriate subscription/credit handlers.
-//
-// Routes:
-//   POST /webhooks/paddle — receive and process Paddle webhook events
-//
-// Security: PaddleWebhookGuard verifies signature before handler executes.
-// Idempotency: Duplicate eventIds return 200 OK (safe to retry).
-
-import { Controller, HttpCode, HttpStatus, Logger, Post, Req, UseGuards } from '@nestjs/common';
-import { SubscriptionStatus, SubscriptionTier, TIER_CREDITS } from '@proso/shared';
-import { CreditRepositoryPort } from '../../ports/credit-repository.port';
-import { SubscriptionRepositoryPort } from '../../ports/subscription-repository.port';
+import {
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  Req,
+  ServiceUnavailableException,
+  UseGuards,
+} from '@nestjs/common';
+import { isOk, unwrapErr } from '@proso/shared';
 import { Public } from '../guards/license-key.guard';
 import { PaddleWebhookGuard, type WebhookRequest } from '../guards/paddle-webhook.guard';
-import { IdempotencyService } from '../services/idempotency.service';
+import { PaddleWebhookProcessor } from '../services/paddle-webhook.processor';
 
-/** Paddle webhook event type constants. */
-const PaddleEventType = {
-  SubscriptionCreated: 'subscription.created',
-  SubscriptionUpdated: 'subscription.updated',
-  SubscriptionCanceled: 'subscription.canceled',
-  TransactionCompleted: 'transaction.completed',
-} as const;
-
+/** HTTP boundary for signed, atomic Paddle provisioning. */
 @Controller('webhooks')
 export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
 
-  constructor(
-    private readonly idempotencyService: IdempotencyService,
-    private readonly subscriptionRepository: SubscriptionRepositoryPort,
-    private readonly creditRepository: CreditRepositoryPort,
-  ) {}
+  constructor(private readonly processor: PaddleWebhookProcessor) {}
 
   @Post('paddle')
   @Public()
@@ -39,279 +26,21 @@ export class WebhookController {
   @HttpCode(HttpStatus.OK)
   async handlePaddleWebhook(@Req() req: WebhookRequest): Promise<{ received: true }> {
     const event = req.webhookEvent;
+    const result = await this.processor.process(event);
 
-    // --- Idempotency check ---
-    if (this.idempotencyService.isProcessed(event.eventId)) {
-      this.logger.debug(`Duplicate webhook event ignored: ${event.eventId}`);
-      // Return 200 OK for duplicates (Paddle expects 2xx to stop retrying)
-      return { received: true };
-    }
-
-    this.logger.log(`Processing webhook: type=${event.eventType} id=${event.eventId}`);
-
-    // --- Route by event type ---
-    try {
-      switch (event.eventType) {
-        case PaddleEventType.SubscriptionCreated:
-          await this.handleSubscriptionCreated(event.data);
-          break;
-
-        case PaddleEventType.SubscriptionUpdated:
-          await this.handleSubscriptionUpdated(event.data);
-          break;
-
-        case PaddleEventType.SubscriptionCanceled:
-          await this.handleSubscriptionCanceled(event.data);
-          break;
-
-        case PaddleEventType.TransactionCompleted:
-          await this.handleTransactionCompleted(event.data);
-          break;
-
-        default:
-          this.logger.debug(`Unhandled webhook event type: ${event.eventType}`);
-      }
-    } catch (error) {
+    if (!isOk(result)) {
+      const error = unwrapErr(result);
       this.logger.error(
-        `Failed to process webhook ${event.eventId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Paddle webhook processing failed: type=${event.eventType} id=${event.eventId} code=${error.code}`,
       );
-      // Still mark as processed to avoid infinite retry loops on permanent failures.
-      // In production, dead-letter queue or alerting would handle this.
+      throw new ServiceUnavailableException('Paddle webhook processing failed');
     }
 
-    // Mark as processed after handling (or after permanent failure)
-    this.idempotencyService.markProcessed(event.eventId);
-
+    if (result.value.status === 'duplicate') {
+      this.logger.debug(`Duplicate Paddle webhook ignored: ${event.eventId}`);
+    } else {
+      this.logger.log(`Paddle webhook committed: type=${event.eventType} id=${event.eventId}`);
+    }
     return { received: true };
-  }
-
-  // ─── Event Handlers ────────────────────────────────────────────────
-
-  /**
-   * Handle subscription.created — create subscription record and initial credit allocation.
-   */
-  private async handleSubscriptionCreated(data: Record<string, unknown>): Promise<void> {
-    const paddleSubscriptionId = data['id'] as string;
-    const userId = this.extractUserId(data);
-    const tier = this.extractTier(data);
-    const periodStart = this.extractDate(data, 'current_billing_period', 'starts_at');
-    const periodEnd = this.extractDate(data, 'current_billing_period', 'ends_at');
-
-    // Create subscription record
-    const now = new Date();
-    const subscription = await this.subscriptionRepository.save({
-      id: '', // Generated by persistence layer
-      userId,
-      paddleSubscriptionId,
-      tier,
-      status: SubscriptionStatus.Active,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // Allocate initial credits for the tier
-    const totalCredits = TIER_CREDITS[tier as SubscriptionTier] ?? 0;
-    if (totalCredits > 0) {
-      await this.creditRepository.createAllocation({
-        userId,
-        subscriptionId: subscription.id,
-        totalCredits,
-        remainingCredits: totalCredits,
-        periodStart,
-        periodEnd,
-      });
-    }
-
-    this.logger.log(
-      `Subscription created: user=${userId} tier=${tier} paddle=${paddleSubscriptionId}`,
-    );
-  }
-
-  /**
-   * Handle subscription.updated — update tier, status, or billing period.
-   */
-  private async handleSubscriptionUpdated(data: Record<string, unknown>): Promise<void> {
-    const paddleSubscriptionId = data['id'] as string;
-    const existing = await this.subscriptionRepository.findByPaddleId(paddleSubscriptionId);
-
-    if (!existing) {
-      this.logger.warn(`Subscription update for unknown Paddle ID: ${paddleSubscriptionId}`);
-      return;
-    }
-
-    const tier = this.extractTier(data);
-    const status = this.mapPaddleStatus(data['status'] as string);
-    const periodStart = this.extractDate(data, 'current_billing_period', 'starts_at');
-    const periodEnd = this.extractDate(data, 'current_billing_period', 'ends_at');
-
-    await this.subscriptionRepository.update(existing.id, {
-      tier,
-      status,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      updatedAt: new Date(),
-    });
-
-    this.logger.log(`Subscription updated: user=${existing.userId} tier=${tier} status=${status}`);
-  }
-
-  /**
-   * Handle subscription.canceled — mark subscription as cancelled.
-   * Credits remain valid until period end (INV-004).
-   */
-  private async handleSubscriptionCanceled(data: Record<string, unknown>): Promise<void> {
-    const paddleSubscriptionId = data['id'] as string;
-    const existing = await this.subscriptionRepository.findByPaddleId(paddleSubscriptionId);
-
-    if (!existing) {
-      this.logger.warn(`Subscription cancel for unknown Paddle ID: ${paddleSubscriptionId}`);
-      return;
-    }
-
-    await this.subscriptionRepository.update(existing.id, {
-      status: SubscriptionStatus.Cancelled,
-      cancelledAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    this.logger.log(
-      `Subscription cancelled: user=${existing.userId} paddle=${paddleSubscriptionId}`,
-    );
-  }
-
-  /**
-   * Handle transaction.completed — allocate new credits for renewal transactions.
-   * Only processes subscription-related transactions (ignores one-time purchases).
-   */
-  private async handleTransactionCompleted(data: Record<string, unknown>): Promise<void> {
-    const subscriptionId = data['subscription_id'] as string | undefined;
-    if (!subscriptionId) {
-      // Not a subscription renewal — ignore
-      this.logger.debug('Transaction completed without subscription_id, skipping');
-      return;
-    }
-
-    const existing = await this.subscriptionRepository.findByPaddleId(subscriptionId);
-    if (!existing) {
-      this.logger.warn(`Transaction completed for unknown Paddle subscription: ${subscriptionId}`);
-      return;
-    }
-
-    // Update subscription period and status to active
-    const billingPeriod = data['billing_period'] as Record<string, string> | undefined;
-    const periodStart = billingPeriod?.starts_at ? new Date(billingPeriod.starts_at) : new Date();
-    const periodEnd = billingPeriod?.ends_at
-      ? new Date(billingPeriod.ends_at)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // fallback 30 days
-
-    await this.subscriptionRepository.update(existing.id, {
-      status: SubscriptionStatus.Active,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      cancelledAt: undefined,
-      updatedAt: new Date(),
-    });
-
-    // Allocate fresh credits for the new period
-    const tier = existing.tier as SubscriptionTier;
-    const totalCredits = TIER_CREDITS[tier] ?? 0;
-    if (totalCredits > 0) {
-      await this.creditRepository.createAllocation({
-        userId: existing.userId,
-        subscriptionId: existing.id,
-        totalCredits,
-        remainingCredits: totalCredits,
-        periodStart,
-        periodEnd,
-      });
-    }
-
-    this.logger.log(
-      `Renewal processed: user=${existing.userId} tier=${existing.tier} credits=${totalCredits}`,
-    );
-  }
-
-  // ─── Helpers ───────────────────────────────────────────────────────
-
-  /**
-   * Extract user ID from Paddle webhook custom_data or passthrough.
-   */
-  private extractUserId(data: Record<string, unknown>): string {
-    const customData = data['custom_data'] as Record<string, unknown> | undefined;
-    if (customData?.['user_id']) {
-      return customData['user_id'] as string;
-    }
-
-    const passthrough = data['passthrough'] as string | undefined;
-    if (passthrough) {
-      try {
-        const parsed = JSON.parse(passthrough) as Record<string, unknown>;
-        if (parsed['user_id']) return parsed['user_id'] as string;
-      } catch {
-        // Not JSON — treat as raw user ID
-        return passthrough;
-      }
-    }
-
-    throw new Error('Unable to extract user_id from webhook data');
-  }
-
-  /**
-   * Extract subscription tier from Paddle product/price metadata.
-   * Falls back to 'pro' if tier metadata is missing.
-   */
-  private extractTier(data: Record<string, unknown>): string {
-    const customData = data['custom_data'] as Record<string, unknown> | undefined;
-    if (customData?.['tier']) {
-      return customData['tier'] as string;
-    }
-
-    // Check items array for product metadata
-    const items = data['items'] as Array<Record<string, unknown>> | undefined;
-    if (items?.[0]) {
-      const price = items[0]['price'] as Record<string, unknown> | undefined;
-      const priceCustomData = price?.['custom_data'] as Record<string, unknown> | undefined;
-      if (priceCustomData?.['tier']) {
-        return priceCustomData['tier'] as string;
-      }
-    }
-
-    // Default to pro tier if metadata is missing
-    return SubscriptionTier.Pro;
-  }
-
-  /**
-   * Extract a nested date field from webhook data.
-   * e.g., extractDate(data, 'current_billing_period', 'starts_at')
-   */
-  private extractDate(data: Record<string, unknown>, parentKey: string, childKey: string): Date {
-    const parent = data[parentKey] as Record<string, string> | undefined;
-    if (parent?.[childKey]) {
-      return new Date(parent[childKey]);
-    }
-    return new Date();
-  }
-
-  /**
-   * Map Paddle subscription status to internal SubscriptionStatus.
-   */
-  private mapPaddleStatus(paddleStatus: string): string {
-    switch (paddleStatus) {
-      case 'active':
-        return SubscriptionStatus.Active;
-      case 'trialing':
-        return SubscriptionStatus.Trialing;
-      case 'past_due':
-        return SubscriptionStatus.PastDue;
-      case 'canceled':
-        return SubscriptionStatus.Cancelled;
-      case 'paused':
-      case 'expired':
-        return SubscriptionStatus.Expired;
-      default:
-        return SubscriptionStatus.Active;
-    }
   }
 }
