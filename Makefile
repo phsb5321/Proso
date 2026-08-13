@@ -71,6 +71,10 @@ local-host-journey-plants: ## Prove every local-host-journey-gate assertion catc
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/local-host-journey-plants.mjs
 
+popup-hidden-grant-gate: ## Feature 167: fresh popup hides the grant row (no box, out of tab order); permission-needed state shows it named + actionable.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/popup-hidden-grant-gate.mjs
+
 license-settings-gate: ## Prove the paid-account settings surface: a typed licence key is validated, saved, and still configured after a reopen.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/license-settings-gate.mjs

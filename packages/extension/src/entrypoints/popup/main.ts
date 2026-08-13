@@ -471,6 +471,17 @@ async function handlePlayPause(): Promise<void> {
 const LOCAL_GATE_REASON_MARKER = 'no access to the configured host origin';
 
 /**
+ * The origin the affordance is currently asking the reader to grant.
+ *
+ * Cached at show time so the grant click can call `permissions.request()` as
+ * its FIRST await: Firefox refuses the request once the handler has yielded
+ * (`may only be called from a user input handler`), and reading storage before
+ * the request always yields. Feature 167 falsifier — a grant action that can
+ * never grant is not an action.
+ */
+let pendingGrantOrigin: string | null = null;
+
+/**
  * Show the grant affordance when a playback start failed on the local-host
  * gate: the reader configured the host but the runtime host grant was never
  * made (seeding storage does not grant — only permissions.request() from a
@@ -480,6 +491,7 @@ const LOCAL_GATE_REASON_MARKER = 'no access to the configured host origin';
 async function maybeShowGrantAffordance(errorMsg: string): Promise<void> {
   if (!errorMsg.includes(LOCAL_GATE_REASON_MARKER)) {
     elements.grantRow.hidden = true;
+    pendingGrantOrigin = null;
     return;
   }
   const stored = await browser.storage.local.get(['localHostUrl']);
@@ -490,6 +502,7 @@ async function maybeShowGrantAffordance(errorMsg: string): Promise<void> {
   } catch {
     origin = '';
   }
+  pendingGrantOrigin = origin || null;
   elements.grantReason.textContent = origin
     ? `The local synthesis host needs access to ${origin}.`
     : 'The local synthesis host needs host access.';
@@ -498,21 +511,19 @@ async function maybeShowGrantAffordance(errorMsg: string): Promise<void> {
 
 /** Grant the host origin from this click (a user gesture), then retry playback. */
 async function handleGrantAccessClick(): Promise<void> {
-  const stored = await browser.storage.local.get(['localHostUrl']);
-  const url = stored.localHostUrl as string | undefined;
-  if (!url) return;
-  let origin: string;
-  try {
-    origin = new URL(url).origin;
-  } catch {
-    return;
-  }
+  // permissions.request() MUST be the first await in this handler. Firefox
+  // requires it from a user input handler; any await before it (storage reads
+  // included) expires the activation and the request throws. The origin was
+  // cached by maybeShowGrantAffordance when it showed the affordance.
+  const origin = pendingGrantOrigin;
+  if (!origin) return;
   const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
   if (!granted) {
     elements.grantReason.textContent =
       'Access was not granted — the local host route stays disabled.';
     return;
   }
+  pendingGrantOrigin = null;
   elements.grantRow.hidden = true;
   elements.statusText.textContent = 'Ready';
   elements.statusDot.setAttribute('data-status', 'stopped');
