@@ -15,7 +15,7 @@ FC_NUM_RUNS ?= 100
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
