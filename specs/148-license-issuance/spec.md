@@ -108,6 +108,30 @@ the signed Paddle price id.
 - WHEN a malformed claim hash reaches the persistence adapter THEN the write is
   rejected and no arbitrary credential text is stored.
 
+## Executed source falsifier — 12/08/2026 22:17 BRT
+
+Against `license-retrieval.service.ts` SHA-256
+`12b93fe48fe361c0b1a63a00628f609c5771b041397efc8ea54da9fb12beadfb`,
+the `!claimMatches` term was temporarily removed and this focused check was
+run:
+
+```bash
+pnpm --filter @proso/server exec jest --runInBand \
+  tests/unit/core/subscription/license-claim.service.spec.ts \
+  -t "never returns a key to a holder of the transaction id alone"
+```
+
+It exited 1: the wrong claim changed from the expected `pending` response to an
+`issued` response. Red receipt:
+`/tmp/proso-148-claim-falsifier-red.log`, SHA-256
+`dccdcb3eded2b60b5a333003560a474186814691e0528260d402d810bb46446e`.
+
+The source was restored byte-for-byte (SHA-256
+`12b93fe48fe361c0b1a63a00628f609c5771b041397efc8ea54da9fb12beadfb`),
+and the identical command exited 0 with one passing focused test. Green
+receipt: `/tmp/proso-148-claim-falsifier-green.log`, SHA-256
+`4a6678a72c6352d989df03db7f3e08cea8da8b774de01fa8fabbfbbd9a7b3e78`.
+
 ## Explicit remaining gap
 
 No production component in this feature writes `paddleTransactionId` or

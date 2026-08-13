@@ -37,14 +37,31 @@
 - [x] **T012 — Remove partial activation work.** Keep `webhook.controller.ts`
   and `subscription.module.ts` unchanged and remove webhook-specific tests and
   activation claims. Plane #38 owns the complete integration.
-- [ ] **T013 — Execute falsifiers.** Plant removal of claim verification and the
-  database uniqueness/race mechanism separately; retain red receipts and
-  restore the final implementation.
-- [ ] **T014 — Verify.** Generate Prisma, run focused unit/integration/real-DB
-  suites, `make fuzz`, `make verify`, `make verify-full`, and the user gate
-  (recording its repository-wide BLOCKED status rather than skipped-green).
-- [ ] **T015 — Different-family gate.** Obtain the DeepSeek/DeepInfra Sentinel
-  verdict on the clean final diff and resolve every blocking finding.
+- [x] **T013 — Execute falsifiers.** Removing `!claimMatches` made the focused
+  wrong-claim test exit 1 because it received `issued` instead of `pending`;
+  exact restoration made the same command exit 0. Receipts:
+  `/tmp/proso-148-claim-falsifier-{red,green}.log`, SHA-256
+  `dccdcb3eded2b60b5a333003560a474186814691e0528260d402d810bb46446e`
+  and `4a6678a72c6352d989df03db7f3e08cea8da8b774de01fa8fabbfbbd9a7b3e78`.
+  The database side is pinned by P2002 injection, 32 concurrent real-Postgres
+  upserts, a direct duplicate-row P2002, and a predeploy bridge run that rejects
+  contradictory duplicate users with P2002.
+- [x] **T014 — Verify.** Prisma generation passed through the NixOS engine
+  fallback; focused checks passed 102/102, the full server suite 511/511, and
+  real PostgreSQL contracts 25/25. Changed-line coverage was 120/125 (96%);
+  static checks, build/boot smoke, dependency scan, seeded fuzz
+  (`FC_SEED=20260730`), checkout surface 13/13, and its plants 8/8 passed.
+  `make verify` and `make verify-full` were invoked and both stop on the same
+  seven extension formatting findings present on clean `origin/main`; `make
+  quality` likewise stops on main's same new/stale Knip pair. The Firefox
+  diagnostic passed, after which `make user-gate` correctly returned its
+  repository contract's `BLOCKED` exit 2 rather than skipped-green.
+- [x] **T015 — Different-family gate.** DeepSeek Sentinel returned `ALLOW` on
+  the security-relevant implementation at `e14e6dd` after 511/511 server checks
+  and 25/25 real PostgreSQL checks. Later edits do not change claim, race,
+  schema, rate-limit, derivation, or rotation behavior: they preserve Feature
+  152's combined harness, record evidence, keep a 503-only error code local to
+  the server, and synthesize deterministic test secrets without literals.
 - [ ] **T016 — Deliver without merge.** Commit, rebase onto `origin/main`
   preserving Feature 152's auth module changes, push, open the PR, and stop
   before merge as explicitly requested.
