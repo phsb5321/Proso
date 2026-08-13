@@ -11,6 +11,79 @@ Symbols: ✓ verified, ◐ partially verified, ✗ disproven as a delivery claim
 Every row carries the command or `file:line` that proves it. What is *not*
 proven is listed in its own section rather than left implied.
 
+## Current state — delta of 13/08/2026 (read this first)
+
+> **Snapshot boundary.** Everything below this section — from
+> "What a customer experiences today, end to end" to the end of the file — is
+> the audit ledger of 12/08/2026 against `main @ 087607c` and the live hosts,
+> preserved verbatim as historical evidence. It remains true of that revision;
+> most of its ✗ rows describe code that has since been replaced on `main`.
+
+### Code-proven on `main @ de57d29` (merged; NOT deployed)
+
+| Status | Claim | Receipt |
+|---|---|---|
+| ✓ | Optional auth: the licence guard runs globally (`app.module.ts:6,40`, APP_GUARD in `auth.module.ts`); account-free routes stay public (`license.controller.ts:67,103`); unknown keys answer Free defaults by INV-001, never errors | PR #150 `2899773` |
+| ✓ | Hash-only, race-safe issuance/claim: `LicenseKey.userId @unique` (`schema.prisma:176`) with atomic upsert + P2002 convergence (`prisma-license-key.repository.ts:42`); account-free claim endpoint `POST /api/v1/license/by-transaction` (`license.controller.ts:102`), throttled 5/min (`:105`); the transaction id routes, the buyer's claim secret authorises | PR #153 `1ab8dbc`; `specs/148-license-issuance/spec.md` |
+| ✓ | Extension Wallet: public settings surface (labelled password field, Save & validate) with serialized validation → readback → storage → live adoption (`license.handlers.ts:85,326,339`) and masked reload; invalid/network failures keep the working key | PR #154 `2ecd180`; `specs/153-license-settings/spec.md` |
+| ✓ | Truthful fail-closed site/claim recovery: buy controls disabled with the reason stated while Paddle config is empty (`checkout-config.js:18`); success page says the transaction id alone is not enough and recovery verifies the purchaser through Paddle's records (`success.html:78`, `success.js:136`) | PRs #151 `4d1e132`, #155 `00b9e81` |
+| ✓ | Raw-body Paddle HMAC: exact `ts:body` bytes, multi-`h1` rotation, ±5 s tolerance, JSON parsed only after authentication (`paddle.adapter.ts:17`, `paddle-webhook.guard.ts:18`, `main.ts:10`) | PR #156 `de57d29`; `specs/157-paddle-bridge/spec.md` falsifier receipts |
+| ✓ | Signed customer identity: user upsert keyed only by `data.customer_id`; buyer `custom_data.user_id`/`tier` never select identity or tier (`prisma-paddle-provisioner.ts:64`; exact four-price catalog in `paddle-webhook.service.ts:106`) | PR #156 |
+| ✓ | Persistent event idempotency: `PaddleWebhookEvent.eventId` primary key (`schema.prisma:164`) committed in the same Serializable transaction as every entitlement write; replay → 200, no double grant | PR #156 |
+| ✓ | Out-of-order convergence: state updates only when `(occurred_at, event precedence, event id)` is semantically newer (`paddle-webhook.service.ts:492`); transaction-first and subscription-first deliver identical final state | PR #156 |
+| ✓ | Atomic exactly-once allocation/key: one allocation per source transaction (`CreditAllocation.paddleTransactionId @unique`, `schema.prisma:93`) plus one active hash-only licence key per user, all-or-nothing with the event marker; injected fault → 503, zero rows, retry succeeds | PR #156 |
+
+Server suites (36 incl. real-PostgreSQL contracts, 501 tests) passed at the
+reviewed heads; the extension wallet and checkout-surface gates run locally.
+
+### Still NOT live / NOT proven (13/08/2026)
+
+- Purchase configuration is empty by design: `clientToken: ''` and all four
+  price ids `''` — buy controls render disabled with the reason beside them.
+  No visitor can be charged, and no money can be taken by any shipped surface.
+- No real Paddle credentials: sandbox/live verification and KYC are
+  Pedro-gated; no `PADDLE_*` value exists in the workspace or on the deployed
+  server.
+- Server not deployed: Dokku `proso-api` is still `GIT_REV e6b412f`; the
+  predeploy bridge and `db push` have not run against production;
+  `LICENSE_KEY_SECRET` (required, ≥32 bytes, by production boot validation) is
+  not set there — a deploy without it fails closed at boot.
+- Site not deployed: GitHub Actions remains repo-wide `startup_failure`; the
+  live `proso.com.br` still serves the pre-#155 state (`Coming Soon` ×3).
+- Public install/onboarding holds: not on AMO, private-repo install links,
+  no first-run onboarding (Plane #19/#16/#27).
+- No real Paddle sandbox delivery has ever been received: signature, payload
+  shape, and provisioning are proven against pinned official fixtures and raw
+  signed HTTP, not against Paddle's infrastructure.
+
+**Current invariant:** one paid purchase → one user bound to Paddle's signed
+`customer_id` → one subscription at the tier of the exact configured price id →
+one claim pair (routing only; the buyer's secret authorises) → one allocation
+per source transaction → one active hash-only licence key. Buyer-authored
+metadata never selects identity or entitlement; every failure leaves no
+partial state and stays retryable; nothing Proso ships can take money until
+the checklist below is satisfied.
+
+### Activation checklist (fail-closed gates)
+
+1. **CI gate** — restore site deployment (Actions currently
+   `startup_failure`). Gate: live `pricing.html` serves the #155 copy with
+   zero `Coming Soon`.
+2. **Env gate (pre-deploy)** — set `LICENSE_KEY_SECRET` (≥32 bytes) on
+   `proso-api`. Gate: production boot refuses to start without it; there is no
+   default.
+3. **Schema gate** — deploy through the checked-in predeploy (idempotent
+   bridge runs twice; `db push`; fail-closed unique indexes). Gate:
+   `Subscription_paddle_claim_pair_check` exists and duplicate legacy rows
+   abort rather than being rewritten.
+4. **Paddle gate (Pedro/KYC)** — after sandbox verification, set
+   `PADDLE_WEBHOOK_SECRET` and the four `PADDLE_PRICE_*` ids. Gates: missing
+   secret → 403; missing/unknown price → 503; nothing invented.
+5. **Sandbox end-to-end** — one real sandbox purchase → signed webhook →
+   claim → validate → paid tier/credits. Not proven yet.
+6. **Distribution gate** — public install path and onboarding
+   (Plane #19/#16/#27) before advertising the paid path.
+
 ## What a customer experiences today, end to end
 
 A visitor reaches `https://proso.com.br/pricing.html`. Four tiers are shown with
