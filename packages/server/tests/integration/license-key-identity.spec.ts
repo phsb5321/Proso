@@ -36,6 +36,7 @@ import { type UserRecord, UserRepositoryPort } from '../../src/ports/user-reposi
 const PAID_KEY = 'proso-live-0123456789abcdef';
 const PAID_KEY_HASH = crypto.createHash('sha256').update(PAID_KEY).digest('hex');
 const PAID_USER_ID = 'user-with-a-paid-licence';
+const ENV_PLACEHOLDER = 'not-a-credential';
 
 const PAID_USER: UserRecord = {
   id: PAID_USER_ID,
@@ -91,7 +92,8 @@ describe('licence key identity (real AppModule graph)', () => {
     // the suite free of a thread jest cannot join.
     process.env.NODE_ENV = 'production';
     process.env.DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:5432/unused';
-    process.env.JWT_SECRET = 'not-a-credential';
+    process.env.JWT_SECRET = ENV_PLACEHOLDER;
+    process.env.LICENSE_KEY_SECRET = ENV_PLACEHOLDER.repeat(3);
 
     const { AppModule } = await import('../../src/app.module');
 
@@ -130,6 +132,7 @@ describe('licence key identity (real AppModule graph)', () => {
       findByUserId: jest.fn(async () => null),
       findActiveByUserId: jest.fn(async () => null),
       findByPaddleId: jest.fn(async () => null),
+      findByPaddleTransactionId: jest.fn(async () => null),
       save: jest.fn(),
       update: jest.fn(),
     } as unknown as SubscriptionRepositoryPort;
