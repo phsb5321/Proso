@@ -34,11 +34,20 @@
  *     202 `{ status: 'pending', retryAfterMs }` body. Any other code — 404,
  *     500, 501 — leaves the hold open.
  *
+ * The claim-endpoint hold is three-valued. While purchase is disabled the
+ * hold is NOT REQUIRED: the site cannot take money, nothing needs live proof,
+ * and no `--live` probe is sent — registration is printed as information
+ * only. Once the configuration is complete enough to enable purchase the
+ * hold binds: CLOSED only for a registered route that answered the canonical
+ * 202, OPEN otherwise. A hold that is merely not required is never printed
+ * CLOSED, so an operator cannot read a 404 as proof that the money path is
+ * proven.
+ *
  * Honest limits: this script observes the repository (and, with `--live`, the
  * configured API), not the Paddle account. "Paddle evidence" — a checkout
- * completed end to end against the configured Paddle values — is printed as
- * an operator hold in every verdict; no script in this repository can supply
- * it, and nothing here fakes it.
+ * completed end to end against the configured Paddle values — is surfaced in
+ * every verdict and becomes a binding hold once purchase can be enabled; no
+ * script in this repository can supply it, and nothing here fakes it.
  *
  * Test seams (used by the checkout-surface gate): PROSO_CHECKOUT_CONFIG_FILE,
  * PROSO_SCAN_SERVER_DIR, PROSO_SCAN_EXTENSION_DIR, and PROSO_PROBE_URL
@@ -47,7 +56,7 @@
  * @module scripts/checkout-deploy-readiness
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -234,7 +243,10 @@ async function main() {
 
   const registered = claimEndpointRegistered();
   let probe = { deployed: false, detail: '' };
-  if (live) {
+  // The live probe exists to prove a deployment hold. While purchase is
+  // disabled there is nothing to prove: probing would only produce noise, and
+  // a 404 answer must never appear next to a closed-looking hold.
+  if (live && purchaseLive) {
     const probeUrl = process.env.PROSO_PROBE_URL ?? (config ? config.apiBaseUrl : '');
     if (!probeUrl) {
       probe = { deployed: false, detail: 'no API address to probe' };
@@ -243,54 +255,63 @@ async function main() {
     }
   }
 
-  // Registration alone closes the hold only while purchase is disabled. A
-  // configuration that would enable purchase must prove the deployed
-  // endpoint answers the canonical contract.
-  const endpointClosed = purchaseLive ? registered && probe.deployed : registered;
+  // The claim-endpoint hold is three-valued: NOT REQUIRED while purchase is
+  // disabled (nothing to prove), OPEN while purchase is enabled but the
+  // endpoint is unproven, CLOSED only for a registered route that answered
+  // the canonical 202 pending contract.
+  let endpointState;
   let endpointHow;
-  if (!registered) {
+  if (!purchaseLive) {
+    endpointState = 'NOT REQUIRED';
+    endpointHow =
+      'purchase is disabled, so the site cannot take money and no live proof is needed; ' +
+      `informational: ${registered ? 'registered' : 'not registered'} as a runnable route in server sources — ` +
+      'it must be registered and answer the canonical 202 before purchase can go live';
+  } else if (!registered) {
+    endpointState = 'OPEN';
     endpointHow =
       'not registered as a runnable route in server sources — money could be taken and no key could ever be minted';
-  } else if (purchaseLive && !probe.deployed) {
+  } else if (!probe.deployed) {
+    endpointState = 'OPEN';
     endpointHow = live
       ? probe.detail
       : 'registered in server sources, but deployment is unproven — run with --live to probe the canonical answer';
   } else {
-    endpointHow = live ? probe.detail : 'registered in server sources';
+    endpointState = 'CLOSED';
+    endpointHow = probe.detail;
   }
 
   const holds = [
     {
       name: 'Keyforge claim endpoint (POST /api/v1/license/by-transaction)',
-      closed: endpointClosed,
+      state: endpointState,
       how: endpointHow,
     },
     {
       name: 'licence-key wallet field in the extension',
-      closed: walletFieldPresent(),
+      state: walletFieldPresent() ? 'CLOSED' : 'OPEN',
       how: 'the entrypoints must contain a real licence-key input control so an issued key has somewhere to go',
     },
     {
       name: 'complete Paddle configuration',
-      closed: status.complete,
+      state: status.complete ? 'CLOSED' : 'OPEN',
       how: status.reason,
     },
   ];
   if (purchaseLive) {
     holds.push({
       name: 'independent Paddle evidence',
-      closed: paddleEvidencePresent(),
+      state: paddleEvidencePresent() ? 'CLOSED' : 'OPEN',
       how: 'the operator who verified a checkout end to end against the configured Paddle account must point PROSO_PADDLE_EVIDENCE_FILE at their attestation',
     });
   }
 
-  const openHolds = holds.filter((hold) => !hold.closed);
+  const openHolds = holds.filter((hold) => hold.state === 'OPEN');
 
-  const operatorChecks = [
-    'the claim endpoint is deployed at the configured apiBaseUrl (run with --live to probe it)',
-  ];
+  const operatorChecks = [];
   if (!purchaseLive) {
     operatorChecks.push(
+      'before enabling purchase, complete the staged configuration and run with --live to prove the deployed claim endpoint answers the canonical 202',
       'Paddle evidence: before enabling purchase, a checkout must complete end to end against the configured Paddle values, verified by the operator who holds the Paddle account (PROSO_PADDLE_EVIDENCE_FILE)',
     );
   }
@@ -300,9 +321,7 @@ async function main() {
       'checkout-deploy-readiness PASS (purchase disabled): the buy controls render inert, so the site can deploy without taking money.\n',
     );
     for (const hold of holds) {
-      process.stdout.write(
-        `  hold ${hold.closed ? 'CLOSED' : 'OPEN  '} ${hold.name} — ${hold.how}\n`,
-      );
+      process.stdout.write(`  hold ${hold.state.padEnd(11)} ${hold.name} — ${hold.how}\n`);
     }
     for (const checkLine of operatorChecks) {
       process.stdout.write(`  operator check: ${checkLine}\n`);
@@ -314,6 +333,9 @@ async function main() {
     process.stdout.write(
       'checkout-deploy-readiness PASS (purchase enabled): every hold is closed.\n',
     );
+    for (const hold of holds) {
+      process.stdout.write(`  hold ${hold.state.padEnd(11)} ${hold.name} — ${hold.how}\n`);
+    }
     for (const checkLine of operatorChecks) {
       process.stdout.write(`  operator check: ${checkLine}\n`);
     }

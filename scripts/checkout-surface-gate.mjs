@@ -17,7 +17,8 @@
  * (and one claim secret) exists at a time, a failed provider load is not
  * cached, a non-string configuration value disables visibly instead of
  * throwing, and the deploy-readiness receipt fails closed while purchase holds
- * are open.
+ * are open — and never prints an unproven claim endpoint CLOSED: while
+ * purchase is disabled the endpoint hold is NOT REQUIRED.
  *
  * The shipped `pricing.html`, `success.html`, `assets/js/checkout.js` and
  * `assets/js/success.js` are loaded from disk into jsdom and driven through
@@ -42,8 +43,8 @@
  * @module scripts/checkout-surface-gate
  */
 
-import { webcrypto } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -270,6 +271,12 @@ const PLANTS = {
     from: "      if (pattern.test(stripComments(readFileSync(full, 'utf8')))) return true;",
     to: "      if (pattern.test(readFileSync(full, 'utf8'))) return true;",
     breaks: 'the deploy receipt oracles are not fooled by comments',
+  },
+  'disabled-claims-closed': {
+    file: 'scripts/checkout-deploy-readiness.mjs',
+    from: "    endpointState = 'NOT REQUIRED';",
+    to: "    endpointState = 'CLOSED';",
+    breaks: 'an unproven claim endpoint never reads CLOSED while purchase is disabled',
   },
 };
 
@@ -1738,10 +1745,7 @@ function runReceipt(receiptPath, env, args = []) {
 check(
   'the deploy receipt fails closed and its oracles are runnable, not greppable',
   async (_JSDOM, plant) => {
-    const receiptSource =
-      plant === 'gullible-receipt'
-        ? readSite('scripts/checkout-deploy-readiness.mjs', plant)
-        : readFileSync(path.join(repoRoot, 'scripts', 'checkout-deploy-readiness.mjs'), 'utf8');
+    const receiptSource = readSite('scripts/checkout-deploy-readiness.mjs', plant);
     const dir = mkdtempSync(path.join(os.tmpdir(), 'proso-receipt-'));
     const receiptPath = path.join(dir, 'checkout-deploy-readiness.mjs');
     writeFileSync(receiptPath, receiptSource);
@@ -1803,8 +1807,18 @@ check(
       commentRun.exitCode === 0,
       `the receipt exited ${commentRun.exitCode} on comment-only fixtures:\n${commentRun.output}`,
     );
+    // While purchase is disabled the claim-endpoint hold is NOT REQUIRED, never
+    // CLOSED — an unproven endpoint must not be readable as proven.
     assert(
-      /hold OPEN .*Keyforge claim endpoint/i.test(commentRun.output),
+      /hold NOT REQUIRED .*Keyforge claim endpoint/i.test(commentRun.output),
+      `a disabled config printed a claim-endpoint hold that is not NOT REQUIRED:\n${commentRun.output}`,
+    );
+    assert(
+      !/hold CLOSED .*Keyforge claim endpoint/i.test(commentRun.output),
+      `a disabled config printed the claim-endpoint hold CLOSED:\n${commentRun.output}`,
+    );
+    assert(
+      /not registered as a runnable route/.test(commentRun.output),
       `a comment closed the claim-endpoint oracle:\n${commentRun.output}`,
     );
     assert(
@@ -1828,11 +1842,16 @@ check(
 
     // --live: only the canonical 202 pending answer counts as deployed.
     let liveMode = 'bad';
+    let probeHits = 0;
     const server = http.createServer((req, res) => {
       if (String(req.url || '').includes('by-transaction')) {
+        probeHits += 1;
         if (liveMode === 'canonical') {
           res.writeHead(202, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: 'pending', retryAfterMs: 5000 }));
+        } else if (liveMode === 'notfound') {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found');
         } else {
           res.writeHead(501, { 'Content-Type': 'text/plain' });
           res.end('Not Implemented');
@@ -1861,9 +1880,56 @@ check(
         `the non-canonical live answer does not name the canonical 202:\n${bad.output}`,
       );
 
+      // Falsifier matrix (PROSO-40): the claim-endpoint hold is three-valued.
+      // Row 1 — empty config + a 404 endpoint: exit 0, the hold reads NOT
+      // REQUIRED and never CLOSED, and no probe is even sent while purchase
+      // is disabled.
+      liveMode = 'notfound';
+      const hitsBefore = probeHits;
+      const disabled404 = await runReceipt(
+        receiptPath,
+        { ...baseEnv, PROSO_PROBE_URL: `http://127.0.0.1:${port}` },
+        ['--live'],
+      );
+      assert(
+        disabled404.exitCode === 0,
+        `empty config with a 404 endpoint exited ${disabled404.exitCode}:\n${disabled404.output}`,
+      );
+      assert(
+        /hold NOT REQUIRED .*Keyforge claim endpoint/i.test(disabled404.output),
+        `empty config + 404 did not print the endpoint hold NOT REQUIRED:\n${disabled404.output}`,
+      );
+      assert(
+        !/hold CLOSED .*Keyforge claim endpoint/i.test(disabled404.output),
+        `empty config + 404 printed the endpoint hold CLOSED:\n${disabled404.output}`,
+      );
+      assert(
+        /complete the staged configuration and run with --live/i.test(disabled404.output),
+        `disabled output implies --live alone probes the endpoint:\n${disabled404.output}`,
+      );
+      assert(probeHits === hitsBefore, 'a --live probe was sent while purchase is disabled');
+
+      // Row 2 — complete config + a 404 endpoint: exit 1, the hold stays OPEN.
+      const complete404 = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
+      assert(
+        complete404.exitCode === 1,
+        `complete config with a 404 endpoint did not fail closed:\n${complete404.output}`,
+      );
+      assert(
+        /claim endpoint/i.test(complete404.output) && /404/.test(complete404.output),
+        `the 404 failure does not name the endpoint and its answer:\n${complete404.output}`,
+      );
+
+      // Row 3 — complete config + the canonical 202: exit 0 and the hold is
+      // printed CLOSED with the proven answer.
       liveMode = 'canonical';
       const good = await runReceipt(receiptPath, liveEnvBoth, ['--live']);
       assert(good.exitCode === 0, `a canonical live answer did not pass:\n${good.output}`);
+      assert(
+        /hold CLOSED .*Keyforge claim endpoint/i.test(good.output) &&
+          /canonical 202/.test(good.output),
+        `a proven endpoint did not print the hold CLOSED with its proof:\n${good.output}`,
+      );
 
       // Without the operator's Paddle evidence, even a proven endpoint and a
       // complete config must fail closed.
