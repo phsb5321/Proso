@@ -503,6 +503,7 @@ async function refreshFirstRun(preamble = ''): Promise<void> {
     'localHostEnabled',
     'localHostUrl',
     'licenseKey',
+    'serverUrl',
   ]);
   const unconfigured = isUnconfigured(stored);
   elements.firstRunPanel.hidden = !unconfigured;

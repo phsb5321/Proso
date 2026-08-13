@@ -26,6 +26,9 @@ export function isUnconfigured(stored: Record<string, unknown>): boolean {
   if (hasByokKey) return false;
   if (stored.localHostEnabled === true) return false;
   if (typeof stored.licenseKey === 'string' && stored.licenseKey.length > 0) return false;
+  // A configured managed server is a route too (the settings page writes it):
+  // such a reader keeps the player, and the 402 is their correct message.
+  if (typeof stored.serverUrl === 'string' && stored.serverUrl.length > 0) return false;
   return true;
 }
 

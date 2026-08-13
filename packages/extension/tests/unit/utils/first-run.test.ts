@@ -52,6 +52,12 @@ describe('isUnconfigured (R-1)', () => {
   it('a license key ends it', () => {
     expect(isUnconfigured({ licenseKey: 'lic-1' })).toBe(false);
   });
+
+  it('a configured managed server URL ends it (the diagnostics/configured-reader case)', () => {
+    expect(isUnconfigured({ provider: 'openai', serverUrl: 'http://127.0.0.1:46121' })).toBe(
+      false,
+    );
+  });
 });
 
 describe('classifyFailure (R-2, R-6)', () => {
