@@ -88,10 +88,7 @@ export function classifyFailure(
   // Shipped BYOK rejection shapes: the server proxy maps a provider 401 to
   // invalid_credentials, which the playback layer surfaces as
   // "Provider unavailable: <provider>".
-  if (
-    opts.hasByok &&
-    /key|401|403|invalid_credentials|provider unavailable/i.test(errorMsg)
-  ) {
+  if (opts.hasByok && /key|401|403|invalid_credentials|provider unavailable/i.test(errorMsg)) {
     return 'key-rejected';
   }
   return 'unconfigured';
