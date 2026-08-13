@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your licence key &mdash; Proso</title>
-  <meta name="description" content="Your Proso licence key and where to paste it.">
+  <title>Claiming your licence key &mdash; Proso</title>
+  <meta name="description" content="The page that exchanges a Paddle purchase for the Proso licence key.">
   <meta name="robots" content="noindex, follow">
 
   <link rel="canonical" href="https://proso.com.br/success.html">
@@ -29,7 +29,7 @@
           <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
           <li><a href="terms.html" class="site-nav__link">Terms</a></li>
         </ul>
-        <a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--sm">Install for Firefox</a>
+        <a href="index.html#install-status" class="btn btn--primary btn--sm">Install for Firefox</a>
       </nav>
     </div>
   </header>
@@ -37,17 +37,17 @@
   <main id="main">
     <section class="pricing-hero">
       <div class="container container--narrow">
-        <h1>Thank you &mdash; your subscription is active</h1>
-        <p>Below is the licence key that unlocks managed voices in the extension. Keep it: it is the only thing that identifies your subscription.</p>
+        <h1>Claiming your licence key</h1>
+        <p>This page asks the licence service to exchange a Paddle purchase for the licence key that unlocks managed voices in the extension. Leave this tab open until the key appears.</p>
       </div>
     </section>
 
     <section id="license">
       <div class="container container--narrow">
 
-        <div class="license-panel" id="checkout-waiting" role="status" aria-live="polite">
-          <h2>Issuing your key</h2>
-          <p>Your payment went through. We are waiting for the confirmation that mints your licence key &mdash; this usually takes a few seconds. Leave this page open.</p>
+        <div class="license-panel" id="checkout-waiting" role="status" aria-live="polite" hidden>
+          <h2>Confirming your purchase</h2>
+          <p>We are asking the licence service to confirm this purchase and issue your key &mdash; this usually takes a few seconds. Leave this page open.</p>
         </div>
 
         <div class="license-panel" id="checkout-key" hidden>
@@ -60,16 +60,24 @@
           <p class="license-panel__tier" id="license-key-tier" hidden></p>
           <h3>Where to paste it</h3>
           <p>Open Proso&rsquo;s settings (the extension&rsquo;s toolbar button, then the gear icon), find the licence key field, paste the key and save. Managed voices become available immediately.</p>
-          <p><strong>Copy it before you close this tab.</strong> Only the tab that started the checkout can collect this key &mdash; the link alone will not show it again. If you lose it, email <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a> with the transaction id below.</p>
+          <p><strong>Copy it before you close this tab.</strong> Only the tab that started the checkout can collect this key &mdash; the link alone will not show it again.</p>
+          <p>If you lose the key, email <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a>. Support verifies that you are the purchaser against Paddle&rsquo;s records &mdash; your checkout email and receipt &mdash; before releasing any key. The transaction id below is not enough to identify you.</p>
         </div>
 
         <div class="license-panel license-panel--problem" id="checkout-problem" hidden>
           <h2>We could not show your key</h2>
           <p id="checkout-problem-text" role="status" aria-live="polite"></p>
-          <p>Your payment is unaffected and your subscription is real. The key exists once the purchase is confirmed, and support can hand it over against the transaction id below.</p>
+          <p>The purchase may still be processing, or this browser is not the one that started the checkout. If you believe you should have a key, email <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a> &mdash; support verifies the purchaser through Paddle&rsquo;s records (your checkout email and receipt) before releasing any key. The transaction id below is not proof of payment on its own.</p>
         </div>
 
         <p class="license-panel__meta">Transaction id: <span id="transaction-id-value">not provided</span></p>
+
+        <noscript>
+          <div class="license-panel license-panel--problem">
+            <h2>JavaScript is required to claim your key</h2>
+            <p>This page needs JavaScript to exchange your purchase for a licence key. If you cannot enable it, email <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a> &mdash; support verifies the purchaser through Paddle&rsquo;s records before releasing any key. The transaction id alone is not enough.</p>
+          </div>
+        </noscript>
 
       </div>
     </section>

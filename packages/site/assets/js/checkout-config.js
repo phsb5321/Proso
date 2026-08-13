@@ -24,14 +24,14 @@
  *
  * TIER MAPPING — read this before pasting anything.
  *
- * The keys below are Proso's server-side tier names, not the display names on
- * the pricing page:
+ * The keys below are Proso's server-side tier names, which are also the names
+ * on the pricing page cards:
  *
  *   config key    pricing page card   price       credits per month
  *   ----------    -----------------   ---------   -----------------
- *   pro           "Basic"             $4.99/mo    500,000
+ *   pro           "Pro"               $4.99/mo    500,000
  *                                     $39.99/yr
- *   enterprise    "Pro"               $14.99/mo   2,000,000
+ *   enterprise    "Enterprise"        $14.99/mo   2,000,000
  *                                     $119.99/yr
  *
  * The tier travels to Paddle as `custom_data.tier`, but it is diagnostic only:
@@ -41,10 +41,7 @@
  * is a hard failure there, not a default.
  *
  * That is exactly why the mapping below still has to be right: pasting the
- * $4.99 price id under `enterprise` sells the Pro card for Basic money.
- *
- * The "Multilingual" card has no server-side tier and therefore no entry here;
- * it stays unpurchasable until one exists.
+ * $4.99 price id under `enterprise` sells the Enterprise card for Pro money.
  */
 window.PROSO_CHECKOUT_CONFIG = {
   environment: 'sandbox',
