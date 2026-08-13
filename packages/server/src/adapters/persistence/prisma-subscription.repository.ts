@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { LicenseClaimHashSchema } from '@proso/shared';
 import { PrismaService } from '../../infrastructure/modules/prisma.module';
 import {
   type SubscriptionRecord,
@@ -9,6 +10,18 @@ import {
 export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
   constructor(private readonly prisma: PrismaService) {
     super();
+  }
+
+  /**
+   * Only a well-formed lowercase-hex SHA-256 digest is stored as a claim hash.
+   *
+   * The value originates in the buyer's browser and is attacker-chosen even
+   * when Paddle later carries it in a signed event. Rejecting malformed input
+   * prevents an unclaimable purchase from being persisted as if it were valid.
+   */
+  private claimHashToStore(licenseClaimHash: string | undefined): string | null {
+    if (licenseClaimHash === undefined) return null;
+    return LicenseClaimHashSchema.parse(licenseClaimHash);
   }
 
   async findById(id: string): Promise<SubscriptionRecord | null> {
@@ -31,6 +44,13 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     return sub ? this.toRecord(sub) : null;
   }
 
+  async findByPaddleTransactionId(paddleTransactionId: string): Promise<SubscriptionRecord | null> {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { paddleTransactionId },
+    });
+    return sub ? this.toRecord(sub) : null;
+  }
+
   async findActiveByUserId(userId: string): Promise<SubscriptionRecord | null> {
     const sub = await this.prisma.subscription.findFirst({
       where: {
@@ -48,6 +68,8 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
         id: subscription.id,
         userId: subscription.userId,
         paddleSubscriptionId: subscription.paddleSubscriptionId ?? '',
+        paddleTransactionId: subscription.paddleTransactionId ?? null,
+        licenseClaimHash: this.claimHashToStore(subscription.licenseClaimHash),
         tier: subscription.tier as 'free' | 'pro' | 'enterprise',
         status: subscription.status as 'active' | 'cancelled' | 'expired' | 'past_due' | 'trialing',
         currentPeriodStart: subscription.currentPeriodStart,
@@ -68,6 +90,10 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     if (data.cancelledAt !== undefined) updateData.cancelledAt = data.cancelledAt;
     if (data.paddleSubscriptionId !== undefined)
       updateData.paddleSubscriptionId = data.paddleSubscriptionId;
+    if (data.paddleTransactionId !== undefined)
+      updateData.paddleTransactionId = data.paddleTransactionId;
+    if (data.licenseClaimHash !== undefined)
+      updateData.licenseClaimHash = this.claimHashToStore(data.licenseClaimHash);
 
     const sub = await this.prisma.subscription.update({
       where: { id },
@@ -80,6 +106,8 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
     id: string;
     userId: string;
     paddleSubscriptionId: string;
+    paddleTransactionId: string | null;
+    licenseClaimHash: string | null;
     tier: string;
     status: string;
     currentPeriodStart: Date;
@@ -92,6 +120,8 @@ export class PrismaSubscriptionRepository extends SubscriptionRepositoryPort {
       id: sub.id,
       userId: sub.userId,
       paddleSubscriptionId: sub.paddleSubscriptionId || undefined,
+      paddleTransactionId: sub.paddleTransactionId ?? undefined,
+      licenseClaimHash: sub.licenseClaimHash ?? undefined,
       tier: sub.tier,
       status: sub.status,
       currentPeriodStart: sub.currentPeriodStart,

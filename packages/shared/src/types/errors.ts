@@ -5,6 +5,7 @@ export enum ErrorCode {
   LicenseInvalid = 'LICENSE_INVALID',
   LicenseExpired = 'LICENSE_EXPIRED',
   LicenseDeviceLimitReached = 'LICENSE_DEVICE_LIMIT',
+  LicenseIssuanceFailed = 'LICENSE_ISSUANCE_FAILED',
 
   // Subscription errors
   SubscriptionNotFound = 'SUBSCRIPTION_NOT_FOUND',

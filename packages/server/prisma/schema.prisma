@@ -51,6 +51,15 @@ model Subscription {
   id                   String             @id @default(uuid())
   userId               String
   paddleSubscriptionId String             @unique
+  // Initial checkout transaction (txn_…). Paddle appends it to the success URL
+  // as `_ptxn`, so the post-checkout page holds it. It ROUTES a retrieval
+  // request; it does not authorise one — it appears in browser history, proxy
+  // logs and screenshots.
+  paddleTransactionId  String?            @unique
+  // SHA-256 of the claim secret the site generated at the Buy click and passed
+  // through Paddle as `custom_data.license_claim_hash`. This is what AUTHORISES
+  // retrieval. The secret itself is never persisted.
+  licenseClaimHash     String?
   tier                 SubscriptionTier
   status               SubscriptionStatus
   currentPeriodStart   DateTime
@@ -141,7 +150,10 @@ model RoutingDecision {
 
 model LicenseKey {
   id          String    @id @default(uuid())
-  userId      String
+  // One key per user, enforced by the database rather than a read-then-write
+  // check. Concurrent issuance attempts can both observe no row at READ
+  // COMMITTED; the unique constraint is the final arbiter.
+  userId      String    @unique
   keyHash     String    @unique
   activatedAt DateTime
   expiresAt   DateTime?
@@ -151,6 +163,4 @@ model LicenseKey {
   createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
 }

@@ -10,6 +10,12 @@ DB_URL="${DATABASE_URL}"
 
 # Replace postgres:// with postgresql:// if needed (but don't touch postgresql://)
 DB_URL=$(echo "$DB_URL" | sed 's|^postgres://|postgresql://|')
+export DATABASE_URL="$DB_URL"
+
+echo "Preparing the licence issuance schema bridge..."
+npx prisma db execute \
+  --config /app/prisma/prisma.config.ts \
+  --file /app/scripts/prepare-license-issuance-schema.sql
 
 echo "Running prisma db push..."
 npx prisma db push --url "$DB_URL" --schema /app/prisma/schema.prisma

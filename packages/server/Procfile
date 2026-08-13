@@ -1,2 +1,2 @@
-release: npx prisma migrate deploy
+release: sh scripts/predeploy.sh
 web: node dist/main.js
