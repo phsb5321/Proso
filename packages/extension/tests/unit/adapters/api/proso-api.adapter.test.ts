@@ -7,36 +7,18 @@
  * @module tests/unit/adapters/api/proso-api.adapter
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
-import { isOk, isErr } from '../../../../src/core/shared/result';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { LicenseValidateResponse, SubscriptionDetailsResponse } from '@proso/shared';
-import { SubscriptionTier, SubscriptionStatus, ErrorCode } from '@proso/shared';
+import { ErrorCode, SubscriptionStatus, SubscriptionTier } from '@proso/shared';
+import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
+import type { Result } from '../../../../src/core/shared/result';
+import { isErr, isOk } from '../../../../src/core/shared/result';
+import type { ApiClientError } from '../../../../src/ports/api-client.port';
+import { binaryResponse, jsonResponse } from '../../../helpers/http-response';
 
 // Mock fetch globally
 const mockFetch = jest.fn<typeof fetch>();
 globalThis.fetch = mockFetch;
-
-function jsonResponse(data: unknown, status = 200): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(data),
-    headers: new Headers(),
-    redirected: false,
-    statusText: 'OK',
-    type: 'basic',
-    url: '',
-    clone: () => jsonResponse(data, status),
-    body: null,
-    bodyUsed: false,
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    blob: () => Promise.resolve(new Blob()),
-    formData: () => Promise.resolve(new FormData()),
-    text: () => Promise.resolve(''),
-    bytes: () => Promise.resolve(new Uint8Array()),
-  } as Response;
-}
 
 function errorResponse(
   status: number,
@@ -56,52 +38,28 @@ function errorResponseWithHeaders(
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-    headers: new Headers(headers),
-    redirected: false,
-    statusText: 'Error',
-    type: 'basic',
-    url: '',
-    clone: () => errorResponseWithHeaders(status, body, headers),
-    body: null,
-    bodyUsed: false,
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    blob: () => Promise.resolve(new Blob()),
-    formData: () => Promise.resolve(new FormData()),
-    text: () => Promise.resolve(''),
-    bytes: () => Promise.resolve(new Uint8Array()),
-  } as Response;
+  return jsonResponse(body, status, headers, 'Error');
+}
+
+function expectApiError<TValue, TType extends ApiClientError['type']>(
+  result: Result<TValue, ApiClientError>,
+  type: TType,
+): Extract<ApiClientError, { type: TType }> {
+  expect(isErr(result)).toBe(true);
+  if (!isErr(result)) throw new Error(`Expected ${type}, received Ok`);
+  expect(result.error.type).toBe(type);
+  return result.error as Extract<ApiClientError, { type: TType }>;
 }
 
 /** Successful binary (audio) response, matching what `requestBinary`/`synthesize` expects. */
 function binarySuccessResponse(): Response {
-  return {
-    ok: true,
-    status: 200,
-    headers: new Headers({
-      'Content-Type': 'audio/mpeg',
-      'X-Credits-Used': '1',
-      'X-Credits-Remaining': '99',
-      'X-Cache-Hit': 'false',
-      'X-Provider': 'openai',
-    }),
-    redirected: false,
-    statusText: 'OK',
-    type: 'basic',
-    url: '',
-    clone: () => binarySuccessResponse(),
-    body: null,
-    bodyUsed: false,
-    json: () => Promise.resolve({}),
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    blob: () => Promise.resolve(new Blob()),
-    formData: () => Promise.resolve(new FormData()),
-    text: () => Promise.resolve(''),
-    bytes: () => Promise.resolve(new Uint8Array()),
-  } as Response;
+  return binaryResponse(new Blob(), 200, {
+    'Content-Type': 'audio/mpeg',
+    'X-Credits-Used': '1',
+    'X-Credits-Remaining': '99',
+    'X-Cache-Hit': 'false',
+    'X-Provider': 'openai',
+  });
 }
 
 const SERVER_URL = 'https://api.proso.com.br';
@@ -176,14 +134,15 @@ describe('ProsoApiAdapter', () => {
       }
     });
 
-    it('includes X-License-Key header when license key is set', async () => {
+    it('does not attach the previously saved key to the public validation request', async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse(mockLicenseResponse));
 
-      await adapter.validateLicense('my-key');
+      await adapter.validateLicense('candidate-key');
 
       const [, init] = mockFetch.mock.calls[0];
       const headers = init?.headers as Record<string, string>;
-      expect(headers['X-License-Key']).toBe('test-license-key');
+      expect(headers['X-License-Key']).toBeUndefined();
+      expect(JSON.parse(init?.body as string)).toEqual({ licenseKey: 'candidate-key' });
     });
   });
 
@@ -196,6 +155,20 @@ describe('ProsoApiAdapter', () => {
       const [url, init] = mockFetch.mock.calls[0];
       expect(url).toBe(`${SERVER_URL}/api/v1/subscription`);
       expect(init?.method).toBe('GET');
+    });
+
+    it('uses an explicit candidate without replacing the configured live key', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockSubscriptionResponse))
+        .mockResolvedValueOnce(jsonResponse(mockSubscriptionResponse));
+
+      await adapter.getSubscription('candidate-key');
+      await adapter.getSubscription();
+
+      const candidateHeaders = mockFetch.mock.calls[0][1]?.headers as Record<string, string>;
+      const liveHeaders = mockFetch.mock.calls[1][1]?.headers as Record<string, string>;
+      expect(candidateHeaders['X-License-Key']).toBe('candidate-key');
+      expect(liveHeaders['X-License-Key']).toBe('test-license-key');
     });
 
     it('returns Ok with subscription details on success', async () => {
@@ -215,10 +188,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await noKey.getSubscription();
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('not_configured');
-      }
+      expectApiError(result, 'not_configured');
     });
   });
 
@@ -228,10 +198,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await noKey.getCreditBalance();
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('not_configured');
-      }
+      expectApiError(result, 'not_configured');
     });
   });
 
@@ -253,10 +220,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await noKey.createCheckout('pro');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('not_configured');
-      }
+      expectApiError(result, 'not_configured');
     });
   });
 
@@ -266,13 +230,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('bad-key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('unauthorized');
-        if (result.error.type === 'unauthorized') {
-          expect(result.error.message).toBe('Invalid license key');
-        }
-      }
+      expect(expectApiError(result, 'unauthorized').message).toBe('Invalid license key');
     });
 
     it('returns unauthorized error on 403', async () => {
@@ -280,10 +238,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('bad-key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('unauthorized');
-      }
+      expectApiError(result, 'unauthorized');
     });
 
     it('returns server_error for 4xx responses', async () => {
@@ -291,13 +246,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('server_error');
-        if (result.error.type === 'server_error') {
-          expect(result.error.status).toBe(422);
-        }
-      }
+      expect(expectApiError(result, 'server_error').status).toBe(422);
     });
   });
 
@@ -322,10 +271,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('server_error');
-      }
+      expectApiError(result, 'server_error');
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
 
@@ -348,10 +294,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('network');
-      }
+      expectApiError(result, 'network');
     });
   });
 
@@ -388,14 +331,9 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('server_error');
-        if (result.error.type === 'server_error') {
-          expect(result.error.message).toBe('Legacy validation failure');
-          expect(result.error.code).toBeUndefined();
-        }
-      }
+      const error = expectApiError(result, 'server_error');
+      expect(error.message).toBe('Legacy validation failure');
+      expect(error.code).toBeUndefined();
     });
 
     it('falls back to `HTTP <status>` when the body has neither `message` nor `error`', async () => {
@@ -403,13 +341,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('server_error');
-        if (result.error.type === 'server_error') {
-          expect(result.error.message).toBe('HTTP 422');
-        }
-      }
+      expect(expectApiError(result, 'server_error').message).toBe('HTTP 422');
     });
   });
 
@@ -425,14 +357,9 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('server_error');
-        if (result.error.type === 'server_error') {
-          expect(result.error.status).toBe(402);
-          expect(result.error.code).toBe(ErrorCode.NoActiveAllocation);
-        }
-      }
+      const error = expectApiError(result, 'server_error');
+      expect(error.status).toBe(402);
+      expect(error.code).toBe(ErrorCode.NoActiveAllocation);
     });
 
     it('captures `code` on a 401 (unauthorized) response', async () => {
@@ -446,13 +373,7 @@ describe('ProsoApiAdapter', () => {
 
       const result = await adapter.validateLicense('bad-key');
 
-      expect(isErr(result)).toBe(true);
-      if (isErr(result)) {
-        expect(result.error.type).toBe('unauthorized');
-        if (result.error.type === 'unauthorized') {
-          expect(result.error.code).toBe(ErrorCode.LicenseInvalid);
-        }
-      }
+      expect(expectApiError(result, 'unauthorized').code).toBe(ErrorCode.LicenseInvalid);
     });
   });
 
@@ -460,6 +381,19 @@ describe('ProsoApiAdapter', () => {
     afterEach(() => {
       jest.useRealTimers();
     });
+
+    async function finishRetry<T>(
+      resultPromise: Promise<T>,
+      beforeRetryMs: number,
+      finalMs: number,
+    ): Promise<T> {
+      await jest.advanceTimersByTimeAsync(beforeRetryMs);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(finalMs);
+      const result = await resultPromise;
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      return result;
+    }
 
     it('honors a delta-seconds Retry-After before retrying a 429', async () => {
       jest.useFakeTimers();
@@ -472,14 +406,8 @@ describe('ProsoApiAdapter', () => {
       const resultPromise = adapter.validateLicense('key');
 
       // Just under the 3s hint: proves the retry hasn't fired yet.
-      await jest.advanceTimersByTimeAsync(2999);
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-
-      await jest.advanceTimersByTimeAsync(1);
-      const result = await resultPromise;
-
+      const result = await finishRetry(resultPromise, 2999, 1);
       expect(isOk(result)).toBe(true);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('honors an HTTP-date Retry-After before retrying a 429 (synthesize/requestBinary path)', async () => {
@@ -516,14 +444,8 @@ describe('ProsoApiAdapter', () => {
       const resultPromise = adapter.validateLicense('key');
 
       // Just under the 60s clamp ceiling: proves it did not honor the full 999999s hint.
-      await jest.advanceTimersByTimeAsync(59_999);
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-
-      await jest.advanceTimersByTimeAsync(1);
-      const result = await resultPromise;
-
+      const result = await finishRetry(resultPromise, 59_999, 1);
       expect(isOk(result)).toBe(true);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('returns server_error with retryAfterMs after exhausting retries on 429', async () => {

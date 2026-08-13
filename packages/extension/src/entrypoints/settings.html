@@ -129,6 +129,15 @@
           </a>
         </li>
         <li>
+          <a href="#license" class="sidebar-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2"/>
+              <path d="M3 10h18M7 15h4"/>
+            </svg>
+            <span>Paid account</span>
+          </a>
+        </li>
+        <li>
           <a href="#developer" class="sidebar-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <polyline points="16 18 22 12 16 6"/>
@@ -245,6 +254,63 @@
               <button type="button" id="testLocalHost" class="proso-button proso-button--secondary" data-testid="settings-local-host-test">Test connection</button>
             </div>
             <div id="localHostStatus" class="provider-card__status" role="status" aria-live="polite" data-testid="settings-local-host-status"></div>
+          </div>
+        </div>
+      </section>
+
+      <!--
+        Paid account (PROSO-153). The extension has carried complete licence
+        plumbing since 064 — config schema, storage read, container wiring,
+        X-License-Key injection — and no way for a reader to enter a key, so
+        the only way to configure one was to edit browser.storage by hand
+        (docs/money-path.md). This section is that missing surface, and
+        nothing more: no checkout, no account, no key minting.
+      -->
+      <section id="license" class="proso-card proso-accordion" data-section="license">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="license-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 10V8a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/>
+              <circle cx="17" cy="16" r="3"/>
+              <path d="M17 19v3l1.5-1 1.5 1v-3"/>
+            </svg>
+            Paid account
+          </h2>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+        </button>
+        <div id="license-content" class="proso-accordion__content" hidden>
+          <div class="developer-subsection" data-testid="settings-license-section">
+            <p class="developer-subsection__description">
+              A licence key unlocks synthesis on Proso's managed servers and the credits that
+              come with your plan.
+            </p>
+            <p class="developer-subsection__description" data-testid="settings-license-free-note">
+              <strong>You do not need one to read.</strong> A synthesis host on your own network
+              and your own provider key both work with no account and no licence key.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" for="licenseKey">Licence key</label>
+              <div class="provider-card__input-wrapper">
+                <input type="password" id="licenseKey" class="proso-input provider-card__input" placeholder="PROSO-…" autocomplete="off" spellcheck="false" aria-describedby="licenseKeyHint" data-testid="settings-license-key">
+                <button type="button" class="proso-button proso-button--ghost proso-button--icon provider-card__toggle toggle-visibility" data-target="licenseKey" aria-label="Toggle licence key visibility">
+                  <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+              <p id="licenseKeyHint" class="form-hint">
+                Stored in this browser and sent only to the Proso server, as the key that
+                identifies your plan. After a reload the field stays empty and only a masked
+                suffix is shown when it is safe to reveal one.
+              </p>
+            </div>
+
+            <div class="provider-card__actions">
+              <button type="button" id="saveLicenseKey" class="proso-button proso-button--primary" data-testid="settings-license-save">Save &amp; validate</button>
+            </div>
+            <div id="licenseStatus" class="provider-card__status" role="status" aria-live="polite" data-testid="settings-license-status"></div>
           </div>
         </div>
       </section>

@@ -21,7 +21,6 @@ import type { ApiKeys } from './types';
 
 // Audio adapters
 import { browser } from 'wxt/browser';
-import { originCoveredByGrantedPatterns } from '../utils/permissions/match-pattern';
 import {
   AudioUrlAdapter,
   FallbackAudioAdapter,
@@ -29,6 +28,7 @@ import {
   NoOpAudioGeneratorAdapter,
   ServerTtsAudioAdapter,
 } from '../adapters/audio';
+import { originCoveredByGrantedPatterns } from '../utils/permissions/match-pattern';
 
 // Messaging adapters
 import { HighlightSyncAdapter, NoOpHighlightSyncAdapter } from '../adapters/messaging';
@@ -197,7 +197,6 @@ export function createHighlightSyncAdapter(useNoOp = false): IHighlightSynchroni
   }
   return new HighlightSyncAdapter();
 }
-
 
 /**
  * Create a text extractor adapter.

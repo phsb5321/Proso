@@ -120,7 +120,6 @@ function normalizeUrl(url: string): string {
   }
 }
 
-
 /**
  * Redact sensitive data from an object recursively.
  * Returns a new object with sensitive values replaced.

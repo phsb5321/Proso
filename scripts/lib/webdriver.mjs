@@ -42,10 +42,16 @@ export async function waitFor(label, probe, { timeoutMs = 15_000, intervalMs = 2
 class WebDriverError extends Error {}
 
 export class Driver {
-  constructor(base, sessionId, proc) {
+  constructor(base, sessionId, proc, processLogs) {
     this.base = base;
     this.sessionId = sessionId;
     this.proc = proc;
+    this.processLogs = processLogs;
+  }
+
+  /** Snapshot geckodriver/Firefox process output collected so far. */
+  getProcessLogs() {
+    return this.processLogs.join('');
   }
 
   async #call(method, path, body) {
@@ -161,5 +167,5 @@ export async function launch({ binary, prefs = {}, headless = true, extraArgs = 
     const detail = payload?.value?.message ?? JSON.stringify(payload);
     throw new WebDriverError(`Could not start Firefox: ${detail}\n${logs.join('')}`);
   }
-  return new Driver(base, payload.value.sessionId, proc);
+  return new Driver(base, payload.value.sessionId, proc, logs);
 }

@@ -222,7 +222,9 @@ export async function detectLanguage(params: PageLanguage): Promise<DetectedLang
 /** Read the persisted language-detection cache (or an empty map). */
 async function readLanguageCache(): Promise<Record<string, DetectedLanguage>> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_CACHE);
-  return (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {};
+  return (
+    (result[STORAGE_KEYS.LANGUAGE_CACHE] as Record<string, DetectedLanguage> | undefined) || {}
+  );
 }
 
 /**
@@ -305,11 +307,13 @@ async function getLanguageState(_tabId: number): Promise<LanguageState> {
  */
 async function readLanguagePreference(): Promise<LanguagePreference> {
   const result = await browser.storage.local.get(STORAGE_KEYS.LANGUAGE_PREFERENCE);
-  return (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
-    autoDetect: true,
-    currentOverride: null,
-    voicePreferences: {},
-  };
+  return (
+    (result[STORAGE_KEYS.LANGUAGE_PREFERENCE] as LanguagePreference | undefined) || {
+      autoDetect: true,
+      currentOverride: null,
+      voicePreferences: {},
+    }
+  );
 }
 
 /**

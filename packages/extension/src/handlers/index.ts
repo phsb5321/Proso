@@ -202,6 +202,15 @@ export {
   type LoggingDependencies,
 } from './logging.handlers';
 
+// Licence handler exports (PROSO-153)
+export {
+  registerLicenseHandlers,
+  setLicenseApiClient,
+  type LicenseHandlerError,
+  type LicenseStatusResponse,
+  type LicenseValidateResponse,
+} from './license.handlers';
+
 // Credit handler exports (T132)
 export {
   registerCreditHandlers,
@@ -226,6 +235,7 @@ import {
   createInstrumentedRegistry as createInstrReg,
 } from './instrumented-registry';
 import { registerLanguageHandlers as regLanguage } from './language.handlers';
+import { registerLicenseHandlers as regLicense } from './license.handlers';
 import { registerLoggingHandlers as regLogging } from './logging.handlers';
 import { registerPlaybackHandlers as regPlayback } from './playback.handlers';
 import { registerPrefetchHandlers as regPrefetch } from './prefetch.handlers';
@@ -256,6 +266,7 @@ export function registerAllHandlers(registry: Registry): void {
   regLanguage(registry); // T069
   regLogging(registry); // T070
   regCredit(registry); // T132
+  regLicense(registry); // PROSO-153
 }
 
 /**

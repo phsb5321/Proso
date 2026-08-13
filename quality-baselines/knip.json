@@ -423,17 +423,6 @@
     },
     {
       "tool": "knip",
-      "fingerprint": "d39e17aa820430644995d32a17f72c0096f82971ff77d5bcc22143f7c16c67eb",
-      "scope": "all",
-      "category": "exports",
-      "file": "packages/extension/src/utils/options/api-key-tester.ts",
-      "symbol": "loadApiKeys",
-      "owner": "proso",
-      "reason": "Classified legacy production/dependency debt; removal requires reachability review.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "knip",
       "fingerprint": "d64353a7133baf22d1462d7eba86a90e4365b37dbffe05ffcc0ca30e546f9bca",
       "scope": "all",
       "category": "exports",

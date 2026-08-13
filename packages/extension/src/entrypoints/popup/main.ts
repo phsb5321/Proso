@@ -603,13 +603,22 @@ async function handleProgressSeek(event: Event): Promise<void> {
  * NOTE: We use browser.tabs.create() instead of browser.runtime.openOptionsPage()
  * because Firefox embeds options_ui pages inside about:addons which looks ugly.
  */
-function handleSettingsClick(): void {
-  browser.tabs.create({
-    url: (browser.runtime as unknown as { getURL: (path: string) => string }).getURL(
-      'settings.html',
-    ),
-  });
-  window.close();
+async function handleSettingsClick(): Promise<void> {
+  try {
+    // Firefox may destroy the popup context as soon as window.close() runs.
+    // Wait until the settings tab exists before closing, or a perfectly valid
+    // public click can disappear without opening anything.
+    await browser.tabs.create({
+      url: (browser.runtime as unknown as { getURL: (path: string) => string }).getURL(
+        'settings.html',
+      ),
+    });
+    window.close();
+  } catch (error) {
+    // Keep the popup open so the reader can retry instead of turning a failed
+    // tab creation into a silent no-op.
+    log.error('[Popup] Failed to open settings', { error });
+  }
 }
 
 /**

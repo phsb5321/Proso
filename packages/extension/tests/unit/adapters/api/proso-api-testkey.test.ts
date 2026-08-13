@@ -9,62 +9,24 @@
  * @module tests/unit/adapters/api/proso-api-testkey
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
-import { isOk, isErr } from '../../../../src/core/shared/result';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { TTSTestKeyResponse } from '@proso/shared';
+import { ProsoApiAdapter } from '../../../../src/adapters/api/proso-api.adapter';
+import { isErr, isOk } from '../../../../src/core/shared/result';
+import { binaryResponse, jsonResponse } from '../../../helpers/http-response';
 
 // Mock fetch globally
 const mockFetch = jest.fn<typeof fetch>();
 globalThis.fetch = mockFetch;
 
-function jsonResponse(data: unknown, status = 200): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(data),
-    headers: new Headers(),
-    redirected: false,
-    statusText: 'OK',
-    type: 'basic',
-    url: '',
-    clone: () => jsonResponse(data, status),
-    body: null,
-    bodyUsed: false,
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    blob: () => Promise.resolve(new Blob()),
-    formData: () => Promise.resolve(new FormData()),
-    text: () => Promise.resolve(''),
-    bytes: () => Promise.resolve(new Uint8Array()),
-  } as Response;
-}
-
 function blobResponse(status = 200): Response {
-  const blob = new Blob(['audio-data'], { type: 'audio/mpeg' });
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    blob: () => Promise.resolve(blob),
-    headers: new Headers({
-      'Content-Type': 'audio/mpeg',
-      'X-Credits-Used': '0',
-      'X-Credits-Remaining': '100000',
-      'X-Cache-Hit': 'false',
-      'X-Provider': 'openai',
-    }),
-    redirected: false,
-    statusText: 'OK',
-    type: 'basic',
-    url: '',
-    clone: () => blobResponse(status),
-    body: null,
-    bodyUsed: false,
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    json: () => Promise.resolve({}),
-    formData: () => Promise.resolve(new FormData()),
-    text: () => Promise.resolve(''),
-    bytes: () => Promise.resolve(new Uint8Array()),
-  } as Response;
+  return binaryResponse(new Blob(['audio-data'], { type: 'audio/mpeg' }), status, {
+    'Content-Type': 'audio/mpeg',
+    'X-Credits-Used': '0',
+    'X-Credits-Remaining': '100000',
+    'X-Cache-Hit': 'false',
+    'X-Provider': 'openai',
+  });
 }
 
 const SERVER_URL = 'https://api.proso.com.br';

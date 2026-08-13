@@ -120,6 +120,4 @@ export interface IAudioGenerator {
    * Empty array means all languages supported.
    */
   readonly supportedLanguages: readonly string[];
-
-
 }

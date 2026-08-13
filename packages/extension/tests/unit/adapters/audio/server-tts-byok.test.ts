@@ -18,6 +18,7 @@ import type {
   IApiClient,
   SynthesizeResponse,
 } from '../../../../src/ports/api-client.port';
+import { createApiClientStub as createMockApiClient } from '../../../helpers/mock-api-client';
 
 // ── Helpers ──
 
@@ -28,18 +29,8 @@ const defaultAudioRequest = {
   language: null,
 } as const;
 
-function createMockApiClient(overrides: Partial<IApiClient> = {}): IApiClient {
-  return {
-    isConfigured: true,
-    validateLicense: jest.fn<IApiClient['validateLicense']>(),
-    getSubscription: jest.fn<IApiClient['getSubscription']>(),
-    getCreditBalance: jest.fn<IApiClient['getCreditBalance']>(),
-    getCreditHistory: jest.fn<IApiClient['getCreditHistory']>(),
-    createCheckout: jest.fn<IApiClient['createCheckout']>(),
-    synthesize: jest.fn<IApiClient['synthesize']>(),
-    testApiKey: jest.fn<IApiClient['testApiKey']>(),
-    ...overrides,
-  };
+function lastSynthesizeRequest(apiClient: IApiClient): TTSSynthesizeRequest {
+  return (apiClient.synthesize as jest.Mock).mock.calls.at(-1)?.[0] as TTSSynthesizeRequest;
 }
 
 const mockSynthesizeResponse: SynthesizeResponse = {
@@ -80,8 +71,7 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
     await adapter.generateAudio(defaultAudioRequest);
 
     expect(apiClient.synthesize).toHaveBeenCalledTimes(1);
-    const request = (apiClient.synthesize as jest.Mock).mock.calls[0][0] as TTSSynthesizeRequest;
-    expect(request.byokApiKey).toBe('sk-byok-key-123');
+    expect(lastSynthesizeRequest(apiClient).byokApiKey).toBe('sk-byok-key-123');
   });
 
   it('does not include byokApiKey when not provided in constructor', async () => {
@@ -90,8 +80,7 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
     await adapter.generateAudio(defaultAudioRequest);
 
     expect(apiClient.synthesize).toHaveBeenCalledTimes(1);
-    const request = (apiClient.synthesize as jest.Mock).mock.calls[0][0] as TTSSynthesizeRequest;
-    expect(request.byokApiKey).toBeUndefined();
+    expect(lastSynthesizeRequest(apiClient).byokApiKey).toBeUndefined();
   });
 
   // ── Provider and voice forwarding ──
@@ -101,8 +90,7 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
 
     await adapter.generateAudio({ ...defaultAudioRequest, text: 'Test' });
 
-    const request = (apiClient.synthesize as jest.Mock).mock.calls[0][0] as TTSSynthesizeRequest;
-    expect(request.provider).toBe(TTSProvider.ElevenLabs);
+    expect(lastSynthesizeRequest(apiClient).provider).toBe(TTSProvider.ElevenLabs);
   });
 
   it('sends voice and language from audio request', async () => {
@@ -115,9 +103,8 @@ describe('ServerTtsAudioAdapter — BYOK key forwarding', () => {
       language: 'en',
     });
 
-    const request = (apiClient.synthesize as jest.Mock).mock.calls[0][0] as TTSSynthesizeRequest;
-    expect(request.voice).toBe('alloy');
-    expect(request.language).toBe('en');
+    const request = lastSynthesizeRequest(apiClient);
+    expect(request).toMatchObject({ voice: 'alloy', language: 'en' });
   });
 
   // ── Success response mapping ──

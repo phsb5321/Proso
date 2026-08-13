@@ -18,10 +18,10 @@
  * @module scripts/lib/reading-fixture-server
  */
 
-import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,6 +86,36 @@ export const LOCAL_HOST_VOICES = [
 export const LOCAL_HOST_MAX_TEXT_UTF8_BYTES = 2000;
 
 /**
+ * The one key this fixture treats as a sold licence. Any other key is answered
+ * the way the real server answers an unknown one — `{valid:false, tier:'free'}`
+ * (INV-001, `license-validation.service.ts:39-47`) — so a gate that accepts
+ * anything at all is caught here rather than in production.
+ */
+export const PAID_LICENSE_KEY = 'test-licence-key-4c2a';
+
+/**
+ * A second otherwise-valid key whose authenticated subscription readback is
+ * deliberately unavailable. It exercises rollback after the live client has
+ * already adopted a candidate, without changing fixture state mid-journey.
+ */
+export const INTERRUPTED_LICENSE_KEY = ['test', 'interrupted', 'licence', '5000'].join('-');
+
+/** The plan the fixture sells, mirroring `TIER_CREDITS[Pro] = 500_000`. */
+export const PAID_LICENSE_PLAN = {
+  tier: 'pro',
+  status: 'active',
+  credits: { total: 500_000, remaining: 412_500, usagePercent: 17.5 },
+  features: { managedTts: true, premiumVoices: true, prioritySupport: false },
+};
+
+const FREE_PLAN = {
+  tier: 'free',
+  status: 'active',
+  credits: { total: 0, remaining: 0, usagePercent: 0 },
+  features: { managedTts: false, premiumVoices: false, prioritySupport: false },
+};
+
+/**
  * Synthesize silence as a real RIFF/WAVE buffer.
  *
  * The adapter reads duration from the `fmt ` byte rate and the `data` chunk
@@ -134,10 +164,26 @@ function problem(res, status, code, detail) {
  *
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
-export async function startFixtureServer() {
+export async function startFixtureServer(options = {}) {
   const requests = [];
   const localRequests = [];
+  /** Every call to the public validation route, with the body it carried. */
+  const licenseRequests = [];
+  /** Every call to the authenticated subscription route, with its header. */
+  const subscriptionRequests = [];
   const audio = audioFixture();
+
+  /**
+   * How the licence surface behaves. `sold` is the product's intended
+   * behavior; the others are the plants the licence gate has to catch.
+   *
+   *   sold              the paid key validates and the subscription confirms Pro.
+   *   unknown-key       every key is answered `{valid:false, tier:'free'}`.
+   *   subscription-free validation says Pro, the subscription route says Free.
+   *   subscription-no-credits validation says Pro, but readback omits credits.
+   *   validate-500      the validation route fails outright.
+   */
+  const licenseMode = options.licenseMode ?? 'sold';
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -259,6 +305,79 @@ export async function startFixtureServer() {
       return;
     }
 
+    // ---- managed licence surface (PROSO-153) ----
+    if (url.pathname === '/api/v1/license/validate' && req.method === 'POST') {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        let body = null;
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          body = { parseError: raw.slice(0, 200) };
+        }
+        licenseRequests.push({
+          at: Date.now(),
+          url: req.url,
+          body,
+          header: req.headers['x-license-key'] ?? null,
+        });
+
+        if (licenseMode === 'validate-500') {
+          res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end('{"message":"licence service unavailable"}');
+          return;
+        }
+
+        const sold =
+          licenseMode !== 'unknown-key' &&
+          (body?.licenseKey === PAID_LICENSE_KEY || body?.licenseKey === INTERRUPTED_LICENSE_KEY);
+        const plan = sold ? PAID_LICENSE_PLAN : FREE_PLAN;
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            valid: sold,
+            tier: plan.tier,
+            status: plan.status,
+            features: plan.features,
+            credits: plan.credits,
+          }),
+        );
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/v1/subscription' && req.method === 'GET') {
+      const header = req.headers['x-license-key'] ?? null;
+      subscriptionRequests.push({ at: Date.now(), url: req.url, header });
+
+      // Predetermined by the candidate, not mutated by the observer: this key
+      // validates as paid, then its authenticated confirmation fails after the
+      // extension has adopted it. The client retries, so every attempt is
+      // recorded and must still leave the prior key intact.
+      if (header === INTERRUPTED_LICENSE_KEY) {
+        res.writeHead(503, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end('{"message":"subscription service unavailable"}');
+        return;
+      }
+
+      // Only the sold key on the header buys a paid answer. Under
+      // `subscription-free` the route contradicts its own validation route,
+      // which is the plant for "paid response, Free subscription".
+      const paid =
+        header === PAID_LICENSE_KEY &&
+        (licenseMode === 'sold' || licenseMode === 'subscription-no-credits');
+      const plan = paid ? PAID_LICENSE_PLAN : FREE_PLAN;
+      const response =
+        paid && licenseMode === 'subscription-no-credits'
+          ? { tier: plan.tier, status: plan.status }
+          : { tier: plan.tier, status: plan.status, credits: plan.credits };
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(response));
+      return;
+    }
+
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       // `ready` is what the host's own readiness gate answers on; the managed
@@ -278,6 +397,8 @@ export async function startFixtureServer() {
     origin: `http://127.0.0.1:${port}`,
     requests,
     localRequests,
+    licenseRequests,
+    subscriptionRequests,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }

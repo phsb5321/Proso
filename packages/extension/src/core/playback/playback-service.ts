@@ -785,7 +785,9 @@ export class PlaybackService {
     };
 
     if (!this.audioGenerator.generateAudioChunks) {
-      const error = playbackError.playbackFailed('Generator advertises chunked synthesis but has none');
+      const error = playbackError.playbackFailed(
+        'Generator advertises chunked synthesis but has none',
+      );
       await this.setError(error);
       return Err(error);
     }
@@ -847,7 +849,10 @@ export class PlaybackService {
                 : 'Local synthesis host failed';
           this.chunkQueue.push({ audioBlob: new Blob(), durationMs: 0, error: message });
         } else {
-          this.chunkQueue.push({ audioBlob: chunk.value.audioBlob, durationMs: chunk.value.durationMs });
+          this.chunkQueue.push({
+            audioBlob: chunk.value.audioBlob,
+            durationMs: chunk.value.durationMs,
+          });
           this.chunkTotalMs += chunk.value.durationMs;
         }
       }
@@ -967,9 +972,7 @@ export class PlaybackService {
    * Shared paragraph-text access: an invalid index becomes the same typed
    * error on every path (cache, network, prefetch, chunked — PROSO-110).
    */
-  private async paragraphTextOrError(
-    index: number,
-  ): Promise<Result<string, PlaybackError>> {
+  private async paragraphTextOrError(index: number): Promise<Result<string, PlaybackError>> {
     const text = this.state.paragraphs[index];
     if (!text) {
       const error = playbackError.invalidParagraphIndex(index, this.state.totalParagraphs);
@@ -1179,11 +1182,11 @@ export class PlaybackService {
 
     // Shared highlight/footer tail (the prefetch path carries pre-converted
     // word timings — providerTimings and duration are irrelevant to it).
-    return this.finalizeParagraphPlayback(
-      index,
-      generation,
-      { durationMs: 0, providerTimings: null, preconvertedTimings: prefetched.wordTimings },
-    );
+    return this.finalizeParagraphPlayback(index, generation, {
+      durationMs: 0,
+      providerTimings: null,
+      preconvertedTimings: prefetched.wordTimings,
+    });
   }
 
   /**
@@ -1549,7 +1552,6 @@ export class PlaybackService {
     await this.checkHighlight('updateFooterState', result);
   }
 }
-
 
 /**
  * Shared CacheEntry construction (PROSO-110 dedup): every path that writes a

@@ -25,14 +25,6 @@ import { Err, Ok } from '../shared/result';
 /** Host input bound (`limits.maxTextUtf8Bytes`), enforced per chunk. */
 export const CHUNK_MAX_TEXT_UTF8_BYTES = 8192;
 
-/** Single sentence larger than the host bound is refused, never truncated. */
-export class SentenceTooLongError extends Error {
-  constructor(readonly byteLength: number) {
-    super(`Single sentence is ${byteLength} UTF-8 bytes; the local host bound is 8192`);
-    this.name = 'SentenceTooLongError';
-  }
-}
-
 /**
  * Split text at sentence boundaries.
  *

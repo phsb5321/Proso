@@ -23,7 +23,11 @@
  */
 
 import { deriveIdempotencyKey } from '../../core/audio/idempotency-key';
-import { CHUNK_MAX_TEXT_UTF8_BYTES, splitSentences, utf8ByteLength } from '../../core/audio/sentence-chunker';
+import {
+  CHUNK_MAX_TEXT_UTF8_BYTES,
+  splitSentences,
+  utf8ByteLength,
+} from '../../core/audio/sentence-chunker';
 import type { AudioError } from '../../core/shared/errors';
 import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
@@ -205,7 +209,7 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
     request: AudioRequest,
     signal?: AbortSignal,
   ): Promise<Result<AudioResponse, AudioError>> {
-    return this.synthesize(request, signal, false);
+    return this.synthesize(request, signal);
   }
 
   /**
@@ -234,10 +238,9 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
     // At most one in flight + one prefetch: hold the prefetched promise and
     // synthesize the next only after the held one is yielded.
     let inFlight: Promise<Result<AudioResponse, AudioError>> | null = null;
-    let prefetched: Promise<Result<AudioResponse, AudioError>> | null = null;
 
     const synthesizeNext = (sentence: string): Promise<Result<AudioResponse, AudioError>> =>
-      this.synthesize({ ...request, text: sentence }, signal, true);
+      this.synthesize({ ...request, text: sentence }, signal);
 
     inFlight = synthesizeNext(sentences[0]!);
     for (let i = 1; i <= sentences.length; i += 1) {
@@ -313,7 +316,6 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
   private async synthesize(
     request: AudioRequest,
     signal: AbortSignal | undefined,
-    chunked: boolean,
   ): Promise<Result<AudioResponse, AudioError>> {
     if (signal?.aborted) {
       return Err(audioError.providerError(LOCAL_HOST_ERROR_CODES.aborted, 'Request aborted'));
@@ -411,10 +413,7 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
     const voices = capabilities.value.tts?.voices ?? [];
     if (voices.length === 0) {
       return Err(
-        audioError.providerError(
-          LOCAL_HOST_ERROR_CODES.noVoice,
-          'Host published no TTS voices',
-        ),
+        audioError.providerError(LOCAL_HOST_ERROR_CODES.noVoice, 'Host published no TTS voices'),
       );
     }
 

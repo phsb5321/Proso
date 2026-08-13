@@ -90,16 +90,27 @@ export class ProsoApiAdapter implements IApiClient {
   async validateLicense(
     licenseKey: string,
   ): Promise<Result<LicenseValidateResponse, ApiClientError>> {
-    return this.post<LicenseValidateResponse>('/api/v1/license/validate', {
-      licenseKey,
-    });
+    // This route is public and the candidate belongs in its body. Attaching the
+    // currently configured key as well would disclose two credentials while a
+    // reader is replacing one, and the server does not use that header here.
+    return this.post<LicenseValidateResponse>('/api/v1/license/validate', { licenseKey }, false);
   }
 
-  async getSubscription(): Promise<Result<SubscriptionDetailsResponse, ApiClientError>> {
-    if (!this.licenseKey) {
+  async getSubscription(
+    licenseKey?: string,
+  ): Promise<Result<SubscriptionDetailsResponse, ApiClientError>> {
+    const effectiveKey = licenseKey ?? this.licenseKey;
+    if (!effectiveKey) {
       return Err(apiClientError.notConfigured('No license key configured'));
     }
-    return this.get<SubscriptionDetailsResponse>('/api/v1/subscription');
+    return this.request<SubscriptionDetailsResponse>(
+      'GET',
+      '/api/v1/subscription',
+      undefined,
+      0,
+      true,
+      effectiveKey,
+    );
   }
 
   async getCreditBalance(): Promise<Result<CreditBalanceResponse, ApiClientError>> {
@@ -153,8 +164,12 @@ export class ProsoApiAdapter implements IApiClient {
     return this.request<T>('GET', path);
   }
 
-  private async post<T>(path: string, body: unknown): Promise<Result<T, ApiClientError>> {
-    return this.request<T>('POST', path, body);
+  private async post<T>(
+    path: string,
+    body: unknown,
+    authenticated = true,
+  ): Promise<Result<T, ApiClientError>> {
+    return this.request<T>('POST', path, body, 0, authenticated);
   }
 
   private async request<T>(
@@ -162,6 +177,8 @@ export class ProsoApiAdapter implements IApiClient {
     path: string,
     body?: unknown,
     attempt = 0,
+    authenticated = true,
+    licenseKey: string | null = this.licenseKey,
   ): Promise<Result<T, ApiClientError>> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -173,8 +190,8 @@ export class ProsoApiAdapter implements IApiClient {
         Accept: 'application/json',
       };
 
-      if (this.licenseKey) {
-        headers['X-License-Key'] = this.licenseKey;
+      if (authenticated && licenseKey) {
+        headers['X-License-Key'] = licenseKey;
       }
 
       const init: RequestInit = {
@@ -197,7 +214,7 @@ export class ProsoApiAdapter implements IApiClient {
       const retryDelay = this.retryDelayMs(response, attempt);
       if (retryDelay !== null) {
         await this.delay(retryDelay);
-        return this.request<T>(method, path, body, attempt + 1);
+        return this.request<T>(method, path, body, attempt + 1, authenticated, licenseKey);
       }
 
       return Err(await this.toApiClientError(response));
@@ -209,7 +226,7 @@ export class ProsoApiAdapter implements IApiClient {
       // Retry on network errors
       if (attempt < MAX_RETRIES) {
         await this.delay(RETRY_DELAY_MS * (attempt + 1));
-        return this.request<T>(method, path, body, attempt + 1);
+        return this.request<T>(method, path, body, attempt + 1, authenticated, licenseKey);
       }
 
       const message = error instanceof Error ? error.message : 'Unknown network error';
