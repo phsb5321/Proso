@@ -222,21 +222,25 @@ async function main() {
   const hostAddress = `http://localhost:${new URL(fixture.origin).port}`;
   record('fixture server started', `${fixture.origin} (article + synthesis host)`);
 
-  const driver = await launch({
-    binary,
-    headless: process.env.GATE_HEADED !== '1',
-    extraArgs: ['-remote-allow-system-access'],
-    prefs: {
-      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
-      ...JOURNEY_PREFS,
-      // The optional-permission doorhanger is a chrome-level popup WebDriver
-      // cannot address. Auto-granting keeps the request, its user gesture and
-      // the resulting grant real (same relaxation as local-host-journey-gate).
-      'extensions.webextOptionalPermissionPrompts': false,
-    },
-  });
-
+  // `driver` is nullable so the finally can close both it and the fixture even
+  // when launch() itself throws (a Firefox startup failure must not leak the
+  // fixture server — Codex review round 3).
+  let driver = null;
   try {
+    driver = await launch({
+      binary,
+      headless: process.env.GATE_HEADED !== '1',
+      extraArgs: ['-remote-allow-system-access'],
+      prefs: {
+        'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+        ...JOURNEY_PREFS,
+        // The optional-permission doorhanger is a chrome-level popup WebDriver
+        // cannot address. Auto-granting keeps the request, its user gesture and
+        // the resulting grant real (same relaxation as local-host-journey-gate).
+        'extensions.webextOptionalPermissionPrompts': false,
+      },
+    });
+
     await driver.installAddon(buildDir);
     record('built extension installed in Firefox', 'dedicated throwaway profile');
 
@@ -622,7 +626,7 @@ async function main() {
     process.stderr.write(`FAIL: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exit(1);
   } finally {
-    await driver.quit().catch(() => {});
+    await driver?.quit().catch(() => {});
     await fixture.close().catch(() => {});
   }
 }
