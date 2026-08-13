@@ -30,6 +30,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -174,6 +175,23 @@ function derive(target) {
   renderOgPng(resolve(target, OG_SVG), resolve(target, OG_PNG));
 }
 
+/**
+ * Publish the fully-derived set to the public site directory.
+ *
+ * Called ONLY after `derive` returned successfully, so a lock timeout, a
+ * renderer timeout, or a flatten failure — all of which happen inside
+ * `derive` against the per-invocation scratch directory — leaves every
+ * pre-existing public file byte-identical. The publish itself is three plain
+ * copies of already-succeeded outputs; it cannot produce a mixed identity set
+ * on a derive failure.
+ */
+function publish() {
+  for (const relative of EXPECTED) {
+    copyFileSync(join(TEMP, relative), resolve(SITE_IMAGES, relative));
+    console.log(`published ${relative}`);
+  }
+}
+
 const EXPECTED = [FAVICON, OG_SVG, OG_PNG];
 
 function main() {
@@ -183,11 +201,12 @@ function main() {
   }
   const check = args[0] === '--check';
   TEMP = mkdtempSync(join(tmpdir(), 'proso-site-asset-render-'));
-  const target = check ? TEMP : SITE_IMAGES;
   try {
-    derive(target);
-    for (const relative of EXPECTED) {
-      if (check) {
+    // Every output derives entirely under this invocation's scratch directory
+    // first; the public set is touched only after complete derive success.
+    derive(TEMP);
+    if (check) {
+      for (const relative of EXPECTED) {
         const committed = resolve(SITE_IMAGES, relative);
         let actual;
         try {
@@ -202,9 +221,9 @@ function main() {
           );
         }
         console.log(`checked ${relative}`);
-      } else {
-        console.log(`generated ${relative}`);
       }
+    } else {
+      publish();
     }
   } finally {
     // Remove only this invocation's scratch directory; never a fixed path.

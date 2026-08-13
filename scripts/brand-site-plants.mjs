@@ -31,7 +31,15 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +78,33 @@ function snapshot(siteImages, originals) {
   for (const relative of ASSETS) {
     originals.set(relative, readFileSync(path.join(siteImages, relative)));
   }
+}
+
+/**
+ * Anti-vacuity seed for the stage-failure plant.
+ *
+ * Comparing the destination files to the CANONICAL snapshot after a forced
+ * render failure is vacuous on an in-sync tree: unsafe code that writes
+ * favicon/SVG before the render would rewrite the same canonical bytes, so
+ * the oracle still passes. Instead, immediately before the renderer
+ * invocation the three destination files are REPLACED with distinct sentinel
+ * bytes (seeded into their own Map); the plant is caught only when the
+ * destination files still equal those SENTINELS — i.e. the renderer never
+ * touched the public set at all. Unsafe direct-write code overwrites the
+ * sentinels and fails the oracle.
+ */
+function seedDestinations(siteImages, seeded) {
+  ASSETS.forEach((relative, index) => {
+    const sentinel = Buffer.from(`proso-stage-failure-sentinel-${index}-${relative}\n`);
+    writeFileSync(path.join(siteImages, relative), sentinel);
+    seeded.set(relative, sentinel);
+  });
+}
+
+function destinationsEqual(siteImages, seeded) {
+  return ASSETS.every((relative) =>
+    readFileSync(path.join(siteImages, relative)).equals(seeded.get(relative)),
+  );
 }
 
 function restore(siteImages, originals) {
@@ -158,8 +193,52 @@ const PLANTS = [
     guards: 'a plausible but non-canonical og-image.svg is rejected',
     names: ['og-image'],
   },
+  {
+    plant: 'stage-failure',
+    kind: 'renderer',
+    expect: 'FAIL',
+    guards:
+      'a forced renderer failure during normal generation leaves all three public assets byte-identical',
+    names: ['render og-image.svg'],
+  },
 ];
 
+/**
+ * Stage-failure plant: force NORMAL generation to fail at the Inkscape step
+ * against a SENTINEL-seeded destination set.
+ *
+ * A PATH shim (`#!/usr/bin/env bash` — a valid Nix shebang) shadows the real
+ * Inkscape and exits non-zero immediately, so the renderer's `render
+ * og-image.svg` step fails NAMED within milliseconds (no fake 60s hang). The
+ * destination files are seeded with distinct sentinels before the run (see
+ * `seedDestinations`), so the oracle is anti-vacuous: a derive-then-publish
+ * renderer never touches the public set (all three sentinels survive) while
+ * an unsafe direct-write renderer overwrites them and fails the oracle.
+ */
+function plantRendererShim(workDir) {
+  const shimDir = path.join(workDir, '.plant-shim');
+  mkdirSync(shimDir, { recursive: true });
+  const shim = path.join(shimDir, 'inkscape');
+  writeFileSync(shim, '#!/usr/bin/env bash\nexit 42\n');
+  chmodSync(shim, 0o755);
+  return shimDir;
+}
+
+/** Seed the destination set with sentinels, then run the shimmed renderer. */
+function runStageFailurePlant(workDir, siteImages, seeded) {
+  const shimDir = plantRendererShim(workDir);
+  seedDestinations(siteImages, seeded);
+  return runRenderer(workDir, shimDir);
+}
+
+function runRenderer(workDir, shimDir) {
+  const result = spawnSync(process.execPath, ['scripts/render-site-brand-assets.mjs'], {
+    cwd: workDir,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${shimDir}:${process.env.PATH ?? ''}` },
+  });
+  return { code: result.status ?? -1, output: `${result.stdout}\n${result.stderr}` };
+}
 function plant(siteImages, plantName) {
   const retiredFavicon = gitShow(RETIRED_COMMIT, 'favicon.png');
   const retiredOgSvg = gitShow(RETIRED_COMMIT, 'og-image.svg');
@@ -198,14 +277,32 @@ async function main() {
     snapshot(siteImages, originals);
 
     for (const entry of PLANTS) {
-      if (entry.plant) plant(siteImages, entry.plant);
-      const { code, output } = await runGate(workDir);
+      let code;
+      let output;
+      const seeded = new Map();
+      if (entry.kind === 'renderer') {
+        // Stage-failure plant: NORMAL generation forced to fail at the
+        // Inkscape step against a SENTINEL-seeded destination set. Caught
+        // only when the renderer exits non-zero with a named failure AND all
+        // three destination files still equal the seeded sentinels (a
+        // derive-then-publish renderer never touches the public set; a
+        // direct-write renderer overwrites the sentinels and is not caught).
+        ({ code, output } = runStageFailurePlant(workDir, siteImages, seeded));
+      } else {
+        if (entry.plant) plant(siteImages, entry.plant);
+        ({ code, output } = await runGate(workDir));
+      }
       const match = output.match(VERDICT_LINE);
       const verdict = match ? match[1] : 'NEVER-RAN';
       const message = match ? match[2].trim() : output.trim().slice(-200);
       const named = entry.names.every((token) => output.toLowerCase().includes(token));
-      const caught =
-        verdict === entry.expect && (entry.expect === 'PASS' ? code === 0 : code !== 0 && named);
+      let caught;
+      if (entry.kind === 'renderer') {
+        caught = code !== 0 && named && destinationsEqual(siteImages, seeded);
+      } else {
+        caught =
+          verdict === entry.expect && (entry.expect === 'PASS' ? code === 0 : code !== 0 && named);
+      }
 
       results.push({
         plant: entry.plant || 'control',
@@ -218,7 +315,7 @@ async function main() {
         caught,
       });
       console.log(
-        `plant ${entry.plant || 'control'}: ${caught ? 'CAUGHT' : 'FAILED'} — gate ${verdict} ` +
+        `plant ${entry.plant || 'control'}: ${caught ? 'CAUGHT' : 'FAILED'} — ${entry.kind === 'renderer' ? (code !== 0 ? 'renderer FAIL' : 'renderer PASS') : `gate ${verdict}`} ` +
           `(expected ${entry.expect}${entry.names.length ? `, naming ${entry.names.join('/')}` : ''})`,
       );
       if (entry.expect === 'FAIL' && !caught) {
