@@ -131,6 +131,7 @@ build-all: ## Build the workspace plus Chromium and Edge extension artifacts.
 	$(PNPM) --filter @proso/extension exec wxt build -b edge
 
 coverage: ## Run every suite and require at least 80% coverage on changed production lines.
+	@node scripts/quality/diff-coverage.self-test.mjs
 	@./scripts/coverage-workspace.sh
 
 architecture: ## Enforce package and layer import boundaries.

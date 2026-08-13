@@ -49,7 +49,10 @@ const missingFiles = [];
 const uncovered = [];
 
 for (const [file, lines] of changedLines()) {
-  if (!sourcePattern.test(file) || excludedPattern.test(file)) continue;
+  // A deletion-only/type-only formatting diff has no added line to cover and
+  // may legitimately have no LCOV source record. Missing LCOV still fails for
+  // every file with at least one added production line (self-test scenario 2).
+  if (!sourcePattern.test(file) || excludedPattern.test(file) || lines.size === 0) continue;
   const fileCoverage = coverage.get(file);
   if (fileCoverage === undefined) {
     missingFiles.push(file);
