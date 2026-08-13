@@ -19,23 +19,25 @@
  * Usage: node scripts/render-site-brand-assets.mjs [--check]
  *
  * Default mode writes the three assets into `packages/site/assets/images/`.
- * `--check` re-derives all three into a throwaway directory and byte-compares
- * them against the committed files, failing by name on any drift. The brand
- * gate (`scripts/verify-brand-assets.mjs`) runs `--check` so site identity is
- * freshness-bound to the canonical sources on every `make verify`.
+ * `--check` re-derives all three into a per-invocation scratch directory
+ * (`mkdtempSync`, never a fixed path, so concurrent verifier calls cannot
+ * collide) and byte-compares them against the committed files, failing by
+ * name on any drift. The brand gate (`scripts/verify-brand-assets.mjs`) runs
+ * `--check` so site identity is freshness-bound to the canonical sources on
+ * every `make verify`.
  */
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE_IMAGES = resolve(ROOT, 'packages/site/assets/images');
 const CANONICAL_ICON_32 = resolve(ROOT, 'packages/extension/public/icons/icon-32.png');
 const LOCKUP_SOURCE = resolve(ROOT, 'brand/svg/proso-lockup-dark.svg');
-const TEMP = resolve(ROOT, 'brand/.site-asset-render');
 
 const NAVY = '#010616';
 const FAVICON = 'favicon.png';
@@ -48,6 +50,9 @@ const OG_HEIGHT = 630;
 const LOCKUP_SCALE = 0.84;
 const LOCKUP_X = Number(((OG_WIDTH - 1210 * LOCKUP_SCALE) / 2).toFixed(4));
 const LOCKUP_Y = Number(((OG_HEIGHT - 320 * LOCKUP_SCALE) / 2).toFixed(4));
+
+/** Per-invocation scratch directory; created in main(), removed in finally. */
+let TEMP;
 
 function fail(message) {
   throw new Error(message);
@@ -101,7 +106,7 @@ ${indent(inner, '    ')}
 }
 
 function renderOgPng(svgPath, destination) {
-  const transparent = resolve(TEMP, `${OG_PNG}.transparent.png`);
+  const transparent = join(TEMP, `${OG_PNG}.transparent.png`);
   run(
     'inkscape',
     [
@@ -135,7 +140,6 @@ function renderOgPng(svgPath, destination) {
 
 function derive(target) {
   mkdirSync(target, { recursive: true });
-  mkdirSync(TEMP, { recursive: true });
   writeFileSync(resolve(target, FAVICON), readFileSync(CANONICAL_ICON_32));
   writeFileSync(resolve(target, OG_SVG), composeOgSvg());
   renderOgPng(resolve(target, OG_SVG), resolve(target, OG_PNG));
@@ -149,6 +153,7 @@ function main() {
     fail('usage: node scripts/render-site-brand-assets.mjs [--check]');
   }
   const check = args[0] === '--check';
+  TEMP = mkdtempSync(join(tmpdir(), 'proso-site-asset-render-'));
   const target = check ? TEMP : SITE_IMAGES;
   try {
     derive(target);
@@ -161,11 +166,9 @@ function main() {
         } catch {
           fail(`${relative} is missing`);
         }
-        const expected = hash(resolve(TEMP, relative));
+        const expected = hash(join(TEMP, relative));
         if (actual !== expected) {
-          fail(
-            `${relative} is stale: expected ${expected.slice(0, 16)}, got ${actual.slice(0, 16)}`,
-          );
+          fail(`${relative} is stale: expected ${expected.slice(0, 16)}, got ${actual.slice(0, 16)}`);
         }
         console.log(`checked ${relative}`);
       } else {
@@ -173,6 +176,7 @@ function main() {
       }
     }
   } finally {
+    // Remove only this invocation's scratch directory; never a fixed path.
     rmSync(TEMP, { force: true, recursive: true });
   }
 }

@@ -16,6 +16,12 @@
  * plant harness must not reintroduce it into the working tree. The commit is
  * an ancestor of `main`, so the snapshot is available in every clone.
  *
+ * The whole sweep runs inside a UNIQUELY CREATED DETACHED WORKTREE at `HEAD`,
+ * so planting and restoring never touches the invoking worktree (a prior
+ * design mutated the caller and could overwrite pre-existing or concurrent
+ * asset edits). The receipt lives inside that disposable worktree, the verdict
+ * is printed on stdout, and the worktree is removed in `finally`.
+ *
  * Scoring reads the gate's own verdict line rather than its exit code, and the
  * sweep ends with a final gate run proving the assets were restored and
  * canonical — a gate that never started is never counted as a caught plant
@@ -25,14 +31,13 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
-const siteImages = path.join(repoRoot, 'packages/site', 'assets', 'images');
-const artifactDir = path.join(repoRoot, '.artifacts', 'brand-site-gate');
 
 /** The last commit before Feature 161; the retired site assets live here. */
 const RETIRED_COMMIT = 'ff0575f';
@@ -61,13 +66,13 @@ function gitShow(commit, relative) {
   return result.stdout;
 }
 
-function snapshot(originals) {
+function snapshot(siteImages, originals) {
   for (const relative of ASSETS) {
-    originals.set(relative, gitShow('HEAD', relative));
+    originals.set(relative, readFileSync(path.join(siteImages, relative)));
   }
 }
 
-function restore(originals) {
+function restore(siteImages, originals) {
   for (const relative of ASSETS) {
     const file = path.join(siteImages, relative);
     if (!originals.has(relative)) fail(`no original snapshot for ${relative}`);
@@ -75,10 +80,10 @@ function restore(originals) {
   }
 }
 
-function runGate() {
+function runGate(workDir) {
   return new Promise((resolvePromise) => {
     const child = spawn(process.execPath, ['scripts/verify-brand-assets.mjs'], {
-      cwd: repoRoot,
+      cwd: workDir,
       encoding: 'utf8',
     });
     let output = '';
@@ -90,6 +95,42 @@ function runGate() {
     });
     child.on('close', (code) => resolvePromise({ code, output }));
   });
+}
+
+/**
+ * Create a unique detached worktree at `HEAD` and share the frozen workspace
+ * store into it. The sweep runs entirely inside this directory; it is removed
+ * in `finally` (and a plain removal is the fallback if `git worktree remove`
+ * objects to the untracked node_modules symlink).
+ */
+function createDisposableWorktree() {
+  const workDir = mkdtempSync(path.join(tmpdir(), 'proso-brand-plants-'));
+  const created = spawnSync(
+    'git',
+    ['worktree', 'add', '--detach', workDir, 'HEAD'],
+    { cwd: repoRoot, encoding: 'utf8' },
+  );
+  if (created.status !== 0) {
+    rmSync(workDir, { recursive: true, force: true });
+    fail(`disposable worktree create failed: ${created.stderr.trim()}`);
+  }
+  try {
+    symlinkSync(path.join(repoRoot, 'node_modules'), path.join(workDir, 'node_modules'), 'dir');
+  } catch {
+    // A plain checkout still exercises the freshness + structural checks;
+    // only the icon-regeneration sub-gate of the verifier needs the store.
+  }
+  return workDir;
+}
+
+function removeDisposableWorktree(workDir) {
+  const removed = spawnSync('git', ['worktree', 'remove', '--force', workDir], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (removed.status !== 0) {
+    rmSync(workDir, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -120,7 +161,7 @@ const PLANTS = [
   },
 ];
 
-function plant(plantName) {
+function plant(siteImages, plantName) {
   const retiredFavicon = gitShow(RETIRED_COMMIT, 'favicon.png');
   const retiredOgSvg = gitShow(RETIRED_COMMIT, 'og-image.svg');
   const retiredOgPng = gitShow(RETIRED_COMMIT, 'og-image.png');
@@ -145,16 +186,21 @@ function plant(plantName) {
 }
 
 async function main() {
-  mkdirSync(artifactDir, { recursive: true });
+  const workDir = createDisposableWorktree();
+  const siteImages = path.join(workDir, 'packages', 'site', 'assets', 'images');
+  const artifactDir = path.join(workDir, '.artifacts', 'brand-site-gate');
   const originals = new Map();
-  snapshot(originals);
   const results = [];
   let restoredOk = false;
 
   try {
+    // The disposable worktree is a fresh checkout at HEAD, so its assets are
+    // canonical by construction — snapshot them as the restore target.
+    snapshot(siteImages, originals);
+
     for (const entry of PLANTS) {
-      if (entry.plant) plant(entry.plant);
-      const { code, output } = await runGate();
+      if (entry.plant) plant(siteImages, entry.plant);
+      const { code, output } = await runGate(workDir);
       const match = output.match(VERDICT_LINE);
       const verdict = match ? match[1] : 'NEVER-RAN';
       const message = match ? match[2].trim() : output.trim().slice(-200);
@@ -181,12 +227,12 @@ async function main() {
       }
       // Restore between plants so one planted asset never leaks into the next
       // gate run (restore is idempotent; the finally below is a safety net).
-      restore(originals);
+      restore(siteImages, originals);
     }
 
     // Proven restoration, not just intent: after every plant the gate must
     // come back green on the restored canonical assets.
-    const restored = await runGate();
+    const restored = await runGate(workDir);
     const restoredMatch = restored.output.match(VERDICT_LINE);
     restoredOk = restoredMatch && restoredMatch[1] === 'PASS' && restored.code === 0;
     results.push({
@@ -202,20 +248,20 @@ async function main() {
     console.log(
       `plant post-restore: ${restoredOk ? 'CAUGHT' : 'FAILED'} — gate ${restoredMatch ? restoredMatch[1] : 'NEVER-RAN'} (expected PASS)`,
     );
-  } finally {
-    restore(originals);
-  }
 
-  writeFileSync(
-    path.join(artifactDir, 'plants.json'),
-    JSON.stringify({ results, restored: restoredOk, retiredCommit: RETIRED_COMMIT }, null, 2),
-  );
+    // The receipt stays inside the disposable worktree; it is removed with it.
+    mkdirSync(artifactDir, { recursive: true });
+    writeFileSync(
+      path.join(artifactDir, 'plants.json'),
+      JSON.stringify({ results, restored: restoredOk, retiredCommit: RETIRED_COMMIT }, null, 2),
+    );
+  } finally {
+    removeDisposableWorktree(workDir);
+  }
 
   const allCaught = results.every((result) => result.caught);
   if (!allCaught) fail('one or more planted breaks came back green or mis-named');
-  console.log(
-    `brand-site plants: ${results.length}/${results.length} surfaces fail closed (receipt .artifacts/brand-site-gate/plants.json)`,
-  );
+  console.log(`brand-site plants: ${results.length}/${results.length} surfaces fail closed`);
 }
 
 try {
