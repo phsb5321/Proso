@@ -1,0 +1,12 @@
+# Feature 166 — Tasks
+
+| ID | Story | Task | State |
+|---|---|---|---|
+| T-001 | US1 | Add `scripts/render-site-brand-assets.mjs` — favicon byte-copy from canonical `icon-32.png`; og-image.svg composed by wrapping `brand/svg/proso-lockup-dark.svg` inner geometry on a navy 1200×630 canvas; og-image.png via deterministic inkscape render; `--check` mode re-renders and byte-compares everything | done |
+| T-002 | US1 | Generate `packages/site/assets/images/favicon.png` (byte-identical to `icon-32.png`), `og-image.svg`, `og-image.png` and commit them | done |
+| T-003 | US2 | Extend `scripts/verify-brand-assets.mjs` with `assertSiteAssets()`: favicon↔icon-32 byte identity; og-image.svg structural checks (viewBox, palette ⊆ canonical, no `text`/`font`/`image`/`filter`/`script`/`data:`); og-image.png fresh-render byte-match; composition provenance (geometry ids from the canonical lockup present) | done |
+| T-004 | US3 | Add plant fixtures (retired favicon bytes, pre-rebrand og-image) and a `--plant-site-retired`/plant harness path so the gate demonstrably turns red; run the plant and record the red receipt | done — `scripts/brand-site-plants.mjs` (retired assets snapshotted from git `ff0575f`, never committed), 4/4 plants caught |
+| T-005 | US1/US2 | Wire the site-asset render/check into `make verify` (extend the `brand-assets` target) and the delivery harness docs | done — `brand-assets` runs `verify-brand-assets.mjs` which now runs the site freshness gate; `make brand-site-plants` added; `docs/agent-delivery-harness.md` row added |
+| T-006 | — | Focused gate: `verify-brand-assets.mjs` green on canonical, red on plant; site package static checks (no scripts added — package.json diff empty); `make verify` stepwise to its end | done — `make verify` exit 0; `make quality` 0; `make dependencies` 0; site `package.json` diff empty; HTML balanced, metadata references resolve |
+| T-007 | — | Fresh dedicated-profile Firefox + Brave observations of the static site: favicon bytes fetched, og-image resolves, canonical pixels present, screenshots; record in `/tmp/proso-166-brand-receipt.md` | done — Firefox PASS, Brave PASS (see receipt); og-image.png pixel-verified (0 retired-palette pixels) |
+| T-008 | — | Commit, push, open PR (falsifier fails: site assets are stale). DeepSeek-generated diff → Codex review via orchestrator; repair findings; merge only after ALLOW + required checks | in progress |

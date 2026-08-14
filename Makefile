@@ -15,8 +15,9 @@ FC_NUM_RUNS ?= 100
 	local-host-journey-gate local-host-journey-plants \
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
+	brand-site-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -71,6 +72,10 @@ local-host-journey-gate: ## Prove the account-free read: the reader's own host s
 local-host-journey-plants: ## Prove every local-host-journey-gate assertion catches a planted break.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/local-host-journey-plants.mjs
+
+popup-hidden-grant-gate: ## Feature 167: fresh popup hides the grant row (no box, out of tab order); permission-needed state shows it named + actionable.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/popup-hidden-grant-gate.mjs
 
 license-settings-gate: ## Prove the paid-account settings surface: a typed licence key is validated, saved, and still configured after a reopen.
 	$(PNPM) --filter @proso/extension build:firefox
@@ -197,10 +202,19 @@ dokku-check: ## Read-only deploy verdict (NOOP/SAFE/HELD) against the Dokku app.
 dokku-deploy: ## Fail-closed deploy: refuses HELD, gates, pushes, verifies /health.revision.
 	@node scripts/dokku-deploy-preflight.mjs --deploy
 
+server-status-popover-gate: ## Prove the settings server-status popover stays visible, topmost, unclipped and keyboard reachable (Feature 170).
+	@node scripts/server-status-popover-gate.mjs
+
+server-status-popover-plants: ## Prove every server-status-popover-gate assertion catches a planted break.
+	@node scripts/server-status-popover-plants.mjs
+
 verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
 
-brand-assets: ## Brand segments, SVG masters, proofs, and icon topology must stay reproducible.
+brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site identity assets must stay reproducible.
 	node scripts/verify-brand-assets.mjs
+
+brand-site-plants: ## Prove the site identity gate fails closed: planting the retired favicon/og-image turns it red by name.
+	@node scripts/brand-site-plants.mjs
 
 icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
 	$(PNPM) --filter @proso/extension icons:check

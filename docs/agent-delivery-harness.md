@@ -27,6 +27,7 @@ and an agent review cannot override a red deterministic check.
 | `make user-gate-diagnostic` | Focused properties followed by the built extension's internal-dispatch Firefox diagnostic |
 | `make public-actor-gate` | Public-control-only Firefox journey: Unified Extensions button → browser action → popup controls addressed by accessible name → page-visible reading state. PASS/FAIL/BLOCKED, never skipped-green |
 | `make public-actor-plants` | Severs one link per run and requires the matching assertion to report BLOCKED or FAIL; a plant that passes is a failure |
+| `make brand-site-plants` | Swaps the retired wa-era favicon/og-image (and an untracked og-image) back into the site and requires `verify-brand-assets.mjs` to go red naming the planted asset; a plant that passes is a failure |
 | `make user-gate` | Fails closed until a public-control Firefox actor, outcome matrix, and unified receipt satisfy Feature 095 |
 | `make verify` | Tool readiness, formatting, lint, type checks, reader smoke, security tests, source secret scan |
 | `make coverage` | All three test suites plus ≥80% coverage on changed production lines; missing reports fail |

@@ -1,0 +1,239 @@
+#!/usr/bin/env node
+/**
+ * Proso site identity renderer — canonical vector sources → public site assets.
+ *
+ * The public site (`packages/site/`) ships two user-visible identity assets:
+ * the browser-tab favicon and the social-preview og-image. Before Feature 166
+ * they were a retired wa-era mark (Feature 161 only replaced extension and
+ * canonical brand surfaces). This script derives both site assets from the
+ * canonical sources so the site can never again diverge into a parallel logo:
+ *
+ *   - favicon.png  ← byte-copy of `packages/extension/public/icons/icon-32.png`
+ *                    (the canonical 32px render of `band-16.svg`).
+ *   - og-image.svg ← a 1200×630 navy canvas that wraps the inner geometry of
+ *                    `brand/svg/proso-lockup-dark.svg`. The canonical file is
+ *                    read and embedded — nothing is re-authored by hand.
+ *   - og-image.png ← deterministic inkscape render of og-image.svg, flattened
+ *                    by ImageMagick (mirrors `render-brand-proofs.mjs`).
+ *
+ * Usage: node scripts/render-site-brand-assets.mjs [--check]
+ *
+ * Default mode writes the three assets into `packages/site/assets/images/`.
+ * `--check` re-derives all three into a per-invocation scratch directory
+ * (`mkdtempSync`, never a fixed path, so concurrent verifier calls cannot
+ * collide) and byte-compares them against the committed files, failing by
+ * name on any drift. The brand gate (`scripts/verify-brand-assets.mjs`) runs
+ * `--check` so site identity is freshness-bound to the canonical sources on
+ * every `make verify`.
+ */
+
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SITE_IMAGES = resolve(ROOT, 'packages/site/assets/images');
+const CANONICAL_ICON_32 = resolve(ROOT, 'packages/extension/public/icons/icon-32.png');
+const LOCKUP_SOURCE = resolve(ROOT, 'brand/svg/proso-lockup-dark.svg');
+
+const NAVY = '#010616';
+const FAVICON = 'favicon.png';
+const OG_SVG = 'og-image.svg';
+const OG_PNG = 'og-image.png';
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
+
+/** Lockup native viewBox is 1210×320; scale so it spans ~85% of the canvas. */
+const LOCKUP_SCALE = 0.84;
+const LOCKUP_X = Number(((OG_WIDTH - 1210 * LOCKUP_SCALE) / 2).toFixed(4));
+const LOCKUP_Y = Number(((OG_HEIGHT - 320 * LOCKUP_SCALE) / 2).toFixed(4));
+
+/** Per-invocation scratch directory; created in main(), removed in finally. */
+let TEMP;
+
+/**
+ * OS-released exclusive lock serializing every Inkscape invocation.
+ *
+ * Inkscape 1.4 initializes shared GTK/D-Bus session state at startup, and two
+ * concurrent `inkscape` processes race that state (`Gio::DBus::Error`); the
+ * per-run render directories alone do not isolate it. `flock` holds an
+ * exclusive lock on a uid-scoped file and releases it automatically when the
+ * process exits, so a parallel `--check` cannot both proceed at once. The
+ * lock only serializes the render step — per-run output directories are
+ * preserved for the byte-comparison.
+ */
+const INKSCAPE_LOCK = join(tmpdir(), `proso-inkscape-render-${process.getuid?.() ?? 0}.lock`);
+
+function fail(message) {
+  throw new Error(message);
+}
+
+function run(command, args, label) {
+  const result = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8' });
+  if (result.error) fail(`${label}: ${result.error.message}`);
+  if (result.status !== 0) fail(`${label}: ${result.stderr.trim() || result.stdout.trim()}`);
+}
+
+function hash(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function indent(value, prefix) {
+  return value
+    .split('\n')
+    .map((line) => (line.length > 0 ? `${prefix}${line}` : line))
+    .join('\n');
+}
+
+/**
+ * Compose the og-image SVG: navy canvas + the canonical lockup geometry.
+ *
+ * The canonical lockup file is the single source: its two root-level groups
+ * (`mark` and `lockup-wordmark`, which between them carry every path, id, and
+ * transform of the identity) are lifted wholesale into a wrapper group on the
+ * navy canvas. A hand-drawn parallel logo is impossible by construction — if
+ * the lockup geometry drifts, the composed output drifts with it and the
+ * freshness gate turns red.
+ */
+function composeOgSvg() {
+  const lockup = readFileSync(LOCKUP_SOURCE, 'utf8');
+  const bodyStart = lockup.indexOf('<g id="mark">');
+  const bodyEnd = lockup.lastIndexOf('</g>');
+  if (bodyStart === -1 || bodyEnd < bodyStart) {
+    fail('canonical lockup structure changed: root groups are missing');
+  }
+  const inner = lockup.slice(bodyStart, bodyEnd + 4);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}" role="img" aria-labelledby="title desc">
+  <!-- Generated by scripts/render-site-brand-assets.mjs from brand/svg/proso-lockup-dark.svg; do not edit. -->
+  <title id="title">Proso</title>
+  <desc id="desc">The Proso text-to-voice lockup on the canonical navy background.</desc>
+  <rect id="canvas" width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="${NAVY}"/>
+  <g id="site-lockup" transform="translate(${LOCKUP_X} ${LOCKUP_Y}) scale(${LOCKUP_SCALE})">
+${indent(inner, '    ')}
+  </g>
+</svg>
+`;
+}
+
+function renderOgPng(svgPath, destination) {
+  const transparent = join(TEMP, `${OG_PNG}.transparent.png`);
+  // Serialize Inkscape behind an OS-released exclusive lock (flock releases
+  // it automatically when the holder exits, even on crash), with BOUNDED
+  // acquisition and a BOUNDED render: `-w 30 -E 75` fails the caller after
+  // 30s of waiting for a hung holder (exit 75), and `timeout` caps the
+  // Inkscape child at 60s (SIGKILL after a further 5s). A wedged holder or
+  // render must produce a NAMED `render og-image.svg` failure, never stall
+  // every later verifier forever.
+  run(
+    'flock',
+    [
+      '-w',
+      '30',
+      '-E',
+      '75',
+      INKSCAPE_LOCK,
+      'timeout',
+      '--kill-after=5s',
+      '60s',
+      'inkscape',
+      svgPath,
+      `--export-filename=${transparent}`,
+      `--export-width=${OG_WIDTH}`,
+      `--export-height=${OG_HEIGHT}`,
+    ],
+    `render ${OG_SVG}`,
+  );
+  run(
+    'magick',
+    [
+      transparent,
+      '-background',
+      NAVY,
+      '-alpha',
+      'remove',
+      '-alpha',
+      'off',
+      '-depth',
+      '8',
+      '-strip',
+      '-define',
+      'png:exclude-chunks=date,time',
+      destination,
+    ],
+    `flatten ${OG_PNG}`,
+  );
+}
+
+function derive(target) {
+  mkdirSync(target, { recursive: true });
+  writeFileSync(resolve(target, FAVICON), readFileSync(CANONICAL_ICON_32));
+  writeFileSync(resolve(target, OG_SVG), composeOgSvg());
+  renderOgPng(resolve(target, OG_SVG), resolve(target, OG_PNG));
+}
+
+/**
+ * Publish the fully-derived set to the public site directory.
+ *
+ * Called ONLY after `derive` returned successfully, so a lock timeout, a
+ * renderer timeout, or a flatten failure — all of which happen inside
+ * `derive` against the per-invocation scratch directory — leaves every
+ * pre-existing public file byte-identical. The publish itself is three plain
+ * copies of already-succeeded outputs; it cannot produce a mixed identity set
+ * on a derive failure.
+ */
+function publish() {
+  for (const relative of EXPECTED) {
+    copyFileSync(join(TEMP, relative), resolve(SITE_IMAGES, relative));
+    console.log(`published ${relative}`);
+  }
+}
+
+const EXPECTED = [FAVICON, OG_SVG, OG_PNG];
+
+function main() {
+  const args = process.argv.slice(2);
+  if (args.length > 1 || (args.length === 1 && args[0] !== '--check')) {
+    fail('usage: node scripts/render-site-brand-assets.mjs [--check]');
+  }
+  const check = args[0] === '--check';
+  TEMP = mkdtempSync(join(tmpdir(), 'proso-site-asset-render-'));
+  try {
+    // Every output derives entirely under this invocation's scratch directory
+    // first; the public set is touched only after complete derive success.
+    derive(TEMP);
+    if (check) {
+      for (const relative of EXPECTED) {
+        const committed = resolve(SITE_IMAGES, relative);
+        let actual;
+        try {
+          actual = hash(committed);
+        } catch {
+          fail(`${relative} is missing`);
+        }
+        const expected = hash(join(TEMP, relative));
+        if (actual !== expected) {
+          fail(
+            `${relative} is stale: expected ${expected.slice(0, 16)}, got ${actual.slice(0, 16)}`,
+          );
+        }
+        console.log(`checked ${relative}`);
+      }
+    } else {
+      publish();
+    }
+  } finally {
+    // Remove only this invocation's scratch directory; never a fixed path.
+    rmSync(TEMP, { force: true, recursive: true });
+  }
+}
+
+try {
+  main();
+} catch (error) {
+  console.error(`site assets: FAIL — ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
