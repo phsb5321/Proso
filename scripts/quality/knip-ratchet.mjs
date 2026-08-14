@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { requireReviewDate, requireText } from './review-metadata.mjs';
 
 const baselinePath = 'quality-baselines/knip.json';
 const writeBaseline = process.argv.includes('--write-baseline');
@@ -80,19 +81,17 @@ if (
 ) {
   throw new Error('Knip baseline has an invalid top-level schema');
 }
-if (Date.parse(`${baseline.expires}T00:00:00Z`) < Date.now()) {
+if (requireReviewDate(baseline.expires, 'Knip baseline expires') < Date.now()) {
   throw new Error(`Knip baseline expired on ${baseline.expires}`);
 }
 for (const finding of baseline.findings) {
-  if (
-    finding.tool !== 'knip' ||
-    typeof finding.fingerprint !== 'string' ||
-    typeof finding.owner !== 'string' ||
-    typeof finding.reason !== 'string' ||
-    typeof finding.issue !== 'string'
-  ) {
+  if (finding.tool !== 'knip') {
     throw new Error('Knip baseline entry is missing tool/fingerprint/owner/reason/issue');
   }
+  requireText(finding.fingerprint, 'Knip baseline fingerprint');
+  requireText(finding.owner, 'Knip baseline owner');
+  requireText(finding.reason, 'Knip baseline reason');
+  requireText(finding.issue, 'Knip baseline issue');
 }
 
 const known = new Set(baseline.findings.map((finding) => finding.fingerprint));

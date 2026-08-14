@@ -103,9 +103,14 @@ cat >"$SCHEMA_PATH" <<'JSON'
 }
 JSON
 
-readonly GATE_RECEIPT="$(./scripts/validate-gate-receipt.sh)"
-readonly RECEIPT_PATH="${GATE_RECEIPT_PATH:-$(git rev-parse --git-path proso-gate-receipt.json)}"
-readonly REVIEW_BASE_REF="$(jq -r '.baseRef' "$RECEIPT_PATH")"
+# A delivery review is always against origin/main, so the base is pinned here
+# rather than inherited or read back from the receipt. Both of those were
+# caller-controlled: `write-gate-receipt.sh` honours DIFF_BASE_REF, so an
+# inherited `DIFF_BASE_REF=HEAD^` produced a parent-base receipt, satisfied a
+# validator that expected the same inherited value, and then bundled only
+# HEAD^..HEAD — a passing review of a fraction of the change.
+readonly REVIEW_BASE_REF='origin/main'
+readonly GATE_RECEIPT="$(DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/validate-gate-receipt.sh)"
 DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/change-bundle.sh "$CHANGES_PATH"
 readonly HEAD_SHA="$(git rev-parse HEAD)"
 readonly CHANGES_SHA="$(sha256sum "$CHANGES_PATH" | cut -d ' ' -f 1)"

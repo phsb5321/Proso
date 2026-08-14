@@ -76,7 +76,7 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✗ | The advertised `queueCapacity: 8` is the TTS admission budget | A 12-way burst admitted 4 and returned 429 `queue_full` for the other 8; the appliance's `config.py:107` sets `tts_capacity = 4` and the per-class split is not published by `/v1/capabilities`. One inference worker, no preemption |
 | ✗ | Feature 100's extension-direct seam is a settled design | A prior recorded decision mandates the opposite seam. `2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md` in Pedro's vault, L53-76, routes the appliance as `Proso extension → existing Proso API → server-side AudioApplianceTTSAdapter → Tailscale Serve → loopback wrapper` and states at L74-75 "Do not add direct Pi networking to Proso content scripts or the Lectrice WebView"; L420-443 fixes the seam at `ServerTtsAudioAdapter → /api/v1/tts/synthesize → TTSProviderPort → AudioApplianceTTSAdapter → Pi /v1/tts` and requires "no Pi hostname permission or bearer token in the extension" (L442). Feature 100 was specified extension-direct because that record was not read before design started. Which seam ships is an open decision for Pedro, not a settled premise of this feature |
 | ◯ | The vault's step-3 precondition for client work is satisfied | The same record sequences delivery and states at L495 "No client PR should start before steps 1–3 establish the stable contract". Steps 1 and 2 shipped on 31/07/2026 outside this repository (NixOS PRs #1481, #1487, #1496). Step 3 (L486-487) is burst, cancellation, idempotency, sustained thermal, and human speech acceptance. Burst and idempotency are measured in [`appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md); cancellation and sustained thermal are being measured on 05/08; human speech acceptance is a listening test only Pedro can run and stays with him. PR #95 is held meanwhile |
-| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit |
+| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit. Cause established 14/08/2026: private-repository Actions metering on a free personal plan — public repositories on the same account still run Actions, private ones stopped, and `rulesets` 403s with `Upgrade to GitHub Pro`. Still true nine days on, so this row stands; see [the resolution](#github-actions-produces-nothing-at-all). The same 403 means the repository has no branch protection either, so no required check has ever gated a merge here |
 | ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
 ## Production deployment receipt — 30/07/2026
@@ -364,6 +364,95 @@ from a merged 03/2026 PR). Remaining candidates are account-level: Actions billi
 billing API needs `user` scope, which `gh` lacks here) or a GitHub server-side change. Diagnosis
 stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 
+**Resolved to a cause on 14/08/2026 — private-repo Actions metering on a free personal plan.**
+The outage is now nine days old and still live: every run since `2026-08-05T20:52Z` is
+`startup_failure`, and the three PRs merged on 14/08 (#170, #171, #172) landed with no CI of any
+kind. The 05/08 diagnosis left two candidates open — account-level billing/quota versus a GitHub
+server-side change — and could not separate them because the billing API needs a `user` scope `gh`
+does not have. **Repository visibility separates them without that scope**, because public
+repositories get unlimited free Actions minutes while private ones draw on the account's monthly
+allowance:
+
+```bash
+gh run list -R phsb5321/Tauri-PDF-Reader --limit 5   # public: queued 2026-08-14T17:01Z
+gh api repos/phsb5321/NixOS/actions/runs?per_page=100 \
+  --jq '[.workflow_runs[].conclusion] | group_by(.) | map({c:.[0], n:length})'
+  # private: 70 startup_failure / 20 success / 10 failure; nothing since 2026-08-01
+gh api repos/phsb5321/proso/rulesets   # 403 "Upgrade to GitHub Pro or make this repository public"
+```
+
+A GitHub server-side defect would not respect repository visibility; metered minutes do. The
+sibling private repository `NixOS` stopped at `2026-08-01T03:34Z` and `centavos` at
+`2026-07-02T03:22Z`, while the public `Tauri-PDF-Reader` queues and runs work today — so the
+failure is account-wide across private repositories and absent on public ones. The `rulesets` and
+`branches/main/protection` endpoints both return 403 `Upgrade to GitHub Pro or make this
+repository public`, which independently confirms the free personal plan whose private-repository
+Actions allowance is capped. Reading the billing page itself still needs `user` scope or a
+browser, so the final confirmation stays `[pending] Pedro`; the cause is no longer ambiguous.
+
+A consequence worth stating separately, because it is not the same claim as "the audit job is
+`continue-on-error`": **this repository has no branch protection and no rulesets at all.** They are
+not misconfigured — on a free plan they are unavailable for a private repository, which is what the
+403 above says. No required check has ever gated a merge here. The nine-day CI blackout was
+therefore both invisible and ungated, and `make verify` / `make gate` on a developer machine are
+not merely the best available verification surface, they are the only one.
+
+Which is why the first thing checked after the diagnosis was whether that surface tells the truth,
+and it did not. `make verify` on `main` at `528f178` exited 2 with ~30 server `tsc` errors of the
+form `Property 'paddleTransactionId' does not exist on type 'SubscriptionUpdateInput'`. **`main`
+was not broken** — `packages/server/prisma/schema.prisma` carries every one of those fields
+(added 13/08 by `de57d29`, PR #156), but the generated client in `packages/server/src/generated/`
+was dated 11/02 and 04/03, five months stale. `scripts/delivery-doctor.sh` is the gate that exists
+to catch exactly this, and it passed, because line 25 tested only that `client.ts` *existed*.
+Regenerating (`scripts/generate-prisma.sh`, which already carries a working NixOS engine fallback)
+returned `make verify` to exit 0, confirming `main` itself is green and that nine days of
+unverified merges did not break the deterministic floor.
+
+The doctor now fails closed on drift instead: `scripts/generate-prisma.sh` records the schema's
+sha256 beside the client it generated, and the doctor refuses a client whose stamp does not match
+the current schema. Proven both directions by plant — appending a line to `schema.prisma` turns
+`make doctor` red naming both digests (`generated from schema 0c97b234c74d, current schema is
+a61a57ef3f57`), deleting the stamp turns it red as `predates schema-drift tracking`, and restoring
+either returns exit 0. That second message is the one existing checkouts will see, since a client
+generated before this change has no stamp at all. The stamp is written on both generation paths,
+including the NixOS engine fallback, which is the path that actually runs on this host.
+
+The different-family adversarial review of that fix then found four more gates failing open, none
+of them introduced by it, and all four were verified against the code before being accepted. A
+quality baseline with no `expires` **never expired**: `Date.parse("undefinedT00:00:00Z")` is `NaN`
+and `NaN < Date.now()` is `false`, so `knip-ratchet.mjs` and `osv-ratchet.mjs` stopped ratcheting
+instead of failing, and `check-active-docs.mjs` carried the same bypass for a malformed value.
+Ownership metadata was checked as `typeof x !== 'string'`, which accepts `''`, so a finding could
+be baselined with a blank owner and reason and still satisfy the contract that tracked debt is
+owned debt. The gate receipt validated its `verifiedAt` as any string. And a receipt bound to the
+wrong base validated: the base was compared only when `DIFF_BASE_REF` was set, which is precisely
+how `adversarial-review.sh` calls it, so a receipt written against `HEAD^` passed and the reviewer
+was then handed that same truncated bundle. Fixing that one took two rounds — defaulting the
+expected base still let an *inherited* `DIFF_BASE_REF` choose it at both ends, so the delivery
+review is now pinned to `origin/main` for validation and bundle construction alike.
+
+One correction is worth recording because the gate caught its own author: the first draft of the
+date validator asserted in a comment that out-of-range dates do not parse. Planting `2026-02-30`
+disproved it — the value parses finite and rolls forward to `2026-03-02` — so the validator now
+round-trips the parsed date back to `YYYY-MM-DD`, and the comment records the measurement rather
+than the assumption.
+
+A limitation found while running all this, and not fixed here: **`make verify-full` is not
+reliably deterministic under machine load.** Three tests assert wall-clock budgets and failed on a
+loaded host, then passed unchanged on a quiet one — `franc-min` initialization (budget 50 ms;
+observed 6 ms isolated, 27 ms, 43 ms, and 79 ms across identical trees) and two server TTS
+adapter tests that time out at Jest's 5 s default despite a mocked `fetch`. Every failure was
+transient and none reflected a code change, but a deterministic gate that reddens on unrelated
+CPU contention trains readers to re-run rather than read, which is the habit this repository has
+spent several features removing. Recorded as next-slice #24.
+
+Remediation is Pedro's, and the options are not equivalent: raising the Actions spending limit
+above `$0` restores private CI immediately but costs per-minute; waiting for the next billing
+cycle restores the included allowance for free but leaves the gap open until then; a self-hosted
+runner on the existing NixOS server is not metered at all and would also survive future
+exhaustion; making the repository public restores unlimited minutes *and* branch protection, but
+that is a product decision, not an infrastructure one.
+
 ## Update — 12/08/2026: the account-free journey observed end-to-end, and three defects it found
 
 **The three-PR chain did not fix the 402.** PROSO-135 (#144), PROSO-136 (#145) and PROSO-137
@@ -498,10 +587,15 @@ rather than worked around.
 6. Establish the missing Firefox/Linux visual baselines and repair the keyboard assertions behind
    the 24 visual failures before removing that job’s `continue-on-error`. That workflow edit is
    separately gated; until then, inspect the test log rather than the green job badge.
-7. Diagnose the GitHub Actions `startup_failure` outage above. It predates and outranks items 5
-   and 6: those describe misleading green jobs, this one means no job runs at all. Repository-level
-   Actions settings and billing are outside this repository's diff, so remediation is
-   `[pending] Pedro` once the cause is identified.
+7. ~~Diagnose the GitHub Actions `startup_failure` outage above.~~ Diagnosed on 14/08/2026 — see
+   [the resolution above](#github-actions-produces-nothing-at-all). The cause is private-repository
+   Actions metering on a free personal plan, isolated by a discriminator that needs no `user`
+   scope: public `Tauri-PDF-Reader` runs Actions today while private `NixOS` and `centavos` stopped
+   in early August, and `rulesets` 403s with `Upgrade to GitHub Pro`. Two things stay open and only
+   Pedro can close them — confirming it on the billing page, and choosing between a spending limit,
+   the next cycle's allowance, a self-hosted runner, and making the repository public. The same 403
+   established that this repository has **no branch protection at all**, so no required check has
+   ever gated a merge here.
 8. Point the public actor at an account-free audio source. Feature 100's appliance route is the
    only candidate on the table; until it lands, `public-actor-gate.mjs` proves controls against a
    fixture and the anonymous outcome stays unproven.
@@ -672,7 +766,20 @@ rather than worked around.
    the typed address outright; now the value written back is the same string, so the damage is
    cosmetic — but a listener that clobbers focused input is still wrong. Skip the sync for changes
    this page just wrote, or leave a focused field alone.
-23. Exercise the optional-permission doorhanger. PR #147's gate sets
+23. Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
+    now rejects a stale Prisma client. The 14/08 fix covers `packages/server/src/generated/prisma`
+    only, because that is the one that failed; the doctor still cannot tell a stale
+    `packages/shared/dist` from a fresh one, and `@proso/shared` is consumed from `dist/` by the
+    server. The same schema-digest stamp would work there.
+24. Make the deterministic floor deterministic under load. `franc-min-accuracy.test.js:247`
+    asserts a 50 ms first-call budget and was measured at 6/27/43/79 ms on identical trees
+    depending only on machine load; `cartesia-tts.adapter.spec.ts:255` and the OpenAI contract
+    equivalent exceed Jest's 5 s default while `fetch` is mocked, so they are measuring retry
+    scheduling under contention rather than adapter behaviour. Assert the observable outcome
+    (a `Result` shape, a bounded retry count) instead of elapsed wall-clock, or give the timing
+    assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
+    before it can be believed, which is the opposite of what the receipt is for.
+25. Exercise the optional-permission doorhanger. PR #147's gate sets
    `extensions.webextOptionalPermissionPrompts=false`, so the grant request, its user gesture and
    the resulting permission are all real but the prompt the reader accepts is not. Closing this
    needs chrome-context WebDriver Actions dispatched against the panel, which is also what would

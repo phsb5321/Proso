@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-for command_name in cut git jq mktemp rm sha256sum; do
+for command_name in cut date git jq mktemp rm sha256sum; do
   command -v "$command_name" >/dev/null 2>&1 || {
     printf 'Missing required command: %s\n' "$command_name" >&2
     exit 1
@@ -34,11 +34,28 @@ jq -e '
   exit 1
 }
 
+# `type == "string"` above accepts any string, so a receipt could carry a
+# nonsense verification time and still validate. Round-trip it through `date`:
+# the value must both parse as UTC and re-render to exactly what was recorded,
+# which rejects malformed and non-canonical timestamps alike.
+readonly RECEIPT_VERIFIED_AT="$(jq -r '.verifiedAt' "$RECEIPT_PATH")"
+if [[ "$(date -u -d "$RECEIPT_VERIFIED_AT" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null)" \
+  != "$RECEIPT_VERIFIED_AT" ]]; then
+  printf 'Gate receipt verifiedAt is not a UTC ISO-8601 timestamp: %s\n' \
+    "$RECEIPT_VERIFIED_AT" >&2
+  exit 1
+fi
+
 readonly RECEIPT_BASE="$(jq -r '.baseRef' "$RECEIPT_PATH")"
 readonly RECEIPT_BASE_SHA="$(jq -r '.baseSha' "$RECEIPT_PATH")"
-if [[ -n "${DIFF_BASE_REF:-}" && "$DIFF_BASE_REF" != "$RECEIPT_BASE" ]]; then
+# Default the expected base rather than skipping the check when the caller does
+# not name one. `write-gate-receipt.sh` honours DIFF_BASE_REF, so an unpinned
+# validator accepted a receipt recorded against HEAD^ — and `adversarial-review.sh`
+# then bundles that same baseRef, showing the reviewer a fraction of the change.
+readonly EXPECTED_BASE_REF="${DIFF_BASE_REF:-origin/main}"
+if [[ "$EXPECTED_BASE_REF" != "$RECEIPT_BASE" ]]; then
   printf 'Gate receipt base mismatch: expected %s, got %s\n' \
-    "$DIFF_BASE_REF" "$RECEIPT_BASE" >&2
+    "$EXPECTED_BASE_REF" "$RECEIPT_BASE" >&2
   exit 1
 fi
 readonly EXPECTED_BASE_SHA="$(git rev-parse "${RECEIPT_BASE}^{commit}")"
