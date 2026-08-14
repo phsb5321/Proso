@@ -19,9 +19,16 @@ built on demand by `nix-shell`; nothing is switched into a profile).
 
 ## Note on the oracle
 
-`firefox --version` exits **0 even when XPCOM fails to load** — the glue writes
-to stderr and the shell still sees success. Exit status is therefore not a usable
-oracle; the check requires the `Mozilla Firefox <version>` banner.
+The check requires the `Mozilla Firefox <version>` banner rather than a zero
+exit. On this nixpkgs wrapper an XPCOM failure exits **255**, but exit codes are
+not reliable across Firefox builds, launcher wrappers, and distro packaging, and
+a status alone could not tell a linkage failure apart from any other non-zero
+exit. The banner proves the binary reached the point of reporting its own
+version, and it carries the version worth recording.
+
+(An earlier draft of this note claimed the failing launch exits 0. That was a
+measurement artifact — `$?` was read after a pipe, so it reported `tail`'s
+status, not Firefox's. Measured directly: broken 255, fixed 0.)
 
 ## Falsification
 

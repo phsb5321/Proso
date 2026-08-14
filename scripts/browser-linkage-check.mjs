@@ -52,9 +52,12 @@ function resolveFirefox() {
 /**
  * Start the binary and demand a real version banner.
  *
- * `firefox --version` exits 0 even when XPCOM fails to load — the glue writes
- * the error to stderr and the shell still sees success. Exit status alone is
- * therefore NOT a usable oracle here; the version string is.
+ * The banner is the oracle, not the exit status. On this nixpkgs wrapper an
+ * XPCOM failure happens to exit 255, but exit codes are not reliable across
+ * Firefox builds, launcher wrappers, and distro packaging, and a status alone
+ * could never tell a linkage failure apart from any other non-zero exit. The
+ * `Mozilla Firefox <version>` banner proves the binary reached the point of
+ * reporting its own version, and it carries the version we want to record.
  */
 function startupVerdict(binary) {
   const run = spawnSync(binary, ['--version'], { encoding: 'utf8', timeout: 120_000 });
