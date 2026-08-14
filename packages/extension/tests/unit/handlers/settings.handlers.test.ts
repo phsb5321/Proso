@@ -15,7 +15,7 @@
  * @module tests/unit/handlers/settings.handlers
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // ============================================
 // ESM Mocks — must precede dynamic imports
@@ -448,7 +448,7 @@ describe('Settings Handlers', () => {
       expect(mockApiClient.testApiKey).toHaveBeenCalledWith('cartesia', 'cart-key');
     });
 
-    it('should return typed invalid failure when the provider rejects the key', async () => {
+    it('treats an untyped negative server answer as unavailable', async () => {
       mockApiClient.testApiKey.mockResolvedValue({
         ok: true,
         value: {
@@ -465,7 +465,7 @@ describe('Settings Handlers', () => {
 
       expect(response.success).toBe(false);
       expect(response.error).toBe('Credential check failed without a keyword');
-      expect(response.failure).toBe('invalid');
+      expect(response.failure).toBe('unavailable');
     });
 
     it('should return typed unavailable failure when api client returns Err', async () => {

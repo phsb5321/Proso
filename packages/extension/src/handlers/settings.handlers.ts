@@ -326,9 +326,10 @@ async function handleTestApiKey(
         return {
           success: false,
           error: result.value.error ?? 'Key validation failed',
-          // A successful test-key round trip reached the selected provider;
-          // its negative answer is credential evidence, not a transport guess.
-          failure: 'invalid',
+          // The current server response is untyped: false can mean rejected
+          // credentials or a provider outage after retries. Only explicit
+          // authentication evidence may accuse the candidate key.
+          failure: 'unavailable',
         };
       }
       // API client error (network, timeout, etc.) never proves rejection.

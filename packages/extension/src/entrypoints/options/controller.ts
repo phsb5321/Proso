@@ -15,6 +15,7 @@ import {
   defaults as settingsDefaults,
 } from '../../utils/config';
 import { downloadJson } from '../../utils/download/download-json';
+import { validateHostUrl } from '../../utils/first-run';
 import { createLogger } from '../../utils/logging/logger';
 import {
   collectProviderStateFromUI,
@@ -348,19 +349,65 @@ async function refreshLocalHostPermissionStatus(): Promise<void> {
  * Persist the local-host fields. Returns the normalized origin for the
  * permission grant, or null when the address is invalid.
  */
-function collectLocalHostOrigin(): string | null {
-  if (!elements) return null;
-  const raw = elements.localHostUrl.value.trim();
-  if (!raw) return null;
-  try {
-    const url = new URL(raw);
-    if (url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'localhost')) {
-      return url.origin;
+export function collectLocalHostOrigin(raw: string): string | null {
+  return validateHostUrl(raw);
+}
+
+export interface LocalHostDraft {
+  readonly url: string;
+  readonly enabled: boolean;
+  readonly localHostVoice: string | null;
+  readonly fallbackProvider: string;
+}
+
+export interface LocalHostDraftEffects {
+  readonly readCurrent: () => Promise<Record<string, unknown>>;
+  readonly readGrantedOrigins: () => Promise<readonly string[]>;
+  readonly write: (stored: Record<string, unknown>) => Promise<void>;
+  readonly selectLocalProvider: () => Promise<unknown>;
+}
+
+export type LocalHostSaveResult =
+  | { readonly saved: false; readonly reason: 'working-route-preserved' }
+  | { readonly saved: true; readonly stored: Record<string, unknown> };
+
+/**
+ * Persist a local-host draft unless a passive edit would replace a working
+ * exact destination. A host grant spans ports, but the route does not: typing
+ * a new port must not silently replace the currently working origin.
+ */
+export async function persistLocalHostDraft(
+  draft: LocalHostDraft,
+  options: { readonly requestPermission: boolean },
+  effects: LocalHostDraftEffects,
+): Promise<LocalHostSaveResult> {
+  const candidateOrigin = collectLocalHostOrigin(draft.url);
+  if (!options.requestPermission && draft.enabled && candidateOrigin) {
+    const current = await effects.readCurrent();
+    const currentOrigin =
+      current.provider === 'local' &&
+      current.localHostEnabled === true &&
+      typeof current.localHostUrl === 'string'
+        ? collectLocalHostOrigin(current.localHostUrl)
+        : null;
+
+    if (currentOrigin && currentOrigin !== candidateOrigin) {
+      const grantedOrigins = await effects.readGrantedOrigins();
+      if (originCoveredByGrantedPatterns(currentOrigin, grantedOrigins)) {
+        return { saved: false, reason: 'working-route-preserved' };
+      }
     }
-  } catch {
-    return null;
   }
-  return null;
+
+  const stored: Record<string, unknown> = {
+    localHostUrl: draft.url || null,
+    localHostEnabled: draft.enabled,
+    localHostVoice: draft.localHostVoice,
+    provider: draft.enabled ? 'local' : draft.fallbackProvider,
+  };
+  await effects.write(stored);
+  if (draft.enabled) await effects.selectLocalProvider();
+  return { saved: true, stored };
 }
 
 /**
@@ -371,34 +418,37 @@ function collectLocalHostOrigin(): string | null {
  */
 async function saveLocalHostSettings(options: {
   readonly requestPermission: boolean;
+  readonly permissionAlreadyGranted?: boolean;
 }): Promise<void> {
   if (!elements) return;
-  const { requestPermission } = options;
+  const { permissionAlreadyGranted = false, requestPermission } = options;
   const url = elements.localHostUrl.value.trim();
   const enabled = elements.localHostEnabled.checked;
 
-  const origin = collectLocalHostOrigin();
+  const origin = collectLocalHostOrigin(url);
   if (enabled && !origin) {
     // A passive debounced input has no user activation and must not disable a
     // working route while the reader is midway through an address. Preserve
     // storage and the checkbox until a complete origin can be saved.
     if (requestPermission) elements.localHostEnabled.checked = false;
     elements.localHostStatus.textContent = requestPermission
-      ? 'Enable requires a valid https:// address (or http://localhost).'
+      ? 'Enable requires a valid HTTPS address, or HTTP on localhost, 127.0.0.1, or [::1], with no path.'
       : 'Finish entering a valid address; the current saved route is unchanged.';
     return;
   }
 
   if (enabled && requestPermission) {
     if (!origin) return;
-    const permission = await requestHostPermissionForOrigin(origin, browser.permissions);
-    if (!permission.ok) {
-      elements.localHostEnabled.checked = false;
-      elements.localHostStatus.textContent =
-        permission.reason === 'denied'
-          ? 'Host permission was not granted — the local route stays disabled.'
-          : permission.message;
-      return;
+    if (!permissionAlreadyGranted) {
+      const permission = await requestHostPermissionForOrigin(origin, browser.permissions);
+      if (!permission.ok) {
+        elements.localHostEnabled.checked = false;
+        elements.localHostStatus.textContent =
+          permission.reason === 'denied'
+            ? 'Host permission was not granted — the local route stays disabled.'
+            : permission.message;
+        return;
+      }
     }
     elements.localHostStatus.textContent = `Browser host access covers every port; Proso uses only ${origin}.`;
   }
@@ -407,28 +457,39 @@ async function saveLocalHostSettings(options: {
   // re-derived from the stored result — a single source of truth, so the
   // dropdown and the section cannot disagree after the save.
   const uiState = collectProviderStateFromUI(elements);
-  const stored: Record<string, unknown> = {
-    // PROSO-147: the address is persisted whether or not the route is enabled.
-    // It used to be `enabled ? url : null`, and the debounced save on `input`
-    // (600ms after typing, while the enable box is still unchecked — the order
-    // every reader uses) therefore wrote null over the address the reader had
-    // just typed. The storage.onChanged listener then pushed that null back
-    // into the field through syncProviderUI, so the input cleared itself and
-    // the next click on enable failed with "requires a valid https:// address".
-    // Remembering an address is not enabling a route: nothing is sent anywhere
-    // until `localHostEnabled` is true AND a browser-valid host grant covers
-    // the exact destination, both still enforced by composition/factories.ts.
-    localHostUrl: url || null,
-    localHostEnabled: enabled,
-    localHostVoice: uiState.localHostVoice,
-    provider: enabled ? 'local' : uiState.provider,
-  };
-  await browser.storage.local.set(stored);
-  syncProviderUI(elements, deriveProviderState(stored));
-  await refreshLocalHostPermissionStatus();
-  if (enabled) {
-    await browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' });
+  const result = await persistLocalHostDraft(
+    {
+      url,
+      enabled,
+      localHostVoice: uiState.localHostVoice,
+      fallbackProvider: uiState.provider,
+    },
+    { requestPermission },
+    {
+      readCurrent: () =>
+        browser.storage.local.get([
+          'provider',
+          'localHostEnabled',
+          'localHostUrl',
+          'localHostVoice',
+        ]),
+      readGrantedOrigins: async () => {
+        const granted = await browser.permissions.getAll();
+        return granted.origins ?? [];
+      },
+      write: (stored) => browser.storage.local.set(stored),
+      selectLocalProvider: () =>
+        browser.runtime.sendMessage({ type: 'provider.select', provider: 'local' }),
+    },
+  );
+  if (!result.saved) {
+    elements.localHostStatus.textContent =
+      'The current host stays active. Test this address or toggle Enable to apply it.';
+    return;
   }
+
+  syncProviderUI(elements, deriveProviderState(result.stored));
+  await refreshLocalHostPermissionStatus();
 }
 
 /**
@@ -437,9 +498,10 @@ async function saveLocalHostSettings(options: {
  */
 async function testLocalHostConnection(): Promise<void> {
   if (!elements) return;
-  const origin = collectLocalHostOrigin();
+  const origin = collectLocalHostOrigin(elements.localHostUrl.value);
   if (!origin) {
-    elements.localHostStatus.textContent = 'Enter a valid https:// address first.';
+    elements.localHostStatus.textContent =
+      'Enter a valid HTTPS address, or HTTP on localhost, 127.0.0.1, or [::1], with no path.';
     return;
   }
   elements.localHostStatus.textContent = 'Testing…';
@@ -481,6 +543,12 @@ async function testLocalHostConnection(): Promise<void> {
       option.value = voice.value;
       option.textContent = voice.label;
       elements.localHostVoice.appendChild(option);
+    }
+    if (elements.localHostEnabled.checked) {
+      await saveLocalHostSettings({
+        requestPermission: true,
+        permissionAlreadyGranted: true,
+      });
     }
     elements.localHostStatus.textContent = `Connected — ${voices.length} voice(s) found.`;
   } catch (error) {
