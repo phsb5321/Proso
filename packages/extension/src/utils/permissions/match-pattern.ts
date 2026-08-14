@@ -3,19 +3,13 @@
 // Commercial licensing: https://proso.com.br/commercial
 
 /**
- * Host-pattern coverage helper (PROSO-114).
+ * Host-pattern helpers (PROSO-114 / Feature 169).
  *
- * `browser.permissions.contains()` answers against the optional-grant table
- * only: on a build whose manifest carries all_urls at install time (the
- * reading journey's host access), the install-time grant already covers a
- * user-configured host, but `contains()` still returns false — so a gate
- * built on it can never pass and the feature is unreachable. Effective
- * access must be consulted instead: `browser.permissions.getAll()` returns
- * every granted origin pattern, install-time and optional alike.
- *
- * This module implements the subset of Chrome/Firefox match-pattern
- * semantics the gate needs: does any granted pattern cover the configured
- * origin? Pure logic — no framework imports, directly unit-testable.
+ * WebExtension MatchPattern grammar supports a scheme and host but has no port
+ * component. A reader-entered origin on a non-default port therefore needs a
+ * host-wide permission pattern, while the network adapter remains pinned to
+ * the exact persisted origin. These pure helpers keep request construction and
+ * effective-grant checks on the same browser-valid grammar.
  *
  * @module utils/permissions/match-pattern
  */
@@ -24,36 +18,124 @@
 export type GrantedOriginPattern = string;
 
 /**
- * True when `pattern` covers `origin` (scheme://host only — paths are
- * irrelevant to host access).
+ * Return the narrowest browser-expressible host permission for an exact
+ * http(s) origin. Paths, credentials, queries, fragments, and foreign schemes
+ * fail closed because callers must pass an origin, not an arbitrary URL.
  *
- * Supported shapes (the subset the extension's manifests actually use):
- * - all_urls — covers every http(s) origin.
- * - any-host patterns (`http:` or `https:` with a wildcard host).
- * - one exact host on one scheme.
- * Any other shape is treated as non-matching (fail closed).
+ * MatchPattern cannot encode a port. For example, an exact destination of
+ * `http://127.0.0.1:45019` requires `http://127.0.0.1/*`; callers MUST still
+ * send traffic only to the original destination.
  */
-export function patternCoversOrigin(pattern: string, origin: string): boolean {
-  if (pattern === '<all_urls>') return true;
-
+export function hostPermissionPatternForOrigin(origin: string): string | null {
   let parsed: URL;
   try {
-    parsed = new URL(pattern.replace(/\*\/$/, ''));
+    parsed = new URL(origin);
   } catch {
-    return false;
+    return null;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
 
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+  if (parsed.pathname !== '/') return null;
+
+  return `${parsed.protocol}//${parsed.hostname}/*`;
+}
+
+export type HostPermissionRequestResult =
+  | { readonly ok: true; readonly pattern: string }
+  | {
+      readonly ok: false;
+      readonly reason: 'invalid' | 'denied' | 'unavailable';
+      readonly message: string;
+    };
+
+export interface HostPermissionRequester {
+  request(permissions: { origins: string[] }): Promise<boolean>;
+}
+
+/**
+ * Invoke the browser permission API synchronously from the caller's user
+ * gesture, then convert denial and API rejection into a typed result. This
+ * function never rejects, so every public grant surface can remain actionable.
+ */
+export async function requestHostPermissionForOrigin(
+  origin: string,
+  requester: HostPermissionRequester,
+): Promise<HostPermissionRequestResult> {
+  const pattern = hostPermissionPatternForOrigin(origin);
+  if (!pattern) {
+    return {
+      ok: false,
+      reason: 'invalid',
+      message: 'The browser cannot request host access for this address.',
+    };
+  }
+
+  try {
+    // Calling request() before this function's first await preserves the user
+    // activation inherited from the click handler.
+    const granted = await requester.request({ origins: [pattern] });
+    return granted
+      ? { ok: true, pattern }
+      : { ok: false, reason: 'denied', message: 'Host permission was not granted.' };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      reason: 'unavailable',
+      message: `The browser could not request host access. ${detail}`,
+    };
+  }
+}
+
+/**
+ * Parse the exact subset of WebExtension MatchPattern hosts Proso grants.
+ * Requiring `/*` and forbidding a port is intentional: Firefox can retain a
+ * port-bearing string in its grant table even though that pattern covers no
+ * request. Treating such a string as effective creates an unrecoverable retry
+ * loop, so malformed and legacy port-bearing patterns fail closed.
+ */
+function parseSupportedPattern(
+  pattern: string,
+): { readonly protocol: 'http:' | 'https:'; readonly hostname: string } | null {
+  const match = /^(https?):\/\/(\*|\[[0-9a-f:.]+\]|[^/:*]+)\/\*$/i.exec(pattern);
+  if (!match) return null;
+
+  const protocol = `${match[1].toLowerCase()}:` as 'http:' | 'https:';
+  const rawHostname = match[2];
+  if (rawHostname === '*') return { protocol, hostname: rawHostname };
+
+  try {
+    const hostname = new URL(`${protocol}//${rawHostname}`).hostname.toLowerCase();
+    return { protocol, hostname };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when `pattern` covers `origin` (scheme and host only — MatchPattern
+ * cannot express a port).
+ *
+ * Supported shapes are the subset the extension manifests and runtime grant
+ * flow use: `<all_urls>`, an any-host http(s) pattern, and one exact host on
+ * one scheme. Any other shape is treated as non-matching (fail closed).
+ */
+export function patternCoversOrigin(pattern: string, origin: string): boolean {
   let target: URL;
   try {
     target = new URL(origin);
   } catch {
     return false;
   }
-  if (parsed.protocol !== target.protocol) return false;
+  if (target.protocol !== 'http:' && target.protocol !== 'https:') return false;
 
+  if (pattern === '<all_urls>') return true;
+
+  const parsed = parseSupportedPattern(pattern);
+  if (!parsed || parsed.protocol !== target.protocol) return false;
   if (parsed.hostname === '*') return true;
-  return parsed.hostname === target.hostname;
+  return parsed.hostname === target.hostname.toLowerCase();
 }
 
 /**

@@ -16,6 +16,7 @@
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import { defaults } from './config/defaults';
+import { requestHostPermissionForOrigin } from './permissions/match-pattern';
 
 const BYOK_KEYS = ['openaiApiKey', 'elevenlabsApiKey', 'groqApiKey', 'cartesiaApiKey'];
 
@@ -184,19 +185,18 @@ export async function connectLocalHost(
     });
   }
 
-  let granted: boolean;
-  try {
-    granted = await perms.request({ origins: [`${origin}/*`] });
-  } catch (error) {
+  // MatchPattern has no port component. Request the narrowest effective
+  // scheme+host grant, then keep capability and synthesis traffic pinned to
+  // the exact reader-entered origin below. The helper invokes request()
+  // synchronously before its first await, preserving this click's activation.
+  const permission = await requestHostPermissionForOrigin(origin, perms);
+  if (!permission.ok) {
     return Err({
       step: 'permission_denied',
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-  if (!granted) {
-    return Err({
-      step: 'permission_denied',
-      message: 'Access was not granted — the host route stays off. Try Connect again.',
+      message:
+        permission.reason === 'denied'
+          ? 'Access was not granted — the host route stays off. Try Connect again.'
+          : permission.message,
     });
   }
 

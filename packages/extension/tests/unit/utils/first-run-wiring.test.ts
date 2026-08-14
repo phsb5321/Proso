@@ -23,6 +23,7 @@ function srcText(relative: string): string {
 
 const popupSource = srcText('entrypoints/popup/main.ts');
 const popupHtml = srcText('entrypoints/popup/index.html');
+const optionsSource = srcText('entrypoints/options/controller.ts');
 const firstRunModule = srcText('utils/first-run.ts');
 
 describe('first-run wiring pins', () => {
@@ -31,7 +32,8 @@ describe('first-run wiring pins', () => {
     expect(popupHtml).toContain('data-testid="popup-first-run"');
     expect(popupHtml).toContain('data-testid="popup-first-run-host-connect"');
     expect(popupHtml).toContain('data-testid="popup-first-run-byok-save"');
-    expect(popupHtml).toContain("The page's text is sent only to the address you enter here");
+    expect(popupHtml).toContain('Browser host permissions cover every port on this host');
+    expect(popupHtml).toContain("page's text only to the exact address above");
   });
 
   it('the Connect click passes its event into connectLocalHost (falsifier D)', () => {
@@ -48,6 +50,43 @@ describe('first-run wiring pins', () => {
   it('the module refuses a programmatic grant (falsifier D, module half)', () => {
     expect(firstRunModule).toContain('if (!event)');
     expect(firstRunModule).toContain('permission_denied');
+  });
+
+  it('only gesture-backed settings events may request host permission', () => {
+    const listenersStart = optionsSource.indexOf('function setupLocalHostEventListeners');
+    const listenersEnd = optionsSource.indexOf('/**\n * Load Quick Settings', listenersStart);
+    const listeners = optionsSource.slice(listenersStart, listenersEnd);
+    const inputStart = listeners.indexOf("localHostUrl.addEventListener('input'");
+    const voiceStart = listeners.indexOf("localHostVoice.addEventListener('change'");
+    const enabledStart = listeners.indexOf("localHostEnabled.addEventListener('change'");
+    const testStart = listeners.indexOf("localHostTestBtn.addEventListener('click'");
+
+    expect(listenersStart).toBeGreaterThanOrEqual(0);
+    expect(listenersEnd).toBeGreaterThan(listenersStart);
+    expect(inputStart).toBeGreaterThanOrEqual(0);
+    expect(voiceStart).toBeGreaterThan(inputStart);
+    expect(enabledStart).toBeGreaterThan(voiceStart);
+    expect(testStart).toBeGreaterThan(enabledStart);
+
+    expect(listeners.slice(inputStart, voiceStart)).toContain(
+      'saveLocalHostSettings({ requestPermission: false })',
+    );
+    expect(listeners.slice(voiceStart, enabledStart)).toContain(
+      'saveLocalHostSettings({ requestPermission: false })',
+    );
+    expect(listeners.slice(enabledStart, testStart)).toContain(
+      'saveLocalHostSettings({ requestPermission: true })',
+    );
+
+    const saveStart = optionsSource.indexOf('async function saveLocalHostSettings');
+    const saveEnd = optionsSource.indexOf('/**\n * Test the connection', saveStart);
+    expect(saveStart).toBeGreaterThanOrEqual(0);
+    expect(saveEnd).toBeGreaterThan(saveStart);
+    const saveBlock = optionsSource.slice(saveStart, saveEnd);
+    expect(saveBlock).toContain(
+      'if (requestPermission) elements.localHostEnabled.checked = false;',
+    );
+    expect(saveBlock).toContain('if (enabled && requestPermission)');
   });
 
   it('no probe, no shipped address, no discovery (falsifier E)', () => {

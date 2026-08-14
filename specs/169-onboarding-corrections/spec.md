@@ -8,6 +8,8 @@
 
 A fresh or migrated reader may already have Proso's default managed service address in local settings even though they have no usable listening route. The popup mistakes that default for user configuration, hides the two free routes, and can introduce the product with a billing refusal. When onboarding does appear, route success copy may promise playback without starting it, an untested provider key may replace a working key, a stale action label may invoke a different action, and a previously selected provider voice may remain active after switching to a reader-operated host.
 
+Exact-head browser QA also exposed two boundary defects that attribute-only and portless fixtures had masked: authored `display: flex` kept the hidden onboarding panel rendered and tabbable for configured readers, and Firefox stored a port-bearing permission string that its MatchPattern engine could not apply. WebExtension host permissions cannot be scoped to one port, so the narrowest usable runtime grant is scheme plus host; Proso must disclose that permission breadth while keeping every network request pinned to the exact reader-entered origin.
+
 ## User stories
 
 ### US1 — A reader without a route sees a truthful introduction
@@ -28,7 +30,7 @@ A missing host grant always exposes a button named **Grant access** that request
 - **FR-002 Migrated defaults**: A profile whose migration persisted the canonical managed service address and no reader-owned route MUST show onboarding.
 - **FR-003 Custom managed route**: A valid managed service origin that differs from the canonical default MUST preserve the normal player. Equivalent spellings of the canonical origin, including a trailing slash, remain the default.
 - **FR-004 No billing introduction**: A managed billing refusal for a default-only profile MUST lead to neutral free-route guidance, not display the billing refusal as the introduction.
-- **FR-005 Host setup completion**: Successful host validation, exact-origin grant, capability check, and save MUST initiate playback exactly once from both proactive onboarding and failure-recovery onboarding.
+- **FR-005 Host setup completion**: Successful host validation, the narrowest browser-expressible runtime host grant derived from the exact entered origin, capability check, and save MUST initiate playback exactly once from both proactive onboarding and failure-recovery onboarding.
 - **FR-006 Provider-key validation**: A provider key MUST pass the existing real validation path before it is persisted or selected.
 - **FR-007 Preserve working key**: A rejected or unverifiable candidate MUST NOT overwrite a previously working provider key.
 - **FR-008 Honest key status**: Provider-key status MUST distinguish successful verification from a validation or transport failure without calling every failure a rejected credential.
@@ -37,8 +39,9 @@ A missing host grant always exposes a button named **Grant access** that request
 - **FR-011 No hardware implication**: Onboarding MUST describe a reader-operated host generically and MUST NOT imply that Proso discovers or ships an address for a particular device.
 - **FR-012 Automatic local voice**: Selecting the reader-operated host MUST clear the actual voice preference consumed by playback, both in persisted settings and the live playback service.
 - **FR-013 Free-route presentation**: While onboarding is visible, status, progress, playback controls, speed, and cost estimate MUST be absent from layout.
-- **FR-014 Existing reader preservation**: A configured profile MUST retain the normal player and existing grant-row hidden behavior.
+- **FR-014 Existing reader preservation**: A configured profile MUST retain the normal player; the first-run panel and grant row MUST compute to `display: none`, occupy no layout, and contribute no focusable controls.
 - **FR-015 Single start**: Storage notifications, route reconfiguration, a prior failed Play, and rapid duplicate activation MUST NOT cause a second playback start after one successful setup.
+- **FR-016 Honest host-permission scope**: Because WebExtension MatchPattern grammar cannot encode a port, a ported reader origin MUST request the narrowest usable scheme-plus-host pattern without a port. The interface MUST disclose that the browser grant covers that host across ports, while persisted configuration, capability checks, and synthesis traffic remain pinned to the exact entered origin. Browser API rejection MUST remain a visible actionable failure rather than an unhandled promise, and an ungrantable saved address MUST return the reader to editable onboarding.
 
 ## Measurable acceptance criteria
 
@@ -52,11 +55,13 @@ The repository uses native Jest and retained browser actors rather than adding a
 - A proactive accepted provider key is validated before storage, selected after storage, and produces one `playback.start` request.
 - A rejected provider key leaves the prior stored key byte-identical and produces no provider selection or playback start.
 - A provider-key transport failure says the key was not saved and does not describe the candidate as rejected.
-- A Retry action followed by a grant-missing failure visibly becomes **Grant access**, and activating it requests the exact configured origin.
-- A configured reader retains the normal player and the grant row remains hidden with no focusable visible repair action.
+- A Retry action followed by a grant-missing failure visibly becomes **Grant access**, and activating it requests the browser-valid pattern derived from the exact configured origin.
+- A configured reader retains the normal player; the first-run panel and grant row compute to `display: none`, and no first-run or repair control appears in sequential focus order.
 - Switching to the local route leaves the live playback voice and persisted `voice` value null.
 - With onboarding visible, the real popup stylesheet computes the cost section as `display: none`; without onboarding it retains its normal display.
-- `http://[::1]:8080` normalizes successfully, while `http://192.168.1.5` remains rejected; the exact Firefox gate also verifies the IPv6 origin grant when that route is exercised.
+- `http://127.0.0.1:45019` requests `http://127.0.0.1/*` while capability and synthesis requests still reach port `45019`; a stored port-bearing pattern is rejected as ineffective.
+- A thrown permission API call produces a visible host-access error with no playback retry, while a saved `file:` destination hides the inert grant row and reopens editable onboarding.
+- `http://[::1]:8080` normalizes successfully and requests `http://[::1]/*`, while `http://192.168.1.5` remains rejected; the exact Firefox gate verifies that the IPv6 pattern is effective rather than inferring support from URL normalization.
 - Popup copy contains no named hardware example or shipped/discovered host implication.
 - In a fresh Firefox profile, a reader types the host address, uses real Connect and Allow controls, observes a host request, and reaches Playing with audible output in no more than three clicks after opening onboarding.
 - The same exact build leaves a configured Firefox profile on the player and completes the corresponding Brave/Chromium regression journey.
@@ -76,6 +81,9 @@ Each historical defect is planted or represented by a near-miss:
 9. Remove the first-run cost selector: computed-style assertion exposes the cost section.
 10. Compare IPv6 hostname without brackets: loopback normalization assertion fails.
 11. Restore a named hardware example: generic-host copy assertion fails.
+12. Let authored first-run layout override `hidden`: computed display and rendered-tab-stop assertions expose the panel for a configured reader.
+13. Send a port-bearing origin string to `permissions.request()`, or treat a stored port-bearing pattern as effective: MatchPattern assertions fail and the no-CORS public host journey cannot reach capabilities.
+14. Let a rejected permission promise escape or leave an unsupported saved origin behind an inert **Grant access** button: rejection and editable-onboarding assertions fail.
 
 ## Non-goals
 

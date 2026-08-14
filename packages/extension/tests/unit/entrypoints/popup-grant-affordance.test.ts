@@ -20,11 +20,14 @@ const factoriesSource = readFileSync(
   resolve(__dirname, '../../../src/composition/factories.ts'),
   'utf8',
 );
-const popupSource = readFileSync(resolve(__dirname, '../../../src/entrypoints/popup/main.ts'), 'utf8');
+const popupSource = readFileSync(
+  resolve(__dirname, '../../../src/entrypoints/popup/main.ts'),
+  'utf8',
+);
 
 describe('local-host gate reason ↔ popup affordance marker', () => {
   it("the gate's reason and the popup's marker are the same string", () => {
-    const gateReason = "no access to the configured host origin";
+    const gateReason = 'no access to the configured host origin';
     expect(factoriesSource).toContain(gateReason);
     expect(popupSource).toContain(gateReason);
   });
@@ -37,7 +40,7 @@ describe('local-host gate reason ↔ popup affordance marker', () => {
     expect(html).toContain('id="grant-access-row"');
     expect(html).toContain('id="grant-access-btn"');
     expect(popupSource).toContain('handleGrantAccessClick');
-    // permissions.request must run from the click handler (user gesture).
-    expect(popupSource).toContain("browser.permissions.request({ origins:");
+    // The helper invokes permissions.request synchronously from this click.
+    expect(popupSource).toContain('requestHostPermissionForOrigin(origin, browser.permissions)');
   });
 });

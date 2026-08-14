@@ -30,10 +30,18 @@
 - [x] T020 Run `make verify`, diagnostics, and `make user-gate-diagnostic`; record any fail-closed public-gate limitation without waiving it.
 - [x] T021 Run a different-family adversarial implementation review before publication and repair every grounded finding additively.
 
+## Phase 3b — Exact-head QA containment
+
+- [x] T027 Retain the failed `3070c85` Firefox/Chromium receipts that exposed rendered hidden onboarding and ineffective port-bearing permission patterns; do not waive either failure.
+- [x] T028 Add red computed-style/focus-order and browser-MatchPattern regressions against the defective published head.
+- [x] T029 Repair hidden-panel rendering and centralize the narrowest effective host-permission pattern across every request site, with honest scope copy and exact-origin network use.
+- [ ] T030 Rerun focused/full deterministic gates, seeded fuzz, and the diagnostic on the replacement head.
+- [ ] T031 Rerun independent public Firefox/Chromium acceptance and qualified exact-head DeepSeek review after the additive push.
+
 ## Phase 4 — Publication and exact-head gates
 
-- [ ] T022 Commit with subjects at most 72 characters, push once without force, open the hotfix PR, and write `/tmp/proso-169-handoff.md` with the exact SHA.
-- [ ] T023 Obtain independent exact-head Firefox QA with real Connect/Allow controls, host request, Playing, and audio; obtain exact-head Brave/Chromium regression evidence.
+- [ ] T022 Commit additively with subjects at most 72 characters, push without force, keep the failed published SHA in the evidence trail, and write `/tmp/proso-169-handoff.md` with the replacement exact SHA.
+- [ ] T023 Obtain independent exact-head Firefox QA with real Connect/Allow controls, exact-port host requests, one playback start, Playing, highlight, and audible non-zero audio; obtain exact-head Brave/Chromium regression evidence.
 - [ ] T024 Obtain direct DeepSeek v4 Pro ALLOW on the exact pushed head.
 - [ ] T025 Confirm required checks green and zero unresolved threads, squash-merge, confirm `state=MERGED`, and record the one-line revert path.
 - [ ] T026 Update the mapped Proso tracker items only through the authorized Plane mapping; if no mapping exists, remain fail-closed and report the blocker.

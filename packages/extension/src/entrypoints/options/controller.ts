@@ -58,7 +58,10 @@ type LogViewerResponse = {
 import { saveApiKey, testApiKey } from '../../utils/options/api-key-tester';
 import { type ScrollSpyInstance, createScrollSpy } from '../../utils/options/scroll-spy';
 import { type ThemeMode, getThemeManager } from '../../utils/options/theme-manager';
-import { originCoveredByGrantedPatterns } from '../../utils/permissions/match-pattern';
+import {
+  originCoveredByGrantedPatterns,
+  requestHostPermissionForOrigin,
+} from '../../utils/permissions/match-pattern';
 import { usageTracker } from '../../utils/telemetry/usage';
 import { showConfirmModal } from './components/modal';
 import { setupSidebarKeyboardNav } from './components/sidebar';
@@ -361,33 +364,43 @@ function collectLocalHostOrigin(): string | null {
 }
 
 /**
- * Save the local-host fields and, on the enable path, request the runtime
- * host permission for the exact entered origin from the user gesture
- * (constitution 2.1.0 condition 3; spec 100 FR-6). A denial leaves the
- * provider disabled with a visible reason.
+ * Save the local-host fields and, on the enable path, request the narrowest
+ * runtime host permission the browser can express from the user gesture.
+ * MatchPattern cannot encode a port, so traffic stays pinned separately to the
+ * exact entered origin. A denial leaves the provider disabled with a reason.
  */
-async function saveLocalHostSettings(): Promise<void> {
+async function saveLocalHostSettings(options: {
+  readonly requestPermission: boolean;
+}): Promise<void> {
   if (!elements) return;
+  const { requestPermission } = options;
   const url = elements.localHostUrl.value.trim();
   const enabled = elements.localHostEnabled.checked;
 
   const origin = collectLocalHostOrigin();
   if (enabled && !origin) {
-    elements.localHostEnabled.checked = false;
-    elements.localHostStatus.textContent =
-      'Enable requires a valid https:// address (or http://localhost).';
+    // A passive debounced input has no user activation and must not disable a
+    // working route while the reader is midway through an address. Preserve
+    // storage and the checkbox until a complete origin can be saved.
+    if (requestPermission) elements.localHostEnabled.checked = false;
+    elements.localHostStatus.textContent = requestPermission
+      ? 'Enable requires a valid https:// address (or http://localhost).'
+      : 'Finish entering a valid address; the current saved route is unchanged.';
     return;
   }
 
-  if (enabled) {
-    const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
-    if (!granted) {
+  if (enabled && requestPermission) {
+    if (!origin) return;
+    const permission = await requestHostPermissionForOrigin(origin, browser.permissions);
+    if (!permission.ok) {
       elements.localHostEnabled.checked = false;
       elements.localHostStatus.textContent =
-        'Host permission was not granted — the local route stays disabled.';
+        permission.reason === 'denied'
+          ? 'Host permission was not granted — the local route stays disabled.'
+          : permission.message;
       return;
     }
-    elements.localHostStatus.textContent = `Permission granted for ${origin}.`;
+    elements.localHostStatus.textContent = `Browser host access covers every port; Proso uses only ${origin}.`;
   }
 
   // PROSO-130d: the save is derived from the UI controls and the dropdown is
@@ -403,8 +416,8 @@ async function saveLocalHostSettings(): Promise<void> {
     // into the field through syncProviderUI, so the input cleared itself and
     // the next click on enable failed with "requires a valid https:// address".
     // Remembering an address is not enabling a route: nothing is sent anywhere
-    // until `localHostEnabled` is true AND the exact origin is granted, both
-    // still enforced by the gate in composition/factories.ts.
+    // until `localHostEnabled` is true AND a browser-valid host grant covers
+    // the exact destination, both still enforced by composition/factories.ts.
     localHostUrl: url || null,
     localHostEnabled: enabled,
     localHostVoice: uiState.localHostVoice,
@@ -431,9 +444,9 @@ async function testLocalHostConnection(): Promise<void> {
   }
   elements.localHostStatus.textContent = 'Testing…';
   try {
-    const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
-    if (!granted) {
-      elements.localHostStatus.textContent = 'Host permission was not granted.';
+    const permission = await requestHostPermissionForOrigin(origin, browser.permissions);
+    if (!permission.ok) {
+      elements.localHostStatus.textContent = permission.message;
       return;
     }
     const response = await fetch(`${origin}/v1/capabilities`, {
@@ -486,13 +499,13 @@ function setupLocalHostEventListeners(): void {
   elements.localHostUrl.addEventListener('input', () => {
     if (!elements) return;
     if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => void saveLocalHostSettings(), 600);
+    saveTimeout = setTimeout(() => void saveLocalHostSettings({ requestPermission: false }), 600);
   });
   elements.localHostVoice.addEventListener('change', () => {
-    void saveLocalHostSettings();
+    void saveLocalHostSettings({ requestPermission: false });
   });
   elements.localHostEnabled.addEventListener('change', () => {
-    void saveLocalHostSettings();
+    void saveLocalHostSettings({ requestPermission: true });
   });
   elements.localHostTestBtn.addEventListener('click', () => {
     void testLocalHostConnection();

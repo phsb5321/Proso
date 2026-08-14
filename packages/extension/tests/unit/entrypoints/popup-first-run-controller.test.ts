@@ -53,6 +53,7 @@ interface RigOptions {
   readonly onValidate?: (message: Message) => Promise<unknown>;
   readonly onProviderSelect?: (message: Message) => Promise<unknown>;
   readonly grant?: boolean;
+  readonly grantError?: Error;
   readonly fetchResponse?: () => Promise<unknown>;
   readonly initialPlaybackStatus?: 'stopped' | 'playing' | 'paused';
 }
@@ -107,7 +108,10 @@ function makeRig(options: RigOptions = {}): PopupRig {
   const emitRuntimeMessage = (message: Record<string, unknown>): void => {
     for (const listener of runtimeMessageListeners) listener(message);
   };
-  const permissionsRequest = jest.fn<() => Promise<boolean>>(async () => options.grant ?? true);
+  const permissionsRequest = jest.fn<() => Promise<boolean>>(async () => {
+    if (options.grantError) throw options.grantError;
+    return options.grant ?? true;
+  });
   const fetchFn = jest.fn<() => Promise<unknown>>(
     options.fetchResponse ??
       (async () => ({
@@ -247,6 +251,32 @@ function firstRunPanel(): HTMLElement {
   return document.getElementById('first-run-panel') as HTMLElement;
 }
 
+function isRendered(element: HTMLElement): boolean {
+  for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+    const style = getComputedStyle(current);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  return true;
+}
+
+function renderedTabStops(): string[] {
+  const candidates = document.querySelectorAll<HTMLElement>(
+    'a[href], button, input, select, textarea, [tabindex]',
+  );
+  return Array.from(candidates)
+    .filter((candidate) => {
+      const disabled =
+        (candidate instanceof HTMLButtonElement ||
+          candidate instanceof HTMLInputElement ||
+          candidate instanceof HTMLSelectElement ||
+          candidate instanceof HTMLTextAreaElement) &&
+        candidate.disabled;
+      return !disabled && candidate.tabIndex >= 0 && isRendered(candidate);
+    })
+    .map((candidate) => candidate.id)
+    .filter((id) => id.length > 0);
+}
+
 async function connectHost(address = 'https://host.example'): Promise<void> {
   const input = document.getElementById('first-run-host-url') as HTMLInputElement;
   input.value = address;
@@ -280,14 +310,24 @@ describe('Feature 169 popup first-run controller', () => {
     expect((document.getElementById('grant-access-row') as HTMLElement).hidden).toBe(true);
   });
 
-  it('preserves the normal player for a genuinely custom managed origin', async () => {
+  it('keeps configured readers on the player with onboarding absent from focus order', async () => {
     await mountPopup({ stored: { serverUrl: 'http://127.0.0.1:46121' } });
 
     expect(firstRunPanel().hidden).toBe(true);
+    expect(getComputedStyle(firstRunPanel()).display).toBe('none');
     expect(document.getElementById('panel-player')?.classList).not.toContain(
       'proso-popup__panel--firstrun',
     );
     expect((document.getElementById('grant-access-row') as HTMLElement).hidden).toBe(true);
+
+    const tabStops = renderedTabStops();
+    expect(tabStops).toContain('play-pause-btn');
+    expect(tabStops).not.toContain('first-run-host-url');
+    expect(tabStops).not.toContain('first-run-host-connect');
+    expect(tabStops).not.toContain('first-run-byok-provider');
+    expect(tabStops).not.toContain('first-run-byok-key');
+    expect(tabStops).not.toContain('first-run-byok-save');
+
     const cost = document.getElementById('cost-section') as HTMLElement;
     await waitFor(() => cost.hidden);
     expect(getComputedStyle(cost).display).toBe('none');
@@ -314,13 +354,14 @@ describe('Feature 169 popup first-run controller', () => {
 
   it('proactive host Connect saves automatic voice and starts playback exactly once', async () => {
     const rig = await mountPopup({ stored: { serverUrl: DEFAULT_SERVER_URL } });
+    const origin = 'http://127.0.0.1:45019';
 
-    await connectHost();
+    await connectHost(origin);
     await waitFor(() => countMessages(rig, 'playback.start') === 1);
 
-    expect(rig.permissionsRequest).toHaveBeenCalledWith({ origins: ['https://host.example/*'] });
+    expect(rig.permissionsRequest).toHaveBeenCalledWith({ origins: ['http://127.0.0.1/*'] });
     expect(rig.storage).toMatchObject({
-      localHostUrl: 'https://host.example',
+      localHostUrl: origin,
       localHostEnabled: true,
       provider: 'local',
       voice: null,
@@ -614,9 +655,52 @@ describe('Feature 169 popup first-run controller', () => {
     expect(document.getElementById('grant-access-btn')?.textContent).toBe('Grant access');
   });
 
-  it('a stale Retry action resets atomically to Grant access for the exact origin', async () => {
+  it('surfaces a rejected browser permission request without an unhandled action', async () => {
     const rig = await mountPopup({
-      stored: { localHostEnabled: true, localHostUrl: 'https://host.example' },
+      stored: { localHostEnabled: true, localHostUrl: 'http://[::1]:45019' },
+      grantError: new Error('IPv6 patterns are unavailable'),
+      onStart: async () => ({ error: 'The extension has no access to the configured host origin' }),
+    });
+
+    (document.getElementById('play-pause-btn') as HTMLButtonElement).click();
+    await waitFor(
+      () =>
+        !(document.getElementById('grant-access-row') as HTMLElement).hidden &&
+        (document.getElementById('grant-access-reason')?.textContent ?? '').includes(
+          'http://[::1]:45019',
+        ),
+    );
+    (document.getElementById('grant-access-btn') as HTMLButtonElement).click();
+    await waitFor(() =>
+      (document.getElementById('grant-access-reason')?.textContent ?? '').includes(
+        'IPv6 patterns are unavailable',
+      ),
+    );
+
+    expect(rig.permissionsRequest).toHaveBeenCalledWith({ origins: ['http://[::1]/*'] });
+    expect((document.getElementById('grant-access-row') as HTMLElement).hidden).toBe(false);
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+  });
+
+  it('routes an ungrantable saved host back to editable onboarding', async () => {
+    const rig = await mountPopup({
+      stored: { localHostEnabled: true, localHostUrl: 'file:///tmp/synthesis-host' },
+      onStart: async () => ({ error: 'The extension has no access to the configured host origin' }),
+    });
+
+    (document.getElementById('play-pause-btn') as HTMLButtonElement).click();
+    await waitFor(() => !firstRunPanel().hidden);
+
+    expect(document.getElementById('first-run-subtitle')?.textContent).toContain(
+      'saved host address cannot receive browser access',
+    );
+    expect((document.getElementById('grant-access-row') as HTMLElement).hidden).toBe(true);
+    expect(rig.permissionsRequest).not.toHaveBeenCalled();
+  });
+
+  it('a stale Retry action resets atomically to a usable grant for the exact destination', async () => {
+    const rig = await mountPopup({
+      stored: { localHostEnabled: true, localHostUrl: 'http://127.0.0.1:45019' },
       onStart: async () => ({ error: 'Host could not be resolved: getaddrinfo ENOTFOUND' }),
     });
     const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
@@ -654,7 +738,10 @@ describe('Feature 169 popup first-run controller', () => {
     repair.click();
     await waitFor(() => rig.permissionsRequest.mock.calls.length === 1);
     await waitFor(() => countMessages(rig, 'playback.start') === 3);
-    expect(rig.permissionsRequest).toHaveBeenCalledWith({ origins: ['https://host.example/*'] });
+    expect(rig.permissionsRequest).toHaveBeenCalledWith({ origins: ['http://127.0.0.1/*'] });
+    expect(document.getElementById('grant-access-reason')?.textContent).toContain(
+      'only to http://127.0.0.1:45019',
+    );
     expect(countMessages(rig, 'playback.pause')).toBe(0);
     expect(countMessages(rig, 'playback.start')).toBe(3);
   });

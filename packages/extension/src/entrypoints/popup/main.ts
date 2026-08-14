@@ -22,6 +22,10 @@ import {
 } from '../../utils/first-run';
 import { createLogger } from '../../utils/logging/logger';
 import { testApiKey } from '../../utils/options/api-key-tester';
+import {
+  hostPermissionPatternForOrigin,
+  requestHostPermissionForOrigin,
+} from '../../utils/permissions/match-pattern';
 import { usageTracker } from '../../utils/telemetry/usage';
 import { showPlaybackStartFailure } from './playback-failure';
 
@@ -751,11 +755,11 @@ const LOCAL_GATE_REASON_MARKER = 'no access to the configured host origin';
 /**
  * The origin the affordance is currently asking the reader to grant.
  *
- * Cached at show time so the grant click can call `permissions.request()` as
- * its FIRST await: Firefox refuses the request once the handler has yielded
- * (`may only be called from a user input handler`), and reading storage before
- * the request always yields. Feature 167 falsifier — a grant action that can
- * never grant is not an action.
+ * Cached at show time so the grant click can call the permission helper as its
+ * FIRST await. The helper invokes `permissions.request()` synchronously before
+ * yielding: Firefox otherwise reports `may only be called from a user input
+ * handler`. Feature 167 falsifier — a grant action that cannot grant is not an
+ * action.
  */
 let pendingGrantOrigin: string | null = null;
 
@@ -788,28 +792,42 @@ async function maybeShowGrantAffordance(errorMsg: string): Promise<void> {
   } catch {
     origin = '';
   }
-  pendingGrantOrigin = origin || null;
+  const permissionPattern = origin ? hostPermissionPatternForOrigin(origin) : null;
+  if (!permissionPattern) {
+    clearFixAction();
+    await refreshFirstRun(
+      'The saved host address cannot receive browser access. Enter it again below.',
+      true,
+    );
+    return;
+  }
+  pendingGrantOrigin = origin;
   showFixAction(
     'grant',
     'Grant access',
-    origin
-      ? `The local synthesis host needs access to ${origin}.`
-      : 'The local synthesis host needs host access.',
+    `Browser host permissions cover every port on this host. Proso sends page text only to ${origin}.`,
   );
 }
 
 /** Grant the host origin from this click (a user gesture), then retry playback. */
 async function handleGrantAccessClick(): Promise<void> {
-  // permissions.request() MUST be the first await in this handler. Firefox
-  // requires it from a user input handler; any await before it (storage reads
-  // included) expires the activation and the request throws. The origin was
-  // cached by maybeShowGrantAffordance when it showed the affordance.
+  // The permission helper MUST be the first await in this handler. It invokes
+  // permissions.request() synchronously from the user gesture; any prior await
+  // (including a storage read) would expire Firefox's activation. The origin
+  // was cached when maybeShowGrantAffordance showed the action.
   const origin = pendingGrantOrigin;
-  if (!origin) return;
-  const granted = await browser.permissions.request({ origins: [`${origin}/*`] });
-  if (!granted) {
+  if (!origin) {
     elements.grantReason.textContent =
-      'Access was not granted — the local host route stays disabled.';
+      'The saved host address cannot receive browser access. Enter it again in settings.';
+    return;
+  }
+  const permission = await requestHostPermissionForOrigin(origin, browser.permissions);
+  if (!permission.ok) {
+    elements.grantReason.textContent =
+      permission.reason === 'denied'
+        ? 'Access was not granted — the local host route stays disabled.'
+        : permission.message;
+    elements.grantRow.hidden = false;
     return;
   }
   pendingGrantOrigin = null;

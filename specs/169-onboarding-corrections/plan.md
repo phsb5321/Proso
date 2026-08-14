@@ -21,14 +21,20 @@ Repair the shipped onboarding in place. Keep the existing first-run decision mod
 
 | Principle | Decision |
 |---|---|
-| Privacy First | PASS — no destination is added; host remains reader-entered and exact-origin granted. |
-| Security by Default | PASS — candidate provider keys are validated before local persistence; rejected candidates never replace working keys. |
+| Privacy First | PASS WITH DOCUMENTED EXCEPTION — no destination is added and traffic remains pinned to the reader-entered exact origin. WebExtension MatchPattern grammar cannot encode a port, so the narrowest effective runtime permission covers the entered scheme and host across ports; the popup discloses that breadth. |
+| Security by Default | PASS WITH MITIGATION — candidate provider keys are validated before local persistence; rejected candidates never replace working keys. Port-bearing permission strings that Firefox stores but cannot apply are rejected, and all host requests continue to use the exact persisted origin. |
 | User Experience Excellence | PASS — success starts reading once, errors remain actionable, labels match actions, and billing copy is not an introduction. |
 | Modular Architecture | PASS — pure classification/validation remains in `utils/first-run.ts`; adapter/service reconfiguration remains in the composition root. |
 | Critical-path tests | PASS — each historical bug receives a regression assertion and near-miss; public browser QA remains fail-closed. |
 | INV-001 / INV-002 | PASS — the account-free host and BYOK routes remain available; managed entitlement is unchanged. |
 
-No complexity exception is required.
+### Complexity tracking
+
+| Constitutional rule | Necessary exception | Mitigation and falsifier |
+|---|---|---|
+| Principle I condition 3 says the runtime host permission is for the exact origin. | Firefox and Chromium MatchPattern grammar has no port component. A non-default-port origin cannot receive a usable port-scoped permission; the narrowest platform grant is scheme plus host across ports. | Persist, display, test, and synthesize only against the exact reader-entered origin; disclose the browser grant's across-port scope; reject dead port-bearing patterns; prove with a no-CORS host that the effective grant reaches the exact configured port. |
+
+No abstraction-layer exception is required.
 
 ## Design
 
@@ -62,16 +68,23 @@ The first-run host save writes `voice: null`, the setting PlaybackService consum
 
 ### 5. Presentation and address correction
 
-Accept bracketed IPv6 loopback hostname syntax. Replace hardware-specific host prose with generic reader-operated-machine wording. Extend the first-run CSS suppression set to the cost section.
+Accept bracketed IPv6 loopback hostname syntax. Replace hardware-specific host prose with generic reader-operated-machine wording. Extend the first-run CSS suppression set to the cost section. Give the first-run panel its own `[hidden] { display: none; }` override so authored flex layout cannot defeat the platform attribute. A real-popup regression evaluates computed style and rendered tab stops for a configured reader rather than trusting the `hidden` property.
+
+### 6. Browser-valid runtime host grants
+
+Construct runtime permission patterns in one pure helper beside the existing effective-grant matcher. WebExtension MatchPattern grammar has no port component, so `http://127.0.0.1:45019` requests `http://127.0.0.1/*` and bracketed IPv6 requests `http://[::1]/*`. A typed request wrapper invokes the browser API synchronously before its first await, preserves the user gesture, and converts denial or API rejection into a non-throwing result. The constructor rejects non-origin input, and the matcher rejects legacy port-bearing patterns Firefox may store without applying. All four request sites use the wrapper. Unsupported saved origins return to editable onboarding instead of leaving an inert grant button. The popup discloses that the browser permission covers the host across ports while Proso's persisted destination, capability check, and synthesis requests remain pinned to the exact origin.
 
 ## Files
 
 ```text
 specs/169-onboarding-corrections/{spec,plan,tasks}.md
 packages/extension/src/utils/first-run.ts
+packages/extension/src/utils/permissions/match-pattern.ts
 packages/extension/src/entrypoints/popup/main.ts
 packages/extension/src/entrypoints/popup/index.html
 packages/extension/src/entrypoints/popup/style.css
+packages/extension/src/entrypoints/options/controller.ts
+packages/extension/wxt.config.ts
 packages/extension/src/composition/container.ts
 packages/extension/src/handlers/settings.handlers.ts
 packages/extension/src/handlers/provider.handlers.ts
@@ -79,6 +92,7 @@ packages/extension/src/handlers/schemas/provider.schemas.ts
 packages/extension/src/utils/options/api-key-tester.ts
 packages/extension/src/utils/messaging/protocol.ts
 packages/extension/tests/unit/utils/first-run.test.ts
+packages/extension/tests/unit/utils/permissions/match-pattern.test.ts
 packages/extension/tests/unit/config/migrations.test.ts
 packages/extension/tests/unit/entrypoints/popup-first-run-controller.test.ts
 packages/extension/tests/unit/composition/container.test.ts
@@ -86,13 +100,15 @@ packages/extension/tests/unit/utils/first-run-wiring.test.ts
 packages/extension/tests/unit/handlers/settings.handlers.test.ts
 packages/extension/tests/unit/handlers/provider.handlers.test.ts
 packages/extension/tests/unit/utils/options/api-key-tester.test.ts
+docs/agent-delivery-harness.md
+docs/reading-journey-status.md
 ```
 
 ## Test strategy
 
 ### Red first
 
-Add assertions for canonical/trailing-slash-vs-custom classification, migration v8 output, neutral 402 introduction, bracketed IPv6, generic host copy, validation-before-save, invalid-vs-transport status, rejection preservation, proactive and recovery host/BYOK one-start behavior, Retry→Grant label/action transition, configured-reader hidden-row preservation, actual live voice clearing, and computed cost visibility. Update the existing source pins that intentionally mention `pendingPlayAfterConnect` and the exact host-save payload so they assert the new contract rather than failing incidentally. Run all new assertions against the shipped implementation and retain the failing receipt.
+Add assertions for canonical/trailing-slash-vs-custom classification, migration v8 output, neutral 402 introduction, bracketed IPv6, generic host copy, validation-before-save, invalid-vs-transport status, rejection preservation, proactive and recovery host/BYOK one-start behavior, Retry→Grant label/action transition, configured-reader hidden-row preservation, actual live voice clearing, and computed cost visibility. After exact-head QA, add discriminating regressions for computed first-run-panel visibility, rendered focus order, port-free host permission construction, legacy dead-pattern rejection, permission API rejection, unsupported saved origins, and exact-origin network use. Update the existing source pins that intentionally mention `pendingPlayAfterConnect` and the exact host-save payload so they assert the new contract rather than failing incidentally. Run every new assertion against the defective implementation and retain the failing receipt.
 
 ### Green checks
 
@@ -105,7 +121,7 @@ Add assertions for canonical/trailing-slash-vs-custom classification, migration 
 
 ### Exact-head acceptance
 
-After commit and push, an independent actor uses a clean exact-head checkout and fresh profiles. Firefox must expose a real optional-permission prompt, typed host address, Connect and Allow controls, a host HTTP request, Playing, and audible output in no more than three clicks. If bracketed IPv6 is exercised, the actor must also prove Firefox accepts the exact-origin match pattern rather than inferring route support from URL normalization. A configured profile must preserve the player. Brave/Chromium must regress the corresponding popup behavior. Missing prompt, request, Playing, or audio is BLOCKED.
+After commit and push, an independent actor uses a clean exact-head checkout and fresh profiles. Firefox must expose a real optional-permission prompt, typed host address, Connect and Allow controls, a capability request at the exact configured port, one playback start, Playing, highlight, and audible non-zero output in no more than three clicks. The no-CORS host fixture makes an ineffective grant fail rather than pass through CORS. For bracketed IPv6, the actor must prove Firefox applies `http://[::1]/*` and that requests still reach the exact entered port. A configured profile must preserve the player with a zero-sized hidden first-run panel and no onboarding controls in focus order. Brave/Chromium must regress the corresponding popup behavior. Missing prompt, request, Playing, highlight, or audio is BLOCKED.
 
 The OpenAI-generated final head requires a direct DeepSeek v4 Pro review bound to the exact pushed SHA. Any head movement invalidates both browser QA and review.
 

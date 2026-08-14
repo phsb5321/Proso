@@ -207,14 +207,19 @@ describe('connectLocalHost (R-3 order: validate → grant → test → save)', (
     expect(rig.fetchFn).not.toHaveBeenCalled();
   });
 
-  it('grant → test → save, in that order, with the click event present', async () => {
+  it('grants the browser-valid host pattern but tests and saves the exact origin', async () => {
     const rig = makeRig();
-    const result = await connect(rig);
+    const origin = 'http://127.0.0.1:45019';
+    const result = await connect(rig, { address: origin });
     expect(result.ok).toBe(true);
     expect(rig.order).toEqual(['grant', 'test', 'save']);
-    expect(rig.perms.request).toHaveBeenCalledWith({ origins: ['https://host.example/*'] });
+    expect(rig.perms.request).toHaveBeenCalledWith({ origins: ['http://127.0.0.1/*'] });
+    expect(rig.fetchFn).toHaveBeenCalledWith(
+      `${origin}/v1/capabilities`,
+      expect.objectContaining({ headers: { accept: 'application/json' } }),
+    );
     expect(rig.storage.set).toHaveBeenCalledWith({
-      localHostUrl: 'https://host.example',
+      localHostUrl: origin,
       localHostEnabled: true,
       localHostVoice: null,
       provider: 'local',

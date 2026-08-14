@@ -1271,6 +1271,10 @@ body {
   gap: var(--spacing-md, 12px);
 }
 
+.proso-popup__first-run[hidden] {
+  display: none;
+}
+
 .proso-popup__first-run-title {
   font-size: var(--font-size-lg, 16px);
   font-weight: var(--font-weight-semibold, 600);

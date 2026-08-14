@@ -77,6 +77,13 @@ requests at `BrowserContext`, prove a synthesis request occurred, and assert use
 and control state. The retained Firefox smoke calls Firefox's internal extension command listener,
 so it proves downstream start/pause/resume only and is not public-control acceptance.
 
+A runtime-host permission fixture MUST use a non-default port and omit CORS headers. WebExtension
+MatchPattern grammar has no port component: a port-bearing string may appear in
+`permissions.getAll()` even though Firefox applies it to no request, while a permissive CORS
+response can let the request succeed without effective extension host access. The browser oracle
+must assert the requested scheme-plus-host pattern, effective grant, exact destination port, and
+host request before accepting playback.
+
 `make public-actor-gate` is a sibling of that smoke, not a promotion of it. `smoke-reading` keeps
 calling `shortcuts.onCommand` and stays diagnostic-only; the public-actor gate never touches it and
 drives only controls a person can see. Two limits are load-bearing and stated here rather than
