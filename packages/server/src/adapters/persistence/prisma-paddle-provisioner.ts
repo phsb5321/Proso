@@ -117,8 +117,12 @@ export class PrismaPaddleProvisioner extends PaddleProvisioningPort {
     }
   }
 
-  /** Test-only subclass seam: throwing here proves rollback before commit. */
-  protected async beforeCommit(_command: PaddleProvisioningCommand): Promise<void> {}
+  /** Test-only seam: throwing here proves rollback before commit. */
+  protected async beforeCommit(_command: PaddleProvisioningCommand): Promise<void> {
+    if (process.env['PROSO_REHEARSAL_FAIL_BEFORE_COMMIT'] === '1') {
+      throw new Error('injected rehearsal failure before commit');
+    }
+  }
 
   private async convergeSubscription(
     tx: Prisma.TransactionClient,
