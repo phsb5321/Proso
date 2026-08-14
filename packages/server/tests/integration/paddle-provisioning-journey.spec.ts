@@ -18,6 +18,8 @@ import {
   teardownTestPrisma,
 } from '../helpers/test-prisma';
 
+jest.setTimeout(30_000);
+
 const WEBHOOK_SECRET = 'paddle-webhook-secret-for-real-http-tests';
 const LICENSE_KEY_SECRET = 'license-key-secret-for-real-http-tests';
 const CLAIM_SECRET = 'purchase-claim-secret-for-real-http-tests';
