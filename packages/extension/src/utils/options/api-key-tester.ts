@@ -12,6 +12,8 @@
 
 import { browser } from 'wxt/browser';
 import { createLogger } from '../logging/logger';
+import { isApiKeyValidationFailure } from '../messaging/protocol';
+import type { ApiKeyValidationFailure } from '../messaging/protocol';
 
 const log = createLogger('options');
 
@@ -26,7 +28,7 @@ export type TestResult =
       readonly success: false;
       readonly provider: string;
       readonly message: string;
-      readonly failure: 'invalid' | 'unavailable';
+      readonly failure: ApiKeyValidationFailure;
       readonly latencyMs?: number;
     };
 
@@ -69,7 +71,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
         success: false,
         provider,
         message: response?.error || 'The key could not be verified',
-        failure: response?.failure === 'invalid' ? 'invalid' : 'unavailable',
+        failure: isApiKeyValidationFailure(response?.failure) ? response.failure : 'unavailable',
         latencyMs,
       };
     }

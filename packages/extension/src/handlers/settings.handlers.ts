@@ -12,6 +12,7 @@ import type { ProviderId } from '../core/shared/errors';
 import type { IApiClient } from '../ports/api-client.port';
 import type { ISettingsStore, Settings } from '../ports/settings-store.port';
 import { createLogger } from '../utils/logging/logger';
+import type { ApiKeyValidationFailure } from '../utils/messaging/protocol';
 import type { HandlerRegistry } from './registry';
 
 const log = createLogger('handler');
@@ -65,7 +66,7 @@ export interface ApiKeyTestResponse {
   success: boolean;
   error?: string;
   message?: string;
-  failure?: 'invalid' | 'unavailable';
+  failure?: ApiKeyValidationFailure;
 }
 
 // ============================================
