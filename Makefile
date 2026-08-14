@@ -12,6 +12,7 @@ FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot subscription-deploy-rehearsal subscription-deploy-rehearsal-plant \
+	browser-linkage \
 	local-host-journey-gate local-host-journey-plants \
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
@@ -53,11 +54,14 @@ smoke-reader: ## Run the in-process (jsdom) extraction-to-playback reader oracle
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
 		--selectProjects integration --runInBand tests/integration/reader-journey.test.ts
 
-smoke-reading: ## Drive the built extension in a real Firefox and assert the reading journey.
+browser-linkage: ## Prove the resolved Firefox actually starts here (catches an NSS shadowing the wrapper) and geckodriver is present.
+	@node scripts/browser-linkage-check.mjs
+
+smoke-reading: browser-linkage ## Drive the built extension in a real Firefox and assert the reading journey.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/smoke-reading.mjs
 
-public-actor-gate: ## Drive the built extension through public controls only (no internal dispatch).
+public-actor-gate: browser-linkage ## Drive the built extension through public controls only (no internal dispatch).
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/public-actor-gate.mjs
 
