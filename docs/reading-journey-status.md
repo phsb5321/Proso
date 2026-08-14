@@ -417,6 +417,35 @@ either returns exit 0. That second message is the one existing checkouts will se
 generated before this change has no stamp at all. The stamp is written on both generation paths,
 including the NixOS engine fallback, which is the path that actually runs on this host.
 
+The different-family adversarial review of that fix then found four more gates failing open, none
+of them introduced by it, and all four were verified against the code before being accepted. A
+quality baseline with no `expires` **never expired**: `Date.parse("undefinedT00:00:00Z")` is `NaN`
+and `NaN < Date.now()` is `false`, so `knip-ratchet.mjs` and `osv-ratchet.mjs` stopped ratcheting
+instead of failing, and `check-active-docs.mjs` carried the same bypass for a malformed value.
+Ownership metadata was checked as `typeof x !== 'string'`, which accepts `''`, so a finding could
+be baselined with a blank owner and reason and still satisfy the contract that tracked debt is
+owned debt. The gate receipt validated its `verifiedAt` as any string. And a receipt bound to the
+wrong base validated: the base was compared only when `DIFF_BASE_REF` was set, which is precisely
+how `adversarial-review.sh` calls it, so a receipt written against `HEAD^` passed and the reviewer
+was then handed that same truncated bundle. Fixing that one took two rounds — defaulting the
+expected base still let an *inherited* `DIFF_BASE_REF` choose it at both ends, so the delivery
+review is now pinned to `origin/main` for validation and bundle construction alike.
+
+One correction is worth recording because the gate caught its own author: the first draft of the
+date validator asserted in a comment that out-of-range dates do not parse. Planting `2026-02-30`
+disproved it — the value parses finite and rolls forward to `2026-03-02` — so the validator now
+round-trips the parsed date back to `YYYY-MM-DD`, and the comment records the measurement rather
+than the assumption.
+
+A limitation found while running all this, and not fixed here: **`make verify-full` is not
+reliably deterministic under machine load.** Three tests assert wall-clock budgets and failed on a
+loaded host, then passed unchanged on a quiet one — `franc-min` initialization (budget 50 ms;
+observed 6 ms isolated, 27 ms, 43 ms, and 79 ms across identical trees) and two server TTS
+adapter tests that time out at Jest's 5 s default despite a mocked `fetch`. Every failure was
+transient and none reflected a code change, but a deterministic gate that reddens on unrelated
+CPU contention trains readers to re-run rather than read, which is the habit this repository has
+spent several features removing. Recorded as next-slice #24.
+
 Remediation is Pedro's, and the options are not equivalent: raising the Actions spending limit
 above `$0` restores private CI immediately but costs per-minute; waiting for the next billing
 cycle restores the included allowance for free but leaves the gap open until then; a self-hosted
@@ -742,7 +771,15 @@ rather than worked around.
     only, because that is the one that failed; the doctor still cannot tell a stale
     `packages/shared/dist` from a fresh one, and `@proso/shared` is consumed from `dist/` by the
     server. The same schema-digest stamp would work there.
-24. Exercise the optional-permission doorhanger. PR #147's gate sets
+24. Make the deterministic floor deterministic under load. `franc-min-accuracy.test.js:247`
+    asserts a 50 ms first-call budget and was measured at 6/27/43/79 ms on identical trees
+    depending only on machine load; `cartesia-tts.adapter.spec.ts:255` and the OpenAI contract
+    equivalent exceed Jest's 5 s default while `fetch` is mocked, so they are measuring retry
+    scheduling under contention rather than adapter behaviour. Assert the observable outcome
+    (a `Result` shape, a bounded retry count) instead of elapsed wall-clock, or give the timing
+    assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
+    before it can be believed, which is the opposite of what the receipt is for.
+25. Exercise the optional-permission doorhanger. PR #147's gate sets
    `extensions.webextOptionalPermissionPrompts=false`, so the grant request, its user gesture and
    the resulting permission are all real but the prompt the reader accepts is not. Closing this
    needs chrome-context WebDriver Actions dispatched against the panel, which is also what would
