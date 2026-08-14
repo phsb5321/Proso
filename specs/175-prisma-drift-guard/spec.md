@@ -130,6 +130,13 @@ pinned to `origin/main` in `adversarial-review.sh`, for both receipt validation 
 construction, rather than inherited from the environment or read back from the receipt it is
 supposed to be checking.
 
+## P2-4 — a receipt's verification time is unchecked
+
+The receipt schema validated `verifiedAt` as `type == "string"`, so a receipt could record a
+nonsense verification time and still pass. It is now round-tripped through `date -u`: the value
+must parse as UTC *and* re-render to exactly what was recorded, which rejects `not-a-time`, the
+empty string, `2026-13-45T99:99:99Z`, and the parseable-but-non-canonical `2026-08-14 17:00:00`.
+
 ## Part 2 acceptance
 
 Each hole is planted and observed red, then reverted green: baseline `expires` removed, set to
@@ -142,3 +149,6 @@ asked for: `GENERATOR_FAMILY=anthropic DIFF_BASE_REF=HEAD^ make adversarial` exi
 hashes to `2a3dfefd`, identical to the legitimate `origin/main` bundle — evidence that the pin
 covers construction as well as validation, so the reviewer cannot be handed a truncated diff even
 while the receipt is being rejected.
+
+Each of the four `verifiedAt` values above is planted and observed red, with the receipt restored
+green between plants.
