@@ -15,4 +15,6 @@
 | T011 | Apply it in `knip-ratchet.mjs`, `osv-ratchet.mjs`, `check-active-docs.mjs` | done |
 | T012 | Default the gate-receipt base to `origin/main` instead of skipping the check | done |
 | T013 | Falsify all four: absent/malformed/impossible expiry, blank ownership, `HEAD^` receipt | done |
-| T014 | Re-run `make verify-full` and the adversarial gate to green | done |
+| T014 | Re-run `make verify-full` and the adversarial gate | done |
+| T015 | Round 2: pin the adversarial base to `origin/main` so an inherited `DIFF_BASE_REF` cannot select it | done |
+| T016 | Falsify through the whole path: `DIFF_BASE_REF=HEAD^ make adversarial` must fail | done |

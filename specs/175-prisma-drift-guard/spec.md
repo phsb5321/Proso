@@ -122,11 +122,23 @@ showing the reviewer a fraction of the change while still reporting a valid gate
 are demonstrably different artifacts: the `HEAD^` receipt records `diff_sha256 41dc533d`, the
 `origin/main` receipt `99caf4f3`.
 
-The validator now defaults the expected base to `origin/main` instead of skipping the check, so a
-non-default base has to be named deliberately by the caller.
+The validator now defaults the expected base to `origin/main` instead of skipping the check. That
+was necessary but not sufficient, and the second review round said so: defaulting still let an
+*inherited* `DIFF_BASE_REF=HEAD^` select the base at both ends — the writer records it, the
+validator then expects that same value and agrees with itself. The delivery review is therefore
+pinned to `origin/main` in `adversarial-review.sh`, for both receipt validation and bundle
+construction, rather than inherited from the environment or read back from the receipt it is
+supposed to be checking.
 
 ## Part 2 acceptance
 
 Each hole is planted and observed red, then reverted green: baseline `expires` removed, set to
 `soon`, and set to `2026-02-30`; a blank `owner`/`reason` on a baselined finding; a malformed
 `expires` and blank `owner` in `docs/active-docs.json`; and a receipt written against `HEAD^`.
+
+The last plant is run through the whole adversarial path, which is what the second review round
+asked for: `GENERATOR_FAMILY=anthropic DIFF_BASE_REF=HEAD^ make adversarial` exits non-zero with
+`Gate receipt base mismatch: expected origin/main, got HEAD^`. The bundle built during that run
+hashes to `2a3dfefd`, identical to the legitimate `origin/main` bundle — evidence that the pin
+covers construction as well as validation, so the reviewer cannot be handed a truncated diff even
+while the receipt is being rejected.
