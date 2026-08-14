@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { requireReviewDate, requireText } from './review-metadata.mjs';
 
 const reportPath = process.argv[2];
 const baselinePath = 'quality-baselines/osv.json';
@@ -54,19 +55,17 @@ const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
 if (baseline.schemaVersion !== 1 || !Array.isArray(baseline.findings)) {
   throw new Error('OSV baseline has an invalid top-level schema');
 }
-if (Date.parse(`${baseline.expires}T00:00:00Z`) < Date.now()) {
+if (requireReviewDate(baseline.expires, 'OSV baseline expires') < Date.now()) {
   throw new Error(`OSV baseline expired on ${baseline.expires}`);
 }
 for (const finding of baseline.findings) {
-  if (
-    finding.tool !== 'osv-scanner' ||
-    typeof finding.fingerprint !== 'string' ||
-    typeof finding.owner !== 'string' ||
-    typeof finding.reason !== 'string' ||
-    typeof finding.issue !== 'string'
-  ) {
+  if (finding.tool !== 'osv-scanner') {
     throw new Error('OSV baseline entry is missing tool/fingerprint/owner/reason/issue');
   }
+  requireText(finding.fingerprint, 'OSV baseline fingerprint');
+  requireText(finding.owner, 'OSV baseline owner');
+  requireText(finding.reason, 'OSV baseline reason');
+  requireText(finding.issue, 'OSV baseline issue');
 }
 
 const known = new Set(baseline.findings.map((finding) => finding.fingerprint));

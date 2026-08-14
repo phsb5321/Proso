@@ -36,9 +36,14 @@ jq -e '
 
 readonly RECEIPT_BASE="$(jq -r '.baseRef' "$RECEIPT_PATH")"
 readonly RECEIPT_BASE_SHA="$(jq -r '.baseSha' "$RECEIPT_PATH")"
-if [[ -n "${DIFF_BASE_REF:-}" && "$DIFF_BASE_REF" != "$RECEIPT_BASE" ]]; then
+# Default the expected base rather than skipping the check when the caller does
+# not name one. `write-gate-receipt.sh` honours DIFF_BASE_REF, so an unpinned
+# validator accepted a receipt recorded against HEAD^ — and `adversarial-review.sh`
+# then bundles that same baseRef, showing the reviewer a fraction of the change.
+readonly EXPECTED_BASE_REF="${DIFF_BASE_REF:-origin/main}"
+if [[ "$EXPECTED_BASE_REF" != "$RECEIPT_BASE" ]]; then
   printf 'Gate receipt base mismatch: expected %s, got %s\n' \
-    "$DIFF_BASE_REF" "$RECEIPT_BASE" >&2
+    "$EXPECTED_BASE_REF" "$RECEIPT_BASE" >&2
   exit 1
 fi
 readonly EXPECTED_BASE_SHA="$(git rev-parse "${RECEIPT_BASE}^{commit}")"

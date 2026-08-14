@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { reviewDateFailure, textFailure } from './review-metadata.mjs';
 
 const manifestPath = 'docs/active-docs.json';
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -12,13 +13,13 @@ const failures = [];
 const linkPattern = /!?\[[^\]]*]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g;
 
 for (const document of manifest.documents) {
-  if (
-    typeof document.path !== 'string' ||
-    typeof document.owner !== 'string' ||
-    typeof document.reviewedAt !== 'string' ||
-    typeof document.expires !== 'string'
-  ) {
-    failures.push('manifest entry is missing path/owner/reviewedAt/expires');
+  const metadataFailure =
+    textFailure(document.path, 'manifest entry path') ??
+    textFailure(document.owner, 'manifest entry owner') ??
+    reviewDateFailure(document.reviewedAt, 'manifest entry reviewedAt') ??
+    reviewDateFailure(document.expires, 'manifest entry expires');
+  if (metadataFailure) {
+    failures.push(metadataFailure);
     continue;
   }
   if (!existsSync(document.path) || !statSync(document.path).isFile()) {

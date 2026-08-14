@@ -10,3 +10,9 @@
 | T006 | Falsify: drift RED, missing stamp RED, restored GREEN, baseline GREEN | done |
 | T007 | `make verify` on the branch | done |
 | T008 | Record the Actions outage diagnosis + this fix in `docs/reading-journey-status.md` | done |
+| T009 | Run the different-family adversarial gate; verify its three findings against the code | done |
+| T010 | Add `scripts/quality/review-metadata.mjs`; reject absent, malformed and impossible review dates and blank ownership | done |
+| T011 | Apply it in `knip-ratchet.mjs`, `osv-ratchet.mjs`, `check-active-docs.mjs` | done |
+| T012 | Default the gate-receipt base to `origin/main` instead of skipping the check | done |
+| T013 | Falsify all four: absent/malformed/impossible expiry, blank ownership, `HEAD^` receipt | done |
+| T014 | Re-run `make verify-full` and the adversarial gate to green | done |

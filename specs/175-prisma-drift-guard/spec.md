@@ -1,6 +1,13 @@
-# Feature 175 — the doctor must reject a stale Prisma client, not just a missing one
+# Feature 175 — harness gates that currently fail open must fail closed
 
 Date: 14/08/2026
+
+Two parts, one thesis. The first was found by running the floor; the second was
+found by the adversarial review of the first. Both are gates that pass when they
+should not, which is the only direction a gate must never fail — and the failure
+matters more than usual right now, because CI has produced nothing for nine days
+and this repository has no branch protection, so these local gates are the whole
+verification surface.
 
 ## Problem
 
@@ -70,3 +77,56 @@ recorded as next-slice #23 rather than silently widened here.
 `make doctor` exits 0 on a freshly generated client; exits non-zero naming both digests when
 `schema.prisma` changes; exits non-zero naming missing provenance when the record is absent; and
 returns to 0 when either is restored. `make verify` exits 0 on the branch.
+
+---
+
+# Part 2 — three more gates that fail open
+
+The different-family adversarial review of Part 1 returned `FAIL`. It passed the requirement
+covering this change (REQ-6: "modifies only documentation, scripts, and specs ... no workflow,
+production, release, or deploy file is changed") and instead found three pre-existing holes in the
+surrounding harness. They were verified against the code before being accepted, and all three are
+real.
+
+## P2-1 — a baseline with no expiry never expires
+
+`knip-ratchet.mjs:83` and `osv-ratchet.mjs:57` both expired their baseline with:
+
+```js
+if (Date.parse(`${baseline.expires}T00:00:00Z`) < Date.now()) { throw ... }
+```
+
+When `expires` is absent the template is `"undefinedT00:00:00Z"`, `Date.parse` returns `NaN`, and
+`NaN < Date.now()` is **`false`** — so the ratchet does not expire, it silently stops ratcheting.
+Neither top-level schema check required `expires` to be present, so nothing else caught it. The
+same `NaN` bypass sits at `check-active-docs.mjs:27` for a malformed (rather than absent) value.
+
+A second, quieter case: the pattern alone is not enough. Measured on this Node, `2026-13-01` parses
+to `NaN`, but `2026-02-30` parses **finite** and rolls forward to `2026-03-02` — so an impossible
+date is accepted and means a later day than the one written. The validator round-trips the parsed
+date back to `YYYY-MM-DD` and rejects any value that does not survive.
+
+## P2-2 — blank ownership satisfies the ownership contract
+
+Every baselined finding must carry an owner, reason and issue, checked as `typeof x !== 'string'`.
+That accepts `''`. A finding could be baselined with a blank owner and reason and still satisfy the
+contract that says tracked debt is owned debt.
+
+## P2-3 — a gate receipt bound to the wrong base validates
+
+`validate-gate-receipt.sh:39` compared the receipt's `baseRef` **only when `DIFF_BASE_REF` was
+set**, and `adversarial-review.sh:106` calls it without that variable. `write-gate-receipt.sh:14`
+honours `DIFF_BASE_REF`, so a receipt recorded against `HEAD^` passed validation, and
+`adversarial-review.sh:108` then reads that same `baseRef` back to build the change bundle —
+showing the reviewer a fraction of the change while still reporting a valid gate. The two bundles
+are demonstrably different artifacts: the `HEAD^` receipt records `diff_sha256 41dc533d`, the
+`origin/main` receipt `99caf4f3`.
+
+The validator now defaults the expected base to `origin/main` instead of skipping the check, so a
+non-default base has to be named deliberately by the caller.
+
+## Part 2 acceptance
+
+Each hole is planted and observed red, then reverted green: baseline `expires` removed, set to
+`soon`, and set to `2026-02-30`; a blank `owner`/`reason` on a baselined finding; a malformed
+`expires` and blank `owner` in `docs/active-docs.json`; and a receipt written against `HEAD^`.
