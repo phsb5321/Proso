@@ -10,7 +10,7 @@
  * @module tests/unit/utils/first-run
  */
 
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 jest.unstable_mockModule('wxt/browser', () => ({
   browser: {
@@ -28,13 +28,16 @@ import {
   classifyFailure,
   connectLocalHost,
   isUnconfigured,
+  saveByokKey,
   validateHostUrl,
+  type ByokSaveDeps,
   FIX_ACTION,
 } from '../../../src/utils/first-run';
 
 const GATE_MARKER = 'no access to the configured host origin';
 const TIER_COPY =
   'Managed TTS is not included in this tier. Attach your own provider API key in settings (free on every tier), or use a local synthesis host you run yourself.';
+const DEFAULT_SERVER_URL = 'https://api.proso.com.br';
 
 describe('isUnconfigured (R-1)', () => {
   it('empty storage is unconfigured', () => {
@@ -53,21 +56,23 @@ describe('isUnconfigured (R-1)', () => {
     expect(isUnconfigured({ licenseKey: 'lic-1' })).toBe(false);
   });
 
-  it('a configured managed server URL ends it (the diagnostics/configured-reader case)', () => {
-    expect(isUnconfigured({ provider: 'openai', serverUrl: 'http://127.0.0.1:46121' })).toBe(
-      false,
-    );
+  it('the canonical managed server URL is product configuration, not a reader route', () => {
+    expect(isUnconfigured({ serverUrl: DEFAULT_SERVER_URL })).toBe(true);
+    expect(isUnconfigured({ serverUrl: `${DEFAULT_SERVER_URL}/` })).toBe(true);
+    expect(isUnconfigured({ serverUrl: 'HTTPS://API.PROSO.COM.BR' })).toBe(true);
+    expect(isUnconfigured({ serverUrl: 'https://api.proso.com.br:443' })).toBe(true);
+  });
+
+  it('a genuinely custom managed server origin preserves the configured reader player', () => {
+    expect(isUnconfigured({ provider: 'openai', serverUrl: 'http://127.0.0.1:46121' })).toBe(false);
+    expect(isUnconfigured({ serverUrl: 'https://api.proso.com.br:444' })).toBe(false);
   });
 });
 
 describe('classifyFailure (R-2, R-6)', () => {
   it('the real server 402 copy is the entitlement marker — pinned, not guessed', () => {
-    expect(classifyFailure(TIER_COPY, { hasHost: false, hasByok: false })).toBe(
-      'unconfigured',
-    );
-    expect(classifyFailure(TIER_COPY, { hasHost: true, hasByok: false })).toBe(
-      'entitlement',
-    );
+    expect(classifyFailure(TIER_COPY, { hasHost: false, hasByok: false })).toBe('unconfigured');
+    expect(classifyFailure(TIER_COPY, { hasHost: true, hasByok: false })).toBe('entitlement');
   });
 
   it('the local gate marker is grant-missing', () => {
@@ -83,26 +88,30 @@ describe('classifyFailure (R-2, R-6)', () => {
         hasByok: false,
       }),
     ).toBe('host-unreachable');
-    expect(
-      classifyFailure('Failed to fetch', { hasHost: true, hasByok: false }),
-    ).toBe('host-unreachable');
+    expect(classifyFailure('Failed to fetch', { hasHost: true, hasByok: false })).toBe(
+      'host-unreachable',
+    );
   });
 
-  it('key errors with a BYOK key are key-rejected — SHIPPED shapes', () => {
-    // server-tts-audio.adapter.ts maps a provider 401 to invalid_credentials;
-    // playback-service.ts surfaces it as "Provider unavailable: <provider>".
-    expect(
-      classifyFailure('Provider unavailable: openai', { hasHost: false, hasByok: true }),
-    ).toBe('key-rejected');
+  it('credential-specific errors with a BYOK key are key-rejected', () => {
+    expect(classifyFailure('Invalid API key for openai', { hasHost: false, hasByok: true })).toBe(
+      'key-rejected',
+    );
     expect(classifyFailure('invalid_credentials', { hasHost: false, hasByok: true })).toBe(
       'key-rejected',
     );
   });
 
-  it('a managed-only reader (serverUrl, no key, no host) is ENTITLED on a 402 — never unconfigured', () => {
+  it('a generic provider outage is not mislabeled as a rejected key', () => {
     expect(
-      classifyFailure(TIER_COPY, { hasHost: false, hasByok: false, hasManaged: true }),
-    ).toBe('entitlement');
+      classifyFailure('Provider unavailable: openai', { hasHost: false, hasByok: true }),
+    ).not.toBe('key-rejected');
+  });
+
+  it('a managed-only reader (serverUrl, no key, no host) is ENTITLED on a 402 — never unconfigured', () => {
+    expect(classifyFailure(TIER_COPY, { hasHost: false, hasByok: false, hasManaged: true })).toBe(
+      'entitlement',
+    );
   });
 
   it('every class has exactly one fix action (no dead end)', () => {
@@ -120,6 +129,7 @@ describe('validateHostUrl (R-3)', () => {
   it('accepts http loopback only', () => {
     expect(validateHostUrl('http://127.0.0.1:8080')).toBe('http://127.0.0.1:8080');
     expect(validateHostUrl('http://localhost')).toBe('http://localhost');
+    expect(validateHostUrl('http://[::1]:8080')).toBe('http://[::1]:8080');
   });
 
   it('rejects plaintext http, paths, and junk', () => {
@@ -142,11 +152,13 @@ describe('connectLocalHost (R-3 order: validate → grant → test → save)', (
   }
 
   /** Shared rig: every case builds the same three mocks, overridable per case. */
-  function makeRig(overrides: {
-    grant?: () => Promise<boolean> | boolean;
-    fetch?: () => Promise<unknown>;
-    set?: () => Promise<void>;
-  } = {}): Rigs {
+  function makeRig(
+    overrides: {
+      grant?: () => Promise<boolean> | boolean;
+      fetch?: () => Promise<unknown>;
+      set?: () => Promise<void>;
+    } = {},
+  ): Rigs {
     const order: string[] = [];
     const perms = {
       request: jest.fn(async () => {
@@ -206,6 +218,7 @@ describe('connectLocalHost (R-3 order: validate → grant → test → save)', (
       localHostEnabled: true,
       localHostVoice: null,
       provider: 'local',
+      voice: null,
     });
   });
 
@@ -219,7 +232,9 @@ describe('connectLocalHost (R-3 order: validate → grant → test → save)', (
   });
 
   it('a non-host or not-ready answer reports the test step', async () => {
-    const rig = makeRig({ fetch: async () => ({ ok: true, json: async () => ({ ready: false }) }) });
+    const rig = makeRig({
+      fetch: async () => ({ ok: true, json: async () => ({ ready: false }) }),
+    });
     const result = await connect(rig);
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -237,5 +252,102 @@ describe('connectLocalHost (R-3 order: validate → grant → test → save)', (
     if (result.ok) return;
     expect(result.error.step).toBe('test');
     expect(result.error.message).toContain('https://host.example');
+  });
+});
+
+describe('saveByokKey (R-2 validate before persist)', () => {
+  let validate: jest.MockedFunction<ByokSaveDeps['validate']>;
+  let select: jest.MockedFunction<ByokSaveDeps['select']>;
+
+  beforeEach(() => {
+    validate = jest.fn<ByokSaveDeps['validate']>(async () => ({ success: true }));
+    select = jest.fn<ByokSaveDeps['select']>(async () => undefined);
+  });
+
+  it('validates before it persists and selects an accepted candidate', async () => {
+    const order: string[] = [];
+    validate.mockImplementation(async () => {
+      order.push('validate');
+      return { success: true };
+    });
+    select.mockImplementation(async () => {
+      order.push('select');
+    });
+
+    const result = await saveByokKey('openai', '  candidate-key  ', {
+      validate,
+      select,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(order).toEqual(['validate', 'select']);
+    expect(validate).toHaveBeenCalledWith('openai', 'candidate-key');
+    expect(select).toHaveBeenCalledWith('openai', 'candidate-key');
+  });
+
+  it('preserves a working key and provider when the candidate is typed invalid', async () => {
+    validate.mockResolvedValue({
+      success: false,
+      reason: 'invalid',
+      message: 'Credential check failed without a keyword',
+    });
+
+    const result = await saveByokKey('openai', 'candidate-key', {
+      validate,
+      select,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.reason).toBe('invalid');
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('does not call an unavailable validator a rejected credential', async () => {
+    validate.mockResolvedValue({
+      success: false,
+      reason: 'unavailable',
+      message: 'Validation service timed out',
+    });
+
+    const result = await saveByokKey('groq', 'candidate-key', { validate, select });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({
+      reason: 'unavailable',
+      message: 'Validation service timed out',
+    });
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('reports candidate adoption separately from validation failure', async () => {
+    select.mockRejectedValue(new Error('Provider reconfigure failed'));
+
+    const result = await saveByokKey('openai', 'candidate-key', { validate, select });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({
+      reason: 'activation',
+      message: 'Provider reconfigure failed',
+    });
+  });
+
+  it('treats a thrown validator as unavailable and persists nothing', async () => {
+    validate.mockRejectedValue(new Error('Validation bridge disconnected'));
+
+    const result = await saveByokKey('cartesia', 'candidate-key', {
+      validate,
+      select,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({
+      reason: 'unavailable',
+      message: 'Validation bridge disconnected',
+    });
+    expect(select).not.toHaveBeenCalled();
   });
 });

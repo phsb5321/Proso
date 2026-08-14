@@ -596,6 +596,10 @@ body {
   font-size: var(--font-size-xs, 10px);
 }
 
+.proso-popup__cost[hidden] {
+  display: none;
+}
+
 .proso-popup__cost-row {
   display: flex;
   justify-content: space-between;
@@ -1350,6 +1354,7 @@ body {
 .proso-popup__panel--firstrun .proso-popup__status,
 .proso-popup__panel--firstrun .proso-popup__progress,
 .proso-popup__panel--firstrun .proso-popup__controls,
-.proso-popup__panel--firstrun .proso-popup__speed {
+.proso-popup__panel--firstrun .proso-popup__speed,
+.proso-popup__panel--firstrun .proso-popup__cost {
   display: none;
 }

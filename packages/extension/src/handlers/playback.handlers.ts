@@ -134,8 +134,8 @@ function getPlaybackErrorMessage(error: {
       return `Invalid paragraph index ${error.index} (max: ${error.max})`;
     case 'tab_not_found':
       return `Tab not found: ${error.tabId}`;
-    case 'provider_unavailable':
-      return `Provider unavailable: ${error.provider}`;
+    case 'invalid_credentials':
+      return `Invalid API key for ${error.provider}`;
     case 'playback_failed':
       return error.reason ?? 'Playback failed';
     default:

@@ -65,6 +65,7 @@ export interface ApiKeyTestResponse {
   success: boolean;
   error?: string;
   message?: string;
+  failure?: 'invalid' | 'unavailable';
 }
 
 // ============================================
@@ -261,7 +262,7 @@ async function handleTestApiKey(
   const validProviders = [...SERVER_VALIDATED_TTS_PROVIDERS, 'anthropic'];
   if (!validProviders.includes(provider)) {
     log.error('[Settings] Invalid provider', { provider });
-    return { success: false, error: `Invalid provider: ${provider}` };
+    return { success: false, error: `Invalid provider: ${provider}`, failure: 'invalid' };
   }
 
   // If no API key provided, try to get from storage
@@ -300,7 +301,7 @@ async function handleTestApiKey(
 
   if (!keyToTest || keyToTest.trim().length === 0) {
     log.error('[Settings] No API key available for testing');
-    return { success: false, error: 'No API key provided' };
+    return { success: false, error: 'No API key provided', failure: 'invalid' };
   }
 
   const trimmedKey = keyToTest.trim();
@@ -311,6 +312,7 @@ async function handleTestApiKey(
       return {
         success: false,
         error: 'Proso server not configured. Cannot validate TTS API keys.',
+        failure: 'unavailable',
       };
     }
     try {
@@ -320,15 +322,25 @@ async function handleTestApiKey(
         if (result.value.success) {
           return { success: true, message: 'API key is valid' };
         }
-        return { success: false, error: result.value.error ?? 'Key validation failed' };
+        return {
+          success: false,
+          error: result.value.error ?? 'Key validation failed',
+          // A successful test-key round trip reached the selected provider;
+          // its negative answer is credential evidence, not a transport guess.
+          failure: 'invalid',
+        };
       }
-      // API client error (network, timeout, etc.)
+      // API client error (network, timeout, etc.) never proves rejection.
       const err = result.error;
-      return { success: false, error: 'message' in err ? err.message : 'Server request failed' };
+      return {
+        success: false,
+        error: 'message' in err ? err.message : 'Server request failed',
+        failure: 'unavailable',
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Network error';
       log.error('[Settings] Server test-key error', { provider, error: message });
-      return { success: false, error: message };
+      return { success: false, error: message, failure: 'unavailable' };
     }
   }
 
@@ -336,7 +348,11 @@ async function handleTestApiKey(
   const endpoint = API_TEST_ENDPOINTS[provider];
   if (!endpoint) {
     log.error('[Settings] No test endpoint for provider', { provider });
-    return { success: false, error: `No test endpoint for provider: ${provider}` };
+    return {
+      success: false,
+      error: `No test endpoint for provider: ${provider}`,
+      failure: 'unavailable',
+    };
   }
 
   try {
@@ -377,20 +393,28 @@ async function handleTestApiKey(
         status: response.status,
         errorDetail,
       });
-      return { success: false, error: 'Invalid API key' };
+      return { success: false, error: 'Invalid API key', failure: 'invalid' };
     }
 
     if (response.status === 429) {
       log.warn('[Settings] Rate limited', { provider });
-      return { success: false, error: 'Rate limited - key may be valid but quota exceeded' };
+      return {
+        success: false,
+        error: 'Rate limited - key may be valid but quota exceeded',
+        failure: 'unavailable',
+      };
     }
 
     log.error('[Settings] Unexpected status', { provider, status: response.status });
-    return { success: false, error: `API returned status ${response.status}` };
+    return {
+      success: false,
+      error: `API returned status ${response.status}`,
+      failure: 'unavailable',
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network error';
     log.error('[Settings] Network error testing', { provider, error: message });
-    return { success: false, error: message };
+    return { success: false, error: message, failure: 'unavailable' };
   }
 }
 

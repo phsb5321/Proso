@@ -31,16 +31,18 @@ describe('first-run wiring pins', () => {
     expect(popupHtml).toContain('data-testid="popup-first-run"');
     expect(popupHtml).toContain('data-testid="popup-first-run-host-connect"');
     expect(popupHtml).toContain('data-testid="popup-first-run-byok-save"');
-    expect(popupHtml).toContain('The page\'s text is sent only to the address you enter here');
+    expect(popupHtml).toContain("The page's text is sent only to the address you enter here");
   });
 
   it('the Connect click passes its event into connectLocalHost (falsifier D)', () => {
     expect(popupSource).toContain('handleFirstRunConnect(event)');
     expect(popupSource).toContain('event.preventDefault()');
     // The event is forwarded as the grant gesture — the module refuses null.
-    expect(popupSource).toMatch(/connectLocalHost\(\{\s*address: elements\.firstRunHostUrl\.value,/);
+    expect(popupSource).toMatch(
+      /connectLocalHost\(\{\s*address: elements\.firstRunHostUrl\.value,/,
+    );
     expect(popupSource).toContain('event,');
-    expect(popupSource).toContain("perms: browser.permissions");
+    expect(popupSource).toContain('perms: browser.permissions');
   });
 
   it('the module refuses a programmatic grant (falsifier D, module half)', () => {
@@ -49,7 +51,8 @@ describe('first-run wiring pins', () => {
   });
 
   it('no probe, no shipped address, no discovery (falsifier E)', () => {
-    const banned = /orangepi|tailf59220|avahi|mDNS|subnet|nmap|192\.168\.|10\.0\.0\.|17[23]\.\d+\./i;
+    const banned =
+      /orange\s*pi|orangepi|raspberry|tailf59220|avahi|mDNS|subnet|nmap|192\.168\.|10\.0\.0\.|17[23]\.\d+\./i;
     expect(popupSource).not.toMatch(banned);
     expect(firstRunModule).not.toMatch(banned);
     expect(popupHtml).not.toMatch(banned);
@@ -63,10 +66,11 @@ describe('first-run wiring pins', () => {
   });
 
   it('the entitlement 402 forces the free-routes panel open (no dead end)', () => {
-    expect(popupSource).toContain("refreshFirstRun(errorMsg, true)");
+    expect(popupSource).toContain('refreshFirstRun(errorMsg, true)');
   });
 
-  it('the pending-play retry is consumed once, after the panel hides (R-3 play step)', () => {
-    expect(popupSource).toMatch(/const shouldRetry = pendingPlayAfterConnect;\s*pendingPlayAfterConnect = false;\s*if \(shouldRetry\)/s);
+  it('route completion uses one start path and carries no retry flag (R-3 play step)', () => {
+    expect(popupSource).toContain('completeFirstRunSetup');
+    expect(popupSource).not.toContain('pendingPlayAfterConnect');
   });
 });

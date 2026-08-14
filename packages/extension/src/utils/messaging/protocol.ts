@@ -222,11 +222,12 @@ export interface ProsoProtocol {
   // ========== Provider Management Messages ==========
   'provider.select': {
     request: {
-      providerId: ProviderId;
+      provider: ProviderId;
+      validatedApiKey?: string;
     };
     response: {
       success: boolean;
-      providerId: ProviderId;
+      provider: ProviderId;
     };
   };
 
@@ -1149,7 +1150,9 @@ export interface ProsoProtocol {
     response: {
       success: boolean;
       provider: string;
+      message?: string;
       error?: string;
+      failure?: 'invalid' | 'unavailable';
       latencyMs?: number;
     };
   };
