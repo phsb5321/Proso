@@ -299,6 +299,33 @@ describe('Migration v7: provider-browser-removal', () => {
   });
 });
 
+describe('Migration v8: serverUrl', () => {
+  const migrationV8 = migrations.find((migration) => migration.version === 8);
+
+  if (!migrationV8) {
+    throw new Error('Migration v8 not found — ensure it is defined in migrations.ts');
+  }
+
+  it('persists the canonical managed URL without turning it into reader configuration', async () => {
+    const saveFn = createSaveMock();
+    const result = await migrationV8.migrate({ _configVersion: 7 }, saveFn);
+
+    expect(result.serverUrl).toBe('https://api.proso.com.br');
+    expect(saveFn).toHaveBeenCalledWith({ serverUrl: 'https://api.proso.com.br' });
+  });
+
+  it('preserves a genuinely custom managed URL', async () => {
+    const saveFn = createSaveMock();
+    const result = await migrationV8.migrate(
+      { _configVersion: 7, serverUrl: 'http://127.0.0.1:46121' },
+      saveFn,
+    );
+
+    expect(result.serverUrl).toBe('http://127.0.0.1:46121');
+    expect(saveFn).not.toHaveBeenCalled();
+  });
+});
+
 describe('applyMigrations()', () => {
   let saveFn: jest.Mock<SaveFunction>;
 

@@ -30,7 +30,13 @@ function createStubAudioUrlProvider() {
 }
 
 function createStubCacheStore() {
-  return { get: jest.fn(), set: jest.fn(), delete: jest.fn(), clear: jest.fn(), getStats: jest.fn() };
+  return {
+    get: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+    clear: jest.fn(),
+    getStats: jest.fn(),
+  };
 }
 
 function createStubHighlightSync() {
@@ -64,10 +70,12 @@ const mockSetAudioGenerator = jest.fn();
 // PROSO-135: the stub used to omit setProvider, so a test could not observe that
 // reconfigureAudioGenerator never called it. The mock's shape hid the defect.
 const mockSetProvider = jest.fn();
+const mockSetVoice = jest.fn();
 const StubPlaybackService = jest.fn().mockImplementation(() => ({
   getState: jest.fn().mockReturnValue({ status: 'idle' }),
   setAudioGenerator: mockSetAudioGenerator,
   setProvider: mockSetProvider,
+  setVoice: mockSetVoice,
   start: jest.fn(),
   pause: jest.fn(),
   stop: jest.fn(),
@@ -94,7 +102,13 @@ const mockCreateHighlightSyncAdapter = jest.fn(() => stubHighlightSync);
 const mockCreateTextExtractorAdapter = jest.fn(() => stubTextExtractor);
 const mockCreateContentScorerAdapter = jest.fn(() => stubContentScorer);
 const mockCreateSettingsStoreAdapter = jest.fn(() => stubSettingsStore);
-const mockCreateApiClientAdapter = jest.fn(() => ({ isConfigured: false, validateLicense: jest.fn(), getSubscription: jest.fn(), getCreditBalance: jest.fn(), createCheckout: jest.fn() }));
+const mockCreateApiClientAdapter = jest.fn(() => ({
+  isConfigured: false,
+  validateLicense: jest.fn(),
+  getSubscription: jest.fn(),
+  getCreditBalance: jest.fn(),
+  createCheckout: jest.fn(),
+}));
 const mockGetApiKeyForProvider = jest.fn(
   (keys: Record<string, string | null>, provider: string) => {
     return (keys as Record<string, string | null>)[provider] ?? null;
@@ -119,12 +133,9 @@ jest.unstable_mockModule(resolve(srcDir, 'core/playback/playback-service'), () =
   PlaybackService: StubPlaybackService,
 }));
 
-jest.unstable_mockModule(
-  resolve(srcDir, 'core/content-extraction/extraction-service'),
-  () => ({
-    ContentExtractionService: StubContentExtractionService,
-  }),
-);
+jest.unstable_mockModule(resolve(srcDir, 'core/content-extraction/extraction-service'), () => ({
+  ContentExtractionService: StubContentExtractionService,
+}));
 
 jest.unstable_mockModule(resolve(srcDir, 'adapters/cache'), () => ({
   InMemoryCacheAdapter: StubInMemoryCacheAdapter,
@@ -399,7 +410,28 @@ describe('Container', () => {
 
       reconfigureAudioGenerator('openai', 'test-key');
 
-      expect(mockCreateAudioGeneratorAdapter).toHaveBeenCalledWith('openai', 'test-key', expect.anything());
+      expect(mockCreateAudioGeneratorAdapter).toHaveBeenCalledWith(
+        'openai',
+        'test-key',
+        expect.anything(),
+      );
+    });
+
+    it('leaves the live route untouched when strict reconfiguration fails', () => {
+      const original = createContainer(defaultConfig, defaultApiKeys);
+      mockCreateAudioGeneratorAdapter.mockImplementation(() => {
+        throw new Error('Adapter construction failed');
+      });
+      mockSetAudioGenerator.mockClear();
+      mockSetProvider.mockClear();
+
+      const configured = reconfigureAudioGenerator('openai', 'candidate-key', false);
+
+      expect(configured).toBe(false);
+      expect(getContainer()).toBe(original);
+      expect(getContainer().config.provider).toBe('elevenlabs');
+      expect(mockSetAudioGenerator).not.toHaveBeenCalled();
+      expect(mockSetProvider).not.toHaveBeenCalled();
     });
 
     it('should update the container adapters with new audio generator', () => {
@@ -454,6 +486,18 @@ describe('Container', () => {
       reconfigureAudioGenerator('local', null);
 
       expect(mockSetProvider).toHaveBeenCalledWith('local');
+    });
+
+    it('should clear the actual PlaybackService voice when selecting the local route', () => {
+      createContainer(defaultConfig, defaultApiKeys);
+      mockSetVoice.mockClear();
+
+      const newGenerator = createStubAudioGenerator('local');
+      mockCreateAudioGeneratorAdapter.mockReturnValue(newGenerator);
+
+      reconfigureAudioGenerator('local', null);
+
+      expect(mockSetVoice).toHaveBeenCalledWith(null);
     });
 
     it('should preserve other adapters when reconfiguring', () => {
@@ -539,7 +583,15 @@ describe('Container', () => {
 
   describe('container structure', () => {
     it('should expose config on the container object', () => {
-      const config = { provider: 'elevenlabs' as const, cacheType: 'memory' as const, serverUrl: null, licenseKey: null, localHostUrl: null, localHostEnabled: false, localHostVoice: null };
+      const config = {
+        provider: 'elevenlabs' as const,
+        cacheType: 'memory' as const,
+        serverUrl: null,
+        licenseKey: null,
+        localHostUrl: null,
+        localHostEnabled: false,
+        localHostVoice: null,
+      };
       const container = createContainer(config, defaultApiKeys);
 
       expect(container.config).toBe(config);

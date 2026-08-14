@@ -27,8 +27,13 @@ const srcDir = resolve(__dirname, '../../../src');
 const mockGetContainer = jest.fn();
 const mockIsContainerInitialized = jest.fn<() => boolean>();
 const mockReconfigureAudioGenerator = jest.fn();
+const mockGetPlaybackState = jest.fn<() => { voice: string | null }>(() => ({
+  voice: 'working-voice',
+}));
+const mockSetVoice = jest.fn<(voice: string | null) => Promise<void>>(async () => undefined);
 
-const mockStorageGet = jest.fn<(keys: string | string[] | null) => Promise<Record<string, unknown>>>();
+const mockStorageGet =
+  jest.fn<(keys: string | string[] | null) => Promise<Record<string, unknown>>>();
 const mockStorageSet = jest.fn<(items: Record<string, unknown>) => Promise<void>>();
 
 jest.unstable_mockModule('wxt/browser', () => ({
@@ -72,6 +77,17 @@ async function dispatchHandler<T>(
   return outer.value as Result<T, ProviderHandlerError>;
 }
 
+async function dispatchHandlerError(
+  registry: InstanceType<typeof HandlerRegistry>,
+  name: string,
+  params: unknown,
+): Promise<ProviderHandlerError> {
+  const result = await dispatchHandler<never>(registry, name, params);
+  expect(isErr(result)).toBe(true);
+  if (!isErr(result)) throw new Error(`${name} unexpectedly succeeded`);
+  return result.error;
+}
+
 describe('Provider Handlers', () => {
   let registry: InstanceType<typeof HandlerRegistry>;
 
@@ -79,8 +95,15 @@ describe('Provider Handlers', () => {
     jest.clearAllMocks();
     registry = new HandlerRegistry();
     mockIsContainerInitialized.mockReturnValue(true);
+    mockReconfigureAudioGenerator.mockReturnValue(true);
     mockGetContainer.mockReturnValue({
       config: { provider: 'elevenlabs' as const, cacheType: 'indexeddb' as const },
+      services: {
+        playback: {
+          getState: mockGetPlaybackState,
+          setVoice: mockSetVoice,
+        },
+      },
     });
     registerProviderHandlers(registry);
   });
@@ -209,11 +232,9 @@ describe('Provider Handlers', () => {
       mockStorageGet.mockResolvedValue({ elevenlabsApiKey: 'sk-test-key' });
       mockStorageSet.mockResolvedValue(undefined);
 
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        { provider: 'elevenlabs' },
-      );
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'elevenlabs',
+      });
       expect(isOk(result)).toBe(true);
       if (!isOk(result)) return;
 
@@ -224,7 +245,7 @@ describe('Provider Handlers', () => {
 
       // Verify storage interactions
       expect(mockStorageGet).toHaveBeenCalledWith(['elevenlabsApiKey']);
-      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('elevenlabs', 'sk-test-key');
+      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('elevenlabs', 'sk-test-key', true);
       expect(mockStorageSet).toHaveBeenCalledWith({ provider: 'elevenlabs' });
     });
 
@@ -232,11 +253,9 @@ describe('Provider Handlers', () => {
       mockStorageGet.mockResolvedValue({});
       mockStorageSet.mockResolvedValue(undefined);
 
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        { provider: 'groq' },
-      );
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'groq',
+      });
       expect(isOk(result)).toBe(true);
       if (!isOk(result)) return;
 
@@ -245,52 +264,93 @@ describe('Provider Handlers', () => {
         provider: 'groq',
       });
 
-      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('groq', null);
+      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('groq', null, true);
       expect(mockStorageSet).toHaveBeenCalledWith({ provider: 'groq' });
     });
 
-    it('should return invalid_params error for invalid provider', async () => {
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        { provider: 'google' },
-      );
+    it('adopts a validated candidate instead of the previously stored key', async () => {
+      mockStorageSet.mockResolvedValue(undefined);
+
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'openai',
+        validatedApiKey: 'candidate-key',
+      });
+      expect(isOk(result)).toBe(true);
+      if (!isOk(result)) return;
+
+      expect(mockStorageGet).toHaveBeenCalledWith(['openaiApiKey', 'elevenlabsApiKey']);
+      expect(mockReconfigureAudioGenerator).toHaveBeenCalledWith('openai', 'candidate-key', false);
+      expect(mockStorageSet).toHaveBeenCalledWith({
+        openaiApiKey: 'candidate-key',
+        provider: 'openai',
+      });
+    });
+
+    it('does not persist a validated candidate when reconfiguration fails', async () => {
+      mockReconfigureAudioGenerator.mockImplementation(() => {
+        throw new Error('Reconfigure failed');
+      });
+
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'cartesia',
+        validatedApiKey: 'candidate-key',
+      });
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
 
-      expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('Invalid provider');
+      expect(result.error.type).toBe('operation_failed');
+      expect(mockStorageGet).toHaveBeenCalledWith(['cartesiaApiKey', 'elevenlabsApiKey']);
+      expect(mockStorageSet).not.toHaveBeenCalled();
+    });
+
+    it('restores the previous live route when candidate persistence fails', async () => {
+      mockStorageGet.mockResolvedValue({ elevenlabsApiKey: 'working-key' });
+      mockStorageSet.mockRejectedValue(new Error('Storage full'));
+
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'openai',
+        validatedApiKey: 'candidate-key',
+      });
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+
+      expect(mockReconfigureAudioGenerator.mock.calls).toEqual([
+        ['openai', 'candidate-key', false],
+        ['elevenlabs', 'working-key'],
+      ]);
+      expect(mockSetVoice).toHaveBeenCalledWith('working-voice');
+      expect(result.error).toEqual({
+        type: 'operation_failed',
+        message: 'Storage full',
+      });
+    });
+
+    it('should return invalid_params error for invalid provider', async () => {
+      const error = await dispatchHandlerError(registry, 'provider.select', {
+        provider: 'google',
+      });
+
+      expect(error.type).toBe('invalid_params');
+      expect(error.message).toContain('Invalid provider');
     });
 
     it('should return invalid_params error when provider is missing', async () => {
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        {},
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.select', {});
 
-      expect(result.error.type).toBe('invalid_params');
+      expect(error.type).toBe('invalid_params');
     });
 
     it('should return container_not_initialized error when container is not ready', async () => {
       mockIsContainerInitialized.mockReturnValue(false);
 
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        { provider: 'elevenlabs' },
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.select', {
+        provider: 'elevenlabs',
+      });
 
-      expect(result.error).toEqual({
+      expect(error).toEqual({
         type: 'container_not_initialized',
         message: 'Container not initialized.',
       });
-
-      // Should not attempt storage or reconfiguration
       expect(mockStorageGet).not.toHaveBeenCalled();
       expect(mockReconfigureAudioGenerator).not.toHaveBeenCalled();
     });
@@ -301,11 +361,9 @@ describe('Provider Handlers', () => {
         throw new Error('Reconfigure failed');
       });
 
-      const result = await dispatchHandler<ProviderSelectResponse>(
-        registry,
-        'provider.select',
-        { provider: 'openai' },
-      );
+      const result = await dispatchHandler<ProviderSelectResponse>(registry, 'provider.select', {
+        provider: 'openai',
+      });
       expect(isErr(result)).toBe(true);
       if (!isErr(result)) return;
 
@@ -367,54 +425,37 @@ describe('Provider Handlers', () => {
     });
 
     it('should return invalid_params error when language is missing', async () => {
-      const result = await dispatchHandler<LanguageValidationResponse>(
-        registry,
-        'provider.validateLanguage',
-        {},
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.validateLanguage', {});
 
-      expect(result.error.type).toBe('invalid_params');
-      expect(result.error.message).toContain('language is required');
+      expect(error.type).toBe('invalid_params');
+      expect(error.message).toContain('language is required');
     });
 
     it('should return invalid_params error when language is not a string', async () => {
-      const result = await dispatchHandler<LanguageValidationResponse>(
-        registry,
-        'provider.validateLanguage',
-        { language: 42 },
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.validateLanguage', {
+        language: 42,
+      });
 
-      expect(result.error.type).toBe('invalid_params');
+      expect(error.type).toBe('invalid_params');
     });
 
     it('should return invalid_params error for unknown provider', async () => {
-      const result = await dispatchHandler<LanguageValidationResponse>(
-        registry,
-        'provider.validateLanguage',
-        { language: 'en-US', provider: 'nonexistent' },
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.validateLanguage', {
+        language: 'en-US',
+        provider: 'nonexistent',
+      });
 
-      expect(result.error.type).toBe('invalid_params');
+      expect(error.type).toBe('invalid_params');
     });
 
     it('should return container_not_initialized error when container is not ready', async () => {
       mockIsContainerInitialized.mockReturnValue(false);
 
-      const result = await dispatchHandler<LanguageValidationResponse>(
-        registry,
-        'provider.validateLanguage',
-        { language: 'en-US' },
-      );
-      expect(isErr(result)).toBe(true);
-      if (!isErr(result)) return;
+      const error = await dispatchHandlerError(registry, 'provider.validateLanguage', {
+        language: 'en-US',
+      });
 
-      expect(result.error).toEqual({
+      expect(error).toEqual({
         type: 'container_not_initialized',
         message: 'Container not initialized.',
       });

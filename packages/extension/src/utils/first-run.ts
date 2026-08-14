@@ -15,20 +15,36 @@
 
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
+import { defaults } from './config/defaults';
+import { requestHostPermissionForOrigin } from './permissions/match-pattern';
 
 const BYOK_KEYS = ['openaiApiKey', 'elevenlabsApiKey', 'groqApiKey', 'cartesiaApiKey'];
+
+/** Normalize a configured URL for semantic origin comparison. */
+function urlOrigin(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  try {
+    return new URL(value.trim()).origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/** A managed origin is reader configuration only when it differs from Proso's default. */
+export function hasCustomManagedServer(stored: Record<string, unknown>): boolean {
+  const configuredOrigin = urlOrigin(stored.serverUrl);
+  return configuredOrigin !== null && configuredOrigin !== urlOrigin(defaults.serverUrl);
+}
 
 /** R-1: the reader has NO listening route configured at all. */
 export function isUnconfigured(stored: Record<string, unknown>): boolean {
   const hasByokKey = BYOK_KEYS.some(
-    (key) => typeof stored[key] === 'string' && (stored[key] as string).length > 0,
+    (key) => typeof stored[key] === 'string' && (stored[key] as string).trim().length > 0,
   );
   if (hasByokKey) return false;
   if (stored.localHostEnabled === true) return false;
-  if (typeof stored.licenseKey === 'string' && stored.licenseKey.length > 0) return false;
-  // A configured managed server is a route too (the settings page writes it):
-  // such a reader keeps the player, and the 402 is their correct message.
-  if (typeof stored.serverUrl === 'string' && stored.serverUrl.length > 0) return false;
+  if (typeof stored.licenseKey === 'string' && stored.licenseKey.trim().length > 0) return false;
+  if (hasCustomManagedServer(stored)) return false;
   return true;
 }
 
@@ -85,10 +101,14 @@ export function classifyFailure(
   ) {
     return 'host-unreachable';
   }
-  // Shipped BYOK rejection shapes: the server proxy maps a provider 401 to
-  // invalid_credentials, which the playback layer surfaces as
-  // "Provider unavailable: <provider>".
-  if (opts.hasByok && /key|401|403|invalid_credentials|provider unavailable/i.test(errorMsg)) {
+  // Only credential-specific evidence may label a key rejected. A generic
+  // provider outage may happen with a valid key and must not become "Edit key".
+  if (
+    opts.hasByok &&
+    /invalid[_ -]?credentials?|invalid api key|key (?:was )?rejected|unauthori[sz]ed|\b401\b|\b403\b/i.test(
+      errorMsg,
+    )
+  ) {
     return 'key-rejected';
   }
   return 'unconfigured';
@@ -129,7 +149,7 @@ export function validateHostUrl(raw: string): string | null {
     const isHttps = url.protocol === 'https:';
     const isLoopbackHttp =
       url.protocol === 'http:' &&
-      (url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1');
+      (url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '[::1]');
     if (!isHttps && !isLoopbackHttp) return null;
     if (url.pathname !== '/' && url.pathname !== '') return null;
     return url.origin;
@@ -151,7 +171,7 @@ export async function connectLocalHost(
   if (!origin) {
     return Err({
       step: 'invalid_address',
-      message: 'Enter a full address starting with https://',
+      message: 'Enter a full HTTPS address, or use HTTP only for localhost or loopback.',
     });
   }
 
@@ -165,19 +185,18 @@ export async function connectLocalHost(
     });
   }
 
-  let granted: boolean;
-  try {
-    granted = await perms.request({ origins: [`${origin}/*`] });
-  } catch (error) {
+  // MatchPattern has no port component. Request the narrowest effective
+  // scheme+host grant, then keep capability and synthesis traffic pinned to
+  // the exact reader-entered origin below. The helper invokes request()
+  // synchronously before its first await, preserving this click's activation.
+  const permission = await requestHostPermissionForOrigin(origin, perms);
+  if (!permission.ok) {
     return Err({
       step: 'permission_denied',
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-  if (!granted) {
-    return Err({
-      step: 'permission_denied',
-      message: 'Access was not granted — the host route stays off. Try Connect again.',
+      message:
+        permission.reason === 'denied'
+          ? 'Access was not granted — the host route stays off. Try Connect again.'
+          : permission.message,
     });
   }
 
@@ -222,6 +241,7 @@ export async function connectLocalHost(
       localHostEnabled: true,
       localHostVoice: null,
       provider: 'local',
+      voice: null,
     });
   } catch (error) {
     return Err({
@@ -244,27 +264,62 @@ const BYOK_STORAGE_KEY: Record<string, string> = {
   cartesia: 'cartesiaApiKey',
 };
 
+export type ByokValidationFailure = 'invalid' | 'unavailable';
+export type ByokSaveFailure = ByokValidationFailure | 'activation';
+
+export interface ByokSaveError {
+  readonly reason: ByokSaveFailure;
+  readonly message: string;
+}
+
+export type ByokValidationResult =
+  | { readonly success: true }
+  | {
+      readonly success: false;
+      readonly reason: ByokValidationFailure;
+      readonly message: string;
+    };
+
 export interface ByokSaveDeps {
-  readonly storage: {
-    set(items: Record<string, unknown>): Promise<void>;
-  };
-  readonly notify: (provider: string) => Promise<unknown>;
+  readonly validate: (provider: string, key: string) => Promise<ByokValidationResult>;
+  readonly select: (provider: string, key: string) => Promise<unknown>;
 }
 
 export async function saveByokKey(
   provider: string,
   key: string,
   deps: ByokSaveDeps,
-): Promise<Result<void, string>> {
+): Promise<Result<void, ByokSaveError>> {
   const keyField = BYOK_STORAGE_KEY[provider];
-  if (!keyField) return Err('Choose a provider first.');
+  if (!keyField) return Err({ reason: 'invalid', message: 'Choose a provider first.' });
   const trimmed = key.trim();
-  if (trimmed.length < 8) return Err(`Enter your ${provider} key — it should be longer than this.`);
+  if (trimmed.length < 8) {
+    return Err({
+      reason: 'invalid',
+      message: `Enter your ${provider} key — it should be longer than this.`,
+    });
+  }
+
+  let validation: Awaited<ReturnType<ByokSaveDeps['validate']>>;
   try {
-    await deps.storage.set({ [keyField]: trimmed, provider });
-    await deps.notify(provider);
+    validation = await deps.validate(provider, trimmed);
+  } catch (error) {
+    return Err({
+      reason: 'unavailable',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+  if (!validation.success) {
+    return Err({ reason: validation.reason, message: validation.message });
+  }
+
+  try {
+    await deps.select(provider, trimmed);
     return Ok(undefined);
   } catch (error) {
-    return Err(error instanceof Error ? error.message : String(error));
+    return Err({
+      reason: 'activation',
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 }

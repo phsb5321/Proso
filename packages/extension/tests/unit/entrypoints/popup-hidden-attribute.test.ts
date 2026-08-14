@@ -124,23 +124,22 @@ describe('popup grant row — platform `hidden` wins over display:flex (Feature 
     );
   });
 
-  it('source guard: the grant action is actually actionable — permissions.request is the first await in the click handler (Feature 167, measured in real Firefox)', () => {
+  it('source guard: the grant action is actionable — host permission request is the first await (Feature 167)', () => {
     // Firefox rejects permissions.request once the handler yields; the handler
-    // must not await storage before the request. Measured: an await before the
-    // request throws "may only be called from a user input handler" even for a
-    // trusted click — the old implementation could never grant.
+    // must not await storage before the helper invokes it. The helper's unit
+    // test proves requester.request() runs synchronously before its first await.
     const clickStart = popupMain.indexOf('async function handleGrantAccessClick');
-    const requestCall = popupMain.indexOf('browser.permissions.request', clickStart);
+    const requestCall = popupMain.indexOf('requestHostPermissionForOrigin', clickStart);
     expect(clickStart).toBeGreaterThanOrEqual(0);
     expect(requestCall).toBeGreaterThan(clickStart);
     // No await STATEMENT (line-leading `await `) may appear between the handler
-    // start and the permissions.request call — comments mentioning "await" are
-    // mid-line prose and do not match the statement pattern.
+    // start and the helper call — comments mentioning "await" are mid-line
+    // prose and do not match the statement pattern.
     const handlerHead = popupMain.slice(clickStart, requestCall);
     expect(/\n\s*await /.test(handlerHead)).toBe(false);
     // The origin the request uses is cached at affordance-show time, so no
     // storage read can intervene between the gesture and the request.
-    expect(popupMain).toMatch(/pendingGrantOrigin = origin \|\| null;/);
+    expect(popupMain).toMatch(/pendingGrantOrigin = origin;/);
     expect(popupMain).toMatch(/const origin = pendingGrantOrigin;/);
   });
 });

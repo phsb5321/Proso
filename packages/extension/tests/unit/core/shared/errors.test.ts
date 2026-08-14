@@ -39,9 +39,9 @@ describe('Domain Error Factories', () => {
       expect(err).toEqual({ type: 'tab_not_found', tabId: 42 });
     });
 
-    it('creates providerUnavailable error', () => {
-      const err = playbackError.providerUnavailable('elevenlabs');
-      expect(err).toEqual({ type: 'provider_unavailable', provider: 'elevenlabs' });
+    it('preserves invalid credentials as a distinct playback error', () => {
+      const err = playbackError.invalidCredentials('openai');
+      expect(err).toEqual({ type: 'invalid_credentials', provider: 'openai' });
     });
 
     it('creates playbackFailed error', () => {
@@ -159,7 +159,7 @@ describe('Domain Error Factories', () => {
         playbackError.noContent('article').type,
         playbackError.invalidParagraphIndex(0, 0).type,
         playbackError.tabNotFound(0).type,
-        playbackError.providerUnavailable('openai').type,
+        playbackError.invalidCredentials('openai').type,
         playbackError.playbackFailed('').type,
       ];
       expect(new Set(types).size).toBe(types.length);

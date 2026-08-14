@@ -42,9 +42,10 @@ export default defineConfig({
     ],
     // PROSO-110: requestable-only host origins for the reader-operated
     // synthesis host. NOTHING here is granted at install time — the grant
-    // happens at configure time via permissions.request() for the exact
-    // origin the reader entered (constitution 2.1.0 condition 3). The
-    // installed host_permissions set above is unchanged. The key is
+    // happens at configure time via permissions.request() for the narrowest
+    // scheme+host MatchPattern the browser can express. MatchPattern has no
+    // port component; network use stays pinned to the exact entered origin.
+    // The installed host_permissions set above is unchanged. The key is
     // per-browser: MV3 (Chrome) declares optional_host_permissions; the MV2
     // Firefox build has no such key, so Firefox declares the same patterns
     // under optional_permissions, which IS requestable in MV2 (same pattern

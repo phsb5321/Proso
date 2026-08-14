@@ -25,7 +25,7 @@ export type PlaybackError =
   | { type: 'no_content'; mode: ExtractionMode }
   | { type: 'invalid_paragraph_index'; index: number; max: number }
   | { type: 'tab_not_found'; tabId: number }
-  | { type: 'provider_unavailable'; provider: ProviderId }
+  | { type: 'invalid_credentials'; provider: ProviderId }
   | { type: 'playback_failed'; reason: string };
 
 /**
@@ -99,8 +99,8 @@ export const playbackError = {
     type: 'tab_not_found',
     tabId,
   }),
-  providerUnavailable: (provider: ProviderId): PlaybackError => ({
-    type: 'provider_unavailable',
+  invalidCredentials: (provider: ProviderId): PlaybackError => ({
+    type: 'invalid_credentials',
     provider,
   }),
   playbackFailed: (reason: string): PlaybackError => ({

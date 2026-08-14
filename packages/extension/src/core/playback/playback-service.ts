@@ -491,9 +491,9 @@ export class PlaybackService {
     switch (error.type) {
       case 'audio_generation':
         return { message: error.message, provider: error.provider };
-      case 'provider_unavailable':
+      case 'invalid_credentials':
         return {
-          message: `${error.provider} is unavailable right now. Try again shortly.`,
+          message: `The ${error.provider} API key was rejected. Edit the key and try again.`,
           provider: error.provider,
         };
       case 'no_content':
@@ -1509,7 +1509,7 @@ export class PlaybackService {
   private convertAudioError(error: AudioError): PlaybackError {
     switch (error.type) {
       case 'invalid_credentials':
-        return playbackError.providerUnavailable(this.state.provider);
+        return playbackError.invalidCredentials(this.state.provider);
       case 'provider_error':
         return playbackError.audioGeneration(
           this.state.provider,

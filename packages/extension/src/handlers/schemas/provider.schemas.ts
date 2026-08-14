@@ -11,6 +11,7 @@ import { providerIdSchema } from '../../utils/messaging/schemas';
 
 export const providerSelectParamsSchema = z.object({
   provider: providerIdSchema,
+  validatedApiKey: z.string().min(1).optional(),
 });
 
 export const providerValidateLanguageParamsSchema = z.object({

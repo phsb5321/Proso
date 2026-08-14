@@ -112,16 +112,12 @@ export function createAudioGeneratorAdapter(
       } catch {
         return { ok: false, reason: `Local synthesis host URL is invalid: ${url}` };
       }
-      // Effective access, not the optional-grant proxy (PROSO-114):
-      // permissions.contains() only consults the optional-grant table, so on
-      // a build whose manifest grants <all_urls> at install (the reading
-      // journey's host access) it returns false for an origin the extension
-      // ALREADY has access to — the gate could never pass. getAll() returns
-      // every granted pattern, install-time and optional alike; the gate
-      // passes when any of them covers the configured origin. The
-      // constitutional condition (runtime permission for the exact origin)
-      // still holds on builds without <all_urls>: nothing is granted until
-      // the settings flow calls permissions.request().
+      // Effective access, not an optional-grant proxy (PROSO-114): getAll()
+      // includes install-time and runtime host patterns. MatchPattern cannot
+      // encode a port, so coverage is necessarily scheme+host; the adapter's
+      // URL remains the exact persisted origin. Legacy port-bearing strings
+      // are rejected by originCoveredByGrantedPatterns because Firefox can
+      // retain them without granting effective access.
       const granted = await browser.permissions.getAll();
       if (!originCoveredByGrantedPatterns(origin, granted.origins ?? [])) {
         return {

@@ -9,7 +9,7 @@
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
-import { highlightError } from '../../../src/core/shared/errors';
+import { audioError, highlightError } from '../../../src/core/shared/errors';
 import { isErr, isOk } from '../../../src/core/shared/result';
 import {
   type MockAudioGenerator,
@@ -102,6 +102,19 @@ describe('PlaybackService', () => {
       if (isErr(result)) {
         expect(result.error.type).toBe('no_content');
       }
+    });
+
+    it('preserves rejected credentials for the popup repair classifier', async () => {
+      mockAudioGenerator.setForceError(audioError.invalidCredentials());
+
+      const result = await service.start(testParagraphs, testTabId, testPageUrl);
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) return;
+      expect(result.error).toEqual({
+        type: 'invalid_credentials',
+        provider: 'elevenlabs',
+      });
     });
 
     it('should check cache before generating audio', async () => {
