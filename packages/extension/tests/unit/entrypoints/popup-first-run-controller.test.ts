@@ -31,6 +31,10 @@ const DEFAULT_SERVER_URL = 'https://api.proso.com.br';
 const TIER_COPY =
   'Managed TTS is not included in this tier. Attach your own provider API key in settings (free on every tier), or use a local synthesis host you run yourself.';
 
+// Coverage instrumentation and full-suite CPU contention make module startup
+// materially slower than focused runs; assertions retain their own deadlines.
+jest.setTimeout(30_000);
+
 type Stored = Record<string, unknown>;
 type StorageChanges = Record<string, { oldValue?: unknown; newValue?: unknown }>;
 type StorageChangedListener = (changes: StorageChanges, areaName: string) => void;
@@ -226,7 +230,7 @@ async function mountPopup(options: RigOptions = {}): Promise<PopupRig> {
   return rig;
 }
 
-async function waitFor(done: () => boolean, timeoutMs = 5_000): Promise<void> {
+async function waitFor(done: () => boolean, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!done()) {
     if (Date.now() > deadline) throw new Error('timed out waiting for popup first-run state');
