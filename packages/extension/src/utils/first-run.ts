@@ -103,9 +103,12 @@ export function classifyFailure(
   }
   // Only credential-specific evidence may label a key rejected. A generic
   // provider outage may happen with a valid key and must not become "Edit key".
-  if (opts.hasByok && /invalid[_ -]?credentials?|invalid api key|key (?:was )?rejected|unauthori[sz]ed|\b401\b|\b403\b/i.test(
-    errorMsg,
-  )) {
+  if (
+    opts.hasByok &&
+    /invalid[_ -]?credentials?|invalid api key|key (?:was )?rejected|unauthori[sz]ed|\b401\b|\b403\b/i.test(
+      errorMsg,
+    )
+  ) {
     return 'key-rejected';
   }
   return 'unconfigured';
