@@ -245,7 +245,7 @@ async function assertAriaReflection(driver, label) {
     await sleep(1000);
     await plantDriver.execute(`
       const style = document.createElement('style');
-      style.textContent = '.proso-card{position:relative!important;z-index:9999!important}';
+      style.textContent = '.proso-card{position:relative!important;z-index:var(--z-hostile-plant, 9999)!important}';
       document.head.appendChild(style);
       return true;
     `);
@@ -444,7 +444,7 @@ if (PLANT === 'card-covers') {
     await sleep(1000);
     await plantDriver.execute(`
       const style = document.createElement('style');
-      style.textContent = '.proso-card{position:relative!important;z-index:9999!important}';
+      style.textContent = '.proso-card{position:relative!important;z-index:var(--z-hostile-plant, 9999)!important}';
       document.head.appendChild(style);
       return true;
     `);
