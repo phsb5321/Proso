@@ -228,38 +228,38 @@ async function assertAriaReflection(driver, label) {
   await focusRefresh();
   await sleep(100);
   if (PLANT === 'card-covers') {
-  // Plant run: cover the card over the popover (z-index escalation on the
-  // card) — the topmost overlap probe must go red.
-  const plantDriver = await launch({
-    binary: resolveFirefox(),
-    headless: process.env.GATE_HEADED !== '1',
-    extraArgs: ['-remote-allow-system-access'],
-    prefs: {
-      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
-      [SCHEME_PREF]: 1,
-    },
-  });
-  try {
-    await plantDriver.installAddon(buildDir);
-    await openExtensionPage(plantDriver, `moz-extension://${ADDON_UUID}/settings.html`);
-    await sleep(1000);
-    await plantDriver.execute(`
+    // Plant run: cover the card over the popover (z-index escalation on the
+    // card) — the topmost overlap probe must go red.
+    const plantDriver = await launch({
+      binary: resolveFirefox(),
+      headless: process.env.GATE_HEADED !== '1',
+      extraArgs: ['-remote-allow-system-access'],
+      prefs: {
+        'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+        [SCHEME_PREF]: 1,
+      },
+    });
+    try {
+      await plantDriver.installAddon(buildDir);
+      await openExtensionPage(plantDriver, `moz-extension://${ADDON_UUID}/settings.html`);
+      await sleep(1000);
+      await plantDriver.execute(`
       const style = document.createElement('style');
       style.textContent = '.proso-card{position:relative!important;z-index:var(--z-hostile-plant, 9999)!important}';
       document.head.appendChild(style);
       return true;
     `);
-    await setViewport(plantDriver, 1024, 768);
-    await assertTopmostUnclipped(plantDriver, 'plant card-covers desktop 1024', {
-      expectOverlap: true,
-    });
-  } finally {
-    await plantDriver.quit().catch(() => {});
+      await setViewport(plantDriver, 1024, 768);
+      await assertTopmostUnclipped(plantDriver, 'plant card-covers desktop 1024', {
+        expectOverlap: true,
+      });
+    } finally {
+      await plantDriver.quit().catch(() => {});
+    }
+    process.exit(verdict());
   }
-  process.exit(verdict());
-}
 
-if (PLANT === 'aria-static') {
+  if (PLANT === 'aria-static') {
     await driver.execute(
       `document.getElementById('serverStatusDetail').setAttribute('aria-hidden', 'true'); return true;`,
     );
