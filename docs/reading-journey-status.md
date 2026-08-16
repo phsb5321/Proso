@@ -522,6 +522,67 @@ fail-closed paths). The `playback.handlers` mock had no `setLanguage`, which is 
 wiring stayed invisible — the same shape PR #144 found with `setProvider`, and the mock is fixed
 rather than worked around.
 
+## Update — 15/08/2026: pilot release readiness, and two gates repaired
+
+The pilot was driven end to end today. Three things are worth recording here
+rather than only in `specs/176-pilot-release/`, because this is the document a
+later reader trusts.
+
+**The deploy path is proven at `9bd5b88`, and it is still HELD.**
+`make subscription-deploy-rehearsal` PASSes all 16 phases against a disposable
+PostgreSQL with dummy secrets — the checked-in predeploy (bridge → `db push` →
+bridge), schema invariants, production boot fail-closed on a short licence
+secret, the real `AppModule` under `NODE_ENV=production`, account-free claim
+`202`, signed webhook committed atomically, claim issuance, fresh-process replay
+exactly-once, and an injected pre-commit fault rolling back every commerce row.
+`make dokku-check` nevertheless returns **HELD (exit 2)** on the five `PADDLE_*`
+names, which exist nowhere — the vault holds only an archived Paddle *signup*
+login. The gate checks env **names**, not values, so five empty strings would
+flip it green; that was considered and rejected, because it manufactures a green
+verdict without changing anything real. The hold is itself a tested invariant
+(`held-missing-paddle` in `dokku-deploy-preflight.self-test.mjs` asserts exit 2).
+
+**The live site is not merely stale — it is untrue.** Measured today against the
+running site, not inferred from the repo:
+
+```bash
+curl -s https://proso.com.br | grep -ioE "unlimited browser tts|free tier works immediately|coming soon"
+# 3× "Coming Soon", 1× "free tier works immediately",
+# 1× "unlimited browser TTS", 2× "Unlimited browser TTS"
+curl -s https://proso.com.br/updates.json   # v1.2.1, current
+curl -s https://api.proso.com.br/health     # no `revision` field → pre-#162 container
+```
+
+Browser `speechSynthesis` was removed in `9797dc6`, and managed Free answers
+402, so both advertised claims are false. The cause is not the site code — the
+built tree is correct and contains zero "Coming Soon" — it is that every
+site-affecting commit (#151, #155, #165, #167) merged *during* the Actions
+outage and never published. The last successful Pages deploy was 01/08/2026
+21:01Z. One constraint governs every fix: `updates.json` + `releases/` are the
+extension auto-update lifeline (`wxt.config.ts:101` hardcodes the URL), they are
+currently live and correct, and a migration that forgets to copy them stops
+updates for every installed user with no visible error.
+
+**Two gates were repaired, both found by re-running against the real deploy
+base.** Running `verify-full` with `DIFF_BASE_REF=e6b412f` — the SHA Dokku
+actually serves — rather than `origin/main`, where a fresh branch has an empty
+diff and every diff-scoped ratchet is vacuous, surfaced: two `proso.raw-numeric-z-index`
+hits in the server-status-popover harness, now `var(--z-hostile-plant, 9999)`;
+and one gitleaks hit on a historical test-fixture blob (`2899773`), now
+baselined by fingerprint per the five existing `.gitleaksignore` entries. The
+tokenization was proven not to neuter the plant by running the harness's own
+suite in its own Firefox:
+
+```
+make server-status-popover-plants
+  ok  plant card-covers: FAIL (guards the topmost overlap probe — a card stacked
+      over the popover must turn the topmost assertion red)
+server-status-popover-plants PASS: 4 caught, 0 missed
+```
+
+That is the discriminating check: had the token silently resolved to `auto`, the
+plant would have gone green and the suite would have reported a miss.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
@@ -779,7 +840,22 @@ rather than worked around.
     (a `Result` shape, a bounded retry count) instead of elapsed wall-clock, or give the timing
     assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
     before it can be believed, which is the opposite of what the receipt is for.
-25. Exercise the optional-permission doorhanger. PR #147's gate sets
+25. Publish the corrected site. It is the highest-value user-facing item open:
+    the live site advertises two features that do not exist. Three options were
+    assessed in `specs/176-pilot-release/plan.md` — S3+CloudFront, branch-based
+    Pages from `gh-pages`, or the existing Dokku host through its existing
+    Cloudflare tunnel (recommended, $0, and it permanently decouples publishing
+    from the dead Actions). Any option must copy `updates.json` + `releases/`
+    into the site root or installed extensions silently stop updating.
+26. Retire the AWS root access key. It is long-lived, was used for `iam` calls on
+    15/08/2026, and account MFA does not protect access keys. Restic, dokku and
+    proxmox backups already authenticate as scoped IAM users, so the blast
+    radius is the operator CLI rather than all automation — but a leaked root
+    key still bypasses Object Lock governance and can purge every backup. A
+    least-privilege `pedro-ops` plan with a restic-safe, reversible rotation
+    order (disable → ≥7d grace → delete) is in the operator receipt. Credential
+    surgery, so `[pending] Pedro`.
+27. Exercise the optional-permission doorhanger. PR #147's gate sets
    `extensions.webextOptionalPermissionPrompts=false`, so the grant request, its user gesture and
    the resulting permission are all real but the prompt the reader accepts is not. Closing this
    needs chrome-context WebDriver Actions dispatched against the panel, which is also what would
