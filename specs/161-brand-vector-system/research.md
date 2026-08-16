@@ -58,3 +58,21 @@ intended relationship between inconsistent repeated examples.
 
 These receive side-by-side proofs and explicit decisions. They are not silently
 inferred from antialiased pixels.
+
+---
+
+## Decision delta — 16/08/2026 (Feature 173)
+
+The "custom measured redraw" conclusion above is superseded by an explicit
+art-direction reversal: the Proso wordmark now uses a real, named, properly
+licensed font (**Outfit Variable**, SIL OFL 1.1, instance `wght=475`, tracking
+`0‰`), with the font file, licence, source commit, SHA-256, axes, tracking, and
+generated outline hash recorded in `brand/fonts/manifest.json`. The custom
+construction from Feature 161 is preserved read-only at
+`brand/source/archive/proso-wordmark-construction-custom.svg` and remains
+renderable as the legacy proof. Feature 161's statement that "no validly tested
+open font passed the identification threshold" referred to a threshold that was
+not documented at the time; Feature 173 defines the metric gate (IoU, Chamfer,
+held-out Hausdorff, component/counter ratios) and the full candidate matrix in
+`specs/173-font-authentic-wordmark/research.md`. This delta amends the record;
+it does not rewrite Feature 161's history.

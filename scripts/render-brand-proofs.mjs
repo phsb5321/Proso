@@ -65,35 +65,20 @@ function renderSvg(root, { source, output, width, height, background }) {
 }
 
 function writeWordmarkProofSources() {
-  const source = readFileSync(
-    resolve(ROOT, 'brand/source/proso-wordmark-construction.svg'),
-    'utf8',
-  );
   const selected = outputPath(TEMP, 'wordmark-selected.svg');
-  const conventional = outputPath(TEMP, 'wordmark-conventional-p.svg');
-  const thin = outputPath(TEMP, 'wordmark-optical-thin.svg');
-  const stem = '<path id="p-stem" d="M0 520h203v886H0Z"/>';
-  if (!source.includes(stem)) fail('wordmark p-stem construction anchor changed');
-  writeFileSync(selected, source);
+  const legacy = outputPath(TEMP, 'wordmark-legacy.svg');
   writeFileSync(
-    conventional,
-    source
-      .replace(stem, '<path id="p-stem" d="M0 0h203v1040H0Z"/>')
-      .replace('Proso wordmark construction', 'Proso wordmark conventional p proof'),
+    selected,
+    readFileSync(resolve(ROOT, 'brand/source/proso-wordmark-construction.svg'), 'utf8'),
   );
-  const counters = [514.5, 2407.5, 4481.5];
-  let opticallyThin = source;
-  for (const center of counters) {
-    const original = `A304.5 314 0 1 0 ${center} 834 304.5 314 0 1 0 ${center} 206`;
-    const replacement = `A334.5 344 0 1 0 ${center} 864 334.5 344 0 1 0 ${center} 176`;
-    if (!opticallyThin.includes(original)) fail(`wordmark counter anchor changed at ${center}`);
-    opticallyThin = opticallyThin.replace(original, replacement);
-  }
   writeFileSync(
-    thin,
-    opticallyThin.replace('Proso wordmark construction', 'Proso wordmark optical thinning proof'),
+    legacy,
+    readFileSync(
+      resolve(ROOT, 'brand/source/archive/proso-wordmark-construction-custom.svg'),
+      'utf8',
+    ),
   );
-  return { selected, conventional, thin };
+  return { selected, legacy };
 }
 
 function renderWordmarkDecisions(root) {
@@ -159,14 +144,9 @@ function renderWordmarkDecisions(root) {
   }
   montage(
     root,
-    [
-      'wordmark/reference.png',
-      'wordmark/selected.png',
-      'wordmark/conventional.png',
-      'wordmark/thin.png',
-    ],
+    ['wordmark/reference.png', 'wordmark/selected.png', 'wordmark/legacy.png'],
     'wordmark/wordmark-decisions.png',
-    '1x4',
+    '1x3',
     '1000x300+0+12>',
   );
   montage(
@@ -336,8 +316,7 @@ const EXPECTED = [
   'icons/contact-sheet.png',
   'wordmark/reference.png',
   'wordmark/selected.png',
-  'wordmark/conventional.png',
-  'wordmark/thin.png',
+  'wordmark/legacy.png',
   'wordmark/waveform-48.png',
   'wordmark/compact-48.png',
   'wordmark/waveform-48-zoom.png',

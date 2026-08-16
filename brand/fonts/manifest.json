@@ -1,0 +1,17 @@
+{
+  "font": "brand/fonts/OutfitVariable.ttf",
+  "fontSha256": "fc7287273e66929776e2ba54f144fe699080bec29f61bf649d70d871468aeade",
+  "family": "Outfit",
+  "version": "Version 1.100; gftools[0.9.27]",
+  "license": "SIL Open Font License 1.1",
+  "licenseFile": "brand/fonts/OFL.txt",
+  "licenseSha256": "e2a6bbb2589b85bac1690ec8f220b22a9c3af9bfda56df6391f7ab491c7a039f",
+  "source": "https://github.com/google/fonts/tree/main/ofl/outfit/Outfit[wght].ttf",
+  "sourceCommit": "5f246070882b903ed95a911dba83d9d4a6836152",
+  "axes": { "wght": 475 },
+  "trackingPerMille": 0,
+  "shaping": "HarfBuzz whole-string (uharfbuzz 0.53.2): kerning, clusters, offsets, advances",
+  "xHeightUnits": 1040,
+  "sourceSha256": "3d3f0b6c33296c142eee1961d82cadff9c9fb926b8beca68d5506ac5ed2375e6",
+  "generated": "16/08/2026"
+}
