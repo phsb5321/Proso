@@ -583,6 +583,48 @@ server-status-popover-plants PASS: 4 caught, 0 missed
 That is the discriminating check: had the token silently resolved to `auto`, the
 plant would have gone green and the suite would have reported a miss.
 
+## Update — 15/08/2026 (late): the site copy is fixed, and Pages builds are metered too
+
+The false free-tier claim is repaired at source, and the branch-based publish
+workaround was tried end to end and **does not work on this account**. Both
+results are measured, not inferred.
+
+**The claim was checked against the running API, not the repo:**
+
+```bash
+curl -s -X POST https://api.proso.com.br/api/v1/tts/synthesize \
+  -H 'Content-Type: application/json' -d '{"text":"probe","provider":"openai"}'
+# HTTP 402 — "Managed TTS is not included in this tier. Attach your own provider
+#   API key in settings (free on every tier), or use a local synthesis host you
+#   run yourself."
+```
+
+So "the free tier works immediately" was false, and `packages/site/index.html`
+now says what the 402 says: add your own provider key, or point Proso at a host
+you run. The pricing table needed no change — Free already lists BYOK as included
+and Managed voices as excluded, which is exactly right.
+
+**Branch-based Pages is not a way around the Actions outage.** The full built
+tree was pushed to `gh-pages` (`34760c5`) with `updates.json` + `releases/`
+preserved byte-identically, `build_type` was switched `workflow` → `legacy` with
+`source.branch: gh-pages`, and `POST /pages/builds` answered
+`{"status":"queued"}`. **No build was ever created** — `/pages/builds` still
+reports its newest build as `2026-02-08T20:24:40Z`, across three pushes and one
+explicit trigger. A `queued` response that never schedules is the same signature
+as the Actions outage: Pages builds draw on the same metered account. This is
+not a misconfiguration and cannot be fixed from inside the repository.
+
+`build_type` was restored to `workflow`, its original value. The live site was
+never harmed — it still answers 200, and `updates.json` still hashes to
+`46c5ea74e0de71b0ab495958f81e034be94ad14cd0acf86eb2c0e37d2e1cffb5`, byte-identical
+to what it served before, with both manifest `update_hash` values still matching
+their `.xpi` bytes.
+
+What this leaves is a staged win rather than a shipped one: `gh-pages` now holds
+the correct, truthful site with the auto-update lifeline intact, and it publishes
+the moment publishing is unblocked — either Actions restored, or that tree served
+from a host that is not metered.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
@@ -841,6 +883,11 @@ plant would have gone green and the suite would have reported a miss.
     assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
     before it can be believed, which is the opposite of what the receipt is for.
 25. Publish the corrected site. It is the highest-value user-facing item open:
+    **and the branch-based Pages route is now ruled out** — Pages builds are
+    metered like Actions (15/08: `queued` with zero builds created; see the
+    update above). The tree is already staged on `gh-pages` with the
+    auto-update files byte-identical, so what remains is a host decision, not
+    build work.
     the live site advertises two features that do not exist. Three options were
     assessed in `specs/176-pilot-release/plan.md` — S3+CloudFront, branch-based
     Pages from `gh-pages`, or the existing Dokku host through its existing
