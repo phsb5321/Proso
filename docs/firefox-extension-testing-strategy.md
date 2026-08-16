@@ -1017,3 +1017,33 @@ Proso's current testing strategy is well-designed given Playwright's limitations
 3. **Static validation for Firefox** - Verify manifest and file structure
 4. **Docker for CI consistency** - Reproducible test environment
 5. **web-ext for Firefox-specific testing** - Use Mozilla's official tool when full Firefox extension testing is needed
+
+## Browser process hygiene (shared-host rule — 16/08/2026 incident)
+
+**Incident:** a seat-level Brave E2E harness on Pedro's desktop ran `pkill -9 -x brave`
+63× in an hour. `pkill -x brave` matches by process *name*, so it killed every Brave on
+the host — including Pedro's real-profile desktop session — not just the harness's own
+probe instance. Symptom on the victim side: "Brave closed ~30 s after launch; launcher
+does nothing".
+
+**Rule — killing is always scoped, never by bare process name:**
+
+1. **Never** `pkill -9 -x brave`, `killall brave`, or `pkill -9 -f brave` from any
+   harness, fixture, or seat prompt. A shared desktop host runs the owner's real
+   browser; a name-match kill has no way to tell instances apart.
+2. **Kill only what you spawned.** Capture the child PID at spawn and signal exactly
+   that PID in `finally`. If you must sweep strays, match the probe's own unique
+   marker — its `--user-data-dir=<...>` path or its temp root — and **verify with
+   `pgrep -af` first**, then kill the listed PIDs, never a bare `-x <binary>`.
+3. **Prefer isolation over cleanup.** When the host is a shared desktop, run browser
+   probes inside a container (podman/docker) or under a dedicated user/seat so the
+   cleanup surface is the container, not the process table.
+4. If a probe genuinely cannot proceed without the port/profile free, scope the kill
+   to the exact `--remote-debugging-port=<port>` AND the exact `--user-data-dir` you
+   created, and confirm the match list before sending a signal.
+5. Lint/self-review every harness for `pkill|killall` before running against a real
+   display. A cleanup that needs root/pkill to "work" is a harness design bug.
+
+**Why:** the owner's browser is the production surface on this host; a test harness's
+cleanup bug must not be able to take it down. Scoped kills are strictly more precise
+and cost nothing.
