@@ -395,6 +395,13 @@ body {
   background: color-mix(in srgb, var(--color-warning, #f59e0b) 8%, transparent);
 }
 
+/* The platform `hidden` attribute must win over the display:flex above, or a
+   fresh unconfigured reader sees an empty, focusable Grant-access action. The
+   controller removes `hidden` only when it has a nonempty reason to show. */
+.proso-popup__grant[hidden] {
+  display: none;
+}
+
 .proso-popup__grant-reason {
   font-size: 12px;
   line-height: 1.4;
@@ -587,6 +594,10 @@ body {
   background: var(--color-bg-secondary, #16213e);
   border-radius: var(--radius-sm, 4px);
   font-size: var(--font-size-xs, 10px);
+}
+
+.proso-popup__cost[hidden] {
+  display: none;
 }
 
 .proso-popup__cost-row {
@@ -1260,6 +1271,10 @@ body {
   gap: var(--spacing-md, 12px);
 }
 
+.proso-popup__first-run[hidden] {
+  display: none;
+}
+
 .proso-popup__first-run-title {
   font-size: var(--font-size-lg, 16px);
   font-weight: var(--font-weight-semibold, 600);
@@ -1343,6 +1358,7 @@ body {
 .proso-popup__panel--firstrun .proso-popup__status,
 .proso-popup__panel--firstrun .proso-popup__progress,
 .proso-popup__panel--firstrun .proso-popup__controls,
-.proso-popup__panel--firstrun .proso-popup__speed {
+.proso-popup__panel--firstrun .proso-popup__speed,
+.proso-popup__panel--firstrun .proso-popup__cost {
   display: none;
 }

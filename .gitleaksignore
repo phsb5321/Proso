@@ -3,3 +3,4 @@ packages/extension/tests/contract/settings-store.contract.test.ts:generic-api-ke
 packages/extension/tests/unit/telemetry/usage-privacy.test.ts:generic-api-key:26
 packages/server/tests/unit/infrastructure/tts-test-key.spec.ts:generic-api-key:268
 packages/extension/tests/unit/telemetry/usage-events.test.ts:generic-api-key:332
+289977332afed8c23dc0843cf48c40d5b2d12a3c:packages/server/tests/integration/license-key-identity.spec.ts:generic-api-key:36

@@ -3,11 +3,21 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
+readonly SCHEMA_STAMP=packages/server/src/generated/prisma/.schema.sha256
+
 generate() {
   pnpm --filter @proso/server exec prisma generate
 }
 
+# Record the schema this client was generated from, so `make doctor` can refuse
+# a client that has since drifted instead of letting `typecheck` fail with
+# property errors that read like broken source.
+stamp() {
+  node scripts/prisma-schema-digest.mjs >"$SCHEMA_STAMP"
+}
+
 if generate; then
+  stamp
   exit 0
 fi
 
@@ -19,6 +29,7 @@ if [[ -f /etc/NIXOS && -x "$(command -v nix || true)" ]]; then
     exit 1
   fi
   PRISMA_SCHEMA_ENGINE_BINARY="$engine_root/bin/schema-engine" generate
+  stamp
   exit 0
 fi
 

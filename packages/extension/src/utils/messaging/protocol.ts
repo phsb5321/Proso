@@ -60,11 +60,14 @@ export type SettingsSectionType =
   | 'developer'
   | 'all';
 
-/**
- * API provider type for testing (027-settings-ux-overhaul)
- * Post-045: Only ElevenLabs for TTS, anthropic for AI summaries
- */
-export type ApiProviderType = 'elevenlabs' | 'anthropic';
+/** API providers accepted by the key-validation boundary. */
+export type ApiProviderType = Exclude<ProviderId, 'local'> | 'anthropic';
+
+export type ApiKeyValidationFailure = 'invalid' | 'unavailable';
+
+export function isApiKeyValidationFailure(value: unknown): value is ApiKeyValidationFailure {
+  return value === 'invalid' || value === 'unavailable';
+}
 
 /**
  * Footer action type
@@ -222,11 +225,12 @@ export interface ProsoProtocol {
   // ========== Provider Management Messages ==========
   'provider.select': {
     request: {
-      providerId: ProviderId;
+      provider: ProviderId;
+      validatedApiKey?: string;
     };
     response: {
       success: boolean;
-      providerId: ProviderId;
+      provider: ProviderId;
     };
   };
 
@@ -1149,7 +1153,9 @@ export interface ProsoProtocol {
     response: {
       success: boolean;
       provider: string;
+      message?: string;
       error?: string;
+      failure?: ApiKeyValidationFailure;
       latencyMs?: number;
     };
   };

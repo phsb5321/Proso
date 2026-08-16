@@ -235,11 +235,16 @@ export function resetContainer(): void {
  *
  * @param provider - New provider
  * @param apiKey - API key for the provider
+ * @param allowNoOpFallback - Keep legacy fallback behavior when true; a
+ * validated onboarding candidate passes false so failed construction leaves
+ * the working live route untouched.
+ * @returns Whether the requested adapter was installed.
  */
 export function reconfigureAudioGenerator(
   provider: AppConfig['provider'],
   apiKey: string | null,
-): void {
+  allowNoOpFallback = true,
+): boolean {
   if (!containerInstance) {
     throw new Error('Container not initialized');
   }
@@ -252,6 +257,10 @@ export function reconfigureAudioGenerator(
       containerInstance.adapters.apiClient,
     );
   } catch (error) {
+    if (!allowNoOpFallback) {
+      log.warn('[Container] Audio generator reconfigure rejected', { error });
+      return false;
+    }
     log.warn('[Container] Audio generator reconfigure failed, using no-op fallback', { error });
     newAudioGenerator = new NoOpAudioGeneratorAdapter(
       error instanceof Error ? error.message : 'Server not configured',
@@ -284,7 +293,14 @@ export function reconfigureAudioGenerator(
     // message even though the reader's own host was configured, granted and
     // reachable. `setProvider()` existed for exactly this and nothing called it.
     containerInstance.services.playback.setProvider(provider);
+    // The local host chooses a language-compatible voice when no explicit
+    // voice is supplied. Clear the live voice immediately; storage listeners
+    // are asynchronous and must not leave a managed voice on the first read.
+    if (provider === 'local') {
+      containerInstance.services.playback.setVoice(null);
+    }
   }
+  return true;
 }
 
 /**

@@ -112,6 +112,19 @@ function defaultState(overrides: Record<string, unknown> = {}) {
 describe('Playback Handlers', () => {
   let registry: InstanceType<typeof HandlerRegistry>;
 
+  async function observePlaybackStartFailure(playbackError: unknown): Promise<string> {
+    mockPlaybackService.start.mockResolvedValue({ ok: false, error: playbackError });
+    const dispatched = await registry.dispatch('playback.start', {
+      paragraphs: ['Some text'],
+      tabId: 1,
+      pageUrl: 'https://example.com',
+    });
+    const result = unwrapDispatch(dispatched);
+    expect(result.ok).toBe(true);
+    expect(result.value.success).toBe(false);
+    return String(result.value.error);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -324,21 +337,18 @@ describe('Playback Handlers', () => {
     });
 
     it('should propagate PlaybackService start error', async () => {
-      mockPlaybackService.start.mockResolvedValue({
-        ok: false,
-        error: { type: 'no_content', mode: 'article' },
+      const error = await observePlaybackStartFailure({ type: 'no_content', mode: 'article' });
+
+      expect(error).toContain('No content found');
+    });
+
+    it('surfaces rejected credentials without collapsing them into provider outage', async () => {
+      const error = await observePlaybackStartFailure({
+        type: 'invalid_credentials',
+        provider: 'openai',
       });
 
-      const raw = await registry.dispatch('playback.start', {
-        paragraphs: ['Some text'],
-        tabId: 1,
-        pageUrl: 'https://example.com',
-      });
-      const result = unwrapDispatch(raw);
-
-      expect(result.ok).toBe(true);
-      expect(result.value.success).toBe(false);
-      expect(result.value.error).toContain('No content found');
+      expect(error).toBe('Invalid API key for openai');
     });
 
     it('should send FOOTER_SHOW to content script before starting', async () => {

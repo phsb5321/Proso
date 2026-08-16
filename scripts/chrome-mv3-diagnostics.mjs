@@ -51,7 +51,7 @@ import {
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { startFixtureServer } from './lib/reading-fixture-server.mjs';
 import { launch as launchFirefox, sleep, waitFor } from './lib/webdriver.mjs';
@@ -185,6 +185,25 @@ function nixStoreLibraryPath() {
 }
 
 /**
+ * The `LD_LIBRARY_PATH` the bundled Chromium needed on this host, once the
+ * NixOS retry below has derived it. Empty until then.
+ *
+ * It is deliberately NOT written to `process.env`: this process later launches
+ * Firefox, and the store's `nss` build shadows the Firefox wrapper's own NSS
+ * (`libxul.so` wants `NSS_3.113`, the store lib exports `3.112.5`), so a global
+ * mutation makes geckodriver report "binary is not a Firefox executable" and
+ * kills the Firefox leg of this very diagnostic. Chromium gets the path through
+ * its own launch `env` instead, so each browser keeps its own libraries.
+ */
+let chromiumLibraryPath = '';
+
+/** The launch env for Chromium: the ambient env plus the derived store libs. */
+export function chromiumLaunchEnv(libraryPath, baseEnv = process.env) {
+  if (!libraryPath) return undefined;
+  return { ...baseEnv, LD_LIBRARY_PATH: libraryPath };
+}
+
+/**
  * A Chromium binary that honors --load-extension. Branded Google Chrome 137+
  * ignores it ("--disable-extensions-except is not allowed in Google Chrome"),
  * so the Playwright-bundled Chromium (or CHROMIUM_BIN) is required.
@@ -225,6 +244,7 @@ async function launchChromeContext(profileDir, executablePath, ext) {
       '--disable-gpu',
       '--disable-dev-shm-usage',
     ],
+    env: chromiumLaunchEnv(chromiumLibraryPath),
   };
   try {
     return await chromium.launchPersistentContext(profileDir, options);
@@ -233,9 +253,12 @@ async function launchChromeContext(profileDir, executablePath, ext) {
     if (!message.includes('error while loading shared libraries')) throw error;
     const libs = nixStoreLibraryPath();
     if (!libs) throw error;
-    process.env.LD_LIBRARY_PATH = libs;
+    chromiumLibraryPath = libs;
     record('nix-store LD_LIBRARY_PATH derived', libs.split(':').length + ' lib dirs');
-    return await chromium.launchPersistentContext(profileDir, options);
+    return await chromium.launchPersistentContext(profileDir, {
+      ...options,
+      env: chromiumLaunchEnv(libs),
+    });
   }
 }
 
@@ -658,12 +681,14 @@ async function chromeLeg(fixture) {
       const offscreenCount = await popup.evaluate(
         () =>
           new Promise((resolve) => {
-            globalThis.chrome.runtime.getContexts({
-              contextTypes: ['OFFSCREEN_DOCUMENT'],
-            }).then(
-              (ctxs) => resolve(ctxs.length),
-              () => resolve(-1),
-            );
+            globalThis.chrome.runtime
+              .getContexts({
+                contextTypes: ['OFFSCREEN_DOCUMENT'],
+              })
+              .then(
+                (ctxs) => resolve(ctxs.length),
+                () => resolve(-1),
+              );
           }),
       );
       record(
@@ -980,9 +1005,14 @@ async function main() {
   if (failed.length > 0) process.exitCode = 1;
 }
 
-main().catch((error) => {
-  process.stderr.write(
-    `chrome-mv3-diagnostics ERROR — ${error instanceof Error ? error.stack : String(error)}\n`,
-  );
-  process.exitCode = 1;
-});
+// Only drive browsers when this file IS the command. The self-test imports
+// `chromiumLaunchEnv` from here, and an unconditional `main()` would launch the
+// whole diagnostic (and fail on a missing build) just to read one pure helper.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(
+      `chrome-mv3-diagnostics ERROR — ${error instanceof Error ? error.stack : String(error)}\n`,
+    );
+    process.exitCode = 1;
+  });
+}

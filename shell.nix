@@ -39,7 +39,14 @@ pkgs.mkShell {
     # Required for Playwright on NixOS
     # These libraries are needed for headless browser operation
     glib
-    nss
+    # `nss_latest`, not `nss`: this shell also ships `firefox`, whose `libxul.so`
+    # requires the `NSS_3.113` symbol version. The top-level `nss` is 3.112.5 and
+    # does NOT export it, so putting it on `LD_LIBRARY_PATH` shadows the NSS the
+    # Firefox wrapper resolves for itself and every launch dies with
+    # `XPCOMGlueLoad error ... Couldn't load XPCOM`. Playwright's bundled
+    # Chromium is satisfied by the newer NSS too, so one coherent version serves
+    # both browsers. See scripts/browser-linkage-check.mjs.
+    nss_latest
     nspr
     atk
     cups
@@ -99,7 +106,9 @@ pkgs.mkShell {
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
     pkgs.stdenv.cc.cc.lib
     pkgs.glib
-    pkgs.nss
+    # Must match the `nss_latest` above: this path is what actually shadows the
+    # Firefox wrapper's own NSS at launch time.
+    pkgs.nss_latest
     pkgs.nspr
     pkgs.atk
     pkgs.cups

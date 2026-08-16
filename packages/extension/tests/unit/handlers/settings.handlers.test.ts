@@ -15,7 +15,7 @@
  * @module tests/unit/handlers/settings.handlers
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // ============================================
 // ESM Mocks — must precede dynamic imports
@@ -127,6 +127,25 @@ describe('Settings Handlers', () => {
   let mockStore: MockSettingsStore;
   let mockApiClient: ReturnType<typeof createMockApiClient>;
   let originalFetch: typeof globalThis.fetch;
+
+  async function dispatchApiKeyCheck(params: Record<string, unknown>): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+    failure?: 'invalid' | 'unavailable';
+  }> {
+    const dispatched = await registry.dispatch('settings.testApiKey', params);
+    expect(dispatched.ok).toBe(true);
+    if (!dispatched.ok) {
+      throw new Error(`settings.testApiKey dispatch failed: ${JSON.stringify(dispatched.error)}`);
+    }
+    return dispatched.value as {
+      success: boolean;
+      message?: string;
+      error?: string;
+      failure?: 'invalid' | 'unavailable';
+    };
+  }
 
   beforeEach(() => {
     registry = new HandlerRegistry();
@@ -294,7 +313,6 @@ describe('Settings Handlers', () => {
       }
       expect(mockStore.getApiKey).not.toHaveBeenCalled();
     });
-
   });
 
   // ------------------------------------------
@@ -354,7 +372,6 @@ describe('Settings Handlers', () => {
         expect(result.error.message).toContain('API key is required');
       }
     });
-
   });
 
   // ------------------------------------------
@@ -431,74 +448,65 @@ describe('Settings Handlers', () => {
       expect(mockApiClient.testApiKey).toHaveBeenCalledWith('cartesia', 'cart-key');
     });
 
-    it('should return failure when server reports invalid key', async () => {
+    it('treats an untyped negative server answer as unavailable', async () => {
       mockApiClient.testApiKey.mockResolvedValue({
         ok: true,
-        value: { success: false, provider: 'elevenlabs', error: 'Invalid API key' },
+        value: {
+          success: false,
+          provider: 'elevenlabs',
+          error: 'Credential check failed without a keyword',
+        },
       });
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'elevenlabs',
         apiKey: 'sk-bad-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('Invalid API key');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('Credential check failed without a keyword');
+      expect(response.failure).toBe('unavailable');
     });
 
-    it('should return failure when api client returns Err', async () => {
+    it('should return typed unavailable failure when api client returns Err', async () => {
       mockApiClient.testApiKey.mockResolvedValue({
         ok: false,
         error: { type: 'network', message: 'Network error' },
       });
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'elevenlabs',
         apiKey: 'sk-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('Network error');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('Network error');
+      expect(response.failure).toBe('unavailable');
     });
 
-    it('should return failure when settingsApiClient is not configured', async () => {
+    it('should return unavailable when settingsApiClient is not configured', async () => {
       setSettingsApiClient(createMockApiClient({ isConfigured: false }));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'elevenlabs',
         apiKey: 'sk-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Proso server not configured');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Proso server not configured');
+      expect(response.failure).toBe('unavailable');
     });
 
     it('should return failure when settingsApiClient is null', async () => {
       setSettingsApiClient(null as any);
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'elevenlabs',
         apiKey: 'sk-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Proso server not configured');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Proso server not configured');
     });
 
     it('should handle wrapped data format for TTS provider', async () => {
@@ -507,16 +515,12 @@ describe('Settings Handlers', () => {
         value: { success: true, provider: 'elevenlabs' },
       });
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: '',
         data: { provider: 'elevenlabs', apiKey: 'sk-wrapped-key' },
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
-      }
+      expect(response.success).toBe(true);
       expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-wrapped-key');
     });
 
@@ -541,15 +545,9 @@ describe('Settings Handlers', () => {
         value: { success: true, provider: 'elevenlabs' },
       });
 
-      const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-      });
+      const response = await dispatchApiKeyCheck({ provider: 'elevenlabs' });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
-      }
+      expect(response.success).toBe(true);
       expect(mockStore.getApiKey).toHaveBeenCalledWith('elevenlabs');
       expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-stored-key');
     });
@@ -561,20 +559,16 @@ describe('Settings Handlers', () => {
 
   describe('settings.testApiKey (anthropic via direct fetch)', () => {
     it('should test anthropic provider with POST and correct headers', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse(JSON.stringify({}), { status: 200 }),
-      );
+      globalThis.fetch = jest
+        .fn<typeof fetch>()
+        .mockResolvedValue(createMockResponse(JSON.stringify({}), { status: 200 }));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'anthropic',
         apiKey: 'ant-key-123',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
-      }
+      expect(response.success).toBe(true);
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'https://api.anthropic.com/v1/messages',
         expect.objectContaining({
@@ -592,75 +586,61 @@ describe('Settings Handlers', () => {
     });
 
     it('should return failure on anthropic 401 response', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Unauthorized', { status: 401 }),
-      );
+      globalThis.fetch = jest
+        .fn<typeof fetch>()
+        .mockResolvedValue(createMockResponse('Unauthorized', { status: 401 }));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'anthropic',
         apiKey: 'ant-bad-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('Invalid API key');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('Invalid API key');
+      expect(response.failure).toBe('invalid');
     });
 
     it('should return failure on anthropic network error', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockRejectedValue(
-        new Error('Failed to fetch'),
-      );
+      globalThis.fetch = jest.fn<typeof fetch>().mockRejectedValue(new Error('Failed to fetch'));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'anthropic',
         apiKey: 'ant-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('Failed to fetch');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('Failed to fetch');
+      expect(response.failure).toBe('unavailable');
     });
 
     it('should handle anthropic rate limiting (429)', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Rate limited', { status: 429 }),
-      );
+      globalThis.fetch = jest
+        .fn<typeof fetch>()
+        .mockResolvedValue(createMockResponse('Rate limited', { status: 429 }));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'anthropic',
         apiKey: 'ant-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Rate limited');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Rate limited');
+      expect(response.failure).toBe('unavailable');
     });
 
     it('should handle anthropic unexpected HTTP status codes', async () => {
-      globalThis.fetch = jest.fn<typeof fetch>().mockResolvedValue(
-        createMockResponse('Server Error', { status: 500 }),
-      );
+      globalThis.fetch = jest
+        .fn<typeof fetch>()
+        .mockResolvedValue(createMockResponse('Server Error', { status: 500 }));
 
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'anthropic',
         apiKey: 'ant-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('500');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('500');
+      expect(response.failure).toBe('unavailable');
     });
   });
 
@@ -670,32 +650,22 @@ describe('Settings Handlers', () => {
 
   describe('settings.testApiKey (common)', () => {
     it('should return failure for completely invalid provider', async () => {
-      const result = await registry.dispatch('settings.testApiKey', {
+      const response = await dispatchApiKeyCheck({
         provider: 'invalid-provider',
         apiKey: 'sk-key',
       });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toContain('Invalid provider');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Invalid provider');
     });
 
     it('should return failure when no API key is provided or stored', async () => {
       mockStore.getApiKey.mockResolvedValue(null);
 
-      const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-      });
+      const response = await dispatchApiKeyCheck({ provider: 'elevenlabs' });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; error?: string };
-        expect(response.success).toBe(false);
-        expect(response.error).toBe('No API key provided');
-      }
+      expect(response.success).toBe(false);
+      expect(response.error).toBe('No API key provided');
     });
 
     it('should fall back to browser.storage.local when store throws', async () => {
@@ -706,20 +676,14 @@ describe('Settings Handlers', () => {
       >;
       mockGet.mockResolvedValue({ elevenlabsApiKey: 'sk-browser-key' });
 
-      mockApiClient.testApiKey.mockResolvedValue({
+      mockApiClient.testApiKey.mockResolvedValueOnce({
         ok: true,
         value: { success: true, provider: 'elevenlabs' },
       });
 
-      const result = await registry.dispatch('settings.testApiKey', {
-        provider: 'elevenlabs',
-      });
+      const response = await dispatchApiKeyCheck({ provider: 'elevenlabs' });
 
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        const response = result.value as { success: boolean; message?: string };
-        expect(response.success).toBe(true);
-      }
+      expect(response.success).toBe(true);
       expect(mockGet).toHaveBeenCalledWith('elevenlabsApiKey');
       expect(mockApiClient.testApiKey).toHaveBeenCalledWith('elevenlabs', 'sk-browser-key');
     });

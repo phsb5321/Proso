@@ -27,6 +27,27 @@ if [[ ! -f packages/server/src/generated/prisma/client.ts ]]; then
   exit 1
 fi
 
+# A client that exists but predates the current schema fails much later, in
+# `typecheck`, as property errors that look like broken source. Catch the drift
+# here, where the message can name it.
+readonly SCHEMA_STAMP=packages/server/src/generated/prisma/.schema.sha256
+
+if [[ ! -f "$SCHEMA_STAMP" ]]; then
+  printf 'Prisma client predates schema-drift tracking; run make bootstrap\n' >&2
+  exit 1
+fi
+
+EXPECTED_SCHEMA="$(node scripts/prisma-schema-digest.mjs)"
+readonly EXPECTED_SCHEMA
+GENERATED_SCHEMA="$(cat "$SCHEMA_STAMP")"
+readonly GENERATED_SCHEMA
+
+if [[ "$GENERATED_SCHEMA" != "$EXPECTED_SCHEMA" ]]; then
+  printf 'Prisma client is stale: generated from schema %s, current schema is %s; run make bootstrap\n' \
+    "${GENERATED_SCHEMA:0:12}" "${EXPECTED_SCHEMA:0:12}" >&2
+  exit 1
+fi
+
 node scripts/workspace-policy.mjs
 
 printf 'Delivery prerequisites ready (node %s, pnpm %s).\n' \

@@ -12,15 +12,25 @@
 
 import { browser } from 'wxt/browser';
 import { createLogger } from '../logging/logger';
+import { isApiKeyValidationFailure } from '../messaging/protocol';
+import type { ApiKeyValidationFailure } from '../messaging/protocol';
 
 const log = createLogger('options');
 
-export interface TestResult {
-  success: boolean;
-  provider: string;
-  message: string;
-  latencyMs?: number;
-}
+export type TestResult =
+  | {
+      readonly success: true;
+      readonly provider: string;
+      readonly message: string;
+      readonly latencyMs?: number;
+    }
+  | {
+      readonly success: false;
+      readonly provider: string;
+      readonly message: string;
+      readonly failure: ApiKeyValidationFailure;
+      readonly latencyMs?: number;
+    };
 
 /**
  * Test an API key by sending a message to the background script
@@ -60,7 +70,8 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
       return {
         success: false,
         provider,
-        message: response?.error || 'Invalid API key',
+        message: response?.error || 'The key could not be verified',
+        failure: isApiKeyValidationFailure(response?.failure) ? response.failure : 'unavailable',
         latencyMs,
       };
     }
@@ -71,6 +82,7 @@ export async function testApiKey(provider: string, apiKey: string): Promise<Test
       success: false,
       provider,
       message,
+      failure: 'unavailable',
       latencyMs,
     };
   }

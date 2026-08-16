@@ -98,11 +98,26 @@ describe('api-key-tester BYOK storage (PROSO-113)', () => {
   it('reports a server-side failure truthfully (bad key never passes silently)', async () => {
     (browser.runtime.sendMessage as unknown as Mockable).mockResolvedValue({
       success: false,
-      error: 'Invalid API key',
+      error: 'Credential check failed without a keyword',
+      failure: 'invalid',
     });
 
     const result = await testApiKey('cartesia', 'sk-bad-key');
     expect(result.success).toBe(false);
-    expect(result.message).toBe('Invalid API key');
+    if (result.success) return;
+    expect(result.failure).toBe('invalid');
+    expect(result.message).toBe('Credential check failed without a keyword');
+  });
+
+  it('keeps an untyped validation failure fail-closed as unavailable', async () => {
+    (browser.runtime.sendMessage as unknown as Mockable).mockResolvedValue({
+      success: false,
+      error: 'Opaque server failure',
+    });
+
+    const result = await testApiKey('openai', 'sk-candidate-key');
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.failure).toBe('unavailable');
   });
 });

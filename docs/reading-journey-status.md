@@ -25,9 +25,12 @@ controls.
 
 The intended anonymous journey needs no account, license key, or provider key.
 **As of 11/08/2026 it has a delivery path for the first time since `9797dc6`**: PR #129
-(`505ef0c`) added a user-operated synthesis host — the reader enters an address, grants
-permission to that exact origin, and page text is synthesized there. Proven live against a
-real host: `synthesizes a real article paragraph with no account, no key, no license` (PASS).
+(`505ef0c`) added a user-operated synthesis host — the reader enters an exact destination,
+grants the narrowest runtime host permission the browser can express, and page text is synthesized
+only at that destination. Browser MatchPattern grammar cannot scope the grant to one port, so the
+permission covers the entered scheme and host across ports; Feature 169 adds the missing disclosure
+and keeps capability and synthesis traffic pinned to the exact entered origin. Proven live against
+a real host: `synthesizes a real article paragraph with no account, no key, no license` (PASS).
 Managed Free still returns 402 (`7e4cda0`) and browser `speechSynthesis` remains removed —
 neither changed. BYOK remains available on Free, and now covers OpenAI, Groq and Cartesia as
 well as ElevenLabs (PR #131, `07c11c5`); before that the adapters existed server-side while
@@ -52,7 +55,7 @@ into the route above. The route sentence stands unchanged until that lands.
 | Status | Claim | Evidence |
 |---|---|---|
 | ✗ | Current `main` allows a no-key managed request | Commit `7e4cda0` returns 402 before cache/provider work; the earlier behavior at `55add09` is superseded. Unchanged by PR #129 — the account-free path is a host the reader operates, not a relaxation of the managed entitlement |
-| ✓ | A reader with no account, no license key and no provider key can hear an article | PR #129 (`505ef0c`, 11/08/2026). `LocalHostAudioAdapter` synthesizes against an address the reader enters; `tests/integration/local-host-live.test.ts` passed against a live host (env-gated by `LOCAL_HOST_E2E_URL`), re-run independently by the orch. All four conditions of constitution Principle I v2.1.0 (PR #92) verified in code before merge: **off by default** (`defaults.ts:47 localHostEnabled: false`, with a dedicated factory suite); **address from the reader only** — `grep -ri "orangepi\|tailf59220\|4pro" packages/extension/src` returns 0, and there is no mDNS/subnet/loopback probe; **runtime exact-origin permission** — `permissions.request({origins: ['${origin}/*']})` at configure time, with requestable-only manifest keys per browser (Firefox MV2 `optional_permissions`, Chrome MV3 `optional_host_permissions`) and install-time `host_permissions` unchanged; **the UI states the destination** — "the page's text is sent only to the host address you enter here, and nowhere else. It is never sent to the Proso servers." Latency is handled rather than hidden: the host does not stream, so synthesis is chunked at sentence granularity — measured live, first audio arrives in 0.52s instead of the 4.29s a paragraph-sized request takes |
+| ✓ | A reader with no account, no license key and no provider key can hear an article | PR #129 (`505ef0c`, 11/08/2026). `LocalHostAudioAdapter` synthesizes against an address the reader enters; `tests/integration/local-host-live.test.ts` passed against a live host (env-gated by `LOCAL_HOST_E2E_URL`), re-run independently by the orch. The route is **off by default** (`defaults.ts:47 localHostEnabled: false`); the **address comes only from the reader** — `grep -ri "orangepi\|tailf59220\|4pro" packages/extension/src` returns 0, with no mDNS/subnet/loopback probe; and install-time `host_permissions` remain unchanged. Correction from Feature 169 exact-head QA: the earlier `${origin}/*` claim was not an effective exact-origin grant for non-default ports. MatchPattern cannot encode a port, so the repaired runtime request uses the entered scheme and host, discloses its across-port breadth, and keeps actual network use pinned to the exact persisted origin. Latency is handled rather than hidden: the host does not stream, so synthesis is chunked at sentence granularity — measured live, first audio arrives in 0.52s instead of the 4.29s a paragraph-sized request takes |
 | ✓ | A deterministic downstream oracle joins extraction, fixture synthesis, audio adaptation, cache, highlight timeline, and controls | `make smoke-reader`; the fixture bypasses the current Free entitlement and is not anonymous-outcome evidence |
 | ✓ | Focused server route and extension orchestration suites pass | Commands below |
 | ✓ | Static gates process real code and changed evidence | `make quality` resolves 501 modules / 805 dependencies, classifies 73 Knip findings and 136 clone groups, and rejects new debt |
@@ -73,7 +76,7 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✗ | The advertised `queueCapacity: 8` is the TTS admission budget | A 12-way burst admitted 4 and returned 429 `queue_full` for the other 8; the appliance's `config.py:107` sets `tts_capacity = 4` and the per-class split is not published by `/v1/capabilities`. One inference worker, no preemption |
 | ✗ | Feature 100's extension-direct seam is a settled design | A prior recorded decision mandates the opposite seam. `2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md` in Pedro's vault, L53-76, routes the appliance as `Proso extension → existing Proso API → server-side AudioApplianceTTSAdapter → Tailscale Serve → loopback wrapper` and states at L74-75 "Do not add direct Pi networking to Proso content scripts or the Lectrice WebView"; L420-443 fixes the seam at `ServerTtsAudioAdapter → /api/v1/tts/synthesize → TTSProviderPort → AudioApplianceTTSAdapter → Pi /v1/tts` and requires "no Pi hostname permission or bearer token in the extension" (L442). Feature 100 was specified extension-direct because that record was not read before design started. Which seam ships is an open decision for Pedro, not a settled premise of this feature |
 | ◯ | The vault's step-3 precondition for client work is satisfied | The same record sequences delivery and states at L495 "No client PR should start before steps 1–3 establish the stable contract". Steps 1 and 2 shipped on 31/07/2026 outside this repository (NixOS PRs #1481, #1487, #1496). Step 3 (L486-487) is burst, cancellation, idempotency, sustained thermal, and human speech acceptance. Burst and idempotency are measured in [`appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md); cancellation and sustained thermal are being measured on 05/08; human speech acceptance is a listening test only Pedro can run and stays with him. PR #95 is held meanwhile |
-| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit |
+| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit. Cause established 14/08/2026: private-repository Actions metering on a free personal plan — public repositories on the same account still run Actions, private ones stopped, and `rulesets` 403s with `Upgrade to GitHub Pro`. Still true nine days on, so this row stands; see [the resolution](#github-actions-produces-nothing-at-all). The same 403 means the repository has no branch protection either, so no required check has ever gated a merge here |
 | ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
 ## Production deployment receipt — 30/07/2026
@@ -361,6 +364,95 @@ from a merged 03/2026 PR). Remaining candidates are account-level: Actions billi
 billing API needs `user` scope, which `gh` lacks here) or a GitHub server-side change. Diagnosis
 stops where the repo's diff stops; remediation stays `[pending] Pedro`.
 
+**Resolved to a cause on 14/08/2026 — private-repo Actions metering on a free personal plan.**
+The outage is now nine days old and still live: every run since `2026-08-05T20:52Z` is
+`startup_failure`, and the three PRs merged on 14/08 (#170, #171, #172) landed with no CI of any
+kind. The 05/08 diagnosis left two candidates open — account-level billing/quota versus a GitHub
+server-side change — and could not separate them because the billing API needs a `user` scope `gh`
+does not have. **Repository visibility separates them without that scope**, because public
+repositories get unlimited free Actions minutes while private ones draw on the account's monthly
+allowance:
+
+```bash
+gh run list -R phsb5321/Tauri-PDF-Reader --limit 5   # public: queued 2026-08-14T17:01Z
+gh api repos/phsb5321/NixOS/actions/runs?per_page=100 \
+  --jq '[.workflow_runs[].conclusion] | group_by(.) | map({c:.[0], n:length})'
+  # private: 70 startup_failure / 20 success / 10 failure; nothing since 2026-08-01
+gh api repos/phsb5321/proso/rulesets   # 403 "Upgrade to GitHub Pro or make this repository public"
+```
+
+A GitHub server-side defect would not respect repository visibility; metered minutes do. The
+sibling private repository `NixOS` stopped at `2026-08-01T03:34Z` and `centavos` at
+`2026-07-02T03:22Z`, while the public `Tauri-PDF-Reader` queues and runs work today — so the
+failure is account-wide across private repositories and absent on public ones. The `rulesets` and
+`branches/main/protection` endpoints both return 403 `Upgrade to GitHub Pro or make this
+repository public`, which independently confirms the free personal plan whose private-repository
+Actions allowance is capped. Reading the billing page itself still needs `user` scope or a
+browser, so the final confirmation stays `[pending] Pedro`; the cause is no longer ambiguous.
+
+A consequence worth stating separately, because it is not the same claim as "the audit job is
+`continue-on-error`": **this repository has no branch protection and no rulesets at all.** They are
+not misconfigured — on a free plan they are unavailable for a private repository, which is what the
+403 above says. No required check has ever gated a merge here. The nine-day CI blackout was
+therefore both invisible and ungated, and `make verify` / `make gate` on a developer machine are
+not merely the best available verification surface, they are the only one.
+
+Which is why the first thing checked after the diagnosis was whether that surface tells the truth,
+and it did not. `make verify` on `main` at `528f178` exited 2 with ~30 server `tsc` errors of the
+form `Property 'paddleTransactionId' does not exist on type 'SubscriptionUpdateInput'`. **`main`
+was not broken** — `packages/server/prisma/schema.prisma` carries every one of those fields
+(added 13/08 by `de57d29`, PR #156), but the generated client in `packages/server/src/generated/`
+was dated 11/02 and 04/03, five months stale. `scripts/delivery-doctor.sh` is the gate that exists
+to catch exactly this, and it passed, because line 25 tested only that `client.ts` *existed*.
+Regenerating (`scripts/generate-prisma.sh`, which already carries a working NixOS engine fallback)
+returned `make verify` to exit 0, confirming `main` itself is green and that nine days of
+unverified merges did not break the deterministic floor.
+
+The doctor now fails closed on drift instead: `scripts/generate-prisma.sh` records the schema's
+sha256 beside the client it generated, and the doctor refuses a client whose stamp does not match
+the current schema. Proven both directions by plant — appending a line to `schema.prisma` turns
+`make doctor` red naming both digests (`generated from schema 0c97b234c74d, current schema is
+a61a57ef3f57`), deleting the stamp turns it red as `predates schema-drift tracking`, and restoring
+either returns exit 0. That second message is the one existing checkouts will see, since a client
+generated before this change has no stamp at all. The stamp is written on both generation paths,
+including the NixOS engine fallback, which is the path that actually runs on this host.
+
+The different-family adversarial review of that fix then found four more gates failing open, none
+of them introduced by it, and all four were verified against the code before being accepted. A
+quality baseline with no `expires` **never expired**: `Date.parse("undefinedT00:00:00Z")` is `NaN`
+and `NaN < Date.now()` is `false`, so `knip-ratchet.mjs` and `osv-ratchet.mjs` stopped ratcheting
+instead of failing, and `check-active-docs.mjs` carried the same bypass for a malformed value.
+Ownership metadata was checked as `typeof x !== 'string'`, which accepts `''`, so a finding could
+be baselined with a blank owner and reason and still satisfy the contract that tracked debt is
+owned debt. The gate receipt validated its `verifiedAt` as any string. And a receipt bound to the
+wrong base validated: the base was compared only when `DIFF_BASE_REF` was set, which is precisely
+how `adversarial-review.sh` calls it, so a receipt written against `HEAD^` passed and the reviewer
+was then handed that same truncated bundle. Fixing that one took two rounds — defaulting the
+expected base still let an *inherited* `DIFF_BASE_REF` choose it at both ends, so the delivery
+review is now pinned to `origin/main` for validation and bundle construction alike.
+
+One correction is worth recording because the gate caught its own author: the first draft of the
+date validator asserted in a comment that out-of-range dates do not parse. Planting `2026-02-30`
+disproved it — the value parses finite and rolls forward to `2026-03-02` — so the validator now
+round-trips the parsed date back to `YYYY-MM-DD`, and the comment records the measurement rather
+than the assumption.
+
+A limitation found while running all this, and not fixed here: **`make verify-full` is not
+reliably deterministic under machine load.** Three tests assert wall-clock budgets and failed on a
+loaded host, then passed unchanged on a quiet one — `franc-min` initialization (budget 50 ms;
+observed 6 ms isolated, 27 ms, 43 ms, and 79 ms across identical trees) and two server TTS
+adapter tests that time out at Jest's 5 s default despite a mocked `fetch`. Every failure was
+transient and none reflected a code change, but a deterministic gate that reddens on unrelated
+CPU contention trains readers to re-run rather than read, which is the habit this repository has
+spent several features removing. Recorded as next-slice #24.
+
+Remediation is Pedro's, and the options are not equivalent: raising the Actions spending limit
+above `$0` restores private CI immediately but costs per-minute; waiting for the next billing
+cycle restores the included allowance for free but leaves the gap open until then; a self-hosted
+runner on the existing NixOS server is not metered at all and would also survive future
+exhaustion; making the repository public restores unlimited minutes *and* branch protection, but
+that is a product decision, not an infrastructure one.
+
 ## Update — 12/08/2026: the account-free journey observed end-to-end, and three defects it found
 
 **The three-PR chain did not fix the 402.** PROSO-135 (#144), PROSO-136 (#145) and PROSO-137
@@ -385,8 +477,9 @@ Three defects were live on `main` after the chain, each found by this gate and e
    https:// address", the provider stayed managed, and playback 402'd. Measured directly: after
    typing, storage held `localHostUrl: null` and the field read `""`. Fix: persist the address
    independently of `enabled` — remembering an address is not enabling a route, and nothing is sent
-   anywhere until `localHostEnabled` is true AND the exact origin is granted, both still enforced
-   in `composition/factories.ts`.
+   anywhere until `localHostEnabled` is true AND an effective browser-valid host grant covers the
+   exact destination, both still enforced in `composition/factories.ts`; network use remains pinned
+   to the exact persisted origin.
 2. **The local route still fell through to the managed one.** PROSO-137 closed the gate path, the
    throw path and the single-shot `Err` path, but not the chunked path's first-chunk
    fall-throughs. `LocalHostAudioAdapter` sets `supportsChunkedSynthesis = true`, so the local
@@ -428,6 +521,109 @@ Extension unit suite 2446 passed (was 2443; the 4 new tests include two that pin
 fail-closed paths). The `playback.handlers` mock had no `setLanguage`, which is how the dead
 wiring stayed invisible — the same shape PR #144 found with `setProvider`, and the mock is fixed
 rather than worked around.
+
+## Update — 15/08/2026: pilot release readiness, and two gates repaired
+
+The pilot was driven end to end today. Three things are worth recording here
+rather than only in `specs/176-pilot-release/`, because this is the document a
+later reader trusts.
+
+**The deploy path is proven at `9bd5b88`, and it is still HELD.**
+`make subscription-deploy-rehearsal` PASSes all 16 phases against a disposable
+PostgreSQL with dummy secrets — the checked-in predeploy (bridge → `db push` →
+bridge), schema invariants, production boot fail-closed on a short licence
+secret, the real `AppModule` under `NODE_ENV=production`, account-free claim
+`202`, signed webhook committed atomically, claim issuance, fresh-process replay
+exactly-once, and an injected pre-commit fault rolling back every commerce row.
+`make dokku-check` nevertheless returns **HELD (exit 2)** on the five `PADDLE_*`
+names, which exist nowhere — the vault holds only an archived Paddle *signup*
+login. The gate checks env **names**, not values, so five empty strings would
+flip it green; that was considered and rejected, because it manufactures a green
+verdict without changing anything real. The hold is itself a tested invariant
+(`held-missing-paddle` in `dokku-deploy-preflight.self-test.mjs` asserts exit 2).
+
+**The live site is not merely stale — it is untrue.** Measured today against the
+running site, not inferred from the repo:
+
+```bash
+curl -s https://proso.com.br | grep -ioE "unlimited browser tts|free tier works immediately|coming soon"
+# 3× "Coming Soon", 1× "free tier works immediately",
+# 1× "unlimited browser TTS", 2× "Unlimited browser TTS"
+curl -s https://proso.com.br/updates.json   # v1.2.1, current
+curl -s https://api.proso.com.br/health     # no `revision` field → pre-#162 container
+```
+
+Browser `speechSynthesis` was removed in `9797dc6`, and managed Free answers
+402, so both advertised claims are false. The cause is not the site code — the
+built tree is correct and contains zero "Coming Soon" — it is that every
+site-affecting commit (#151, #155, #165, #167) merged *during* the Actions
+outage and never published. The last successful Pages deploy was 01/08/2026
+21:01Z. One constraint governs every fix: `updates.json` + `releases/` are the
+extension auto-update lifeline (`wxt.config.ts:101` hardcodes the URL), they are
+currently live and correct, and a migration that forgets to copy them stops
+updates for every installed user with no visible error.
+
+**Two gates were repaired, both found by re-running against the real deploy
+base.** Running `verify-full` with `DIFF_BASE_REF=e6b412f` — the SHA Dokku
+actually serves — rather than `origin/main`, where a fresh branch has an empty
+diff and every diff-scoped ratchet is vacuous, surfaced: two `proso.raw-numeric-z-index`
+hits in the server-status-popover harness, now `var(--z-hostile-plant, 9999)`;
+and one gitleaks hit on a historical test-fixture blob (`2899773`), now
+baselined by fingerprint per the five existing `.gitleaksignore` entries. The
+tokenization was proven not to neuter the plant by running the harness's own
+suite in its own Firefox:
+
+```
+make server-status-popover-plants
+  ok  plant card-covers: FAIL (guards the topmost overlap probe — a card stacked
+      over the popover must turn the topmost assertion red)
+server-status-popover-plants PASS: 4 caught, 0 missed
+```
+
+That is the discriminating check: had the token silently resolved to `auto`, the
+plant would have gone green and the suite would have reported a miss.
+
+## Update — 15/08/2026 (late): the site copy is fixed, and Pages builds are metered too
+
+The false free-tier claim is repaired at source, and the branch-based publish
+workaround was tried end to end and **does not work on this account**. Both
+results are measured, not inferred.
+
+**The claim was checked against the running API, not the repo:**
+
+```bash
+curl -s -X POST https://api.proso.com.br/api/v1/tts/synthesize \
+  -H 'Content-Type: application/json' -d '{"text":"probe","provider":"openai"}'
+# HTTP 402 — "Managed TTS is not included in this tier. Attach your own provider
+#   API key in settings (free on every tier), or use a local synthesis host you
+#   run yourself."
+```
+
+So "the free tier works immediately" was false, and `packages/site/index.html`
+now says what the 402 says: add your own provider key, or point Proso at a host
+you run. The pricing table needed no change — Free already lists BYOK as included
+and Managed voices as excluded, which is exactly right.
+
+**Branch-based Pages is not a way around the Actions outage.** The full built
+tree was pushed to `gh-pages` (`34760c5`) with `updates.json` + `releases/`
+preserved byte-identically, `build_type` was switched `workflow` → `legacy` with
+`source.branch: gh-pages`, and `POST /pages/builds` answered
+`{"status":"queued"}`. **No build was ever created** — `/pages/builds` still
+reports its newest build as `2026-02-08T20:24:40Z`, across three pushes and one
+explicit trigger. A `queued` response that never schedules is the same signature
+as the Actions outage: Pages builds draw on the same metered account. This is
+not a misconfiguration and cannot be fixed from inside the repository.
+
+`build_type` was restored to `workflow`, its original value. The live site was
+never harmed — it still answers 200, and `updates.json` still hashes to
+`46c5ea74e0de71b0ab495958f81e034be94ad14cd0acf86eb2c0e37d2e1cffb5`, byte-identical
+to what it served before, with both manifest `update_hash` values still matching
+their `.xpi` bytes.
+
+What this leaves is a staged win rather than a shipped one: `gh-pages` now holds
+the correct, truthful site with the auto-update lifeline intact, and it publishes
+the moment publishing is unblocked — either Actions restored, or that tree served
+from a host that is not metered.
 
 ## Next verified slices
 
@@ -494,10 +690,15 @@ rather than worked around.
 6. Establish the missing Firefox/Linux visual baselines and repair the keyboard assertions behind
    the 24 visual failures before removing that job’s `continue-on-error`. That workflow edit is
    separately gated; until then, inspect the test log rather than the green job badge.
-7. Diagnose the GitHub Actions `startup_failure` outage above. It predates and outranks items 5
-   and 6: those describe misleading green jobs, this one means no job runs at all. Repository-level
-   Actions settings and billing are outside this repository's diff, so remediation is
-   `[pending] Pedro` once the cause is identified.
+7. ~~Diagnose the GitHub Actions `startup_failure` outage above.~~ Diagnosed on 14/08/2026 — see
+   [the resolution above](#github-actions-produces-nothing-at-all). The cause is private-repository
+   Actions metering on a free personal plan, isolated by a discriminator that needs no `user`
+   scope: public `Tauri-PDF-Reader` runs Actions today while private `NixOS` and `centavos` stopped
+   in early August, and `rulesets` 403s with `Upgrade to GitHub Pro`. Two things stay open and only
+   Pedro can close them — confirming it on the billing page, and choosing between a spending limit,
+   the next cycle's allowance, a self-hosted runner, and making the repository public. The same 403
+   established that this repository has **no branch protection at all**, so no required check has
+   ever gated a merge here.
 8. Point the public actor at an account-free audio source. Feature 100's appliance route is the
    only candidate on the table; until it lands, `public-actor-gate.mjs` proves controls against a
    fixture and the anonymous outcome stays unproven.
@@ -668,7 +869,40 @@ rather than worked around.
    the typed address outright; now the value written back is the same string, so the damage is
    cosmetic — but a listener that clobbers focused input is still wrong. Skip the sync for changes
    this page just wrote, or leave a focused field alone.
-23. Exercise the optional-permission doorhanger. PR #147's gate sets
+23. Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
+    now rejects a stale Prisma client. The 14/08 fix covers `packages/server/src/generated/prisma`
+    only, because that is the one that failed; the doctor still cannot tell a stale
+    `packages/shared/dist` from a fresh one, and `@proso/shared` is consumed from `dist/` by the
+    server. The same schema-digest stamp would work there.
+24. Make the deterministic floor deterministic under load. `franc-min-accuracy.test.js:247`
+    asserts a 50 ms first-call budget and was measured at 6/27/43/79 ms on identical trees
+    depending only on machine load; `cartesia-tts.adapter.spec.ts:255` and the OpenAI contract
+    equivalent exceed Jest's 5 s default while `fetch` is mocked, so they are measuring retry
+    scheduling under contention rather than adapter behaviour. Assert the observable outcome
+    (a `Result` shape, a bounded retry count) instead of elapsed wall-clock, or give the timing
+    assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
+    before it can be believed, which is the opposite of what the receipt is for.
+25. Publish the corrected site. It is the highest-value user-facing item open:
+    **and the branch-based Pages route is now ruled out** — Pages builds are
+    metered like Actions (15/08: `queued` with zero builds created; see the
+    update above). The tree is already staged on `gh-pages` with the
+    auto-update files byte-identical, so what remains is a host decision, not
+    build work.
+    the live site advertises two features that do not exist. Three options were
+    assessed in `specs/176-pilot-release/plan.md` — S3+CloudFront, branch-based
+    Pages from `gh-pages`, or the existing Dokku host through its existing
+    Cloudflare tunnel (recommended, $0, and it permanently decouples publishing
+    from the dead Actions). Any option must copy `updates.json` + `releases/`
+    into the site root or installed extensions silently stop updating.
+26. Retire the AWS root access key. It is long-lived, was used for `iam` calls on
+    15/08/2026, and account MFA does not protect access keys. Restic, dokku and
+    proxmox backups already authenticate as scoped IAM users, so the blast
+    radius is the operator CLI rather than all automation — but a leaked root
+    key still bypasses Object Lock governance and can purge every backup. A
+    least-privilege `pedro-ops` plan with a restic-safe, reversible rotation
+    order (disable → ≥7d grace → delete) is in the operator receipt. Credential
+    surgery, so `[pending] Pedro`.
+27. Exercise the optional-permission doorhanger. PR #147's gate sets
    `extensions.webextOptionalPermissionPrompts=false`, so the grant request, its user gesture and
    the resulting permission are all real but the prompt the reader accepts is not. Closing this
    needs chrome-context WebDriver Actions dispatched against the panel, which is also what would

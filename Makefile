@@ -11,12 +11,14 @@ FC_SEED ?= 20260730
 FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
-	smoke-server-boot local-host-journey-gate local-host-journey-plants \
+	smoke-server-boot subscription-deploy-rehearsal subscription-deploy-rehearsal-plant \
+	browser-linkage \
+	local-host-journey-gate local-host-journey-plants \
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	brand-site-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy \
+	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -52,11 +54,14 @@ smoke-reader: ## Run the in-process (jsdom) extraction-to-playback reader oracle
 	NODE_OPTIONS='--experimental-vm-modules' $(PNPM) --filter @proso/extension exec jest \
 		--selectProjects integration --runInBand tests/integration/reader-journey.test.ts
 
-smoke-reading: ## Drive the built extension in a real Firefox and assert the reading journey.
+browser-linkage: ## Prove the resolved Firefox actually starts here (catches an NSS shadowing the wrapper) and geckodriver is present.
+	@node scripts/browser-linkage-check.mjs
+
+smoke-reading: browser-linkage ## Drive the built extension in a real Firefox and assert the reading journey.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/smoke-reading.mjs
 
-public-actor-gate: ## Drive the built extension through public controls only (no internal dispatch).
+public-actor-gate: browser-linkage ## Drive the built extension through public controls only (no internal dispatch).
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/public-actor-gate.mjs
 
@@ -72,6 +77,10 @@ local-host-journey-plants: ## Prove every local-host-journey-gate assertion catc
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/local-host-journey-plants.mjs
 
+popup-hidden-grant-gate: ## Feature 167: fresh popup hides the grant row (no box, out of tab order); permission-needed state shows it named + actionable.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/popup-hidden-grant-gate.mjs
+
 license-settings-gate: ## Prove the paid-account settings surface: a typed licence key is validated, saved, and still configured after a reopen.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/license-settings-gate.mjs
@@ -83,6 +92,25 @@ license-settings-plants: ## Prove every license-settings-gate assertion catches 
 smoke-server-boot: ## Start the built server and assert it bootstraps and routes HTTP.
 	$(PNPM) --filter '@proso/server...' build
 	@node scripts/smoke-server-boot.mjs
+
+subscription-deploy-rehearsal: doctor ## Rehearse pre-commerce schema, exact predeploy, built AppModule, restart, and rollback locally.
+	$(PNPM) --filter @proso/shared build
+	$(PNPM) --filter @proso/server build
+	@node scripts/subscription-deploy-rehearsal.mjs
+
+subscription-deploy-rehearsal-plant: doctor ## Prove bypassing predeploy turns the rehearsal red.
+	$(PNPM) --filter @proso/shared build
+	$(PNPM) --filter @proso/server build
+	@output="$$(mktemp)"; \
+	if node scripts/subscription-deploy-rehearsal.mjs --plant skip-predeploy >"$$output" 2>&1; then \
+		cat "$$output"; rm -f "$$output"; \
+		echo 'Plant escaped: bypassed predeploy reported PASS' >&2; exit 1; \
+	fi; \
+	cat "$$output"; \
+	grep -F 'required constraint absent: Subscription_paddle_claim_pair_check' "$$output" >/dev/null || { \
+		rm -f "$$output"; echo 'Plant failed for the wrong reason' >&2; exit 1; \
+	}; \
+	rm -f "$$output"
 
 checkout-surface-gate: ## Drive the purchase surface (buy controls, claim secret, licence handoff) in jsdom.
 	@node scripts/checkout-surface-gate.mjs
@@ -178,6 +206,12 @@ dokku-check: ## Read-only deploy verdict (NOOP/SAFE/HELD) against the Dokku app.
 dokku-deploy: ## Fail-closed deploy: refuses HELD, gates, pushes, verifies /health.revision.
 	@node scripts/dokku-deploy-preflight.mjs --deploy
 
+server-status-popover-gate: ## Prove the settings server-status popover stays visible, topmost, unclipped and keyboard reachable (Feature 170).
+	@node scripts/server-status-popover-gate.mjs
+
+server-status-popover-plants: ## Prove every server-status-popover-gate assertion catches a planted break.
+	@node scripts/server-status-popover-plants.mjs
+
 verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
 
 brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site identity assets must stay reproducible.
@@ -189,7 +223,7 @@ brand-site-plants: ## Prove the site identity gate fails closed: planting the re
 icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
 	$(PNPM) --filter @proso/extension icons:check
 
-verify-full: verify coverage build-all quality dependencies ## Deep deterministic gate before review.
+verify-full: verify coverage build-all quality dependencies subscription-deploy-rehearsal ## Deep deterministic gate before review.
 	@./scripts/write-gate-receipt.sh
 
 adversarial: ## Run a different-family, typed, fail-closed review (requires GENERATOR_FAMILY).
