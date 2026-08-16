@@ -10,12 +10,19 @@ to be wrong.
 
 ## What moved
 
-`LICENSE_KEY_SECRET` is now set on the Dokku app `proso-api`, taken from the
+An operator action was performed **outside this repository** and is recorded here
+as context, not as an acceptance claim this tree can prove: the environment
+variable `LICENSE_KEY_SECRET` was supplied to the Dokku app `proso-api` from the
 vault entry `api/proso-license-key-secret` (64 bytes; the production boot
-contract requires ≥32). It was applied with `dokku config:set --no-restart`
-specifically so that setting the variable would not redeploy the *stale*
-container that is currently running. This was the single documented blocker a
-non-Pedro actor could legitimately clear, and it is cleared.
+contract requires ≥32). It was applied with `dokku config:set --no-restart` so
+that supplying the variable could not redeploy the *stale* container currently
+running.
+
+Nothing in this repository verifies that, and no gate in this PR depends on it.
+The authoritative check is the deploy gate itself, on the host, at deploy time:
+`make dokku-check` reads the host's env **key names** and re-derives the required
+set from the target tree. Treat its output as the source of truth; treat this
+paragraph as a note about why the gate's HELD list should now be shorter.
 
 The deploy path itself is proven at `9bd5b88`:
 
@@ -114,8 +121,18 @@ installed user, with no visible error — the worst failure mode available here.
 
 ## Acceptance
 
-- `LICENSE_KEY_SECRET` present on `proso-api` (name only; value never printed).
-- `subscription-deploy-rehearsal` PASS at the deployed candidate SHA.
-- `dokku-check` HELD on Paddle only, with no push and no schema mutation.
-- No AWS resource created, modified, or deleted.
-- No credential rotated.
+This feature ships documentation plus two harness fixes. Its acceptance is
+repo-local and provable from this tree:
+
+- `make verify-full` exits 0 on the branch, with a certified gate receipt.
+- `make semantic` reports 0 findings against the real deploy base `e6b412f`
+  (it reported 2 before the tokenization).
+- `./scripts/security-check.sh` reports no leaks against that same base.
+- The tokenized plant still resolves to `9999` in a real Chromium, so the
+  hostile-CSS assertion retains its discriminating power.
+
+Deliberately **not** claimed here, because this tree cannot prove it: any
+statement about the deployed server's state. The pilot deploy has not happened,
+`dokku-check` remains HELD on the Paddle group, and the live API still answers
+without a `revision` field — i.e. it is still the pre-existing container. Those
+facts are verified on the host by the deploy gate, not by this repository.

@@ -3,7 +3,7 @@
 | ID | Task | Status |
 |---|---|---|
 | T001 | Establish real deploy state: Dokku live at `e6b412f`, 66 files of drift, schema drift | done |
-| T002 | Set `LICENSE_KEY_SECRET` on `proso-api` from vault, `--no-restart` | done |
+| T002 | Supply `LICENSE_KEY_SECRET` to `proso-api` from vault, `--no-restart` (host action; verified by `dokku-check`, not by this tree) | done |
 | T003 | Prove the exact deploy path: `subscription-deploy-rehearsal` PASS at `9bd5b88` (16 phases) | done |
 | T004 | Create release worktree + herdr workspace `w18` via supported `worktree open` | done |
 | T005 | Release QA seat: verify-full, rehearsal, preflight plants, honest flake report | done |
