@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy &mdash; Proso</title>
+  <meta name="description" content="Proso privacy policy. Zero data collection, zero cookies, zero tracking. API keys stored locally in your browser.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Privacy Policy &mdash; Proso">
+  <meta property="og:description" content="Proso privacy policy. Zero data collection, zero cookies, API keys stored locally.">
+  <meta property="og:image" content="assets/images/og-image.png">
+  <meta property="og:url" content="https://phsb5321.github.io/Proso/privacy.html">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Privacy Policy &mdash; Proso">
+  <meta name="twitter:description" content="Proso privacy policy. Zero data collection, zero cookies, API keys stored locally.">
+  <meta name="twitter:image" content="assets/images/og-image.png">
+
+  <link rel="canonical" href="https://phsb5321.github.io/Proso/privacy.html">
+  <link rel="icon" type="image/png" href="assets/images/favicon.png">
+
+  <link rel="stylesheet" href="assets/css/style.css">
+  <noscript><style>.site-nav__links{display:flex!important;position:static!important;flex-wrap:wrap;background:none!important;border:none!important}.nav-toggle{display:none!important}</style></noscript>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" aria-label="Proso home">Proso</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+          <span></span><span></span><span></span>
+        </button>
+        <ul class="site-nav__links" id="nav-links" role="list">
+          <li><a href="index.html#features" class="site-nav__link">Features</a></li>
+          <li><a href="pricing.html" class="site-nav__link">Pricing</a></li>
+          <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
+          <li><a href="terms.html" class="site-nav__link">Terms</a></li>
+        </ul>
+        <a href="index.html#install-status" class="btn btn--primary btn--sm">Install for Firefox</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="container container--narrow legal-page">
+      <h1>Privacy Policy</h1>
+      <p class="legal-page__meta">Effective Date: February 16, 2026 &middot; Last Updated: February 16, 2026</p>
+
+      <section>
+        <h2>How Proso Handles Your Data</h2>
+        <p>Proso is designed with privacy as a core principle. The extension processes text content locally in your browser. No text, audio, or personal data is ever sent to Proso servers unless you are using managed credits (paid subscription).</p>
+
+        <h3>Extension Data (All Users)</h3>
+        <ul>
+          <li><strong>Text extraction</strong>: When you activate Proso on a webpage, the extension extracts text content directly in your browser. This text never leaves your device unless sent to a TTS provider for audio generation.</li>
+          <li><strong>API keys</strong>: If you use Bring Your Own Key (BYOK), your API keys are cached locally in your browser using <code>browser.storage.local</code>. When you generate audio, your key is forwarded over HTTPS to the Proso server, which uses it for a single API request to your selected TTS provider and immediately discards it. Keys are never persisted, logged, or stored on the server.</li>
+          <li><strong>Audio cache</strong>: Generated audio is cached locally in your browser's IndexedDB storage to avoid redundant API calls. This data stays on your device.</li>
+          <li><strong>Settings and preferences</strong>: Your playback speed, voice selection, and other preferences are stored locally in your browser.</li>
+        </ul>
+
+        <h3>Data Sent to TTS Providers</h3>
+        <p>When you generate audio, the text content of the paragraphs you listen to is sent to your selected TTS provider (OpenAI, ElevenLabs, Groq, or Cartesia). For managed credit users and BYOK users, this text is transmitted through the Proso server, which forwards it to the provider and does not store it. Each provider&rsquo;s privacy policy governs how they handle your text data.</p>
+      </section>
+
+      <section>
+        <h2>Managed Credit Users (Paid Subscriptions)</h2>
+        <p>If you subscribe to a paid Proso plan and use managed credits (rather than BYOK), the Proso server processes your requests as follows:</p>
+        <ul>
+          <li><strong>Text processing</strong>: Text you submit for TTS synthesis is sent to the Proso server, which forwards it to the appropriate TTS provider. We do not store the text content after the audio has been generated and delivered.</li>
+          <li><strong>Credit tracking</strong>: We track the number of characters processed per billing cycle to manage your credit allocation. This tracking data includes character counts, timestamps, and your account identifier. It does not include the text content itself.</li>
+          <li><strong>Account data</strong>: Your email address and subscription status are stored for billing and account management purposes.</li>
+          <li><strong>Data retention</strong>: Credit usage data is retained for the duration of your subscription plus 30 days after cancellation. Account data is retained as required for financial record-keeping.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Cookies and Tracking</h2>
+        <p><strong>This website uses zero cookies.</strong> There are no tracking scripts, no analytics services, and no third-party advertising on this site.</p>
+        <p><strong>The Proso extension collects no browsing data.</strong> It does not track which websites you visit, what content you read, or how you use your browser. The extension activates only when you explicitly click the Proso icon or use a keyboard shortcut.</p>
+        <p>We believe privacy should be the default, not a premium feature. Proso practices what it preaches.</p>
+        <p><strong>One exception, and only when you ask for it:</strong> pressing a subscribe button on the <a href="pricing.html">pricing page</a> loads the checkout provider&rsquo;s script so the payment form can open. Until you press it, no third-party code runs on this site. See <a href="#payments">Payments</a> below.</p>
+      </section>
+
+      <section id="payments">
+        <h2>Payments</h2>
+        <p>Subscriptions are sold through <a href="https://www.paddle.com/legal/privacy" rel="noopener noreferrer">Paddle</a>, which acts as the merchant of record. Your card details are entered into Paddle&rsquo;s checkout and are never seen by, sent to, or stored on Proso&rsquo;s servers.</p>
+        <p>Paddle tells us only what we need to activate your subscription: the plan you bought, the transaction identifier, and the billing period. On the page you land on after paying, your browser presents the claim secret it minted at checkout; we use the transaction identifier only to find the purchase, never as proof of identity. Support releases a key only after verifying the purchaser through Paddle&rsquo;s records.</p>
+      </section>
+
+      <section>
+        <h2>Your Rights</h2>
+        <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
+        <ul>
+          <li><strong>Right to access</strong>: Request a copy of the personal data we hold about you.</li>
+          <li><strong>Right to rectification</strong>: Request correction of inaccurate personal data.</li>
+          <li><strong>Right to erasure</strong>: Request deletion of your personal data ("right to be forgotten").</li>
+          <li><strong>Right to data portability</strong>: Request your data in a structured, machine-readable format.</li>
+          <li><strong>Right to object</strong>: Object to processing of your personal data for certain purposes.</li>
+          <li><strong>Right to withdraw consent</strong>: Withdraw your consent at any time where processing is based on consent.</li>
+        </ul>
+        <p>For BYOK users (free tier): We do not permanently store any personal data about you. Your API keys and preferences are stored locally in your browser. During synthesis requests, your API key is processed ephemerally in server memory (never written to disk, logs, or database) and discarded immediately. To stop all processing, simply remove your API keys from the extension settings.</p>
+        <p>For managed credit users: Contact us at <a href="mailto:privacy@proso.com.br">privacy@proso.com.br</a> to exercise any of these rights. We will respond within 30 days.</p>
+      </section>
+
+      <section>
+        <h2>Third-Party TTS Providers</h2>
+        <p>Proso integrates with the following third-party text-to-speech providers. When you use these providers (whether via BYOK or managed credits), your text data is subject to their respective privacy policies:</p>
+        <ul>
+          <li><strong>OpenAI</strong> &mdash; <a href="https://openai.com/policies/privacy-policy" rel="noopener noreferrer">Privacy Policy</a></li>
+          <li><strong>ElevenLabs</strong> &mdash; <a href="https://elevenlabs.io/privacy" rel="noopener noreferrer">Privacy Policy</a></li>
+          <li><strong>Groq</strong> &mdash; <a href="https://groq.com/privacy-policy/" rel="noopener noreferrer">Privacy Policy</a></li>
+          <li><strong>Cartesia</strong> &mdash; <a href="https://cartesia.ai/privacy" rel="noopener noreferrer">Privacy Policy</a></li>
+        </ul>
+        <p>Proso is not responsible for the data practices of third-party providers. We encourage you to review their privacy policies before using their services.</p>
+      </section>
+
+      <section>
+        <h2>Children's Privacy</h2>
+        <p>Proso is not directed at children under the age of 13. We do not knowingly collect personal information from children. If you believe we have inadvertently collected data from a child, please contact us immediately.</p>
+      </section>
+
+      <section>
+        <h2>Changes to This Policy</h2>
+        <p>We may update this privacy policy from time to time. Changes will be reflected by updating the "Last Updated" date at the top of this page. Continued use of Proso after changes constitutes acceptance of the updated policy.</p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>For privacy-related inquiries or to exercise your data rights:</p>
+        <ul>
+          <li>Email: <a href="mailto:privacy@proso.com.br">privacy@proso.com.br</a></li>
+          <li>General support: <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="index.html#features">Features</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="mailto:commercial@proso.com.br">Commercial Licensing</a>
+      </nav>
+      <div class="footer-info">
+        <p>&copy; 2026 Proso. All rights reserved.</p>
+        <p>Made with care in Recife, Brazil.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>

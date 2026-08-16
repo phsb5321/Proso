@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service &mdash; Proso</title>
+  <meta name="description" content="Proso Terms of Service covering subscriptions, credits, refunds, BYOK, third-party providers, acceptable use, and legal terms.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://phsb5321.github.io/Proso/legal/terms.html">
+  <link rel="stylesheet" href="assets/css/legal.css">
+</head>
+<body>
+
+<a href="#content" class="skip-nav">Skip to content</a>
+
+<header class="legal-header" role="banner">
+  <div class="legal-header__inner">
+    <a href="https://phsb5321.github.io/Proso/" class="legal-header__brand" aria-label="Proso home">Vox<span>Page</span></a>
+  </div>
+</header>
+
+<div class="legal-layout">
+
+  <!-- Table of Contents (sidebar on desktop, collapsible on mobile) -->
+  <nav class="toc" aria-label="Table of contents">
+    <p class="toc__title">Contents</p>
+    <details class="toc__details" open>
+      <summary>Table of Contents</summary>
+      <ol class="toc__list">
+        <li><a href="#introduction">1. Introduction &amp; Acceptance</a></li>
+        <li><a href="#definitions">2. Definitions</a></li>
+        <li><a href="#the-service">3. The Service</a></li>
+        <li><a href="#accounts">4. Accounts &amp; Registration</a></li>
+        <li><a href="#pricing">5. Subscription Plans &amp; Pricing</a></li>
+        <li><a href="#billing">6. Billing &amp; Payment</a></li>
+        <li><a href="#credit-policy">7. Credit Policy</a></li>
+        <li><a href="#refund-policy">8. Refund Policy</a></li>
+        <li><a href="#byok">9. API Keys &amp; BYOK</a></li>
+        <li><a href="#providers">10. Third-Party TTS Providers</a></li>
+        <li><a href="#acceptable-use">11. Acceptable Use</a></li>
+        <li><a href="#intellectual-property">12. Intellectual Property</a></li>
+        <li><a href="#open-source">13. Open Source</a></li>
+        <li><a href="#privacy">14. Privacy</a></li>
+        <li><a href="#disclaimers">15. Disclaimers</a></li>
+        <li><a href="#liability">16. Limitation of Liability</a></li>
+        <li><a href="#indemnification">17. Indemnification</a></li>
+        <li><a href="#disputes">18. Dispute Resolution</a></li>
+        <li><a href="#changes">19. Changes to Terms</a></li>
+        <li><a href="#contact">20. Contact</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="legal-content" id="content" role="main">
+
+    <div class="legal-meta">
+      <h1>Proso Terms of Service</h1>
+      <div class="legal-meta__dates">
+        <span>Effective: <time datetime="2026-09-18">September 18, 2026</time></span>
+        <span>Last updated: <time datetime="2026-08-12">August 12, 2026</time></span>
+      </div>
+      <p class="legal-meta__version">Version 2.0 &middot; <a href="#changes">Previous versions</a></p>
+    </div>
+
+    <p class="legal-disclaimer">This document is provided for informational purposes. It does not constitute legal advice. Consult a qualified legal professional for advice specific to your situation.</p>
+
+    <!-- ============================================================
+         Section 1: Introduction & Acceptance
+         ============================================================ -->
+    <section id="introduction">
+      <h2>1. Introduction &amp; Acceptance</h2>
+
+      <p>These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of Proso. &ldquo;Proso&rdquo; refers collectively to the Proso browser extension, the Proso managed text-to-speech server and API, the Proso website, and any related services.</p>
+
+      <p>By installing the Proso extension, using the Proso API, creating an account, or purchasing a subscription, you agree to be bound by these Terms. If you do not agree, do not install or use Proso.</p>
+
+      <h3>Age Requirement</h3>
+      <p>You must be at least 16 years of age to use Proso. This threshold applies globally to comply with the European Union&rsquo;s General Data Protection Regulation (GDPR) default for digital services consent. If you are under 16, you may not use Proso.</p>
+
+      <h3>Relationship to Open-Source License</h3>
+      <p>The Proso browser extension source code is released under the GNU Affero General Public License version 3.0 or later (AGPL-3.0-or-later). These Terms apply to your use of Proso as a service. Where these Terms conflict with the AGPL-3.0 license regarding the extension source code, the AGPL-3.0 license prevails. See <a href="#open-source">Section&nbsp;13: Open Source</a> for details.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 2: Definitions
+         ============================================================ -->
+    <section id="definitions">
+      <h2>2. Definitions</h2>
+
+      <p>The following terms have specific meanings when used in these Terms:</p>
+
+      <dl>
+        <dt>&ldquo;Extension&rdquo;</dt>
+        <dd>The Proso browser extension, a software add-on for web browsers that provides text-to-speech functionality on web pages.</dd>
+
+        <dt>&ldquo;Service&rdquo;</dt>
+        <dd>The Proso managed text-to-speech server and API, which provides server-side TTS processing using managed credits.</dd>
+
+        <dt>&ldquo;Account&rdquo;</dt>
+        <dd>A registered Proso user account, required for paid features and subscription management.</dd>
+
+        <dt>&ldquo;Subscription&rdquo;</dt>
+        <dd>A paid recurring plan (monthly or annual) that provides access to managed TTS credits and premium features.</dd>
+
+        <dt>&ldquo;Credits&rdquo;</dt>
+        <dd>Managed TTS character credits allocated to your account based on your subscription tier. Credits are consumed when text is processed through the Proso managed server.</dd>
+
+        <dt>&ldquo;BYOK&rdquo; (Bring Your Own Key)</dt>
+        <dd>A feature that allows you to use your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server for synthesis, enabling premium voice synthesis without using managed credits.</dd>
+
+        <dt>&ldquo;Free Tier&rdquo;</dt>
+        <dd>The always-free usage tier that provides word-level highlighting, smart text extraction, and BYOK support without requiring account creation.</dd>
+
+        <dt>&ldquo;Content&rdquo;</dt>
+        <dd>Any text content you process through Proso for text-to-speech conversion, including web page text, selected text, and other textual input.</dd>
+
+        <dt>&ldquo;Provider&rdquo;</dt>
+        <dd>A third-party text-to-speech service integrated with Proso, such as OpenAI, ElevenLabs, Groq, or Cartesia.</dd>
+
+        <dt>&ldquo;Paddle&rdquo;</dt>
+        <dd>Paddle.com Market Limited, our payment processor and Merchant of Record, which handles all payment processing, tax compliance, and invoicing for Proso subscriptions.</dd>
+      </dl>
+    </section>
+
+    <!-- ============================================================
+         Section 3: The Service
+         ============================================================ -->
+    <section id="the-service">
+      <h2>3. The Service</h2>
+
+      <p>Proso is a browser extension that converts web page text into spoken audio using text-to-speech technology. It offers multiple modes of operation:</p>
+
+      <ul>
+        <li><strong>Managed TTS</strong>: Uses Proso&rsquo;s server to process text through premium TTS providers. Managed TTS consumes credits from your subscription.</li>
+        <li><strong>BYOK</strong>: Uses your own API keys from third-party TTS providers, forwarded securely through Proso&rsquo;s server. BYOK is always available on all tiers and always free. Your keys are never stored on Proso servers.</li>
+      </ul>
+
+      <h3>Core Guarantees</h3>
+      <ul>
+        <li>The Free Tier is always available without creating an account or providing payment information.</li>
+        <li>Managed TTS requires a paid subscription and consumes managed credits.</li>
+        <li>BYOK (Bring Your Own Key) is available on all subscription tiers at no additional cost.</li>
+        <li>Word-level synchronization and highlighting is a free feature available on all tiers.</li>
+      </ul>
+
+      <h3>Service Modifications</h3>
+      <p>Proso may modify, suspend, or discontinue any part of the service with reasonable notice. Where changes materially affect paid subscribers, Proso will provide at least 30 days notice and offer the option to cancel without penalty.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 4: Accounts & Registration
+         ============================================================ -->
+    <section id="accounts">
+      <h2>4. Accounts &amp; Registration</h2>
+
+      <h3>Free Tier</h3>
+      <p>The Free Tier does not require account creation. You may use BYOK, word-level highlighting, smart text extraction, and all free features without providing any personal information.</p>
+
+      <h3>Paid Features</h3>
+      <p>Access to managed TTS credits requires a paid subscription purchased through Paddle. When subscribing, you agree to:</p>
+      <ul>
+        <li>Provide accurate and complete information</li>
+        <li>Keep your login credentials secure</li>
+        <li>Notify Proso promptly of any unauthorized access to your account</li>
+        <li>Accept responsibility for all activity under your account</li>
+      </ul>
+
+      <h3>Account Termination</h3>
+      <p>Proso may suspend or terminate your account if you violate these Terms. You may delete your account at any time by contacting support. Upon account deletion:</p>
+      <ul>
+        <li>Your subscription will be cancelled (subject to the refund policy in <a href="#refund-policy">Section&nbsp;8</a>)</li>
+        <li>Your managed credit balance will be forfeited</li>
+        <li>Proso will delete your account data within 30 days</li>
+        <li>Your BYOK API keys, stored locally in your browser, are unaffected</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================
+         Section 5: Subscription Plans & Pricing
+         ============================================================ -->
+    <section id="pricing">
+      <h2>5. Subscription Plans &amp; Pricing</h2>
+
+      <p>Proso offers the following subscription tiers:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Monthly</th>
+            <th>Annual</th>
+            <th>Credits/Month</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Free</td>
+            <td>$0</td>
+            <td>$0</td>
+            <td>Word-level highlighting and BYOK</td>
+          </tr>
+          <tr>
+            <td>Pro</td>
+            <td>$4.99</td>
+            <td>$39.99/yr</td>
+            <td>500,000 characters</td>
+          </tr>
+          <tr>
+            <td>Enterprise</td>
+            <td>$14.99</td>
+            <td>$119.99/yr</td>
+            <td>2,000,000 characters</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Price Changes</h3>
+      <p>Proso may change subscription prices with at least 30 days written notice. Price changes do not affect your current billing period. Annual subscriptions lock in the price at the time of purchase for the full 12-month term.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 6: Billing & Payment
+         ============================================================ -->
+    <section id="billing">
+      <h2>6. Billing &amp; Payment</h2>
+
+      <h3>Merchant of Record</h3>
+      <p>Our order process is conducted by our online reseller <a href="https://www.paddle.com">Paddle.com</a>. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns.</p>
+      <p>By purchasing a Proso subscription, you agree to <a href="https://www.paddle.com/legal/checkout-buyer-terms">Paddle&rsquo;s Checkout Buyer Terms</a> in addition to these Terms. Paddle handles all payment processing, tax calculation, invoicing, and regulatory compliance. Proso does not directly collect or store your payment card information.</p>
+
+      <h3>Billing Cycle</h3>
+      <p>Subscriptions are billed either monthly or annually, depending on the plan selected. All subscriptions auto-renew at the end of each billing period unless cancelled before the renewal date.</p>
+
+      <h3>Failed Payments</h3>
+      <p>If a payment fails, Paddle handles retries and notifications under its Checkout Buyer Terms. When a paid subscription lapses, managed voices pause; BYOK keeps working without a subscription.</p>
+
+      <h3>Currency</h3>
+      <p>All prices are listed in United States Dollars (USD). Paddle may display prices in your local currency at checkout for convenience, but billing is processed in USD.</p>
+
+      <h3>Taxes</h3>
+      <p>Paddle, as Merchant of Record, is responsible for calculating and collecting applicable sales tax, VAT, and other transaction taxes based on your location.</p>
+
+      <h3>Cancellation</h3>
+      <p>You may cancel your subscription at any time through your account settings or by contacting Paddle support. Upon cancellation, your subscription remains active until the end of the current billing period. After the billing period ends, your account reverts to the Free Tier.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 7: Credit Policy
+         ============================================================ -->
+    <section id="credit-policy">
+      <h2>7. Credit Policy</h2>
+
+      <h3>Credit Allocation</h3>
+      <p>Managed TTS credits are allocated monthly based on your subscription tier (see <a href="#pricing">Section&nbsp;5</a> for credit amounts per tier). Credits represent the number of characters that can be processed through Proso&rsquo;s managed TTS server.</p>
+
+      <h3>No Mid-Cycle Expiration</h3>
+      <p>Credits never expire during an active billing cycle. Your full monthly allocation remains available until the billing cycle ends or renews.</p>
+
+      <h3>No Carry-Over</h3>
+      <p>Unused managed credits are not carried into the next billing cycle. Your full monthly allocation remains available until the billing cycle ends or renews.</p>
+
+      <h3>Cache Efficiency</h3>
+      <p>Proso caches previously generated audio. Listening to cached content does not consume additional credits &mdash; you are never charged twice for the same content.</p>
+
+      <h3>Credit Exhaustion</h3>
+      <p>When your managed credits are exhausted, managed voices pause until your next allocation. BYOK keeps working on every tier if you have API keys configured, so you are never locked out of text-to-speech functionality.</p>
+
+      <h3>Transferability</h3>
+      <p>Credits are non-transferable between individual accounts.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 8: Refund Policy
+         ============================================================ -->
+    <section id="refund-policy">
+      <h2>8. Refund Policy</h2>
+
+      <h3>Annual Plans</h3>
+      <p>Annual subscriptions are eligible for a full refund within 7 days of the initial purchase or renewal, no questions asked.</p>
+
+      <h3>Monthly Plans</h3>
+      <p>Monthly subscriptions are eligible for a prorated refund for the unused portion of the current billing period.</p>
+
+      <h3>Requesting a Refund</h3>
+      <p>To request a refund, contact Proso support at <a href="mailto:support@proso.com.br">support@proso.com.br</a> or submit a refund request through Paddle. Refunds are processed by Paddle and typically appear within 5&ndash;10 business days.</p>
+
+      <h3>Chargebacks</h3>
+      <p>Proso reserves the right to suspend accounts associated with chargeback disputes pending resolution. If you have a billing concern, please contact support before initiating a chargeback with your bank.</p>
+
+      <h3>Free Tier</h3>
+      <p>The Free Tier is free of charge. There is nothing to refund.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 9: API Keys & BYOK
+         ============================================================ -->
+    <section id="byok">
+      <h2>9. API Keys &amp; BYOK</h2>
+
+      <p>BYOK (Bring Your Own Key) lets you use your own API keys from third-party TTS providers for premium voice synthesis, without using Proso managed credits. Your keys are forwarded securely through Proso&rsquo;s server and never stored.</p>
+
+      <h3>Availability</h3>
+      <p>BYOK is available on all subscription tiers, including the Free Tier, at no additional cost. You do not need an account to use BYOK.</p>
+
+      <h3>Key Handling</h3>
+      <p>Your API keys are cached in your browser&rsquo;s local storage (<code>browser.storage.local</code>) so you don&rsquo;t need to re-enter them. When you use a BYOK key for text-to-speech synthesis, the key is transmitted over HTTPS to the Proso server, which uses it for a single API request to your selected provider and immediately discards it.</p>
+      <p>Proso never persists, logs, or stores your BYOK API keys on the server. Keys exist in server memory only for the duration of a single synthesis request.</p>
+      <p><strong>Data flow:</strong></p>
+      <ol>
+        <li>Your key is read from browser local storage</li>
+        <li>Transmitted over HTTPS to the Proso server</li>
+        <li>Used for one provider API call</li>
+        <li>Discarded from server memory</li>
+      </ol>
+      <p>You may delete your locally stored keys at any time through the extension settings.</p>
+
+      <h3>Your Responsibilities</h3>
+      <p>When using BYOK, you are responsible for:</p>
+      <ul>
+        <li>Keeping your API keys secure and confidential</li>
+        <li>Any charges incurred from your third-party provider</li>
+        <li>Compliance with your provider&rsquo;s terms of service and usage policies</li>
+      </ul>
+
+      <h3>Liability</h3>
+      <p>Proso is not liable for charges, service interruptions, or data processing that occurs between Proso&rsquo;s server and your third-party provider when using BYOK. Proso&rsquo;s role is limited to securely forwarding your key for a single request. If a BYOK provider is unavailable, Proso falls back to another configured provider.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 10: Third-Party TTS Providers
+         ============================================================ -->
+    <section id="providers">
+      <h2>10. Third-Party TTS Providers</h2>
+
+      <p>Proso integrates with the following third-party text-to-speech providers. When you use a provider (either through managed credits or BYOK), you are also bound by that provider&rsquo;s terms of service:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Terms</th>
+            <th>Key Obligations</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>OpenAI</td>
+            <td><a href="https://openai.com/policies/usage-policies/">Usage Policies</a></td>
+            <td>AI-generated voices must be disclosed to listeners (see below)</td>
+          </tr>
+          <tr>
+            <td>ElevenLabs</td>
+            <td><a href="https://elevenlabs.io/service-specific-terms">Service-Specific Terms</a></td>
+            <td>Free plan is non-commercial only (see below)</td>
+          </tr>
+          <tr>
+            <td>Groq</td>
+            <td><a href="https://console.groq.com/docs/legal/services-agreement">Services Agreement</a></td>
+            <td>Standard API compliance; respect rate limits</td>
+          </tr>
+          <tr>
+            <td>Cartesia</td>
+            <td><a href="https://cartesia.ai/legal/terms.html">Terms of Service</a></td>
+            <td>Free tier is non-commercial only (see below)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>OpenAI: AI-Voice Disclosure Requirement</h3>
+      <p>OpenAI requires that AI-generated voices be disclosed to end listeners. Proso includes this disclosure within the extension interface. If you redistribute or publish audio generated using OpenAI voices, you are responsible for maintaining this disclosure to your audience.</p>
+
+      <h3>ElevenLabs: Commercial Use Restriction</h3>
+      <p>ElevenLabs restricts free-plan usage to non-commercial purposes only. If you use a free ElevenLabs API key through BYOK, you must not use the generated audio for commercial purposes. Commercial use requires a paid ElevenLabs plan.</p>
+
+      <h3>Cartesia: Commercial Use Restriction</h3>
+      <p>Cartesia restricts free-tier usage to non-commercial purposes only. If you use a free Cartesia API key through BYOK, you must not use the generated audio for commercial purposes. Commercial use requires a paid Cartesia plan.</p>
+
+      <h3>Provider Availability</h3>
+      <p>Proso is not responsible for the availability, pricing changes, service quality, or terms modifications of any third-party provider. If a provider becomes unavailable, Proso will fall back to another configured provider.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 11: Acceptable Use
+         ============================================================ -->
+    <section id="acceptable-use">
+      <h2>11. Acceptable Use</h2>
+
+      <p>You agree not to use Proso to:</p>
+
+      <ol>
+        <li>Process content you do not have the legal right to access or reproduce</li>
+        <li>Redistribute generated audio in ways that violate the applicable TTS provider&rsquo;s terms of service</li>
+        <li>Circumvent or attempt to circumvent credit limits, rate limits, or feature restrictions</li>
+        <li>Engage in spam, harassment, or any illegal activity</li>
+        <li>Reverse-engineer, decompile, or disassemble Proso&rsquo;s managed TTS server (the browser extension source code is open under AGPL-3.0 and is not subject to this restriction)</li>
+        <li>Share, resell, or transfer subscription access or managed credits to third parties</li>
+        <li>Use automated scripts, bots, or other tools to abuse the service beyond normal usage patterns</li>
+        <li>Use AI-generated voices to impersonate real individuals without their explicit consent</li>
+      </ol>
+
+      <p>Proso reserves the right to suspend or terminate accounts that violate these acceptable use policies.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 12: Intellectual Property
+         ============================================================ -->
+    <section id="intellectual-property">
+      <h2>12. Intellectual Property</h2>
+
+      <h3>Extension Source Code</h3>
+      <p>The Proso browser extension source code is licensed under the AGPL-3.0-or-later. You may use, view, modify, and redistribute the extension source code in accordance with the AGPL-3.0 license terms.</p>
+
+      <h3>Proprietary Components</h3>
+      <p>The Proso managed TTS server, API, branding, trademarks, and service infrastructure are proprietary. These components are not covered by the AGPL-3.0 license and may not be copied, modified, or redistributed without a separate license.</p>
+
+      <h3>Your Content</h3>
+      <p>You retain all rights to the text content you process through Proso. Proso does not claim ownership of your content.</p>
+
+      <h3>Generated Audio</h3>
+      <p>Ownership and usage rights for generated audio are determined by the terms of the TTS provider that produced the audio. Different providers have different policies regarding ownership and commercial use of generated content. Review your provider&rsquo;s terms for specifics.</p>
+
+      <h3>Commercial Licensing</h3>
+      <p>Businesses requiring terms beyond the AGPL-3.0 license (proprietary integration, SaaS embedding, white-labeling) may obtain a commercial license. See <a href="https://github.com/phsb5321/Proso/blob/main/COMMERCIAL.md">COMMERCIAL.md</a> or contact <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a>.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 13: Open Source
+         ============================================================ -->
+    <section id="open-source">
+      <h2>13. Open Source</h2>
+
+      <h3>AGPL-3.0 License</h3>
+      <p>The Proso browser extension is open-source software released under the GNU Affero General Public License version 3.0 or later (AGPL-3.0-or-later). The full license text is available in the <a href="https://github.com/phsb5321/Proso/blob/main/LICENSE">LICENSE</a> file in the Proso repository.</p>
+
+      <h3>Your Rights</h3>
+      <p>Your rights under the AGPL-3.0 license are not limited or restricted by these Terms. The AGPL-3.0 license grants you the right to use, study, modify, and redistribute the extension source code.</p>
+
+      <h3>Conflict Resolution</h3>
+      <p>In the event of any conflict between these Terms and the AGPL-3.0 license with respect to the extension source code, the AGPL-3.0 license prevails.</p>
+
+      <h3>Server-Side Code</h3>
+      <p>The Proso managed TTS server and API are proprietary and are not covered by the AGPL-3.0 license. Server-side code is not open source.</p>
+
+      <h3>Commercial Licensing</h3>
+      <p>A commercial license is available for businesses that need terms beyond what the AGPL-3.0 provides. Contact <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a> for details.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 14: Privacy
+         ============================================================ -->
+    <section id="privacy">
+      <h2>14. Privacy</h2>
+
+      <p>Proso is designed with privacy as a core principle. This section provides a summary; for complete details, see our <a href="../privacy.html">Privacy Policy</a>.</p>
+
+      <h3>What Proso Collects</h3>
+      <p>For users with paid subscriptions, Proso collects minimal data necessary for account management and credit tracking: your email address, subscription status, and credit usage metrics.</p>
+
+      <h3>What Proso Does Not Collect</h3>
+      <ul>
+        <li>Your browsing history or the URLs of pages you visit</li>
+        <li>The text content of pages you read or convert to speech</li>
+        <li>Your BYOK API keys are not permanently stored on Proso servers. Keys are cached locally in your browser and forwarded to the server only during synthesis requests, where they are used once and immediately discarded.</li>
+        <li>Any data from Free Tier users who have not created an account</li>
+      </ul>
+
+      <p>For complete information about data handling, third-party provider data flows, and your privacy rights, please review the full <a href="../privacy.html">Privacy Policy</a>.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 15: Disclaimers
+         ============================================================ -->
+    <section id="disclaimers">
+      <h2>15. Disclaimers</h2>
+
+      <p>THE PROSO EXTENSION AND SERVICES ARE PROVIDED &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.</p>
+
+      <p>Proso does not warrant that:</p>
+      <ul>
+        <li>The service will meet your specific requirements</li>
+        <li>The service will be uninterrupted, timely, secure, or error-free</li>
+        <li>Results obtained from the service will be accurate or reliable</li>
+        <li>The quality of any TTS audio will be free of errors, mispronunciations, or artifacts</li>
+      </ul>
+
+      <p>AI-generated audio may contain errors, mispronunciations, unnatural pauses, or other artifacts inherent to text-to-speech technology. Proso does not guarantee the accuracy or naturalness of generated speech.</p>
+
+      <p>Proso does not guarantee any specific uptime or availability service-level agreement (SLA), except as may be separately agreed with Enterprise tier subscribers.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 16: Limitation of Liability
+         ============================================================ -->
+    <section id="liability">
+      <h2>16. Limitation of Liability</h2>
+
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, PROSO&rsquo;S TOTAL LIABILITY TO YOU FOR ALL CLAIMS ARISING OUT OF OR RELATED TO THESE TERMS OR YOUR USE OF THE SERVICE SHALL NOT EXCEED THE TOTAL AMOUNT PAID BY YOU TO PROSO DURING THE TWELVE (12) MONTHS IMMEDIATELY PRECEDING THE EVENT GIVING RISE TO THE CLAIM.</p>
+
+      <p>IN NO EVENT SHALL PROSO, ITS DEVELOPERS, CONTRIBUTORS, OR LICENSORS BE LIABLE FOR ANY:</p>
+      <ul>
+        <li>Indirect, incidental, special, consequential, or punitive damages</li>
+        <li>Loss of profits, revenue, or anticipated savings</li>
+        <li>Loss of data or business interruption</li>
+        <li>Cost of substitute goods or services</li>
+      </ul>
+
+      <p>ARISING OUT OF OR IN CONNECTION WITH YOUR USE OR INABILITY TO USE PROSO, EVEN IF PROSO HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
+
+      <p>Some jurisdictions do not allow the exclusion or limitation of certain damages. In such jurisdictions, the limitations above apply to the maximum extent permitted by applicable law.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 17: Indemnification
+         ============================================================ -->
+    <section id="indemnification">
+      <h2>17. Indemnification</h2>
+
+      <p>You agree to indemnify, defend, and hold harmless Proso and its developers, contributors, and licensors from and against any claims, liabilities, damages, losses, and expenses (including reasonable legal fees) arising out of or related to:</p>
+
+      <ol>
+        <li>Your violation of these Terms</li>
+        <li>Your misuse of the service</li>
+        <li>Your violation of any third-party rights, including intellectual property rights or privacy rights</li>
+        <li>Content you process through Proso</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================
+         Section 18: Dispute Resolution
+         ============================================================ -->
+    <section id="disputes">
+      <h2>18. Dispute Resolution</h2>
+
+      <h3>Governing Law</h3>
+      <p>These Terms are governed by and construed in accordance with the laws of the Federative Republic of Brazil, without regard to conflict of law provisions.</p>
+
+      <h3>Good-Faith Negotiation</h3>
+      <p>Before initiating any formal dispute resolution, you agree to attempt to resolve disputes informally by contacting Proso at <a href="mailto:support@proso.com.br">support@proso.com.br</a>. Both parties agree to negotiate in good faith for at least 30 days before pursuing other remedies.</p>
+
+      <h3>Arbitration</h3>
+      <p>If a dispute cannot be resolved through negotiation, either party may submit the dispute to arbitration. However, in accordance with Brazil&rsquo;s Consumer Defense Code (C&oacute;digo de Defesa do Consumidor &mdash; CDC), consumers are never required to submit to mandatory arbitration and may always choose to bring claims in their local court of competent jurisdiction.</p>
+
+      <h3>Consumer Protections</h3>
+      <p>If you are a consumer in the European Union or another jurisdiction with mandatory consumer protection laws, nothing in these Terms limits your rights under those laws. You may have the right to bring claims in your local jurisdiction regardless of the governing law specified above.</p>
+
+      <h3>Severability</h3>
+      <p>If any provision of these Terms is found to be unenforceable or invalid by a court of competent jurisdiction, that provision shall be limited or eliminated to the minimum extent necessary so that these Terms otherwise remain in full force and effect.</p>
+    </section>
+
+    <!-- ============================================================
+         Section 19: Changes to Terms
+         ============================================================ -->
+    <section id="changes">
+      <h2>19. Changes to Terms</h2>
+
+      <h3>Notification</h3>
+      <p>Proso may update these Terms from time to time. For material changes, Proso will provide at least 30 days notice through one or more of the following channels:</p>
+      <ul>
+        <li>Email notification to the address associated with your account</li>
+        <li>A notification within the Proso extension</li>
+        <li>A prominent notice on the Proso website</li>
+      </ul>
+
+      <h3>Acceptance</h3>
+      <p>Your continued use of Proso after the notice period constitutes acceptance of the updated Terms. If you do not agree with the changes, you should discontinue use before the updated Terms take effect.</p>
+
+      <h3>Impact on Paid Plans</h3>
+      <p>If changes to these Terms materially affect paid subscribers, affected users may cancel their subscription without penalty within the notice period and receive a prorated refund for the unused portion of their current billing period.</p>
+
+      <h3>Previous Versions</h3>
+      <p>This is version 2.0 of the Proso Terms of Service.</p>
+      <ul>
+        <li><strong>Version 1.0</strong> &mdash; effective March 18, 2026, superseded by version 2.0. Its tier names, feature descriptions, and pricing no longer reflect the product and are replaced by the descriptions in Section&nbsp;5 and Section&nbsp;7 of this version.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================
+         Section 20: Contact
+         ============================================================ -->
+    <section id="contact">
+      <h2>20. Contact</h2>
+
+      <p>For questions about these Terms or Proso services, please reach out through the appropriate channel:</p>
+
+      <ul>
+        <li><strong>General support</strong>: <a href="mailto:support@proso.com.br">support@proso.com.br</a> or <a href="https://github.com/phsb5321/Proso/issues">GitHub Issues</a></li>
+        <li><strong>Commercial licensing</strong>: <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a></li>
+        <li><strong>Privacy inquiries</strong>: <a href="mailto:privacy@proso.com.br">privacy@proso.com.br</a></li>
+        <li><strong>Security vulnerabilities</strong>: See <a href="https://github.com/phsb5321/Proso/blob/main/SECURITY.md">SECURITY.md</a> for responsible disclosure guidelines</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer class="legal-footer" role="contentinfo">
+  <div class="legal-footer__inner">
+    <p>&copy; 2026 Proso. All rights reserved. &middot; <a href="../terms.html">Marketing Terms</a> &middot; <a href="../privacy.html">Privacy Policy</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
