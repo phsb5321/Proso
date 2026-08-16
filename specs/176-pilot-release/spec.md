@@ -133,6 +133,10 @@ repo-local and provable from this tree:
   assertion red, so the plant retains its discriminating power. This runs the
   harness in its own Firefox, the browser the gate actually drives.
 
+Retained evidence for all of the above, including the live-site measurements and
+the plant receipt, is recorded in `docs/reading-journey-status.md`
+("Update — 15/08/2026"), which is this repository's ledger of record.
+
 Deliberately **not** claimed here, because this tree cannot prove it: any
 statement about the deployed server's state. The pilot deploy has not happened,
 `dokku-check` remains HELD on the Paddle group, and the live API still answers
