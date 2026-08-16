@@ -128,8 +128,10 @@ repo-local and provable from this tree:
 - `make semantic` reports 0 findings against the real deploy base `e6b412f`
   (it reported 2 before the tokenization).
 - `./scripts/security-check.sh` reports no leaks against that same base.
-- The tokenized plant still resolves to `9999` in a real Chromium, so the
-  hostile-CSS assertion retains its discriminating power.
+- `make server-status-popover-plants` reports `4 caught, 0 missed`, with
+  `plant card-covers: FAIL` — the tokenized hostile CSS still turns the topmost
+  assertion red, so the plant retains its discriminating power. This runs the
+  harness in its own Firefox, the browser the gate actually drives.
 
 Deliberately **not** claimed here, because this tree cannot prove it: any
 statement about the deployed server's state. The pilot deploy has not happened,

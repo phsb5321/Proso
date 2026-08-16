@@ -16,5 +16,5 @@
 | T012 | Publish the corrected site (recommend option c) | **[pending] Pedro** — needs a decision |
 | T013 | Root-key rotation, disable → 7d grace → delete | **[pending] Pedro** — credential surgery |
 | T014 | Re-enable versioning + Object Lock on `nixos-desktop-backups` (root-only, before T013 deletion) | **[pending] Pedro** |
-| T015 | `.gitleaksignore` fingerprint for the historical test-fixture blob (QA caveat A) | open |
-| T016 | Tokenize or baseline raw `z-index:9999` in `server-status-popover-gate.mjs` (QA caveat B) | open |
+| T015 | `.gitleaksignore` fingerprint for the historical test-fixture blob (QA caveat A) | done |
+| T016 | Tokenize raw `z-index:9999` in `server-status-popover-gate.mjs`; prove still-discriminating via `server-status-popover-plants` (4 caught, 0 missed) | done |

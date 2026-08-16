@@ -75,6 +75,10 @@ This is credential surgery on the account that holds every backup. It stays
 - The empty-value shortcut was tested against the gate's own logic
   (`hostConfigKeyNames()` collects names only) and rejected on grounds of
   honesty, not capability.
+- The tokenized plant was proven still-discriminating by running the harness's
+  own plant suite in its own Firefox (`server-status-popover-plants`:
+  `plant card-covers: FAIL`, 4 caught / 0 missed) rather than by a synthetic
+  browser check outside the repo.
 - The live-site claims were confirmed against the running site, not inferred
   from the repo: `curl https://proso.com.br` returns "Unlimited browser TTS" ×3
   and "free tier works immediately".
