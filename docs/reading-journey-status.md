@@ -873,6 +873,20 @@ from a host that is not metered.
    viewport-height mismatches (`settings page default` light/dark, `sidebar navigation`,
    `reduced motion`, `narrow viewport`) are baseline drift also present on main, not
    introduced here.
+22. ~~Stop `syncProviderUI` rewriting an input the reader is currently typing into~~ Delivered on
+   17/08 by PR #181. The listener exists for cross-tab sync, but it also fires for
+   the page's own writes, so it reassigned `localHostUrl.value` mid-typing and the caret jumped
+   to the end. Before PR #147 this destroyed the typed address outright; now the value written
+   back is the same string, so the damage was cosmetic — but a listener that clobbers focused
+   input is still wrong. First fix keyed the guard on focus
+   (`document.activeElement === localHostUrl`); the follow-up commit in the same PR corrected
+   that to an edit-dirty bit instead — a merely focused-but-unedited field must still receive a
+   cross-tab sync, or a save fired by a *different* control (voice/enable `change`) would persist
+   the stale field back over the cross-tab change. Unit-pinned three directions: dirty → in-flight
+   value preserved (Direction A), not dirty/no guard → stored URL still lands (Direction B),
+   focused-but-unedited → the cross-tab value still lands rather than being blocked (Direction C,
+   the case the focus-keyed draft got wrong) — plus the shield (provider/enable/voice still sync
+   while the URL field is guarded).
 23. ~~Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
     now rejects a stale Prisma client~~ Delivered on 17/08 by PR #180 (`234c457`). The 14/08 fix
     covered `packages/server/src/generated/prisma` only; the doctor still could not tell a stale

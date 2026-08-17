@@ -10,10 +10,10 @@
 
 import { describe, expect, it } from '@jest/globals';
 import {
+  type ProviderUI,
   collectProviderStateFromUI,
   deriveProviderState,
   syncProviderUI,
-  type ProviderUI,
 } from '../../../../src/utils/options/provider-state';
 
 function makeUI(overrides: Partial<ProviderUI> = {}): ProviderUI {
@@ -82,5 +82,72 @@ describe('syncProviderUI (falsifier E)', () => {
     syncProviderUI(ui, deriveProviderState({ provider: 'groq' }));
     expect(ui.quickProvider.value).toBe('groq');
     expect(ui.localHostEnabled.checked).toBe(false);
+  });
+});
+
+describe('syncProviderUI — uncommitted-edit guard (Feature 179, slice #22)', () => {
+  const storedUrl = { localHostUrl: 'https://host.example/tts' };
+
+  it('Direction A: while the URL field has an uncommitted edit, the sync does NOT reassign its value', () => {
+    // The reader is mid-typing: the field holds what they just typed and the
+    // dirty bit is set. A sync (this page's own debounced write, or a
+    // cross-tab write) must leave the field alone — reassigning `.value`
+    // jumps the caret to the end (cosmetic since #147; destructive before it).
+    const ui = makeUI({
+      localHostUrl: { value: 'http://127.0.0.1:8899' },
+      isLocalHostUrlDirty: () => true,
+    });
+    syncProviderUI(ui, deriveProviderState(storedUrl));
+    expect(ui.localHostUrl.value).toBe('http://127.0.0.1:8899');
+  });
+
+  it('Direction B: not dirty (or no guard), the sync still lands the stored URL — cross-tab sync intact', () => {
+    const ui = makeUI({ localHostUrl: { value: 'stale-value' } });
+    syncProviderUI(ui, deriveProviderState(storedUrl));
+    expect(ui.localHostUrl.value).toBe('https://host.example/tts');
+
+    // Explicit not-dirty guard behaves identically.
+    const ui2 = makeUI({
+      localHostUrl: { value: 'stale-value' },
+      isLocalHostUrlDirty: () => false,
+    });
+    syncProviderUI(ui2, deriveProviderState(storedUrl));
+    expect(ui2.localHostUrl.value).toBe('https://host.example/tts');
+  });
+
+  it('Direction C: focused-but-UNEDITED still receives the cross-tab value — no stale write-back', () => {
+    // The reviewer gate found the focus-keyed guard's hole: a field that is
+    // merely focused (no input) skips the sync write, then a save fired by a
+    // DIFFERENT control reads the stale field and persists it back over the
+    // cross-tab change. Keyed on the dirty bit, a focused-but-unedited field
+    // gets the new value — the stale write-back path is closed at the source.
+    const ui = makeUI({
+      // Field focused but never edited: guard reports not dirty.
+      localHostUrl: { value: 'stale-value' },
+      isLocalHostUrlDirty: () => false,
+    });
+    syncProviderUI(ui, deriveProviderState(storedUrl));
+    expect(ui.localHostUrl.value).toBe('https://host.example/tts');
+  });
+
+  it('the dirty guard only shields the URL field — provider/enable/voice still sync', () => {
+    const ui = makeUI({
+      localHostUrl: { value: 'http://127.0.0.1:8899' },
+      isLocalHostUrlDirty: () => true,
+    });
+    syncProviderUI(
+      ui,
+      deriveProviderState({
+        provider: 'local',
+        localHostEnabled: true,
+        localHostUrl: 'https://host.example/tts',
+        localHostVoice: 'pt_BR-faber-medium',
+      }),
+    );
+    expect(ui.quickProvider.value).toBe('local');
+    expect(ui.localHostEnabled.checked).toBe(true);
+    expect(ui.localHostVoice.value).toBe('pt_BR-faber-medium');
+    // ...but the URL field with the uncommitted edit keeps the reader's text.
+    expect(ui.localHostUrl.value).toBe('http://127.0.0.1:8899');
   });
 });

@@ -35,6 +35,17 @@ export interface ProviderUI {
   readonly localHostSection?: {
     readonly querySelector: (selector: string) => { removeAttribute(name: string): void } | null;
   };
+  /**
+   * Feature 179: when true, the local-host URL field holds an uncommitted
+   * edit (an `input` fired since the last committed save). The sync must NOT
+   * reassign `.value` while dirty — writing the same string back still moves
+   * the caret to the end (and pre-#147 it destroyed the typed address
+   * outright). Keyed on the EDIT, not on focus: a merely focused-but-unedited
+   * field still receives cross-tab syncs, so a later save from another
+   * control cannot persist a stale value over a cross-tab change. Absent
+   * guard ⇒ never dirty ⇒ sync behaves as before.
+   */
+  readonly isLocalHostUrlDirty?: () => boolean;
 }
 
 /**
@@ -59,7 +70,16 @@ export function deriveProviderState(stored: Record<string, unknown>): ProviderSt
 export function syncProviderUI(ui: ProviderUI, state: ProviderStoredState): void {
   ui.quickProvider.value = state.provider;
   ui.localHostEnabled.checked = state.localHostEnabled;
-  ui.localHostUrl.value = state.localHostUrl ?? '';
+  // Feature 179: never reassign a field with an uncommitted edit. The
+  // onChanged listener fires for this page's own debounced writes too, so
+  // without the guard the value is rewritten mid-typing and the caret jumps to
+  // the end (cosmetic since #147, destructive before it). Cross-tab sync of
+  // the other fields is unaffected. A merely focused-but-unedited field is
+  // NOT guarded: it must still receive the cross-tab value, or a save fired
+  // by another control would persist the stale field back over the change.
+  if (!ui.isLocalHostUrlDirty?.()) {
+    ui.localHostUrl.value = state.localHostUrl ?? '';
+  }
   ui.localHostVoice.value = state.localHostVoice ?? '';
 
   // The local-host section expands when the local provider is active, so the
