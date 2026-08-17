@@ -872,11 +872,16 @@ from a host that is not metered.
    the typed address outright; now the value written back is the same string, so the damage is
    cosmetic — but a listener that clobbers focused input is still wrong. Skip the sync for changes
    this page just wrote, or leave a focused field alone.
-23. Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
-    now rejects a stale Prisma client. The 14/08 fix covers `packages/server/src/generated/prisma`
-    only, because that is the one that failed; the doctor still cannot tell a stale
+23. ~~Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
+    now rejects a stale Prisma client~~ Delivered on 17/08 by PR #180 (`234c457`). The 14/08 fix
+    covered `packages/server/src/generated/prisma` only; the doctor still could not tell a stale
     `packages/shared/dist` from a fresh one, and `@proso/shared` is consumed from `dist/` by the
-    server. The same schema-digest stamp would work there.
+    server. PR #180 stamps the shared build with a source-tree sha256
+    (`scripts/shared-source-digest.mjs` → `dist/.source.sha256`) and the doctor now fails closed
+    on not-built, no-stamp, or digest mismatch, naming both digests. Plant-proven both
+    directions: touching a shared source turns the doctor RED naming both digests (exit 1);
+    removing the stamp turns it RED as `predates source-drift tracking` (exit 1); restoring
+    returns exit 0.
 24. Make the deterministic floor deterministic under load. `franc-min-accuracy.test.js:247`
     asserts a 50 ms first-call budget and was measured at 6/27/43/79 ms on identical trees
     depending only on machine load; `cartesia-tts.adapter.spec.ts:255` and the OpenAI contract
