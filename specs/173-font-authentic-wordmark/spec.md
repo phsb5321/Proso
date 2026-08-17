@@ -95,9 +95,14 @@ replaced decision and the new source of truth.
 - `node scripts/render-site-brand-assets.mjs --check` passes (og-image
   refreshed from the new lockup).
 - `node scripts/verify-brand-assets.mjs` passes and includes a font-origin
-  receipt (font hash, instance, tracking, outline hash).
+  receipt (font hash, instance, tracking, source hash).
+- The gate **re-derives** the wordmark from the vendored font bytes
+  (`extract-font-wordmark.py --check`) rather than comparing the source to a
+  hash recorded beside it, and fails closed when that toolchain is absent.
 - A planted mutation (font byte change, weight/tracking change, or a
-  hand-authored path swap) makes the gate fail naming the drift.
+  hand-authored path swap) makes the gate fail naming the drift — including
+  the coordinated case where `manifest.sourceSha256` is updated to match the
+  hand-authored geometry and every downstream artifact is regenerated.
 - `brand/fonts/manifest.json` records file, SHA-256, version, axes, tracking,
   licence, and source commit.
 - Every shipping SVG has no `<text>`, `@font-face`, `<image>`, filter, or

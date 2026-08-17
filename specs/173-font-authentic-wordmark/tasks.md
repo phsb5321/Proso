@@ -9,4 +9,5 @@
 | T-005 | Font-origin gate in `verify-brand-assets.mjs`: font hash, instance params, outline hash, no hand-authored substitution | done |
 | T-006 | Falsifier: planted font/parameter/path mutations fail red naming the drift; focused gates + proofs regenerated | done |
 | T-007 | Feature 161 decision delta (dated) + full gates: `make verify`, `make quality`, dependency/secret audits, git diff checks | done |
-| T-008 | Commit/push/PR; orchestrator runs the exact-head DeepSeek gate and owns merge/closure | pending |
+| T-008 | Commit/push/PR; exact-head different-family review; own merge/closure | in progress |
+| T-009 | Review finding (blocking): font-origin gate was circular — manifest-stored hash, no re-derivation. Reproduced, then closed by running `extract-font-wordmark.py --check` inside the gate; toolchain pinned in `shell.nix`; fails closed when absent | done |
