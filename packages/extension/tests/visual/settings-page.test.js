@@ -6,9 +6,9 @@
  * in various states (sections expanded/collapsed, light/dark mode).
  */
 import { test, expect } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { disableAnimations, waitForLayoutStable } from '../helpers/disable-animations.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -78,16 +78,22 @@ test.describe('Settings Page Visual Tests (T040)', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     await openSettings(page);
 
-    // Focus on quick settings section
+    // No `count() > 0` guard (PROSO-183): a refactor dropping the testid must
+    // FAIL here, not silently skip the snapshot. The section is a plain card
+    // (not an accordion), so no DOM-state expansion is needed.
     const quickSettings = page.locator('[data-testid="settings-quick-settings-section"]');
-    if ((await quickSettings.count()) > 0) {
-      await quickSettings.scrollIntoViewIfNeeded();
-      await waitForLayoutStable(page, '[data-testid="settings-quick-settings-section"]', 50);
+    await expect(quickSettings).toBeVisible();
+    await expect(quickSettings.locator('[data-testid="settings-provider-select"]')).toBeVisible();
+    await expect(quickSettings.locator('[data-testid="settings-voice-select"]')).toBeVisible();
+    await expect(quickSettings.locator('[data-testid="settings-speed-slider"]')).toBeVisible();
+    await expect(quickSettings.locator('.section-reset-btn')).toBeVisible();
 
-      await expect(quickSettings).toHaveScreenshot('quick-settings-section-light.png', {
-        maxDiffPixelRatio: 0.02,
-      });
-    }
+    await quickSettings.scrollIntoViewIfNeeded();
+    await waitForLayoutStable(page, '[data-testid="settings-quick-settings-section"]', 50);
+
+    await expect(quickSettings).toHaveScreenshot('quick-settings-section-light.png', {
+      maxDiffPixelRatio: 0.02,
+    });
   });
 
   // Test API keys section expanded
@@ -111,7 +117,9 @@ test.describe('Settings Page Visual Tests (T040)', () => {
       await page.evaluate(() => {
         const section = document.querySelector('[data-section="developer"]');
         const header = section?.querySelector('.proso-accordion__header');
-        const content = section ? document.getElementById(header?.getAttribute('aria-controls') ?? '') : null;
+        const content = section
+          ? document.getElementById(header?.getAttribute('aria-controls') ?? '')
+          : null;
         header?.setAttribute('aria-expanded', 'true');
         content?.removeAttribute('hidden');
       });
@@ -171,17 +179,18 @@ test.describe('Settings Page Visual Tests (T040)', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     await openSettings(page);
 
-    // Focus on provider select
+    // No `count() > 0` guard (PROSO-183): the provider select is a quick-settings
+    // control; a refactor dropping its testid must FAIL, not silently skip.
     const providerSelect = page.locator('[data-testid="settings-provider-select"]');
-    if ((await providerSelect.count()) > 0) {
-      await providerSelect.focus();
-      await waitForLayoutStable(page, '[data-testid="settings-provider-select"]', 50);
+    await expect(providerSelect).toBeVisible();
+    await providerSelect.focus();
+    await waitForLayoutStable(page, '[data-testid="settings-provider-select"]', 50);
 
-      const quickSettings = page.locator('[data-testid="settings-quick-settings-section"]');
-      await expect(quickSettings).toHaveScreenshot('provider-select-focused.png', {
-        maxDiffPixelRatio: 0.02,
-      });
-    }
+    const quickSettings = page.locator('[data-testid="settings-quick-settings-section"]');
+    await expect(quickSettings).toBeVisible();
+    await expect(quickSettings).toHaveScreenshot('provider-select-focused.png', {
+      maxDiffPixelRatio: 0.02,
+    });
   });
 
   // Test reduced motion preference
