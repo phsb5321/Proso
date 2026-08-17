@@ -737,11 +737,14 @@ from a host that is not metered.
    plant and snapshots must exercise the styles users actually see. Wire the fixture to the
    shipped style surface or consolidate the two CSS copies; then tighten the 2 % snapshot
    threshold that misses small-area changes (the 28 px icon gap).
-12. Remove the historical mocked `window.speechSynthesis` example from
-   `docs/firefox-extension-testing-strategy.md` (15 lines, same claim class PR #113
-   reconciled elsewhere but deliberately left out of its scope). Replace it with the
-   server-route testing pattern or delete it; browser `speechSynthesis` was removed in
-   `9797dc6` and no test should model it.
+12. ~~Remove the historical mocked `window.speechSynthesis` example from
+   `docs/firefox-extension-testing-strategy.md`~~ Delivered on 17/08 by PR #179
+   (`df02940`). The 15-line example and its surrounding PDF-viewer narrative were
+   deleted outright (the reconciliation PR #113 deliberately left them out of
+   scope); the strategy doc now models the server-route testing pattern.
+   `grep -n 'speechSynthesis' docs/firefox-extension-testing-strategy.md` returns
+   zero, and no test in the repo mocks browser `speechSynthesis` (removed in
+   `9797dc6`).
 13. ~~Fix the Chrome MV3 C3 `playback.getState` roundtrip~~ Delivered on 10/08 by PR #123
    (`a983e22`). Two things in that original wording were wrong, and both matter. First, the
    sentence "the diagnostic already asserts it, so the fix is falsifiable the moment it lands"
