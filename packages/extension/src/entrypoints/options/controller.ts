@@ -132,6 +132,13 @@ interface OptionsElements {
   localHostVoice: HTMLSelectElement;
   localHostTestBtn: HTMLButtonElement;
   localHostStatus: HTMLElement;
+  /**
+   * Feature 179: true while the local-host URL field is focused (the reader is
+   * typing). Passed into syncProviderUI so a sync triggered by this page's own
+   * debounced write — or by a cross-tab write — never reassigns the field the
+   * reader is editing (the caret would jump to the end).
+   */
+  isLocalHostUrlFocused?: () => boolean;
 
   // Server status elements
   serverStatus: HTMLElement;
@@ -216,6 +223,8 @@ function getElements(): OptionsElements {
     localHostVoice: getElement<HTMLSelectElement>('localHostVoice'),
     localHostTestBtn: getElement<HTMLButtonElement>('testLocalHost'),
     localHostStatus: getElement<HTMLElement>('localHostStatus'),
+    // Feature 179: the sync must not clobber the field the reader is typing in.
+    isLocalHostUrlFocused: () => document.activeElement === elements?.localHostUrl,
 
     // Server status elements
     serverStatus: getElement<HTMLElement>('serverStatus'),

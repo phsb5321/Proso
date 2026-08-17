@@ -10,10 +10,10 @@
 
 import { describe, expect, it } from '@jest/globals';
 import {
+  type ProviderUI,
   collectProviderStateFromUI,
   deriveProviderState,
   syncProviderUI,
-  type ProviderUI,
 } from '../../../../src/utils/options/provider-state';
 
 function makeUI(overrides: Partial<ProviderUI> = {}): ProviderUI {
@@ -82,5 +82,57 @@ describe('syncProviderUI (falsifier E)', () => {
     syncProviderUI(ui, deriveProviderState({ provider: 'groq' }));
     expect(ui.quickProvider.value).toBe('groq');
     expect(ui.localHostEnabled.checked).toBe(false);
+  });
+});
+
+describe('syncProviderUI — focused-field guard (Feature 179, slice #22)', () => {
+  const storedUrl = { localHostUrl: 'https://host.example/tts' };
+
+  it('Direction A: while the URL field is focused, the sync does NOT reassign its value', () => {
+    // The reader is mid-typing: the field is focused and holds what they just
+    // typed. A sync (this page's own debounced write, or a cross-tab write)
+    // must leave the field alone — reassigning `.value` jumps the caret to the
+    // end (cosmetic since #147; destructive before it).
+    const ui = makeUI({
+      localHostUrl: { value: 'http://127.0.0.1:8899' },
+      isLocalHostUrlFocused: () => true,
+    });
+    syncProviderUI(ui, deriveProviderState(storedUrl));
+    expect(ui.localHostUrl.value).toBe('http://127.0.0.1:8899');
+  });
+
+  it('Direction B: not focused (or no guard), the sync still lands the stored URL — cross-tab sync intact', () => {
+    const ui = makeUI({ localHostUrl: { value: 'stale-value' } });
+    syncProviderUI(ui, deriveProviderState(storedUrl));
+    expect(ui.localHostUrl.value).toBe('https://host.example/tts');
+
+    // Explicit not-focused guard behaves identically.
+    const ui2 = makeUI({
+      localHostUrl: { value: 'stale-value' },
+      isLocalHostUrlFocused: () => false,
+    });
+    syncProviderUI(ui2, deriveProviderState(storedUrl));
+    expect(ui2.localHostUrl.value).toBe('https://host.example/tts');
+  });
+
+  it('the focused guard only shields the URL field — provider/enable/voice still sync', () => {
+    const ui = makeUI({
+      localHostUrl: { value: 'http://127.0.0.1:8899' },
+      isLocalHostUrlFocused: () => true,
+    });
+    syncProviderUI(
+      ui,
+      deriveProviderState({
+        provider: 'local',
+        localHostEnabled: true,
+        localHostUrl: 'https://host.example/tts',
+        localHostVoice: 'pt_BR-faber-medium',
+      }),
+    );
+    expect(ui.quickProvider.value).toBe('local');
+    expect(ui.localHostEnabled.checked).toBe(true);
+    expect(ui.localHostVoice.value).toBe('pt_BR-faber-medium');
+    // ...but the focused URL field keeps the reader's in-flight text.
+    expect(ui.localHostUrl.value).toBe('http://127.0.0.1:8899');
   });
 });

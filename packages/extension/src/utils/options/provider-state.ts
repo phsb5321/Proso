@@ -35,6 +35,14 @@ export interface ProviderUI {
   readonly localHostSection?: {
     readonly querySelector: (selector: string) => { removeAttribute(name: string): void } | null;
   };
+  /**
+   * Feature 179: when true, the local-host URL field is the field the reader
+   * is currently typing into. The sync must NOT reassign `.value` while it is
+   * focused — writing the same string back still moves the caret to the end
+   * (and pre-#147 it destroyed the typed address outright). Absent guard ⇒
+   * never focused ⇒ sync behaves as before.
+   */
+  readonly isLocalHostUrlFocused?: () => boolean;
 }
 
 /**
@@ -59,7 +67,14 @@ export function deriveProviderState(stored: Record<string, unknown>): ProviderSt
 export function syncProviderUI(ui: ProviderUI, state: ProviderStoredState): void {
   ui.quickProvider.value = state.provider;
   ui.localHostEnabled.checked = state.localHostEnabled;
-  ui.localHostUrl.value = state.localHostUrl ?? '';
+  // Feature 179: never reassign a field the reader is actively typing into.
+  // The onChanged listener fires for this page's own debounced writes too, so
+  // without the guard the value is rewritten mid-typing and the caret jumps to
+  // the end (cosmetic since #147, destructive before it). Cross-tab sync of
+  // the other fields is unaffected.
+  if (!ui.isLocalHostUrlFocused?.()) {
+    ui.localHostUrl.value = state.localHostUrl ?? '';
+  }
   ui.localHostVoice.value = state.localHostVoice ?? '';
 
   // The local-host section expands when the local provider is active, so the
