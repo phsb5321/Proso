@@ -120,15 +120,17 @@ client.install_addon('/path/to/extension.xpi', temp=True)
 
 ### 1.4 Proso Current Approach (Recommended)
 
-Proso currently uses a **dual-browser strategy**:
+The retained harnesses, in the order they gate the reading journey:
 
-| Test Type | Browser | Rationale |
-|-----------|---------|-----------|
-| Extension E2E | Chromium | Full extension loading support via Playwright |
-| Visual regression | Firefox | Uses CSS-only tests without extension |
-| Firefox E2E | Firefox | Static file checks, no full extension loading |
+| Harness | Browser | What it proves |
+|---------|---------|----------------|
+| chrome-mv3 diagnostics (`scripts/chrome-mv3-diagnostics.mjs`) | Chromium + Firefox (raw geckodriver) | The MV3 worker audio shim (C1), the popup start journey to `playing` with a TTS request observed (C2), the message roundtrip (C3), the cold-worker race (C4), the offscreen document (C5); the Firefox leg loads the FULL extension via `installAddon` and drives the shipped popup |
+| `make smoke-reading` / `make user-gate` | Firefox (geckodriver + public controls) | The reading journey against the fixture; the user gate drives public browser controls (see `.agents/skills/proso-user-gate`) |
+| Visual regression (`packages/extension/tests/visual`, `packages/extension/playwright.config.js`) | Firefox | Serves the BUILT page over HTTP (webServer) so baselines render the real product CSS |
+| Reader-journey oracle (`packages/extension/tests/integration/reader-journey.test.ts`) | jsdom (in-process) | Extraction → synthesis → audio → cache → highlight → controls, deterministic |
 
-This approach is correct given Playwright's limitations.
+Playwright is Docker-only for E2E (see the delivery harness); the retained geckodriver
+smoke covers the Firefox loaded-extension path without it.
 
 ---
 
@@ -233,31 +235,15 @@ test('settings page saves preferences', async ({ context, extensionId }) => {
 });
 ```
 
-### 2.4 Testing PDF Viewer Interactions
+### 2.4 Article Extraction (no PDF viewer)
 
-Proso has specific PDF handling. Test patterns:
-
-```typescript
-test('PDF content extraction works', async ({ extensionPage }) => {
-  // Navigate to PDF
-  await extensionPage.goto('https://example.com/sample.pdf');
-  
-  // Wait for PDF.js viewer to load
-  await extensionPage.waitForSelector('.pdfViewer', { timeout: 10000 });
-  
-  // Wait for Proso to process PDF
-  await extensionPage.waitForSelector('.proso-pdf-ready', { timeout: 15000 });
-  
-  // Verify text extraction worked
-  const textContent = await extensionPage.locator('.proso-extracted-text').textContent();
-  expect(textContent).toContain('Expected PDF text');
-});
-```
-
-**PDF wait conditions:**
-- Wait for `canvas` elements to render
-- Wait for text layer to populate
-- Use `page.waitForLoadState('networkidle')` for PDF resources
+The product has no PDF viewer: the `pdf` references in source are feature labels of the
+page-reader work (`045-pdf-removal-page-reader` comments, e.g.
+`packages/extension/src/utils/config/schema.ts:37`), not a PDF.js surface. Article
+extraction and the reading journey are covered deterministically by the in-process oracle
+`packages/extension/tests/integration/reader-journey.test.ts` (extraction → synthesis →
+audio → cache → highlight → controls) and, in-browser, by the retained geckodriver
+diagnostic (`scripts/chrome-mv3-diagnostics.mjs`).
 
 ---
 
@@ -454,74 +440,50 @@ await page.waitForFunction(() => {
 }, { timeout: 5000 });
 ```
 
-### 4.3 PDF Rendering Wait Conditions
+### 4.3 Article Extraction Wait Conditions
 
-```typescript
-// Wait for PDF to fully render
-async function waitForPdfReady(page) {
-  // Wait for PDF.js viewer container
-  await page.waitForSelector('#viewer', { timeout: 10000 });
-  
-  // Wait for first page canvas
-  await page.waitForSelector('.page[data-page-number="1"] canvas', {
-    timeout: 15000,
-  });
-  
-  // Wait for text layer (if needed for text extraction)
-  await page.waitForSelector('.textLayer span', { timeout: 10000 });
-  
-  // Wait for network idle (all PDF resources loaded)
-  await page.waitForLoadState('networkidle');
-}
-```
+The product has no PDF viewer (see 2.4); the wait that matters for reading is the
+content script's extraction readiness. The reader-journey oracle waits on observable
+state, not arbitrary sleeps — see the `waitFor`/assertion pattern in
+`packages/extension/tests/integration/reader-journey.test.ts` and the retained
+geckodriver journey (`scripts/chrome-mv3-diagnostics.mjs` C2).
 
 ### 4.4 Audio Playback Testing
 
-**Challenge:** Audio APIs are difficult to test in headless mode.
+**Challenge:** Audio playback does not happen in a page's DOM. In Firefox MV2 the audio
+element lives in the background event page (`playback-service.ts` `attachAndPlay`, which
+creates `new Audio()`); in Chrome MV3 the worker-safe shim routes playback to the offscreen
+document (`packages/extension/src/adapters/audio/offscreen-audio-element.adapter.ts`). No
+`AudioContext` and no `window.speechSynthesis` are involved — browser
+`speechSynthesis` was deliberately removed from the product (`9797dc6`, AGENTS.md
+Firefox-First guideline 4), so no test should model it.
 
-**Strategies:**
+**The real route to test (server-managed playback):**
 
-1. **Mock AudioContext:**
-```typescript
-await page.addInitScript(() => {
-  window.AudioContext = class MockAudioContext {
-    createMediaElementSource() { return { connect: () => {} }; }
-    createGain() { return { connect: () => {}, gain: { value: 1 } }; }
-    // ... other mocked methods
-  };
-});
+```
+PlaybackService → ServerTtsAudioAdapter
+  → ProsoApiAdapter.synthesize   (packages/extension/src/adapters/api/proso-api.adapter.ts:142-148)
+  → POST /api/v1/tts/synthesize  ({text, provider, …}) → audio blob
 ```
 
-2. **Verify audio element state:**
-```typescript
-const audioState = await page.evaluate(() => {
-  const audio = document.querySelector('audio');
-  return {
-    paused: audio.paused,
-    currentTime: audio.currentTime,
-    duration: audio.duration,
-  };
-});
-expect(audioState.paused).toBe(false);
-```
+**Deterministic strategies:**
 
-3. **Test TTS API calls (mock):**
-```typescript
-// Mock browser TTS API
-await context.addInitScript(() => {
-  const utterances = [];
-  window.speechSynthesis = {
-    speak: (u) => utterances.push(u),
-    cancel: () => {},
-    getVoices: () => [],
-  };
-  window.__ttsUtterances = utterances;
-});
+1. **Stub `fetch` at the adapter boundary** — the reader-journey oracle does exactly this:
+   `packages/extension/tests/integration/reader-journey.test.ts` installs a mocked `fetch`
+   and asserts the request body (`{text, provider}`, no license key) and that playback
+   reaches `playing`. This is the primary, deterministic pattern.
+2. **Serve the reading fixture** (`scripts/lib/reading-fixture-server.mjs`) and drive the
+   built extension with the retained geckodriver harness (`scripts/chrome-mv3-diagnostics.mjs`
+   C2): the popup's Play click must leave `Loading...` via a real state, reach `playing`,
+   and produce a TTS request observed by the fixture stub.
+3. **Reader-operated host route** (no server): `LocalHostAudioAdapter`
+   (`packages/extension/src/adapters/audio/local-host-audio.adapter.ts`) POSTs
+   `{input, voice, speed}` to the reader-entered origin; the env-gated live receipt
+   (`packages/extension/tests/integration/local-host-live.test.ts`) proves account-free
+   audio against a real host.
 
-// Verify TTS was called
-const utterances = await page.evaluate(() => window.__ttsUtterances);
-expect(utterances.length).toBeGreaterThan(0);
-```
+**Never mock `speechSynthesis`** — the API does not exist in the product and modeling it
+teaches the wrong surface.
 
 ### 4.5 General Flakiness Reduction
 
@@ -609,29 +571,12 @@ Firefox blocks extension access to privileged pages like `about:addons`.
 
 **Workaround:** Test extension functionality on regular web pages instead.
 
-### 5.4 PDF.js Viewer Testing
+### 5.4 Article Pages (no PDF.js)
 
-Firefox's built-in PDF viewer uses PDF.js.
-
-**Key selectors:**
-- `#viewer` - Main viewer container
-- `.page` - Individual page containers
-- `.textLayer` - Text selection layer
-- `.canvasWrapper` - Rendered page canvas
-
-```typescript
-// Firefox PDF.js specific test
-test('PDF opens in Firefox viewer', async ({ page }) => {
-  await page.goto('https://example.com/test.pdf');
-  
-  // Wait for Firefox PDF viewer
-  await page.waitForSelector('#viewer', { timeout: 10000 });
-  
-  // Check page count
-  const pageCount = await page.locator('.page').count();
-  expect(pageCount).toBeGreaterThan(0);
-});
-```
+Proso reads web articles, not PDFs — there is no PDF.js surface to test (see 2.4).
+Firefox's built-in PDF viewer is irrelevant to the extension's reading route; the
+article path is covered by the reader-journey oracle and the geckodriver diagnostic
+(`scripts/chrome-mv3-diagnostics.mjs`).
 
 ### 5.5 Content Security Policy Differences
 
