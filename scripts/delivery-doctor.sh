@@ -48,6 +48,32 @@ if [[ "$GENERATED_SCHEMA" != "$EXPECTED_SCHEMA" ]]; then
   exit 1
 fi
 
+# The server consumes @proso/shared from dist/, so a dist that predates the
+# current source fails much later — as missing exports or stale types that
+# look like broken source. Same source-digest stamp, same fail-closed shape.
+if [[ ! -f packages/shared/dist/index.js ]]; then
+  printf 'Shared package is not built; run make build\n' >&2
+  exit 1
+fi
+
+readonly SHARED_STAMP=packages/shared/dist/.source.sha256
+
+if [[ ! -f "$SHARED_STAMP" ]]; then
+  printf 'Shared dist predates source-drift tracking; run make build\n' >&2
+  exit 1
+fi
+
+EXPECTED_SHARED="$(node scripts/shared-source-digest.mjs)"
+readonly EXPECTED_SHARED
+GENERATED_SHARED="$(cat "$SHARED_STAMP")"
+readonly GENERATED_SHARED
+
+if [[ "$GENERATED_SHARED" != "$EXPECTED_SHARED" ]]; then
+  printf 'Shared dist is stale: built from source %s, current source is %s; run make build\n' \
+    "${GENERATED_SHARED:0:12}" "${EXPECTED_SHARED:0:12}" >&2
+  exit 1
+fi
+
 node scripts/workspace-policy.mjs
 
 printf 'Delivery prerequisites ready (node %s, pnpm %s).\n' \
