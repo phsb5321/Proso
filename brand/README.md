@@ -24,9 +24,12 @@ Regenerate and verify (requires Node.js, pnpm, ImageMagick 7, and Inkscape;
 
 ```bash
 node scripts/segment-brand-board.mjs
+# Font-derived wordmark source (nix-shell toolchain: fontTools + uharfbuzz)
+nix-shell -p 'python312.withPackages (ps: with ps; [ fonttools uharfbuzz ])'   --run 'python scripts/extract-font-wordmark.py'
 node scripts/generate-brand-vectors.mjs
 pnpm --filter @proso/extension icons:generate
 node scripts/render-brand-proofs.mjs
+node scripts/render-site-brand-assets.mjs
 node scripts/verify-brand-assets.mjs
 ```
 
@@ -51,20 +54,24 @@ of pretending they are logo content.
 - Extension icons use independent 16/48/128 source drawings and deterministic
   16/32/48/96/128 PNG generation.
 
-Shipping masters live in `svg/`; the editable wordmark construction lives in
-`source/proso-wordmark-construction.svg`. Geometry decisions and source history
-are recorded in `GEOMETRY.md` and `PROVENANCE.md`. The deterministic visual
-receipts in `proofs/` are review artifacts, not shipping product assets.
+Shipping masters live in `svg/`; the wordmark source is generated from the
+vendored, licensed font in `fonts/` (see `fonts/manifest.json`) by
+`scripts/extract-font-wordmark.py` into `source/proso-wordmark-construction.svg`.
+The Feature 161 hand-built construction is preserved read-only in
+`source/archive/`. Geometry decisions and source history are recorded in
+`GEOMETRY.md` and `PROVENANCE.md`. The deterministic visual receipts in
+`proofs/` are review artifacts, not shipping product assets.
 
 Proof-sheet maps:
 
 - `proofs/lockups/contact-sheet.png`: dark, light, mono navy, mono white.
 - `proofs/marks/contact-sheet.png`: waveform mark, compact mark, wordmark.
 - `proofs/icons/contact-sheet.png`: native-band 16, 48, and 128px zooms.
-- `proofs/wordmark/wordmark-decisions.png`: raster reference, selected custom
-  descender, conventional full-height `p`, optically thinned bowl comparison.
+- `proofs/wordmark/wordmark-decisions.png`: raster reference, selected
+  font-derived wordmark (Outfit Variable), legacy custom construction.
 - `proofs/wordmark/48px-decisions.png`: waveform treatment, compact treatment.
 
-The selected defaults are the custom descending `p`, near-monoline bowls, and
-full waveform at 48px. Regenerating the proof sheets preserves the rejected
-alternatives as reproducible comparisons without adding non-shipping SVGs.
+The selected defaults are the font-derived wordmark (Outfit Variable
+`wght=475`) and the full waveform at 48px. Regenerating the proof sheets
+preserves the superseded custom construction as a reproducible comparison
+without adding non-shipping SVGs.

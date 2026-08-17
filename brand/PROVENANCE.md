@@ -33,17 +33,34 @@ coordinate transform survives in a shipping SVG.
 
 ## Wordmark
 
-The selected lowercase wordmark is a custom outlined construction. Its `p` and
-both `o`s share one canonical bowl/counter system. The `r` and `s` were redrawn
+### Original decision (Feature 161, 13/08/2026)
+
+The selected lowercase wordmark was a custom outlined construction. Its `p` and
+both `o`s shared one canonical bowl/counter system. The `r` and `s` were redrawn
 as direct, editable Bézier paths on the same baseline after raster measurement;
-they are not stock-font glyphs and do not contain traced path output. The `p`
-keeps the reference's unusual descender because it is the most distinctive and
+they were not stock-font glyphs and contained no traced path output. The `p`
+kept the reference's unusual descender because it was the most distinctive and
 consistently repeated wordmark feature.
 
 A normalized 476×134 mask comparison against the primary source crop reached an
-IoU of approximately 0.88 after the clean-path redraw. This receipt is useful for
-regression direction, not a claim of exact identity: antialiasing, flat-colour
-normalization, and deliberately regularized curves prevent pixel equivalence.
-Validly measured stock candidates did not pass the identification threshold;
-Outfit, Montserrat, Manrope, and Nunito Sans remain unclosed harness gaps only if
-a future stock-font route is reconsidered.
+IoU of approximately 0.88 after the clean-path redraw. At the time, validly
+measured stock candidates did not pass the then-undocumented identification
+threshold; Outfit, Montserrat, Manrope, and Nunito Sans remained unclosed
+harness gaps.
+
+### Decision delta (Feature 173, 16/08/2026)
+
+Pedro reversed the art-direction decision: the wordmark now uses a real, named,
+properly licensed font. The canonical wordmark source
+`source/proso-wordmark-construction.svg` is generated deterministically from the
+vendored **Outfit Variable** font (SIL OFL 1.1), instance `wght=475`, tracking
+`0‰`, shaped as a whole string with HarfBuzz (kerning preserved). Font bytes,
+licence, source commit, axes, tracking, and the resulting outline hash are
+recorded in `fonts/manifest.json`. Only one uniform scale plus translation is
+applied — no glyph deformation.
+
+The Feature 161 custom construction is preserved read-only at
+`source/archive/proso-wordmark-construction-custom.svg` and remains renderable
+as the `legacy` proof; the old bowls/p-stem anchors were not deleted from
+history. The full candidate matrix, metric gate, and winner rationale live in
+`specs/173-font-authentic-wordmark/research.md`.

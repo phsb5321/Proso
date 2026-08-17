@@ -54,8 +54,15 @@ ${indent}</g>
 ${indent}<circle id="voice-dot" cx="230" cy="114" r="11" fill="${color}"/>`;
 }
 
-function loadWordmarkGroup(fill) {
+function loadWordmarkSource() {
   const source = readFileSync(WORDMARK_SOURCE, 'utf8');
+  const viewBox = source.match(/viewBox="([^"]+)"/);
+  if (!viewBox) throw new Error('wordmark source viewBox is missing');
+  return { source, viewBox: viewBox[1] };
+}
+
+function loadWordmarkGroup(fill) {
+  const { source } = loadWordmarkSource();
   const start = source.indexOf('<g id="wordmark"');
   const end = source.lastIndexOf('</g>');
   if (start === -1 || end < start) throw new Error('wordmark source group is missing');
@@ -65,14 +72,15 @@ function loadWordmarkGroup(fill) {
 }
 
 function wordmarkDocument(fill, title) {
+  const { viewBox } = loadWordmarkSource();
   const group = loadWordmarkGroup(fill)
     .split('\n')
     .map((line) => `  ${line}`)
     .join('\n');
   return document({
-    viewBox: '0 -30 5000 1466',
+    viewBox,
     title,
-    description: 'The lowercase Proso wordmark in custom geometric letterforms.',
+    description: 'The lowercase Proso wordmark set in Outfit Variable (SIL OFL 1.1).',
     body: group,
   });
 }
