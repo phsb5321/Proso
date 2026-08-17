@@ -133,12 +133,16 @@ interface OptionsElements {
   localHostTestBtn: HTMLButtonElement;
   localHostStatus: HTMLElement;
   /**
-   * Feature 179: true while the local-host URL field is focused (the reader is
-   * typing). Passed into syncProviderUI so a sync triggered by this page's own
-   * debounced write — or by a cross-tab write — never reassigns the field the
-   * reader is editing (the caret would jump to the end).
+   * Feature 179: true while the local-host URL field holds an uncommitted
+   * edit (an `input` event fired since the last committed save). Passed into
+   * syncProviderUI so a sync triggered by this page's own debounced write —
+   * or by a cross-tab write — never reassigns the field the reader is
+   * editing (the caret would jump to the end). Keyed on the edit, not on
+   * focus: a merely focused-but-unedited field must still receive a
+   * cross-tab sync write, or a later save fired by a different control
+   * would persist the stale value back over the cross-tab one.
    */
-  isLocalHostUrlFocused?: () => boolean;
+  isLocalHostUrlDirty?: () => boolean;
 
   // Server status elements
   serverStatus: HTMLElement;
@@ -158,6 +162,14 @@ let loggingSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let queueSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let quickSettingsSaveTimeout: ReturnType<typeof setTimeout> | null = null;
 let scrollSpyInstance: ScrollSpyInstance | null = null;
+
+// Feature 179: true from the first `input` on the local-host URL field until
+// the next committed save. Guards syncProviderUI's URL write — a sync must
+// never reassign a field with an uncommitted edit (caret jumps to the end; a
+// stale value written back over a cross-tab change). Keyed on the EDIT, not
+// on focus: a merely focused-but-unedited field still receives cross-tab
+// syncs, so a later save from another control cannot persist the stale value.
+let localHostUrlDirty = false;
 
 /**
  * Get DOM elements with type safety
@@ -223,8 +235,10 @@ function getElements(): OptionsElements {
     localHostVoice: getElement<HTMLSelectElement>('localHostVoice'),
     localHostTestBtn: getElement<HTMLButtonElement>('testLocalHost'),
     localHostStatus: getElement<HTMLElement>('localHostStatus'),
-    // Feature 179: the sync must not clobber the field the reader is typing in.
-    isLocalHostUrlFocused: () => document.activeElement === elements?.localHostUrl,
+    // Feature 179: the sync must not clobber a field with an uncommitted
+    // edit. Keyed on the dirty bit (input since last save), not on focus: a
+    // focused-but-unedited field must still receive cross-tab syncs.
+    isLocalHostUrlDirty: () => localHostUrlDirty,
 
     // Server status elements
     serverStatus: getElement<HTMLElement>('serverStatus'),
@@ -497,7 +511,13 @@ async function saveLocalHostSettings(options: {
     return;
   }
 
+  // Feature 179: the committed save is the boundary — the field's value now
+  // matches storage. Run the post-save sync while dirty is still true (it
+  // skips the URL write: the field already holds what was persisted, so a
+  // write-back would only move the caret), then clear the bit so a *future*
+  // cross-tab sync writes the field again.
   syncProviderUI(elements, deriveProviderState(result.stored));
+  localHostUrlDirty = false;
   await refreshLocalHostPermissionStatus();
 }
 
@@ -575,6 +595,8 @@ function setupLocalHostEventListeners(): void {
 
   elements.localHostUrl.addEventListener('input', () => {
     if (!elements) return;
+    // Feature 179: a real edit is in flight until the next committed save.
+    localHostUrlDirty = true;
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => void saveLocalHostSettings({ requestPermission: false }), 600);
   });

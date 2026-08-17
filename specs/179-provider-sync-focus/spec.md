@@ -24,27 +24,38 @@ editing.
 
 ## Falsifier (both directions, runnable)
 
-- **Direction A (focused):** while the URL field is focused (the reader is
-  typing), a sync must NOT reassign `.value` — the in-flight text and the caret
-  survive. `syncProviderUI` with `isLocalHostUrlFocused: () => true` leaves
+- **Direction A (uncommitted edit):** while the URL field holds an
+  uncommitted edit (an `input` fired since the last committed save), a sync
+  must NOT reassign `.value` — the in-flight text and the caret survive.
+  `syncProviderUI` with `isLocalHostUrlDirty: () => true` leaves
   `ui.localHostUrl.value` untouched.
-- **Direction B (not focused):** cross-tab sync must keep working — without a
-  focused field, the stored URL still lands in the input.
+- **Direction B (not dirty):** cross-tab sync must keep working — without an
+  uncommitted edit, the stored URL still lands in the input.
+- **Direction C (focused-but-unedited):** a field that is merely focused
+  (never edited) must still receive the cross-tab value. If the guard keyed on
+  focus instead, a save fired by a *different* control (voice/enable `change`)
+  would read the stale field and persist it back over the cross-tab change —
+  the stale-write-back hole found by the review gate in the focus-keyed draft.
 
 ## Fix (smallest correct)
 
 - `provider-state.ts`: `ProviderUI` gains an optional
-  `isLocalHostUrlFocused?: () => boolean`; `syncProviderUI` skips the
+  `isLocalHostUrlDirty?: () => boolean`; `syncProviderUI` skips the
   `localHostUrl.value` assignment when it returns true. Absent guard ⇒ behaves
   exactly as before (all other call sites unaffected). No new state system.
-- `options/controller.ts`: `OptionsElements` carries
-  `isLocalHostUrlFocused?: () => boolean`, wired in `getElements()` to
-  `document.activeElement === elements?.localHostUrl`. Every `syncProviderUI`
-  call site (load, save, onChanged) inherits the guard automatically.
+- `options/controller.ts`: module-level `localHostUrlDirty` — set by the URL
+  field's real `input` listener, cleared after a committed save. The
+  post-save `syncProviderUI` runs while dirty is still true (it skips the URL
+  write; the field already holds what was persisted, so a write-back would
+  only move the caret), then the bit clears so a *future* cross-tab sync
+  writes the field again. `OptionsElements` carries
+  `isLocalHostUrlDirty?: () => boolean`, wired in `getElements()` to the flag.
+  Every `syncProviderUI` call site (load, save, onChanged) inherits the guard
+  automatically.
 
 ## Not in scope
 
 - No change to the debounce, the save shape, or the permission flow.
 - No change to the other synced fields (provider dropdown, enable checkbox,
   voice) — cross-tab sync of those continues to apply even while the URL field
-  is focused (proven by the shield test).
+  has an uncommitted edit (proven by the shield test).
