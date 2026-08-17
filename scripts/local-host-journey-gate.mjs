@@ -299,11 +299,20 @@ async function main() {
     if (PLANT !== 'no-enable') {
       await requirePublicName(driver, 'label[for="localHostEnabled"]', NAME.enable);
       await clickElement(driver, '#localHostEnabled', NAME.enable);
+      // Match the grant by the one thing only the success path prints: the
+      // origin the reader just entered. Every failure branch
+      // (`controller.ts` invalid-address / denied / requester message) is
+      // origin-free, so this discriminates without pinning the copy.
+      // It previously required the literal prefix "Permission granted", which
+      // #170 renamed to "Browser host access covers every port; Proso uses
+      // only <origin>." without touching this gate -- the journey then failed
+      // on healthy code, one step after the permission had actually been
+      // granted.
       const granted = await waitFor(
         'the runtime host permission to be granted',
         async () => {
           const status = await readText(driver, '#localHostStatus');
-          return status?.startsWith('Permission granted') ? status : null;
+          return status?.includes(hostAddress) ? status : null;
         },
         { timeoutMs: 20_000 },
       ).catch(() => null);
