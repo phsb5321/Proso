@@ -161,28 +161,53 @@ describe('TTS Provider Contract Tests', () => {
         });
 
         it('returns Err(ProviderUnavailable) on HTTP error response', async () => {
-          const config = createMockConfigService({ [adapterDef.apiKeyEnvVar]: 'test-key-123' });
-          const adapter = adapterDef.create(config);
-          mockFetch.mockResolvedValue(createErrorResponse(429, 'Rate limited'));
+          // 429 is retryable: the adapter retries through the real
+          // exponential-backoff sleep loop while `fetch` is mocked, so the
+          // elapsed wall-clock measures scheduling under contention, not
+          // adapter behaviour (docs/reading-journey-status.md slice 24). Run
+          // under a mocked clock (fast-forward all retries) and assert the
+          // observable outcome: the Err(ProviderUnavailable) Result and a
+          // bounded retry count (initial + 3 retries = 4 fetch attempts).
+          jest.useFakeTimers();
+          try {
+            const config = createMockConfigService({ [adapterDef.apiKeyEnvVar]: 'test-key-123' });
+            const adapter = adapterDef.create(config);
+            mockFetch.mockResolvedValue(createErrorResponse(429, 'Rate limited'));
 
-          const result = await adapter.synthesize(DEFAULT_REQUEST);
+            const pending = adapter.synthesize(DEFAULT_REQUEST);
+            await jest.advanceTimersByTimeAsync(1_000_000);
+            const result = await pending;
 
-          expect(isErr(result)).toBe(true);
-          if (!result.ok) {
-            expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+            expect(isErr(result)).toBe(true);
+            if (!result.ok) {
+              expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+            }
+            expect(mockFetch).toHaveBeenCalledTimes(4);
+          } finally {
+            jest.useRealTimers();
           }
         });
 
         it('returns Err(ProviderUnavailable) on network error', async () => {
-          const config = createMockConfigService({ [adapterDef.apiKeyEnvVar]: 'test-key-123' });
-          const adapter = adapterDef.create(config);
-          mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+          // ECONNREFUSED is retryable: same mocked-clock + bounded-count
+          // treatment as the HTTP-error test above.
+          jest.useFakeTimers();
+          try {
+            const config = createMockConfigService({ [adapterDef.apiKeyEnvVar]: 'test-key-123' });
+            const adapter = adapterDef.create(config);
+            mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
-          const result = await adapter.synthesize(DEFAULT_REQUEST);
+            const pending = adapter.synthesize(DEFAULT_REQUEST);
+            await jest.advanceTimersByTimeAsync(1_000_000);
+            const result = await pending;
 
-          expect(isErr(result)).toBe(true);
-          if (!result.ok) {
-            expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+            expect(isErr(result)).toBe(true);
+            if (!result.ok) {
+              expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+            }
+            expect(mockFetch).toHaveBeenCalledTimes(4);
+          } finally {
+            jest.useRealTimers();
           }
         });
 

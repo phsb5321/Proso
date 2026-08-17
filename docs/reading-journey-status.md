@@ -883,14 +883,18 @@ from a host that is not metered.
     directions: touching a shared source turns the doctor RED naming both digests (exit 1);
     removing the stamp turns it RED as `predates source-drift tracking` (exit 1); restoring
     returns exit 0.
-24. Make the deterministic floor deterministic under load. `franc-min-accuracy.test.js:247`
-    asserts a 50 ms first-call budget and was measured at 6/27/43/79 ms on identical trees
-    depending only on machine load; `cartesia-tts.adapter.spec.ts:255` and the OpenAI contract
-    equivalent exceed Jest's 5 s default while `fetch` is mocked, so they are measuring retry
-    scheduling under contention rather than adapter behaviour. Assert the observable outcome
-    (a `Result` shape, a bounded retry count) instead of elapsed wall-clock, or give the timing
-    assertions their own non-parallel project. Until then a red `verify-full` has to be re-run
-    before it can be believed, which is the opposite of what the receipt is for.
+24. ~~Make the deterministic floor deterministic under load~~ Delivered on 17/08 by PR #183
+    (`8620c06`). `franc-min-accuracy.test.js` dropped its 50 ms wall-clock budget (measured
+    6/27/43/79 ms on identical trees) for the observable outcome (correct detection) plus a
+    load-independent proxy for the property it guarded (the trimmed `franc-min` data module,
+    bounded in size); the retry-path adapter/contract tests (`cartesia-tts.adapter.spec.ts`,
+    `tts-provider.adapter.spec.ts`) now run under Jest fake timers and assert the bounded
+    retry count (fetch exactly 4 times) instead of burning 3.5–4 s of real backoff sleep per
+    test while `fetch` is mocked. Both plants (wrong-language regression; unbounded retry cap)
+    go red deterministically; the suites pass under a 44-process CPU hog; `make verify` exits 0.
+    One inherited-main blocker had to be cleared for that exit 0: the then-new GHSA-ggr8-5vv4-36mx
+    (deepmerge-ts via prisma > @prisma/config, dev/CLI-time only) was allowlisted on its exact
+    path in `quality-baselines/audit-allowlist.json` with reason + review date — not a 181 change.
 25. Publish the corrected site. It is the highest-value user-facing item open:
     **and the branch-based Pages route is now ruled out** — Pages builds are
     metered like Actions (15/08: `queued` with zero builds created; see the

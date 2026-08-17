@@ -241,35 +241,66 @@ describe('CartesiaTTSAdapter', () => {
   // -----------------------------------------------------------------------
 
   describe('synthesize with network error', () => {
+    // Retry-triggering paths run the real exponential-backoff sleep loop
+    // (500→1000→2000 ms + jitter) while `fetch` is mocked, so the elapsed
+    // wall-clock measures scheduling under contention, not adapter behaviour:
+    // on a busy machine these tests exceed Jest's 5 s default and redden
+    // (docs/reading-journey-status.md slice 24). Run them under a mocked
+    // clock (fast-forward all retries) and assert the observable outcome: the
+    // Err(ProviderUnavailable) Result and a bounded retry count (initial call
+    // + 3 retries = 4 fetch attempts, never more).
+
+    const RETRY_COUNT = 4; // 1 initial + 3 retries
+
+    async function underMockedClock(assert: () => Promise<void>): Promise<void> {
+      jest.useFakeTimers();
+      try {
+        const pending = assert();
+        await jest.advanceTimersByTimeAsync(1_000_000);
+        await pending;
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+
     it('returns Err(ProviderUnavailable) on network failure', async () => {
-      mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+      await underMockedClock(async () => {
+        mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
-      const result = await adapter.synthesize(BYOK_REQUEST);
+        const result = await adapter.synthesize(BYOK_REQUEST);
 
-      expect(isErr(result)).toBe(true);
-      if (result.ok) return;
-      expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
-      expect(result.error.message).toContain('ECONNREFUSED');
+        expect(isErr(result)).toBe(true);
+        if (result.ok) return;
+        expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(result.error.message).toContain('ECONNREFUSED');
+        expect(mockFetch).toHaveBeenCalledTimes(RETRY_COUNT);
+      });
     });
 
     it('returns Err(ProviderUnavailable) on DNS resolution failure', async () => {
-      mockFetch.mockRejectedValue(new Error('getaddrinfo ENOTFOUND api.cartesia.ai'));
+      await underMockedClock(async () => {
+        mockFetch.mockRejectedValue(new Error('getaddrinfo ENOTFOUND api.cartesia.ai'));
 
-      const result = await adapter.synthesize(BYOK_REQUEST);
+        const result = await adapter.synthesize(BYOK_REQUEST);
 
-      expect(isErr(result)).toBe(true);
-      if (result.ok) return;
-      expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(isErr(result)).toBe(true);
+        if (result.ok) return;
+        expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(mockFetch).toHaveBeenCalledTimes(RETRY_COUNT);
+      });
     });
 
     it('handles non-Error thrown values gracefully', async () => {
-      mockFetch.mockRejectedValue('unexpected string error');
+      await underMockedClock(async () => {
+        mockFetch.mockRejectedValue('unexpected string error');
 
-      const result = await adapter.synthesize(BYOK_REQUEST);
+        const result = await adapter.synthesize(BYOK_REQUEST);
 
-      expect(isErr(result)).toBe(true);
-      if (result.ok) return;
-      expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(isErr(result)).toBe(true);
+        if (result.ok) return;
+        expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(mockFetch).toHaveBeenCalledTimes(RETRY_COUNT);
+      });
     });
   });
 
@@ -290,25 +321,45 @@ describe('CartesiaTTSAdapter', () => {
     });
 
     it('returns Err(ProviderUnavailable) on 429 Rate Limited', async () => {
-      mockFetch.mockResolvedValue(createErrorResponse(429, 'Rate limit exceeded'));
+      // 429 is retryable: mocked clock, bounded retries (see the network-error
+      // describe block above for the rationale).
+      jest.useFakeTimers();
+      try {
+        mockFetch.mockResolvedValue(createErrorResponse(429, 'Rate limit exceeded'));
 
-      const result = await adapter.synthesize(BYOK_REQUEST);
+        const pending = adapter.synthesize(BYOK_REQUEST);
+        await jest.advanceTimersByTimeAsync(1_000_000);
+        const result = await pending;
 
-      expect(isErr(result)).toBe(true);
-      if (result.ok) return;
-      expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
-      expect(result.error.message).toContain('429');
+        expect(isErr(result)).toBe(true);
+        if (result.ok) return;
+        expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(result.error.message).toContain('429');
+        expect(mockFetch).toHaveBeenCalledTimes(4);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('returns Err(ProviderUnavailable) on 500 Internal Server Error', async () => {
-      mockFetch.mockResolvedValue(createErrorResponse(500, 'Internal server error'));
+      // 500 is retryable: mocked clock, bounded retries (see the network-error
+      // describe block above for the rationale).
+      jest.useFakeTimers();
+      try {
+        mockFetch.mockResolvedValue(createErrorResponse(500, 'Internal server error'));
 
-      const result = await adapter.synthesize(BYOK_REQUEST);
+        const pending = adapter.synthesize(BYOK_REQUEST);
+        await jest.advanceTimersByTimeAsync(1_000_000);
+        const result = await pending;
 
-      expect(isErr(result)).toBe(true);
-      if (result.ok) return;
-      expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
-      expect(result.error.message).toContain('500');
+        expect(isErr(result)).toBe(true);
+        if (result.ok) return;
+        expect(result.error.code).toBe(ErrorCode.ProviderUnavailable);
+        expect(result.error.message).toContain('500');
+        expect(mockFetch).toHaveBeenCalledTimes(4);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
