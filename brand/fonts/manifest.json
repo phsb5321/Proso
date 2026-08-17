@@ -11,6 +11,7 @@
   "axes": { "wght": 475 },
   "trackingPerMille": 0,
   "shaping": "HarfBuzz whole-string (uharfbuzz 0.53.2): kerning, clusters, offsets, advances",
+  "toolchain": { "fontTools": "4.63.0", "uharfbuzz": "0.53.2" },
   "xHeightUnits": 1040,
   "sourceSha256": "3d3f0b6c33296c142eee1961d82cadff9c9fb926b8beca68d5506ac5ed2375e6",
   "generated": "16/08/2026"

@@ -288,6 +288,17 @@ function assertFontWordmarkSource() {
       `wordmark source drifted from the pinned font outline: ${sourceHash} != ${manifest.sourceSha256}`,
     );
   }
+  // The hash above lives in the manifest the gate just read, so on its own it
+  // only catches UNCOORDINATED edits: hand-author a letterform, update
+  // sourceSha256 to match, and every string check here still passes. The
+  // authoritative check is re-deriving the outlines from the vendored font
+  // bytes and byte-comparing. It fails closed when the toolchain is absent —
+  // an origin claim that cannot be re-derived is not evidence.
+  run(
+    'python3',
+    ['scripts/extract-font-wordmark.py', '--check'],
+    'wordmark font-origin regeneration gate',
+  );
   if (/scale\(.1 -.1\)|scale\([^)]* [^)]*\)/u.test(source)) {
     fail('wordmark source contains a mirrored or non-uniform coordinate transform');
   }
@@ -317,7 +328,7 @@ function assertFontWordmarkSource() {
     weight: manifest.axes.wght,
     tracking: manifest.trackingPerMille,
     fontHash: actualFontHash,
-    outlineHash: sourceHash,
+    sourceHash,
   };
 }
 
@@ -444,7 +455,8 @@ function main() {
   console.log('site assets: favicon canonical; og-image canonical lockup on navy');
   console.log(
     `font origin: ${fontOrigin.family} wght=${fontOrigin.weight} tracking ${fontOrigin.tracking}‰; ` +
-      `font ${fontOrigin.fontHash.slice(0, 12)}; outline ${fontOrigin.outlineHash.slice(0, 12)}`,
+      `font ${fontOrigin.fontHash.slice(0, 12)}; source ${fontOrigin.sourceHash.slice(0, 12)} ` +
+      're-derived from the vendored font',
   );
   console.log('brand assets: PASS');
 }

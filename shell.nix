@@ -28,6 +28,14 @@ pkgs.mkShell {
     imagemagick
     inkscape
 
+    # Wordmark outline extraction (`scripts/extract-font-wordmark.py`). The
+    # brand gate re-runs this against the vendored font on every `make verify`,
+    # so the toolchain is a hard requirement, not a convenience: without it the
+    # gate can only compare the source against a hash stored beside it, which
+    # a coordinated edit satisfies. nixpkgs pins the exact versions the
+    # selection research used (fontTools 4.63.0, uharfbuzz 0.53.2).
+    (python3.withPackages (ps: [ ps.fonttools ps.uharfbuzz ]))
+
     # Browsers for Playwright
     chromium
     firefox

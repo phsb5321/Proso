@@ -116,9 +116,6 @@ def main():
     max_y = 0.0
     origin = 0.0
     for index, name in enumerate(names):
-        pen = SVGPathPen(glyph_set, ntos=ntos)
-        transform_pen = TransformPen(pen, transform)
-        glyph_set[name].draw(transform_pen)
         position = positions[index]
         offset_x = origin + (position.x_offset or 0)
         offset_y = position.y_offset or 0
