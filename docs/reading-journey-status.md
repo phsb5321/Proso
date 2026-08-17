@@ -863,15 +863,16 @@ from a host that is not metered.
    they cannot catch a styling regression, which is what a *visual* baseline is for. Serving
    the built page over a local HTTP server (so `/chunks/*` and the CSS resolve) is the
    direction the QA seat proposed and the one most likely to fix both at once.
-21. Repair the quick-settings visual tests: they carry the same vacuous `count() > 0` guard the
-   api-keys tests had before PR #125 — the eng demonstrated it by renaming their testid and
-   watching them still pass. Same treatment: assert the section exists, drop the guard.
-22. Stop `syncProviderUI` rewriting an input the reader is currently typing into. The listener
-   exists for cross-tab sync, but it also fires for the page's own writes, so it reassigns
-   `localHostUrl.value` mid-typing and the caret jumps to the end. Before PR #147 this destroyed
-   the typed address outright; now the value written back is the same string, so the damage is
-   cosmetic — but a listener that clobbers focused input is still wrong. Skip the sync for changes
-   this page just wrote, or leave a focused field alone.
+21. ~~Repair the quick-settings visual tests~~ Delivered on 17/08 by PR #182 (`f288239`). The two
+   quick-settings tests carried the same vacuous `count() > 0` guard the api-keys tests had
+   before PR #125 — renaming their testids left them PASSING (measured RED-before receipts in
+   the PR body). The guards are removed entirely; the tests now assert `toBeVisible()` on the
+   section and its controls (provider select, voice select, speed slider, reset button), so a
+   future refactor dropping a testid FAILS. Both plants (renamed section testid, renamed
+   provider-select testid) turn the fixed tests RED; the two pre-existing full-page
+   viewport-height mismatches (`settings page default` light/dark, `sidebar navigation`,
+   `reduced motion`, `narrow viewport`) are baseline drift also present on main, not
+   introduced here.
 23. ~~Make `make doctor` reject a *shipped* artifact that no longer matches its source, the way it
     now rejects a stale Prisma client~~ Delivered on 17/08 by PR #180 (`234c457`). The 14/08 fix
     covered `packages/server/src/generated/prisma` only; the doctor still could not tell a stale
