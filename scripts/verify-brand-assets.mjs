@@ -311,6 +311,14 @@ function assertFontWordmarkSource() {
     'letter-s',
     'letter-o-2',
   ]);
+
+  return {
+    family: manifest.family,
+    weight: manifest.axes.wght,
+    tracking: manifest.trackingPerMille,
+    fontHash: actualFontHash,
+    outlineHash: sourceHash,
+  };
 }
 
 function assertIcons() {
@@ -419,7 +427,7 @@ function main() {
   run('node', ['scripts/generate-brand-vectors.mjs', '--check'], 'vector freshness gate');
   run('node', ['scripts/render-brand-proofs.mjs', '--check'], 'proof freshness gate');
   for (const filename of BRAND_SVGS) assertBrandSvg(filename);
-  assertFontWordmarkSource();
+  const fontOrigin = assertFontWordmarkSource();
   assertDeterministicIcons();
   assertIcons();
   assertSiteAssets();
@@ -434,6 +442,10 @@ function main() {
     `contrast: green/navy ${greenOnNavy.toFixed(2)}:1; navy/white ${navyOnWhite.toFixed(2)}:1`,
   );
   console.log('site assets: favicon canonical; og-image canonical lockup on navy');
+  console.log(
+    `font origin: ${fontOrigin.family} wght=${fontOrigin.weight} tracking ${fontOrigin.tracking}‰; ` +
+      `font ${fontOrigin.fontHash.slice(0, 12)}; outline ${fontOrigin.outlineHash.slice(0, 12)}`,
+  );
   console.log('brand assets: PASS');
 }
 
