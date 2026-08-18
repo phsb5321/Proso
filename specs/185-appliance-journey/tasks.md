@@ -12,6 +12,11 @@
 | T008 | Re-run fixture mode unplanted — observation must be unchanged | done — `130 chars, voice en_US-ljspeech-medium` |
 | T009 | Spec/plan/tasks tracked in the same diff | done |
 | T010 | `make verify` exit 0; different-family review; merge | done |
+| T011 | Review finding (blocking): the appliance-mode observation was footer+highlight — drawn BEFORE synthesis and surviving the error path, so it carried no audio evidence, and duplicated the later `playing` wait. Now waits on the popup's "Pause" (`status: 'playing'`), which a failed decode never reaches | done |
+| T012 | Review finding (blocking): the attribution line printed BEFORE the managed-route assertion, so both plants printed "real appliance" while the fixture served the audio. Split into decode → assert → attribute; measured 0 occurrences under both plants | done |
+| T013 | Review finding (blocking): BLOCKED pre-flight hung forever (fixture socket held the event loop; `blocked()` only throws). Pre-flight moved before `startFixtureServer()`; verified exit 2 | done |
+| T014 | Review finding: `host-down` + appliance mode silently tested the fixture path. Now BLOCKED as an invalid combination; still FAILs normally in fixture mode | done |
+| T015 | Review findings (non-blocking): failure diagnostic no longer reports a misleading "0 local /v1/tts" in appliance mode; missing `/health` `version` prints `unreported` rather than `undefined` | done |
 
 ## Not closed by this feature
 

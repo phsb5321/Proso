@@ -35,15 +35,36 @@ host changes.
 ## The observation has to change with it, honestly
 
 A fixture can be asked what it received. Real hardware is off-process and
-cannot, so the appliance-mode assertion is the **audible outcome**: the page
-reaches a visible reading state, which only happens once audio decodes and
-plays. Paired with the unchanged zero-managed-requests assertion — and with
-browser `speechSynthesis` removed in `9797dc6` — the appliance is the only
-source those bytes can have.
+cannot, so appliance mode needs a different observation — and the first draft
+of this feature picked the wrong one.
 
-This is a weaker observation than reading the request body, and the receipt
-says so in its `relaxations` rather than implying the two modes prove the same
-thing.
+**Corrected after review.** The draft asserted the *visible reading state*
+(footer + first highlight) and claimed in a code comment that it "only happens
+once audio decodes and plays". That is false: `PlaybackService` calls
+`showFooter` and `highlightParagraph(0)` at `playback-service.ts:157-181`,
+**before** any synthesis request, and both survive the error path. The draft
+also polled the identical predicate the pre-existing `playing` wait re-checks
+fifteen lines later, so it added no signal at all.
+
+The observation is now the popup announcing **"Pause"** — `status: 'playing'`,
+which only `finalizeParagraphPlayback` sets, and which a failed
+`audioElement.play()` short-circuits before reaching
+(`playback-service.ts:1086-1089`). That is a genuine decoded-and-playing
+signal.
+
+Attribution is a separate question from decoding, and the draft conflated
+them. "Audio played" does not say *whose* audio: under the `server-route`
+plant the managed fixture plays perfectly well. So the run now records the two
+facts in the order it earns them:
+
+1. `audio decoded and played (source not yet attributed)`
+2. `the managed route was never called — 0 requests`
+3. → `the reader's own host synthesized the article — real appliance`
+
+Step 3 is printed only after step 2, so a run that falls back to the managed
+route can never print an appliance attribution. It is still a weaker
+observation than reading the request body, and the receipt says so in its
+`relaxations`.
 
 ## Unreachable hardware is BLOCKED, never FAIL
 
@@ -67,8 +88,11 @@ ok  real appliance pre-flight — ready, build 1.0.0+ps4m63vm8fd4gh4i3cn9nj025br
 ok  actor entered their own host address — https://orangepi4pro-b.tailf59220.ts.net
 ok  the reader's host answered its capabilities — Connected — 2 voice(s) found.
 ok  the background adopted the host as the audio route — en_US-ljspeech-medium
-ok  the reader's own host synthesized the article — real appliance, audible reading state reached
+ok  audio decoded and played (source not yet attributed)
+      — popup announced "Pause" — a failed decode never reaches this state
 ok  the managed route was never called — 0 requests to /api/v1/tts/synthesize
+ok  the reader's own host synthesized the article
+      — real appliance — audio played, managed route at zero
 ok  visible reading UI reached the page — body padding 80px
 local-host-journey-gate PASS (real appliance)                          exit 0
 ```
@@ -80,14 +104,28 @@ tailnet address and the capabilities came back from the hardware.
 
 Plants, appliance mode, each applied alone:
 
-| Plant | Verdict |
-|---|---|
-| `server-route` (force the provider back to managed) | FAIL — managed route called 1x |
-| `no-enable` (store the address, never enable) | FAIL — managed route called 1x |
-| `host-down` (dead port) | FAIL — "Test connection" did not reach the reader's host |
+| Plant | Verdict | Attribution line printed? |
+|---|---|---|
+| `server-route` (force the provider back to managed) | FAIL — managed route called 1x | **0 occurrences** |
+| `no-enable` (store the address, never enable) | FAIL — managed route called 1x | **0 occurrences** |
+| `host-down` | **BLOCKED** — refuses to run in appliance mode | n/a |
+
+The attribution column is the review finding made measurable: before the fix
+both plants printed `the reader's own host synthesized the article — real
+appliance` while the *fixture* served the audio. Now neither does.
+
+`host-down` is BLOCKED rather than run, because `hostAddress` replaces the
+appliance URL with a dead port for that plant — so it never exercises the
+appliance and would have been a fixture-mode result wearing an appliance-mode
+label. It still runs normally in fixture mode (FAIL, verified).
 
 Fixture mode re-run after the change: PASS, `130 chars, voice
 en_US-ljspeech-medium` — the original observation, intact.
+
+Unreachable hardware: `LOCAL_HOST_APPLIANCE_URL=http://localhost:9` → BLOCKED,
+**exit 2**. The draft wrote the BLOCKED receipt and then hung forever, because
+`blocked()` throws and the already-listening fixture socket held the event loop
+open; the pre-flight now runs before the fixture starts.
 
 ## Not in scope
 
