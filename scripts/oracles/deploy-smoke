@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Deploy smoke — is the DEPLOYED Proso server actually serving readers?
+#
+# Runs behind `release-gate`, which refuses on a red smoke, on a smoke that
+# emits NO evidence, and on an unrunnable smoke. So this must always print
+# what it observed: silence is treated as a refusal, not as a pass.
+#
+# Read-only. Every probe is a GET against the real host the extension calls.
+set -uo pipefail
+
+SERVER="${PROSO_SERVER_URL:-https://api.proso.com.br}"
+TIMEOUT="${PROSO_ORACLE_TIMEOUT:-15}"
+rc=0
+
+probe() {
+  local label="$1" path="$2" expect="$3" code
+  code="$(curl -s --max-time "$TIMEOUT" -o /dev/null -w '%{http_code}' \
+          "$SERVER$path" 2>/dev/null)" || code="000"
+  if [ "$code" = "$expect" ]; then
+    printf 'smoke: %-28s %s → HTTP %s (expected %s)\n' "$label" "$path" "$code" "$expect"
+  else
+    printf 'smoke: FAIL %-23s %s → HTTP %s (expected %s)\n' "$label" "$path" "$code" "$expect"
+    rc=1
+  fi
+}
+
+command -v curl >/dev/null 2>&1 || {
+  echo "smoke: FAIL — curl unavailable; refusing to report a pass" >&2
+  exit 1
+}
+
+printf 'smoke: target %s\n' "$SERVER"
+probe "health"          "/health"                        200
+probe "anon subscription" "/api/v1/subscription"         200
+probe "voice catalogue" "/api/v1/tts/voices/elevenlabs"  200
+
+if [ "$rc" -eq 0 ]; then
+  echo "smoke: PASS — the deployed server answers every reader-facing read"
+else
+  echo "smoke: FAIL — the deployed server is not serving readers correctly"
+fi
+exit "$rc"

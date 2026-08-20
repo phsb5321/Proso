@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Done-oracle — INV-001: a reader with NO account, license key, or BYOK
+# credential can actually get audio.
+#
+# README states the product contract is unmet on main; specs/095 names the
+# falsifier exactly: "Free managed requests return 402 and browser TTS is
+# absent." This command IS that predicate. It exits 0 only when an
+# account-free reading route genuinely exists.
+#
+# WHY IT PROBES THE DEPLOYED SERVER, not FEATURE_MATRIX in source: flipping
+# Free.managedTts to true in a source file and never shipping it would make a
+# source-reading oracle green while every real reader still gets a 402. That
+# is the wrong-target-green failure this framework exists to close, so the
+# authoritative signal is the response of the server the extension actually
+# calls.
+#
+# READ-ONLY, and honest about the one edge: today the entitlement refusal
+# happens BEFORE any provider call, so this spends nothing. On the day the
+# fix lands, this probe becomes an ordinary two-character synthesis -- the
+# same request page one of any article makes. It never writes config, never
+# deploys, and never touches another user's state.
+#
+# FAILS CLOSED: unreachable, non-JSON, missing tool, timeout, or an
+# unrecognised status is a FAIL. UNKNOWN is never a pass.
+set -uo pipefail
+
+SERVER="${PROSO_SERVER_URL:-https://api.proso.com.br}"
+TIMEOUT="${PROSO_ORACLE_TIMEOUT:-15}"
+
+
+say() { printf 'oracle: %s\n' "$*"; }
+note() { printf 'oracle:   %s\n' "$*"; }
+fail() { printf 'oracle: FAIL — %s\n' "$*"; }
+
+# Two independent routes to audio without an account. specs/095's falsifier is
+# that BOTH are missing ("Free managed requests return 402 AND browser TTS is
+# absent"), so either one being usable satisfies INV-001. They are tracked
+# separately and combined once, at the end -- an earlier version let the
+# fallback check assign rc=0 directly, which printed PASS immediately after a
+# 402 FAIL. A check that can clear another check's failure is not a gate.
+managed_ok=1
+local_ok=1
+
+for tool in curl jq; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    fail "$tool is not available; refusing to guess"
+    exit 1
+  }
+done
+
+# ---- 1. The real target must be reachable. Unreachable is not a pass. ------
+health="$(curl -s --max-time "$TIMEOUT" -o /dev/null -w '%{http_code}' \
+          "$SERVER/health" 2>/dev/null)" || health="000"
+if [ "$health" != "200" ]; then
+  fail "server $SERVER is not answering health (HTTP $health) — cannot judge the reading path"
+  exit 1
+fi
+say "target $SERVER is live (health 200)"
+
+# ---- 2. An anonymous caller must be classified, not rejected. --------------
+sub="$(curl -s --max-time "$TIMEOUT" "$SERVER/api/v1/subscription" 2>/dev/null)"
+tier="$(printf '%s' "$sub" | jq -r '.tier // empty' 2>/dev/null)"
+if [ -z "$tier" ]; then
+  fail "anonymous /subscription did not return a tier (non-JSON or empty)"
+  exit 1
+fi
+say "anonymous caller is classified tier=$tier (no account required to be seen)"
+
+# ---- 3. THE PREDICATE: can that anonymous reader obtain audio? -------------
+# A minimal managed synthesis with no credential of any kind. This is exactly
+# what a fresh reader's first paragraph does.
+body='{"text":"ok","provider":"elevenlabs"}'
+resp="$(curl -s --max-time "$TIMEOUT" -o /dev/null -w '%{http_code}' \
+        -X POST -H 'Content-Type: application/json' \
+        -d "$body" "$SERVER/api/v1/tts/synthesize" 2>/dev/null)" || resp="000"
+
+case "$resp" in
+  200)
+    say "anonymous managed synthesis returned 200 — the managed route works"
+    managed_ok=0
+    ;;
+  402)
+    fail "anonymous managed synthesis returned 402 (entitlement refusal): a reader with no account cannot get audio"
+    say "  this is specs/095's named falsifier, still true on $SERVER"
+    ;;
+  401|403)
+    fail "anonymous managed synthesis returned $resp: the free path demands credentials"
+    ;;
+  000)
+    fail "anonymous managed synthesis did not complete (timeout or connection error)"
+    ;;
+  *)
+    fail "anonymous managed synthesis returned an unrecognised HTTP $resp — failing closed"
+    ;;
+esac
+
+# ---- 4. The local fallback the spec names as the other route. --------------
+# specs/095: "browser TTS is absent". A local synthesis route would be a real
+# second way to go green, so it is checked -- but it is checked for
+# REACHABILITY, not for the mere presence of the string.
+#
+# The first version of this oracle grepped for "speechSynthesis", found a
+# `case 'speakText'` handler in content.ts, and declared the fallback shipped.
+# Nothing anywhere sends that message: the handler is dead code. A route no
+# caller can reach is not a route, and that grep would have turned this oracle
+# green while every account-free reader still had no way to hear anything.
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ext="$root/packages/extension/src"
+if grep -rq "speechSynthesis" "$ext" 2>/dev/null; then
+  # A handler exists. It only counts if something outside its own file asks
+  # for it -- otherwise it is unreachable.
+  senders="$(grep -rl "speakText" "$ext" 2>/dev/null \
+             | grep -v 'entrypoints/content.ts' | wc -l)"
+  if [ "$senders" -gt 0 ]; then
+    say "extension ships a REACHABLE browser-TTS fallback ($senders caller(s))"
+    local_ok=0
+  else
+    say "extension has a browser-TTS handler but NO caller — dead code, not a route"
+    fail "browser TTS is unreachable: no sender for 'speakText' outside content.ts"
+  fi
+else
+  say "extension ships no browser-TTS fallback (speechSynthesis absent)"
+  fail "no local synthesis route exists either"
+fi
+
+# ---- 5. Either route is enough; neither is the falsifier. ------------------
+if [ "$managed_ok" -eq 0 ] || [ "$local_ok" -eq 0 ]; then
+  say "PASS — an account-free reader can obtain audio"
+  exit 0
+fi
+say "a reader with no account, no license key and no BYOK key has NO route to audio"
+note "managed route: blocked · local route: blocked"
+note "see specs/095-reading-journey-contract/spec.md (INV-001)"
+exit 1
