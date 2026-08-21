@@ -100,6 +100,23 @@ const NAME = {
  */
 const PLANT = process.env.LOCAL_HOST_PLANT ?? '';
 
+/**
+ * Opt-in: point the reader's own host at a REAL appliance instead of the
+ * fixture. Unset, this gate proves the account-free ROUTE against a fixture
+ * speaking the appliance's wire contract; the appliance itself was only ever
+ * covered at the adapter level (`local-host-live.test.ts`), so no single run
+ * proved a real browser reading from real appliance hardware.
+ *
+ * With it set, the fixture still serves the article and still stands in for
+ * the MANAGED endpoint — so a wrong fallback is still recorded rather than
+ * escaping to the real API — but every audio byte comes from the appliance.
+ * The observation changes with it: a real appliance does not report back to
+ * the fixture, so the receipt is the audible outcome (reading UI reached the
+ * page) plus zero managed requests, and the run pre-flights the appliance so
+ * unreachable hardware is BLOCKED rather than read as a product failure.
+ */
+const APPLIANCE_URL = (process.env.LOCAL_HOST_APPLIANCE_URL ?? '').replace(/\/$/, '');
+
 const steps = [];
 /** Every actor action, in order, with the public name it was addressed by. */
 const actions = [];
@@ -197,6 +214,37 @@ async function main() {
   const binary = resolveFirefox();
   record('firefox resolved', binary);
 
+  // Pre-flight BEFORE the fixture server opens a socket. `blocked()` throws
+  // and nothing in main()'s rejection path calls process.exit, so a listening
+  // fixture would hold the event loop open and the run would hang instead of
+  // reporting BLOCKED — the exact case this pre-flight exists to report.
+  // Hardware that is off, unplugged or off-tailnet is not a product defect.
+  if (APPLIANCE_URL) {
+    if (PLANT === 'host-down') {
+      // Otherwise `hostAddress` silently ignores APPLIANCE_URL below and the
+      // run tests the fixture-mode path while claiming to be in appliance
+      // mode — a plant that proves something about a different code path.
+      blocked(
+        'LOCAL_HOST_PLANT=host-down cannot run in appliance mode: it replaces the host address, so the appliance is never the host under test',
+      );
+    }
+    const ready = await fetch(`${APPLIANCE_URL}/health`, {
+      signal: AbortSignal.timeout(10_000),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+    if (!ready?.ready) {
+      blocked(
+        `The appliance at ${APPLIANCE_URL} is not reachable/ready (GET /health) — ` +
+          'this run proves nothing about the product',
+      );
+    }
+    record(
+      'real appliance pre-flight',
+      `${APPLIANCE_URL} ready, build ${ready.version ?? 'unreported'}`,
+    );
+  }
+
   const fixture = await startFixtureServer();
   // The reader's own host. `localhost` rather than `127.0.0.1` because the
   // product only accepts https, or http for localhost — the fixture binds to
@@ -204,8 +252,11 @@ async function main() {
   const hostAddress =
     PLANT === 'host-down'
       ? 'http://localhost:1'
-      : `http://localhost:${new URL(fixture.origin).port}`;
-  record('fixture server started', `${fixture.origin} (article + synthesis host)`);
+      : APPLIANCE_URL || `http://localhost:${new URL(fixture.origin).port}`;
+  record(
+    'fixture server started',
+    `${fixture.origin} (article${APPLIANCE_URL ? '' : ' + synthesis host'})`,
+  );
 
   const driver = await launch({
     binary,
@@ -392,13 +443,34 @@ async function main() {
     record('actor pressed the popup control', NAME.play);
 
     const synthesized = await waitFor(
-      "a synthesis request carrying the article text at the READER'S OWN host",
-      async () =>
-        fixture.localRequests.find((request) =>
-          ARTICLE_PARAGRAPHS.some((paragraph) =>
-            String(request.body?.input ?? '').includes(paragraph.slice(0, 40)),
-          ),
-        ) ?? null,
+      APPLIANCE_URL
+        ? "audio that actually DECODED AND PLAYED (the appliance's request log is off-process)"
+        : "a synthesis request carrying the article text at the READER'S OWN host",
+      async () => {
+        if (APPLIANCE_URL) {
+          // The appliance is off-process, so its request log cannot be read.
+          // The observation must therefore be one that requires audio to have
+          // decoded, and the visible reading state is NOT that: PlaybackService
+          // calls showFooter and highlightParagraph(0) BEFORE any synthesis
+          // request (playback-service.ts:157-181), and both survive the error
+          // path. `status: 'playing'` — which the popup announces as "Pause" —
+          // is set only by finalizeParagraphPlayback, which a failed
+          // `audioElement.play()` short-circuits before reaching
+          // (playback-service.ts:1086-1089). So bytes were decoded and played.
+          // WHOSE bytes is settled separately, by the managed-route assertion
+          // below; with that at zero and browser speechSynthesis removed in
+          // 9797dc6, the appliance is the only remaining source.
+          const state = await readPopup(driver).catch(() => null);
+          return state?.open && state.names.includes(NAME.pause) ? { appliance: true } : null;
+        }
+        return (
+          fixture.localRequests.find((request) =>
+            ARTICLE_PARAGRAPHS.some((paragraph) =>
+              String(request.body?.input ?? '').includes(paragraph.slice(0, 40)),
+            ),
+          ) ?? null
+        );
+      },
       { timeoutMs: 45_000 },
     ).catch(async (error) => {
       // Name the route that WAS taken. Not knowing this is what turned
@@ -432,14 +504,26 @@ async function main() {
       fail(
         `${error.message}\n` +
           `    route taken: ${fixture.requests.length} managed /api/v1/tts/synthesize, ` +
-          `${fixture.localRequests.length} local /v1/tts\n` +
+          `${
+            APPLIANCE_URL
+              ? `local /v1/tts served by the appliance and not observable from here (fixture saw ${fixture.localRequests.length})`
+              : `${fixture.localRequests.length} local /v1/tts`
+          }\n` +
           `    popup status: ${popup.status ?? 'none'}\n` +
           `    background: ${background}`,
       );
     });
+    // In appliance mode this cannot yet claim WHICH host produced the audio:
+    // the managed fixture would satisfy a decoded-and-playing observation just
+    // as well, and does exactly that under the `server-route` plant. State only
+    // what is proven so far; attribution is recorded after the assertion below.
     record(
-      'the reader\u2019s own host synthesized the article',
-      `${String(synthesized.body.input).length} chars, voice ${synthesized.body.voice}`,
+      synthesized.appliance
+        ? 'audio decoded and played (source not yet attributed)'
+        : 'the reader\u2019s own host synthesized the article',
+      synthesized.appliance
+        ? `popup announced "${NAME.pause}" — a failed decode never reaches this state`
+        : `${String(synthesized.body.input).length} chars, voice ${synthesized.body.voice}`,
     );
 
     // The assertion this gate exists for. A reader with no account, no license
@@ -451,6 +535,15 @@ async function main() {
       );
     }
     record('the managed route was never called', '0 requests to /api/v1/tts/synthesize');
+
+    // Only now is attribution earned: audio demonstrably played, and the one
+    // other reachable source recorded zero requests.
+    if (synthesized.appliance) {
+      record(
+        'the reader’s own host synthesized the article',
+        `real appliance ${APPLIANCE_URL} — audio played, managed route at zero`,
+      );
+    }
 
     const readPage = () => driver.execute(`return (() => {${READ_PAGE}})();`);
     const playing = await waitFor(
@@ -492,7 +585,10 @@ async function main() {
       managedRequests: fixture.requests.length,
       artifacts: [path.relative(repoRoot, screenshotPath)],
     });
-    process.stdout.write(`\nlocal-host-journey-gate PASS at ${head()}\n`);
+    process.stdout.write(
+      `\nlocal-host-journey-gate PASS at ${head()}` +
+        `${APPLIANCE_URL ? ` (real appliance ${APPLIANCE_URL})` : ''}\n`,
+    );
   } finally {
     await driver.quit();
     await fixture.close();
@@ -523,7 +619,13 @@ function writeReceipt({
     relaxations: [
       'extensions.webextensions.remote=false — a remote popup document is opaque to the parent process, so its accessible names cannot be read at all out-of-process.',
       'extensions.webextOptionalPermissionPrompts=false — the grant request, its user gesture and the resulting permission are real; the doorhanger the reader would accept is not exercised.',
-      "The synthesis host is a local fixture speaking the appliance's wire contract, not the appliance itself. tests/integration/local-host-live.test.ts covers the real host at the adapter level.",
+      ...(APPLIANCE_URL
+        ? [
+            `The synthesis host was the REAL appliance at ${APPLIANCE_URL}, not a fixture. Its request log is off-process, so the audio is proven by the popup announcing "${NAME.pause}" (status 'playing', which a failed decode never reaches) and attributed by the managed route recording zero requests — not by inspecting a request body. The visible reading state is deliberately NOT the evidence: the footer and first highlight are drawn before any synthesis request and survive the error path.`,
+          ]
+        : [
+            "The synthesis host is a local fixture speaking the appliance's wire contract, not the appliance itself. tests/integration/local-host-live.test.ts covers the real host at the adapter level.",
+          ]),
     ],
     commands: [
       { command: 'pnpm --filter @proso/extension build:firefox', exitCode: 0, precondition: true },
