@@ -385,7 +385,8 @@ Two temporary resident services are live on the desktop until reboot:
 Kokoro binds loopback directly. Qwen's upstream server binds `0.0.0.0`. Its transient user unit
 requests `IPAddressDeny=any` plus `IPAddressAllow=localhost`, but the user manager warned that it
 could not enforce an IP firewall as non-root. Independent probes from `orangepi4pro-b` to both
-desktop tailnet ports timed out; that proves only current reachability, not enforcement by the unit.
+desktop tailnet ports timed out; that proves only that they were unreachable during the probe, not
+why or whether the unit enforced it.
 Treat Qwen as a local benchmark service until it binds loopback or sits behind a verified network
 boundary. Local health checks and real PT-BR WAV generation passed. Neither Orange Pi service nor
 its configuration changed.
