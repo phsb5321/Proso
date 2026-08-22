@@ -367,12 +367,13 @@ regressed both models; 22 physical threads is the selected configuration.
 | Candidate | Desktop result | Resident-service result |
 |---|---|---|
 | Kokoro-82M INT8, `pf_dora` | load 1.500 s; 19.119 s synthesis for 9.537 s audio; RTF 2.005 at 22 threads; RTF 2.351 at 44 threads | 10.379 s before a complete 4.864 s WAV; 328 MiB peak service memory |
-| Qwen3-TTS 0.6B CustomVoice INT8, `ryan` | load 0.983 s; TTFA 4.021 s; 26.6 s generation for 14.3 s audio; RTF 1.86; 3.35 GiB peak RSS at 22 threads; RTF 2.12 at 44 threads | full WAV: 12.5 s for 10.48 s audio, RTF 1.19; stream: first audio byte at 0.825 s, 13.615 s total for 10.96 s audio, RTF 1.24; 1.47 GiB peak service memory |
+| Qwen3-TTS 0.6B CustomVoice INT8, `ryan` | load 0.983 s; TTFA 4.021 s; 26.6 s generation for 14.3 s audio; RTF 1.86; 3.35 GiB peak RSS at 22 threads; RTF 2.12 at 44 threads | full WAV: 12.5 s for 10.48 s audio, RTF 1.19; stream: first audio byte at 0.825 s, 13.615 s total for 10.96 s audio, RTF 1.24; 1.37 GiB peak service memory |
 
-Qwen is the better desktop quality mode: it is faster, substantially more expressive, and its
-native stream reaches first audio in under one second. It is still slightly slower than playback,
-so clients need a small prebuffer and Piper remains the real-time fallback. Kokoro remains useful as
-the much smaller deterministic PT-BR option, not as the default interactive reader.
+Qwen has the better measured desktop latency and streaming profile: its native stream reaches first
+audio in under one second. Human-perceived quality has not been compared, so a listening gate must
+precede any quality verdict. Qwen is still slightly slower than playback, so clients need a small
+prebuffer and Piper remains the real-time fallback. Kokoro remains the much smaller deterministic
+PT-BR candidate, not the default interactive reader.
 
 Two temporary resident services are live on the desktop until reboot:
 
@@ -381,10 +382,13 @@ Two temporary resident services are live on the desktop until reboot:
 - `qwen3-tts-desktop.service` — `http://127.0.0.1:5302`, with `/v1/tts`, `/v1/tts/stream`, and the
   OpenAI-compatible `/v1/audio/speech` endpoint.
 
-Kokoro binds loopback directly. Qwen's upstream server binds `0.0.0.0`, so its transient systemd
-unit applies `IPAddressDeny=any` plus `IPAddressAllow=localhost`. Independent probes from
-`orangepi4pro-b` to both desktop tailnet ports timed out, while local health checks and real PT-BR
-WAV generation passed. Neither Orange Pi service nor its configuration changed.
+Kokoro binds loopback directly. Qwen's upstream server binds `0.0.0.0`. Its transient user unit
+requests `IPAddressDeny=any` plus `IPAddressAllow=localhost`, but the user manager warned that it
+could not enforce an IP firewall as non-root. Independent probes from `orangepi4pro-b` to both
+desktop tailnet ports timed out; that proves only current reachability, not enforcement by the unit.
+Treat Qwen as a local benchmark service until it binds loopback or sits behind a verified network
+boundary. Local health checks and real PT-BR WAV generation passed. Neither Orange Pi service nor
+its configuration changed.
 
 One integration anomaly remains open: Qwen's minimal JSON parser does not decode standards-valid
 `\\uXXXX` escapes. A Python client using ASCII-escaped JSON made it speak the escape sequences and
