@@ -422,7 +422,7 @@ presently runnable.
 The largest complete candidate that is both obtainable and fast enough is **Supertonic 3**: 99M
 parameters, model revision `3cadd1ee6394adea1bd021217a0e650ede09a323`, served by `supertonic
 1.3.1` and ONNX Runtime 1.29.0. The selected configuration is eight ONNX threads, voice `F1`,
-Portuguese, speed 1.0, and the maximum documented quality setting of 12 diffusion steps.
+Portuguese, speed 1.0, and the selected quality setting of 12 diffusion steps.
 
 | Exact-desktop gate | Result |
 |---|---|
@@ -431,15 +431,20 @@ Portuguese, speed 1.0, and the maximum documented quality setting of 12 diffusio
 | Tuned resident chunked stream | first audio 2.436 s; 8.842 s total for 18.153 s audio; **RTF 0.487 / 2.05× real-time** |
 | Resident footprint | 570,294,272-byte measured peak; ten built-in voices loaded |
 
+The Orange Pi's `whisper-quality` lane recovered the 28-word PT fixture with two raw word edits
+(WER 7.1%): `dezoito` was normalized to `18`, and the `<sigh>` vocalization was transcribed as
+`Sai`. It omitted no lexical content. This supports intelligibility only; naturalness and voice
+preference still require human listening.
+
 The service retains the package's full WAV, batch, style-list/import, and OpenAI-compatible APIs.
 A thin route over the same single resident model adds `/v1/tts/stream`: it bounds chunks to 55
 characters, emits 44.1 kHz mono `s16le`, validates voice names and input length, and begins the next
 synthesis while the client can play the previous chunk. The representative stream passed both the
-RTF ≤0.50 oracle and a first-audio <2.5 s oracle at the maximum quality setting. This is one model,
+RTF ≤0.50 oracle and a first-audio <2.5 s oracle at the selected 12-step setting. This is one model,
 not a fallback chain.
 
 Supertonic 3 supplies 31 languages including Portuguese, ten fixed voice styles plus imported custom
-style JSON, ten inline expression tags such as `<laugh>`, `<breath>`, and `<sigh>`, speed control,
+style JSON, inline expression tags such as `<laugh>`, `<breath>`, and `<sigh>`, speed control,
 44.1 kHz output, automatic long-form chunking, batching, and local/OpenAI-shaped APIs. It does not
 provide an offline zero-shot cloning pipeline; custom voices are imported style files. Its model is
 OpenRAIL-M rather than MIT: hosted use is allowed, but Proso must disclose that output is synthetic,
