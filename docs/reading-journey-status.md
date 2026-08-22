@@ -665,8 +665,9 @@ installing code:
 }
 ```
 
-Most importantly, the exact build was exercised with the installed
-`firefox-nightly` binary, not inferred from the earlier stable-Firefox run:
+Most importantly, the same final **unpacked build output** was exercised with
+the installed `firefox-nightly` binary, not inferred from the earlier
+stable-Firefox run:
 
 ```bash
 FIREFOX_BIN=/etc/profiles/per-user/notroot/bin/firefox-nightly \
@@ -682,15 +683,25 @@ managed `/api/v1/tts/synthesize` requests before attributing the audio to the
 appliance. Exit 0; retained receipt:
 `~/proso187-nightly-appliance-Sk63.log`.
 
+This journey ran in a **separate, isolated geckodriver profile** with
+`.output/firefox-mv2` loaded as a temporary add-on. It did not drive Pedro's
+daily `main-session` profile, and it did not install the packaged XPI. The two
+proofs are separate: the daily profile's `extensions.json` + `storage.js` prove
+the installed version and preserved configuration after restart; the isolated
+profile proves the same final build output can read through the real appliance
+under Nightly 154. The deployed XPI is the WXT zip byte-for-byte (matching
+SHA-256 above), but the gate exercises its unpacked source directory, not the
+archive itself.
+
 Two non-green facts stay explicit. First, `make user-gate` still exits 2 because
 Feature 095's broader anomaly/restart/soak and unified-receipt contract remains
 BLOCKED; this focused real-appliance journey does not rewrite that verdict.
-Second, `scripts/oracles/account-free-reading-path` is now a false-negative for
-the shipped route: it checks managed TTS and browser `speechSynthesis` only,
-not the user-operated host, so it reports "local route: blocked" immediately
-after the real Nightly appliance journey passes. The stale oracle was recorded
-in `fleet-intel` rather than promoted to product truth; repair it before using
-that ledger row as done-state.
+Second, `scripts/oracles/account-free-reading-path` does not recognize the
+shipped user-operated-host route: it checks managed TTS and browser
+`speechSynthesis` only, matching spec 095's literal falsifier wording. Whether
+the appliance route satisfies that invariant is an unresolved scope conflict,
+not an established oracle defect. Do not use that oracle's PASS/FAIL as the
+verdict for this route until the spec and oracle are reconciled.
 
 ## Next verified slices
 
