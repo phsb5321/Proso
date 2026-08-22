@@ -625,6 +625,73 @@ the correct, truthful site with the auto-update lifeline intact, and it publishe
 the moment publishing is unblocked — either Actions restored, or that tree served
 from a host that is not metered.
 
+## Update — 22/08/2026: daily Firefox Nightly updated and pointed at the real appliance
+
+Pedro's daily Firefox Nightly profile (`main-session`, Nightly 154.0a1) carried
+Proso **1.2.6** while the repository and the dedicated `proso-dev` profile were
+at **1.2.9**. The public self-update feed was not a usable upgrade path:
+`https://proso.com.br/updates.json` still advertised only 1.1.3 and 1.2.1.
+This was therefore a local Nightly deployment, **not** a public signed release.
+Nightly has `xpinstall.signatures.required=false`; the signed-unlisted release
+remains a separate open distribution task.
+
+A clean 1.2.9 Firefox artifact was built from merged `main` at
+`1b55615b65ecb7fda41224cd19fca3e80554eb74`, then the daily profile's XPI was
+replaced atomically after a graceful browser shutdown. Firefox was relaunched
+through the same `app-scope firefox-nightly --name firefox-nightly` desktop
+entry and rescanned the add-on as:
+
+```text
+version=1.2.9 active=true visible=true appDisabled=false userDisabled=false
+XPI sha256=c8e7f1f107c30b0c6b77eae8866e7d99e96e1b8101886e66f90ade56f6b97b49
+```
+
+The one-file rollback backup is
+`~/.local/state/proso-deploy/20260822-184902/proso-1.2.6.xpi` (the same folder
+also retains pre-deploy `extensions.json`, `storage.js`, and hashes).
+
+The upgrade preserved the actual appliance configuration rather than merely
+installing code:
+
+```json
+{
+  "localHostUrl": "https://orangepi4pro-b.tailf59220.ts.net",
+  "localHostEnabled": true,
+  "localHostVoice": "pt_BR-faber-medium",
+  "provider": "local",
+  "speed": 1,
+  "highlightEnabled": true,
+  "autoScroll": true
+}
+```
+
+Most importantly, the exact build was exercised with the installed
+`firefox-nightly` binary, not inferred from the earlier stable-Firefox run:
+
+```bash
+FIREFOX_BIN=/etc/profiles/per-user/notroot/bin/firefox-nightly \
+LOCAL_HOST_APPLIANCE_URL=https://orangepi4pro-b.tailf59220.ts.net \
+  node scripts/local-host-journey-gate.mjs
+# local-host-journey-gate PASS at 1b55615... (real appliance ...)
+```
+
+The public-control actor entered the host, received two voices, granted the
+runtime host permission with a real click, pressed `Play`, observed the popup
+announce `Pause` (the decoded-and-playing signal), and recorded **zero**
+managed `/api/v1/tts/synthesize` requests before attributing the audio to the
+appliance. Exit 0; retained receipt:
+`~/proso187-nightly-appliance-Sk63.log`.
+
+Two non-green facts stay explicit. First, `make user-gate` still exits 2 because
+Feature 095's broader anomaly/restart/soak and unified-receipt contract remains
+BLOCKED; this focused real-appliance journey does not rewrite that verdict.
+Second, `scripts/oracles/account-free-reading-path` is now a false-negative for
+the shipped route: it checks managed TTS and browser `speechSynthesis` only,
+not the user-operated host, so it reports "local route: blocked" immediately
+after the real Nightly appliance journey passes. The stale oracle was recorded
+in `fleet-intel` rather than promoted to product truth; repair it before using
+that ledger row as done-state.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
