@@ -431,6 +431,11 @@ Portuguese, speed 1.0, and the maximum documented quality setting of 12 diffusio
 | Tuned resident chunked stream | first audio 2.436 s; 8.842 s total for 18.153 s audio; **RTF 0.487 / 2.05× real-time** |
 | Resident footprint | 570,294,272-byte measured peak; ten built-in voices loaded |
 
+The Orange Pi's `whisper-quality` lane recovered the 28-word PT fixture with two raw word edits
+(WER 7.1%): `dezoito` was normalized to `18`, and the `<sigh>` vocalization was transcribed as
+`Sai`. It omitted no lexical content. This supports intelligibility only; naturalness and voice
+preference still require human listening.
+
 The service retains the package's full WAV, batch, style-list/import, and OpenAI-compatible APIs.
 A thin route over the same single resident model adds `/v1/tts/stream`: it bounds chunks to 55
 characters, emits 44.1 kHz mono `s16le`, validates voice names and input length, and begins the next
