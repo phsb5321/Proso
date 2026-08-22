@@ -318,7 +318,7 @@ artifacts separately under `~/tts-bench-20260822/`:
 |---|---|---|
 | Current Piper medium voices | RTF 0.195–0.276 (05/08 baseline) | only verified interactive engine |
 | Kokoro-82M INT8, `pf_dora`, 4 ONNX threads | load 2.978 s; 26.020 s synthesis for 9.518 s audio; RTF 2.734; peak RSS 449 MiB; peak 80.7 °C | fits comfortably, but is 2.7× slower than real time |
-| Qwen3-TTS 0.6B CustomVoice INT4, 4-thread C runtime | load 20.935 s; first audio 23.767 s; 134.0 s synthesis for 14.9 s audio; RTF 9.01; peak 95.3 °C | physically runs, but is neither interactive nor thermally sustainable |
+| Qwen3-TTS 0.6B CustomVoice INT4, 4-thread C runtime | load 20.935 s; first audio 23.767 s; 134.0 s synthesis for 14.9 s audio; runtime-reported RTF 9.01; peak 95.3 °C | physically runs, but is neither interactive nor thermally sustainable |
 
 An 8-thread Kokoro attempt crossed the 85 °C watchdog over an 8.7-second sampled interval and was
 terminated before producing audio. The 4-thread run completed below the 82 °C hard cutoff. Qwen's
