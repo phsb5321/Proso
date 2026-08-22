@@ -401,6 +401,56 @@ All desktop artifacts and evidence are isolated under `~/tts-bench-20260822-desk
 two named transient units removes the live services; deleting that directory reclaims the models
 and is the complete desktop reversal.
 
+## Update — 22/08/2026: one model, two-times-real-time floor
+
+The deployment constraint changed again: keep exactly one desktop model, and require RTF ≤0.50
+(two seconds of audio per wall-clock second) without dropping Portuguese, expressive controls,
+voice selection, long-form handling, local APIs, or deployable licensing. This disqualifies both
+previous resident candidates. Qwen's best exact-desktop result remained RTF 1.86; its documented
+AVX2 INT4/four-thread sweet spot was also measured and reached only RTF 2.03. Kokoro remained at
+RTF 2.00. Neither can meet the new floor through thread tuning.
+
+The larger alternatives do not change that answer on this machine. Chatterbox Multilingual V3 is a
+500M MIT-licensed PT-BR model with cloning and emotion controls, but its required PyTorch GPU path
+cannot use the desktop's Radeon RX 5700 XT: Navi 10 is `gfx1010`, which current supported
+ROCm/PyTorch matrices exclude. No CPU result was found that supports RTF 0.50 for this variant, so
+it was rejected before a multi-gigabyte download rather than represented as measured. Pocket TTS
+exposes standard and larger 24-layer Portuguese variants with streaming and cloning, but the
+logged-in Hugging Face account still receives `Access denied` from its gated weights, so it is not
+presently runnable.
+
+The largest complete candidate that is both obtainable and fast enough is **Supertonic 3**: 99M
+parameters, model revision `3cadd1ee6394adea1bd021217a0e650ede09a323`, served by `supertonic
+1.3.1` and ONNX Runtime 1.29.0. The selected configuration is eight ONNX threads, voice `F1`,
+Portuguese, speed 1.0, and the maximum documented quality setting of 12 diffusion steps.
+
+| Exact-desktop gate | Result |
+|---|---|
+| Thread sweep at 12 steps | 4 threads RTF 0.413; **8 threads RTF 0.391**; 11 threads RTF 0.407; 22 threads RTF 0.514 |
+| Tuned resident full response | 6.103 s synthesis for 16.091 s audio; **RTF 0.379 / 2.64× real-time** |
+| Tuned resident chunked stream | first audio 2.436 s; 8.842 s total for 18.153 s audio; **RTF 0.487 / 2.05× real-time** |
+| Resident footprint | 570,294,272-byte measured peak; ten built-in voices loaded |
+
+The service retains the package's full WAV, batch, style-list/import, and OpenAI-compatible APIs.
+A thin route over the same single resident model adds `/v1/tts/stream`: it bounds chunks to 55
+characters, emits 44.1 kHz mono `s16le`, validates voice names and input length, and begins the next
+synthesis while the client can play the previous chunk. The representative stream passed both the
+RTF ≤0.50 oracle and a first-audio <2.5 s oracle at the maximum quality setting. This is one model,
+not a fallback chain.
+
+Supertonic 3 supplies 31 languages including Portuguese, ten fixed voice styles plus imported custom
+style JSON, ten inline expression tags such as `<laugh>`, `<breath>`, and `<sigh>`, speed control,
+44.1 kHz output, automatic long-form chunking, batching, and local/OpenAI-shaped APIs. It does not
+provide an offline zero-shot cloning pipeline; custom voices are imported style files. Its model is
+OpenRAIL-M rather than MIT: hosted use is allowed, but Proso must disclose that output is synthetic,
+pass through the model's use restrictions where required, and retain the license/attribution.
+
+Only `supertonic3-tts-desktop.service` is now active, on `127.0.0.1:5301`; a probe from
+`orangepi4pro-b` to the desktop tailnet address timed out. Kokoro and Qwen units are inactive and
+their model/runtime trees were removed, reclaiming roughly 2.8 GiB. Small benchmark logs,
+checksums, and the machine-readable selection receipt remain under
+`~/tts-bench-20260822-desktop/comparison-evidence/`. The Orange Pi remains unchanged.
+
 ## Reversal
 
 - Close only the Firefox instance using profile `proso-dev-283ff822`, or stop its `web-ext` runner;
