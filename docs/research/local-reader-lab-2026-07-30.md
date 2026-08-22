@@ -350,6 +350,52 @@ No service or repository configuration changed during the spike. At the final ch
 Removing `~/tts-bench-20260822/` reclaims the retained 278 MiB benchmark payload and is the complete
 host-side reversal.
 
+## Update — 22/08/2026: active cooling and desktop relocation
+
+The case fan changed the Orange Pi's thermal result, but not its throughput result. After the fan
+was connected, idle temperature fell from 46.7 °C to 38.3 °C in 90 seconds. Kokoro then completed
+the same all-core fixture from a 36.0 °C baseline with a 64.9 °C peak, 449 MiB peak RSS, and RTF
+2.712. That is effectively the same speed as the earlier four-thread RTF 2.734. Cooling therefore
+removes thermal risk, but does not make Kokoro interactive. Qwen would still need a several-fold
+speedup, so its 2.4 GiB payload was not downloaded to the board again.
+
+Pedro then moved the high-quality TTS target to the desktop. The desktop is a 22-core/44-thread Xeon
+E5-2699 v4 with 125 GiB RAM and an RX 5700 XT. Qwen's native engine supports CUDA and Metal, not
+this AMD Vulkan/OpenCL device, so both measurements below are optimized CPU results. Hyperthreads
+regressed both models; 22 physical threads is the selected configuration.
+
+| Candidate | Desktop result | Resident-service result |
+|---|---|---|
+| Kokoro-82M INT8, `pf_dora` | load 1.500 s; 19.119 s synthesis for 9.537 s audio; RTF 2.005 at 22 threads; RTF 2.351 at 44 threads | 10.379 s before a complete 4.864 s WAV; 328 MiB peak service memory |
+| Qwen3-TTS 0.6B CustomVoice INT8, `ryan` | load 0.983 s; TTFA 4.021 s; 26.6 s generation for 14.3 s audio; RTF 1.86; 3.35 GiB peak RSS at 22 threads; RTF 2.12 at 44 threads | full WAV: 12.5 s for 10.48 s audio, RTF 1.19; stream: first audio byte at 0.825 s, 13.615 s total for 10.96 s audio, RTF 1.24; 1.47 GiB peak service memory |
+
+Qwen is the better desktop quality mode: it is faster, substantially more expressive, and its
+native stream reaches first audio in under one second. It is still slightly slower than playback,
+so clients need a small prebuffer and Piper remains the real-time fallback. Kokoro remains useful as
+the much smaller deterministic PT-BR option, not as the default interactive reader.
+
+Two temporary resident services are live on the desktop until reboot:
+
+- `kokoro-tts-desktop.service` — `http://127.0.0.1:5301`, PT-BR voices `pf_dora`, `pm_alex`, and
+  `pm_santa`;
+- `qwen3-tts-desktop.service` — `http://127.0.0.1:5302`, with `/v1/tts`, `/v1/tts/stream`, and the
+  OpenAI-compatible `/v1/audio/speech` endpoint.
+
+Kokoro binds loopback directly. Qwen's upstream server binds `0.0.0.0`, so its transient systemd
+unit applies `IPAddressDeny=any` plus `IPAddressAllow=localhost`. Independent probes from
+`orangepi4pro-b` to both desktop tailnet ports timed out, while local health checks and real PT-BR
+WAV generation passed. Neither Orange Pi service nor its configuration changed.
+
+One integration anomaly remains open: Qwen's minimal JSON parser does not decode standards-valid
+`\\uXXXX` escapes. A Python client using ASCII-escaped JSON made it speak the escape sequences and
+nearly doubled the output duration; literal UTF-8 JSON produced the expected text. JavaScript's
+`JSON.stringify` retains ordinary PT-BR characters, but direct Proso integration must still fix or
+shield this parser defect rather than publish a partially compliant JSON endpoint.
+
+All desktop artifacts and evidence are isolated under `~/tts-bench-20260822-desktop/`. Stopping the
+two named transient units removes the live services; deleting that directory reclaims the models
+and is the complete desktop reversal.
+
 ## Reversal
 
 - Close only the Firefox instance using profile `proso-dev-283ff822`, or stop its `web-ext` runner;
