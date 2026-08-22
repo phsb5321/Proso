@@ -103,9 +103,10 @@ verify human-perceived quality or the Pi's behavior under a live Proso workload.
 1. [Piper](https://github.com/OHF-Voice/piper1-gpl) is the immediate local TTS candidate. The
    existing voices, supported HTTP API, ARM-compatible runtime, and measured latency make it the
    smallest integration.
-2. [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) is the next audio-quality spike. Its
-   model card is Apache-2.0 and the official voice list includes Brazilian Portuguese voices, but
-   it is not installed or benchmarked here.
+2. [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) was the next audio-quality spike. Its
+   model card is Apache-2.0 and its official voice list includes Brazilian Portuguese voices. The
+   exact-board benchmark on 22/08/2026 disproved it as an interactive Proso engine; see the update
+   below.
 3. [Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B) is only an optional text-model
    candidate for future summarization or explanation. It does not generate audio and should not
    be conflated with the TTS path.
@@ -302,6 +303,50 @@ human-listening half is Pedro's.
 So the line above — "the public extension must not contact Pedro's Pi directly" — is not
 superseded by Feature 100. It is one side of a decision that is now open and belongs to Pedro.
 PR #95 is held pending it.
+
+## Update — 22/08/2026: the practical TTS ceiling is compute and heat, not model size
+
+Pedro changed the board's target from mixed TTS/STT to TTS-only and asked for the largest model
+that remains useful for interactive Proso reading. The hypothesis was that retiring both Whisper
+workers would make a larger, more expressive engine practical. The falsifier was an exact-board
+run that still missed Proso's warm RTF and time-to-first-audio bounds after fitting in memory.
+
+The falsifier triggered. The benchmark kept all deployed services unchanged and tested pinned
+artifacts separately under `~/tts-bench-20260822/`:
+
+| Candidate | Exact-board result | Verdict |
+|---|---|---|
+| Current Piper medium voices | RTF 0.195–0.276 (05/08 baseline) | only verified interactive engine |
+| Kokoro-82M INT8, `pf_dora`, 4 ONNX threads | load 2.978 s; 26.020 s synthesis for 9.518 s audio; RTF 2.734; peak RSS 449 MiB; peak 80.7 °C | fits comfortably, but is 2.7× slower than real time |
+| Qwen3-TTS 0.6B CustomVoice INT4, 4-thread C runtime | load 20.935 s; first audio 23.767 s; 134.0 s synthesis for 14.9 s audio; RTF 9.01; peak 95.3 °C | physically runs, but is neither interactive nor thermally sustainable |
+
+An 8-thread Kokoro attempt reached the 85 °C watchdog after nine seconds and was terminated before
+producing audio. The 4-thread run completed below the 82 °C hard cutoff. Qwen's sample crossed
+95 °C while thermally throttled. These are CPU-only results: the A733's VIPLite NPU is alive, but
+there is still no verified TTS-capable execution path for it.
+
+Retiring `whisper-balanced` and `whisper-quality` would release about 866 MiB of resident memory.
+That does not change the result: Kokoro used less than 0.5 GiB, so memory was already not its
+constraint. The practical ceiling is the architecture's CPU throughput and the board's passive
+thermal envelope. "Largest that executes" and "largest useful for reading" are therefore different
+answers:
+
+- largest verified to execute in this spike: Qwen3-TTS 0.6B INT4;
+- largest currently verified as interactive: the deployed Piper medium voices;
+- next credible upgrade: Pocket TTS 100M, because it is CPU-native, streaming, and publishes a
+  Portuguese model. Its larger Portuguese 24-layer checkpoint (672 MB) is attempted only if the
+  standard checkpoint leaves measured latency and thermal headroom.
+
+The exact next action is gated, not a request for another model survey: **`[pending] Pedro:` accept
+the Kyutai Pocket TTS terms on Hugging Face and create a read-only token.** The existing Bitwarden
+login has no working API token, and the model endpoint returns `GatedRepo`. Once access exists,
+benchmark the standard Portuguese checkpoint on this board first, with Piper retained as fallback
+and no service switch until the same exact-device gate passes.
+
+No service or repository configuration changed during the spike. At the final check all four units
+(`piper-tts`, both Whisper workers, and `audio-appliance`) were active and `/health` remained green.
+Removing `~/tts-bench-20260822/` reclaims the retained 278 MiB benchmark payload and is the complete
+host-side reversal.
 
 ## Reversal
 
