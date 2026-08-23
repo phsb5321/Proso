@@ -1,0 +1,44 @@
+{
+  "schema": "proso-reader-runtime-prefixed/1",
+  "observed_at_brt": "23/08/2026 13:55",
+  "screenshot": "/var/tmp/pi-clipboard-5432a1a9-0a76-46fa-afc0-aa88cd22bfbb.png",
+  "daily_xpi_sha256": "3525081b3ba9c16b1ef4dadcd45ab7bf7f838647853efb68c768a15fde272496",
+  "model": {
+    "name": "supertonic-3",
+    "revision": "3cadd1ee6394adea1bd021217a0e650ede09a323",
+    "runtime": "supertonic-1.3.1+proso-bridge.2",
+    "listener": "127.0.0.1:5301",
+    "word_mark_kinds": []
+  },
+  "visible_state": {
+    "popup_position": "1/56",
+    "page_player_position": "0/56",
+    "popup_control": "Play",
+    "page_player_control": "Play",
+    "page_elapsed": "0:00",
+    "page_total": "14:00",
+    "first_paragraph_highlighted": true
+  },
+  "accessibility_observation": {
+    "obsolete_page_player_landmarks": 22,
+    "landmark_name": "Proso playback controls"
+  },
+  "synthesis_observation": {
+    "concurrent_post_responses_at_13_55_05": 4,
+    "unhandled_status": 500,
+    "unsupported_characters": ["└", "├"]
+  },
+  "timing_candidate": {
+    "runtime": "Kokoro-FastAPI 26eec068d8ce6f559afef83f68933127ac38e315",
+    "required_ptbr_standard_rtf": 0.23824944260135644,
+    "required_ptbr_timestamp_count": 0,
+    "simple_ptbr_timestamp_count": 6,
+    "rocm": "BLOCKED",
+    "verdict": "not viable for Feature 199 exact sync"
+  },
+  "old_oracle": {
+    "id": "proso-highlight-tab-focus",
+    "exit_code_after_report": 0,
+    "scope_gap": "fresh fixture profile; no accumulated daily DOM, popup panel navigation, current-model unsupported glyphs, or timing provenance"
+  }
+}

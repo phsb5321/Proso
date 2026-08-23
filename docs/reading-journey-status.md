@@ -1154,3 +1154,19 @@ with proven Proso playback, and its backdrop-filter performance finding remains 
    the resulting permission are all real but the prompt the reader accepts is not. Closing this
    needs chrome-context WebDriver Actions dispatched against the panel, which is also what would
    let the popup's own "Grant access" button be driven with a genuine gesture.
+28. **Reader runtime coherence — Feature 199 in delivery (23/08/2026).** The daily dbt tab exposed
+   22 obsolete `Proso playback controls` roots after extension reloads, popup/page counters
+   disagreed (`1/56` versus `0/56`), the popup left Play actionable while a start was pending,
+   generic paragraph prefetch competed with local sentence prefetch, and stop teardown could emit
+   media events that restarted playback or recreated the footer. The current Supertonic route also
+   advertised no word marks and threw an unhandled 500 on box-drawing glyphs. The Feature 199
+   candidate now reconciles only Proso-owned DOM/padding, runs one chunk-prefetch path, makes
+   Player/Tools/Queue real roving tabs, accepts the queue handler's actual unwrapped response,
+   labels word timing approximate, uses Unicode/punctuation-aware fallback timing, strips
+   non-spoken structural glyphs at the local synthesis boundary, and makes stop terminal against
+   late `ended`/`error` callbacks. Loaded Firefox fixture runs pass in both tab modes with 22 stale
+   roots per article tab, public Tools and Queue add/remove, one page player, structural-glyph
+   filtering, and sentence-two highlight transition; the real Supertonic 3 bridge.3 run also
+   passes. Kokoro-FastAPI `26eec068` is explicitly rejected for exact PT-BR sync: RTF 0.23825 but
+   `timestamps:null` on realistic date/currency/glyph input. Exact completion remains gated on the
+   full deterministic/plant/review/merge/deploy chain.
