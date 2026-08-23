@@ -746,7 +746,10 @@ article produced 27 successful local `/v1/tts` responses; public Stop ended the 
 journal remained empty for the following 30 seconds. The installed XPI is unchanged at 1.2.9,
 SHA-256 `c8e7f1f107c30b0c6b77eae8866e7d99e96e1b8101886e66f90ade56f6b97b49`.
 The retained operational receipt is
-`~/.local/state/proso-deploy/20260822-212828-supertonic-nightly/receipt.json`.
+`~/.local/state/proso-deploy/20260822-212828-supertonic-nightly/receipt.json`. The isolated
+real-host journey was re-run after commit and passed at exact HEAD
+`b28da54ef582df38fc3683a907cab08f0efe109f`; its log SHA-256 is
+`a9a589d20b4c8b17e511d3f41f7bb8ec675b8e43fb272aa07f072149899efa8d`.
 
 Two limits remain explicit. The verified HTTP service is the CPU bridge and is transient across
 reboot. A standalone WebGPU/Vulkan run on the RX 5700 XT reached RTF 0.056 (17.86× real-time), but
