@@ -751,6 +751,11 @@ real-host journey was re-run after commit and passed at exact HEAD
 `b28da54ef582df38fc3683a907cab08f0efe109f`; its log SHA-256 is
 `a9a589d20b4c8b17e511d3f41f7bb8ec675b8e43fb272aa07f072149899efa8d`.
 
+The full gate also exposed an inherited PR #183 split-brain: `deepmerge-ts` was reviewed and added
+to the exact-path dependency-audit allowlist, but its same OSV fingerprint was absent from
+`quality-baselines/osv.json`, so `make gate` remained red on every branch. Feature 193 adds that
+already-reviewed fingerprint without changing either scanner or its expiry.
+
 Two limits remain explicit. The verified HTTP service is the CPU bridge and is transient across
 reboot. A standalone WebGPU/Vulkan run on the RX 5700 XT reached RTF 0.056 (17.86× real-time), but
 its HTTP service launch did not reach readiness and is not the route Firefox uses. Human naturalness
