@@ -161,6 +161,27 @@ const testParagraphs = [
     expect(service.getState().currentParagraphIndex).toBe(0);
   });
 
+  it('publishes sentence-local timelines on a monotonic paragraph clock', async () => {
+    const timelineSpy = jest.spyOn(mockHighlightSync, 'setWordTimeline');
+
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const firstTimeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(firstTimeline?.map((entry) => entry.word)).toEqual(['First', 'sentence.']);
+    expect(firstTimeline?.[0]?.charOffset).toBe(0);
+    expect(firstTimeline?.at(-1)?.endTimeMs).toBeCloseTo(1000);
+
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const secondTimeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(secondTimeline?.map((entry) => entry.word)).toEqual(['Second', 'sentence.']);
+    expect(secondTimeline?.[0]?.charOffset).toBe(testParagraphs[0].indexOf('Second'));
+    expect(secondTimeline?.[0]?.startTimeMs).toBeCloseTo(1000);
+    expect(secondTimeline?.at(-1)?.endTimeMs).toBeCloseTo(2100);
+  });
+
   it('advances to the next paragraph once the chunk queue is exhausted', async () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     await new Promise((resolve) => setTimeout(resolve, 0));
