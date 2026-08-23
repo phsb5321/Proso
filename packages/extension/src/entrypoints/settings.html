@@ -363,6 +363,15 @@
 
         <div class="form-group">
           <label class="proso-toggle">
+            <input type="checkbox" id="stopPlaybackOnTabChange" class="proso-toggle__input" checked aria-describedby="stopPlaybackOnTabChangeHint" data-testid="settings-tab-focus-toggle">
+            <span class="proso-toggle__switch"></span>
+            <span class="proso-toggle__text">Stop playback when switching tabs</span>
+          </label>
+          <p id="stopPlaybackOnTabChangeHint" class="form-hint">Clear audio and highlighting from the previous page so Play is ready for the active tab. Turn this off for background listening.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="proso-toggle">
             <input type="checkbox" id="showCostEstimate" class="proso-toggle__input" checked>
             <span class="proso-toggle__switch"></span>
             <span class="proso-toggle__text">Show cost estimates in popup</span>

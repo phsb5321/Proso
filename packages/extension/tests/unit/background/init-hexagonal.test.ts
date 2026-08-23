@@ -62,7 +62,11 @@ const fakeContainer = {
   },
   services: {
     // subscribeToSettings() is invoked during init (T017) and must not throw.
-    playback: { subscribeToSettings: jest.fn() },
+    playback: {
+      subscribeToSettings: jest.fn(),
+      getState: jest.fn(() => ({ activeTabId: 7 })),
+      stop: jest.fn(async () => ({ ok: true })),
+    },
   },
 };
 
@@ -95,9 +99,13 @@ jest.unstable_mockModule(resolve(srcDir, 'adapters/storage/highlight-indexeddb.a
 // returns nothing useful from storage. Provide the minimal surface init needs so
 // the happy path runs to completion instead of bailing into the catch.
 const onActivatedAddListener = jest.fn();
+const onStorageChangedAddListener = jest.fn();
 jest.unstable_mockModule('wxt/browser', () => ({
   browser: {
-    storage: { local: { get: jest.fn(async () => ({})) } },
+    storage: {
+      local: { get: jest.fn(async () => ({})) },
+      onChanged: { addListener: onStorageChangedAddListener },
+    },
     tabs: { onActivated: { addListener: onActivatedAddListener } },
   },
 }));
@@ -147,6 +155,35 @@ describe('initHexagonalArchitecture DI wiring (T008)', () => {
     // T006 side effect: the tab-activation listener was registered, proving the
     // init body ran to completion rather than bailing into the catch block.
     expect(onActivatedAddListener).toHaveBeenCalledTimes(1);
+    expect(onStorageChangedAddListener).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops playback when browser focus activates a different tab', async () => {
+    await initHexagonalArchitecture();
+    const listener = onActivatedAddListener.mock.calls[0]?.[0] as
+      | ((info: { tabId: number }) => void)
+      | undefined;
+
+    listener?.({ tabId: 9 });
+    await Promise.resolve();
+
+    expect(fakeContainer.services.playback.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies the disabled preference without a background restart', async () => {
+    await initHexagonalArchitecture();
+    const storageListener = onStorageChangedAddListener.mock.calls[0]?.[0] as
+      | ((changes: Record<string, { newValue?: unknown }>, area: string) => void)
+      | undefined;
+    const activationListener = onActivatedAddListener.mock.calls[0]?.[0] as
+      | ((info: { tabId: number }) => void)
+      | undefined;
+
+    storageListener?.({ stopPlaybackOnTabChange: { newValue: false } }, 'local');
+    activationListener?.({ tabId: 9 });
+    await Promise.resolve();
+
+    expect(fakeContainer.services.playback.stop).not.toHaveBeenCalled();
   });
 
   it('footer.show executes WITHOUT the "not initialized" error AFTER init', async () => {

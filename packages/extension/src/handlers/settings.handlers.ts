@@ -11,6 +11,7 @@ import { browser } from 'wxt/browser';
 import type { ProviderId } from '../core/shared/errors';
 import type { IApiClient } from '../ports/api-client.port';
 import type { ISettingsStore, Settings } from '../ports/settings-store.port';
+import { defaults } from '../utils/config/defaults';
 import { createLogger } from '../utils/logging/logger';
 import type { ApiKeyValidationFailure } from '../utils/messaging/protocol';
 import type { HandlerRegistry } from './registry';
@@ -465,7 +466,7 @@ export interface SettingsResetResponse {
  */
 const SECTION_KEYS: Record<SettingsSectionType, string[]> = {
   'quick-settings': ['provider', 'voice', 'speed'],
-  appearance: ['themeMode', 'highlightEnabled', 'autoScroll'],
+  appearance: ['themeMode', 'highlightEnabled', 'autoScroll', 'stopPlaybackOnTabChange'],
   'reading-queue': ['queue:settings'],
   developer: ['loggingConfig'],
   all: [
@@ -475,6 +476,7 @@ const SECTION_KEYS: Record<SettingsSectionType, string[]> = {
     'themeMode',
     'highlightEnabled',
     'autoScroll',
+    'stopPlaybackOnTabChange',
     'queue:settings',
     'loggingConfig',
   ],
@@ -490,6 +492,7 @@ const RESET_DEFAULTS: Record<string, unknown> = {
   themeMode: 'system',
   highlightEnabled: true,
   autoScroll: true,
+  stopPlaybackOnTabChange: defaults.stopPlaybackOnTabChange,
   'queue:settings': {
     autoPlayNext: true,
     autoArchiveCompleted: false,

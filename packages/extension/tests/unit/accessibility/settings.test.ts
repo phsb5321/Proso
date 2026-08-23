@@ -86,4 +86,15 @@ describe('Accessibility - Settings Page (T076)', () => {
       document.querySelector('label[for="themeMode"]') !== null;
     expect(hasName).toBe(true);
   });
+
+  it('exposes the tab-focus behavior as a named checkbox with an explanation', () => {
+    const checkbox = document.getElementById('stopPlaybackOnTabChange') as HTMLInputElement | null;
+    const label = checkbox?.closest('label');
+    const hintId = checkbox?.getAttribute('aria-describedby');
+
+    expect(checkbox?.type).toBe('checkbox');
+    expect(label?.textContent).toContain('Stop playback when switching tabs');
+    expect(hintId).toBe('stopPlaybackOnTabChangeHint');
+    expect(document.getElementById(hintId ?? '')?.textContent).toContain('background listening');
+  });
 });

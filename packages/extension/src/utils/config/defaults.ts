@@ -35,6 +35,7 @@ export const defaults: Readonly<Settings> = Object.freeze({
   themeMode: 'system' as ThemeMode,
   highlightEnabled: true,
   autoScroll: true,
+  stopPlaybackOnTabChange: true,
   // 045-pdf-removal-page-reader
   defaultHighlightColor: 'yellow' as const,
   maxCacheSizeMb: 500,
