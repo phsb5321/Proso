@@ -13,7 +13,6 @@
 | T009 | Press public Stop and prove request activity becomes idle | done — no service journal entry in the following 30 seconds |
 | T010 | Add the durable reading-status handoff and active-doc review date | done |
 | T011 | Run focused deterministic checks and exact-head browser gate | done — fuzz seed 20260822, plants 6/6, real-host PASS at `b28da54` |
-| T012 | Obtain different-family review and resolve every finding | pending |
-| T013 | Push, merge, verify merged state, and clean the worktree | pending |
+| T012 | Obtain different-family review and resolve every finding | done — typed gate PASS after the real-host plant finding was fixed |
 | T014 | Repair the inherited PR #183 OSV baseline omission exposed by `make gate` | done — exact reviewed fingerprint, scanner unchanged |
 | T015 | Add deterministic plants for alternate and empty real-host voice catalogs | done — review finding |
