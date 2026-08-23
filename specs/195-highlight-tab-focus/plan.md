@@ -85,7 +85,7 @@ synthesis unit and keeps its times on the paragraph clock.
 3. Targeted chunk, content-highlight, background activation, settings, and accessibility tests
 4. `FC_SEED=20260822 FC_NUM_RUNS=2000 make fuzz`
 5. `make local-host-journey-gate` plus plants in fixture mode
-6. Real Supertonic Nightly journey with `LOCAL_HOST_APPLIANCE_URL=http://127.0.0.1:5301`
+6. Real loopback-host Nightly journey with `LOCAL_HOST_APPLIANCE_URL=http://127.0.0.1:5301`
 7. `make verify`
 8. `GENERATOR_FAMILY=openai PI_REVIEW_PRIVACY=private make gate`
 9. Push, PR checks/reviews, squash merge, merged-state verification, worktree cleanup

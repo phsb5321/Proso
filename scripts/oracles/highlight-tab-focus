@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Done oracle — sentence-local highlight timing plus reader-selectable tab focus.
+# Fails closed on a missing tool/browser/build, a unit regression, either public
+# tab behavior, or the loaded extension failing its account-free fixture route.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$root"
+
+export FIREFOX_BIN="${FIREFOX_BIN:-$(command -v firefox-nightly || command -v firefox)}"
+export NODE_OPTIONS="${NODE_OPTIONS:---experimental-vm-modules}"
+
+make doctor
+pnpm --filter @proso/extension exec jest --selectProjects unit --runInBand \
+  tests/unit/core/playback-service-chunked.test.ts \
+  tests/unit/content/highlight-word-offset.test.ts \
+  tests/unit/background/tab-playback-policy.test.ts \
+  tests/unit/background/init-hexagonal.test.ts \
+  tests/unit/config/tab-focus-setting.test.ts \
+  tests/unit/accessibility/settings.test.ts
+pnpm --filter @proso/extension build:firefox
+node scripts/local-host-journey-gate.mjs
+LOCAL_HOST_TAB_BEHAVIOR=continue node scripts/local-host-journey-gate.mjs

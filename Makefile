@@ -13,7 +13,7 @@ FC_NUM_RUNS ?= 100
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot subscription-deploy-rehearsal subscription-deploy-rehearsal-plant \
 	browser-linkage \
-	local-host-journey-gate local-host-journey-plants \
+	local-host-journey-gate local-host-journey-plants highlight-tab-focus-oracle \
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
 	brand-site-plants \
@@ -76,6 +76,9 @@ local-host-journey-gate: ## Prove the account-free read: the reader's own host s
 local-host-journey-plants: ## Prove every local-host-journey-gate assertion catches a planted break.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/local-host-journey-plants.mjs
+
+highlight-tab-focus-oracle: ## Prove sentence sync plus enabled and disabled tab-focus behavior.
+	@./scripts/oracles/highlight-tab-focus
 
 popup-hidden-grant-gate: ## Feature 167: fresh popup hides the grant row (no box, out of tab order); permission-needed state shows it named + actionable.
 	$(PNPM) --filter @proso/extension build:firefox
