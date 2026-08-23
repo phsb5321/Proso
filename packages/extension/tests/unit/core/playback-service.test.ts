@@ -377,6 +377,21 @@ describe('PlaybackService', () => {
       const lastUpdate = mockHighlightSync.updateFooterStateCalls.at(-1);
       expect(lastUpdate?.state.speed).toBe(1.5);
     });
+
+    it('should persist the clamped speed through the settings store (Feature 200)', async () => {
+      await service.setSpeed(1.5);
+
+      expect(mockSettingsStore.getCurrentSettings().speed).toBe(1.5);
+      expect(mockSettingsStore.updateSettingsCalls).toContainEqual({ speed: 1.5 });
+    });
+
+    it('should persist the clamped value, not the raw request (Feature 200)', async () => {
+      await service.setSpeed(10);
+      expect(mockSettingsStore.getCurrentSettings().speed).toBe(2);
+
+      await service.setSpeed(0.1);
+      expect(mockSettingsStore.getCurrentSettings().speed).toBe(0.5);
+    });
   });
 
   describe('setProvider()', () => {

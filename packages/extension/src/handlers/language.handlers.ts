@@ -105,6 +105,12 @@ export function clearLanguageState(): void {
 
 export interface LanguageDependencies {
   detectLanguage: (text: string) => string;
+  /**
+   * Live-apply a language to the active synthesis session (Feature 200).
+   * Called on set/clear override so continuing chunked synthesis follows the
+   * reader's choice instead of only updating the footer label.
+   */
+  setPlaybackLanguage?: (languageCode: string) => void;
 }
 
 let dependencies: LanguageDependencies | null = null;
@@ -195,6 +201,19 @@ async function handleLanguageGetState(params: unknown): Promise<LanguageStateRes
 }
 
 /**
+ * Resolve the active tab id, or null when none is queryable.
+ */
+async function getActiveTabId(): Promise<number | null> {
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    return tab?.id ?? null;
+  } catch {
+    // Tab may not be queryable (no window, test env) — callers degrade.
+    return null;
+  }
+}
+
+/**
  * Broadcast language state to the active tab's footer.
  */
 async function broadcastLanguageToFooter(
@@ -202,9 +221,9 @@ async function broadcastLanguageToFooter(
   isAutoDetected: boolean,
 ): Promise<void> {
   try {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      await browser.tabs.sendMessage(tab.id, {
+    const tabId = await getActiveTabId();
+    if (tabId != null) {
+      await browser.tabs.sendMessage(tabId, {
         type: 'FOOTER_LANGUAGE_UPDATE',
         languageCode,
         isAutoDetected,
@@ -227,6 +246,20 @@ async function handleLanguageSetOverride(params: unknown): Promise<LanguageSetOv
   const code = parsed.data.languageCode.substring(0, 2).toLowerCase();
   globalOverride = code;
 
+  // Feature 200: keep the per-tab override in sync so `playback.start`
+  // (which reads only the per-tab map) honors the dropdown's choice, and
+  // live-apply to the running session so the next chunked synthesis request
+  // uses the chosen language rather than the detected one.
+  const tabId = await getActiveTabId();
+  if (tabId != null) {
+    const existing = tabLanguageStates.get(tabId);
+    tabLanguageStates.set(tabId, {
+      detected: existing?.detected ?? null,
+      override: code,
+    });
+  }
+  dependencies?.setPlaybackLanguage?.(code);
+
   broadcastLanguageToFooter(code, false);
 
   return { success: true, languageCode: code };
@@ -240,16 +273,20 @@ async function handleLanguageClearOverride(): Promise<LanguageClearOverrideRespo
 
   // Determine effective language from detected state
   let effectiveCode = 'en';
-  try {
-    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const tab = tabs[0];
-    if (tab?.id) {
-      const tabState = tabLanguageStates.get(tab.id);
-      effectiveCode = tabState?.detected?.code ?? 'en';
-    }
-  } catch {
-    // Ignore — use default
+  const tabId = await getActiveTabId();
+  if (tabId != null) {
+    const tabState = tabLanguageStates.get(tabId);
+    effectiveCode = tabState?.detected?.code ?? 'en';
+    // Feature 200: clear the per-tab override too, so the two stores cannot
+    // disagree and a subsequent start honors the cleared state.
+    tabLanguageStates.set(tabId, {
+      detected: tabState?.detected ?? null,
+      override: null,
+    });
   }
+
+  // Feature 200: return live synthesis to the detected language.
+  dependencies?.setPlaybackLanguage?.(effectiveCode);
 
   broadcastLanguageToFooter(effectiveCode, true);
 
