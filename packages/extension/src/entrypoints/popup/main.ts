@@ -37,7 +37,7 @@ const log = createLogger('popup');
 // ============================================
 
 interface PlaybackState {
-  status: 'stopped' | 'loading' | 'playing' | 'paused';
+  status: 'stopped' | 'loading' | 'playing' | 'paused' | 'error';
   currentParagraph: number;
   totalParagraphs: number;
   progress: number; // 0-100
@@ -169,6 +169,8 @@ let currentState: PlaybackState = {
   timingBasis: 'none',
 };
 let playbackStartPending = false;
+let startRequestInFlight = false;
+let stopRequestedDuringStart = false;
 
 // Export state
 let currentExportJobId: string | null = null;
@@ -222,6 +224,7 @@ function updateStatus(status: PlaybackState['status']): void {
     loading: 'Loading...',
     playing: 'Playing',
     paused: 'Paused',
+    error: 'Error',
   };
 
   elements.statusText.textContent = statusLabels[status];
@@ -319,11 +322,9 @@ function applyState(state: PlaybackState): void {
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
   updateProgress(state.progress);
   updateTimingBasis(state.timingBasis);
-  // A stale stopped broadcast from the previous session must not reopen Play
-  // while this popup still owns an in-flight start promise.
-  if (!playbackStartPending || state.status === 'playing' || state.status === 'paused') {
-    setPlaybackStartPending(state.status === 'loading');
-  }
+  // Broadcasts can describe the superseded session while this popup's start
+  // request is unresolved. Only the owning promise may release that latch.
+  setPlaybackStartPending(startRequestInFlight || state.status === 'loading');
   if (typeof state.speed === 'number') {
     updateSpeed(state.speed);
   }
@@ -419,8 +420,10 @@ function setPlaybackStartPending(pending: boolean): void {
 
 /** Start one new reading and reconcile from background-owned state. */
 async function startFreshPlayback(): Promise<void> {
-  if (playbackStartPending) return;
+  if (playbackStartPending || startRequestInFlight) return;
 
+  startRequestInFlight = true;
+  stopRequestedDuringStart = false;
   setPlaybackStartPending(true);
   currentState = { ...currentState, status: 'loading' };
   updateStatus('loading');
@@ -431,7 +434,12 @@ async function startFreshPlayback(): Promise<void> {
   let playbackFailure: string | null = null;
   try {
     const result = await sendMessage<Record<string, unknown>>('playback.start');
-    if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
+    if (
+      !stopRequestedDuringStart &&
+      result &&
+      typeof result === 'object' &&
+      ('_hexError' in result || 'error' in result)
+    ) {
       const errorMsg = String(result.error || 'Playback failed');
       playbackFailure = errorMsg;
       log.warn('[Popup] Playback start failed', { error: errorMsg });
@@ -439,12 +447,17 @@ async function startFreshPlayback(): Promise<void> {
       // PROSO-131/134: every fixable failure pairs with its action.
       void routeFailure(errorMsg);
     }
+  } catch (error) {
+    if (!stopRequestedDuringStart) throw error;
   } finally {
     await fetchPlaybackState();
-    if (playbackFailure) {
+    startRequestInFlight = false;
+    const stoppedByReader = stopRequestedDuringStart;
+    stopRequestedDuringStart = false;
+    if (playbackFailure && !stoppedByReader) {
       showPlaybackStartFailure(elements.statusDot, elements.statusText, playbackFailure);
     }
-    if (playbackFailure || currentState.status !== 'loading') setPlaybackStartPending(false);
+    setPlaybackStartPending(currentState.status === 'loading');
   }
 }
 
@@ -460,7 +473,7 @@ async function startFreshPlaybackSafely(): Promise<void> {
  * Handle play/pause button click
  */
 async function handlePlayPause(): Promise<void> {
-  if (playbackStartPending) return;
+  if (playbackStartPending || startRequestInFlight) return;
 
   usageTracker.track('popup.play_button_clicked', {
     status: currentState.status,
@@ -852,6 +865,7 @@ async function handleNext(): Promise<void> {
  */
 async function handleStop(): Promise<void> {
   trackClick('playback.stop_clicked');
+  if (startRequestInFlight) stopRequestedDuringStart = true;
   try {
     await sendMessage('playback.stop');
     applyState({ ...currentState, status: 'stopped', progress: 0 });

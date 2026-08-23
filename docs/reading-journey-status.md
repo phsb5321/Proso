@@ -1162,7 +1162,7 @@ with proven Proso playback, and its backdrop-filter performance finding remains 
    advertised no word marks and threw an unhandled 500 on box-drawing glyphs. The Feature 199
    candidate now reconciles only Proso-owned DOM/padding, runs one chunk-prefetch path, makes
    Player/Tools/Queue real roving tabs, accepts the queue handler's actual unwrapped response,
-   labels word timing approximate, uses Unicode/punctuation-aware fallback timing, strips
+   publishes provider-versus-estimated timing basis, uses Unicode/punctuation-aware fallback timing, strips
    non-spoken structural glyphs at the local synthesis boundary, and makes stop terminal against
    late `ended`/`error` callbacks. Loaded Firefox fixture runs pass in both tab modes with 22 stale
    roots per article tab, public Tools and Queue add/remove, one page player, structural-glyph

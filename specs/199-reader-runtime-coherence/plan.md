@@ -32,7 +32,7 @@ Content initialization performs the only full page sweep. `StickyFooter.show()`/
 
 ### Slice B — one authoritative start and one prefetcher
 
-On Play, set popup state to loading, set `aria-busy`, and disable only the Play/Pause control while the start promise is pending. Stop remains available. A stale stopped broadcast cannot reopen Play while the promise is live. After success or failure, fetch and apply authoritative background state, then re-enable the control. If the popup closes mid-request, playback remains background-owned; a newly opened popup fetches authoritative state and never depends on a broadcast to the closed document.
+On Play, set popup state to loading, set `aria-busy`, and disable only the Play/Pause control while the popup-owned start promise is pending. Stop remains available. A separate request-ownership flag prevents stale stopped/playing broadcasts from reopening Play, while an unowned loading state (queue/footer/background start) still converges on authoritative stopped/error. Stop during the owned request suppresses the resulting abort as reader intent rather than routing it as host failure. After success or failure, fetch and apply authoritative background state, then release the owned latch. If the popup closes mid-request, playback remains background-owned; a newly opened popup fetches authoritative state.
 
 The playback service initializes its queue for chunked reading but gates `prefetch.service.start()` itself—both initial start and resume—on `!audioGenerator.supportsChunkedSynthesis`. Stop still clears both paths. This leaves the local adapter's bounded sentence pipeline as the only speculative producer.
 

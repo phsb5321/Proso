@@ -12,7 +12,7 @@
 
 - [ ] T006 Implement Proso-owned stale artifact reconciliation before current content managers initialize; keep it idempotent and text-preserving.
 - [ ] T007 Make footer document ownership and body padding durable across extension contexts; fix the user-facing one-based position.
-- [ ] T008 Make popup Play enter a real bounded loading state, suppress duplicate starts, preserve Stop, and converge from authoritative background state.
+- [ ] T008 Make popup Play enter a request-owned bounded loading state, resist stale stopped/playing broadcasts, suppress duplicate starts, preserve Stop without surfacing its abort as failure, and converge from unowned background state.
 - [ ] T009 Replace copied tab-test behavior with the production popup tab controller and complete click/keyboard semantics.
 
 ## Phase 3 — Playback and timing

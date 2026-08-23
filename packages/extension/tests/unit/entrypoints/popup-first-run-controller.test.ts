@@ -59,7 +59,7 @@ interface RigOptions {
   readonly grant?: boolean;
   readonly grantError?: Error;
   readonly fetchResponse?: () => Promise<unknown>;
-  readonly initialPlaybackStatus?: 'stopped' | 'playing' | 'paused';
+  readonly initialPlaybackStatus?: 'stopped' | 'loading' | 'playing' | 'paused' | 'error';
   readonly activeTab?: {
     readonly id: number;
     readonly url: string;
@@ -268,6 +268,18 @@ async function mountPopup(options: RigOptions = {}): Promise<PopupRig> {
   return rig;
 }
 
+function mountConfiguredLocalPopup(options: RigOptions = {}): Promise<PopupRig> {
+  return mountPopup({
+    ...options,
+    stored: {
+      provider: 'local',
+      localHostEnabled: true,
+      localHostUrl: 'http://127.0.0.1:5301',
+      ...options.stored,
+    },
+  });
+}
+
 async function waitFor(done: () => boolean, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!done()) {
@@ -279,6 +291,14 @@ async function waitFor(done: () => boolean, timeoutMs = 15_000): Promise<void> {
 function countMessages(rig: PopupRig, type: string): number {
   return rig.sendMessage.mock.calls.filter(([message]) => (message as Message).type === type)
     .length;
+}
+
+function deferredStart(): { promise: Promise<unknown>; resolve(value: unknown): void } {
+  let complete: ((value: unknown) => void) | undefined;
+  const promise = new Promise((resolve) => {
+    complete = resolve;
+  });
+  return { promise, resolve: (value) => complete?.(value) };
 }
 
 function firstRunPanel(): HTMLElement {
@@ -781,13 +801,7 @@ describe('Feature 169 popup first-run controller', () => {
   });
 
   it('renders the timing basis from authoritative playback state', async () => {
-    const rig = await mountPopup({
-      stored: {
-        provider: 'local',
-        localHostEnabled: true,
-        localHostUrl: 'http://127.0.0.1:5301',
-      },
-    });
+    const rig = await mountConfiguredLocalPopup();
 
     expect(document.getElementById('timing-basis')?.textContent).toContain('approximate');
     rig.emitRuntimeMessage({
@@ -798,12 +812,7 @@ describe('Feature 169 popup first-run controller', () => {
   });
 
   it('adds and removes the active page through the real Queue panel contract', async () => {
-    const rig = await mountPopup({
-      stored: {
-        provider: 'local',
-        localHostEnabled: true,
-        localHostUrl: 'http://127.0.0.1:5301',
-      },
+    const rig = await mountConfiguredLocalPopup({
       activeTab: {
         id: 42,
         url: 'https://example.com/article',
@@ -825,17 +834,9 @@ describe('Feature 169 popup first-run controller', () => {
   });
 
   it('allows only one playback start while the first Play action is pending', async () => {
-    let resolveStart: ((value: unknown) => void) | undefined;
-    const pendingStart = new Promise((resolve) => {
-      resolveStart = resolve;
-    });
-    const rig = await mountPopup({
-      stored: {
-        provider: 'local',
-        localHostEnabled: true,
-        localHostUrl: 'http://127.0.0.1:5301',
-      },
-      onStart: async () => pendingStart,
+    const pendingStart = deferredStart();
+    const rig = await mountConfiguredLocalPopup({
+      onStart: async () => pendingStart.promise,
     });
     const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
     const stop = document.getElementById('stop-btn') as HTMLButtonElement;
@@ -851,23 +852,47 @@ describe('Feature 169 popup first-run controller', () => {
     expect(stop.disabled).toBe(false);
 
     rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'stopped' } });
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'playing' } });
     play.click();
     expect(countMessages(rig, 'playback.start')).toBe(1);
     expect(play.disabled).toBe(true);
 
-    resolveStart?.({ success: true });
+    pendingStart.resolve({ success: true });
     await waitFor(() => !play.disabled);
     expect(play.hasAttribute('aria-busy')).toBe(false);
   });
 
-  it('operates the real Player, Tools, and Queue tabs with roving arrow/Home/End focus', async () => {
-    await mountPopup({
-      stored: {
-        provider: 'local',
-        localHostEnabled: true,
-        localHostUrl: 'http://127.0.0.1:5301',
-      },
+  it('releases an unowned loading latch on authoritative error', async () => {
+    const rig = await mountConfiguredLocalPopup({ initialPlaybackStatus: 'loading' });
+    const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    expect(play.disabled).toBe(true);
+
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'error' } });
+
+    expect(play.disabled).toBe(false);
+    expect(document.getElementById('status-text')?.textContent).toBe('Error');
+  });
+
+  it('treats Stop during pending Play as reader intent rather than route failure', async () => {
+    const pendingStart = deferredStart();
+    const rig = await mountConfiguredLocalPopup({
+      onStart: async () => pendingStart.promise,
     });
+    const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    play.click();
+    await waitFor(() => countMessages(rig, 'playback.start') === 1);
+
+    (document.getElementById('stop-btn') as HTMLButtonElement).click();
+    pendingStart.resolve({ error: 'Request aborted' });
+    await waitFor(() => !play.disabled);
+
+    expect(document.getElementById('status-text')?.textContent).toBe('Ready');
+    expect(firstRunPanel().hidden).toBe(true);
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+  });
+
+  it('operates the real Player, Tools, and Queue tabs with roving arrow/Home/End focus', async () => {
+    await mountConfiguredLocalPopup();
     const player = document.getElementById('tab-player') as HTMLButtonElement;
     const tools = document.getElementById('tab-tools') as HTMLButtonElement;
     const queue = document.getElementById('tab-queue') as HTMLButtonElement;

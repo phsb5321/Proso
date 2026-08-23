@@ -76,6 +76,12 @@ Durable evidence and executable oracle: `/home/notroot/tts-bench-20260822-deskto
 
 HeadTTS and the timestamped ONNX model prove a WebGPU timestamp path, but HeadTTS currently supports English only, so it cannot satisfy the mandatory PT-BR route by itself.
 
+## Independent review corrections
+
+The first different-family review BLOCKED the candidate for a structural-only first sentence falling through to a whole-paragraph estimate, a constant timing label, stop/new-generation races, footer lifecycle sweeping live word spans, a narrowed shared browser helper, structural-only chunks, and stale error provenance. Repairs make empty sentence timing authoritative, skip unspeakable sentences/paragraphs, publish provider-versus-estimated basis end to end, restore stop generation guards while suppressing late media callbacks, limit full DOM reconciliation to content initialization, retain non-button accessible controls, and generation-bind errors.
+
+A second capable gate found popup loading ownership was still ambiguous: unowned background loading could wedge, while stale playing could release an owned start. The popup now separates UI pending state from its own in-flight request, ignores broadcasts only while that owned promise is live, converges unowned stopped/error, and treats Stop-abort as reader intent.
+
 ## Decision boundary
 
 The repository fixes stale UI, duplicate starts, double prefetch, failure cleanup, popup tabs, counter coherence, and the approximate estimator. No timestamp-capable route passed realistic PT-BR coverage, so Feature 199 adds no marked local-host protocol. No-mark Supertonic remains a truthful approximate fallback; it is not relabelled exact.
