@@ -10,6 +10,7 @@ cd "$root"
 export FIREFOX_BIN="${FIREFOX_BIN:-$(command -v firefox-nightly || command -v firefox)}"
 export NODE_OPTIONS="${NODE_OPTIONS:---experimental-vm-modules}"
 
+pnpm --filter @proso/shared build
 make doctor
 pnpm --filter @proso/extension exec jest --selectProjects unit --runInBand \
   tests/unit/core/playback-service-chunked.test.ts \
