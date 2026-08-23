@@ -133,8 +133,10 @@ export async function openExtensionsPanel(driver, { hideButton = false } = {}) {
     driver,
     `const win = Services.wm.getMostRecentWindow('navigator:browser');
      const btn = win.document.getElementById('unified-extensions-button');
+     const panel = win.document.getElementById('unified-extensions-panel');
      if (!btn) return 'no unified-extensions-button in the toolbar';
      if (btn.hidden) return 'the Unified Extensions button is hidden';
+     if (panel?.state === 'open') return 'ok';
      btn.click();
      return 'ok';`,
   );
@@ -148,7 +150,18 @@ export async function openExtensionsPanel(driver, { hideButton = false } = {}) {
     );
     return open === 'open' ? open : null;
   }).catch(() => null);
-  if (!state) blocked('The Unified Extensions panel never opened');
+  if (!state) {
+    const diagnostic = await chromeEval(
+      driver,
+      `const win = Services.wm.getMostRecentWindow('navigator:browser');
+       const panel = win.document.getElementById('unified-extensions-panel');
+       const openPanels = Array.from(win.document.querySelectorAll('panel'))
+         .map((node) => ({ id: node.id, state: node.state }))
+         .filter((node) => node.state && node.state !== 'closed');
+       return JSON.stringify({ panelState: panel?.state ?? 'missing', openPanels });`,
+    );
+    blocked(`The Unified Extensions panel never opened (${diagnostic})`);
+  }
 }
 
 /**
@@ -336,5 +349,6 @@ export const READ_PAGE = `
     highlighted: Array.from(document.querySelectorAll('.proso-highlight'))
       .map((el) => el.textContent.replace(/\\s+/g, ' ').trim())
       .filter(Boolean),
+    activeWord: document.querySelector('.proso-w--active')?.textContent?.trim() || null,
   };
 `;

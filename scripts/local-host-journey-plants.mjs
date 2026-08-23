@@ -41,6 +41,18 @@ const VERDICT_LINE = /^local-host-journey-gate (PASS|FAIL|BLOCKED)\b[: ]?(.*)$/m
 const PLANTS = [
   { plant: '', expect: 'PASS', guards: 'the unsevered account-free journey (control run)' },
   {
+    plant: '',
+    label: 'continue-control',
+    expect: 'PASS',
+    env: { LOCAL_HOST_TAB_BEHAVIOR: 'continue' },
+    guards: 'the public opt-out preserves background playback across tab activation',
+  },
+  {
+    plant: 'tab-stop-disabled',
+    expect: 'FAIL',
+    guards: 'the enabled default must stop the old reading session on tab activation',
+  },
+  {
     plant: 'server-route',
     expect: 'FAIL',
     guards: 'audio comes from the reader\u2019s host, not the managed route (PROSO-135/136)',
@@ -131,9 +143,9 @@ function readVerdict({ code, out }) {
 async function main() {
   const results = [];
   for (const entry of PLANTS) {
-    const label = entry.plant || '(none)';
+    const label = (entry.label ?? entry.plant) || '(none)';
     process.stdout.write(`\n=== plant ${label} — expect ${entry.expect} ===\n`);
-    const run = await runGate(entry.plant);
+    const run = await runGate(entry.plant, 'scripts/local-host-journey-gate.mjs', entry.env);
     const { verdict, reason } = readVerdict(run);
     const caught = verdict === entry.expect;
     results.push({ ...entry, verdict, caught, reason });
