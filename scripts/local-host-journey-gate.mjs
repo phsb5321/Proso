@@ -214,6 +214,8 @@ async function main() {
   const binary = resolveFirefox();
   record('firefox resolved', binary);
 
+  let expectedHostVoiceIds = LOCAL_HOST_VOICES.map((voice) => voice.id);
+
   // Pre-flight BEFORE the fixture server opens a socket. `blocked()` throws
   // and nothing in main()'s rejection path calls process.exit, so a listening
   // fixture would hold the event loop open and the run would hang instead of
@@ -228,20 +230,33 @@ async function main() {
         'LOCAL_HOST_PLANT=host-down cannot run in appliance mode: it replaces the host address, so the appliance is never the host under test',
       );
     }
-    const ready = await fetch(`${APPLIANCE_URL}/health`, {
-      signal: AbortSignal.timeout(10_000),
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null);
+    const [ready, capabilities] = await Promise.all([
+      fetch(`${APPLIANCE_URL}/health`, { signal: AbortSignal.timeout(10_000) })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
+      fetch(`${APPLIANCE_URL}/v1/capabilities`, { signal: AbortSignal.timeout(10_000) })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
+    ]);
     if (!ready?.ready) {
       blocked(
         `The appliance at ${APPLIANCE_URL} is not reachable/ready (GET /health) — ` +
           'this run proves nothing about the product',
       );
     }
+    expectedHostVoiceIds = (capabilities?.tts?.voices ?? [])
+      .map((voice) => voice?.id)
+      .filter((id) => typeof id === 'string' && id.length > 0);
+    if (expectedHostVoiceIds.length === 0) {
+      blocked(
+        `The appliance at ${APPLIANCE_URL} published no voices (GET /v1/capabilities) — ` +
+          'the background route cannot be attributed',
+      );
+    }
     record(
       'real appliance pre-flight',
-      `${APPLIANCE_URL} ready, build ${ready.version ?? 'unreported'}`,
+      `${APPLIANCE_URL} ready, build ${ready.version ?? 'unreported'}, ` +
+        `${expectedHostVoiceIds.length} voice(s)`,
     );
   }
 
@@ -390,9 +405,7 @@ async function main() {
             .catch(() => null);
           if (typeof raw !== 'string') return null;
           const ids = (JSON.parse(raw).voices ?? []).map((voice) => voice.id);
-          return ids.some((id) => LOCAL_HOST_VOICES.some((voice) => voice.id === id))
-            ? ids.join(', ')
-            : null;
+          return ids.some((id) => expectedHostVoiceIds.includes(id)) ? ids.join(', ') : null;
         },
         { timeoutMs: 20_000 },
       ).catch(() => null);

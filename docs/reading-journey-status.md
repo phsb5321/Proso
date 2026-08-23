@@ -703,6 +703,67 @@ the appliance route satisfies that invariant is an unresolved scope conflict,
 not an established oracle defect. Do not use that oracle's PASS/FAIL as the
 verdict for this route until the spec and oracle are reconciled.
 
+## Update — 22/08/2026 (late): daily Nightly now reads from desktop Supertonic
+
+No extension production change was needed. Proso 1.2.9 already has the correct seam:
+`LocalHostAudioAdapter`, a reader-entered address, a runtime host grant, sentence chunking,
+local caching, and public playback controls. The desktop model was instead wrapped with the
+contract that seam already consumes. `supertonic-1.3.1+proso-bridge.2` binds only
+`127.0.0.1:5301` and adds `GET /health`, `GET /v1/capabilities`, and idempotent
+`POST /v1/tts` returning WAV while retaining native, OpenAI-shaped, and chunked-stream routes.
+It publishes the same ten Supertonic styles for English and Brazilian Portuguese (20
+language-qualified voice ids), so automatic article-language selection remains honest.
+
+The first real-host browser run went red after connection and the runtime grant:
+
+> The settings UI reported the host was configured, but the background never adopted it as the
+> audio route
+
+The product had adopted it. The oracle compared `audio.getVoices` only to the fixture's hard-coded
+Orange Pi ids, so any conforming host with another voice list failed before playback. Feature 193
+repairs the oracle at its root: real-host preflight reads `/v1/capabilities`, fails BLOCKED on an
+empty list, and attributes background adoption to the ids that host actually published. Fixture
+mode retains its own fixture ids. The plant sweep now includes both sides of that branch: a real-host
+stub with unrelated voice ids must PASS, while a ready host with an empty catalog must BLOCK before
+Firefox launches; all eight plant/control/self-check runs were caught. Against Supertonic, the real
+Firefox Nightly journey then reached 20 voices, decoded and played audio, advanced the visible
+reading UI and highlight, and recorded zero managed `/api/v1/tts/synthesize` requests.
+
+Pedro's daily `main-session` profile was configured separately through Firefox's public AT-SPI
+roles and actions — the existing Proso Settings tab, `Host address`, `Enable the local synthesis
+host`, `Test connection`, the `Proso` browser action, `Play`, and `Stop playback`. Live settings
+now hold:
+
+```json
+{
+  "localHostUrl": "http://127.0.0.1:5301",
+  "localHostEnabled": true,
+  "localHostVoice": null,
+  "provider": "local"
+}
+```
+
+`Test connection` announced `Connected — 20 voice(s) found.` Public Play on the existing Readeck
+article produced 27 successful local `/v1/tts` responses; public Stop ended the run, and the service
+journal remained empty for the following 30 seconds. The installed XPI is unchanged at 1.2.9,
+SHA-256 `c8e7f1f107c30b0c6b77eae8866e7d99e96e1b8101886e66f90ade56f6b97b49`.
+The retained operational receipt is
+`~/.local/state/proso-deploy/20260822-212828-supertonic-nightly/receipt.json`. The isolated
+real-host journey was re-run after commit and passed at exact HEAD
+`b28da54ef582df38fc3683a907cab08f0efe109f`; its log SHA-256 is
+`a9a589d20b4c8b17e511d3f41f7bb8ec675b8e43fb272aa07f072149899efa8d`.
+
+The full gate also exposed an inherited PR #183 split-brain: `deepmerge-ts` was reviewed and added
+to the exact-path dependency-audit allowlist, but its same OSV fingerprint was absent from
+`quality-baselines/osv.json`, so `make gate` remained red on every branch. Feature 193 adds that
+already-reviewed fingerprint without changing either scanner or its expiry.
+
+Two limits remain explicit. The verified HTTP service is the CPU bridge and is transient across
+reboot. A standalone WebGPU/Vulkan run on the RX 5700 XT reached RTF 0.056 (17.86× real-time), but
+its HTTP service launch did not reach readiness and is not the route Firefox uses. Human naturalness
+and voice preference also remain a listening decision. The broader `make user-gate` Feature 095
+verdict remains BLOCKED; this focused, falsifiable real-host journey does not rewrite it.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
