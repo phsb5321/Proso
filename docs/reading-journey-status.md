@@ -764,6 +764,37 @@ its HTTP service launch did not reach readiness and is not the route Firefox use
 and voice preference also remain a listening decision. The broader `make user-gate` Feature 095
 verdict remains BLOCKED; this focused, falsifiable real-host journey does not rewrite it.
 
+## Update — 23/08/2026: daily route keeps its contract and moves to Qwen 1.7B
+
+Pedro superseded the two-times-real-time selection floor: model size now wins even when synthesis is
+slower than playback. The extension and its daily-profile settings did not change — they still use
+the reader-entered `http://127.0.0.1:5301` route, automatic language selection, the runtime origin
+grant, and `provider: local`. The host behind that stable contract is now Qwen3-TTS 12Hz 1.7B
+CustomVoice Q8_0 on the RX 5700 XT, not Supertonic.
+
+The replacement remains account-free and loopback-only. It publishes the same 20 language-qualified
+Proso voice identities over Qwen's nine built-in speakers and preserves health, capabilities,
+idempotent WAV, native, OpenAI-shaped, and streaming routes. Unsupported speed and diffusion-step
+controls fail 422 instead of being silently ignored. The former Supertonic runtime was removed, so
+exactly one desktop TTS model remains deployed.
+
+The representative PT request measured 34.698 s for 14.880 s audio (RTF 2.332), while native
+streaming produced first audio in 0.323 s. This is intentionally below real time under the new
+selection rule. GPU busy reached 99%; peak total VRAM was 7,231,434,752 of 8,573,157,376 bytes.
+Whisper recovered all lexical content with two numeral substitutions over 28 words, but human
+naturalness remains Pedro's listening decision. The complete receipt is
+`~/tts-bench-20260822-desktop/qwen3-tts-1.7b/evidence/`; the machine-readable selection is
+`~/tts-bench-20260822-desktop/comparison-evidence/selection.json`.
+
+The focused real-host actor passed against Qwen at `636b828`: preflight found the Qwen build and 20
+voices, the background adopted the English aliases, public Play reached decoded audio and visible
+highlighting, and the managed route remained at zero requests. The retained gate log is
+`~/tts-bench-20260822-desktop/qwen3-tts-1.7b/evidence/proso-real-host-gate.log`.
+
+The service remains transient across reboot. Child death and abandoned-stream contention have live
+recovery receipts, but persistence is still a separate NixOS slice rather than an implied property
+of this model switch.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request

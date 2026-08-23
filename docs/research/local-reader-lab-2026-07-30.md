@@ -456,6 +456,54 @@ their model/runtime trees were removed, reclaiming roughly 2.8 GiB. Small benchm
 checksums, and the machine-readable selection receipt remain under
 `~/tts-bench-20260822-desktop/comparison-evidence/`. The Orange Pi remains unchanged.
 
+## Update — 23/08/2026: model size supersedes the speed floor
+
+Pedro explicitly removed the RTF ≤0.50 requirement and selected the largest runnable model even when
+it is slower than real time. The sole desktop model is now **Qwen3-TTS 12Hz 1.7B CustomVoice
+Q8_0**, served by `qwentts.cpp` revision `a8a7716` through GGML Vulkan on the RX 5700 XT. The
+Apache-2.0 model uses the built-in `serena` speaker for the `F1-pt` alias and a fixed seed of 42.
+The MIT runtime and its two model files occupy 2,419,268,562 apparent bytes including the bridge,
+evidence, and Python environment.
+
+| Exact-desktop evidence | Result |
+|---|---|
+| Buffered appliance route | 34.698 s for 14.880 s audio; **RTF 2.332 / 0.429× real time** |
+| Native stream | **0.323 s first audio**; 37.724 s total; RTF 2.535 |
+| GPU | 98.01% average / 99% peak busy; 7,231,434,752 of 8,573,157,376 total VRAM at peak |
+| Replay | byte-identical WAV in 2.6 ms with `X-Cache-Hit: true` |
+| Buffered/stream parity | equal duration; correlation 0.999907; SNR 37.29 dB |
+| Portuguese lexical round trip | two substitutions over 28 words (`2026` → `2020`, `dezoito` → `18`); no omissions |
+
+The compatibility bridge keeps `/health`, `/v1/health`, `/v1/capabilities`, `/v1/styles`,
+`/v1/tts`, `/v1/tts/native`, `/v1/tts/stream`, and `/v1/audio/speech`. It binds
+`127.0.0.1:5301`; the one model-holding child binds `127.0.0.1:5302`. Both map RADV. Ten stable
+Proso aliases map onto Qwen's nine built-in speakers. Unsupported speed values and non-default
+`steps` return 422 rather than pretending that Qwen applied Supertonic-only controls.
+
+Failure and resource bounds were exercised rather than inferred. Killing the child changed both
+parent and child PIDs and returned to ready health through systemd. At most one stream is admitted;
+a second receives 429 while `max-batch=2` reserves another inference slot for buffered reading. In
+the held-out disconnect test, the abandoned stream drained in the background while a buffered
+request completed in 12.57 s, then released its slot. Idempotency storage is bounded by 64 entries,
+900 seconds, and 256 MiB of cached audio. A different-family DeepSeek Pro gate returned `ALLOW`
+after these failure-path fixes.
+
+Only `qwen3-tts-desktop.service` remains active and the two listeners are loopback-only. The isolated
+Supertonic tree was deleted after promotion: 279,318,160 apparent bytes / 291,569,664 allocated
+bytes across 5,807 files. The contemporaneous filesystem free-space delta was 37,777,408 bytes
+because unrelated writes continued on the live desktop; the tree allocation is the direct cleanup
+measurement. No system-wide, Nix, package-store, or shared-worktree garbage collection ran. The
+Orange Pi configuration and services were not changed.
+
+The focused Firefox real-host actor also passed at `636b828`: it discovered the Qwen build and 20
+voices, adopted the local route, decoded and played audio from Qwen, reached visible reading and
+highlight state, and made zero managed synthesis requests.
+
+Two limits are deliberate. The service remains transient across reboot, and machine transcription
+measures intelligibility rather than naturalness. Pedro still needs to listen to the retained WAV at
+`~/tts-bench-20260822-desktop/qwen3-tts-1.7b/evidence/appliance-pt-qwen.wav` for the human quality
+verdict.
+
 ## Reversal
 
 - Close only the Firefox instance using profile `proso-dev-283ff822`, or stop its `web-ext` runner;
