@@ -22,10 +22,11 @@
  * @module tests/unit/accessibility/popup-keyboard.test
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import { bindPopupTabs } from '../../../src/entrypoints/popup/popup-tabs';
 import { loadEntrypointBody, renderFragment } from './render-entrypoint';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -109,39 +110,26 @@ describe('Accessibility - Popup Keyboard Navigation (T078)', () => {
     }
   });
 
-  it('moves aria-selected between tabs on keyboard activation', () => {
-    const tabs = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
-    );
-    const panels: Record<string, HTMLElement | null> = {
-      player: document.getElementById('panel-player'),
-      tools: document.getElementById('panel-tools'),
-      queue: document.getElementById('panel-queue'),
-    };
-
-    // Replicate the popup's switchTab(): activate one tab, deactivate the rest.
-    function switchTab(targetTab: HTMLButtonElement): void {
-      for (const tab of tabs) {
-        const active = tab === targetTab;
-        tab.setAttribute('aria-selected', active ? 'true' : 'false');
-        const panel = panels[tab.dataset.tab ?? ''];
-        if (panel) {
-          panel.hidden = !active;
-        }
-      }
-    }
-    for (const tab of tabs) {
-      tab.addEventListener('click', () => switchTab(tab));
-    }
-
+  it('moves aria-selected between tabs through the production controller', () => {
+    const playerTab = document.getElementById('tab-player') as HTMLButtonElement;
     const toolsTab = document.getElementById('tab-tools') as HTMLButtonElement;
+    const queueTab = document.getElementById('tab-queue') as HTMLButtonElement;
+    const playerPanel = document.getElementById('panel-player') as HTMLElement;
+    const toolsPanel = document.getElementById('panel-tools') as HTMLElement;
+    const queuePanel = document.getElementById('panel-queue') as HTMLElement;
+    bindPopupTabs({
+      player: { tab: playerTab, panel: playerPanel },
+      tools: { tab: toolsTab, panel: toolsPanel },
+      queue: { tab: queueTab, panel: queuePanel },
+    });
+
     toolsTab.focus();
     activateWithKey(toolsTab, 'Enter');
 
     expect(toolsTab.getAttribute('aria-selected')).toBe('true');
-    expect(document.getElementById('tab-player')?.getAttribute('aria-selected')).toBe('false');
-    expect(panels.tools?.hidden).toBe(false);
-    expect(panels.player?.hidden).toBe(true);
+    expect(playerTab.getAttribute('aria-selected')).toBe('false');
+    expect(toolsPanel.hidden).toBe(false);
+    expect(playerPanel.hidden).toBe(true);
   });
 });
 

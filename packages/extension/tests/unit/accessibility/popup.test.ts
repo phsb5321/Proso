@@ -51,7 +51,20 @@ describe('Accessibility - Popup (T077)', () => {
     expect(document.querySelector('[role="tablist"]')).not.toBeNull();
     expect(document.querySelectorAll('[role="tab"]').length).toBe(3);
     expect(document.querySelectorAll('[role="tabpanel"]').length).toBe(3);
+    expect(document.querySelectorAll('[role="tab"][tabindex="0"]')).toHaveLength(1);
     expect(document.querySelector('[role="progressbar"]')).not.toBeNull();
+  });
+
+  it('labels current word highlighting as approximate', () => {
+    const timingBasis = document.getElementById('timing-basis');
+    expect(timingBasis?.getAttribute('role')).toBe('note');
+    expect(timingBasis?.textContent).toContain('Word highlighting: approximate');
+  });
+
+  it('does not expose the inactive OCR control in Tools', () => {
+    const ocr = document.getElementById('ocr-section') as HTMLElement;
+    expect(ocr.hidden).toBe(true);
+    expect(getComputedStyle(ocr).display).toBe('none');
   });
 
   it('labels every interactive control with an accessible name', () => {

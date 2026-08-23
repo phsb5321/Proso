@@ -34,9 +34,11 @@
         id="tab-player"
         class="proso-popup__tab proso-popup__tab--active"
         role="tab"
+        aria-label="Player"
         aria-selected="true"
         aria-controls="panel-player"
         data-tab="player"
+        tabindex="0"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M8 5V19L19 12L8 5Z"></path>
@@ -47,9 +49,11 @@
         id="tab-tools"
         class="proso-popup__tab"
         role="tab"
+        aria-label="Tools"
         aria-selected="false"
         aria-controls="panel-tools"
         data-tab="tools"
+        tabindex="-1"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
@@ -60,9 +64,11 @@
         id="tab-queue"
         class="proso-popup__tab"
         role="tab"
+        aria-label="Queue"
         aria-selected="false"
         aria-controls="panel-queue"
         data-tab="queue"
+        tabindex="-1"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="8" y1="6" x2="21" y2="6"></line>
@@ -190,6 +196,9 @@
             <button type="button" id="grant-access-btn" class="proso-button proso-button--secondary proso-popup__grant-btn">Grant access</button>
           </div>
         </section>
+        <p class="proso-popup__timing-note" id="timing-basis" role="note">
+          Word highlighting: approximate
+        </p>
 
         <!-- Progress Bar -->
         <!-- progressbar role lives on the non-interactive fill (not the wrapper),
@@ -370,7 +379,7 @@
         </section>
 
         <!-- OCR Section -->
-        <section class="proso-popup__tool-section" id="ocr-section">
+        <section class="proso-popup__tool-section" id="ocr-section" hidden>
           <h3 class="proso-popup__tool-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>

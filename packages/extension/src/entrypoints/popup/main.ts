@@ -28,6 +28,7 @@ import {
 } from '../../utils/permissions/match-pattern';
 import { usageTracker } from '../../utils/telemetry/usage';
 import { showPlaybackStartFailure } from './playback-failure';
+import { bindPopupTabs } from './popup-tabs';
 
 const log = createLogger('popup');
 
@@ -164,6 +165,7 @@ let currentState: PlaybackState = {
   speed: 1.0,
   provider: 'elevenlabs',
 };
+let playbackStartPending = false;
 
 // Export state
 let currentExportJobId: string | null = null;
@@ -266,63 +268,6 @@ function updateSpeed(speed: number): void {
   elements.speedValue.textContent = `${speed.toFixed(1)}x`;
 }
 
-// ============================================
-// Tab Navigation Functions
-// ============================================
-
-type TabId = 'player' | 'tools' | 'queue';
-
-/**
- * Switch to a different tab panel
- */
-function switchTab(tabId: TabId): void {
-  const tabs = [elements.tabPlayer, elements.tabTools, elements.tabQueue];
-  const panels = [elements.panelPlayer, elements.panelTools, elements.panelQueue];
-  const tabMap: Record<TabId, { tab: HTMLButtonElement; panel: HTMLDivElement }> = {
-    player: { tab: elements.tabPlayer, panel: elements.panelPlayer },
-    tools: { tab: elements.tabTools, panel: elements.panelTools },
-    queue: { tab: elements.tabQueue, panel: elements.panelQueue },
-  };
-
-  // Deactivate all tabs and panels
-  tabs.forEach((tab) => {
-    if (tab) {
-      tab.classList.remove('proso-popup__tab--active');
-      tab.setAttribute('aria-selected', 'false');
-    }
-  });
-  panels.forEach((panel) => {
-    if (panel) {
-      panel.classList.remove('proso-popup__panel--active');
-      panel.hidden = true;
-    }
-  });
-
-  // Activate the selected tab and panel
-  const selected = tabMap[tabId];
-  if (selected.tab) {
-    selected.tab.classList.add('proso-popup__tab--active');
-    selected.tab.setAttribute('aria-selected', 'true');
-  }
-  if (selected.panel) {
-    selected.panel.classList.add('proso-popup__panel--active');
-    selected.panel.hidden = false;
-  }
-
-  log.debug('[Popup] Switched to tab', { tabId });
-}
-
-/**
- * Handle tab click events
- */
-function handleTabClick(event: Event): void {
-  const target = event.currentTarget as HTMLButtonElement;
-  const tabId = target.dataset.tab as TabId;
-  if (tabId) {
-    switchTab(tabId);
-  }
-}
-
 /**
  * Update section visibility based on configured API keys and settings.
  * In the tabbed layout, tool sections are visible by default.
@@ -365,6 +310,7 @@ function applyState(state: PlaybackState): void {
   updatePlayPauseButton(state.status === 'playing');
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
   updateProgress(state.progress);
+  setPlaybackStartPending(state.status === 'loading');
   if (typeof state.speed === 'number') {
     updateSpeed(state.speed);
   }
@@ -448,20 +394,44 @@ function reportPlaybackControlError(error: unknown): void {
   void routeFailure(errorMsg);
 }
 
-/** Start a new reading regardless of a stale popup playback state. */
+function setPlaybackStartPending(pending: boolean): void {
+  playbackStartPending = pending;
+  elements.playPauseBtn.disabled = pending;
+  if (pending) {
+    elements.playPauseBtn.setAttribute('aria-busy', 'true');
+  } else {
+    elements.playPauseBtn.removeAttribute('aria-busy');
+  }
+}
+
+/** Start one new reading and reconcile from background-owned state. */
 async function startFreshPlayback(): Promise<void> {
+  if (playbackStartPending) return;
+
+  setPlaybackStartPending(true);
+  currentState = { ...currentState, status: 'loading' };
+  updateStatus('loading');
   trackClick('playback.play_clicked');
   log.info('[Popup] Starting web page playback');
   usageTracker.track('popup.web_playback_starting');
-  updateStatus('loading');
-  const result = await sendMessage<Record<string, unknown>>('playback.start');
 
-  if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
-    const errorMsg = String(result.error || 'Playback failed');
-    log.warn('[Popup] Playback start failed', { error: errorMsg });
-    showPlaybackStartFailure(elements.statusDot, elements.statusText, errorMsg);
-    // PROSO-131/134: every fixable failure pairs with its action.
-    void routeFailure(errorMsg);
+  let playbackFailure: string | null = null;
+  try {
+    const result = await sendMessage<Record<string, unknown>>('playback.start');
+    if (result && typeof result === 'object' && ('_hexError' in result || 'error' in result)) {
+      const errorMsg = String(result.error || 'Playback failed');
+      playbackFailure = errorMsg;
+      log.warn('[Popup] Playback start failed', { error: errorMsg });
+      showPlaybackStartFailure(elements.statusDot, elements.statusText, errorMsg);
+      // PROSO-131/134: every fixable failure pairs with its action.
+      void routeFailure(errorMsg);
+    }
+  } finally {
+    await fetchPlaybackState();
+    if (playbackFailure) {
+      showPlaybackStartFailure(elements.statusDot, elements.statusText, playbackFailure);
+    }
+    if (currentState.status !== 'loading') setPlaybackStartPending(false);
   }
 }
 
@@ -477,6 +447,8 @@ async function startFreshPlaybackSafely(): Promise<void> {
  * Handle play/pause button click
  */
 async function handlePlayPause(): Promise<void> {
+  if (playbackStartPending) return;
+
   usageTracker.track('popup.play_button_clicked', {
     status: currentState.status,
   });
@@ -869,8 +841,7 @@ async function handleStop(): Promise<void> {
   trackClick('playback.stop_clicked');
   try {
     await sendMessage('playback.stop');
-    updateStatus('stopped');
-    updatePlayPauseButton(false);
+    applyState({ ...currentState, status: 'stopped', progress: 0 });
   } catch (error) {
     log.error('[Popup] Stop error', { error });
   }
@@ -1297,9 +1268,9 @@ async function handleAddToQueue(): Promise<void> {
 
     // Add to queue via background
     const response = await sendMessage<{
-      success: boolean;
-      id: string;
-      position: number;
+      success?: boolean;
+      id?: string;
+      position?: number;
       error?: string;
     }>('queue.add', {
       url: tab.url,
@@ -1308,8 +1279,8 @@ async function handleAddToQueue(): Promise<void> {
       faviconUrl: tab.favIconUrl,
     });
 
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to add to queue');
+    if (!response || (response.success !== true && typeof response.id !== 'string')) {
+      throw new Error(response?.error || 'Failed to add to queue');
     }
 
     // Update UI
@@ -1705,9 +1676,11 @@ function setupEventListeners(): void {
   elements.clearQueueBtn.addEventListener('click', handleClearQueue);
 
   // Tab navigation
-  elements.tabPlayer.addEventListener('click', handleTabClick);
-  elements.tabTools.addEventListener('click', handleTabClick);
-  elements.tabQueue.addEventListener('click', handleTabClick);
+  bindPopupTabs({
+    player: { tab: elements.tabPlayer, panel: elements.panelPlayer },
+    tools: { tab: elements.tabTools, panel: elements.panelTools },
+    queue: { tab: elements.tabQueue, panel: elements.panelQueue },
+  });
 
   // Highlight controls (T093-T095)
   setupHighlightListeners();
@@ -1976,14 +1949,13 @@ async function handleCreateHighlight(): Promise<void> {
 async function init(): Promise<void> {
   log.info('[Popup] Initializing...');
 
+  // Public controls must work as soon as the popup DOM is visible. Telemetry
+  // and state reads may await storage/background work, so bind first.
+  setupEventListeners();
+  setupMessageListener();
+
   // T016: Initialize usage tracker for popup telemetry
   await initTelemetry();
-
-  // Set up event listeners
-  setupEventListeners();
-
-  // Set up message listener for state updates
-  setupMessageListener();
 
   // Display version
   await displayVersion();
