@@ -416,6 +416,12 @@ export class PlaybackService {
       speed: clampedSpeed,
     });
 
+    // Feature 200: persist the choice through the settings store so it
+    // survives restart and every surface (popup slider, settings page) reads
+    // the same value. Idempotent with the settings subscription that applies
+    // settings.speed back onto state.
+    await this.deps.settingsStore.updateSettings({ speed: clampedSpeed });
+
     // Update audio element playback rate
     if (this.audioElement) {
       this.audioElement.playbackRate = clampedSpeed;

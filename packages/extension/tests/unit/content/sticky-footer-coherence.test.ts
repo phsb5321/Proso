@@ -9,6 +9,14 @@ class TestResizeObserver {
 globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
 globalThis.MutationObserver = TestResizeObserver as unknown as typeof MutationObserver;
 
+// Feature 200: the footer attaches a CLOSED shadow root; open it in tests so
+// dropdown state (option highlights, open class) is observable. Applied before
+// any StickyFooter instance calls show().
+const originalAttachShadow = Element.prototype.attachShadow;
+Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
+  return originalAttachShadow.call(this, { ...init, mode: 'open' });
+} as typeof Element.prototype.attachShadow;
+
 const storageGet = jest.fn(async () => ({}));
 const storageSet = jest.fn(async () => undefined);
 const sendMessage = jest.fn(async () => ({}));
@@ -23,8 +31,9 @@ jest.unstable_mockModule('wxt/browser', () => ({
 const { StickyFooter } = await import('../../../src/utils/content/sticky-footer');
 
 type FooterInternals = {
-  _handleAction(action: string): void;
+  _handleAction(action: string, data?: { value?: number }): void;
   _formatPositionIndicator(): string;
+  shadowRoot: ShadowRoot | null;
 };
 
 describe('StickyFooter runtime coherence', () => {
@@ -100,5 +109,95 @@ describe('StickyFooter runtime coherence', () => {
     footer.updateState({ currentParagraph: 0, totalParagraphs: 56 });
 
     expect((footer as unknown as FooterInternals)._formatPositionIndicator()).toBe('1/56');
+  });
+
+  it('refreshes speed dropdown option highlights on updateState (Feature 200)', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const internals = footer as unknown as FooterInternals;
+    internals._handleAction('toggleSpeed'); // open the dropdown
+
+    const activeBefore = internals.shadowRoot?.querySelector('.speed-option.active');
+    expect(activeBefore?.getAttribute('aria-selected')).toBe('true');
+
+    footer.updateState({ speed: 1.5 });
+
+    const activeAfter = internals.shadowRoot?.querySelector('.speed-option.active');
+    expect(activeAfter?.textContent).toBe('1.5x');
+    expect(activeAfter?.getAttribute('aria-selected')).toBe('true');
+    expect(activeBefore?.textContent).toBe('1x'); // the old option is de-selected
+    footer.hide();
+  });
+
+  it('refreshes language dropdown option highlights on updateState (Feature 200)', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const internals = footer as unknown as FooterInternals;
+
+    footer.updateState({ languageCode: 'pt', isAutoDetected: false });
+    const active = internals.shadowRoot?.querySelector('.language-option.active');
+    expect((active as HTMLElement | null)?.dataset.lang).toBe('pt');
+    expect(active?.getAttribute('aria-selected')).toBe('true');
+
+    footer.updateState({ isAutoDetected: true });
+    const autoActive = internals.shadowRoot?.querySelector('.language-option.active');
+    expect((autoActive as HTMLElement | null)?.dataset.lang).toBe('auto');
+    footer.hide();
+  });
+
+  it('updates speed without rebuilding the footer DOM (Feature 200)', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const internals = footer as unknown as FooterInternals;
+    const playButton = internals.shadowRoot?.querySelector('[data-action="playPause"]');
+
+    internals._handleAction('speed', { value: 1.5 });
+
+    // The same element instance survives — no shadow-root rebuild.
+    expect(internals.shadowRoot?.querySelector('[data-action="playPause"]')).toBe(playButton);
+    expect(internals.shadowRoot?.querySelector('.speed-btn')?.textContent).toBe('1.5x');
+    footer.hide();
+  });
+
+  it('closes both dropdowns on Escape (Feature 200)', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const internals = footer as unknown as FooterInternals;
+    const shadow = internals.shadowRoot;
+    const footerEl = shadow?.querySelector('.footer');
+
+    // The two dropdowns are mutually exclusive by design (opening one closes
+    // the other); Escape must close whichever is currently open.
+    internals._handleAction('toggleSpeed');
+    expect(shadow?.querySelector('.speed-dropdown')?.classList.contains('open')).toBe(true);
+    expect(shadow?.querySelector('.language-dropdown')?.classList.contains('open')).toBe(false);
+
+    footerEl?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(shadow?.querySelector('.speed-dropdown')?.classList.contains('open')).toBe(false);
+
+    internals._handleAction('toggleLanguage');
+    expect(shadow?.querySelector('.language-dropdown')?.classList.contains('open')).toBe(true);
+
+    footerEl?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(shadow?.querySelector('.speed-dropdown')?.classList.contains('open')).toBe(false);
+    expect(shadow?.querySelector('.language-dropdown')?.classList.contains('open')).toBe(false);
+    footer.hide();
+  });
+
+  it('closes open dropdowns on an outside click (Feature 200)', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const internals = footer as unknown as FooterInternals;
+    internals._handleAction('toggleSpeed');
+    expect(internals.shadowRoot?.querySelector('.speed-dropdown')?.classList.contains('open')).toBe(
+      true,
+    );
+
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+    expect(internals.shadowRoot?.querySelector('.speed-dropdown')?.classList.contains('open')).toBe(
+      false,
+    );
+    footer.hide();
   });
 });

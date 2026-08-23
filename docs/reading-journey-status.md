@@ -839,6 +839,29 @@ that runtime and makes the browser behavior provider-agnostic. The separate Fire
 buffer-starvation issue #194 is also not attributed to Proso by this feature: no freeze coincided
 with proven Proso playback, and its backdrop-filter performance finding remains a separate issue.
 
+## Update — 23/08/2026 (late): footer controller and dropdowns share one state
+
+Feature 200 (merged as part of this batch) closes the footer↔dropdown sync bugs
+found while the reading journey ran live:
+
+- **The footer's language choice now drives the audio.** `language.setOverride`
+  wrote only a module-global override that `playback.start` never read, so the
+  dropdown's language never reached synthesis — not even on the next start.
+  The override now writes the per-tab store `playback.start` reads and
+  live-applies through an injected `setPlaybackLanguage` dep, so continuing
+  chunked local-host synthesis follows the reader's choice.
+- **Footer speed changes are persisted** through the settings store (previously
+  in-memory only — lost on restart).
+- **Dropdown option highlights track state** instead of going stale until a
+  full re-render; speed/language picks no longer rebuild the whole footer
+  (also a compositor-damage reduction); Escape and outside-click close both
+  dropdowns.
+
+Unit-pinned (9 new tests), full extension suite 2642 passing, `make verify` and
+`make verify-full` green, real-host journey PASS at `f7aa9ce`. Different-family
+review blocked by lane availability (anthropic oracle capped, DeepSeek refuses
+private payloads, groq meta-llama retired) — recorded in the spec research.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request

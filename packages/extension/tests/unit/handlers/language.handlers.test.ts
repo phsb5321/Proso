@@ -14,17 +14,14 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { browser } from 'wxt/browser';
 
 // ---------------------------------------------------------------------------
 // Dynamic imports
 // ---------------------------------------------------------------------------
 
-const {
-  registerLanguageHandlers,
-  setLanguageDependencies,
-  clearLanguageState,
-  tabLanguageStates,
-} = await import('../../../src/handlers/language.handlers');
+const { registerLanguageHandlers, setLanguageDependencies, clearLanguageState, tabLanguageStates } =
+  await import('../../../src/handlers/language.handlers');
 const { HandlerRegistry } = await import('../../../src/handlers/registry');
 
 // ---------------------------------------------------------------------------
@@ -232,6 +229,52 @@ describe('language.handlers', () => {
   });
 
   // -----------------------------------------------------------------------
+  // language override drives synthesis (Feature 200)
+  // -----------------------------------------------------------------------
+
+  describe('language override drives playback (Feature 200)', () => {
+    it('applies the override to live synthesis and the per-tab store', async () => {
+      const setPlaybackLanguage = jest.fn();
+      setLanguageDependencies({
+        detectLanguage: () => 'en',
+        setPlaybackLanguage,
+      });
+      browser.tabs.query = jest.fn(async () => [
+        { id: 42, active: true, currentWindow: true },
+      ]) as never;
+
+      await dispatchOk(registry, 'language.setOverride', { languageCode: 'pt' });
+
+      expect(setPlaybackLanguage).toHaveBeenCalledWith('pt');
+      expect(tabLanguageStates.get(42)?.override).toBe('pt');
+    });
+
+    it('clearing the override restores the detected language in playback', async () => {
+      const setPlaybackLanguage = jest.fn();
+      setLanguageDependencies({
+        detectLanguage: () => 'en',
+        setPlaybackLanguage,
+      });
+      browser.tabs.query = jest.fn(async () => [
+        { id: 7, active: true, currentWindow: true },
+      ]) as never;
+      // Prior detection so clearing has a language to restore.
+      tabLanguageStates.set(7, {
+        detected: { code: 'de', confidence: 0.9, source: 'detection' },
+        override: null,
+      });
+
+      await dispatchOk(registry, 'language.setOverride', { languageCode: 'fr' });
+      expect(tabLanguageStates.get(7)?.override).toBe('fr');
+
+      await dispatchOk(registry, 'language.clearOverride', {});
+
+      expect(setPlaybackLanguage).toHaveBeenLastCalledWith('de');
+      expect(tabLanguageStates.get(7)?.override).toBeNull();
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // language.setOverride
   // -----------------------------------------------------------------------
 
@@ -299,21 +342,17 @@ describe('language.handlers', () => {
         languageCode: 'ja',
       });
 
-      const result = (await dispatchOk(
-        registry,
-        'language.clearOverride',
-        {},
-      )) as { success: boolean };
+      const result = (await dispatchOk(registry, 'language.clearOverride', {})) as {
+        success: boolean;
+      };
 
       expect(result.success).toBe(true);
     });
 
     it('should succeed even when no override is set', async () => {
-      const result = (await dispatchOk(
-        registry,
-        'language.clearOverride',
-        {},
-      )) as { success: boolean };
+      const result = (await dispatchOk(registry, 'language.clearOverride', {})) as {
+        success: boolean;
+      };
 
       expect(result.success).toBe(true);
     });

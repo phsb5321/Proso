@@ -152,6 +152,12 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     // T002: Wire language detection using franc-min
     setLanguageDependencies({
       detectLanguage: (text: string) => detectLanguageFromText(text)?.code ?? 'en',
+      // Feature 200: language overrides from the footer apply to the running
+      // session (PlaybackService feeds detectedLanguage to every synthesis
+      // request), not only to the footer label.
+      setPlaybackLanguage: (languageCode: string) => {
+        container.services.playback.setLanguage(languageCode);
+      },
     });
 
     // T003: Wire highlight repository for highlight CRUD handlers

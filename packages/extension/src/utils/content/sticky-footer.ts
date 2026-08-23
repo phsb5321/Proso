@@ -637,6 +637,7 @@ export class StickyFooter {
   private readonly _onDragEnd: () => void;
   private readonly _onKeyDown: (e: KeyboardEvent) => void;
   private readonly _onResize: () => void;
+  private readonly _onOutsidePointerDown: (e: MouseEvent) => void;
 
   constructor() {
     this._onDragStart = this._handleDragStart.bind(this);
@@ -644,11 +645,8 @@ export class StickyFooter {
     this._onDragEnd = this._handleDragEnd.bind(this);
     this._onKeyDown = this._handleKeyDown.bind(this);
     this._onResize = this._handleResize.bind(this);
+    this._onOutsidePointerDown = this._handleOutsidePointerDown.bind(this);
   }
-
-  // ==========================================================================
-  // DOM Building
-  // ==========================================================================
 
   /**
    * Build the footer DOM structure using safe DOM methods
@@ -1052,6 +1050,19 @@ export class StickyFooter {
         this._speedBtn.setAttribute('aria-label', `Playback speed ${this.playbackState.speed}x`);
       }
 
+      // Feature 200: keep speed-dropdown option highlights in sync with state
+      // (external changes — popup slider, settings — must not leave the
+      // dropdown advertising a stale active option until a full re-render).
+      if (this._speedDropdown && state.speed !== undefined) {
+        const options = this._speedDropdown.querySelectorAll<HTMLElement>('.speed-option');
+        options.forEach((option) => {
+          const isActive =
+            Number.parseFloat(option.dataset.speed || '1.0') === this.playbackState.speed;
+          option.classList.toggle('active', isActive);
+          option.setAttribute('aria-selected', String(isActive));
+        });
+      }
+
       // Update language button display
       if (
         this._langBtn &&
@@ -1065,6 +1076,23 @@ export class StickyFooter {
           'aria-label',
           `Language: ${this.playbackState.isAutoDetected ? 'Auto-detected' : ''} ${this.playbackState.languageCode.toUpperCase()}`,
         );
+      }
+
+      // Feature 200: keep language-dropdown option highlights in sync with
+      // state updates, not only full re-renders.
+      if (
+        this._langDropdown &&
+        (state.languageCode !== undefined || state.isAutoDetected !== undefined)
+      ) {
+        const { languageCode, isAutoDetected } = this.playbackState;
+        const options = this._langDropdown.querySelectorAll<HTMLElement>('.language-option');
+        options.forEach((option) => {
+          const lang = option.dataset.lang;
+          const isActive =
+            lang === 'auto' ? isAutoDetected : !isAutoDetected && languageCode === lang;
+          option.classList.toggle('active', isActive);
+          option.setAttribute('aria-selected', String(isActive));
+        });
       }
 
       // Update play/pause button if status changed
@@ -1308,6 +1336,10 @@ export class StickyFooter {
     document.addEventListener('mouseup', this._onDragEnd);
     document.addEventListener('touchmove', this._onDragMove as EventListener, { passive: false });
     document.addEventListener('touchend', this._onDragEnd);
+    // Feature 200: close open dropdowns when the reader clicks outside the
+    // footer. Shadow-DOM retargeting makes e.target the host for footer
+    // content, so contains() cleanly separates footer clicks from page clicks.
+    document.addEventListener('mousedown', this._onOutsidePointerDown);
 
     if (this._footerEl) {
       this._footerEl.addEventListener('keydown', this._onKeyDown);
@@ -1365,7 +1397,12 @@ export class StickyFooter {
           this._sendMessage('language.setOverride', { languageCode: lang });
         }
         this._closeLanguageDropdown();
-        this._render();
+        // Feature 200: targeted update instead of a full footer rebuild —
+        // updateState refreshes button text and dropdown option highlights.
+        this.updateState({
+          languageCode: this.playbackState.languageCode,
+          isAutoDetected: this.playbackState.isAutoDetected,
+        });
       });
     });
   }
@@ -1378,6 +1415,7 @@ export class StickyFooter {
     document.removeEventListener('mouseup', this._onDragEnd);
     document.removeEventListener('touchmove', this._onDragMove as EventListener);
     document.removeEventListener('touchend', this._onDragEnd);
+    document.removeEventListener('mousedown', this._onOutsidePointerDown);
   }
 
   // ==========================================================================
@@ -1407,9 +1445,10 @@ export class StickyFooter {
         break;
       case 'speed':
         if ('value' in data && typeof data.value === 'number') {
-          this.playbackState.speed = data.value;
+          // Feature 200: targeted update, no full footer rebuild — the
+          // updateState path refreshes button and dropdown option state.
+          this.updateState({ speed: data.value });
           this._sendMessage('footer.action', { action: 'speed', value: data.value });
-          this._render();
           this._announce(`Speed ${data.value}x`);
         }
         break;
@@ -1481,6 +1520,20 @@ export class StickyFooter {
   // ==========================================================================
 
   /**
+   * Handle pointer-down outside the footer: close any open dropdown.
+   */
+  private _handleOutsidePointerDown(e: MouseEvent): void {
+    if (!this.container) return;
+    const target = e.target as Node;
+    // Clicks on footer content are retargeted to the host element, so any
+    // click that is not inside the container is a page click.
+    if (!this.container.contains(target)) {
+      this._closeSpeedDropdown();
+      this._closeLanguageDropdown();
+    }
+  }
+
+  /**
    * Handle drag start
    */
   private _handleDragStart(e: MouseEvent | TouchEvent): void {
@@ -1538,6 +1591,7 @@ export class StickyFooter {
       case 'Escape':
         e.preventDefault();
         this._closeSpeedDropdown();
+        this._closeLanguageDropdown();
         break;
       case 'ArrowLeft':
         if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {
