@@ -9,6 +9,7 @@
 
 import { browser } from 'wxt/browser';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
+import type { WordTimingBasis } from '../core/playback/word-timing-estimator';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
 import { tabLanguageStates } from './language.handlers';
@@ -89,6 +90,7 @@ export interface PlaybackStateResponse {
   voice: string | null;
   currentTime: number;
   totalTime: number;
+  timingBasis: WordTimingBasis;
 }
 
 /**
@@ -218,6 +220,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           voice: state.voice,
           currentTime: 0, // Audio timing tracked by audio element in PlaybackService
           totalTime: 0, // Audio timing tracked by audio element in PlaybackService
+          timingBasis: service.getTimingBasis?.() ?? 'none',
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

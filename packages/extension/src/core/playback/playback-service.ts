@@ -35,6 +35,8 @@ import {
   playbackStateTransitions,
   playbackStateValidation,
 } from './playback-state';
+import type { WordTimingBasis } from './word-timing-estimator';
+import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
 
 /**
  * Dependencies required by PlaybackService.
@@ -95,6 +97,7 @@ export class PlaybackService {
     endTimeMs: number;
   }> = [];
   private currentWordIndex = -1;
+  private currentTimingBasis: WordTimingBasis = 'none';
 
   // Mutable audio generator reference (updated on provider switch)
   private audioGenerator: IAudioGenerator;
@@ -127,6 +130,10 @@ export class PlaybackService {
    */
   getState(): PlaybackState {
     return this.state;
+  }
+
+  getTimingBasis(): WordTimingBasis {
+    return this.currentTimingBasis;
   }
 
   /**
@@ -175,7 +182,9 @@ export class PlaybackService {
     if (this.deps.prefetch) {
       this.deps.prefetch.queue.initialize([...paragraphs], { startIndex: 0 });
       this.deps.prefetch.queue.start(0);
-      this.deps.prefetch.service.start();
+      if (!this.audioGenerator.supportsChunkedSynthesis) {
+        this.deps.prefetch.service.start();
+      }
     }
 
     // Generate audio for first paragraph
@@ -240,7 +249,7 @@ export class PlaybackService {
       } catch (error) {
         if (!this.isCurrentGeneration(generation)) return Ok(this.state);
         const failure = this.describePlayError(error);
-        await this.setError(failure);
+        await this.setError(failure, undefined, generation);
         return Err(failure);
       }
     }
@@ -248,7 +257,9 @@ export class PlaybackService {
     if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     this.deps.prefetch?.queue.start();
-    this.deps.prefetch?.service.start();
+    if (!this.audioGenerator.supportsChunkedSynthesis) {
+      this.deps.prefetch?.service.start();
+    }
 
     this.state = playbackStateTransitions.resume(this.state);
 
@@ -263,21 +274,24 @@ export class PlaybackService {
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
     const generation = ++this.playbackGeneration;
+    const activeTabId = this.state.activeTabId;
 
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
     this.currentAbortController?.abort();
     this.currentAbortController = null;
 
-    // Stop audio element playback
+    // Relinquish URL ownership before clearing src: Firefox may emit `error`
+    // synchronously from teardown, and the listener uses null as that signal.
+    const audioUrlToRevoke = this.currentAudioUrl;
+    this.currentAudioUrl = null;
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.src = '';
     }
 
     // Revoke object URL (no-op for data URLs)
-    this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
-    this.currentAudioUrl = null;
+    this.deps.audioUrlProvider.revokeUrl(audioUrlToRevoke);
 
     // Clear word timings
     this.clearWordTimings();
@@ -291,16 +305,22 @@ export class PlaybackService {
     this.deps.prefetch?.queue.stop();
 
     // Clear highlights and hide footer
-    if (this.state.activeTabId !== null) {
-      const clearResult = await this.deps.highlightSync.clearHighlights(this.state.activeTabId);
+    let stoppedStateCanPublish = false;
+    if (activeTabId !== null) {
+      const clearResult = await this.deps.highlightSync.clearHighlights(activeTabId);
       await this.checkHighlight('clearHighlights', clearResult, false);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-      const hideResult = await this.deps.highlightSync.hideFooter(this.state.activeTabId);
+      const hideResult = await this.deps.highlightSync.hideFooter(activeTabId);
       await this.checkHighlight('hideFooter', hideResult, false);
+      stoppedStateCanPublish = isOk(hideResult);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     }
 
     this.state = playbackStateTransitions.stop(this.state);
+    // The footer itself is gone, but updateFooterState also broadcasts the
+    // authoritative stopped state to an open popup. Skip a vanished tab so a
+    // tab-not-found result cannot recursively call stop().
+    if (stoppedStateCanPublish) await this.updateFooterState();
 
     return Ok(this.state);
   }
@@ -516,14 +536,24 @@ export class PlaybackService {
    * the one case where a tab is known but not yet recorded in state — a
    * `start()` call that fails before `activeTabId` is set.
    */
-  private async setError(error: PlaybackError, tabIdOverride?: number): Promise<void> {
+  private async setError(
+    error: PlaybackError,
+    tabIdOverride?: number,
+    expectedGeneration = this.playbackGeneration,
+  ): Promise<void> {
+    if (!this.isCurrentGeneration(expectedGeneration)) return;
     this.state = playbackStateTransitions.setError(this.state, error);
 
     const tabId = tabIdOverride ?? this.state.activeTabId;
     if (tabId !== null && tabId !== undefined) {
+      const clearResult = await this.deps.highlightSync.clearHighlights(tabId);
+      await this.checkHighlight('clearHighlights after error', clearResult, false);
+      if (!this.isCurrentGeneration(expectedGeneration)) return;
+
       const { message, provider } = this.describeError(error);
       const result = await this.deps.highlightSync.showError(tabId, message, provider);
       await this.checkHighlight('showError', result);
+      if (!this.isCurrentGeneration(expectedGeneration)) return;
     }
 
     await this.updateFooterState();
@@ -622,91 +652,12 @@ export class PlaybackService {
     return result;
   }
 
-  /**
-   * Count syllables in a word using vowel cluster heuristic.
-   */
-  private countSyllables(word: string): number {
-    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-    if (!clean) return 1;
-
-    const vowelClusters = clean.match(/[aeiouy]+/g);
-    let count = vowelClusters ? vowelClusters.length : 1;
-
-    // Subtract silent 'e' at end (but not for short words like "the")
-    if (clean.length > 3 && clean.endsWith('e') && !/[aeiouy]e$/i.test(clean.slice(-2))) {
-      count = Math.max(1, count - 1);
-    }
-
-    return Math.max(1, count);
-  }
-
-  /**
-   * Check if text contains primarily Latin-script characters.
-   */
-  private isLatinScript(text: string): boolean {
-    const latinChars = text.replace(/[^a-zA-Z\u00C0-\u024F]/g, '').length;
-    const totalAlpha = text.replace(
-      /[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/g,
-      '',
-    ).length;
-    return totalAlpha === 0 || latinChars / totalAlpha > 0.5;
-  }
-
-  /**
-   * Estimate word timings by distributing duration proportionally by syllable count (Latin)
-   * or character count (non-Latin).
-   */
+  /** Build the explicitly approximate no-marks timeline. */
   private estimateWordTimings(
     text: string,
     durationMs: number,
-  ): Array<{
-    word: string;
-    charOffset: number;
-    charLength: number;
-    startTimeMs: number;
-    endTimeMs: number;
-  }> {
-    const words: Array<{ word: string; charOffset: number; charLength: number }> = [];
-    const regex = /\S+/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(text)) !== null) {
-      words.push({
-        word: match[0],
-        charOffset: match.index,
-        charLength: match[0].length,
-      });
-    }
-
-    if (words.length === 0) return [];
-
-    const useSyllables = this.isLatinScript(text);
-    const weights = words.map((w) => (useSyllables ? this.countSyllables(w.word) : w.charLength));
-    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-    if (totalWeight === 0) return [];
-
-    const timings: Array<{
-      word: string;
-      charOffset: number;
-      charLength: number;
-      startTimeMs: number;
-      endTimeMs: number;
-    }> = [];
-    let currentTimeMs = 0;
-
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i]!;
-      const wordDurationMs = (weights[i]! / totalWeight) * durationMs;
-      timings.push({
-        word: w.word,
-        charOffset: w.charOffset,
-        charLength: w.charLength,
-        startTimeMs: currentTimeMs,
-        endTimeMs: currentTimeMs + wordDurationMs,
-      });
-      currentTimeMs += wordDurationMs;
-    }
-
-    return timings;
+  ): ReturnType<typeof estimateWordTimings> {
+    return estimateWordTimings(text, durationMs, this.detectedLanguage);
   }
 
   /**
@@ -758,7 +709,11 @@ export class PlaybackService {
   private chunkBaseMs = 0;
   private chunkGeneration = -1;
   private continueChunkedOrAdvance: () => void = () => {};
-  private funnelPlaybackError: (error: unknown) => void = () => {};
+
+  private funnelPlaybackError(error: unknown, generation: number): void {
+    const message = error instanceof Error ? error.message : String(error);
+    void this.setError(playbackError.playbackFailed(message), undefined, generation);
+  }
 
   /**
    * Clear word sync state.
@@ -766,6 +721,7 @@ export class PlaybackService {
   private clearWordTimings(): void {
     this.currentWordTimings = [];
     this.currentWordIndex = -1;
+    this.currentTimingBasis = 'none';
   }
 
   /**
@@ -781,19 +737,21 @@ export class PlaybackService {
     this.clearWordTimings();
     this.resetChunkState(generation);
 
-    const textResult = await this.paragraphTextOrError(index);
+    const textResult = await this.paragraphTextOrError(index, generation);
     if (isErr(textResult)) return textResult;
     const text = textResult.value;
     const sourceResult = splitSentences(text);
     if (isErr(sourceResult)) {
       const error = this.convertAudioError(sourceResult.error);
-      await this.setError(error);
+      await this.setError(error, undefined, generation);
       return Err(error);
     }
-    const chunkSources = this.locateChunkSources(text, sourceResult.value);
+    const speakableSentences = sourceResult.value.filter(hasSpeakableWords);
+    if (speakableSentences.length === 0) return this.next();
+    const chunkSources = this.locateChunkSources(text, speakableSentences);
 
     const request: AudioRequest = {
-      text,
+      text: speakableSentences.join(' '),
       voice: this.state.voice,
       speed: this.state.speed,
       language: this.detectedLanguage,
@@ -803,7 +761,7 @@ export class PlaybackService {
       const error = playbackError.playbackFailed(
         'Generator advertises chunked synthesis but has none',
       );
-      await this.setError(error);
+      await this.setError(error, undefined, generation);
       return Err(error);
     }
     // Called as a method so the generator keeps its `this` binding.
@@ -820,12 +778,12 @@ export class PlaybackService {
       const error = playbackError.playbackFailed(
         'Local synthesis host produced no audio for this paragraph',
       );
-      await this.setError(error);
+      await this.setError(error, undefined, generation);
       return Err(error);
     }
     if (isErr(first.value)) {
       const error = this.convertAudioError(first.value.error);
-      await this.setError(error);
+      await this.setError(error, undefined, generation);
       return Err(error);
     }
     const firstChunk = first.value.value;
@@ -850,6 +808,8 @@ export class PlaybackService {
         firstChunk.wordTimings,
         0,
       ),
+      preconvertedBasis:
+        firstChunk.wordTimings && firstChunk.wordTimings.length > 0 ? 'provider' : 'estimated',
     });
   }
 
@@ -935,7 +895,7 @@ export class PlaybackService {
     if (!this.isCurrentGeneration(generation)) return false;
 
     if (chunk.error) {
-      await this.setError(playbackError.playbackFailed(chunk.error));
+      await this.setError(playbackError.playbackFailed(chunk.error), undefined, generation);
       return false;
     }
 
@@ -953,6 +913,7 @@ export class PlaybackService {
         chunk.durationMs,
         timings,
         null,
+        chunk.wordTimings && chunk.wordTimings.length > 0 ? 'provider' : 'estimated',
         generation,
       );
       if (!continued) return false;
@@ -1024,6 +985,7 @@ export class PlaybackService {
       endTimeMs: number;
     }> | null,
     providerTimings: readonly { word: string; startMs: number; endMs: number }[] | null,
+    preconvertedBasis: Exclude<WordTimingBasis, 'none'> | null,
     generation: number,
   ): Promise<boolean> {
     if (durationMs <= 0) return true;
@@ -1035,13 +997,18 @@ export class PlaybackService {
       endTimeMs: number;
     }>;
 
-    if (preconvertedTimings && preconvertedTimings.length > 0) {
+    if (preconvertedTimings !== null) {
+      // An empty sentence-local estimate is authoritative: falling through
+      // would squeeze the whole paragraph into a structural-only clip.
       wordTimings = [...preconvertedTimings];
+      this.currentTimingBasis = preconvertedBasis ?? 'estimated';
     } else if (providerTimings && providerTimings.length > 0) {
       // Use real provider timestamps (e.g. ElevenLabs, cached entries)
       wordTimings = this.convertProviderTimings(providerTimings, paragraphText);
+      this.currentTimingBasis = 'provider';
     } else {
       wordTimings = this.estimateWordTimings(paragraphText, durationMs);
+      this.currentTimingBasis = 'estimated';
     }
 
     this.currentWordTimings = wordTimings;
@@ -1062,11 +1029,14 @@ export class PlaybackService {
    * Shared paragraph-text access: an invalid index becomes the same typed
    * error on every path (cache, network, prefetch, chunked — PROSO-110).
    */
-  private async paragraphTextOrError(index: number): Promise<Result<string, PlaybackError>> {
+  private async paragraphTextOrError(
+    index: number,
+    generation: number,
+  ): Promise<Result<string, PlaybackError>> {
     const text = this.state.paragraphs[index];
     if (!text) {
       const error = playbackError.invalidParagraphIndex(index, this.state.totalParagraphs);
-      await this.setError(error);
+      await this.setError(error, undefined, generation);
       return Err(error);
     }
     return Ok(text);
@@ -1092,7 +1062,7 @@ export class PlaybackService {
     // Clear previous word timings on paragraph transition
     this.clearWordTimings();
 
-    const textResult = await this.paragraphTextOrError(index);
+    const textResult = await this.paragraphTextOrError(index, generation);
     if (isErr(textResult)) return textResult;
     const text = textResult.value;
 
@@ -1158,7 +1128,7 @@ export class PlaybackService {
       if (isErr(generateResult)) {
         console.error('[PlaybackService] Audio generation failed:', generateResult.error);
         const error = this.convertAudioError(generateResult.error);
-        await this.setError(error);
+        await this.setError(error, undefined, generation);
         return Err(error);
       }
 
@@ -1180,6 +1150,7 @@ export class PlaybackService {
       durationMs: audioResponse.durationMs ?? 0,
       providerTimings: audioResponse.wordTimings,
       preconvertedTimings: null,
+      preconvertedBasis: null,
     });
   }
 
@@ -1203,6 +1174,7 @@ export class PlaybackService {
         startTimeMs: number;
         endTimeMs: number;
       }> | null;
+      readonly preconvertedBasis: Exclude<WordTimingBasis, 'none'> | null;
     },
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // Update state to playing — unless the user paused while this clip loaded.
@@ -1237,6 +1209,7 @@ export class PlaybackService {
           audioDurationMs,
           source.preconvertedTimings,
           source.providerTimings,
+          source.preconvertedBasis,
           generation,
         );
         if (!continued) return Ok(this.state);
@@ -1276,6 +1249,7 @@ export class PlaybackService {
       durationMs: 0,
       providerTimings: null,
       preconvertedTimings: prefetched.wordTimings,
+      preconvertedBasis: prefetched.timingBasis ?? 'estimated',
     });
   }
 
@@ -1338,7 +1312,7 @@ export class PlaybackService {
         await this.audioElement.play();
       } catch (error) {
         if (!this.isCurrentGeneration(generation)) return false;
-        await this.setError(this.describePlayError(error));
+        await this.setError(this.describePlayError(error), undefined, generation);
         return false;
       }
     }
@@ -1392,6 +1366,7 @@ export class PlaybackService {
       startTimeMs: number;
       endTimeMs: number;
     }>;
+    timingBasis?: 'provider' | 'estimated';
     provider?: string;
     voice?: string | null;
   } | null> {
@@ -1428,6 +1403,10 @@ export class PlaybackService {
     return {
       audioUrl,
       wordTimings,
+      timingBasis:
+        audioResponse.wordTimings && audioResponse.wordTimings.length > 0
+          ? 'provider'
+          : 'estimated',
       provider: this.state.provider,
       voice: this.state.voice,
     };
@@ -1509,32 +1488,44 @@ export class PlaybackService {
     });
 
     this.audioElement.addEventListener('ended', () => {
-      // A pause taken as the clip finished must not be undone by the queued
-      // auto-advance: `next()` would move to `loading` and start reading again.
-      // ponytail: resuming then replays the paragraph that is still
-      // highlighted rather than continuing mid-article — audio and highlight
-      // stay in agreement, which is the property that matters here.
-      if (this.state.status === 'paused') return;
+      // Clearing src during stop can emit `ended`. URL ownership is dropped
+      // before teardown, so neither that event nor a late paused event may
+      // auto-advance a session the reader ended.
+      if (this.currentAudioUrl === null || this.state.status !== 'playing') return;
 
       // PROSO-110: a queued sentence chunk continues the current paragraph
       // instead of advancing — playback consumes chunk n+1 while the adapter
       // prefetches n+2 (one in flight + one prefetched).
       if (this.chunkQueue.length > 0) {
-        void this.playNextChunk().catch(this.funnelPlaybackError);
+        const generation = this.chunkGeneration;
+        void this.playNextChunk().catch((error) => this.funnelPlaybackError(error, generation));
         return;
       }
       if (!this.chunkQueueDone && this.chunkGeneration >= 0) {
         // The drain is still running: wait briefly for the next chunk rather
-        // than advancing (synthesis is ~5x faster than playback, so this is a
-        // rare guard, not the common path).
-        setTimeout(() => this.continueChunkedOrAdvance(), 500);
+        // than advancing. Bind the callback to this generation so stop cannot
+        // leave a timer that restarts reading later.
+        const generation = this.chunkGeneration;
+        setTimeout(() => {
+          if (
+            this.chunkGeneration !== generation ||
+            !this.isCurrentGeneration(generation) ||
+            this.currentAudioUrl === null ||
+            this.state.status !== 'playing'
+          ) {
+            return;
+          }
+          this.continueChunkedOrAdvance();
+        }, 500);
         return;
       }
       this.resetChunkState(-1);
 
       // Move to next paragraph; route rejection through the same failure
       // funnel so an unexpected throw is still reported (T008).
-      this.next().catch(this.funnelPlaybackError);
+      const nextPromise = this.next();
+      const generation = this.playbackGeneration;
+      void nextPromise.catch((error) => this.funnelPlaybackError(error, generation));
     });
 
     /**
@@ -1543,25 +1534,32 @@ export class PlaybackService {
      * finished without producing one).
      */
     this.continueChunkedOrAdvance = (): void => {
+      if (
+        this.chunkGeneration < 0 ||
+        !this.isCurrentGeneration(this.chunkGeneration) ||
+        this.currentAudioUrl === null ||
+        this.state.status !== 'playing'
+      ) {
+        return;
+      }
       if (this.chunkQueue.length > 0) {
-        void this.playNextChunk().catch(this.funnelPlaybackError);
+        const generation = this.chunkGeneration;
+        void this.playNextChunk().catch((error) => this.funnelPlaybackError(error, generation));
       } else {
         this.resetChunkState(-1);
-        void this.next().catch(this.funnelPlaybackError);
+        const nextPromise = this.next();
+        const generation = this.playbackGeneration;
+        void nextPromise.catch((error) => this.funnelPlaybackError(error, generation));
       }
     };
 
-    /**
-     * Route an unexpected throw through the same failure funnel (T008).
-     */
-    this.funnelPlaybackError = (error: unknown): void => {
-      const message = error instanceof Error ? error.message : String(error);
-      void this.setError(playbackError.playbackFailed(message));
-    };
-
     this.audioElement.addEventListener('error', () => {
+      // Clearing `src` during stop emits a media error in Firefox. The URL is
+      // revoked first from service ownership, so this is teardown—not a failed
+      // clip—and must not recreate the just-hidden recovery footer.
+      if (this.currentAudioUrl === null) return;
       const error = playbackError.playbackFailed('Audio playback error');
-      void this.setError(error);
+      void this.setError(error, undefined, this.playbackGeneration);
     });
   }
 
@@ -1625,7 +1623,7 @@ export class PlaybackService {
     const currentSeconds = Math.round(this.state.progress * totalSeconds);
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-    const footerState: FooterState = {
+    const footerState: FooterState & { readonly timingBasis: WordTimingBasis } = {
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,
@@ -1633,6 +1631,7 @@ export class PlaybackService {
       currentTime: formatTime(currentSeconds),
       totalTime: formatTime(totalSeconds),
       speed: this.state.speed,
+      timingBasis: this.currentTimingBasis,
     };
 
     const result = await this.deps.highlightSync.updateFooterState(

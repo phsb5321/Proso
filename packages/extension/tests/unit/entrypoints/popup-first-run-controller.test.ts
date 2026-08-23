@@ -45,6 +45,10 @@ type Message = {
   apiKey?: string;
   validatedApiKey?: string;
   data?: unknown;
+  id?: string;
+  url?: string;
+  title?: string;
+  excerpt?: string;
 };
 
 interface RigOptions {
@@ -55,7 +59,13 @@ interface RigOptions {
   readonly grant?: boolean;
   readonly grantError?: Error;
   readonly fetchResponse?: () => Promise<unknown>;
-  readonly initialPlaybackStatus?: 'stopped' | 'playing' | 'paused';
+  readonly initialPlaybackStatus?: 'stopped' | 'loading' | 'playing' | 'paused' | 'error';
+  readonly activeTab?: {
+    readonly id: number;
+    readonly url: string;
+    readonly title: string;
+    readonly favIconUrl?: string;
+  };
 }
 
 interface PopupRig {
@@ -112,6 +122,7 @@ function makeRig(options: RigOptions = {}): PopupRig {
     if (options.grantError) throw options.grantError;
     return options.grant ?? true;
   });
+  const queueItems: Array<Record<string, unknown>> = [];
   const fetchFn = jest.fn<() => Promise<unknown>>(
     options.fetchResponse ??
       (async () => ({
@@ -158,8 +169,31 @@ function makeRig(options: RigOptions = {}): PopupRig {
         }
         return result;
       }
+      case 'queue.add': {
+        const id = `queue-${queueItems.length + 1}`;
+        queueItems.push({
+          id,
+          url: message.url,
+          title: message.title,
+          domain: new URL(message.url ?? 'https://invalid.test').hostname,
+          excerpt: message.excerpt,
+          status: 'pending',
+          progress: 0,
+          addedAt: Date.now(),
+          position: queueItems.length,
+        });
+        return { id, position: queueItems.length - 1 };
+      }
+      case 'queue.remove': {
+        const index = queueItems.findIndex((item) => item.id === message.id);
+        if (index >= 0) queueItems.splice(index, 1);
+        return { success: true };
+      }
       case 'queue.getState':
-        return { items: [], metadata: { count: 0, lastModified: 0 } };
+        return {
+          items: queueItems,
+          metadata: { count: queueItems.length, lastModified: Date.now() },
+        };
       default:
         return {};
     }
@@ -211,8 +245,8 @@ async function mountPopup(options: RigOptions = {}): Promise<PopupRig> {
         request: rig.permissionsRequest,
       },
       tabs: {
-        query: jest.fn(async () => []),
-        sendMessage: jest.fn(async () => ({ success: false })),
+        query: jest.fn(async () => (options.activeTab ? [options.activeTab] : [])),
+        sendMessage: jest.fn(async () => ({ text: 'Article excerpt' })),
       },
     },
   }));
@@ -234,6 +268,18 @@ async function mountPopup(options: RigOptions = {}): Promise<PopupRig> {
   return rig;
 }
 
+function mountConfiguredLocalPopup(options: RigOptions = {}): Promise<PopupRig> {
+  return mountPopup({
+    ...options,
+    stored: {
+      provider: 'local',
+      localHostEnabled: true,
+      localHostUrl: 'http://127.0.0.1:5301',
+      ...options.stored,
+    },
+  });
+}
+
 async function waitFor(done: () => boolean, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!done()) {
@@ -245,6 +291,14 @@ async function waitFor(done: () => boolean, timeoutMs = 15_000): Promise<void> {
 function countMessages(rig: PopupRig, type: string): number {
   return rig.sendMessage.mock.calls.filter(([message]) => (message as Message).type === type)
     .length;
+}
+
+function deferredStart(): { promise: Promise<unknown>; resolve(value: unknown): void } {
+  let complete: ((value: unknown) => void) | undefined;
+  const promise = new Promise((resolve) => {
+    complete = resolve;
+  });
+  return { promise, resolve: (value) => complete?.(value) };
 }
 
 function firstRunPanel(): HTMLElement {
@@ -744,5 +798,122 @@ describe('Feature 169 popup first-run controller', () => {
     );
     expect(countMessages(rig, 'playback.pause')).toBe(0);
     expect(countMessages(rig, 'playback.start')).toBe(3);
+  });
+
+  it('renders the timing basis from authoritative playback state', async () => {
+    const rig = await mountConfiguredLocalPopup();
+
+    expect(document.getElementById('timing-basis')?.textContent).toContain('approximate');
+    rig.emitRuntimeMessage({
+      type: 'playbackStateUpdate',
+      state: { status: 'playing', timingBasis: 'provider' },
+    });
+    expect(document.getElementById('timing-basis')?.textContent).toContain('provider timed');
+  });
+
+  it('adds and removes the active page through the real Queue panel contract', async () => {
+    const rig = await mountConfiguredLocalPopup({
+      activeTab: {
+        id: 42,
+        url: 'https://example.com/article',
+        title: 'Queue contract article',
+      },
+    });
+
+    (document.getElementById('tab-queue') as HTMLButtonElement).click();
+    (document.getElementById('add-to-queue-btn') as HTMLButtonElement).click();
+    await waitFor(() => document.querySelector('[aria-label="Remove from queue"]') !== null);
+
+    expect(countMessages(rig, 'queue.add')).toBe(1);
+    expect(document.getElementById('queue-count')?.textContent).toBe('1 item');
+
+    (document.querySelector('[aria-label="Remove from queue"]') as HTMLButtonElement).click();
+    await waitFor(() => document.getElementById('queue-empty-message')?.hidden === false);
+    expect(countMessages(rig, 'queue.remove')).toBe(1);
+    expect(document.getElementById('queue-count')?.textContent).toBe('0 items');
+  });
+
+  it('allows only one playback start while the first Play action is pending', async () => {
+    const pendingStart = deferredStart();
+    const rig = await mountConfiguredLocalPopup({
+      onStart: async () => pendingStart.promise,
+    });
+    const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    const stop = document.getElementById('stop-btn') as HTMLButtonElement;
+
+    play.click();
+    play.click();
+    await waitFor(() => countMessages(rig, 'playback.start') >= 1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+    expect(play.disabled).toBe(true);
+    expect(play.getAttribute('aria-busy')).toBe('true');
+    expect(stop.disabled).toBe(false);
+
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'stopped' } });
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'playing' } });
+    play.click();
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+    expect(play.disabled).toBe(true);
+
+    pendingStart.resolve({ success: true });
+    await waitFor(() => !play.disabled);
+    expect(play.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('releases an unowned loading latch on authoritative error', async () => {
+    const rig = await mountConfiguredLocalPopup({ initialPlaybackStatus: 'loading' });
+    const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    expect(play.disabled).toBe(true);
+
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'error' } });
+
+    expect(play.disabled).toBe(false);
+    expect(document.getElementById('status-text')?.textContent).toBe('Error');
+  });
+
+  it('treats Stop during pending Play as reader intent rather than route failure', async () => {
+    const pendingStart = deferredStart();
+    const rig = await mountConfiguredLocalPopup({
+      onStart: async () => pendingStart.promise,
+    });
+    const play = document.getElementById('play-pause-btn') as HTMLButtonElement;
+    play.click();
+    await waitFor(() => countMessages(rig, 'playback.start') === 1);
+
+    (document.getElementById('stop-btn') as HTMLButtonElement).click();
+    pendingStart.resolve({ error: 'Request aborted' });
+    await waitFor(() => !play.disabled);
+
+    expect(document.getElementById('status-text')?.textContent).toBe('Ready');
+    expect(firstRunPanel().hidden).toBe(true);
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+  });
+
+  it('operates the real Player, Tools, and Queue tabs with roving arrow/Home/End focus', async () => {
+    await mountConfiguredLocalPopup();
+    const player = document.getElementById('tab-player') as HTMLButtonElement;
+    const tools = document.getElementById('tab-tools') as HTMLButtonElement;
+    const queue = document.getElementById('tab-queue') as HTMLButtonElement;
+
+    player.focus();
+    player.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(document.activeElement).toBe(tools);
+    expect(tools.getAttribute('aria-selected')).toBe('true');
+    expect((document.getElementById('panel-tools') as HTMLElement).hidden).toBe(false);
+    expect((document.getElementById('panel-player') as HTMLElement).hidden).toBe(true);
+
+    tools.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(queue);
+    expect(queue.getAttribute('aria-selected')).toBe('true');
+    expect((document.getElementById('panel-queue') as HTMLElement).hidden).toBe(false);
+
+    queue.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(document.activeElement).toBe(player);
+    expect(player.getAttribute('aria-selected')).toBe('true');
+    expect(player.tabIndex).toBe(0);
+    expect(tools.tabIndex).toBe(-1);
+    expect(queue.tabIndex).toBe(-1);
   });
 });

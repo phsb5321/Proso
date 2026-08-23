@@ -17,6 +17,11 @@ import { browser } from 'wxt/browser';
 import { z } from 'zod';
 import { SUPPORTED_LANGUAGES } from '../language/codes';
 import { createLogger } from '../logging/logger';
+import {
+  applyProsoFooterPadding,
+  reconcileStaleFooterArtifacts,
+  restoreProsoFooterPadding,
+} from './content-artifact-cleanup';
 
 const log = createLogger('content');
 
@@ -606,7 +611,6 @@ export class StickyFooter {
     isAutoDetected: true,
   };
 
-  private _originalBodyPadding: string | null = null;
   private _resizeObserver: ResizeObserver | null = null;
   private _mutationObserver: MutationObserver | null = null;
 
@@ -938,6 +942,8 @@ export class StickyFooter {
   async show(initialState?: Partial<StorageState>): Promise<void> {
     if (this.container) return;
 
+    reconcileStaleFooterArtifacts(document);
+
     if (initialState) {
       this.isMinimized = initialState.isMinimized || false;
       this.position = initialState.position || { x: 'center', yOffset: 0 };
@@ -969,7 +975,11 @@ export class StickyFooter {
    * Hide the footer
    */
   hide(): void {
-    if (!this.container) return;
+    if (!this.container) {
+      reconcileStaleFooterArtifacts(document);
+      this.isVisible = false;
+      return;
+    }
 
     this._removeEventListeners();
     this._disconnectResizeObserver();
@@ -993,6 +1003,7 @@ export class StickyFooter {
     this._speedDropdown = null;
     this._langBtn = null;
     this._langDropdown = null;
+    reconcileStaleFooterArtifacts(document);
 
     log.debug('Proso: Sticky footer hidden');
   }
@@ -1173,14 +1184,10 @@ export class StickyFooter {
    */
   private _adjustBodyPadding(show: boolean): void {
     if (show) {
-      this._originalBodyPadding = document.body.style.paddingBottom || '';
-      const computedPadding =
-        Number.parseInt(getComputedStyle(document.body).paddingBottom, 10) || 0;
       const footerHeight = this.isMinimized ? FOOTER_HEIGHT_MINIMIZED : FOOTER_HEIGHT;
-      document.body.style.paddingBottom = `${computedPadding + footerHeight + 16}px`;
+      applyProsoFooterPadding(document, footerHeight);
     } else {
-      document.body.style.paddingBottom = this._originalBodyPadding || '';
-      this._originalBodyPadding = null;
+      restoreProsoFooterPadding(document);
     }
   }
 
@@ -1267,7 +1274,7 @@ export class StickyFooter {
    */
   private _formatPositionIndicator(): string {
     const { currentParagraph, totalParagraphs } = this.playbackState;
-    return `${currentParagraph}/${totalParagraphs}`;
+    return `${totalParagraphs > 0 ? currentParagraph + 1 : 0}/${totalParagraphs}`;
   }
 
   /**
@@ -1276,7 +1283,7 @@ export class StickyFooter {
    */
   private _formatPositionAnnouncement(): string {
     const { currentParagraph, totalParagraphs } = this.playbackState;
-    return `Paragraph ${currentParagraph} of ${totalParagraphs}`;
+    return `Paragraph ${totalParagraphs > 0 ? currentParagraph + 1 : 0} of ${totalParagraphs}`;
   }
 
   // ==========================================================================

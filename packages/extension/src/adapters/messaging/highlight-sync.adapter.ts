@@ -7,6 +7,7 @@
  * @module adapters/messaging/highlight-sync
  */
 
+import type { WordTimingBasis } from '../../core/playback/word-timing-estimator';
 import type { HighlightError } from '../../core/shared/errors';
 import { highlightError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
@@ -164,6 +165,8 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     state: FooterState,
   ): Promise<Result<void, HighlightError>> {
     try {
+      const timingBasis = (state as FooterState & { readonly timingBasis?: WordTimingBasis })
+        .timingBasis;
       await this.sendToContentScript(tabId, {
         type: 'FOOTER_STATE_UPDATE',
         status: state.status,
@@ -185,6 +188,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
             totalParagraphs: state.totalParagraphs,
             progress: Math.round(state.progress * 100),
             speed: state.speed,
+            timingBasis,
           },
         })
         .catch(() => {

@@ -46,6 +46,10 @@ body {
   min-height: auto;
 }
 
+.proso-popup [hidden] {
+  display: none !important;
+}
+
 /* ========================================
    HEADER
    ======================================== */
@@ -177,6 +181,10 @@ body {
   background: var(--color-bg-secondary, #16213e);
   border-radius: var(--radius-md, 8px);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+}
+
+.proso-popup__tool-section[hidden] {
+  display: none;
 }
 
 .proso-popup__tool-title {
@@ -382,6 +390,12 @@ body {
 .proso-popup__status-text {
   font-size: var(--font-size-sm, 12px);
   color: var(--color-text-secondary, #b8c5d6);
+}
+
+.proso-popup__timing-note {
+  margin: -4px 4px 0;
+  font-size: var(--font-size-xs, 10px);
+  color: var(--color-text-muted, #8899a8);
 }
 
 .proso-popup__grant {
@@ -1356,6 +1370,7 @@ body {
 }
 
 .proso-popup__panel--firstrun .proso-popup__status,
+.proso-popup__panel--firstrun .proso-popup__timing-note,
 .proso-popup__panel--firstrun .proso-popup__progress,
 .proso-popup__panel--firstrun .proso-popup__controls,
 .proso-popup__panel--firstrun .proso-popup__speed,

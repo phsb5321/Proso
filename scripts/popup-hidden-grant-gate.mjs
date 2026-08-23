@@ -379,7 +379,7 @@ async function main() {
       'the runtime host permission to be granted for host1',
       async () => {
         const status = await readText(driver, '#localHostStatus');
-        return status?.startsWith('Permission granted') ? status : null;
+        return status?.includes(hostAddress) ? status : null;
       },
       { timeoutMs: 20_000 },
     ).catch(() => null);
@@ -398,6 +398,7 @@ async function main() {
     // contains only http://localhost:PORT/*, so the local-host gate now fails
     // with its exact marker, which is the real permission-needed state.
     const host2 = `http://127.0.0.1:${new URL(fixture.origin).port}`;
+    const host2Permission = 'http://127.0.0.1/*';
     await driver.executeAsync(
       `const [done] = arguments;
        browser.storage.local.set({ localHostUrl: '${host2}' }).then(done);`,
@@ -434,7 +435,7 @@ async function main() {
         if (row.hiddenProp === true) return null;
         if (row.display !== 'flex') return null;
         if (row.rect.w <= 0 || row.rect.h <= 0) return null;
-        if (!row.reason || !row.reason.includes('needs access to')) return null;
+        if (!row.reason || !row.reason.includes(host2)) return null;
         return row;
       },
       { timeoutMs: 45_000 },
@@ -462,7 +463,7 @@ async function main() {
     //     gate (the marker), not at "no active tab".
     const popupHandle = await openExtensionPage(driver, `moz-extension://${ADDON_UUID}/popup.html`);
     await sleep(3000);
-    const pageDbg = await driver.execute(
+    const _pageDbg = await driver.execute(
       `const play = document.querySelector('[aria-label="Play"]');
        const row = document.getElementById('grant-access-row');
        const status = document.getElementById('status-text');
@@ -532,7 +533,7 @@ async function main() {
     await driver.session('POST', `/element/${grantBtn}/click`, {});
     act('popup control "Grant access"', 'WebDriver element click (page context)');
     await sleep(1500);
-    const clicks = await driver.execute('return window.__grantClicks || 0;');
+    const _clicks = await driver.execute('return window.__grantClicks || 0;');
 
     const repaired = await waitFor(
       'the grant click to hide the row again (permission materialises)',
@@ -555,13 +556,13 @@ async function main() {
          browser.permissions.getAll().then((p) => done(JSON.stringify(p.origins)), (e) => done('ERR ' + e));`,
       )
       .catch(() => null);
-    if (!grantedAfterClick || !grantedAfterClick.includes(host2)) {
+    if (!grantedAfterClick || !grantedAfterClick.includes(host2Permission)) {
       const clicks = await driver.execute('return window.__grantClicks || 0;');
       fail(
         `the trusted grant click did not materialise the host2 origin (clicks=${clicks}, perms=${grantedAfterClick})`,
       );
     }
-    record('grant click was actionable: host2 origin materialised', grantedAfterClick);
+    record('grant click was actionable: host2 permission materialised', grantedAfterClick);
     if (!repaired) {
       const st = await driver.execute(
         `const row = document.getElementById('grant-access-row');

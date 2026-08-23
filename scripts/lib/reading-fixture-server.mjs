@@ -40,7 +40,7 @@ const CORS = {
 /** Two clips whose boundary makes sentence-level synchronization observable. */
 export const WORD_SYNC_SENTENCES = [
   'Sentence timing starts with these spoken words.',
-  'Boundary alignment now moves into the second sentence without jumping backward.',
+  'Boundary alignment now moves into the second sentence ├ without jumping backward └.',
 ];
 
 /** Paragraphs the smoke asserts on. Long enough for the production extractor. */
@@ -51,6 +51,18 @@ export const ARTICLE_PARAGRAPHS = [
 ];
 
 export const ARTICLE_TITLE = 'Reading Outcome Spine Fixture';
+export const STALE_PROSO_ARTIFACT_COUNT = 22;
+
+const firstParagraphRemainder = ARTICLE_PARAGRAPHS[0].slice('Sentence'.length);
+const articleParagraphsHtml = ARTICLE_PARAGRAPHS.map((text, index) =>
+  index === 0
+    ? `<p class="proso-highlight" data-proso-index="0"><span class="proso-w proso-w--active"><span class="proso-w proso-w--glow">Sentence</span></span>${firstParagraphRemainder}</p>`
+    : `<p>${text}</p>`,
+).join('\n');
+const staleFooterRoots = Array.from(
+  { length: STALE_PROSO_ARTIFACT_COUNT },
+  () => '<div id="proso-sticky-footer"></div>',
+).join('\n');
 
 const ARTICLE_HTML = `<!doctype html>
 <html lang="en">
@@ -58,10 +70,11 @@ const ARTICLE_HTML = `<!doctype html>
 <meta charset="utf-8">
 <title>${ARTICLE_TITLE}</title>
 </head>
-<body>
+<body style="padding-bottom: ${STALE_PROSO_ARTIFACT_COUNT * 80}px">
+${staleFooterRoots}
 <article>
 <h1>${ARTICLE_TITLE}</h1>
-${ARTICLE_PARAGRAPHS.map((text) => `<p>${text}</p>`).join('\n')}
+${articleParagraphsHtml}
 <a id="open-companion-tab" href="/article?tab=second" target="_blank" rel="noopener">Open companion article</a>
 </article>
 </body>
@@ -176,7 +189,7 @@ function problem(res, status, code, detail) {
  * `localHostVoices` lets plant suites prove the real-host gate against a host
  * whose catalog differs from the Orange Pi fixture, including an empty catalog.
  *
- * @param {{licenseMode?: string, localHostVoices?: Array<object>}} options
+ * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number}} options
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer(options = {}) {
@@ -200,6 +213,7 @@ export async function startFixtureServer(options = {}) {
    */
   const licenseMode = options.licenseMode ?? 'sold';
   const localHostVoices = options.localHostVoices ?? LOCAL_HOST_VOICES;
+  const localHostDelayMs = Math.max(0, options.localHostDelayMs ?? 0);
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -310,13 +324,22 @@ export async function startFixtureServer(options = {}) {
           return;
         }
 
-        localRequests.push({ at: Date.now(), body, idempotencyKey: key });
-        const wav = wavForText(String(body.input));
-        res.writeHead(200, {
-          'Content-Type': 'audio/wav',
-          'Content-Length': String(wav.length),
-        });
-        res.end(wav);
+        const requestRecord = { at: Date.now(), respondedAt: null, body, idempotencyKey: key };
+        localRequests.push(requestRecord);
+        const respond = () => {
+          requestRecord.respondedAt = Date.now();
+          const wav = wavForText(String(body.input));
+          res.writeHead(200, {
+            'Content-Type': 'audio/wav',
+            'Content-Length': String(wav.length),
+          });
+          res.end(wav);
+        };
+        if (localHostDelayMs > 0) {
+          setTimeout(respond, localHostDelayMs);
+        } else {
+          respond();
+        }
       });
       return;
     }

@@ -7,8 +7,8 @@
  * @module tests/unit/adapters/audio/local-host-audio.adapter
  */
 
-import { beforeEach, describe, expect, it, beforeAll } from '@jest/globals';
 import { webcrypto } from 'node:crypto';
+import { beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
 // jsdom's Crypto exposes no `subtle` (the #95 polyfill that shipped with the
 // adapter was never merged to main). Install Node's webcrypto.subtle for this
@@ -259,7 +259,9 @@ describe('LocalHostAudioAdapter', () => {
         derive('texto', 'voice-a', 1.5),
       ]);
 
-      const values = keys.flatMap((key: Result<string, AudioError>) => (isOk(key) ? [key.value] : []));
+      const values = keys.flatMap((key: Result<string, AudioError>) =>
+        isOk(key) ? [key.value] : [],
+      );
       expect(values).toHaveLength(4);
       expect(new Set(values).size).toBe(4);
     });
@@ -268,6 +270,31 @@ describe('LocalHostAudioAdapter', () => {
       const { fetchStub } = await generate();
 
       expect(Object.keys(ttsBody(fetchStub)).sort()).toEqual(['input', 'speed', 'voice']);
+    });
+
+    it('removes non-spoken box-drawing glyphs only at the synthesis boundary', async () => {
+      const text = '├ Primeiro item; └ último item.';
+      const sourceRequest = { ...request, text };
+      const { fetchStub } = await generate({}, sourceRequest);
+      const body = ttsBody(fetchStub);
+
+      expect(body.input).toBe('  Primeiro item;   último item.');
+      expect(sourceRequest.text).toBe(text);
+      expect(String(body.input)).not.toMatch(/[\u2500-\u257f]/u);
+    });
+
+    it('skips structural-only chunks while preserving the following sentence', async () => {
+      const { adapter, fetchStub } = makeAdapter();
+      const chunks: Array<Result<AudioResponse, AudioError>> = [];
+      for await (const chunk of adapter.generateAudioChunks?.({
+        ...request,
+        text: '────. Conteúdo falado.',
+      }) ?? []) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(ttsBody(fetchStub).input).toBe('Conteúdo falado.');
     });
 
     it('negotiates audio/wav with a JSON content type', async () => {

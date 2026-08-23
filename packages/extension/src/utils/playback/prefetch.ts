@@ -56,6 +56,8 @@ export interface PrefetchedAudio {
   audioData?: ArrayBuffer;
   /** Word timing data for sync highlighting */
   wordTimings: WordTiming[];
+  /** Whether timings came from the provider or Proso's fallback estimate. */
+  timingBasis?: 'provider' | 'estimated';
   /** When this was prefetched (for cleanup) */
   prefetchedAt: number;
   /**
@@ -107,6 +109,7 @@ export type AudioGenerator = (
   audioUrl: string;
   audioData?: ArrayBuffer;
   wordTimings: WordTiming[];
+  timingBasis?: 'provider' | 'estimated';
   provider?: string;
   voice?: string | null;
 } | null>;
@@ -539,6 +542,7 @@ export class PrefetchService {
         audioUrl: result.audioUrl,
         audioData: result.audioData, // T046: Store raw data for persistent cache
         wordTimings: result.wordTimings,
+        timingBasis: result.timingBasis,
         prefetchedAt: Date.now(),
         provider: result.provider,
         voice: result.voice,

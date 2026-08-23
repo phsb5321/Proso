@@ -16,9 +16,10 @@
 import { browser } from 'wxt/browser';
 import type { TextQuoteSelector } from '../core/highlight';
 import { toAnchoringReport } from '../core/highlight/anchoring-report';
+import { reconcileStaleContentArtifacts } from '../utils/content/content-artifact-cleanup';
+import { isExtensionPage } from '../utils/content/extension-page';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
-import { isExtensionPage } from '../utils/content/extension-page';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
@@ -454,6 +455,11 @@ export default defineContentScript({
     if (voxWindow.Proso?._contentInitialized) {
       log.debug('Proso: Content script already initialized, skipping');
       return;
+    }
+
+    const cleanup = reconcileStaleContentArtifacts(document);
+    if (cleanup.footerRoots || cleanup.wordWrappers || cleanup.paragraphHighlights) {
+      log.info('Proso: Reconciled obsolete playback DOM', { ...cleanup });
     }
 
     // Initialize Proso namespace for backward compatibility
