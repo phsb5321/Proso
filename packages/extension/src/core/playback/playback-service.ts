@@ -35,6 +35,7 @@ import {
   playbackStateTransitions,
   playbackStateValidation,
 } from './playback-state';
+import { estimateWordTimings } from './word-timing-estimator';
 
 /**
  * Dependencies required by PlaybackService.
@@ -175,7 +176,9 @@ export class PlaybackService {
     if (this.deps.prefetch) {
       this.deps.prefetch.queue.initialize([...paragraphs], { startIndex: 0 });
       this.deps.prefetch.queue.start(0);
-      this.deps.prefetch.service.start();
+      if (!this.audioGenerator.supportsChunkedSynthesis) {
+        this.deps.prefetch.service.start();
+      }
     }
 
     // Generate audio for first paragraph
@@ -248,7 +251,9 @@ export class PlaybackService {
     if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     this.deps.prefetch?.queue.start();
-    this.deps.prefetch?.service.start();
+    if (!this.audioGenerator.supportsChunkedSynthesis) {
+      this.deps.prefetch?.service.start();
+    }
 
     this.state = playbackStateTransitions.resume(this.state);
 
@@ -262,22 +267,25 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
-    const generation = ++this.playbackGeneration;
+    ++this.playbackGeneration;
+    const activeTabId = this.state.activeTabId;
 
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
     this.currentAbortController?.abort();
     this.currentAbortController = null;
 
-    // Stop audio element playback
+    // Relinquish URL ownership before clearing src: Firefox may emit `error`
+    // synchronously from teardown, and the listener uses null as that signal.
+    const audioUrlToRevoke = this.currentAudioUrl;
+    this.currentAudioUrl = null;
     if (this.audioElement) {
       this.audioElement.pause();
       this.audioElement.src = '';
     }
 
     // Revoke object URL (no-op for data URLs)
-    this.deps.audioUrlProvider.revokeUrl(this.currentAudioUrl);
-    this.currentAudioUrl = null;
+    this.deps.audioUrlProvider.revokeUrl(audioUrlToRevoke);
 
     // Clear word timings
     this.clearWordTimings();
@@ -291,16 +299,26 @@ export class PlaybackService {
     this.deps.prefetch?.queue.stop();
 
     // Clear highlights and hide footer
-    if (this.state.activeTabId !== null) {
-      const clearResult = await this.deps.highlightSync.clearHighlights(this.state.activeTabId);
+    let stoppedStateCanPublish = false;
+    if (activeTabId !== null) {
+      const clearResult = await this.deps.highlightSync.clearHighlights(activeTabId);
       await this.checkHighlight('clearHighlights', clearResult, false);
-      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-      const hideResult = await this.deps.highlightSync.hideFooter(this.state.activeTabId);
+      // Cleanup is one visual transaction: a superseding generation may stop
+      // the state write below, but it must not leave the old tab half-cleared
+      // with a player and no highlight.
+      const hideResult = await this.deps.highlightSync.hideFooter(activeTabId);
       await this.checkHighlight('hideFooter', hideResult, false);
-      if (!this.isCurrentGeneration(generation)) return Ok(this.state);
+      stoppedStateCanPublish = isOk(hideResult);
     }
 
+    // Stop is the reader's terminal intent. A stale `ended` continuation may
+    // bump the generation while cleanup awaits, but it must not keep the
+    // service playing after audio, highlights, and footer were torn down.
     this.state = playbackStateTransitions.stop(this.state);
+    // The footer itself is gone, but updateFooterState also broadcasts the
+    // authoritative stopped state to an open popup. Skip a vanished tab so a
+    // tab-not-found result cannot recursively call stop().
+    if (stoppedStateCanPublish) await this.updateFooterState();
 
     return Ok(this.state);
   }
@@ -521,6 +539,9 @@ export class PlaybackService {
 
     const tabId = tabIdOverride ?? this.state.activeTabId;
     if (tabId !== null && tabId !== undefined) {
+      const clearResult = await this.deps.highlightSync.clearHighlights(tabId);
+      await this.checkHighlight('clearHighlights after error', clearResult, false);
+
       const { message, provider } = this.describeError(error);
       const result = await this.deps.highlightSync.showError(tabId, message, provider);
       await this.checkHighlight('showError', result);
@@ -622,91 +643,12 @@ export class PlaybackService {
     return result;
   }
 
-  /**
-   * Count syllables in a word using vowel cluster heuristic.
-   */
-  private countSyllables(word: string): number {
-    const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-    if (!clean) return 1;
-
-    const vowelClusters = clean.match(/[aeiouy]+/g);
-    let count = vowelClusters ? vowelClusters.length : 1;
-
-    // Subtract silent 'e' at end (but not for short words like "the")
-    if (clean.length > 3 && clean.endsWith('e') && !/[aeiouy]e$/i.test(clean.slice(-2))) {
-      count = Math.max(1, count - 1);
-    }
-
-    return Math.max(1, count);
-  }
-
-  /**
-   * Check if text contains primarily Latin-script characters.
-   */
-  private isLatinScript(text: string): boolean {
-    const latinChars = text.replace(/[^a-zA-Z\u00C0-\u024F]/g, '').length;
-    const totalAlpha = text.replace(
-      /[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u3000-\u9FFF\uAC00-\uD7AF]/g,
-      '',
-    ).length;
-    return totalAlpha === 0 || latinChars / totalAlpha > 0.5;
-  }
-
-  /**
-   * Estimate word timings by distributing duration proportionally by syllable count (Latin)
-   * or character count (non-Latin).
-   */
+  /** Build the explicitly approximate no-marks timeline. */
   private estimateWordTimings(
     text: string,
     durationMs: number,
-  ): Array<{
-    word: string;
-    charOffset: number;
-    charLength: number;
-    startTimeMs: number;
-    endTimeMs: number;
-  }> {
-    const words: Array<{ word: string; charOffset: number; charLength: number }> = [];
-    const regex = /\S+/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(text)) !== null) {
-      words.push({
-        word: match[0],
-        charOffset: match.index,
-        charLength: match[0].length,
-      });
-    }
-
-    if (words.length === 0) return [];
-
-    const useSyllables = this.isLatinScript(text);
-    const weights = words.map((w) => (useSyllables ? this.countSyllables(w.word) : w.charLength));
-    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-    if (totalWeight === 0) return [];
-
-    const timings: Array<{
-      word: string;
-      charOffset: number;
-      charLength: number;
-      startTimeMs: number;
-      endTimeMs: number;
-    }> = [];
-    let currentTimeMs = 0;
-
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i]!;
-      const wordDurationMs = (weights[i]! / totalWeight) * durationMs;
-      timings.push({
-        word: w.word,
-        charOffset: w.charOffset,
-        charLength: w.charLength,
-        startTimeMs: currentTimeMs,
-        endTimeMs: currentTimeMs + wordDurationMs,
-      });
-      currentTimeMs += wordDurationMs;
-    }
-
-    return timings;
+  ): ReturnType<typeof estimateWordTimings> {
+    return estimateWordTimings(text, durationMs, this.detectedLanguage);
   }
 
   /**
@@ -1509,12 +1451,10 @@ export class PlaybackService {
     });
 
     this.audioElement.addEventListener('ended', () => {
-      // A pause taken as the clip finished must not be undone by the queued
-      // auto-advance: `next()` would move to `loading` and start reading again.
-      // ponytail: resuming then replays the paragraph that is still
-      // highlighted rather than continuing mid-article — audio and highlight
-      // stay in agreement, which is the property that matters here.
-      if (this.state.status === 'paused') return;
+      // Clearing src during stop can emit `ended`. URL ownership is dropped
+      // before teardown, so neither that event nor a late paused event may
+      // auto-advance a session the reader ended.
+      if (this.currentAudioUrl === null || this.state.status !== 'playing') return;
 
       // PROSO-110: a queued sentence chunk continues the current paragraph
       // instead of advancing — playback consumes chunk n+1 while the adapter
@@ -1525,9 +1465,20 @@ export class PlaybackService {
       }
       if (!this.chunkQueueDone && this.chunkGeneration >= 0) {
         // The drain is still running: wait briefly for the next chunk rather
-        // than advancing (synthesis is ~5x faster than playback, so this is a
-        // rare guard, not the common path).
-        setTimeout(() => this.continueChunkedOrAdvance(), 500);
+        // than advancing. Bind the callback to this generation so stop cannot
+        // leave a timer that restarts reading later.
+        const generation = this.chunkGeneration;
+        setTimeout(() => {
+          if (
+            this.chunkGeneration !== generation ||
+            !this.isCurrentGeneration(generation) ||
+            this.currentAudioUrl === null ||
+            this.state.status !== 'playing'
+          ) {
+            return;
+          }
+          this.continueChunkedOrAdvance();
+        }, 500);
         return;
       }
       this.resetChunkState(-1);
@@ -1543,6 +1494,14 @@ export class PlaybackService {
      * finished without producing one).
      */
     this.continueChunkedOrAdvance = (): void => {
+      if (
+        this.chunkGeneration < 0 ||
+        !this.isCurrentGeneration(this.chunkGeneration) ||
+        this.currentAudioUrl === null ||
+        this.state.status !== 'playing'
+      ) {
+        return;
+      }
       if (this.chunkQueue.length > 0) {
         void this.playNextChunk().catch(this.funnelPlaybackError);
       } else {
@@ -1560,6 +1519,10 @@ export class PlaybackService {
     };
 
     this.audioElement.addEventListener('error', () => {
+      // Clearing `src` during stop emits a media error in Firefox. The URL is
+      // revoked first from service ownership, so this is teardown—not a failed
+      // clip—and must not recreate the just-hidden recovery footer.
+      if (this.currentAudioUrl === null) return;
       const error = playbackError.playbackFailed('Audio playback error');
       void this.setError(error);
     });

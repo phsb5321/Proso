@@ -46,6 +46,11 @@ import type {
  */
 export const APPLIANCE_MAX_TEXT_UTF8_BYTES = CHUNK_MAX_TEXT_UTF8_BYTES;
 
+/** Keep non-spoken page layout glyphs out of strict local TTS tokenizers. */
+export function normalizeLocalHostSynthesisText(text: string): string {
+  return text.replace(/[\u2500-\u259f]/gu, ' ');
+}
+
 /**
  * Concurrent synthesis requests the appliance actually admits.
  *
@@ -321,8 +326,8 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
       return Err(audioError.providerError(LOCAL_HOST_ERROR_CODES.aborted, 'Request aborted'));
     }
 
-    const input = request.text;
-    if (input.length === 0) {
+    const input = normalizeLocalHostSynthesisText(request.text);
+    if (!input.trim()) {
       return Err(
         audioError.providerError(LOCAL_HOST_ERROR_CODES.invalidInput, 'Input text is empty'),
       );
