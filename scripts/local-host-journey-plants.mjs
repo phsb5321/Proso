@@ -72,6 +72,31 @@ const PLANTS = [
     expect: 'BLOCKED',
     guards: 'the enable control is addressed by the public name it carries',
   },
+  {
+    plant: 'stale-cleanup',
+    expect: 'FAIL',
+    guards: 'obsolete page-player roots are gone before playback starts',
+  },
+  {
+    plant: 'approximate-label',
+    expect: 'FAIL',
+    guards: 'the no-marks route is visibly labelled approximate',
+  },
+  {
+    plant: 'tools-name',
+    expect: 'BLOCKED',
+    guards: 'the Tools panel is reached by its public tab name',
+  },
+  {
+    plant: 'queue-add-hidden',
+    expect: 'BLOCKED',
+    guards: 'Queue exposes a usable public Add control',
+  },
+  {
+    plant: 'double-prefetch',
+    expect: 'FAIL',
+    guards: 'chunked playback is the only speculative local request path',
+  },
 ];
 
 const REAL_HOST_PLANTS = [

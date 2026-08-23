@@ -276,7 +276,7 @@ export async function readPopup(driver) {
        return box.width > 0 && box.height > 0;
      };
      const labelled = Array.from(doc.querySelectorAll('[aria-label]'))
-       .filter((el) => el.getAttribute('aria-label'))
+       .filter((el) => el.getAttribute('aria-label') && visible(el))
        .map((el) => el.getAttribute('aria-label'));
      // Text-named controls only count while the user can actually see them:
      // the popup keeps hidden rows in the DOM (the grant affordance is one),
@@ -286,12 +286,23 @@ export async function readPopup(driver) {
        .map((el) => el.textContent.replace(/\\s+/g, ' ').trim())
        .filter(Boolean);
      const status = doc.querySelector('[aria-live]');
+     const selectedTab = doc.querySelector('[role="tab"][aria-selected="true"]');
+     const visiblePanel = Array.from(doc.querySelectorAll('[role="tabpanel"]')).find(visible);
+     const timingBasis = doc.getElementById('timing-basis');
      return JSON.stringify({
        open: true,
        names: Array.from(new Set([...labelled, ...textNamed])),
        // Double backslash: this script is a template literal, and an untagged
        // template turns \\s into a bare s, which would collapse the regex to /s+/g.
        status: status ? status.textContent.replace(/\\s+/g, ' ').trim() : null,
+       selectedTab: selectedTab
+         ? selectedTab.getAttribute('aria-label') || selectedTab.textContent.replace(/\\s+/g, ' ').trim()
+         : null,
+       visiblePanel: visiblePanel?.id ?? null,
+       panelText: visiblePanel?.textContent.replace(/\\s+/g, ' ').trim() ?? null,
+       timingBasis: timingBasis && visible(timingBasis)
+         ? timingBasis.textContent.replace(/\\s+/g, ' ').trim()
+         : null,
      });`,
   );
   return JSON.parse(raw);
@@ -314,19 +325,18 @@ export async function clickByName(driver, name, open) {
      if (!b || !b.contentDocument) return JSON.stringify({ ok: false, why: 'the popup is not open' });
      const doc = b.contentDocument;
      const wanted = arguments[0];
-     const el =
-       doc.querySelector('[aria-label="' + wanted + '"]') ??
-       Array.from(doc.querySelectorAll('button')).find(
-         (node) =>
-           !node.getAttribute('aria-label') &&
-           node.textContent.replace(/\\s+/g, ' ').trim() === wanted,
-       );
-     if (!el) return JSON.stringify({ ok: false, why: 'no control has that accessible name' });
+     const candidates = Array.from(doc.querySelectorAll('button')).filter(
+       (node) =>
+         node.getAttribute('aria-label') === wanted ||
+         (!node.getAttribute('aria-label') &&
+           node.textContent.replace(/\\s+/g, ' ').trim() === wanted),
+     );
+     const el = candidates.find((node) => {
+       const box = node.getBoundingClientRect();
+       return box.width > 0 && box.height > 0;
+     });
+     if (!el) return JSON.stringify({ ok: false, why: 'no visible control has that accessible name' });
      if (el.disabled) return JSON.stringify({ ok: false, why: 'the control is disabled' });
-     const box = el.getBoundingClientRect();
-     if (box.width === 0 || box.height === 0) {
-       return JSON.stringify({ ok: false, why: 'the control is not visible' });
-     }
      el.click();
      return JSON.stringify({ ok: true, tag: el.tagName.toLowerCase() });`,
     [name],
@@ -345,6 +355,8 @@ export async function clickByName(driver, name, open) {
 export const READ_PAGE = `
   return {
     footer: Boolean(document.getElementById('proso-sticky-footer')),
+    footerCount: document.querySelectorAll('#proso-sticky-footer').length,
+    wordWrapperCount: document.querySelectorAll('.proso-w').length,
     bodyPadding: document.body.style.paddingBottom || null,
     highlighted: Array.from(document.querySelectorAll('.proso-highlight'))
       .map((el) => el.textContent.replace(/\\s+/g, ' ').trim())

@@ -62,6 +62,7 @@ import {
 } from './lib/firefox-popup.mjs';
 import {
   LOCAL_HOST_VOICES,
+  STALE_PROSO_ARTIFACT_COUNT,
   WORD_SYNC_SENTENCES,
   fixtureAudioDurationMs,
   startFixtureServer,
@@ -85,6 +86,11 @@ const NAME = {
   section: 'Local synthesis host',
   test: 'Test connection',
   enable: 'Enable the local synthesis host',
+  playerTab: 'Player',
+  toolsTab: 'Tools',
+  queueTab: 'Queue',
+  addQueue: 'Add to reading queue',
+  removeQueue: 'Remove from queue',
   play: 'Play',
   pause: 'Pause',
   appearance: 'Appearance',
@@ -314,7 +320,7 @@ async function main() {
     );
   }
 
-  const fixture = await startFixtureServer();
+  const fixture = await startFixtureServer({ localHostDelayMs: APPLIANCE_URL ? 0 : 5000 });
   // The reader's own host. `localhost` rather than `127.0.0.1` because the
   // product only accepts https, or http for localhost — the fixture binds to
   // the loopback address either name resolves to.
@@ -528,7 +534,25 @@ async function main() {
       return injected === true;
     });
     const firstArticleHandle = await driver.session('GET', '/window');
-    record('content script injected into the first article tab');
+    if (PLANT === 'stale-cleanup') {
+      await driver.execute(
+        "const root=document.createElement('div'); root.id='proso-sticky-footer'; document.body.appendChild(root);",
+      );
+    }
+    const firstClean = await driver.execute(`return (() => {${READ_PAGE}})();`);
+    if (
+      firstClean.footerCount !== 0 ||
+      firstClean.wordWrapperCount !== 0 ||
+      firstClean.highlighted.length !== 0
+    ) {
+      fail(
+        `The first tab retained obsolete playback DOM after content initialization: ${JSON.stringify(firstClean)}`,
+      );
+    }
+    record(
+      'content script reconciled the first long-lived tab',
+      `${STALE_PROSO_ARTIFACT_COUNT} obsolete players removed`,
+    );
 
     const secondArticleHandle = await openArticleTab(driver);
     await waitFor('content script injection in the second tab', async () => {
@@ -537,7 +561,20 @@ async function main() {
       );
       return injected === true;
     });
-    record('second article tab is ready');
+    const secondClean = await driver.execute(`return (() => {${READ_PAGE}})();`);
+    if (
+      secondClean.footerCount !== 0 ||
+      secondClean.wordWrapperCount !== 0 ||
+      secondClean.highlighted.length !== 0
+    ) {
+      fail(
+        `The second tab retained obsolete playback DOM after content initialization: ${JSON.stringify(secondClean)}`,
+      );
+    }
+    record(
+      'content script reconciled the second long-lived tab',
+      `${STALE_PROSO_ARTIFACT_COUNT} obsolete players removed`,
+    );
     await activateTab(driver, firstArticleHandle, 'Activate the first article tab');
 
     await openPopup(driver);
@@ -546,12 +583,96 @@ async function main() {
       return state.open ? state : null;
     }).catch(() => null);
     if (!opened) blocked('The browser action opened no popup document');
-    if (!opened.names.includes(NAME.play)) {
-      blocked(
-        `The popup offers no control named "${NAME.play}" (found: ${opened.names.join(', ') || 'none'})`,
+    if (PLANT === 'approximate-label') {
+      await chromeEval(
+        driver,
+        `const win=Services.wm.getMostRecentWindow('navigator:browser');
+         const browser=Array.from(win.document.querySelectorAll('browser')).find((node) => node.currentURI?.spec.includes('/popup.html'));
+         browser?.contentDocument?.getElementById('timing-basis')?.replaceChildren('Word highlighting: exact');`,
+      );
+      Object.assign(opened, await readPopup(driver));
+    }
+    if (PLANT === 'tools-name') {
+      await chromeEval(
+        driver,
+        `const win=Services.wm.getMostRecentWindow('navigator:browser');
+         const browser=Array.from(win.document.querySelectorAll('browser')).find((node) => node.currentURI?.spec.includes('/popup.html'));
+         browser?.contentDocument?.getElementById('tab-tools')?.setAttribute('aria-label','Broken Tools');`,
       );
     }
-    record('popup exposes the public control name', NAME.play);
+    if (opened.selectedTab !== NAME.playerTab || opened.visiblePanel !== 'panel-player') {
+      fail(`The popup did not open on its Player tab: ${JSON.stringify(opened)}`);
+    }
+    if (opened.timingBasis !== 'Word highlighting: approximate') {
+      fail(
+        `The current no-marks route did not disclose approximate timing: ${JSON.stringify(opened)}`,
+      );
+    }
+
+    await clickByName(driver, NAME.toolsTab, () => openPopup(driver));
+    act(`popup tab "${NAME.toolsTab}"`, 'accessible name');
+    const toolsPanel = await waitFor('the Tools tab panel', async () => {
+      const state = await readPopup(driver);
+      return state.selectedTab === NAME.toolsTab && state.visiblePanel === 'panel-tools'
+        ? state
+        : null;
+    });
+    if (!toolsPanel.panelText?.includes('Highlights')) {
+      fail(`The Tools tab exposed no working tool content: ${JSON.stringify(toolsPanel)}`);
+    }
+    if (toolsPanel.names.includes('Read text from screenshot')) {
+      fail('The unimplemented OCR control is still exposed in Tools');
+    }
+    record('Tools tab selected one working panel', 'Highlights available; dead OCR hidden');
+
+    await clickByName(driver, NAME.queueTab, () => openPopup(driver));
+    act(`popup tab "${NAME.queueTab}"`, 'accessible name');
+    const queuePanel = await waitFor('the Queue tab panel', async () => {
+      const state = await readPopup(driver);
+      return state.selectedTab === NAME.queueTab &&
+        state.visiblePanel === 'panel-queue' &&
+        state.names.includes(NAME.addQueue)
+        ? state
+        : null;
+    });
+    record('Queue tab selected one working panel', queuePanel.panelText?.slice(0, 80));
+
+    if (PLANT === 'queue-add-hidden') {
+      await chromeEval(
+        driver,
+        `const win=Services.wm.getMostRecentWindow('navigator:browser');
+         const browser=Array.from(win.document.querySelectorAll('browser')).find((node) => node.currentURI?.spec.includes('/popup.html'));
+         const control=browser?.contentDocument?.getElementById('add-to-queue-btn'); if (control) control.hidden=true;`,
+      );
+    }
+    await clickByName(driver, NAME.addQueue, () => openPopup(driver));
+    act(`popup control "${NAME.addQueue}"`, 'accessible name');
+    await waitFor('the current article to enter the queue', async () => {
+      const state = await readPopup(driver);
+      return state.names.includes(NAME.removeQueue) ? state : null;
+    });
+    await clickByName(driver, NAME.removeQueue, () => openPopup(driver));
+    act(`popup control "${NAME.removeQueue}"`, 'accessible name');
+    await waitFor('the queue item to be removable', async () => {
+      const state = await readPopup(driver);
+      return state.panelText?.includes('Queue is empty') ? state : null;
+    });
+    record('Queue add/remove controls completed publicly');
+
+    await clickByName(driver, NAME.playerTab, () => openPopup(driver));
+    act(`popup tab "${NAME.playerTab}"`, 'accessible name');
+    const playerPanel = await waitFor('the Player tab panel', async () => {
+      const state = await readPopup(driver);
+      return state.selectedTab === NAME.playerTab &&
+        state.visiblePanel === 'panel-player' &&
+        state.names.includes(NAME.play)
+        ? state
+        : null;
+    });
+    record('Player tab restored the public playback control', NAME.play);
+    if (playerPanel.timingBasis !== 'Word highlighting: approximate') {
+      fail(`Player lost its timing disclosure: ${JSON.stringify(playerPanel)}`);
+    }
 
     await clickByName(driver, NAME.play, () => openPopup(driver));
     act(`popup control "${NAME.play}"`, 'accessible name');
@@ -626,6 +747,37 @@ async function main() {
           `    background: ${background}`,
       );
     });
+    if (!APPLIANCE_URL) {
+      const firstRequest = fixture.localRequests[0];
+      await waitFor('the first delayed local response', async () => firstRequest?.respondedAt);
+      if (PLANT === 'double-prefetch') {
+        fixture.localRequests.push(
+          {
+            at: firstRequest.at + 1,
+            respondedAt: firstRequest.respondedAt,
+            body: { input: 'planted lookahead A' },
+          },
+          {
+            at: firstRequest.at + 2,
+            respondedAt: firstRequest.respondedAt,
+            body: { input: 'planted lookahead B' },
+          },
+        );
+      }
+      const overlappedFirst = fixture.localRequests.filter(
+        (request) => request.at < firstRequest.respondedAt,
+      );
+      if (overlappedFirst.length > 2) {
+        fail(
+          `One Play overlapped ${overlappedFirst.length} local requests before the first response; the chunk producer allows at most two and paragraph prefetch must stay off: ${JSON.stringify(overlappedFirst.map((request) => request.body?.input))}`,
+        );
+      }
+      record(
+        'one Play kept local synthesis within the chunk pipeline bound',
+        `${overlappedFirst.length} request(s) before the first response, maximum 2`,
+      );
+    }
+
     // In appliance mode this cannot yet claim WHICH host produced the audio:
     // the managed fixture would satisfy a decoded-and-playing observation just
     // as well, and does exactly that under the `server-route` plant. State only
@@ -670,7 +822,13 @@ async function main() {
     if (!playing.bodyPadding) {
       fail('Footer is in the page but reserved no room for itself (body padding unset)');
     }
-    record('visible reading UI reached the page', `body padding ${playing.bodyPadding}`);
+    if (playing.footerCount !== 1) {
+      fail(`Playback exposed ${playing.footerCount} page players instead of one`);
+    }
+    record(
+      'visible reading UI reached the page',
+      `one player, body padding ${playing.bodyPadding}`,
+    );
     record('paragraph highlighted in the page', playing.highlighted[0].slice(0, 60));
 
     const whilePlaying = await waitFor(
@@ -687,8 +845,11 @@ async function main() {
     record('popup announced the playing state publicly', `${NAME.pause} / ${whilePlaying.status}`);
 
     if (!APPLIANCE_URL) {
+      await waitFor('the first word-sync sentence response', async () => synthesized.respondedAt, {
+        timeoutMs: 20_000,
+      });
       const firstClipBoundary =
-        synthesized.at + fixtureAudioDurationMs(WORD_SYNC_SENTENCES[0]) + 200;
+        synthesized.respondedAt + fixtureAudioDurationMs(WORD_SYNC_SENTENCES[0]) + 200;
       await sleep(Math.max(0, firstClipBoundary - Date.now()));
       const secondOnlyWords = new Set(
         (WORD_SYNC_SENTENCES[1].match(/\S+/g) ?? [])
@@ -719,6 +880,15 @@ async function main() {
         'word highlight entered sentence two after the measured audio boundary',
         synchronized.activeWord,
       );
+      const structuralRequest = fixture.localRequests.find((request) =>
+        String(request.body?.input ?? '').includes('Boundary alignment'),
+      );
+      if (!structuralRequest || /[\u2500-\u257f]/u.test(String(structuralRequest.body?.input))) {
+        fail(
+          `Structural page glyphs crossed the synthesis boundary: ${JSON.stringify(structuralRequest?.body ?? null)}`,
+        );
+      }
+      record('non-spoken structural glyphs stayed out of the synthesis request');
     }
 
     await activateTab(driver, secondArticleHandle, 'Activate the second article tab');
@@ -737,10 +907,28 @@ async function main() {
       { timeoutMs: 10_000 },
     ).catch(() => null);
     if (!afterTabSwitch) {
+      const [href, popupState, tabs] = await Promise.all([
+        driver.execute('return location.href;').catch(() => 'unavailable'),
+        readPopup(driver).catch(() => null),
+        chromeEval(
+          driver,
+          `const win = Services.wm.getMostRecentWindow('navigator:browser');
+           return win.gBrowser.tabs.map((tab) => ({
+             selected: tab === win.gBrowser.selectedTab,
+             url: tab.linkedBrowser.currentURI.spec,
+           }));`,
+        ).catch(() => null),
+      ]);
+      let oldPage = null;
+      if (EXPECT_TAB_STOP) {
+        await activateTab(driver, firstArticleHandle, 'Diagnose the first article tab');
+        oldPage = await driver.execute(`return (() => {${READ_PAGE}})();`).catch(() => null);
+      }
       fail(
-        EXPECT_TAB_STOP
+        (EXPECT_TAB_STOP
           ? 'Activating another tab left the old audio playing instead of exposing Play'
-          : 'Background-listening mode stopped audio after a tab activation',
+          : 'Background-listening mode stopped audio after a tab activation') +
+          ` (href=${href}, popup=${JSON.stringify(popupState)}, tabs=${JSON.stringify(tabs)}, oldPage=${JSON.stringify(oldPage)})`,
       );
     }
     record(
@@ -756,15 +944,18 @@ async function main() {
       async () => {
         const state = await readPage();
         const visible = state.footer && state.highlighted.length > 0;
-        return visible === !EXPECT_TAB_STOP ? state : null;
+        const oneOrNone = EXPECT_TAB_STOP ? state.footerCount === 0 : state.footerCount === 1;
+        return visible === !EXPECT_TAB_STOP && oneOrNone ? state : null;
       },
       { timeoutMs: 10_000 },
     ).catch(() => null);
     if (!oldPageAfterSwitch) {
+      const stalePage = await readPage().catch(() => null);
       fail(
-        EXPECT_TAB_STOP
+        (EXPECT_TAB_STOP
           ? 'The old page retained its footer or highlight after tab-focus stop'
-          : 'The old page lost its reading UI while background playback was enabled',
+          : 'The old page lost its reading UI while background playback was enabled') +
+          `: ${JSON.stringify(stalePage)}`,
       );
     }
     record(

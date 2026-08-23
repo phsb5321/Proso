@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Done oracle — one coherent page player, working popup tabs, bounded local
+# synthesis, honest approximate timing, and both browser-tab policies.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$root"
+
+export FIREFOX_BIN="${FIREFOX_BIN:-$(command -v firefox-nightly || command -v firefox)}"
+export NODE_OPTIONS="${NODE_OPTIONS:---experimental-vm-modules}"
+
+make doctor
+pnpm --filter @proso/extension exec jest --selectProjects unit --runInBand \
+  tests/unit/content/sticky-footer-coherence.test.ts \
+  tests/unit/content/content-artifact-cleanup.test.ts \
+  tests/unit/entrypoints/popup-first-run-controller.test.ts \
+  tests/unit/accessibility/popup-keyboard.test.ts \
+  tests/unit/accessibility/popup.test.ts \
+  tests/unit/core/playback-service-chunked.test.ts \
+  tests/unit/core/word-timing-estimator.test.ts \
+  tests/unit/adapters/audio/local-host-audio.adapter.test.ts \
+  tests/unit/background/tab-playback-policy.test.ts
+pnpm --filter @proso/extension build:firefox
+node scripts/local-host-journey-gate.mjs
+LOCAL_HOST_TAB_BEHAVIOR=continue node scripts/local-host-journey-gate.mjs
+LOCAL_HOST_APPLIANCE_URL=http://127.0.0.1:5301 node scripts/local-host-journey-gate.mjs
+
+sync_audit=/home/notroot/tts-bench-20260822-desktop/gpu-voice-audit-20260823/sync-audit
+"$sync_audit/verify-result.sh"
+jq -e '
+  .runtime == "supertonic-1.3.1+proso-bridge.3" and
+  .listener == "127.0.0.1:5301" and
+  .persistent == false and
+  .probes.mixed_ptbr_box_glyphs.http_status == 200 and
+  .probes.only_unsupported_glyphs.http_status == 422 and
+  .probes.traceback_or_500_after_restart == false
+' "$sync_audit/evidence/supertonic-bridge3-receipt.json" >/dev/null
+curl -q -fsS http://127.0.0.1:5301/v1/health | jq -e '
+  .ready == true and
+  .model == "supertonic-3" and
+  .version == "supertonic-1.3.1+proso-bridge.3"
+' >/dev/null
+
+# Final daily deployment is part of the user outcome, not a PR-build claim.
+daily_xpi="$HOME/.mozilla/firefox/26av7r9w.default/extensions/{41eb66cb-b520-4047-9b6c-63fdce6fca11}.xpi"
+deploy_receipt="$HOME/.local/state/proso-deploy/reader-runtime-coherence-latest.json"
+test -f "$daily_xpi" -a -f "$deploy_receipt"
+head_sha="$(git rev-parse HEAD)"
+xpi_sha="$(sha256sum "$daily_xpi" | cut -d' ' -f1)"
+jq -e --arg head "$head_sha" --arg xpi "$xpi_sha" '
+  .status == "PASS" and
+  .merged_head == $head and
+  .daily_xpi_sha256 == $xpi and
+  .daily_player_roots_per_tested_tab == 1 and
+  .popup_tabs == ["Player", "Tools", "Queue"] and
+  .stop_mode == "PASS" and
+  .continue_mode == "PASS"
+' "$deploy_receipt" >/dev/null
+
+printf 'reader-runtime-coherence oracle PASS\n'
