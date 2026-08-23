@@ -405,9 +405,21 @@ function getStyles(): string {
       width: 100%;
       max-width: var(--footer-max-width);
       height: var(--footer-height);
-      background: color-mix(in srgb, var(--footer-bg) 92%, transparent);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      /*
+       * Opaque, and deliberately NOT backdrop-filter: blur().
+       *
+       * The footer is position:fixed and full-width, so a backdrop filter
+       * makes the compositor snapshot the region behind it and blur it into
+       * an intermediate render target every frame that region is damaged.
+       * Proso damages it continuously during its main use case: the 60fps rAF
+       * word-sync loop animates background-color transitions on spans behind
+       * the footer, and scrollIntoView() scrolls content underneath it.
+       *
+       * The previous background was 92% opaque, so at most ~8% of that blur
+       * was ever visible -- per-frame readback for a near-invisible effect.
+       * See issue #194.
+       */
+      background: var(--footer-bg);
       border-top: 1px solid var(--footer-border);
       border-left: 1px solid var(--footer-border);
       border-right: 1px solid var(--footer-border);
@@ -495,7 +507,9 @@ function getStyles(): string {
     .time-display { font-size: 11px; color: var(--footer-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 32px; text-align: center; }
     .speed-control { position: relative; }
     .speed-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; min-width: 48px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-    .speed-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 68px; margin-bottom: 8px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    /* No backdrop-filter: --footer-bg-secondary is fully opaque, so the blur
+       was invisible while still forcing a per-frame backdrop readback. #194 */
+    .speed-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 68px; margin-bottom: 8px; }
     .speed-dropdown.open { display: block; }
     .speed-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: center; cursor: pointer; border-radius: 6px; font-variant-numeric: tabular-nums; transition: background 100ms ease; }
     .speed-option:hover { background: rgba(255, 255, 255, 0.1); }
@@ -504,7 +518,7 @@ function getStyles(): string {
     .lang-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; min-width: 48px; gap: 5px; }
     .lang-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
     .lang-code { font-size: 12px; }
-    .language-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 160px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .language-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 160px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; }
     .language-dropdown.open { display: block; }
     .language-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 6px; white-space: nowrap; transition: background 100ms ease; }
     .language-option:hover { background: rgba(255, 255, 255, 0.1); }
