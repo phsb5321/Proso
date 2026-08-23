@@ -28,11 +28,11 @@
 
 Add one small content-boundary helper invoked only after the same-context initialization guard and before managers are constructed. It removes obsolete Proso footer roots, unwraps obsolete word spans without changing their text, clears obsolete playback classes, and restores Proso-owned padding. New footer padding stores the exact prior inline value in a durable DOM marker so a future extension context can restore it. A conservative legacy path subtracts only the measured per-footer offset from pixel padding when old roots predate the marker. Minimize/expand recomputes from that immutable original value; it MUST NOT reread the already-inflated computed padding, which currently stacks another offset on every toggle.
 
-`StickyFooter.show()` performs an explicit live-DOM query/removal before its instance-field guard, so a second content-script world cannot append a duplicate. Its user-facing position formatter adds one; internal indices remain unchanged.
+Content initialization performs the only full page sweep. `StickyFooter.show()`/`hide()` reconcile footer roots and padding only, so a normal footer lifecycle cannot unwrap the live `HighlightManager` state. The user-facing position formatter adds one; internal indices remain unchanged.
 
 ### Slice B — one authoritative start and one prefetcher
 
-On Play, set popup state to loading, set `aria-busy`, and disable only the Play/Pause control while the start promise is pending. Stop remains available. After success or failure, fetch and apply authoritative background state, then re-enable the control. A generation already loading cannot dispatch a second start. If the popup closes mid-request, playback remains background-owned; a newly opened popup fetches authoritative state and never depends on a broadcast to the closed document.
+On Play, set popup state to loading, set `aria-busy`, and disable only the Play/Pause control while the start promise is pending. Stop remains available. A stale stopped broadcast cannot reopen Play while the promise is live. After success or failure, fetch and apply authoritative background state, then re-enable the control. If the popup closes mid-request, playback remains background-owned; a newly opened popup fetches authoritative state and never depends on a broadcast to the closed document.
 
 The playback service initializes its queue for chunked reading but gates `prefetch.service.start()` itself—both initial start and resume—on `!audioGenerator.supportsChunkedSynthesis`. Stop still clears both paths. This leaves the local adapter's bounded sentence pipeline as the only speculative producer.
 
@@ -40,13 +40,13 @@ The playback service initializes its queue for chunked reading but gates `prefet
 
 ### Slice C — production popup tabs
 
-Move the small panel-selection behavior into an imported popup tab controller used by the real entrypoint and its tests. It owns selected classes, `hidden`, `aria-selected`, roving `tabIndex`, click, Enter/Space through native button semantics, ArrowLeft/ArrowRight wrapping, Home, and End. Panel changes never dispatch a playback message.
+Move the small panel-selection behavior into an imported popup tab controller used by the real entrypoint and its tests. It owns selected classes, `hidden`, `aria-selected`, roving `tabIndex`, click, Enter/Space through native button semantics, ArrowLeft/ArrowRight wrapping, Home, and End. Panel changes never dispatch a playback message. The dead OCR control stays hidden; Tools exposes only working content, and Queue add/remove is exercised against the handler's actual unwrapped `{id, position}` response.
 
 ### Slice D — truthful and improved approximate timing
 
 The exact-device candidate gate is complete and fail-closed. Kokoro-FastAPI commit `26eec068d8ce6f559afef83f68933127ac38e315` produced a valid 7.316-second PT-BR WAV at CPU RTF 0.23825 but returned `timestamps: null` for the mandatory accents/date/currency/`├`/`└` input; its simple PT-BR control returned six model-derived marks. ROCm did not start within two bounded attempts. Therefore it is **not** adopted, no 600-second soak is claimed, and this feature does not add an unused marked local-host wire protocol.
 
-Existing provider marks continue through the current `AudioResponse.wordTimings` and cache path unchanged. The real local route remains raw WAV with null marks. Its fallback tokenizes Unicode letter/mark/number words, strips structural-only tokens, uses language-aware vowel clusters, and reserves bounded punctuation pause weight. Timing basis is ephemeral and derivable—nonempty provider timings mean provider/model-derived; null means estimated—so no storage migration is introduced. The UI labels the real local route approximate.
+Existing provider marks continue through the current `AudioResponse.wordTimings`, prefetch, cache, and popup state. The real local route remains raw WAV with null marks. Its fallback tokenizes Unicode letter/mark/number words, skips structural-only sentences/paragraphs, uses language-aware vowel clusters, and reserves bounded punctuation pause weight. Timing basis is ephemeral—provider, estimated, or none—so no storage migration is introduced; the popup renders that authoritative basis rather than a constant label.
 
 ### Slice E — current bridge resilience
 
@@ -54,7 +54,7 @@ Live storage and `/v1/health` on 23/08/2026 confirm that the current daily route
 
 ### Slice F — public gate and deployment
 
-Extend the loaded-Firefox actor rather than introducing another framework. Before public actions begin, each long-lived fixture tab contains the exact accumulated shape—22 obsolete player roots, nested word wrappers, playback classes, and legacy padding—and the observer asserts current initialization removes it without changing text. The actor then operates Player/Tools/Queue by accessible role/name, exercises Queue add/remove, starts one bounded chunk request path, asserts one player root, approximate timing disclosure, sentence transition, structural-glyph filtering, and both browser-tab policies. Post-deploy AT-SPI repeats the one-player assertion on the already-open daily dbt tabs, which is the real extension-reload history the hermetic fixture represents. Plants sever cleanup, loading suppression, mark propagation, and each tab transition. The receipt binds exact HEAD/build/XPI, Firefox, model/runtime revision, request trace, tab/action trace, timing basis, and anomalies.
+Extend the loaded-Firefox actor rather than introducing another framework. Before public actions begin, each long-lived fixture tab contains the exact accumulated shape—22 obsolete player roots, nested word wrappers, playback classes, and legacy padding—and the observer asserts current initialization removes it without changing text. The actor then operates Player/Tools/Queue by accessible role/name, exercises Queue add/remove, starts one bounded chunk request path, asserts one player root, dynamic approximate timing disclosure, sentence transition, structural-glyph filtering, and both browser-tab policies. Post-deploy AT-SPI repeats the one-player assertion on the already-open daily dbt tabs, which is the real extension-reload history the hermetic fixture represents. Production-entrypoint tests own the held/repeated Play race; browser plants sever cleanup, disclosure, panel reachability, and request bounds. The receipt binds exact HEAD/build/XPI, Firefox, model/runtime revision, request trace, tab/action trace, timing basis, and anomalies.
 
 ## Changed surfaces
 

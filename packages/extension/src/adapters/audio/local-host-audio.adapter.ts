@@ -28,6 +28,7 @@ import {
   splitSentences,
   utf8ByteLength,
 } from '../../core/audio/sentence-chunker';
+import { hasSpeakableWords } from '../../core/playback/word-timing-estimator';
 import type { AudioError } from '../../core/shared/errors';
 import { audioError } from '../../core/shared/errors';
 import type { Result } from '../../core/shared/result';
@@ -239,7 +240,10 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
       return;
     }
 
-    const sentences = split.value;
+    const sentences = split.value.filter((sentence) =>
+      hasSpeakableWords(normalizeLocalHostSynthesisText(sentence)),
+    );
+    if (sentences.length === 0) return;
     // At most one in flight + one prefetch: hold the prefetched promise and
     // synthesize the next only after the held one is yielded.
     let inFlight: Promise<Result<AudioResponse, AudioError>> | null = null;

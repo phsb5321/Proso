@@ -14,6 +14,7 @@ import type { Result } from '../core/shared/result';
  * Playback status for footer state.
  */
 export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+export type WordTimingBasis = 'provider' | 'estimated' | 'none';
 
 /**
  * Footer player state sent to content script.
@@ -26,6 +27,7 @@ export interface FooterState {
   readonly currentTime: string;
   readonly totalTime: string;
   readonly speed: number;
+  readonly timingBasis?: WordTimingBasis;
 }
 
 /**

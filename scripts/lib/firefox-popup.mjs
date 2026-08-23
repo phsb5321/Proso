@@ -325,7 +325,7 @@ export async function clickByName(driver, name, open) {
      if (!b || !b.contentDocument) return JSON.stringify({ ok: false, why: 'the popup is not open' });
      const doc = b.contentDocument;
      const wanted = arguments[0];
-     const candidates = Array.from(doc.querySelectorAll('button')).filter(
+     const candidates = Array.from(doc.querySelectorAll('[aria-label], button')).filter(
        (node) =>
          node.getAttribute('aria-label') === wanted ||
          (!node.getAttribute('aria-label') &&
@@ -337,6 +337,7 @@ export async function clickByName(driver, name, open) {
      });
      if (!el) return JSON.stringify({ ok: false, why: 'no visible control has that accessible name' });
      if (el.disabled) return JSON.stringify({ ok: false, why: 'the control is disabled' });
+     if (typeof el.click !== 'function') return JSON.stringify({ ok: false, why: 'the control is not activatable' });
      el.click();
      return JSON.stringify({ ok: true, tag: el.tagName.toLowerCase() });`,
     [name],

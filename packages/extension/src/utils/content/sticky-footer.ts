@@ -19,7 +19,7 @@ import { SUPPORTED_LANGUAGES } from '../language/codes';
 import { createLogger } from '../logging/logger';
 import {
   applyProsoFooterPadding,
-  reconcileStaleContentArtifacts,
+  reconcileStaleFooterArtifacts,
   restoreProsoFooterPadding,
 } from './content-artifact-cleanup';
 
@@ -942,7 +942,7 @@ export class StickyFooter {
   async show(initialState?: Partial<StorageState>): Promise<void> {
     if (this.container) return;
 
-    reconcileStaleContentArtifacts(document);
+    reconcileStaleFooterArtifacts(document);
 
     if (initialState) {
       this.isMinimized = initialState.isMinimized || false;
@@ -976,7 +976,7 @@ export class StickyFooter {
    */
   hide(): void {
     if (!this.container) {
-      reconcileStaleContentArtifacts(document);
+      reconcileStaleFooterArtifacts(document);
       this.isVisible = false;
       return;
     }
@@ -1003,7 +1003,7 @@ export class StickyFooter {
     this._speedDropdown = null;
     this._langBtn = null;
     this._langDropdown = null;
-    reconcileStaleContentArtifacts(document);
+    reconcileStaleFooterArtifacts(document);
 
     log.debug('Proso: Sticky footer hidden');
   }

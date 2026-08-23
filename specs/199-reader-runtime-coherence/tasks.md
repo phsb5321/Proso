@@ -19,7 +19,7 @@
 
 - [ ] T010 Disable generic lookahead prefetch start/resume for chunked generators while preserving queue cleanup and every non-chunked provider path.
 - [ ] T011 Clear stale paragraph/word state on playback failure before displaying one actionable error.
-- [ ] T012 Implement Unicode/punctuation-aware approximate timings that ignore structural-only tokens and expose the real local route as approximate.
+- [ ] T012 Implement Unicode/punctuation-aware approximate timings that ignore structural-only sentences/tokens and publish provider-versus-estimated basis dynamically to the popup.
 - [x] T013 Record the verified exact-device rejection: Kokoro-FastAPI `26eec068` required PT-BR probe returned valid audio at RTF 0.23825 but `timestamps: null`; simple PT-BR returned six marks; ROCm was blocked after two attempts. Keep the marked local-host protocol deferred and the fallback approximate.
 - [ ] T014 In a separately verified runtime patch outside this repository, harden the transient current Supertonic bridge against its loaded model's unsupported characters and typed-error boundary; retain a reproducible loopback receipt without persistence or cross-repo completion claims.
 
@@ -27,7 +27,7 @@
 
 - [ ] T015 Extend the loaded-Firefox public actor to operate Player, Tools, and Queue by role/name plus arrow/Home/End keys, asserting exactly one visible panel and unchanged playback.
 - [ ] T016 Add a 22-root/nested-wrapper legacy fixture in each long-lived tab, the held-start and bounded-request journey, one-player assertion, unsupported-glyph case, approximate-timing disclosure, popup state reconciliation, Queue add/remove, both browser-tab policy modes, and post-deploy AT-SPI checks on the real daily tabs.
-- [ ] T017 Add deterministic plants for stale cleanup, duplicate start, chunked double-prefetch, approximate-timing disclosure, and each popup tab transition; a surviving plant fails the gate.
+- [ ] T017 Add deterministic actual-entrypoint regressions for duplicate/stale-start races and browser plants for stale cleanup, chunk request bounds, dynamic approximate disclosure, Tools reachability, and Queue reachability; a surviving plant fails the gate.
 - [ ] T018 Add `scripts/oracles/reader-runtime-coherence` as the fail-closed fleet done-oracle and update `docs/reading-journey-status.md` with evidence boundaries.
 
 ## Phase 5 — Delivery

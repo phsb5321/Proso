@@ -185,6 +185,7 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
             totalParagraphs: state.totalParagraphs,
             progress: Math.round(state.progress * 100),
             speed: state.speed,
+            timingBasis: state.timingBasis,
           },
         })
         .catch(() => {

@@ -283,6 +283,20 @@ describe('LocalHostAudioAdapter', () => {
       expect(String(body.input)).not.toMatch(/[\u2500-\u257f]/u);
     });
 
+    it('skips structural-only chunks while preserving the following sentence', async () => {
+      const { adapter, fetchStub } = makeAdapter();
+      const chunks: Array<Result<AudioResponse, AudioError>> = [];
+      for await (const chunk of adapter.generateAudioChunks?.({
+        ...request,
+        text: '────. Conteúdo falado.',
+      }) ?? []) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toHaveLength(1);
+      expect(ttsBody(fetchStub).input).toBe('Conteúdo falado.');
+    });
+
     it('negotiates audio/wav with a JSON content type', async () => {
       const { fetchStub } = await generate();
 

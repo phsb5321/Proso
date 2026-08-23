@@ -780,6 +780,23 @@ describe('Feature 169 popup first-run controller', () => {
     expect(countMessages(rig, 'playback.start')).toBe(3);
   });
 
+  it('renders the timing basis from authoritative playback state', async () => {
+    const rig = await mountPopup({
+      stored: {
+        provider: 'local',
+        localHostEnabled: true,
+        localHostUrl: 'http://127.0.0.1:5301',
+      },
+    });
+
+    expect(document.getElementById('timing-basis')?.textContent).toContain('approximate');
+    rig.emitRuntimeMessage({
+      type: 'playbackStateUpdate',
+      state: { status: 'playing', timingBasis: 'provider' },
+    });
+    expect(document.getElementById('timing-basis')?.textContent).toContain('provider timed');
+  });
+
   it('adds and removes the active page through the real Queue panel contract', async () => {
     const rig = await mountPopup({
       stored: {
@@ -832,6 +849,11 @@ describe('Feature 169 popup first-run controller', () => {
     expect(play.disabled).toBe(true);
     expect(play.getAttribute('aria-busy')).toBe('true');
     expect(stop.disabled).toBe(false);
+
+    rig.emitRuntimeMessage({ type: 'playbackStateUpdate', state: { status: 'stopped' } });
+    play.click();
+    expect(countMessages(rig, 'playback.start')).toBe(1);
+    expect(play.disabled).toBe(true);
 
     resolveStart?.({ success: true });
     await waitFor(() => !play.disabled);

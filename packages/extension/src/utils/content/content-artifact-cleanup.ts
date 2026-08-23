@@ -45,21 +45,11 @@ export function applyProsoFooterPadding(documentRef: Document, footerHeightPx: n
   body.style.paddingBottom = `${Math.max(0, originalComputed) + footerHeightPx + 16}px`;
 }
 
-/**
- * Remove playback DOM left by a content-script world that no longer exists.
- * Only Proso-prefixed roots/classes are touched; text nodes are moved out of
- * wrappers unchanged.
- */
-export function reconcileStaleContentArtifacts(
-  documentRef: Document,
-): ContentArtifactCleanupReceipt {
+export function reconcileStaleFooterArtifacts(documentRef: Document): number {
   const body = documentRef.body;
-  if (!body) {
-    return { footerRoots: 0, wordWrappers: 0, paragraphHighlights: 0 };
-  }
+  if (!body) return 0;
 
   const footerRoots = Array.from(documentRef.querySelectorAll<HTMLElement>(`#${FOOTER_ROOT_ID}`));
-
   if (body.hasAttribute(ORIGINAL_INLINE_PADDING_ATTRIBUTE)) {
     restoreProsoFooterPadding(documentRef);
   } else if (footerRoots.length > 0) {
@@ -74,9 +64,23 @@ export function reconcileStaleContentArtifacts(
       )}px`;
     }
   }
-
   for (const root of footerRoots) root.remove();
+  return footerRoots.length;
+}
 
+/**
+ * Remove playback DOM left by a content-script world that no longer exists.
+ * Only Proso-prefixed roots/classes are touched; text nodes are moved out of
+ * wrappers unchanged.
+ */
+export function reconcileStaleContentArtifacts(
+  documentRef: Document,
+): ContentArtifactCleanupReceipt {
+  if (!documentRef.body) {
+    return { footerRoots: 0, wordWrappers: 0, paragraphHighlights: 0 };
+  }
+
+  const footerRoots = reconcileStaleFooterArtifacts(documentRef);
   const wrappers = Array.from(documentRef.querySelectorAll<HTMLElement>('.proso-w'));
   const parentsToNormalize = new Set<Node>();
   for (const wrapper of wrappers) {
@@ -98,7 +102,7 @@ export function reconcileStaleContentArtifacts(
   }
 
   return {
-    footerRoots: footerRoots.length,
+    footerRoots,
     wordWrappers: wrappers.length,
     paragraphHighlights: new Set(paragraphHighlights).size,
   };

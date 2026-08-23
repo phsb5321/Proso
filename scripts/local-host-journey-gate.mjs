@@ -842,6 +842,11 @@ async function main() {
     if (!whilePlaying) {
       fail(`The popup never announced "${NAME.pause}" while the page was reading`);
     }
+    if (whilePlaying.timingBasis !== 'Word highlighting: approximate') {
+      fail(
+        `The real no-marks playback state did not remain approximate: ${JSON.stringify(whilePlaying)}`,
+      );
+    }
     record('popup announced the playing state publicly', `${NAME.pause} / ${whilePlaying.status}`);
 
     if (!APPLIANCE_URL) {

@@ -73,7 +73,7 @@ export function splitSentences(text: string): Result<string[], AudioError> {
       let wordLen = 0;
       for (let w = index - 1; w >= 0 && /[A-Za-z]/.test(input[w]!); w -= 1) wordLen += 1;
       const isDecimal = /[0-9]/.test(prevChar) || /[0-9]/.test(nextChar);
-      const isAbbrev = wordLen <= 2 && nextChar === ' ';
+      const isAbbrev = wordLen > 0 && wordLen <= 2 && nextChar === ' ';
       if (isDecimal || isAbbrev) {
         index = end;
         continue;

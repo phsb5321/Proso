@@ -12,7 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
 import type { AudioError } from '../../../src/core/shared/errors';
-import { audioError } from '../../../src/core/shared/errors';
+import { audioError, playbackError } from '../../../src/core/shared/errors';
 import { Err, Ok } from '../../../src/core/shared/result';
 import type { Result } from '../../../src/core/shared/result';
 import type {
@@ -235,6 +235,7 @@ describe('PlaybackService chunked path', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const firstTimeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(service.getTimingBasis()).toBe('estimated');
     expect(firstTimeline?.map((entry) => entry.word)).toEqual(['First', 'sentence']);
     expect(firstTimeline?.[0]?.charOffset).toBe(0);
     expect(firstTimeline?.at(-1)?.endTimeMs).toBeCloseTo(1000);
@@ -249,6 +250,33 @@ describe('PlaybackService chunked path', () => {
     expect(secondTimeline?.at(-1)?.endTimeMs).toBeCloseTo(2100);
   });
 
+  it('skips a structural-only sentence instead of timing the full paragraph', async () => {
+    const structuralGenerator = new ChunkedMockGenerator(['Second sentence.']);
+    service.setAudioGenerator(structuralGenerator);
+    const timelineSpy = jest.spyOn(mockHighlightSync, 'setWordTimeline');
+
+    await service.start(['────. Second sentence.'], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(structuralGenerator.yieldedChunks).toEqual(['Second sentence.']);
+    const timeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(timeline?.map((entry) => entry.word)).toEqual(['Second', 'sentence']);
+    expect(timeline?.[0]?.charOffset).toBe('────. '.length);
+    expect(timeline?.[0]?.startTimeMs).toBe(0);
+  });
+
+  it('advances past an all-structural paragraph', async () => {
+    const structuralGenerator = new ChunkedMockGenerator(['Actual words.']);
+    service.setAudioGenerator(structuralGenerator);
+
+    const result = await service.start(['────.', 'Actual words.'], testTabId, testPageUrl);
+
+    expect(result.ok).toBe(true);
+    expect(service.getState().status).toBe('playing');
+    expect(service.getState().currentParagraphIndex).toBe(1);
+    expect(structuralGenerator.yieldedChunks).toEqual(['Actual words.']);
+  });
+
   it('preserves provider timings while translating them to the paragraph clock', async () => {
     const timedGenerator = new ChunkedMockGenerator(undefined, [
       [{ word: 'First', startMs: 100, endMs: 400 }],
@@ -259,6 +287,7 @@ describe('PlaybackService chunked path', () => {
 
     await service.start(testParagraphs, testTabId, testPageUrl);
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(service.getTimingBasis()).toBe('provider');
     expect(timelineSpy.mock.calls.at(-1)?.[2]).toEqual([
       {
         word: 'First',
@@ -316,6 +345,32 @@ describe('PlaybackService chunked path', () => {
     expect(service.getState().currentParagraphIndex).toBe(1);
   });
 
+  it('ignores an error reported by an older playback generation', async () => {
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    const internals = service as unknown as {
+      playbackGeneration: number;
+      setError(
+        error: ReturnType<typeof playbackError.playbackFailed>,
+        tabId?: number,
+        generation?: number,
+      ): Promise<void>;
+    };
+    const staleGeneration = internals.playbackGeneration;
+    internals.playbackGeneration += 1;
+    const clearSpy = jest.spyOn(mockHighlightSync, 'clearHighlights');
+    const errorSpy = jest.spyOn(mockHighlightSync, 'showError');
+
+    await internals.setError(
+      playbackError.playbackFailed('Old request failed'),
+      undefined,
+      staleGeneration,
+    );
+
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('playing');
+  });
+
   it('ignores the media error emitted when stop clears the audio source', async () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     const errorSpy = jest.spyOn(mockHighlightSync, 'showError');
@@ -328,7 +383,7 @@ describe('PlaybackService chunked path', () => {
     expect(mockHighlightSync.isFooterVisible(testTabId)).toBe(false);
   });
 
-  it('finishes old-tab visual cleanup when a generation changes after clear', async () => {
+  it('does not let an older stop hide a superseding generation', async () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     const originalClear = mockHighlightSync.clearHighlights.bind(mockHighlightSync);
     jest.spyOn(mockHighlightSync, 'clearHighlights').mockImplementation(async (tabId) => {
@@ -340,9 +395,9 @@ describe('PlaybackService chunked path', () => {
 
     await service.stop();
 
-    expect(hideSpy).toHaveBeenCalledWith(testTabId);
-    expect(service.getState().status).toBe('stopped');
-    expect(mockHighlightSync.updateFooterStateCalls.at(-1)?.state.status).toBe('stopped');
+    expect(hideSpy).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('playing');
+    expect(mockHighlightSync.updateFooterStateCalls.at(-1)?.state.status).not.toBe('stopped');
   });
 
   it('stop() discards the chunk queue (no stale chunk plays after a stop)', async () => {

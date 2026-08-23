@@ -43,6 +43,7 @@ interface PlaybackState {
   progress: number; // 0-100
   speed: number;
   provider: string;
+  timingBasis?: 'provider' | 'estimated' | 'none';
 }
 
 // ============================================
@@ -68,6 +69,7 @@ const elements = {
   firstRunByokStatus: document.getElementById('first-run-byok-status') as HTMLParagraphElement,
   paragraphCurrent: document.getElementById('paragraph-current') as HTMLSpanElement,
   paragraphTotal: document.getElementById('paragraph-total') as HTMLSpanElement,
+  timingBasis: document.getElementById('timing-basis') as HTMLParagraphElement,
 
   // Progress
   progressBar: document.getElementById('progress-bar') as HTMLDivElement,
@@ -164,6 +166,7 @@ let currentState: PlaybackState = {
   progress: 0,
   speed: 1.0,
   provider: 'elevenlabs',
+  timingBasis: 'none',
 };
 let playbackStartPending = false;
 
@@ -268,6 +271,11 @@ function updateSpeed(speed: number): void {
   elements.speedValue.textContent = `${speed.toFixed(1)}x`;
 }
 
+function updateTimingBasis(basis: PlaybackState['timingBasis']): void {
+  elements.timingBasis.textContent =
+    basis === 'provider' ? 'Word highlighting: provider timed' : 'Word highlighting: approximate';
+}
+
 /**
  * Update section visibility based on configured API keys and settings.
  * In the tabbed layout, tool sections are visible by default.
@@ -310,7 +318,12 @@ function applyState(state: PlaybackState): void {
   updatePlayPauseButton(state.status === 'playing');
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
   updateProgress(state.progress);
-  setPlaybackStartPending(state.status === 'loading');
+  updateTimingBasis(state.timingBasis);
+  // A stale stopped broadcast from the previous session must not reopen Play
+  // while this popup still owns an in-flight start promise.
+  if (!playbackStartPending || state.status === 'playing' || state.status === 'paused') {
+    setPlaybackStartPending(state.status === 'loading');
+  }
   if (typeof state.speed === 'number') {
     updateSpeed(state.speed);
   }
@@ -431,7 +444,7 @@ async function startFreshPlayback(): Promise<void> {
     if (playbackFailure) {
       showPlaybackStartFailure(elements.statusDot, elements.statusText, playbackFailure);
     }
-    if (currentState.status !== 'loading') setPlaybackStartPending(false);
+    if (playbackFailure || currentState.status !== 'loading') setPlaybackStartPending(false);
   }
 }
 

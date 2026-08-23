@@ -24,7 +24,7 @@ As a reader with pages that survived extension updates, I see at most one page p
 
 ### US2 — Player, Tools, and Queue are real tabs
 
-As a reader, I can activate Player, Tools, and Queue with a click, Enter/Space, ArrowLeft/ArrowRight, Home, and End. Exactly one panel is selected and visible, focus follows keyboard navigation, and changing panels does not start, stop, or reset playback.
+As a reader, I can activate Player, Tools, and Queue with a click, Enter/Space, ArrowLeft/ArrowRight, Home, and End. Exactly one panel is selected and visible, focus follows keyboard navigation, and changing panels does not start, stop, or reset playback. A panel exposes only controls backed by a working handler; the inactive OCR affordance is not shown.
 
 **Independent test:** drive all three tabs in a loaded Firefox popup through public role/name controls and assert selected state, visible panel content, focus, and unchanged playback state after each transition.
 
@@ -34,7 +34,7 @@ As a reader, I can activate Player, Tools, and Queue with a click, Enter/Space, 
 
 As a reader, after I press Play once I immediately see a loading state and cannot accidentally enqueue another start while synthesis is pending. Stop remains available. Success changes both the popup and page player to playing; failure produces one actionable error and no stale paragraph or word highlight.
 
-**Independent test:** hold synthesis pending, activate Play repeatedly, and assert one start request. Resolve success and failure separately; both surfaces converge, and the failure path clears stale reading markup.
+**Independent test:** the production popup entrypoint holds synthesis pending, receives a stale stopped broadcast, and accepts repeated Play activation while asserting one start request. Resolve success and failure separately; both surfaces converge, and the failure path clears stale reading markup. The loaded-browser actor separately proves the public Play produces one bounded chunk request path.
 
 **Falsifier:** multiple requests are issued, Play remains enabled as if idle, counters disagree, failure leaves highlighted text, or the UI remains loading indefinitely.
 
@@ -67,15 +67,15 @@ As a reader, enabling **Stop playback when switching tabs** stops and clears the
 - **REQ-001:** Content initialization MUST reconcile obsolete player roots, word wrappers, paragraph classes, and Proso-owned body padding before creating current page state.
 - **REQ-002:** Reconciliation MUST preserve page text and author-owned styles and MUST be idempotent.
 - **REQ-003:** The page position indicator and popup position indicator MUST use the same one-based user-facing index while internal paragraph indices remain zero-based.
-- **REQ-004:** Popup tabs MUST implement one selected/visible panel, roving tab focus, click/native activation, ArrowLeft/ArrowRight, Home, and End.
+- **REQ-004:** Popup tabs MUST implement one selected/visible panel, roving tab focus, click/native activation, ArrowLeft/ArrowRight, Home, and End, and MUST hide controls that have no production handler.
 - **REQ-005:** A pending playback start MUST expose loading, suppress duplicate starts, preserve Stop, and converge from the background's authoritative state.
 - **REQ-006:** Chunked synthesis MUST NOT run the independent paragraph lookahead prefetcher; the chunk producer's own bounded prefetch is the sole speculative request path.
 - **REQ-007:** Playback failure MUST clear paragraph and word highlighting before displaying its actionable error; it may keep one player visible for recovery.
 - **REQ-008:** Unsupported non-spoken structural characters MUST be normalized only at the synthesis boundary, and provider exceptions MUST become typed failures.
-- **REQ-009:** Existing provider word marks MUST remain preserved through cache and playback without being replaced by fallback estimates; this feature MUST NOT add an unused local marked-wire protocol while no exact-host candidate satisfies realistic PT-BR coverage.
+- **REQ-009:** Existing provider word marks MUST remain preserved through cache and playback without being replaced by fallback estimates, and the popup MUST render the authoritative provider-versus-estimated timing basis rather than a constant label; this feature MUST NOT add an unused local marked-wire protocol while no exact-host candidate satisfies realistic PT-BR coverage.
 - **REQ-010:** Accepted word marks MUST be monotonic, sentence-local, source-occurrence-correct, and bounded by clip duration. The current local route remains on the labelled approximate fallback.
 - **REQ-011:** The approximate fallback MUST tokenize Unicode words, ignore structural-only tokens, account for punctuation pauses, and remain explicitly distinguishable from provider marks.
-- **REQ-012:** Loaded Firefox MUST cover all popup panels, one bounded Play, real EN/PT-BR approximate playback, unsupported glyph recovery, exactly one page player, and both browser-tab policy modes using public controls and deterministic observers; deterministic tests retain the existing valid-provider-mark path.
+- **REQ-012:** Loaded Firefox MUST cover all popup panels, Queue add/remove, one bounded chunk-request path from public Play, real EN/PT-BR approximate playback, unsupported glyph recovery, exactly one page player, and both browser-tab policy modes using public controls and deterministic observers. Production-entrypoint tests cover the held/repeated Play race and provider-basis transition; deterministic playback tests retain the valid-provider-mark path.
 - **REQ-013:** No install-time permission, telemetry, account requirement, managed-server behavior, or page-content destination may be added.
 
 ## Non-goals
@@ -90,7 +90,7 @@ As a reader, enabling **Stop playback when switching tabs** stops and clears the
 ## Acceptance criteria
 
 1. The recorded pre-fix live page with obsolete controls, `1/56` versus `0/56`, repeated starts, unsupported-glyph failure, and a false-green old oracle is represented by deterministic regressions.
-2. A loaded-extension public actor proves Player, Tools, Queue, loading, stop, one player root, approximate-timing disclosure on the real route, and both browser-tab modes.
+2. A loaded-extension public actor proves Player, Tools, Queue add/remove, stop, one player root, one bounded local request path, approximate-timing disclosure on the real route, and both browser-tab modes; the production-entrypoint race test proves loading suppresses repeated Play.
 3. The real selected loopback route handles punctuation, accents, numbers, and structural glyphs without an unhandled 5xx.
 4. Exact-head deterministic gates, seeded fuzzing, plants, and a different-family adversarial review pass.
 5. The daily Firefox deployment is accepted only after its XPI hash, model identity, loopback listener, one-player-per-page observation, and rollback receipt are recorded.

@@ -33,6 +33,7 @@ jq -e '
   .persistent == false and
   .probes.mixed_ptbr_box_glyphs.http_status == 200 and
   .probes.only_unsupported_glyphs.http_status == 422 and
+  .probes.mixed_shapes_arrows_bullets.http_status == 200 and
   .probes.traceback_or_500_after_restart == false
 ' "$sync_audit/evidence/supertonic-bridge3-receipt.json" >/dev/null
 curl -q -fsS http://127.0.0.1:5301/v1/health | jq -e '

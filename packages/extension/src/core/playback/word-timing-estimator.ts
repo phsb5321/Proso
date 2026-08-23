@@ -23,6 +23,10 @@ function tokenizeWords(text: string): WordToken[] {
   }));
 }
 
+export function hasSpeakableWords(text: string): boolean {
+  return tokenizeWords(text).length > 0;
+}
+
 function speechUnits(word: string, language?: string | null): number {
   if (/^[\p{N}]+$/u.test(word)) return Math.max(1, Array.from(word).length);
 

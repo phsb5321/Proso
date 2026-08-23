@@ -38,6 +38,13 @@ describe('splitSentences', () => {
     expect(result.value).toEqual(['The v1.2 API and Mr. Smith agree.']);
   });
 
+  it('does split punctuation preceded only by structural glyphs', () => {
+    const result = splitSentences('────. Conteúdo falado.');
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    expect(result.value).toEqual(['────.', 'Conteúdo falado.']);
+  });
+
   it('property: concatenation reproduces the input', () => {
     const input =
       'First sentence of the paragraph. Second one here! A third with numbers 1.5 and 2.5? ' +

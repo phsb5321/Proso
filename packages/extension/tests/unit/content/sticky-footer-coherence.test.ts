@@ -66,6 +66,19 @@ describe('StickyFooter runtime coherence', () => {
     expect(document.body.style.paddingBottom).toBe('0px');
   });
 
+  it('does not sweep live word and paragraph state during footer lifecycle', async () => {
+    document.body.innerHTML =
+      '<p class="proso-highlight" data-proso-index="0"><span class="proso-w">live word</span></p>';
+    const footer = new StickyFooter();
+
+    await footer.show();
+    footer.hide();
+
+    expect(document.querySelectorAll('.proso-w')).toHaveLength(1);
+    expect(document.querySelector('.proso-highlight')).not.toBeNull();
+    expect(document.querySelector('[data-proso-index]')).not.toBeNull();
+  });
+
   it('recomputes minimize padding from one immutable author value', async () => {
     document.body.style.paddingBottom = '12px';
     const footer = new StickyFooter();
