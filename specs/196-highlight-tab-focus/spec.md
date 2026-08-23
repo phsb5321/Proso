@@ -1,4 +1,4 @@
-# Feature 195 — Sentence-synchronized highlighting and tab-focus playback
+# Feature 196 — Sentence-synchronized highlighting and tab-focus playback
 
 ## Problem
 

@@ -804,7 +804,7 @@ second clip restarted the paragraph audio clock at zero. Two pre-fix regressions
 red: the first published timeline contained both sentences instead of sentence one, and a repeated
 word in sentence two wrapped the matching occurrence in sentence one.
 
-Feature 195 fixes the shared chunk path once. Each yielded clip is associated with the same
+Feature 196 fixes the shared chunk path once. Each yielded clip is associated with the same
 `splitSentences()` source unit the local-host adapter synthesized; fallback or native timings are
 translated from sentence-local offsets to absolute paragraph character/time offsets, and chunk
 zero now contributes its measured duration before chunk one starts. The content highlighter
