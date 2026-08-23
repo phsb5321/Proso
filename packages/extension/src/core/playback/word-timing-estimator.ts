@@ -1,3 +1,5 @@
+export type WordTimingBasis = 'provider' | 'estimated' | 'none';
+
 export interface EstimatedWordTiming {
   readonly word: string;
   readonly charOffset: number;

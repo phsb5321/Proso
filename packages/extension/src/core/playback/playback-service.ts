@@ -14,11 +14,7 @@ import type {
 } from '../../ports/audio-generator.port';
 import type { IAudioUrlProvider } from '../../ports/audio-url.port';
 import type { CacheEntry, CacheKey, ICacheStore } from '../../ports/cache-store.port';
-import type {
-  FooterState,
-  IHighlightSynchronizer,
-  WordTimingBasis,
-} from '../../ports/highlight-sync.port';
+import type { FooterState, IHighlightSynchronizer } from '../../ports/highlight-sync.port';
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
 import type { PlaybackQueue } from '../../utils/playback/playback-queue';
 import type { PrefetchService, PrefetchedAudio } from '../../utils/playback/prefetch';
@@ -39,6 +35,7 @@ import {
   playbackStateTransitions,
   playbackStateValidation,
 } from './playback-state';
+import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
 
 /**
@@ -1626,7 +1623,7 @@ export class PlaybackService {
     const currentSeconds = Math.round(this.state.progress * totalSeconds);
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-    const footerState: FooterState = {
+    const footerState: FooterState & { readonly timingBasis: WordTimingBasis } = {
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,

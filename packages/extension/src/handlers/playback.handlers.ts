@@ -9,9 +9,9 @@
 
 import { browser } from 'wxt/browser';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
+import type { WordTimingBasis } from '../core/playback/word-timing-estimator';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
-import type { WordTimingBasis } from '../ports/highlight-sync.port';
 import { tabLanguageStates } from './language.handlers';
 import type { HandlerRegistry } from './registry';
 import {
