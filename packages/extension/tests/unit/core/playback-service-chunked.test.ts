@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
 import { Ok } from '../../../src/core/shared/result';
+import type { Result } from '../../../src/core/shared/result';
 import type {
   AudioRequest,
   AudioResponse,
@@ -50,11 +51,7 @@ class ChunkedMockGenerator implements IAudioGenerator {
     throw new Error('chunked generator has no single-shot path');
   }
 
-  async *generateAudioChunks(): AsyncGenerator<
-    import('../../../src/core/shared/result').Result<AudioResponse, never>,
-    void,
-    void
-  > {
+  async *generateAudioChunks(): AsyncGenerator<Result<AudioResponse, never>, void, void> {
     for (const sentence of this.sentences) {
       this.requests.push({ text: sentence, voice: null, speed: 1, language: 'en' });
       const index = this.yieldedChunks.length;
@@ -67,7 +64,7 @@ class ChunkedMockGenerator implements IAudioGenerator {
     }
   }
 
-  async getVoices(): Promise<import('../../../src/core/shared/result').Result<Voice[], never>> {
+  async getVoices(): Promise<Result<Voice[], never>> {
     return Ok([]);
   }
 
