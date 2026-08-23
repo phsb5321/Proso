@@ -18,7 +18,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
-import { axe, criticalOrSerious, loadEntrypointFixture, renderFragment } from './render-entrypoint';
+import jestAxe from 'jest-axe';
+import { criticalOrSerious, loadEntrypointFixture, renderFragment } from './render-entrypoint';
 
 describe('Accessibility - Settings Page (T076)', () => {
   let cleanup: () => void;
@@ -39,7 +40,7 @@ describe('Accessibility - Settings Page (T076)', () => {
   });
 
   it('has no critical or serious accessibility violations', async () => {
-    const results = await axe(document.body);
+    const results = await jestAxe.axe(document.body);
     expect(criticalOrSerious(results)).toHaveNoViolations();
   });
 
