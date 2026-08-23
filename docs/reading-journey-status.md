@@ -723,9 +723,11 @@ The product had adopted it. The oracle compared `audio.getVoices` only to the fi
 Orange Pi ids, so any conforming host with another voice list failed before playback. Feature 193
 repairs the oracle at its root: real-host preflight reads `/v1/capabilities`, fails BLOCKED on an
 empty list, and attributes background adoption to the ids that host actually published. Fixture
-mode retains its own fixture ids. Against Supertonic, the real Firefox Nightly journey then reached
-20 voices, decoded and played audio, advanced the visible reading UI and highlight, and recorded
-zero managed `/api/v1/tts/synthesize` requests.
+mode retains its own fixture ids. The plant sweep now includes both sides of that branch: a real-host
+stub with unrelated voice ids must PASS, while a ready host with an empty catalog must BLOCK before
+Firefox launches; all eight plant/control/self-check runs were caught. Against Supertonic, the real
+Firefox Nightly journey then reached 20 voices, decoded and played audio, advanced the visible
+reading UI and highlight, and recorded zero managed `/api/v1/tts/synthesize` requests.
 
 Pedro's daily `main-session` profile was configured separately through Firefox's public AT-SPI
 roles and actions — the existing Proso Settings tab, `Host address`, `Enable the local synthesis

@@ -16,3 +16,4 @@
 | T012 | Obtain different-family review and resolve every finding | pending |
 | T013 | Push, merge, verify merged state, and clean the worktree | pending |
 | T014 | Repair the inherited PR #183 OSV baseline omission exposed by `make gate` | done — exact reviewed fingerprint, scanner unchanged |
+| T015 | Add deterministic plants for alternate and empty real-host voice catalogs | done — review finding |

@@ -162,6 +162,10 @@ function problem(res, status, code, detail) {
 /**
  * Start the fixture server.
  *
+ * `localHostVoices` lets plant suites prove the real-host gate against a host
+ * whose catalog differs from the Orange Pi fixture, including an empty catalog.
+ *
+ * @param {{licenseMode?: string, localHostVoices?: Array<object>}} options
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer(options = {}) {
@@ -184,6 +188,7 @@ export async function startFixtureServer(options = {}) {
    *   validate-500      the validation route fails outright.
    */
   const licenseMode = options.licenseMode ?? 'sold';
+  const localHostVoices = options.localHostVoices ?? LOCAL_HOST_VOICES;
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -250,7 +255,7 @@ export async function startFixtureServer(options = {}) {
         JSON.stringify({
           ready: true,
           limits: { maxTextUtf8Bytes: LOCAL_HOST_MAX_TEXT_UTF8_BYTES },
-          tts: { voices: LOCAL_HOST_VOICES },
+          tts: { voices: localHostVoices },
         }),
       );
       return;
@@ -285,7 +290,7 @@ export async function startFixtureServer(options = {}) {
           problem(res, 422, 'unknown_field', 'speed is required and must be a number');
           return;
         }
-        if (!LOCAL_HOST_VOICES.some((voice) => voice.id === body.voice)) {
+        if (!localHostVoices.some((voice) => voice.id === body.voice)) {
           problem(res, 422, 'unknown_voice', `Unknown voice: ${body.voice}`);
           return;
         }

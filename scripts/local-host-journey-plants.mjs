@@ -22,6 +22,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startFixtureServer } from './lib/reading-fixture-server.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
@@ -61,11 +62,33 @@ const PLANTS = [
   },
 ];
 
-function runGate(plant, script = 'scripts/local-host-journey-gate.mjs') {
+const REAL_HOST_PLANTS = [
+  {
+    plant: 'real-host-alternate-voices',
+    expect: 'PASS',
+    voices: [
+      {
+        id: 'alternate-english-voice',
+        language: 'en-US',
+        mediaTypes: ['audio/wav'],
+        markKinds: [],
+      },
+    ],
+    guards: 'real-host adoption comes from capabilities, not fixture-specific voice ids',
+  },
+  {
+    plant: 'real-host-empty-voices',
+    expect: 'BLOCKED',
+    voices: [],
+    guards: 'a ready real host that publishes no voice is blocked before browser launch',
+  },
+];
+
+function runGate(plant, script = 'scripts/local-host-journey-gate.mjs', extraEnv = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [script], {
       cwd: repoRoot,
-      env: { ...process.env, LOCAL_HOST_PLANT: plant },
+      env: { ...process.env, ...extraEnv, LOCAL_HOST_PLANT: plant },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
@@ -114,6 +137,23 @@ async function main() {
     const { verdict, reason } = readVerdict(run);
     const caught = verdict === entry.expect;
     results.push({ ...entry, verdict, caught, reason });
+    process.stdout.write(`${caught ? '  caught' : '  MISSED'} — ${verdict}: ${reason}\n`);
+  }
+
+  for (const entry of REAL_HOST_PLANTS) {
+    process.stdout.write(`\n=== plant ${entry.plant} — expect ${entry.expect} ===\n`);
+    const host = await startFixtureServer({ localHostVoices: entry.voices });
+    let run;
+    try {
+      run = await runGate('', 'scripts/local-host-journey-gate.mjs', {
+        LOCAL_HOST_APPLIANCE_URL: host.origin,
+      });
+    } finally {
+      await host.close();
+    }
+    const { verdict, reason } = readVerdict(run);
+    const caught = verdict === entry.expect;
+    results.push({ ...entry, voices: undefined, verdict, caught, reason });
     process.stdout.write(`${caught ? '  caught' : '  MISSED'} — ${verdict}: ${reason}\n`);
   }
 
