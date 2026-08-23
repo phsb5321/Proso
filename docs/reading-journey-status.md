@@ -795,6 +795,50 @@ The service remains transient across reboot. Child death and abandoned-stream co
 recovery receipts, but persistence is still a separate NixOS slice rather than an implied property
 of this model switch.
 
+## Update — 22/08/2026 (later): sentence-bounded word sync and tab-focus playback
+
+A daily-Nightly screenshot exposed a real local-host defect rather than a Supertonic quality
+judgment. The host synthesizes one sentence per clip, but `PlaybackService` estimated the **whole
+paragraph** against each clip. At the first transition, `chunkPlayedMs` was also still zero, so the
+second clip restarted the paragraph audio clock at zero. Two pre-fix regressions independently went
+red: the first published timeline contained both sentences instead of sentence one, and a repeated
+word in sentence two wrapped the matching occurrence in sentence one.
+
+Feature 196 fixes the shared chunk path once. Each yielded clip is associated with the same
+`splitSentences()` source unit the local-host adapter synthesized; fallback or native timings are
+translated from sentence-local offsets to absolute paragraph character/time offsets, and chunk
+zero now contributes its measured duration before chunk one starts. The content highlighter
+prefers those absolute offsets, so repeated words no longer bind to an earlier sentence. This is
+**not provider-measured word alignment**: hosts publishing `markKinds: []` still use a proportional
+estimate inside each sentence. The improvement is that the estimate cannot point outside the audio
+unit currently playing or reset the paragraph clock at a sentence boundary.
+
+The same feature adds the public, checked-by-default setting **Stop playback when switching tabs**.
+With it enabled, `browser.tabs.onActivated` delegates to the one existing
+`PlaybackService.stop()` path: the in-flight generation is aborted, audio/prefetch state is cleared,
+and the old tab's footer/highlight disappear. The newly active tab does not auto-play; its popup
+exposes Play and a public click starts a fresh session. Turning the checkbox off is applied through
+`storage.onChanged` without a background restart and preserves the previous background-listening
+behavior.
+
+The loaded-Firefox fixture now has a measured two-sentence WAV boundary and two real article tabs.
+It observed the active word enter sentence two, then proved both tab modes through the public
+settings checkbox and popup controls. The enabled run stopped/cleared/readied and started the
+second tab; the disabled run kept Pause and the old page's reading UI. The plant sweep passed 10/10:
+control stop, control continue, disabled-while-stop-expected, managed-route, no-enable, host-down,
+renamed control, alternate real-host voices, empty real-host catalog, and crashed-run self-check.
+The exact regressions additionally preserve native per-chunk timings while offsetting them onto the
+paragraph clock.
+
+The final real-host run remained loopback-only and passed the same stop/readiness/fresh-Play path
+with zero managed requests against an isolated Supertonic bridge on `127.0.0.1:5303`
+(`supertonic-1.3.1+proso-bridge.2`); that temporary verifier was stopped after the receipt. During
+this feature, a separate active model-evaluation seat replaced the daily-profile destination on
+`127.0.0.1:5301` with `qwentts.cpp-a8a7716+proso-bridge.1`. This diff neither selected nor replaced
+that runtime and makes the browser behavior provider-agnostic. The separate Firefox/Mesa
+buffer-starvation issue #194 is also not attributed to Proso by this feature: no freeze coincided
+with proven Proso playback, and its backdrop-filter performance finding remains a separate issue.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request

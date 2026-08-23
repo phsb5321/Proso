@@ -101,6 +101,9 @@ export const settingsSchema = z.object({
   // Enable auto-scroll to follow playback (027-settings-ux-overhaul)
   autoScroll: z.boolean().default(true),
 
+  // End the old page's reading session when browser focus moves to another tab.
+  stopPlaybackOnTabChange: z.boolean().default(true),
+
   // Default highlight color (045-pdf-removal-page-reader)
   defaultHighlightColor: z.enum(HIGHLIGHT_COLORS).default('yellow'),
 

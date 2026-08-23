@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { PlaybackService } from '../../../src/core/playback/playback-service';
 import { Ok } from '../../../src/core/shared/result';
+import type { Result } from '../../../src/core/shared/result';
 import type {
   AudioRequest,
   AudioResponse,
@@ -41,13 +42,16 @@ class ChunkedMockGenerator implements IAudioGenerator {
   readonly yieldedChunks: string[] = [];
   readonly requests: AudioRequest[] = [];
 
-  constructor(readonly sentences: string[] = ['First sentence.', 'Second sentence.']) {}
+  constructor(
+    readonly sentences: string[] = ['First sentence.', 'Second sentence.'],
+    private readonly timings: AudioResponse['wordTimings'][] = [],
+  ) {}
 
   async generateAudio(): Promise<never> {
     throw new Error('chunked generator has no single-shot path');
   }
 
-  async *generateAudioChunks(): AsyncGenerator<import('../../../src/core/shared/result').Result<AudioResponse, never>, void, void> {
+  async *generateAudioChunks(): AsyncGenerator<Result<AudioResponse, never>, void, void> {
     for (const sentence of this.sentences) {
       this.requests.push({ text: sentence, voice: null, speed: 1, language: 'en' });
       const index = this.yieldedChunks.length;
@@ -55,12 +59,12 @@ class ChunkedMockGenerator implements IAudioGenerator {
       yield Ok({
         audioBlob: new Blob([`chunk-${index}`], { type: `audio/chunk-${index}` }),
         durationMs: 1000 + index * 100,
-        wordTimings: null,
+        wordTimings: this.timings[index] ?? null,
       });
     }
   }
 
-  async getVoices(): Promise<import('../../../src/core/shared/result').Result<Voice[], never>> {
+  async getVoices(): Promise<Result<Voice[], never>> {
     return Ok([]);
   }
 
@@ -79,16 +83,16 @@ describe('PlaybackService chunked path', () => {
   let endedHandler: (() => void) | null;
 
   /** jsdom Blob lacks .text(); read via FileReader. */
-function readBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(blob);
-  });
-}
+  function readBlob(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+  }
 
-const testParagraphs = [
+  const testParagraphs = [
     'First sentence. Second sentence.',
     'Next paragraph. With two sentences.',
   ];
@@ -110,12 +114,14 @@ const testParagraphs = [
     // Capture the audio element's 'ended' listener so tests can drive the
     // chunk continuation deterministically.
     const originalAddEventListener = Audio.prototype.addEventListener;
-    jest
-      .spyOn(Audio.prototype, 'addEventListener')
-      .mockImplementation(function (this: HTMLAudioElement, event: unknown, cb: unknown) {
-        if (event === 'ended') endedHandler = cb as () => void;
-        return originalAddEventListener.call(this, event as string, cb as EventListener);
-      });
+    jest.spyOn(Audio.prototype, 'addEventListener').mockImplementation(function (
+      this: HTMLAudioElement,
+      event: unknown,
+      cb: unknown,
+    ) {
+      if (event === 'ended') endedHandler = cb as () => void;
+      return originalAddEventListener.call(this, event as string, cb as EventListener);
+    });
     jest.spyOn(Audio.prototype, 'play').mockImplementation(() => Promise.resolve());
 
     service = new PlaybackService({
@@ -144,7 +150,9 @@ const testParagraphs = [
 
     // Let the drain fill the queue.
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(generator.yieldedChunks).toEqual(testParagraphs[0] ? ['First sentence.', 'Second sentence.'] : []);
+    expect(generator.yieldedChunks).toEqual(
+      testParagraphs[0] ? ['First sentence.', 'Second sentence.'] : [],
+    );
   });
 
   it("consumes the queued chunk on 'ended' instead of advancing the paragraph", async () => {
@@ -153,12 +161,90 @@ const testParagraphs = [
 
     expect(endedHandler).not.toBeNull();
     endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Chunk 1 played; the paragraph did NOT advance.
     expect(mockAudioUrlProvider.createUrlCalls.length).toBe(2);
     const secondBlob = mockAudioUrlProvider.createUrlCalls[1]?.data as Blob;
     expect(await readBlob(secondBlob)).toBe('chunk-1');
     expect(service.getState().currentParagraphIndex).toBe(0);
+  });
+
+  it('publishes sentence-local timelines on a monotonic paragraph clock', async () => {
+    const timelineSpy = jest.spyOn(mockHighlightSync, 'setWordTimeline');
+
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const firstTimeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(firstTimeline?.map((entry) => entry.word)).toEqual(['First', 'sentence.']);
+    expect(firstTimeline?.[0]?.charOffset).toBe(0);
+    expect(firstTimeline?.at(-1)?.endTimeMs).toBeCloseTo(1000);
+
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const secondTimeline = timelineSpy.mock.calls.at(-1)?.[2];
+    expect(secondTimeline?.map((entry) => entry.word)).toEqual(['Second', 'sentence.']);
+    expect(secondTimeline?.[0]?.charOffset).toBe(testParagraphs[0].indexOf('Second'));
+    expect(secondTimeline?.[0]?.startTimeMs).toBeCloseTo(1000);
+    expect(secondTimeline?.at(-1)?.endTimeMs).toBeCloseTo(2100);
+  });
+
+  it('preserves provider timings while translating them to the paragraph clock', async () => {
+    const timedGenerator = new ChunkedMockGenerator(undefined, [
+      [{ word: 'First', startMs: 100, endMs: 400 }],
+      [{ word: 'Second', startMs: 50, endMs: 500 }],
+    ]);
+    service.setAudioGenerator(timedGenerator);
+    const timelineSpy = jest.spyOn(mockHighlightSync, 'setWordTimeline');
+
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(timelineSpy.mock.calls.at(-1)?.[2]).toEqual([
+      {
+        word: 'First',
+        charOffset: 0,
+        charLength: 5,
+        startTimeMs: 100,
+        endTimeMs: 400,
+      },
+    ]);
+
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(timelineSpy.mock.calls.at(-1)?.[2]).toEqual([
+      {
+        word: 'Second',
+        charOffset: testParagraphs[0].indexOf('Second'),
+        charLength: 6,
+        startTimeMs: 1050,
+        endTimeMs: 1500,
+      },
+    ]);
+  });
+
+  it('rejects an over-limit source sentence before opening the chunk generator', async () => {
+    const result = await service.start(['a'.repeat(8193)], testTabId, testPageUrl);
+
+    expect(result.ok).toBe(false);
+    expect(service.getState().status).toBe('error');
+    expect(generator.yieldedChunks).toHaveLength(0);
+  });
+
+  it('fails closed when a generator yields more chunks than source sentences', async () => {
+    const extraGenerator = new ChunkedMockGenerator(['Only sentence.', 'Unexpected chunk.']);
+    service.setAudioGenerator(extraGenerator);
+
+    await service.start(['Only sentence.'], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.getState().status).toBe('error');
+    expect(mockHighlightSync.showErrorCalls.at(-1)?.message).toContain(
+      'more audio chunks than source sentences',
+    );
   });
 
   it('advances to the next paragraph once the chunk queue is exhausted', async () => {

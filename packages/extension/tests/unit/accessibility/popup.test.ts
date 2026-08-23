@@ -18,42 +18,16 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
-// jest-axe is CommonJS; under jest's ESM runtime only the default import
-// reliably carries every member (incl. `toHaveNoViolations`).
-import jestAxe from 'jest-axe';
-import type { AxeImpact, AxeResults } from 'jest-axe';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import { loadEntrypointBody, renderFragment } from './render-entrypoint';
-
-const { axe, toHaveNoViolations } = jestAxe;
-expect.extend(toHaveNoViolations);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const POPUP_HTML = path.resolve(__dirname, '../../../src/entrypoints/popup/index.html');
-
-/**
- * Keep only critical + serious violations — the bar set by the spec
- * ("zero critical or serious violations").
- */
-function criticalOrSerious(results: AxeResults): AxeResults {
-  const blocking: AxeImpact[] = ['critical', 'serious'];
-  return {
-    ...results,
-    violations: results.violations.filter(
-      (v) => v.impact != null && blocking.includes(v.impact),
-    ),
-  };
-}
+import { axe, criticalOrSerious, loadEntrypointFixture, renderFragment } from './render-entrypoint';
 
 describe('Accessibility - Popup (T077)', () => {
   let cleanup: () => void;
 
   beforeEach(() => {
-    const body = loadEntrypointBody(fs.readFileSync(POPUP_HTML, 'utf-8'));
+    const body = loadEntrypointFixture(
+      import.meta.url,
+      '../../../src/entrypoints/popup/index.html',
+    );
     cleanup = renderFragment(body);
   });
 

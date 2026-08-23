@@ -37,9 +37,15 @@ const CORS = {
   exposedHeaders: ['X-Credits-Used', 'X-Credits-Remaining', 'X-Cache-Hit', 'X-Provider'],
 };
 
+/** Two clips whose boundary makes sentence-level synchronization observable. */
+export const WORD_SYNC_SENTENCES = [
+  'Sentence timing starts with these spoken words.',
+  'Boundary alignment now moves into the second sentence without jumping backward.',
+];
+
 /** Paragraphs the smoke asserts on. Long enough for the production extractor. */
 export const ARTICLE_PARAGRAPHS = [
-  'Accessible reading tools should preserve attention while the spoken words remain visibly connected to the source text on the page.',
+  WORD_SYNC_SENTENCES.join(' '),
   'A reliable reader must also let people pause, resume, change speed, and move between paragraphs without ever losing their place.',
   'This third paragraph makes the fixture article long enough for the production extraction heuristic and confirms ordered navigation works.',
 ];
@@ -56,6 +62,7 @@ const ARTICLE_HTML = `<!doctype html>
 <article>
 <h1>${ARTICLE_TITLE}</h1>
 ${ARTICLE_PARAGRAPHS.map((text) => `<p>${text}</p>`).join('\n')}
+<a id="open-companion-tab" href="/article?tab=second" target="_blank" rel="noopener">Open companion article</a>
 </article>
 </body>
 </html>
@@ -126,10 +133,14 @@ const FREE_PLAN = {
  * so a sentence yields seconds of audio rather than an instant clip that ends
  * before pause and resume can be observed.
  */
+export function fixtureAudioDurationMs(text) {
+  return Math.min(12, Math.max(1.2, text.length * 0.04)) * 1000;
+}
+
 function wavForText(text) {
   const sampleRate = 16_000;
   const bytesPerSample = 2;
-  const seconds = Math.min(12, Math.max(1.2, text.length * 0.04));
+  const seconds = fixtureAudioDurationMs(text) / 1000;
   const frames = Math.round(sampleRate * seconds);
   const dataBytes = frames * bytesPerSample;
 

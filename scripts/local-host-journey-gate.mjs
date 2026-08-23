@@ -52,6 +52,7 @@ import {
   JOURNEY_PREFS,
   READ_PAGE,
   blocked,
+  chromeEval,
   clickBrowserAction,
   clickByName,
   openExtensionPage,
@@ -60,8 +61,9 @@ import {
   resolveFirefox,
 } from './lib/firefox-popup.mjs';
 import {
-  ARTICLE_PARAGRAPHS,
   LOCAL_HOST_VOICES,
+  WORD_SYNC_SENTENCES,
+  fixtureAudioDurationMs,
   startFixtureServer,
 } from './lib/reading-fixture-server.mjs';
 import { launch, sleep, waitFor } from './lib/webdriver.mjs';
@@ -85,6 +87,8 @@ const NAME = {
   enable: 'Enable the local synthesis host',
   play: 'Play',
   pause: 'Pause',
+  appearance: 'Appearance',
+  tabFocus: 'Stop playback when switching tabs',
 };
 
 /**
@@ -99,6 +103,13 @@ const NAME = {
  *   enable-name   look the enable control up under a name it does not carry.
  */
 const PLANT = process.env.LOCAL_HOST_PLANT ?? '';
+
+/** `stop` is the default product behavior; `continue` proves the opt-out. */
+const TAB_BEHAVIOR = process.env.LOCAL_HOST_TAB_BEHAVIOR ?? 'stop';
+if (!['stop', 'continue'].includes(TAB_BEHAVIOR)) {
+  throw new Error(`Unknown LOCAL_HOST_TAB_BEHAVIOR: ${TAB_BEHAVIOR}`);
+}
+const EXPECT_TAB_STOP = TAB_BEHAVIOR === 'stop';
 
 /**
  * Opt-in: point the reader's own host at a REAL appliance instead of the
@@ -181,6 +192,49 @@ async function readText(driver, selector) {
     [selector],
   );
   return typeof text === 'string' ? text : null;
+}
+
+async function readChecked(driver, selector) {
+  return driver.execute(
+    `const el = document.querySelector(arguments[0]);
+     return el instanceof HTMLInputElement ? el.checked : null;`,
+    [selector],
+  );
+}
+
+async function activateTab(driver, handle, name) {
+  await driver.session('POST', '/window', { handle });
+  act(name, 'browser tab activation');
+}
+
+async function dismissBrowserActionPanel(driver) {
+  await chromeEval(
+    driver,
+    `const win = Services.wm.getMostRecentWindow('navigator:browser');
+     win.document.getElementById('customizationui-widget-panel')?.hidePopup();
+     return true;`,
+  );
+  await waitFor('the browser-action panel to close', async () => {
+    const state = await chromeEval(
+      driver,
+      `const win = Services.wm.getMostRecentWindow('navigator:browser');
+       return win.document.getElementById('customizationui-widget-panel')?.state ?? 'closed';`,
+    );
+    return state === 'closed' ? true : null;
+  });
+}
+
+async function openArticleTab(driver) {
+  const before = await driver.session('GET', '/window/handles');
+  const link = await findElement(driver, '#open-companion-tab', 'Open companion article');
+  await driver.session('POST', `/element/${link}/click`, {});
+  act('Open companion article', 'public page link');
+  const handle = await waitFor('the companion article tab', async () => {
+    const handles = await driver.session('GET', '/window/handles');
+    return handles.find((candidate) => !before.includes(candidate)) ?? null;
+  });
+  await driver.session('POST', '/window', { handle });
+  return handle;
 }
 
 /**
@@ -305,9 +359,9 @@ async function main() {
            serverUrl: origin,
            licenseKey: null,
            cacheType: 'memory',
-           // Slowest supported rate: at 1.0x a clip can finish before the
-           // page-visible reading state is observed at all.
-           speed: 0.5,
+           // The fixture's first sentence is long enough to observe at 1x,
+           // which keeps its deterministic clip-boundary clock simple.
+           speed: 1,
          })
          .then(done);`,
       [fixture.origin],
@@ -417,6 +471,43 @@ async function main() {
       record('the background adopted the host as the audio route', adopted);
     }
 
+    const appearanceExpanded = await driver.execute(
+      "return document.querySelector('#appearance .proso-accordion__header')?.getAttribute('aria-expanded') === 'true';",
+    );
+    if (!appearanceExpanded) {
+      await requirePublicName(driver, '#appearance .proso-accordion__header', NAME.appearance);
+      await clickElement(driver, '#appearance .proso-accordion__header', NAME.appearance);
+    }
+    const appearanceReady = await waitFor('the Appearance section to open', async () => {
+      const hidden = await driver.execute(
+        "return document.getElementById('appearance-content')?.hasAttribute('hidden');",
+      );
+      return hidden === false ? true : null;
+    }).catch(() => false);
+    if (!appearanceReady) blocked('The Appearance section never opened');
+
+    await requirePublicName(driver, 'label[for="stopPlaybackOnTabChange"]', NAME.tabFocus);
+    const actorWantsTabStop = PLANT === 'tab-stop-disabled' ? false : EXPECT_TAB_STOP;
+    const currentTabStop = await readChecked(driver, '#stopPlaybackOnTabChange');
+    if (currentTabStop === null) blocked(`No checkbox named "${NAME.tabFocus}"`);
+    if (currentTabStop !== actorWantsTabStop) {
+      await clickElement(driver, 'label[for="stopPlaybackOnTabChange"]', NAME.tabFocus);
+    }
+    const preferenceApplied = await waitFor('the tab-focus preference to persist', async () => {
+      const checked = await readChecked(driver, '#stopPlaybackOnTabChange');
+      const stored = await driver.executeAsync(
+        `const [done] = arguments;
+         browser.storage.local.get('stopPlaybackOnTabChange').then(done);`,
+      );
+      const storedBehavior = stored?.stopPlaybackOnTabChange !== false;
+      return checked === actorWantsTabStop && storedBehavior === actorWantsTabStop ? true : null;
+    }).catch(() => false);
+    if (!preferenceApplied) fail('The tab-focus checkbox did not persist its public state');
+    record(
+      'actor chose the tab-switch playback behavior',
+      actorWantsTabStop ? 'stop and ready the new tab' : 'continue background playback',
+    );
+
     if (PLANT === 'server-route') {
       // The PROSO-135/136 shape: the reader's configuration is intact and the
       // provider silently is not `local`, so playback takes the managed route.
@@ -429,14 +520,25 @@ async function main() {
       record('plant: provider forced back to a managed route', 'server-route');
     }
 
-    await driver.navigate(`${fixture.origin}/article`);
+    await driver.navigate(`${fixture.origin}/article?tab=first`);
     await waitFor('content script injection', async () => {
       const injected = await driver.execute(
         "return Boolean(document.getElementById('proso-content-styles'));",
       );
       return injected === true;
     });
-    record('content script injected into the article');
+    const firstArticleHandle = await driver.session('GET', '/window');
+    record('content script injected into the first article tab');
+
+    const secondArticleHandle = await openArticleTab(driver);
+    await waitFor('content script injection in the second tab', async () => {
+      const injected = await driver.execute(
+        "return Boolean(document.getElementById('proso-content-styles'));",
+      );
+      return injected === true;
+    });
+    record('second article tab is ready');
+    await activateTab(driver, firstArticleHandle, 'Activate the first article tab');
 
     await openPopup(driver);
     const opened = await waitFor('the Proso popup to open', async () => {
@@ -477,10 +579,8 @@ async function main() {
           return state?.open && state.names.includes(NAME.pause) ? { appliance: true } : null;
         }
         return (
-          fixture.localRequests.find((request) =>
-            ARTICLE_PARAGRAPHS.some((paragraph) =>
-              String(request.body?.input ?? '').includes(paragraph.slice(0, 40)),
-            ),
+          fixture.localRequests.find(
+            (request) => String(request.body?.input ?? '') === WORD_SYNC_SENTENCES[0],
           ) ?? null
         );
       },
@@ -586,6 +686,142 @@ async function main() {
     }
     record('popup announced the playing state publicly', `${NAME.pause} / ${whilePlaying.status}`);
 
+    if (!APPLIANCE_URL) {
+      const firstClipBoundary =
+        synthesized.at + fixtureAudioDurationMs(WORD_SYNC_SENTENCES[0]) + 200;
+      await sleep(Math.max(0, firstClipBoundary - Date.now()));
+      const secondOnlyWords = new Set(
+        (WORD_SYNC_SENTENCES[1].match(/\S+/g) ?? [])
+          .map((word) => word.replace(/[^A-Za-z]/g, '').toLowerCase())
+          .filter(
+            (word) => word.length > 0 && !WORD_SYNC_SENTENCES[0].toLowerCase().includes(word),
+          ),
+      );
+      const synchronized = await waitFor(
+        'the visible word to enter sentence two at the first clip boundary',
+        async () => {
+          const state = await readPage();
+          const activeWord = String(state?.activeWord ?? '')
+            .replace(/[^A-Za-z]/g, '')
+            .toLowerCase();
+          return secondOnlyWords.has(activeWord) ? state : null;
+        },
+        { timeoutMs: 2000 },
+      ).catch(() => null);
+      if (!synchronized) {
+        const state = await readPage();
+        fail(
+          'The word highlight did not enter sentence two at the measured clip boundary ' +
+            `(active word: ${state?.activeWord ?? 'none'})`,
+        );
+      }
+      record(
+        'word highlight entered sentence two after the measured audio boundary',
+        synchronized.activeWord,
+      );
+    }
+
+    await activateTab(driver, secondArticleHandle, 'Activate the second article tab');
+    const afterTabSwitch = await waitFor(
+      EXPECT_TAB_STOP ? 'the new tab to become ready' : 'background playback to continue',
+      async () => {
+        const state = await readPopup(driver);
+        if (!state.open) return null;
+        if (EXPECT_TAB_STOP) {
+          return state.names.includes(NAME.play) && !state.names.includes(NAME.pause)
+            ? state
+            : null;
+        }
+        return state.names.includes(NAME.pause) ? state : null;
+      },
+      { timeoutMs: 10_000 },
+    ).catch(() => null);
+    if (!afterTabSwitch) {
+      fail(
+        EXPECT_TAB_STOP
+          ? 'Activating another tab left the old audio playing instead of exposing Play'
+          : 'Background-listening mode stopped audio after a tab activation',
+      );
+    }
+    record(
+      EXPECT_TAB_STOP
+        ? 'tab activation stopped the old reading and readied the new tab'
+        : 'disabled tab-focus behavior kept background playback running',
+      EXPECT_TAB_STOP ? NAME.play : NAME.pause,
+    );
+
+    await activateTab(driver, firstArticleHandle, 'Return to the first article tab');
+    const oldPageAfterSwitch = await waitFor(
+      EXPECT_TAB_STOP ? 'the old page reading UI to clear' : 'the old page reading UI to remain',
+      async () => {
+        const state = await readPage();
+        const visible = state.footer && state.highlighted.length > 0;
+        return visible === !EXPECT_TAB_STOP ? state : null;
+      },
+      { timeoutMs: 10_000 },
+    ).catch(() => null);
+    if (!oldPageAfterSwitch) {
+      fail(
+        EXPECT_TAB_STOP
+          ? 'The old page retained its footer or highlight after tab-focus stop'
+          : 'The old page lost its reading UI while background playback was enabled',
+      );
+    }
+    record(
+      EXPECT_TAB_STOP ? 'old page audio UI and highlight cleared' : 'old page reading UI remained',
+    );
+
+    if (EXPECT_TAB_STOP) {
+      // GeckoDriver keeps the browser-action panel open across programmatic
+      // tab activation, unlike a physical tab click. Close only that chrome
+      // surface, then reopen through the public Unified Extensions controls.
+      await dismissBrowserActionPanel(driver);
+      await activateTab(driver, secondArticleHandle, 'Return to the second article tab');
+      await openPopup(driver);
+      const stoppedRequestCount = fixture.localRequests.length;
+      await sleep(500);
+      if (fixture.localRequests.length !== stoppedRequestCount) {
+        fail('The newly active tab started synthesis without the actor pressing Play');
+      }
+
+      await clickByName(driver, NAME.play, () => openPopup(driver));
+      act(`popup control "${NAME.play}" in the second tab`, 'accessible name');
+      const secondTabPlaying = await waitFor(
+        'the second tab to start a fresh reading session',
+        async () => {
+          const state = await readPopup(driver);
+          const synthesisObserved =
+            APPLIANCE_URL || fixture.localRequests.length > stoppedRequestCount;
+          return synthesisObserved && state.open && state.names.includes(NAME.pause) ? state : null;
+        },
+        { timeoutMs: 30_000 },
+      ).catch(() => null);
+      if (!secondTabPlaying) {
+        const [href, pageState, popupState, tabs] = await Promise.all([
+          driver.execute('return location.href;').catch(() => 'unavailable'),
+          readPage().catch(() => null),
+          readPopup(driver).catch(() => null),
+          chromeEval(
+            driver,
+            `const win = Services.wm.getMostRecentWindow('navigator:browser');
+             return win.gBrowser.tabs.map((tab) => ({
+               selected: tab === win.gBrowser.selectedTab,
+               url: tab.linkedBrowser.currentURI.spec,
+             }));`,
+          ).catch(() => null),
+        ]);
+        fail(
+          'Play on the newly active tab did not start a fresh reading session ' +
+            `(href=${href}, localRequests=${fixture.localRequests.length}, ` +
+            `page=${JSON.stringify(pageState)}, popup=${JSON.stringify(popupState)}, ` +
+            `tabs=${JSON.stringify(tabs)})`,
+        );
+      }
+      record('Play started a fresh session in the newly active tab', NAME.pause);
+    } else {
+      await activateTab(driver, secondArticleHandle, 'Return to the second article tab');
+    }
+
     mkdirSync(artifactDir, { recursive: true });
     const screenshot = await driver.session('GET', '/screenshot');
     const screenshotPath = path.join(artifactDir, 'local-host-journey.png');
@@ -632,6 +868,7 @@ function writeReceipt({
     relaxations: [
       'extensions.webextensions.remote=false — a remote popup document is opaque to the parent process, so its accessible names cannot be read at all out-of-process.',
       'extensions.webextOptionalPermissionPrompts=false — the grant request, its user gesture and the resulting permission are real; the doorhanger the reader would accept is not exercised.',
+      'GeckoDriver leaves Firefox’s browser-action panel open across programmatic tab activation. After the stop/clear/readiness assertions, the harness closes only that chrome panel before reopening it through Unified Extensions to prove fresh Play; no extension message, storage, or playback state is mutated by the cleanup.',
       ...(APPLIANCE_URL
         ? [
             `The synthesis host was the REAL appliance at ${APPLIANCE_URL}, not a fixture. Its request log is off-process, so the audio is proven by the popup announcing "${NAME.pause}" (status 'playing', which a failed decode never reaches) and attributed by the managed route recording zero requests — not by inspecting a request body. The visible reading state is deliberately NOT the evidence: the footer and first highlight are drawn before any synthesis request and survive the error path.`,

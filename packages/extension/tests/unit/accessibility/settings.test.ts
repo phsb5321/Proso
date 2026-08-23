@@ -18,42 +18,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
-// jest-axe is CommonJS; under jest's ESM runtime only the default import
-// reliably carries every member (incl. `toHaveNoViolations`).
 import jestAxe from 'jest-axe';
-import type { AxeImpact, AxeResults } from 'jest-axe';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import { loadEntrypointBody, renderFragment } from './render-entrypoint';
-
-const { axe, toHaveNoViolations } = jestAxe;
-expect.extend(toHaveNoViolations);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const SETTINGS_HTML = path.resolve(__dirname, '../../../src/entrypoints/settings.html');
-
-/**
- * Keep only critical + serious violations — the bar set by the spec
- * ("zero critical or serious violations").
- */
-function criticalOrSerious(results: AxeResults): AxeResults {
-  const blocking: AxeImpact[] = ['critical', 'serious'];
-  return {
-    ...results,
-    violations: results.violations.filter(
-      (v) => v.impact != null && blocking.includes(v.impact),
-    ),
-  };
-}
+import { criticalOrSerious, loadEntrypointFixture, renderFragment } from './render-entrypoint';
 
 describe('Accessibility - Settings Page (T076)', () => {
   let cleanup: () => void;
 
   beforeEach(() => {
-    const body = loadEntrypointBody(fs.readFileSync(SETTINGS_HTML, 'utf-8'));
+    const body = loadEntrypointFixture(import.meta.url, '../../../src/entrypoints/settings.html');
     cleanup = renderFragment(body);
   });
 
@@ -68,7 +40,7 @@ describe('Accessibility - Settings Page (T076)', () => {
   });
 
   it('has no critical or serious accessibility violations', async () => {
-    const results = await axe(document.body);
+    const results = await jestAxe.axe(document.body);
     expect(criticalOrSerious(results)).toHaveNoViolations();
   });
 
@@ -85,5 +57,16 @@ describe('Accessibility - Settings Page (T076)', () => {
       (select?.getAttribute('aria-label')?.trim().length ?? 0) > 0 ||
       document.querySelector('label[for="themeMode"]') !== null;
     expect(hasName).toBe(true);
+  });
+
+  it('exposes the tab-focus behavior as a named checkbox with an explanation', () => {
+    const checkbox = document.getElementById('stopPlaybackOnTabChange') as HTMLInputElement | null;
+    const label = checkbox?.closest('label');
+    const hintId = checkbox?.getAttribute('aria-describedby');
+
+    expect(checkbox?.type).toBe('checkbox');
+    expect(label?.textContent).toContain('Stop playback when switching tabs');
+    expect(hintId).toBe('stopPlaybackOnTabChangeHint');
+    expect(document.getElementById(hintId ?? '')?.textContent).toContain('background listening');
   });
 });

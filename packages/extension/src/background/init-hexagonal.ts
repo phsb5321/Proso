@@ -47,6 +47,7 @@ import {
   logDispatch,
   resetDispatchStats,
 } from '../utils/telemetry';
+import { stopPlaybackForTabChange } from './tab-playback-policy';
 
 const log = createLogger('background');
 
@@ -228,9 +229,27 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
       log.warn('[Hexagonal] Failed to wire logging dependencies', { error });
     }
 
-    // T006: Track active tab for footer handlers
+    // Keep the preference in memory so an activation never races an async
+    // storage read. Missing storage means enabled for existing installs.
+    const tabPreference = await browser.storage.local.get('stopPlaybackOnTabChange');
+    let stopPlaybackOnTabChange = tabPreference.stopPlaybackOnTabChange !== false;
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.stopPlaybackOnTabChange) {
+        stopPlaybackOnTabChange = changes.stopPlaybackOnTabChange.newValue !== false;
+      }
+    });
+
+    // Track the active tab for footer handlers and optionally end a reading
+    // session that belongs to the page the reader just left.
     browser.tabs.onActivated.addListener((activeInfo) => {
       setActiveTabId(activeInfo.tabId);
+      void stopPlaybackForTabChange(
+        container.services.playback,
+        activeInfo.tabId,
+        stopPlaybackOnTabChange,
+      ).catch((error: unknown) => {
+        log.warn('[Hexagonal] Failed to stop playback after tab activation', { error });
+      });
     });
 
     log.info('[Hexagonal] Container initialized with config', {

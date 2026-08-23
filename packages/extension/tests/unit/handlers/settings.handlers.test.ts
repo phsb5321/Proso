@@ -26,6 +26,7 @@ jest.unstable_mockModule('wxt/browser', () => ({
     storage: {
       local: {
         get: jest.fn<(keys: string | string[]) => Promise<Record<string, unknown>>>(),
+        set: jest.fn<(values: Record<string, unknown>) => Promise<void>>(),
       },
     },
   },
@@ -176,6 +177,22 @@ describe('Settings Handlers', () => {
       expect(registry.has('settings.getTheme')).toBe(true);
       expect(registry.has('settings.setTheme')).toBe(true);
       expect(registry.has('settings.resetSection')).toBe(true);
+    });
+  });
+
+  describe('settings.resetSection', () => {
+    it('restores tab-focus stopping with the appearance defaults', async () => {
+      const mockSet = browser.storage.local.set as unknown as jest.Mock<
+        (values: Record<string, unknown>) => Promise<void>
+      >;
+      mockSet.mockResolvedValue(undefined);
+
+      const result = await registry.dispatch('settings.resetSection', { section: 'appearance' });
+
+      expect(result.ok).toBe(true);
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({ stopPlaybackOnTabChange: true }),
+      );
     });
   });
 

@@ -97,6 +97,7 @@ interface OptionsElements {
   // Settings inputs
   highlightEnabled: HTMLInputElement;
   autoScroll: HTMLInputElement;
+  stopPlaybackOnTabChange: HTMLInputElement;
 
   // UI elements
   saveBtn: HTMLButtonElement;
@@ -206,6 +207,7 @@ function getElements(): OptionsElements {
     // Settings inputs
     highlightEnabled: getElement<HTMLInputElement>('highlightEnabled'),
     autoScroll: getElement<HTMLInputElement>('autoScroll'),
+    stopPlaybackOnTabChange: getElement<HTMLInputElement>('stopPlaybackOnTabChange'),
     saveBtn: getElement<HTMLButtonElement>('saveBtn'),
     saveStatus: getElement<HTMLElement>('saveStatus'),
     loggingEnabled: getElement<HTMLInputElement>('loggingEnabled'),
@@ -803,6 +805,10 @@ function setupStorageChangeListener(): void {
       elements.autoScroll.checked = changes.autoScroll.newValue as boolean;
     }
 
+    if (changes.stopPlaybackOnTabChange !== undefined) {
+      elements.stopPlaybackOnTabChange.checked = changes.stopPlaybackOnTabChange.newValue !== false;
+    }
+
     // T073: Cost estimate toggle sync (028-smart-audio-cache)
     if (changes.showCostEstimate !== undefined) {
       const showCostEstimateEl = document.getElementById(
@@ -984,6 +990,7 @@ async function loadSettings(): Promise<void> {
       'mode',
       'highlightEnabled',
       'autoScroll',
+      'stopPlaybackOnTabChange',
       'showCostEstimate',
     ]);
 
@@ -1007,6 +1014,10 @@ async function loadSettings(): Promise<void> {
       (result.autoScroll as boolean | undefined) !== undefined
         ? (result.autoScroll as boolean)
         : uiDefaults.autoScroll;
+
+    elements.stopPlaybackOnTabChange.checked =
+      (result.stopPlaybackOnTabChange as boolean | undefined) ??
+      settingsDefaults.stopPlaybackOnTabChange;
 
     // Cost estimate toggle (028-smart-audio-cache T073)
     const showCostEstimateEl = document.getElementById(
@@ -1102,6 +1113,14 @@ function setupAppearanceToggles(): void {
     await browser.storage.local.set({ autoScroll: enabled });
 
     toast.success(enabled ? 'Auto-scroll enabled' : 'Auto-scroll disabled');
+  });
+
+  elements.stopPlaybackOnTabChange.addEventListener('change', async () => {
+    if (!elements) return;
+
+    const enabled = elements.stopPlaybackOnTabChange.checked;
+    await browser.storage.local.set({ stopPlaybackOnTabChange: enabled });
+    toast.success(enabled ? 'Tab switching stops playback' : 'Background playback enabled');
   });
 
   // T073: Cost estimate toggle (028-smart-audio-cache)
@@ -1396,6 +1415,7 @@ async function saveSettings(): Promise<void> {
       speed: Number.parseFloat(elements.quickSpeed.value),
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
+      stopPlaybackOnTabChange: elements.stopPlaybackOnTabChange.checked,
     });
 
     // T018: Track settings saved event
