@@ -9,8 +9,8 @@ describe('stopPlaybackOnTabChange setting', () => {
   });
 
   it('preserves an explicit background-listening choice', () => {
-    expect(
-      settingsSchema.parse({ stopPlaybackOnTabChange: false }).stopPlaybackOnTabChange,
-    ).toBe(false);
+    expect(settingsSchema.parse({ stopPlaybackOnTabChange: false }).stopPlaybackOnTabChange).toBe(
+      false,
+    );
   });
 });

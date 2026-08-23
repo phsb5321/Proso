@@ -50,7 +50,11 @@ class ChunkedMockGenerator implements IAudioGenerator {
     throw new Error('chunked generator has no single-shot path');
   }
 
-  async *generateAudioChunks(): AsyncGenerator<import('../../../src/core/shared/result').Result<AudioResponse, never>, void, void> {
+  async *generateAudioChunks(): AsyncGenerator<
+    import('../../../src/core/shared/result').Result<AudioResponse, never>,
+    void,
+    void
+  > {
     for (const sentence of this.sentences) {
       this.requests.push({ text: sentence, voice: null, speed: 1, language: 'en' });
       const index = this.yieldedChunks.length;
@@ -82,16 +86,16 @@ describe('PlaybackService chunked path', () => {
   let endedHandler: (() => void) | null;
 
   /** jsdom Blob lacks .text(); read via FileReader. */
-function readBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(blob);
-  });
-}
+  function readBlob(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+  }
 
-const testParagraphs = [
+  const testParagraphs = [
     'First sentence. Second sentence.',
     'Next paragraph. With two sentences.',
   ];
@@ -113,12 +117,14 @@ const testParagraphs = [
     // Capture the audio element's 'ended' listener so tests can drive the
     // chunk continuation deterministically.
     const originalAddEventListener = Audio.prototype.addEventListener;
-    jest
-      .spyOn(Audio.prototype, 'addEventListener')
-      .mockImplementation(function (this: HTMLAudioElement, event: unknown, cb: unknown) {
-        if (event === 'ended') endedHandler = cb as () => void;
-        return originalAddEventListener.call(this, event as string, cb as EventListener);
-      });
+    jest.spyOn(Audio.prototype, 'addEventListener').mockImplementation(function (
+      this: HTMLAudioElement,
+      event: unknown,
+      cb: unknown,
+    ) {
+      if (event === 'ended') endedHandler = cb as () => void;
+      return originalAddEventListener.call(this, event as string, cb as EventListener);
+    });
     jest.spyOn(Audio.prototype, 'play').mockImplementation(() => Promise.resolve());
 
     service = new PlaybackService({
@@ -147,7 +153,9 @@ const testParagraphs = [
 
     // Let the drain fill the queue.
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(generator.yieldedChunks).toEqual(testParagraphs[0] ? ['First sentence.', 'Second sentence.'] : []);
+    expect(generator.yieldedChunks).toEqual(
+      testParagraphs[0] ? ['First sentence.', 'Second sentence.'] : [],
+    );
   });
 
   it("consumes the queued chunk on 'ended' instead of advancing the paragraph", async () => {

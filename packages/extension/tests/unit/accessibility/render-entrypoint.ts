@@ -14,11 +14,40 @@
  * @module tests/unit/accessibility/render-entrypoint
  */
 
+import { expect } from '@jest/globals';
+import jestAxe from 'jest-axe';
+import type { AxeImpact, AxeResults } from 'jest-axe';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const { axe, toHaveNoViolations } = jestAxe;
+expect.extend(toHaveNoViolations);
+export { axe };
+
+/** Keep only the critical and serious axe findings that block this test tier. */
+export function criticalOrSerious(results: AxeResults): AxeResults {
+  const blocking: AxeImpact[] = ['critical', 'serious'];
+  return {
+    ...results,
+    violations: results.violations.filter((result) => {
+      return result.impact != null && blocking.includes(result.impact);
+    }),
+  };
+}
+
 /**
  * Extract the inner markup of the `<body>` from a full HTML document string,
  * with scripts/links/styles removed. Falls back to the whole string if no
  * `<body>` is present (already a fragment).
  */
+export function loadEntrypointFixture(moduleUrl: string, relativePath: string): string {
+  const filename = fileURLToPath(moduleUrl);
+  return loadEntrypointBody(
+    fs.readFileSync(path.resolve(path.dirname(filename), relativePath), 'utf-8'),
+  );
+}
+
 export function loadEntrypointBody(html: string): string {
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const body = bodyMatch ? bodyMatch[1] : html;
