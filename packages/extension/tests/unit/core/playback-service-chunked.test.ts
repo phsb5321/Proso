@@ -227,6 +227,29 @@ describe('PlaybackService chunked path', () => {
     ]);
   });
 
+  it('rejects an over-limit source sentence before opening the chunk generator', async () => {
+    const result = await service.start(['a'.repeat(8193)], testTabId, testPageUrl);
+
+    expect(result.ok).toBe(false);
+    expect(service.getState().status).toBe('error');
+    expect(generator.yieldedChunks).toHaveLength(0);
+  });
+
+  it('fails closed when a generator yields more chunks than source sentences', async () => {
+    const extraGenerator = new ChunkedMockGenerator(['Only sentence.', 'Unexpected chunk.']);
+    service.setAudioGenerator(extraGenerator);
+
+    await service.start(['Only sentence.'], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.getState().status).toBe('error');
+    expect(mockHighlightSync.showErrorCalls.at(-1)?.message).toContain(
+      'more audio chunks than source sentences',
+    );
+  });
+
   it('advances to the next paragraph once the chunk queue is exhausted', async () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     await new Promise((resolve) => setTimeout(resolve, 0));
