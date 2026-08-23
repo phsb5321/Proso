@@ -831,12 +831,13 @@ The exact regressions additionally preserve native per-chunk timings while offse
 paragraph clock.
 
 The final real-host run remained loopback-only and passed the same stop/readiness/fresh-Play path
-with zero managed requests. By that run, the transient process on `127.0.0.1:5301` advertised
-`qwentts.cpp-a8a7716+proso-bridge.1`, not the Supertonic process recorded in the preceding historical
-section; this diff neither selected nor replaced the model and makes the browser behavior
-provider-agnostic. The separate Firefox/Mesa buffer-starvation issue #194 is also not attributed to
-Proso by this feature: no freeze coincided with proven Proso playback, and its backdrop-filter
-performance finding remains a separate issue.
+with zero managed requests against an isolated Supertonic bridge on `127.0.0.1:5303`
+(`supertonic-1.3.1+proso-bridge.2`); that temporary verifier was stopped after the receipt. During
+this feature, a separate active model-evaluation seat replaced the daily-profile destination on
+`127.0.0.1:5301` with `qwentts.cpp-a8a7716+proso-bridge.1`. This diff neither selected nor replaced
+that runtime and makes the browser behavior provider-agnostic. The separate Firefox/Mesa
+buffer-starvation issue #194 is also not attributed to Proso by this feature: no freeze coincided
+with proven Proso playback, and its backdrop-filter performance finding remains a separate issue.
 
 ## Next verified slices
 
