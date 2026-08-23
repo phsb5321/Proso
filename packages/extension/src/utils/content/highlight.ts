@@ -250,9 +250,16 @@ export class HighlightManager {
     const wordPositions: { start: number; end: number; timelineIdx: number }[] = [];
     let searchFrom = 0;
     for (let i = 0; i < timeline.length; i++) {
-      const w = timeline[i]!.word.trim();
+      const entry = timeline[i]!;
+      const w = entry.word.trim();
       if (!w) continue;
-      const idx = flatText.indexOf(w, searchFrom);
+      const preferredOffset = Math.max(searchFrom, entry.charOffset);
+      let idx = flatText.indexOf(w, preferredOffset);
+      if (idx < 0 && preferredOffset !== searchFrom) {
+        // Provider text normalization can shift offsets; preserve the legacy
+        // sequential search only when the offset-addressed lookup has no match.
+        idx = flatText.indexOf(w, searchFrom);
+      }
       if (idx >= 0) {
         wordPositions.push({ start: idx, end: idx + w.length, timelineIdx: i });
         searchFrom = idx + w.length;

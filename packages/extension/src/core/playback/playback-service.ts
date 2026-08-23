@@ -18,6 +18,7 @@ import type { FooterState, IHighlightSynchronizer } from '../../ports/highlight-
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
 import type { PlaybackQueue } from '../../utils/playback/playback-queue';
 import type { PrefetchService, PrefetchedAudio } from '../../utils/playback/prefetch';
+import { splitSentences } from '../audio/sentence-chunker';
 import type {
   AudioError,
   ExtractionMode,
@@ -743,7 +744,14 @@ export class PlaybackService {
    * PROSO-110 chunked playback: per-paragraph sentence chunks consumed on
    * 'ended' instead of advancing. Only populated on the local-host path.
    */
-  private chunkQueue: Array<{ audioBlob: Blob; durationMs: number; error?: string }> = [];
+  private chunkQueue: Array<{
+    audioBlob: Blob;
+    durationMs: number;
+    wordTimings: AudioResponse['wordTimings'];
+    sourceText: string;
+    sourceOffset: number;
+    error?: string;
+  }> = [];
   private chunkQueueDone = false;
   private chunkTotalMs = 0;
   private chunkPlayedMs = 0;
@@ -776,6 +784,13 @@ export class PlaybackService {
     const textResult = await this.paragraphTextOrError(index);
     if (isErr(textResult)) return textResult;
     const text = textResult.value;
+    const sourceResult = splitSentences(text);
+    if (isErr(sourceResult)) {
+      const error = this.convertAudioError(sourceResult.error);
+      await this.setError(error);
+      return Err(error);
+    }
+    const chunkSources = this.locateChunkSources(text, sourceResult.value);
 
     const request: AudioRequest = {
       text,
@@ -814,21 +829,27 @@ export class PlaybackService {
       return Err(error);
     }
     const firstChunk = first.value.value;
+    const firstSource = chunkSources[0]!;
     this.chunkTotalMs = firstChunk.durationMs;
+    this.chunkPlayedMs = firstChunk.durationMs;
     this.chunkBaseMs = 0;
 
     // Drain the remaining chunks ahead of playback (never starves at the
     // measured RTF ~0.2: the producer runs ~5x ahead of the consumer).
-    void this.drainChunkQueue(iterator, generation);
+    void this.drainChunkQueue(iterator, generation, chunkSources.slice(1));
 
     const played = await this.playAudio(firstChunk.audioBlob, generation);
     if (!played) return Ok(this.state);
 
-    // Timeline covers what has been received so far; it grows as chunks land.
     return this.finalizeParagraphPlayback(index, generation, {
-      durationMs: firstChunk.durationMs + (this.chunkTotalMs - firstChunk.durationMs),
+      durationMs: firstChunk.durationMs,
       providerTimings: null,
-      preconvertedTimings: null,
+      preconvertedTimings: this.offsetChunkTimings(
+        firstSource,
+        firstChunk.durationMs,
+        firstChunk.wordTimings,
+        0,
+      ),
     });
   }
 
@@ -836,10 +857,24 @@ export class PlaybackService {
   private async drainChunkQueue(
     iterator: AsyncGenerator<Result<AudioResponse, AudioError>, void, void>,
     generation: number,
+    sources: ReadonlyArray<{ text: string; charOffset: number }>,
   ): Promise<void> {
+    let sourceIndex = 0;
     try {
       for await (const chunk of iterator) {
         if (!this.isCurrentGeneration(generation)) return;
+        const source = sources[sourceIndex++];
+        if (!source) {
+          this.chunkQueue.push({
+            audioBlob: new Blob(),
+            durationMs: 0,
+            wordTimings: null,
+            sourceText: '',
+            sourceOffset: 0,
+            error: 'Local synthesis host produced more audio chunks than source sentences',
+          });
+          return;
+        }
         if (isErr(chunk)) {
           const message =
             chunk.error.type === 'network' || chunk.error.type === 'provider_error'
@@ -847,11 +882,21 @@ export class PlaybackService {
               : chunk.error.type === 'rate_limit'
                 ? 'Local synthesis host is busy; retrying'
                 : 'Local synthesis host failed';
-          this.chunkQueue.push({ audioBlob: new Blob(), durationMs: 0, error: message });
+          this.chunkQueue.push({
+            audioBlob: new Blob(),
+            durationMs: 0,
+            wordTimings: null,
+            sourceText: source.text,
+            sourceOffset: source.charOffset,
+            error: message,
+          });
         } else {
           this.chunkQueue.push({
             audioBlob: chunk.value.audioBlob,
             durationMs: chunk.value.durationMs,
+            wordTimings: chunk.value.wordTimings,
+            sourceText: source.text,
+            sourceOffset: source.charOffset,
           });
           this.chunkTotalMs += chunk.value.durationMs;
         }
@@ -876,10 +921,9 @@ export class PlaybackService {
   }
 
   /**
-   * Play the next queued chunk for the current paragraph (invoked from the
-   * audio element's 'ended' handler). Rebuilds the word timeline against the
-   * running paragraph total so highlighting keeps covering the whole
-   * paragraph as chunks land (spec 100 D-3: estimate from a real duration).
+   * Play the next queued sentence on the paragraph's monotonic audio clock.
+   * Its fallback timeline is bounded to this sentence's measured duration;
+   * words from future sentences are not squeezed into a partial clip.
    */
   private async playNextChunk(): Promise<boolean> {
     const chunk = this.chunkQueue.shift();
@@ -896,24 +940,70 @@ export class PlaybackService {
     }
 
     this.chunkBaseMs = this.chunkPlayedMs;
-    const played = await this.playAudio(chunk.audioBlob, generation);
-    if (!played) return false;
-    this.chunkPlayedMs += chunk.durationMs;
-
-    // Rebuild the timeline: paragraph time = chunkBaseMs + element time.
-    const paragraphText = this.state.paragraphs[this.state.currentParagraphIndex] ?? '';
-    const totalMs = this.chunkBaseMs + chunk.durationMs;
-    if (totalMs > 0 && this.state.activeTabId !== null) {
-      await this.buildAndSetWordTimeline(
+    const timings = this.offsetChunkTimings(
+      { text: chunk.sourceText, charOffset: chunk.sourceOffset },
+      chunk.durationMs,
+      chunk.wordTimings,
+      this.chunkBaseMs,
+    );
+    if (this.state.activeTabId !== null) {
+      const continued = await this.buildAndSetWordTimeline(
         this.state.currentParagraphIndex,
-        paragraphText,
-        totalMs,
-        null,
+        chunk.sourceText,
+        chunk.durationMs,
+        timings,
         null,
         generation,
       );
+      if (!continued) return false;
     }
+
+    const played = await this.playAudio(chunk.audioBlob, generation);
+    if (!played) return false;
+    this.chunkPlayedMs += chunk.durationMs;
     return true;
+  }
+
+  /** Map sentence chunks back onto the paragraph's source character clock. */
+  private locateChunkSources(
+    paragraphText: string,
+    sentences: readonly string[],
+  ): Array<{ text: string; charOffset: number }> {
+    let searchFrom = 0;
+    return sentences.map((text) => {
+      const exactOffset = paragraphText.indexOf(text, searchFrom);
+      const firstWord = text.match(/\S+/)?.[0] ?? '';
+      const wordOffset = firstWord ? paragraphText.indexOf(firstWord, searchFrom) : -1;
+      const charOffset = exactOffset >= 0 ? exactOffset : wordOffset >= 0 ? wordOffset : searchFrom;
+      searchFrom = charOffset + text.length;
+      return { text, charOffset };
+    });
+  }
+
+  /** Keep sentence-local timing estimates on the paragraph's absolute clock. */
+  private offsetChunkTimings(
+    source: { text: string; charOffset: number },
+    durationMs: number,
+    providerTimings: AudioResponse['wordTimings'],
+    timeOffsetMs: number,
+  ): Array<{
+    word: string;
+    charOffset: number;
+    charLength: number;
+    startTimeMs: number;
+    endTimeMs: number;
+  }> {
+    const localTimings =
+      providerTimings && providerTimings.length > 0
+        ? this.convertProviderTimings(providerTimings, source.text)
+        : this.estimateWordTimings(source.text, durationMs);
+
+    return localTimings.map((timing) => ({
+      ...timing,
+      charOffset: source.charOffset + timing.charOffset,
+      startTimeMs: timeOffsetMs + timing.startTimeMs,
+      endTimeMs: timeOffsetMs + timing.endTimeMs,
+    }));
   }
 
   /**

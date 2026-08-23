@@ -41,7 +41,10 @@ class ChunkedMockGenerator implements IAudioGenerator {
   readonly yieldedChunks: string[] = [];
   readonly requests: AudioRequest[] = [];
 
-  constructor(readonly sentences: string[] = ['First sentence.', 'Second sentence.']) {}
+  constructor(
+    readonly sentences: string[] = ['First sentence.', 'Second sentence.'],
+    private readonly timings: AudioResponse['wordTimings'][] = [],
+  ) {}
 
   async generateAudio(): Promise<never> {
     throw new Error('chunked generator has no single-shot path');
@@ -55,7 +58,7 @@ class ChunkedMockGenerator implements IAudioGenerator {
       yield Ok({
         audioBlob: new Blob([`chunk-${index}`], { type: `audio/chunk-${index}` }),
         durationMs: 1000 + index * 100,
-        wordTimings: null,
+        wordTimings: this.timings[index] ?? null,
       });
     }
   }
@@ -153,6 +156,7 @@ const testParagraphs = [
 
     expect(endedHandler).not.toBeNull();
     endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Chunk 1 played; the paragraph did NOT advance.
     expect(mockAudioUrlProvider.createUrlCalls.length).toBe(2);
@@ -180,6 +184,39 @@ const testParagraphs = [
     expect(secondTimeline?.[0]?.charOffset).toBe(testParagraphs[0].indexOf('Second'));
     expect(secondTimeline?.[0]?.startTimeMs).toBeCloseTo(1000);
     expect(secondTimeline?.at(-1)?.endTimeMs).toBeCloseTo(2100);
+  });
+
+  it('preserves provider timings while translating them to the paragraph clock', async () => {
+    const timedGenerator = new ChunkedMockGenerator(undefined, [
+      [{ word: 'First', startMs: 100, endMs: 400 }],
+      [{ word: 'Second', startMs: 50, endMs: 500 }],
+    ]);
+    service.setAudioGenerator(timedGenerator);
+    const timelineSpy = jest.spyOn(mockHighlightSync, 'setWordTimeline');
+
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(timelineSpy.mock.calls.at(-1)?.[2]).toEqual([
+      {
+        word: 'First',
+        charOffset: 0,
+        charLength: 5,
+        startTimeMs: 100,
+        endTimeMs: 400,
+      },
+    ]);
+
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(timelineSpy.mock.calls.at(-1)?.[2]).toEqual([
+      {
+        word: 'Second',
+        charOffset: testParagraphs[0].indexOf('Second'),
+        charLength: 6,
+        startTimeMs: 1050,
+        endTimeMs: 1500,
+      },
+    ]);
   });
 
   it('advances to the next paragraph once the chunk queue is exhausted', async () => {
