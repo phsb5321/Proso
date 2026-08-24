@@ -76,7 +76,7 @@ into the route above. The route sentence stands unchanged until that lands.
 | ✗ | The advertised `queueCapacity: 8` is the TTS admission budget | A 12-way burst admitted 4 and returned 429 `queue_full` for the other 8; the appliance's `config.py:107` sets `tts_capacity = 4` and the per-class split is not published by `/v1/capabilities`. One inference worker, no preemption |
 | ✗ | Feature 100's extension-direct seam is a settled design | A prior recorded decision mandates the opposite seam. `2. Areas/🧙 Merlin Unlock/projects/orangepi-audio-appliance/RESEARCH.md` in Pedro's vault, L53-76, routes the appliance as `Proso extension → existing Proso API → server-side AudioApplianceTTSAdapter → Tailscale Serve → loopback wrapper` and states at L74-75 "Do not add direct Pi networking to Proso content scripts or the Lectrice WebView"; L420-443 fixes the seam at `ServerTtsAudioAdapter → /api/v1/tts/synthesize → TTSProviderPort → AudioApplianceTTSAdapter → Pi /v1/tts` and requires "no Pi hostname permission or bearer token in the extension" (L442). Feature 100 was specified extension-direct because that record was not read before design started. Which seam ships is an open decision for Pedro, not a settled premise of this feature |
 | ◯ | The vault's step-3 precondition for client work is satisfied | The same record sequences delivery and states at L495 "No client PR should start before steps 1–3 establish the stable contract". Steps 1 and 2 shipped on 31/07/2026 outside this repository (NixOS PRs #1481, #1487, #1496). Step 3 (L486-487) is burst, cancellation, idempotency, sustained thermal, and human speech acceptance. Burst and idempotency are measured in [`appliance-measurements-2026-08-05.md`](research/appliance-measurements-2026-08-05.md); cancellation and sustained thermal are being measured on 05/08; human speech acceptance is a listening test only Pedro can run and stays with him. PR #95 is held meanwhile |
-| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit. Cause established 14/08/2026: private-repository Actions metering on a free personal plan — public repositories on the same account still run Actions, private ones stopped, and `rulesets` 403s with `Upgrade to GitHub Pro`. Still true nine days on, so this row stands; see [the resolution](#github-actions-produces-nothing-at-all). The same 403 means the repository has no branch protection either, so no required check has ever gated a merge here |
+| ✗ | Any GitHub Actions result on this repo is currently evidence | Every run since `2026-08-05T20:52Z`, `main` included, is `startup_failure` with `name: ""`, `path: "BuildFailed"` and `total_count: 0` jobs (`gh run list`, `gh api .../actions/runs/31049046583/jobs`). The last runs that executed jobs are `CI` and `Server CI` at `2026-08-02T17:34Z`. No workflow file changed since `b2b74e4` (PR #70, 01/08), so the cause is not a tracked workflow edit. Cause established 14/08/2026: private-repository Actions metering on a free personal plan — public repositories on the same account still run Actions, private ones stopped, and `rulesets` 403s with `Upgrade to GitHub Pro`. Still true nine days on, so this row stands; see [the resolution](#github-actions-produces-nothing-at-all). The same 403 means the repository has no branch protection either, so no required check has ever gated a merge here. **Superseded for CI purposes on 24/08/2026:** the merge gate no longer runs on GitHub at all — `ci.yml` and `server-ci.yml` moved to `.forgejo/workflows/` and execute on the self-hosted Forgejo Actions runner (NixOS PR #1986). GitHub dispatch is no longer required for a CI verdict, and no GitHub Actions minute is consumed by push or PR. What this row still asserts, unchanged: no *GitHub* check gates a merge, and branch protection remains unavailable on this plan, so a green Forgejo run is evidence a human/agent must read rather than an enforced gate |
 | ✓ | Server/provider availability at deployed SHA `9c761c3` | Deployment receipt below: public health/database green; uncached and cached zero-credit TTS canaries returned the same valid MP3. This predates the current Free-tier gate |
 
 ## Production deployment receipt — 30/07/2026
@@ -861,6 +861,39 @@ Unit-pinned (9 new tests), full extension suite 2642 passing, `make verify` and
 `make verify-full` green, real-host journey PASS at `f7aa9ce`. Different-family
 review blocked by lane availability (anthropic oracle capped, DeepSeek refuses
 private payloads, groq meta-llama retired) — recorded in the spec research.
+
+## Update — 24/08/2026: CI moved off GitHub to the self-hosted Forgejo runner
+
+The Actions outage is 19 days old and its root cause is an outstanding
+US$130.97 invoice (fleet ledger row `interview-copilot-actions`) — Pedro-gated.
+Rather than wait on it, the delivery gate moved off GitHub entirely.
+
+The trap worth recording, because it is the obvious wrong answer: a self-hosted
+**GitHub** runner does not fix this. The block is at the **dispatch** layer —
+runs die as `startup_failure` with **0 jobs**, so GitHub never creates work for
+a runner to collect. This was measured on the NixOS repo, whose self-hosted
+runner was online throughout. Forgejo Actions replaces the dispatch layer, which
+is why NixOS CI kept running while Proso's did not.
+
+What landed:
+
+- **NixOS PR #1986** — the single-purpose `nixos-forgejo-mirror` module became a
+  generic `forgejo-mirror` with named instances (`nixos`, `proso`); the runner
+  gained `ubuntu-latest`/`ubuntu-22.04` container labels so Proso's pnpm/node
+  workflows run verbatim; a new `selfhosted-ci-wired-server` check was falsified
+  both ways by plant. (NixOS PR #1988 fixed formatting so `nix flake check`, and
+  therefore `deploy-rs`, pass.)
+- **This PR** — `ci.yml` and `server-ci.yml` moved to `.forgejo/workflows/`.
+  That path is the cost control: Forgejo reads it, GitHub ignores it, so this CI
+  cannot consume a paid Actions minute even after the invoice clears. The
+  remaining GitHub workflows lost their automatic triggers (`sonar.yml` →
+  manual; `deploy-site.yml` → dispatch-only), leaving `release.yml`'s `v*` tag
+  trigger as the single deliberate exception, documented in its header.
+
+Honest limits: a green Forgejo run is **evidence, not an enforced gate** —
+branch protection is still unavailable on this plan, and Forgejo results do not
+post back to GitHub PRs. SonarQube and the site publish are not ported; the site
+remains a host decision, not a CI problem.
 
 ## Next verified slices
 

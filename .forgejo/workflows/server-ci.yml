@@ -1,3 +1,7 @@
+# Runs on the self-hosted Forgejo Actions runner (server host), NOT on GitHub.
+# See the header of `.forgejo/workflows/ci.yml` for why this lives here: GitHub
+# blocks dispatch at the account level, and `.forgejo/` can never bill a paid
+# GitHub Actions minute.
 name: Server CI
 
 on:
