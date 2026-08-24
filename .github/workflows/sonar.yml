@@ -1,11 +1,18 @@
+# MANUAL ONLY (24/08/2026). The automatic push/pull_request triggers were
+# removed so this workflow cannot consume paid GitHub Actions minutes: it ran
+# on every push and PR to main, which is the most expensive cadence in the
+# repository. GitHub dispatch is dead anyway (`startup_failure`, 0 jobs, since
+# 05/08/2026), so nothing is lost today -- this only prevents the spend from
+# resuming silently the moment the outstanding invoice clears.
+#
+# The reading/build gate now runs self-hosted (`.forgejo/workflows/`). Porting
+# SonarQube there needs SONAR_TOKEN/SONAR_HOST_URL on the Forgejo instance and
+# is deliberately left as a follow-up rather than half-done here.
+# Run on demand: `gh workflow run sonar.yml` (requires working GitHub dispatch).
 name: SonarQube
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read

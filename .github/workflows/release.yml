@@ -1,3 +1,14 @@
+# INTENTIONALLY still GitHub-dispatched (24/08/2026) -- this is the one
+# workflow whose tag trigger was NOT removed when CI moved to
+# `.forgejo/workflows/` to stop paying for Actions.
+#
+# Reasoning, so this does not read as an oversight: it fires only on `v*` tags
+# (a few times a year, not per push), and its work is genuinely GitHub-coupled
+# -- it publishes GitHub Releases and submits to AMO, and those release assets
+# are the extension's auto-update lifeline. Porting it to Forgejo would point
+# `softprops/action-gh-release` at Forgejo's release API instead, silently
+# moving the artifacts users update from. That is a distribution decision, not
+# a CI one.
 name: Release
 
 on:

@@ -1,3 +1,21 @@
+# Runs on the self-hosted Forgejo Actions runner (server host), NOT on GitHub.
+#
+# GitHub Actions has produced nothing for this repository since 05/08/2026:
+# every run is `startup_failure` with 0 jobs, because the block is at the
+# DISPATCH layer (account-level). A self-hosted *GitHub* runner cannot help --
+# GitHub never creates a job for it to pick up. Forgejo Actions replaces the
+# dispatch layer entirely.
+#
+# Living under `.forgejo/workflows/` (not `.github/workflows/`) is deliberate
+# and is the cost control: Forgejo reads this path, GitHub ignores it, so this
+# CI can never consume a paid GitHub Actions minute -- including after the
+# outstanding invoice is settled and dispatch is restored.
+#
+# `runs-on: ubuntu-latest` is served by the runner's container label
+# (`ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-22.04`), so these
+# jobs run verbatim rather than being rewritten against nix toolchains.
+# Mirror: NixOS `modules/services/forgejo-mirror.nix` instance `proso`
+# pushes GitHub `main` -> Forgejo whenever it advances (SHA-gated).
 name: CI
 
 on:
@@ -8,7 +26,7 @@ on:
       - 'packages/shared/**'
       - 'packages/server/**'
       - 'pnpm-lock.yaml'
-      - '.github/workflows/ci.yml'
+      - '.forgejo/workflows/ci.yml'
   push:
     branches: [develop, main]
     paths:
@@ -16,7 +34,7 @@ on:
       - 'packages/shared/**'
       - 'packages/server/**'
       - 'pnpm-lock.yaml'
-      - '.github/workflows/ci.yml'
+      - '.forgejo/workflows/ci.yml'
 
 jobs:
   # ============================================

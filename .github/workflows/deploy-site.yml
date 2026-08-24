@@ -1,11 +1,17 @@
+# MANUAL ONLY (24/08/2026). The automatic push trigger was removed so this
+# cannot consume paid GitHub Actions minutes once dispatch is restored.
+#
+# It could not publish anyway: GitHub *Pages* builds are metered on the same
+# account, and a branch-based publish was measured on 15/08/2026 returning
+# `{"status":"queued"}` while creating zero builds. The corrected site tree is
+# already staged on the `gh-pages` branch with `updates.json` + `releases/`
+# byte-identical; publishing it is a HOST decision (Dokku behind the existing
+# Cloudflare tunnel is the recommendation in specs/176-pilot-release/plan.md),
+# not a CI problem. Whatever host is chosen must carry `updates.json` and
+# `releases/` into the site root or installed extensions stop auto-updating.
 name: Deploy Landing Page
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/site/**'
-      - 'packages/legal/**'
   repository_dispatch:
     types: [release-deployed]
   workflow_dispatch:
