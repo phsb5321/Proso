@@ -354,6 +354,16 @@ jobs:
       - name: Build Chrome extension
         run: pnpm --filter @proso/extension build:chrome
 
+      # The Chromium project loads the CHROME build, but Playwright's
+      # `webServer` (playwright.config.js:35) serves page fixtures from
+      # `.output/firefox-mv2`, and `scripts/serve-built.mjs` calls
+      # `process.exit(1)` when that directory has no settings.html. Building
+      # only Chrome is why this job reported
+      # "Process from config.webServer was not able to start. Exit code: 1"
+      # instead of a test result. Both outputs are required here.
+      - name: Build Firefox extension (served by the Playwright webServer)
+        run: pnpm --filter @proso/extension build:firefox
+
       - name: Run extension E2E tests
         run: pnpm --filter @proso/extension test:e2e:ext
 
