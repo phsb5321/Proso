@@ -3,6 +3,18 @@
 # distribution created in cloudfront.tf, constrained by its ARN.
 
 resource "aws_s3_bucket" "site" {
+  # checkov:skip=CKV_AWS_145:SSE-KMS would force a customer-managed key. CloudFront
+  # OAC cannot decrypt objects encrypted with the AWS-managed aws/s3 key because
+  # that key policy is not editable, so the alternative is a CMK at USD 1.00/month
+  # against a USD 0.01/month ceiling — for a bucket whose entire contents are
+  # published to the public internet by design. SSE-S3 is the correct trade here.
+  # checkov:skip=CKV_AWS_144:Cross-region replication doubles the storage of a
+  # 1.2 MB bucket whose source of truth is a git repository. `deploy-site.sh
+  # assemble && deploy` rebuilds it in full from the Proso repo, so replication
+  # protects nothing that is not already replicated.
+  # checkov:skip=CKV2_AWS_62:Event notifications need a consumer. Wiring S3 to
+  # EventBridge with no rule attached satisfies the check and changes nothing;
+  # object-level auditing belongs to CloudTrail data events at the account level.
   bucket = local.bucket_name
   tags   = var.tags
 }
@@ -32,11 +44,11 @@ resource "aws_s3_bucket_versioning" "site" {
   }
 }
 
-# checkov:skip=CKV_AWS_145:SSE-KMS would force a customer-managed key. CloudFront
-# OAC cannot decrypt objects encrypted with the AWS-managed aws/s3 key because
-# that key policy is not editable, so the alternative is a CMK at USD 1.00/month
-# against a USD 0.01/month ceiling — for a bucket whose entire contents are
-# published to the public internet by design. SSE-S3 is the correct trade here.
+# SSE-S3 rather than SSE-KMS. AVD-AWS-0132 is the same finding as checkov
+# CKV_AWS_145 on the bucket above: a customer-managed key would be USD 1.00/month
+# to encrypt files published to the public internet by design, and CloudFront OAC
+# cannot decrypt objects written under the AWS-managed aws/s3 key at all.
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "site" {
   bucket = aws_s3_bucket.site.id
 
@@ -53,6 +65,28 @@ resource "aws_s3_bucket_logging" "site" {
 
   target_bucket = aws_s3_bucket.logs.id
   target_prefix = "s3-access/"
+}
+
+# Versioning keeps every superseded copy of every page. Without an expiry the
+# only unbounded cost in this stack is the history of a site that is rebuilt
+# from git on each deploy.
+resource "aws_s3_bucket_lifecycle_configuration" "site" {
+  bucket = aws_s3_bucket.site.id
+
+  rule {
+    id     = "expire-superseded-objects"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.log_retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }
 
 data "aws_iam_policy_document" "site" {
@@ -107,10 +141,17 @@ resource "aws_s3_bucket_policy" "site" {
 
 # --- access log bucket -------------------------------------------------------
 
-# checkov:skip=CKV_AWS_18:A log bucket that logs its own access is a write loop.
-# This is the terminal sink; its own reads are covered by CloudTrail data events
-# at the account level (stacks/10-account-baseline).
 resource "aws_s3_bucket" "logs" {
+  # checkov:skip=CKV_AWS_18:A log bucket that logs its own access is a write loop.
+  # This is the terminal sink; its own reads are covered by CloudTrail data events
+  # at the account level (stacks/10-account-baseline).
+  # checkov:skip=CKV_AWS_145:Same trade as the origin bucket, and S3 server access
+  # logging cannot write into a bucket encrypted with an AWS-managed KMS key.
+  # checkov:skip=CKV_AWS_144:Replicating access logs of a static site across
+  # regions costs more than the logs are worth; they expire after
+  # var.log_retention_days by design.
+  # checkov:skip=CKV2_AWS_62:Same as the origin bucket — no consumer exists for
+  # the notifications.
   bucket = local.log_bucket
   tags   = var.tags
 }
@@ -140,8 +181,6 @@ resource "aws_s3_bucket_versioning" "logs" {
   }
 }
 
-# checkov:skip=CKV_AWS_145:Same reasoning as the origin bucket, and S3 server
-# access logs cannot be written to an SSE-KMS bucket with an AWS-managed key.
 resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   bucket = aws_s3_bucket.logs.id
 

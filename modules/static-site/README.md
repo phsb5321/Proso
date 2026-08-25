@@ -78,18 +78,29 @@ Eight runs, all offline against a mocked provider — no credentials, no AWS
 calls. Two of them are negative: a certificate requested outside `us-east-1` and
 an `updates.json` that still advertises the old host must both fail to plan.
 
-## Policy-as-code exceptions
+## Policy-as-code
 
-Each `checkov:skip` in this module carries its reason inline. Summarised:
+```bash
+checkov -d . --framework terraform --skip-download   # 63 passed, 0 failed, 13 skipped
+trivy config --exit-code 1 --misconfig-scanners terraform .   # 0 misconfigurations
+tflint --recursive --minimum-failure-severity=warning
+```
 
-| Finding | Where | Why it is skipped |
+Every exception carries its reason inline next to the resource it applies to.
+The two scanners overlap, so most rows below are one finding under two names.
+
+| Finding | Where | Why it is not fixed |
 |---|---|---|
-| `CKV_AWS_145` (SSE-KMS) | both buckets | CloudFront OAC cannot decrypt objects encrypted with the AWS-managed `aws/s3` key, because that key policy is not editable. The alternative is a customer-managed key at USD 1.00/month against a USD 0.01/month ceiling — to encrypt files that are published to the public internet by design. |
-| `CKV_AWS_18` (access logging) | log bucket | A log bucket that logs its own access is a write loop. It is the terminal sink; the origin bucket **is** logged, into it. |
-| `CKV_AWS_68`, `CKV2_AWS_47` (WAF) | distribution | An AWS WAF web ACL is USD 5.00/month minimum — 500x this stack's entire ceiling — in front of static files with no query processing and no origin compute. |
+| `CKV_AWS_145`, `AVD-AWS-0132` (customer-managed key) | both buckets | CloudFront OAC cannot decrypt objects encrypted with the AWS-managed `aws/s3` key, because that key policy is not editable. The alternative is a CMK at USD 1.00/month against a USD 0.01/month ceiling — to encrypt files published to the public internet by design. S3 server access logging also cannot write into an SSE-KMS bucket. |
+| `CKV_AWS_86`, `AVD-AWS-0010` (CloudFront access logging) | distribution | **False positive.** Access logging is enabled, through standard logging v2 (`aws_cloudwatch_log_delivery`). Both checks only recognise the legacy `logging_config` block, which writes with an ACL grant that a `BucketOwnerEnforced` log bucket cannot accept. |
+| `CKV_AWS_68`, `CKV2_AWS_47`, `AVD-AWS-0011` (WAF) | distribution | An AWS WAF web ACL is USD 5.00/month minimum — 500x this stack's entire ceiling — in front of static files with no query processing and no origin compute. |
 | `CKV_AWS_374` (geo restriction) | distribution | The site is a public download page for a Firefox add-on. Restricting it by country breaks the product; it does not secure it. |
+| `CKV_AWS_310` (origin failover) | distribution | Failover needs a second origin, meaning a second bucket plus replication. The origin is one S3 bucket at 99.99% availability whose source of truth is a git repository, rebuilt in full by one script. |
+| `CKV_AWS_174` (viewer TLS >= 1.2) | distribution | Phase-1 only. AWS does not allow `minimum_protocol_version` to be raised on the CloudFront default certificate. The conditional in `viewer_certificate` sets `TLSv1.2_2021` as soon as `attach_custom_domain` is true, which is the only configuration end users reach. |
+| `CKV_AWS_144` (cross-region replication) | both buckets | Doubles the storage of a 1.2 MB bucket that is regenerated from git on every deploy. |
+| `CKV2_AWS_62` (event notifications) | both buckets | Notifications need a consumer. Wiring S3 to EventBridge with no rule attached satisfies the check and changes nothing; object-level auditing belongs to account-level CloudTrail data events. |
+| `CKV_AWS_18` (access logging) | log bucket only | A log bucket that logs its own access is a write loop. It is the terminal sink; the origin bucket **is** logged, into it. |
 
-Everything else is fixed rather than waived, including CloudFront access
-logging, which uses standard logging v2 (the vended-log pipeline) because the
-legacy `logging_config` block writes with an ACL grant and the log bucket has
-ACLs disabled.
+Two findings were fixed rather than waived: CloudFront access logging (standard
+logging v2) and the missing S3 lifecycle configuration (`CKV2_AWS_61`), which
+now expires superseded object versions along with the access logs.

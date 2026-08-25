@@ -15,7 +15,6 @@
 # marketing pages and explicitly excludes these keys.
 
 locals {
-  release_dir   = local.release_enabled ? var.release_source_dir : null
   updates_path  = local.release_enabled ? "${var.release_source_dir}/updates.json" : null
   release_files = local.release_enabled ? fileset("${var.release_source_dir}/releases", "*.xpi") : toset([])
 

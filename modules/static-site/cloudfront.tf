@@ -16,15 +16,36 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
-# checkov:skip=CKV_AWS_68:AWS WAF costs USD 5.00/month for the web ACL alone,
-# 500x this stack's entire USD 0.01/month ceiling, to protect a bucket of static
+# AVD-AWS-0011 is the same finding as checkov CKV_AWS_68 below: a WAF web ACL is
+# USD 5.00/month minimum, 500x this stack's entire ceiling, in front of static
 # public files with no query processing and no origin compute.
-# checkov:skip=CKV2_AWS_47:Same — the Log4j managed rule group requires the same
-# paid web ACL, and there is no Java, no logging framework and no dynamic origin.
-# checkov:skip=CKV_AWS_374:Geo restriction is deliberately none. proso.com.br is
-# a public download site for a Firefox add-on; restricting it by country would
-# break the product, not secure it.
+# AVD-AWS-0010 is CKV_AWS_86: access logging IS enabled, via standard logging v2
+# further down this file. The check only recognises the legacy logging_config
+# block, which writes with an ACL grant the log bucket does not accept.
+#trivy:ignore:AVD-AWS-0011
+#trivy:ignore:AVD-AWS-0010
 resource "aws_cloudfront_distribution" "this" {
+  # checkov:skip=CKV_AWS_68:AWS WAF costs USD 5.00/month for the web ACL alone,
+  # 500x this stack's entire USD 0.01/month ceiling, to protect a bucket of static
+  # public files with no query processing and no origin compute.
+  # checkov:skip=CKV2_AWS_47:Same — the Log4j managed rule group requires the same
+  # paid web ACL, and there is no Java, no logging framework and no dynamic origin.
+  # checkov:skip=CKV_AWS_374:Geo restriction is deliberately none. proso.com.br is
+  # a public download site for a Firefox add-on; restricting it by country would
+  # break the product, not secure it.
+  # checkov:skip=CKV_AWS_86:Access logging IS enabled, through CloudFront standard
+  # logging v2 (aws_cloudwatch_log_delivery below). The check only recognises the
+  # legacy logging_config block, which writes with an ACL grant and therefore
+  # cannot target this BucketOwnerEnforced log bucket.
+  # checkov:skip=CKV_AWS_310:Origin failover needs a second origin. The origin is
+  # one S3 bucket in one region with 99.99% availability; a failover group means a
+  # second bucket plus replication, for a site whose source of truth is a git
+  # repository and which is rebuilt in full by one script.
+  # checkov:skip=CKV_AWS_174:In phase 1 the distribution serves on
+  # *.cloudfront.net with the CloudFront default certificate, and AWS does not
+  # allow minimum_protocol_version to be raised on that certificate. The
+  # conditional in viewer_certificate sets TLSv1.2_2021 the moment
+  # attach_custom_domain is true, which is the only configuration users reach.
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "${var.name} static site"
