@@ -18,7 +18,7 @@ FC_NUM_RUNS ?= 100
 	license-settings-gate license-settings-plants \
 	brand-site-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify release-channels brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
+	stale duplication semantic docs dependencies quality inventory security verify release-channels infra-check infra-drift brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -222,6 +222,12 @@ release-channels: ## Build both Firefox channels (unlisted + listed) and prove t
 	$(PNPM) --filter @proso/extension build:firefox-listed
 	@node scripts/release-channels-check.mjs
 	@npx web-ext lint --source-dir packages/extension/.output-listed/firefox-mv2 --output=text
+
+infra-check: ## Run the AWS infrastructure gate (fmt, validate, tflint, Trivy, Checkov) in infra/aws.
+	@./infra/aws/scripts/gate.sh
+
+infra-drift: ## Report drift between the Terraform state and what is actually deployed.
+	@./infra/aws/scripts/drift-check.sh
 
 brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site identity assets must stay reproducible.
 	node scripts/verify-brand-assets.mjs

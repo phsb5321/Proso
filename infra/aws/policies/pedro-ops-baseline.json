@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumeSandboxAdmin",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::699475944323:role/OrganizationAccountAccessRole"
+    },
+    {
+      "Sid": "ReadOrgAndIamMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "organizations:Describe*",
+        "organizations:List*",
+        "iam:Get*",
+        "iam:List*",
+        "iam:GenerateCredentialReport",
+        "iam:GenerateServiceLastAccessedDetails",
+        "account:Get*",
+        "account:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadSpendAndBaselineForPlanning",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:View*",
+        "budgets:Describe*",
+        "ce:Get*",
+        "ce:List*",
+        "ce:Describe*",
+        "cloudtrail:Describe*",
+        "cloudtrail:Get*",
+        "cloudtrail:List*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "sns:Get*",
+        "sns:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyBackupDataAndSecretsInManagementAccount",
+      "Effect": "Deny",
+      "Action": [
+        "s3:*",
+        "secretsmanager:*",
+        "ssm:GetParameter*",
+        "kms:Decrypt",
+        "kms:GenerateDataKey*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

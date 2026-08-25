@@ -1,0 +1,16 @@
+{
+    "failed_checks": [
+        {
+            "file": "/policy/fixtures/compliant/main.tf",
+            "findings": [
+                {
+                    "resource": "aws_s3_bucket.this",
+                    "check_ids": [
+                        "CKV2_AWS_62",
+                        "CKV_AWS_144"
+                    ]
+                }
+            ]
+        }
+    ]
+}

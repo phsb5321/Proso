@@ -1,0 +1,41 @@
+# Terraform
+**/.terraform/
+# scripts/gate.sh keeps its own TF_DATA_DIR so an offline stage cannot reach a
+# real backend through a developer's .terraform.
+**/.terraform-gate/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+crash.log
+crash.*.log
+# Never commit variable files — they carry account ids and, by accident, secrets.
+*.tfvars
+*.tfvars.json
+!example.tfvars
+.terraformrc
+terraform.rc
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local tooling
+.direnv/
+result
+result-*
+
+# Bootstrap phase-1 escape hatch (see stacks/00-bootstrap/README.md)
+backend.tf.bootstrap-off
+
+# Policy gate scratch. `.checkov.baseline` is checkov's raw output from
+# `--create-baseline`; the reviewed copy lives in quality-baselines/.
+.tflint.d/
+.checkov.baseline
+drift.log
+# Transient plant written by scripts/falsify-gates.sh; removed on exit, ignored
+# so a killed run cannot leave a public bucket staged for commit.
+stacks/_gate-falsification-plant/
+
+# Transient credential plant written by scripts/falsify-gates.sh (assertion F).
+.gate-falsification-secret.txt
