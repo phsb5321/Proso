@@ -78,6 +78,17 @@ Eight runs, all offline against a mocked provider — no credentials, no AWS
 calls. Two of them are negative: a certificate requested outside `us-east-1` and
 an `updates.json` that still advertises the old host must both fail to plan.
 
+A test that cannot fail is not a test, so each run is falsified by plant:
+
+```bash
+./tests/falsify.sh
+```
+
+It plants the specific regression each run exists to catch, asserts that the
+suite goes red on that run and no other, reverts, and confirms the suite is
+green again. It refuses to start on a dirty working tree, because it reverts
+with `git checkout`.
+
 ## Policy-as-code
 
 ```bash
