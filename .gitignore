@@ -12,7 +12,14 @@ CLAUDE.md
 specs/_archive/
 
 # Dependencies
+# Both spellings on purpose. `node_modules/` matches only a DIRECTORY, so a
+# `node_modules` SYMLINK (the usual way to share deps into a git worktree)
+# stays untracked-visible and can be committed by `git add -A`. That happened
+# in PR #202 and broke every CI job with
+# `ENOTDIR: not a directory, mkdir '/workspace/pedro/proso/node_modules'`,
+# because pnpm cannot create the directory over a checked-out symlink.
 node_modules/
+node_modules
 .pnpm-store/
 
 # Build outputs
