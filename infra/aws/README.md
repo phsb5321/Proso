@@ -2,6 +2,7 @@
 
 Terraform for Proso's AWS footprint. Design, guardrails and the SOTA review that
 produced them: [`docs/ADR-001-aws-foundation.md`](docs/ADR-001-aws-foundation.md).
+Current live/planned split: [`docs/account-foundation-status.md`](docs/account-foundation-status.md).
 
 **Read the ADR before running anything.** Three rules matter most:
 
