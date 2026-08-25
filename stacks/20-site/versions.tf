@@ -29,11 +29,16 @@ terraform {
 provider "aws" {
   region = var.region
 
+  # Environment is not decoration. The org's SandboxRestrictions SCP denies any
+  # create call whose request carries no Environment tag; it is authored but
+  # attached to nothing today, so this is what keeps the stack appliable the day
+  # it is attached to the Sandboxes OU.
   default_tags {
     tags = {
-      Project   = "proso"
-      Stack     = "20-site"
-      ManagedBy = "terraform"
+      Project     = "proso"
+      Stack       = "20-site"
+      Environment = var.environment
+      ManagedBy   = "terraform"
     }
   }
 }

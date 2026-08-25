@@ -195,3 +195,44 @@ run "rejects_a_permission_set_arn_passed_as_a_name" {
 
   expect_failures = [var.trusted_permission_set_names]
 }
+
+# The site stack (stacks/20-site) is the only consumer today, so the role has to
+# cover what it actually applies. Every action below was missing when the site
+# module landed: an apply would have failed partway through, leaving a
+# distribution with no log delivery and a bucket with untagged objects.
+run "covers_what_the_site_stack_applies" {
+  command = plan
+
+  assert {
+    condition = length([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      s if s.Effect == "Allow" && contains(try(tolist(s.Action), []), "s3:PutObjectTagging")
+    ]) == 1
+    error_message = "The site module tags updates.json and releases/*.xpi; a tagged PutObject also needs s3:PutObjectTagging."
+  }
+
+  assert {
+    condition = alltrue([
+      for action in [
+        "logs:PutDeliverySource",
+        "logs:PutDeliveryDestination",
+        "logs:CreateDelivery",
+        ] : length([
+          for s in jsondecode(output.permissions_policy_json).Statement :
+          s if s.Effect == "Allow" && contains(try(tolist(s.Action), []), action)
+      ]) == 1
+    ])
+    error_message = "CloudFront standard logging v2 needs the CloudWatch Logs delivery APIs; the legacy logging_config block cannot target a BucketOwnerEnforced bucket."
+  }
+
+  # The delivery APIs take resource ARNs, so granting them on "*" would be a
+  # quiet widening of a module whose whole point is that it is not.
+  assert {
+    condition = alltrue([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      s.Resource != "*"
+      if s.Effect == "Allow" && contains(try(tolist(s.Action), []), "logs:CreateDelivery")
+    ])
+    error_message = "The log delivery write statement must be ARN-scoped, not Resource = \"*\"."
+  }
+}

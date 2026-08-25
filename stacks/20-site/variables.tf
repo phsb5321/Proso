@@ -10,6 +10,17 @@ variable "name" {
   default     = "proso-site"
 }
 
+variable "environment" {
+  description = "Value of the Environment tag, which the SandboxRestrictions SCP requires on every create call."
+  type        = string
+  default     = "sandbox"
+
+  validation {
+    condition     = contains(["sandbox", "prod"], var.environment)
+    error_message = "environment must be sandbox or prod."
+  }
+}
+
 variable "domain_names" {
   description = "Domains the certificate covers. The site publishes no www host — see sitemap.xml on the gh-pages branch."
   type        = list(string)

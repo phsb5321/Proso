@@ -47,6 +47,9 @@ locals {
     "s3:PutLifecycleConfiguration",
     "s3:PutBucketLogging",
     "s3:PutObject",
+    # The site module tags the objects it owns (updates.json, releases/*.xpi).
+    # A tagged PutObject is authorised as PutObject *and* PutObjectTagging.
+    "s3:PutObjectTagging",
     "s3:DeleteObject",
     "s3:AbortMultipartUpload",
   ]
@@ -196,6 +199,48 @@ locals {
             "acm:ListTagsForCertificate",
             "acm:AddTagsToCertificate",
             "acm:DeleteCertificate",
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "VendedLogDelivery"
+          Effect = "Allow"
+          # CloudFront standard logging v2 is three CloudWatch Logs delivery
+          # resources, not a logging_config block: the legacy block writes with
+          # an ACL grant, which a BucketOwnerEnforced log bucket rejects. See
+          # modules/static-site/cloudfront.tf.
+          Action = [
+            "logs:PutDeliverySource",
+            "logs:GetDeliverySource",
+            "logs:DeleteDeliverySource",
+            "logs:PutDeliveryDestination",
+            "logs:GetDeliveryDestination",
+            "logs:DeleteDeliveryDestination",
+            "logs:CreateDelivery",
+            "logs:GetDelivery",
+            "logs:UpdateDeliveryConfiguration",
+            "logs:DeleteDelivery",
+            "logs:TagResource",
+            "logs:UntagResource",
+            "logs:ListTagsForResource",
+          ]
+          # ARN-scoped rather than "*". Unverified against a live apply — no
+          # credential reaches the account yet — so if AWS refuses one of these,
+          # widen it with the AccessDenied as evidence, per this module's rule.
+          Resource = [
+            "arn:aws:logs:*:${var.account_id}:delivery-source:*",
+            "arn:aws:logs:*:${var.account_id}:delivery-destination:*",
+            "arn:aws:logs:*:${var.account_id}:delivery:*",
+          ]
+        },
+        {
+          Sid    = "VendedLogDeliveryDiscovery"
+          Effect = "Allow"
+          # The Describe* forms are list operations and take no resource ARN.
+          Action = [
+            "logs:DescribeDeliverySources",
+            "logs:DescribeDeliveryDestinations",
+            "logs:DescribeDeliveries",
           ]
           Resource = "*"
         },
