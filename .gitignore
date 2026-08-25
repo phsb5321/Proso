@@ -21,3 +21,6 @@ override.tf.json
 .direnv/
 result
 result-*
+
+# Bootstrap phase-1 escape hatch (see stacks/00-bootstrap/README.md)
+backend.tf.bootstrap-off
