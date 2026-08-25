@@ -24,6 +24,20 @@ pkgs.mkShell {
     # Delivery harness (`make verify`, `make gate`, ...)
     gnumake
 
+    # AWS infrastructure toolchain (`infra/aws`). Declared HERE, not left to an
+    # ad-hoc `nix shell nixpkgs#terraform`, because the infra gates are part of
+    # this repo's delivery floor now: `make infra-check` runs fmt/validate/lint
+    # and the policy scanners, and a tool that is only present when someone
+    # remembers to summon it is a gate that silently does not run.
+    #
+    # Terraform >= 1.11 is a hard requirement, not a preference: the state
+    # backend uses S3-native locking (`use_lockfile`), which older versions
+    # ignore rather than reject — two concurrent applies would both proceed.
+    terraform
+    tflint
+    trivy
+    uv # installs the pinned checkov; see infra/aws/policy/versions.env
+
     # Deterministic brand crop, SVG proof, and raster verification tools
     imagemagick
     inkscape
