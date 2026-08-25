@@ -180,6 +180,27 @@ jobs:
   # ============================================
   server-test:
     runs-on: ubuntu-latest
+    # The Prisma contract specs need a real PostgreSQL. They used to reach for
+    # testcontainers, which needs a docker socket the test process can reach --
+    # impossible from inside a job that is itself a container, so they failed on
+    # the first self-hosted run and were previously recorded as
+    # "environment-blocked". Provisioning the database HERE and handing it over
+    # as TEST_DATABASE_URL lets those specs run unchanged, so the 23 Prisma
+    # contracts gate in CI instead of being skipped everywhere.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: proso_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://test:test@postgres:5432/proso_test
     steps:
       - uses: actions/checkout@v4
 
