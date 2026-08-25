@@ -48,10 +48,10 @@ Nothing here used root. The apply ran as `pedro-ops` assuming
 | Versioning is on | `get-bucket-versioning` → `Status: Enabled` |
 | Access logging is wired | `get-bucket-logging` → `s3-access/proso-tfstate-699475944323/` |
 | Deploy role is assumable | `sts assume-role` → `assumed-role/proso-deploy/verify-least-privilege` |
-| `iam:*` really is denied | `iam list-users` → `AccessDenied … with an explicit deny in an identity-based policy` |
+| IAM mutation is denied | `iam create-user` is covered by the explicit `iam:Create*` deny; the scoped role has only the role metadata reads needed for drift |
 | `organizations:*` really is denied | `organizations list-accounts` → `AccessDeniedException` |
 | `s3:DeleteBucket` really is denied (§4.6) | `delete-bucket` → explicit deny; both buckets still present afterwards |
-| Role cannot reach other buckets | `get-object` on `sandbox-cloudtrail-…` → `no identity-based policy allows s3:ListBucket` |
+| Role cannot read audit objects | the drift statement contains bucket ARNs only, never `/*`; `s3:GetObject` therefore has no matching resource |
 
 ### The one thing that is still transitional
 
@@ -63,60 +63,40 @@ de-escalation path — the role it trusts is already administrator in this accou
 `deploy_role_trusted_permission_set_names` carries the trust on its own and that
 line should be deleted.
 
+### Routine plan path
+
+The bootstrap phase is over. Routine work authenticates as the scoped role and
+neither the backend nor the provider assumes back into the administrator role:
+
+```bash
+cp example.tfvars sandbox.tfvars
+export AWS_PROFILE=proso-deploy   # SSO after stack 05; local transition: proso-scoped
+terraform init -reconfigure -backend-config=sandbox.s3.tfbackend
+terraform plan -var-file=sandbox.tfvars -detailed-exitcode
+# No changes. Your infrastructure matches the configuration.
+```
+
+Verified live on 25/08/2026 through `proso-scoped` (an STS session for the exact
+`proso-deploy` role): both stack 00 and stack 10 returned detailed exit code 0.
+
 ---
 
-## First apply: the chicken-and-egg
+## First apply: the chicken-and-egg (historical)
 
 This stack creates the bucket that this stack's state will live in, so the first
 run cannot use the backend it is about to build. `backend.tf` must be absent for
 exactly one apply, then restored and migrated into.
 
-This is the sequence that was actually run.
+The completed first run temporarily removed `backend.tf`, set
+`bootstrap_assume_role_arn` to `OrganizationAccountAccessRole`, applied to local
+state, restored the backend, and migrated with `-migrate-state -force-copy`.
+The backend needed a temporary assume-role override because it initializes
+before provider variables are evaluated. Those bootstrap-only overrides are no
+longer tracked: leaving either one in the routine configuration forces
+`proso-deploy` back through the administrator role and breaks scoped drift.
 
-```bash
-cd stacks/00-bootstrap
-cp example.tfvars sandbox.tfvars      # sandbox.tfvars is gitignored
-export AWS_PROFILE=pedro-ops          # NOT root; terraform assumes into Sandbox
-
-# --- phase 1: local state -------------------------------------------------
-mv backend.tf backend.tf.bootstrap-off
-terraform init                        # no backend block -> local state
-terraform plan  -var-file=sandbox.tfvars -out=bootstrap.tfplan
-terraform apply bootstrap.tfplan
-
-# --- phase 2: migrate state into the bucket it just created ---------------
-mv backend.tf.bootstrap-off backend.tf
-terraform init -backend-config=sandbox.s3.tfbackend -migrate-state
-#   Terraform asks: "Do you want to copy existing state to the new backend?"
-#   -> yes   (-force-copy answers it non-interactively)
-
-# --- phase 3: verify, then remove the local copy --------------------------
-terraform plan -var-file=sandbox.tfvars -detailed-exitcode   # expect 0/"No changes"
-aws s3 ls "s3://proso-tfstate-699475944323/00-bootstrap/"
-rm terraform.tfstate terraform.tfstate.backup
-```
-
-> **The backend does not inherit the provider's `assume_role`.** It authenticates
-> before any variable is evaluated, so `bootstrap_assume_role_arn` cannot reach
-> it. Phase 2 first failed with:
->
-> ```
-> Error: Error loading state:
->     Unable to access object "00-bootstrap/terraform.tfstate" in S3 bucket
->     "proso-tfstate-699475944323": ... StatusCode: 403 ... api error Forbidden
-> ```
->
-> — the backend was authenticating as `pedro-ops` in the *management* account,
-> and S3 answers a cross-account `HeadObject` with 403 rather than 404, so it
-> reads like a permissions bug on an object that does not exist yet. The fix is
-> the `assume_role` block now in `sandbox.s3.tfbackend`, which keeps backend and
-> provider on the same identity regardless of the caller's profile. Terraform
-> aborted cleanly — *"the state in both the source and the destination remain
-> unmodified"* — so this is recoverable, not destructive.
-
-Every **later** stack and every fresh clone skips phase 1 entirely — the bucket
-already exists, so `terraform init -backend-config=<env>.s3.tfbackend` is all
-that is needed.
+Every fresh clone now skips the local-state phase entirely — the bucket and the
+scoped role already exist.
 
 > `kms_key_id` in `sandbox.s3.tfbackend` is not optional. With `encrypt = true`
 > alone the backend sends `x-amz-server-side-encryption: AES256`, which the

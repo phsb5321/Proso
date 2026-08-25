@@ -18,15 +18,8 @@ kms_key_id = "arn:aws:kms:us-east-1:699475944323:alias/proso-tfstate-69947594432
 # dynamodb:CreateTable.
 use_lockfile = true
 
-# The backend does NOT inherit the provider's assume_role, and it authenticates
-# before any variable is evaluated, so `bootstrap_assume_role_arn` cannot reach
-# it. Without this block the backend authenticates as whatever the ambient
-# profile is — for the management-account user pedro-ops that is a cross-account
-# request, and S3 answers HeadObject with 403 Forbidden rather than 404, so the
-# failure reads like a missing permission on an object that does not exist yet.
-# Stating the role here keeps backend and provider pointed at the same identity
-# no matter which profile the caller exports.
-assume_role = {
-  role_arn     = "arn:aws:iam::699475944323:role/OrganizationAccountAccessRole"
-  session_name = "terraform-backend-00-bootstrap"
-}
+# The ambient session is already `proso-deploy` for routine work. Do not add an
+# assume_role here: doing so forces that scoped role back through the bootstrap
+# administrator role and makes its own drift plan fail. The historical first
+# migration used a temporary assume-role override; the backend no longer needs
+# it now that the scoped role exists.

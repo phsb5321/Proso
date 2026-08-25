@@ -7,12 +7,11 @@ account_id  = "699475944323"
 environment = "sandbox"
 region      = "us-east-1"
 
-# The deploy role does not exist during the first apply, so the bootstrap run
-# assumes the Organizations-created admin role in the target account instead.
-# Sandbox-Account has JoinedMethod = CREATED, which is what guarantees that role
-# exists:
-#   aws organizations describe-account --account-id 699475944323
-bootstrap_assume_role_arn = "arn:aws:iam::699475944323:role/OrganizationAccountAccessRole"
+# Routine end state: the ambient session is already proso-deploy, so the
+# provider must not assume back into the bootstrap administrator role. The
+# historical first apply temporarily set OrganizationAccountAccessRole here
+# because proso-deploy did not exist yet; that chicken-and-egg phase is complete.
+bootstrap_assume_role_arn = null
 
 # End state (ADR-001 §3 correction): access via IAM Identity Center, no static
 # key. ProsoInfraDeploy is the permission set stacks/05-org-structure creates
