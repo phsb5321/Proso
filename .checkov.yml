@@ -1,0 +1,30 @@
+# Checkov settings. Kept in the repo (not in flags) so the pre-commit hook,
+# `scripts/gate.sh` and the Forgejo pipeline all evaluate the same policy set.
+#
+# There is deliberately no `skip-check:` key. ADR-001 §4.4 forbids waiving a
+# finding to go green; an accepted finding goes into
+# `quality-baselines/checkov-baseline.json` WITH a written reason and a review
+# date in `quality-baselines/accepted-findings.json`, which
+# `scripts/check-baseline.sh` enforces. A blanket `skip-check` would be
+# invisible and never expire.
+
+framework:
+  - terraform
+
+directory:
+  - .
+
+skip-path:
+  # The gate's red control. `scripts/falsify-gates.sh` scans it explicitly.
+  - policy/fixtures/violations
+  - .terraform
+
+# Suppress the finding recorded in the baseline; anything NEW still fails.
+baseline: quality-baselines/checkov-baseline.json
+
+compact: true
+quiet: true
+
+# No call to api0.prismacloud.io at scan time: offline-deterministic, and it
+# avoids a 90-line SSL traceback when the runner has no matching CA bundle.
+skip-download: true

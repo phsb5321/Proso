@@ -23,7 +23,10 @@ produced them: [`docs/ADR-001-aws-foundation.md`](docs/ADR-001-aws-foundation.md
 | `stacks/20-site` | S3 + CloudFront + OAC + ACM for `proso.com.br` (≈ $0/month). |
 | `modules/` | Golden modules; each ships a `terraform test`. |
 | `policies/` | Standalone IAM policy JSON referenced by stacks. |
-| `scripts/` | One-off bootstrap scripts, each documenting its own rollback. |
+| `scripts/` | The policy gate, its falsification test, and one-off bootstrap scripts. |
+| `policy/fixtures/` | Green and red controls that keep the gate falsifiable. |
+| `quality-baselines/` | Accepted findings — each with a reason and an expiry date. |
+| `.forgejo/workflows/` | CI on the self-hosted runner. Not `.github/` — that path bills money. |
 
 ## Access
 
@@ -54,11 +57,24 @@ One state file per stack, so a mistake in one cannot lock or corrupt another.
 
 ## Quick start
 
+The toolchain is pinned in `flake.lock` (Terraform, tflint, Trivy, uv, lefthook),
+so everyone runs the same binaries:
+
 ```bash
+nix develop                       # enter the pinned toolchain
+nix develop -c lefthook install   # once per clone: pre-commit + pre-push hooks
+
+nix develop -c scripts/gate.sh          # fmt -> validate -> tflint -> Trivy/Checkov -> test
+nix develop -c scripts/falsify-gates.sh # prove the gate can still fail
+
 cd stacks/00-bootstrap
 terraform init
 terraform plan            # plan-only is always safe
 ```
+
+How the gates work, what is deliberately not wired yet, and how to accept a
+finding without turning the ratchet into a blanket skip:
+[`docs/policy-gates.md`](docs/policy-gates.md).
 
 ## Cost
 

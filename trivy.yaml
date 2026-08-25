@@ -1,0 +1,32 @@
+# Trivy replaces tfsec, which upstream deprecated and folded into this scanner
+# (ADR-001 §2, "integration quality"). Config lives here rather than in flags so
+# the pre-commit hook, `scripts/gate.sh` and CI cannot drift apart.
+
+# Fail the process on any finding. `exit-code: 0` would turn the whole stage
+# into a report, which is the most common way a security gate quietly stops
+# gating.
+exit-code: 1
+
+scan:
+  # The FAIL fixture is the gate's own red control and must stay failing.
+  # `scripts/falsify-gates.sh` scans it explicitly; a normal run skips it.
+  skip-dirs:
+    - policy/fixtures/violations
+    - "**/.terraform"
+
+misconfiguration:
+  scanners:
+    - terraform
+  # A downloaded upstream module's findings are not actionable from this repo.
+  terraform:
+    exclude-downloaded-modules: true
+
+# LOW is included on purpose: `AVD-AWS-0089` (bucket logging disabled) is rated
+# LOW and is exactly the sort of finding that matters for an account whose
+# entire current spend is backups. Raising the floor to MEDIUM would silently
+# drop it.
+severity:
+  - LOW
+  - MEDIUM
+  - HIGH
+  - CRITICAL

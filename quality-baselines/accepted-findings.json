@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "checkov 3.3.13, scan of 25/08/2026",
+  "note": "Machine half of this ratchet is checkov-baseline.json. This file is the human half: WHY each suppression exists and WHEN it stops being valid. scripts/check-baseline.sh fails the gate if the two disagree, if a reason is too thin to be a reason, or if a reviewDate has passed. See README.md in this directory.",
+  "entries": [
+    {
+      "check": "CKV_AWS_144",
+      "title": "Ensure that S3 bucket has cross-region replication enabled",
+      "tool": "checkov",
+      "resource": "aws_s3_bucket.this",
+      "path": "policy/fixtures/compliant/main.tf",
+      "owner": "infra/aws — policy & CI tab",
+      "reason": "Not applicable to a static-site origin bucket. The payload is 1.06 MB across 27 files (ADR-001 §3) rebuilt from git on every deploy, so the bucket holds no state that cannot be regenerated in seconds; cross-region replication would roughly double storage cost and add a replication IAM role plus a second bucket to secure, to protect against losing content that git already holds. The buckets that DO hold irreplaceable data are the restic backup buckets in the management account, which are covered by S3 Object Lock rather than by this stack. Revisit if any bucket in this repo ever becomes a system of record.",
+      "reviewDate": "2027-02-25"
+    },
+    {
+      "check": "CKV2_AWS_62",
+      "title": "Ensure S3 buckets should have event notifications enabled",
+      "tool": "checkov",
+      "resource": "aws_s3_bucket.this",
+      "path": "policy/fixtures/compliant/main.tf",
+      "owner": "infra/aws — policy & CI tab",
+      "reason": "No consumer exists to notify. Event notifications require a destination (SNS/SQS/Lambda); configuring one solely to satisfy the check would create an unmonitored queue that costs money, widens the IAM surface, and fills with events nobody reads — strictly worse than not having it. Object-level auditing for this account is served by CloudTrail data events in stack 10-account-baseline, which is the control this check is a proxy for. Revisit when a stack genuinely needs to react to object writes.",
+      "reviewDate": "2027-02-25"
+    }
+  ]
+}

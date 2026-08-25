@@ -1,0 +1,43 @@
+# Pre-commit hooks, driven by lefthook — the same driver the Proso repo uses,
+# so there is one hook tool across the fleet rather than two.
+#
+# Install once per clone:   nix develop -c lefthook install
+# Bypass (do not):          git commit --no-verify
+#
+# Scope is deliberate. The hook runs the three FAST correctness stages — fmt,
+# validate, tflint — and stops there. Trivy and Checkov take tens of seconds and
+# belong in `scripts/gate.sh` / CI; a pre-commit hook slow enough to be annoying
+# gets bypassed, and a bypassed hook protects nothing. The security gate is
+# enforced server-side, where it cannot be skipped with a flag.
+#
+# Every command shells into the pinned toolchain, so a contributor without
+# terraform on their PATH gets the right version rather than an error.
+
+pre-commit:
+  parallel: false # the stages share a `terraform init`; racing them re-downloads providers
+  commands:
+    terraform-fmt:
+      glob: "*.{tf,tftest.hcl}"
+      run: nix develop -c scripts/gate.sh --stage fmt
+
+    terraform-validate:
+      glob: "*.{tf,tftest.hcl}"
+      run: nix develop -c scripts/gate.sh --stage validate
+
+    tflint:
+      glob: "*.tf"
+      run: nix develop -c scripts/gate.sh --stage tflint
+
+    # Cheap (jq over two small JSON files) and catches the mistake that is
+    # easiest to make by hand: editing the baseline without documenting it.
+    baseline:
+      glob: "quality-baselines/*.json"
+      run: nix develop -c scripts/gate.sh --stage baseline
+
+pre-push:
+  commands:
+    # The full gate before anything leaves the machine. Slower, but a push is
+    # rarer than a commit and this is the last point where a failure costs
+    # nobody else time.
+    gate:
+      run: nix develop -c scripts/gate.sh

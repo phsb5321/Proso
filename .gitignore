@@ -24,3 +24,12 @@ result-*
 
 # Bootstrap phase-1 escape hatch (see stacks/00-bootstrap/README.md)
 backend.tf.bootstrap-off
+
+# Policy gate scratch. `.checkov.baseline` is checkov's raw output from
+# `--create-baseline`; the reviewed copy lives in quality-baselines/.
+.tflint.d/
+.checkov.baseline
+drift.log
+# Transient plant written by scripts/falsify-gates.sh; removed on exit, ignored
+# so a killed run cannot leave a public bucket staged for commit.
+stacks/_gate-falsification-plant/
