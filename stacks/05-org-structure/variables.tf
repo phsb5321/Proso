@@ -38,16 +38,6 @@ variable "sandboxes_ou_id" {
   }
 }
 
-variable "sandbox_scp_id" {
-  description = "Existing SandboxRestrictions service control policy."
-  type        = string
-
-  validation {
-    condition     = can(regex("^p-[0-9a-z]+$", var.sandbox_scp_id))
-    error_message = "sandbox_scp_id must look like p-ufly0ag5."
-  }
-}
-
 variable "attach_service_control_policies" {
   description = "Attach SandboxRestrictions to the Sandboxes OU. Requires SERVICE_CONTROL_POLICY to be enabled on the root first (see the note in main.tf); leave false until it is, or the apply fails."
   type        = bool

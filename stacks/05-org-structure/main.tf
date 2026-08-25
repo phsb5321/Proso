@@ -41,10 +41,41 @@ resource "aws_organizations_organizational_unit" "workloads" {
 # owns it is `aws_organizations_organization`, and importing that hands one
 # stack authority to alter the organisation's feature set. Not worth it for a
 # one-time toggle.
-resource "aws_organizations_policy_attachment" "sandbox_restrictions" {
+#
+# The policy attached below is a NEW one, not the existing `SandboxRestrictions`
+# (p-ufly0ag5). That policy has two defects that would break Terraform outright,
+# found by the site tab in docs/20-site-status.md and fixed here:
+#
+#  1. It denies `cloudfront:*` as a "paid service". CloudFront's 1 TB / 10M-request
+#     free tier is indefinite for every account, and the site stack is a
+#     CloudFront distribution serving 1.06 MB, so the deny is aimed at the wrong
+#     risk and forbids the one workload this organisation exists to host.
+#  2. It denies every create call carrying no `Environment` tag, via
+#     `NotAction` + `Null: aws:RequestTag/Environment`. That cannot be satisfied:
+#     `aws:RequestTag` only exists on operations that accept tags at creation,
+#     and much of a normal stack does not — `s3:CreateBucket` takes no tags (the
+#     provider issues `PutBucketTagging` afterwards), and sub-resources like
+#     `aws_s3_bucket_policy` or `aws_s3_bucket_public_access_block` have no tags
+#     at all. As written it forbids Terraform, not untagged resources. Tag
+#     hygiene belongs in an Organizations *tag policy* or in cost-allocation
+#     tags, not in an SCP; spend itself is caught by the budget alarm.
+#
+# `SandboxRestrictions` is attached to nothing and can be deleted once this is
+# live: aws organizations delete-policy --policy-id p-ufly0ag5
+resource "aws_organizations_policy" "sandbox_guardrails" {
   count = var.attach_service_control_policies ? 1 : 0
 
-  policy_id = var.sandbox_scp_id
+  name        = "SandboxGuardrails"
+  description = "Keeps the sandbox cheap and keeps its guardrails on. Replaces SandboxRestrictions, which forbade CloudFront and, in practice, Terraform."
+  type        = "SERVICE_CONTROL_POLICY"
+  content     = file("${path.module}/../../policies/sandbox-guardrails.json")
+  tags        = local.tags
+}
+
+resource "aws_organizations_policy_attachment" "sandbox_guardrails" {
+  count = var.attach_service_control_policies ? 1 : 0
+
+  policy_id = aws_organizations_policy.sandbox_guardrails[0].id
   target_id = var.sandboxes_ou_id
 }
 

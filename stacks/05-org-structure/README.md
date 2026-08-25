@@ -33,18 +33,38 @@ Root cannot reach the sandbox at all. Identity Center can.
 | Identity Center user | Sends a one-time password email; **the human gate** |
 | `SandboxAdmin` permission set | `AdministratorAccess`, sandbox only, `PT8H` |
 | `ManagementOps` permission set | Inline least-privilege, management account, `PT4H` |
-| SCP attachment | Off by default — see the prerequisite below |
+| `SandboxGuardrails` SCP + attachment | Off by default — see the prerequisite below |
 
 `ManagementOps` can audit backup posture (bucket versioning, Object Lock
 configuration, public-access block) but is explicitly denied `s3:GetObject*`,
 every `s3:Put*`/`Delete*`, and `s3:BypassGovernanceRetention`. It can prove the
 backups are safe; it cannot read or destroy one.
 
+## The SCP this stack attaches is a replacement, not the existing one
+
+`SandboxRestrictions` (`p-ufly0ag5`) is inert today and must stay that way: it
+has two defects that would break the organisation the moment SCPs are switched
+on, both found by the site tab (`docs/20-site-status.md`).
+
+| Defect | Consequence | Fix |
+|---|---|---|
+| Denies `cloudfront:*` as a "paid service" | The site stack — the workload this org exists for — could not be applied at any privilege level, since an SCP denies admins too. CloudFront's 1 TB / 10M-request free tier is indefinite and the payload is 1.06 MB. | Removed from the deny list |
+| Denies any create call with no `Environment` tag, via `NotAction` + `Null: aws:RequestTag/Environment` | Unsatisfiable, not merely strict: `aws:RequestTag` exists only on operations that accept tags at creation. `s3:CreateBucket` does not (the provider calls `PutBucketTagging` afterwards), and sub-resources such as bucket policies and public-access blocks take no tags at all. As written it forbids Terraform. | Dropped. Tag hygiene belongs in an Organizations **tag policy**; spend is caught by the budget alarm. |
+
+`policies/sandbox-guardrails.json` keeps the useful half — denying genuinely
+expensive services, which also enforces two ADR-001 decisions in IAM rather than
+in prose (`route53:*` denied because DNS stays at Cloudflare; `dynamodb:CreateTable`
+denied because state locking is S3-native) — and adds a rule the old policy
+lacked: nothing in the sandbox may stop CloudTrail or delete the budget.
+
+Once the replacement is attached, the old one can go:
+`aws organizations delete-policy --policy-id p-ufly0ag5`.
+
 ## Prerequisite before `attach_service_control_policies = true`
 
 Measured 25/08/2026: the org root reports `PolicyTypes: []`, so
-`SERVICE_CONTROL_POLICY` is not enabled. `SandboxRestrictions` (`p-ufly0ag5`)
-exists but is attached to nothing and **cannot** be attached until:
+`SERVICE_CONTROL_POLICY` is not enabled. No SCP can be **created or** attached
+until:
 
 ```bash
 aws organizations enable-policy-type --root-id r-y7xb --policy-type SERVICE_CONTROL_POLICY

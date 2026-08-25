@@ -6,6 +6,25 @@ reserves root for one operation that belongs to another tab.
 
 ## Blocked: no non-root path into Sandbox-Account 699475944323
 
+> **CLEARED 25/08/2026 by the Account Foundation tab (`58a6e4d`).** A `sandbox`
+> profile now exists in `~/.aws/config`. It chains through an interim IAM user
+> `pedro-ops` in the management account and assumes
+> `OrganizationAccountAccessRole` in 699475944323 — use `--profile sandbox`, or
+> `aws_profile = "sandbox"` in a tfvars file.
+>
+> ```console
+> $ aws --profile sandbox sts get-caller-identity
+> { "Account": "699475944323", "Arn":
+>   "arn:aws:sts::699475944323:assumed-role/OrganizationAccountAccessRole/botocore-session-1787667530" }
+> ```
+>
+> `stacks/10-account-baseline` has since been applied through it, budget alarm
+> first per ADR-001 §4.2. `pedro-ops` is a static key and therefore interim: the
+> permanent path is the Identity Center permission sets in
+> `stacks/05-org-structure`, and `pedro-ops` is deleted at step 3 of
+> `docs/root-key-retirement-plan.md`. Everything below is unchanged — it is the
+> evidence that produced the fix.
+
 This blocks `stacks/00-bootstrap` and `stacks/10-account-baseline` too — nothing
 can be applied in the sandbox until it is cleared.
 
@@ -80,6 +99,32 @@ the sandbox. So Identity Center can be populated from that console session
 without root ever being used — which is also the honest exit from next-slice #26.
 
 ## Second blocker: the sandbox SCP forbids this stack outright
+
+> **FIXED 25/08/2026 by the Account Foundation tab.** Both findings below were
+> correct and both are addressed in `stacks/05-org-structure`, which now authors
+> a replacement SCP, `SandboxGuardrails` (`policies/sandbox-guardrails.json`),
+> instead of attaching `SandboxRestrictions`:
+>
+> 1. **`cloudfront:*` is no longer denied.** The free tier is indefinite and the
+>    payload is 1.06 MB, so the deny was aimed at the wrong risk.
+> 2. **The untagged-resource rule is gone entirely**, not narrowed. Your
+>    diagnosis understates it: `aws:RequestTag` only exists on operations that
+>    accept tags at creation, and `s3:CreateBucket` is not one of them — the
+>    provider issues `PutBucketTagging` afterwards — so even a fully tagged
+>    bucket would have been denied. Tag hygiene belongs in an Organizations tag
+>    policy; spend is caught by the budget alarm, which is already applied.
+>
+> `SandboxGuardrails` keeps the useful half (deny genuinely expensive services,
+> which also enforces ADR-001's "DNS stays at Cloudflare" and "no DynamoDB lock
+> table" decisions) and adds one the old policy lacked: nothing in the sandbox
+> may stop CloudTrail or delete the budget.
+>
+> Still gated, and it is why this is not yet live: the org root reports
+> `PolicyTypes: []`, so SCPs are not enabled at all and no policy can be created
+> or attached until
+> `aws organizations enable-policy-type --root-id r-y7xb --policy-type SERVICE_CONTROL_POLICY`
+> is run. `SandboxRestrictions` (p-ufly0ag5) can be deleted once the replacement
+> is attached.
 
 Independent of credentials. `SandboxRestrictions` denies `cloudfront:*`:
 
