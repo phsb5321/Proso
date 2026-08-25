@@ -26,8 +26,9 @@ asserts an account-root `Principal` is never present without one, and plant 6
 confirms it goes red when the condition is removed.
 
 `trusted_principal_arns` remains for a principal that is *not* an Identity
-Center identity — a role federated from a Forgejo OIDC provider, which the
-Account Foundation tab is researching. It rejects `:root` ARNs outright.
+Center identity. Its current use is the transitional
+`OrganizationAccountAccessRole`; Forgejo OIDC cannot federate to AWS while its
+issuer is Tailscale-only. The input rejects `:root` ARNs outright.
 
 ## MFA
 
@@ -48,7 +49,7 @@ inside Identity Center, which the Account Foundation tab owns.
 
 | Denied | Scope | Why |
 |---|---|---|
-| `iam:*` | `*` | A role that can write IAM can grant itself anything |
+| IAM mutation verb families (`Create*`, `Put*`, `PassRole`, etc.) | `*` | A role that can write IAM can grant itself anything; read-only IAM remains available for baseline drift |
 | `organizations:*` | `*` | Could move accounts or detach the SCPs bounding it |
 | `s3:DeleteBucket` | `*` | ADR-001 §4.6 — a bucket-replacing plan is a human decision |
 | `kms:ScheduleKeyDeletion`, `kms:DisableKey` | state CMK | Would render all state unreadable |
@@ -58,7 +59,12 @@ runbook is still stopped by the API.
 
 **Allowed:** state bucket and objects; the state CMK; `Get*`/`List*` plus an
 enumerated write set on `proso-site-*` buckets; `cloudfront:*`; a fixed ACM
-list; `budgets:*` on this account's budgets; read-only CloudWatch.
+list; read-only CloudWatch; and read-only refresh calls for the account
+baseline and bootstrap stacks (Budgets, CloudTrail, password policy, its own
+IAM role metadata, KMS, and bucket-level metadata on the state/log/trail
+buckets). No object ARN is granted by the drift statement, so it cannot read an
+audit log. The role also cannot modify a budget, stop a trail, or change the
+password policy.
 
 Site-bucket actions are enumerated rather than `s3:*` because `s3:*` includes
 `PutBucketPublicAccessBlock` and `PutBucketAcl` — the deploy role could make the
@@ -69,17 +75,18 @@ finding on the first draft, not a false positive. Deliberately absent:
 and explicitly *not* through a website endpoint, so the role should be unable to
 create one.
 
-### Known constraint: `iam:*` is denied outright
+### Why IAM reads are not denied
 
-The brief requires it, so it is implemented as written. Be aware that some
-first-time service enablement needs `iam:CreateServiceLinkedRole`, and a `Deny`
-wins unconditionally. If a later plan fails on exactly that, the fix is a
-narrow carve-out for the specific `iam:AWSServiceName` — with the failing plan
-output as the evidence — not deleting the deny.
+A live refresh-only plan through `proso-deploy` failed on
+`iam:GetAccountPasswordPolicy`, KMS metadata, and the CloudTrail buckets. The
+old `iam:*` deny made the password-policy drift check impossible even if an
+Allow was added, because explicit Deny wins. The policy now denies every IAM
+mutation verb family and grants only the one IAM read the baseline needs. The
+module test asserts both sides.
 
-`cloudfront:*` will also be denied the moment `SandboxRestrictions` is attached
-to the account: that SCP's `DenyPaidServices` statement lists `cloudfront:*`.
-The SCP is currently attached to nothing, so it does not bite yet.
+The existing `SandboxRestrictions` SCP must remain unattached: among other
+faults it denies `cloudfront:*`. `stacks/05-org-structure` owns its corrected
+replacement, `SandboxGuardrails`, behind the Pedro-gated SCP enablement.
 
 ## Inputs
 
@@ -93,6 +100,7 @@ The SCP is currently attached to nothing, so it does not bite yet.
 | `state_bucket_arn` | *(required)* | |
 | `state_kms_key_arn` | *(required)* | |
 | `managed_bucket_prefixes` | `["proso-"]` | The stack narrows this to `proso-site-` |
+| `read_only_bucket_prefixes` | `[]` | Baseline buckets that drift plans may inspect, never mutate |
 | `account_id` | *(required)* | |
 
 At least one of `trusted_permission_set_names` / `trusted_principal_arns` must
@@ -106,5 +114,5 @@ so asserting on it would prove nothing; a local can be asserted directly.
 
 ```console
 $ terraform test
-Success! 9 passed, 0 failed.
+Success! 11 passed, 0 failed.
 ```

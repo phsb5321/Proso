@@ -10,7 +10,7 @@
 # still goes RED on demand, and it runs in CI on every push, so the proof is
 # current rather than a screenshot from the day it was built.
 #
-# Five assertions:
+# Eight assertions:
 #   A. Trivy   flags the committed FAIL fixture
 #   B. Checkov flags the committed FAIL fixture
 #   C. the brief's definition of done, end to end: planting a public S3 bucket
@@ -20,8 +20,9 @@
 #   F. the secret scanner flags a planted credential
 #   G. the stack policy rejects an unclassified stack, and refuses to let the
 #      never-apply stack be applied or drift-planned
+#   H. Checkov rejects Terraform it cannot parse instead of scanning around it
 #
-# Exit 0 only if all seven hold.
+# Exit 0 only if all eight hold.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
@@ -274,5 +275,16 @@ cp "$SCRATCH/ci.yml.orig" .forgejo/workflows/terraform-ci.yml
 
 cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
 assert_passes "restored stack policy accepted" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+
+# ── H: parser failures cannot be skipped-green ─────────────────────────────
+# Checkov reports a parsing error but exits 0 when every resource it DID parse
+# is clean. A malformed file would therefore be omitted from policy evaluation
+# while the scanner stayed green unless gate.sh checks the parser count itself.
+step "H. malformed Terraform -> Checkov stage must go RED"
+printf '\nresource "aws_s3_bucket" "unclosed" {\n' >>"$COMPLIANT_TF"
+assert_fails "Checkov parsing failure rejected" 'Terraform parsing error left configuration unscanned' \
+  "$REPO_ROOT/scripts/gate.sh" --stage checkov
+cp "$SCRATCH/main.tf.orig" "$COMPLIANT_TF"
+assert_passes "parseable Terraform restored" "$REPO_ROOT/scripts/gate.sh" --stage checkov
 
 summarise

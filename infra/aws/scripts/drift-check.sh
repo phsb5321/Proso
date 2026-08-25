@@ -33,8 +33,9 @@
 # PER-STACK CONFIG follows the convention the stacks already document in their
 # own READMEs, rather than inventing a second one: `<env>.tfvars` copied from
 # the tracked `example.tfvars`, and `<env>.s3.tfbackend` (or `backend.hcl`) for
-# the partial backend. Both are gitignored, because they carry account ids and
-# could carry secrets — ADR-001 §4.5. Set DRIFT_ENV to pick the prefix.
+# the partial backend. Tfvars stay gitignored because they may carry secrets;
+# backend configs are tracked when they contain only non-secret account and
+# state-bucket metadata. Set DRIFT_ENV to pick the prefix.
 #
 # When that config is missing the script says exactly which file to provide and
 # fails. It does NOT skip: a drift check that silently covers nothing is the

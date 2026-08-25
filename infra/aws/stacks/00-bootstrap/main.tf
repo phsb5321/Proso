@@ -26,8 +26,14 @@ locals {
     Stack       = "00-bootstrap"
   }
 
-  state_bucket_name = "proso-tfstate-${var.account_id}"
-  log_bucket_name   = "proso-tfstate-logs-${var.account_id}"
+  state_bucket_name      = "proso-tfstate-${var.account_id}"
+  log_bucket_name        = "proso-tfstate-logs-${var.account_id}"
+  baseline_bucket_prefix = "${var.environment}-cloudtrail-${var.account_id}"
+  drift_bucket_prefixes = [
+    local.state_bucket_name,
+    local.log_bucket_name,
+    local.baseline_bucket_prefix,
+  ]
 }
 
 module "tfstate_backend" {
@@ -59,6 +65,10 @@ module "deploy_role" {
   state_kms_key_arn = module.tfstate_backend.kms_key_arn
 
   managed_bucket_prefixes = var.managed_bucket_prefixes
+
+  # Both bootstrap and account-baseline are in the nightly drift set. The
+  # role may inspect their bucket configuration, but no object ARN is granted.
+  read_only_bucket_prefixes = local.drift_bucket_prefixes
 
   tags = local.tags
 }

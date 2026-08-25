@@ -30,8 +30,9 @@ variable "trusted_principal_arns" {
   description = <<-EOT
     Exact IAM principal ARNs allowed to assume the deploy role. Prefer
     trusted_permission_set_names. This list exists for a principal that is not
-    an Identity Center identity — e.g. a role federated from a Forgejo OIDC
-    provider, which the Account Foundation tab is researching.
+    an Identity Center identity — currently the transitional
+    OrganizationAccountAccessRole. Forgejo OIDC is not viable while its issuer
+    remains Tailscale-only; see docs/forgejo-oidc-federation.md.
   EOT
   type        = list(string)
   default     = []
@@ -81,6 +82,12 @@ variable "managed_bucket_prefixes" {
   description = "Name prefixes of the S3 buckets this role may manage for workloads (the site stack). Scoped by prefix so the role cannot touch the backup buckets in the management account's naming space."
   type        = list(string)
   default     = ["proso-"]
+}
+
+variable "read_only_bucket_prefixes" {
+  description = "Name prefixes of account-baseline buckets this role may inspect for drift. Grants Get/List only; baseline mutation stays outside the routine deploy role."
+  type        = list(string)
+  default     = []
 }
 
 variable "account_id" {

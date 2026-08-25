@@ -39,6 +39,19 @@ run "everything_carries_the_environment_tag" {
   }
 }
 
+run "deploy_role_can_read_the_baseline_without_changing_it" {
+  command = plan
+
+  assert {
+    condition = toset(local.drift_bucket_prefixes) == toset([
+      "proso-tfstate-699475944323",
+      "proso-tfstate-logs-699475944323",
+      "sandbox-cloudtrail-699475944323",
+    ])
+    error_message = "The nightly drift role must inspect bootstrap and account-baseline bucket configuration without receiving object ARNs."
+  }
+}
+
 run "access_is_identity_center_only" {
   command = plan
 

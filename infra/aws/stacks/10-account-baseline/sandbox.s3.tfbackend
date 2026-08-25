@@ -1,0 +1,11 @@
+bucket = "proso-tfstate-699475944323"
+key    = "10-account-baseline/terraform.tfstate"
+region = "us-east-1"
+
+# The state bucket rejects AES256 writes. Naming the KMS alias keeps this file
+# stable across key rotation while satisfying the bucket policy.
+encrypt    = true
+kms_key_id = "arn:aws:kms:us-east-1:699475944323:alias/proso-tfstate-699475944323"
+
+# Terraform >= 1.11: S3 owns the lock; no DynamoDB table exists.
+use_lockfile = true
