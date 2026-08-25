@@ -176,15 +176,21 @@ if wanted test; then
   # because an unrelated fixture has a test. §4.7 is per module, so check per
   # module. Stacks are deliberately excluded: they are compositions owned by the
   # other tabs, and the ADR requires the test on the reusable unit.
+  #
+  # Recursive, not -maxdepth 1: Terraform looks for tests both beside the module
+  # and in its `tests/` subdirectory, and the modules in this repo use `tests/`.
   if [[ -d modules ]]; then
     while IFS= read -r m; do
       [[ -n "$(find "$m" -maxdepth 1 -name '*.tf' -print -quit)" ]] || continue
-      if [[ -z "$(find "$m" -maxdepth 1 -name '*.tftest.hcl' -print -quit)" ]]; then
+      if [[ -z "$(find "$m" -name '*.tftest.hcl' -print -quit)" ]]; then
         bad "test — module $m has no *.tftest.hcl (ADR-001 §4.7)"
       fi
     done < <(find modules -mindepth 1 -maxdepth 1 -type d | sort)
   fi
 
+  # `terraform test` runs from the MODULE ROOT and discovers `tests/` itself; it
+  # cannot run inside `tests/`, where there is no configuration to test. Map a
+  # test file back to the directory Terraform expects to be invoked from.
   found_any=0
   while IFS= read -r d; do
     found_any=1
@@ -195,7 +201,9 @@ if wanted test; then
       bad "test $d"
     fi
   done < <(find . -path ./.git -prune -o -name '*.tftest.hcl' -print 2>/dev/null |
-           xargs -r -n1 dirname | sort -u)
+           xargs -r -n1 dirname |
+           sed 's:/tests$::' |
+           sort -u)
   ((found_any)) || bad "test — no *.tftest.hcl anywhere (ADR-001 §4.7)"
 fi
 
