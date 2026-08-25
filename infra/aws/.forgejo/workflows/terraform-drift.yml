@@ -1,0 +1,60 @@
+# Scheduled drift detection — a nightly read-only `terraform plan` over every
+# stack, reporting any non-empty diff.
+#
+# Code and reality diverge without anyone deciding they should: a console click
+# during an incident, an out-of-band script, an AWS default that changed under
+# you. A plan run on a schedule turns that into a next-morning fix instead of
+# an archaeology session during the next outage.
+#
+# Read-only by construction: `scripts/drift-check.sh` has no apply path and
+# passes `-lock=false`, so it cannot take a state lock from a concurrent apply
+# either. ADR-001 §4.1 and §4.6 are satisfied without needing a rule — there is
+# no code path that mutates anything.
+name: terraform-drift
+
+on:
+  schedule:
+    # 04:00 BRT (07:00 UTC) — after the nightly restic backup window, before
+    # anyone is looking at the account.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: terraform-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: [self-hosted, Linux, X64]
+    # Same gate as the plan job in terraform-ci.yml: without the OIDC deploy
+    # role there is nothing to authenticate as, and this must never fall back to
+    # the root credentials in `PERSONAL_ROOT` (ADR-001 §4.3).
+    # `scripts/ci-assume-role.sh` enforces that: it scrubs the ambient
+    # credential chain and refuses any identity outside Sandbox-Account.
+    if: ${{ vars.AWS_ROLE_TO_ASSUME != '' }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: terraform plan -detailed-exitcode (read-only)
+        id: plan
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: us-east-1
+        run: |
+          set +e
+          nix develop -c scripts/ci-assume-role.sh scripts/drift-check.sh | tee drift.log
+          rc=${PIPESTATUS[0]}
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          # 2 = drift. Surfaced as a failed job so it is visible on the runs
+          # list, because a green tick next to "drift found" is how drift gets
+          # ignored for three weeks.
+          exit $rc
+
+      - name: Drift report
+        if: ${{ failure() && steps.plan.outputs.exit_code == '2' }}
+        run: |
+          echo "::warning::Infrastructure has drifted from code. Plan output:"
+          cat drift.log

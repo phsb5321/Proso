@@ -1,0 +1,39 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyExpensiveServices",
+      "Effect": "Deny",
+      "Action": [
+        "rds:*",
+        "elasticache:*",
+        "es:*",
+        "elasticsearch:*",
+        "redshift:*",
+        "eks:*",
+        "ecs:*",
+        "athena:*",
+        "sagemaker:*",
+        "ec2:RunInstances",
+        "lambda:CreateFunction",
+        "apigateway:*",
+        "route53:*",
+        "dynamodb:CreateTable"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyTurningOffTheGuardrails",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:PutEventSelectors",
+        "budgets:DeleteBudget",
+        "budgets:ModifyBudget",
+        "s3:PutAccountPublicAccessBlock"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

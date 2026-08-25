@@ -1,0 +1,32 @@
+bucket = "proso-tfstate-699475944323"
+key    = "00-bootstrap/terraform.tfstate"
+region = "us-east-1"
+
+# `kms_key_id` is not optional here even though the bucket has a KMS default:
+# with `encrypt = true` alone the backend sends x-amz-server-side-encryption:
+# AES256, which the bucket's DenyUnencryptedWrites policy rejects. The alias ARN
+# is used rather than the key id so this file is deterministic before the first
+# apply; S3 resolves it to the key. Verified on the live object:
+#   aws s3api head-object --bucket proso-tfstate-699475944323 \
+#       --key 00-bootstrap/terraform.tfstate
+#   -> "SSEKMSKeyId": ".../key/2056b8bb-f931-4a04-9468-98f9ae062dcd"
+encrypt    = true
+kms_key_id = "arn:aws:kms:us-east-1:699475944323:alias/proso-tfstate-699475944323"
+
+# S3-native locking (Terraform >= 1.11). No DynamoDB table exists or should be
+# created — and could not be: the sandbox-guardrails SCP denies
+# dynamodb:CreateTable.
+use_lockfile = true
+
+# The backend does NOT inherit the provider's assume_role, and it authenticates
+# before any variable is evaluated, so `bootstrap_assume_role_arn` cannot reach
+# it. Without this block the backend authenticates as whatever the ambient
+# profile is — for the management-account user pedro-ops that is a cross-account
+# request, and S3 answers HeadObject with 403 Forbidden rather than 404, so the
+# failure reads like a missing permission on an object that does not exist yet.
+# Stating the role here keeps backend and provider pointed at the same identity
+# no matter which profile the caller exports.
+assume_role = {
+  role_arn     = "arn:aws:iam::699475944323:role/OrganizationAccountAccessRole"
+  session_name = "terraform-backend-00-bootstrap"
+}

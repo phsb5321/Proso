@@ -1,0 +1,114 @@
+# Runs on the self-hosted Forgejo Actions runner (server host), NOT on GitHub.
+#
+# GitHub Actions is blocked at the DISPATCH layer for this account — every run
+# is `startup_failure` with 0 jobs — and it bills real money once dispatch is
+# restored. Living under `.forgejo/workflows/` (which GitHub ignores and Forgejo
+# reads) is the cost control, not just a directory preference. Same reasoning,
+# same runner, as the Proso repo's `.forgejo/workflows/ci.yml`.
+#
+# `runs-on: [self-hosted, Linux, X64]` maps to the runner's `:host` labels, so
+# jobs execute directly on the server with the host's `nix` and `/nix/store`.
+# That matters here: the whole toolchain is pinned in `flake.lock`, so every job
+# is `nix develop -c <script>` and CI runs byte-identical binaries to a
+# developer's laptop. The container label (`ubuntu-latest`) would mean
+# re-installing terraform/tflint/trivy from the internet on every run, at a
+# version nobody pinned.
+#
+# Pipeline order is ADR-001 §2: fmt -> validate -> tflint -> Trivy/Checkov ->
+# plan -> gated apply.
+name: terraform-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A second push should not race the first through `terraform plan` against the
+# same state.
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── correctness + safety ────────────────────────────────────────────────
+  # One job, not five: the stages share a provider cache and a `terraform init`,
+  # and `gate.sh` already runs every stage even after one fails, so a single job
+  # still reports every problem in one pass.
+  gate:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions (pinned by flake.lock)
+        run: |
+          nix develop -c bash -c '
+            terraform version | head -1
+            tflint --version   | head -1
+            trivy --version    | head -1
+          '
+          grep CHECKOV_VERSION policy/versions.sh
+
+      # fmt -> validate -> tflint -> trivy -> checkov -> terraform test.
+      # CI calls the same entrypoint a developer does; there is no CI-only
+      # variant of the policy to drift out of sync.
+      - name: Policy gate
+        run: nix develop -c scripts/gate.sh
+
+      # The gate's own test. Without this the job above proves only that
+      # nothing failed — which is also what an accidentally-disabled scanner
+      # produces. ADR-001 §4.7.
+      - name: Falsify the gate (plant must go RED, removal must go GREEN)
+        run: nix develop -c scripts/falsify-gates.sh
+
+  # ── plan ────────────────────────────────────────────────────────────────
+  # Read-only. Runs only once the gate is green, so a plan is never produced
+  # from configuration that policy rejects.
+  #
+  # BLOCKED until the Account Foundation tab lands the OIDC deploy role: this
+  # job needs the repo variable `AWS_ROLE_TO_ASSUME` (a role ARN in
+  # Sandbox-Account 699475944323). It is guarded on that variable rather than
+  # commented out, so it starts working the moment the role exists and stays
+  # visibly pending until then.
+  #
+  # Keyless on purpose: ADR-001 §2 puts long-lived access keys as the top
+  # finding to avoid, and `PERSONAL_ROOT` is literal root credentials that must
+  # never reach a CI runner (§4.3). `scripts/ci-assume-role.sh` scrubs every
+  # ambient credential before authenticating and refuses to continue if the
+  # assumed identity is not in the sandbox account — so a stray profile on the
+  # runner cannot quietly become the identity this job plans with.
+  plan:
+    needs: gate
+    runs-on: [self-hosted, Linux, X64]
+    if: ${{ vars.AWS_ROLE_TO_ASSUME != '' }}
+    permissions:
+      # Required for Forgejo to issue the OIDC token. Without it the
+      # ACTIONS_ID_TOKEN_* pair is unset and ci-assume-role.sh fails closed
+      # rather than looking for another credential.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # One step, not two: exported credentials do not survive a step boundary,
+      # so splitting the token minting from the plan would mean publishing the
+      # token path through $GITHUB_ENV and trusting the next step to inherit the
+      # same scrubbed environment.
+      - name: Assume the deploy role via OIDC, then plan (read-only)
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: us-east-1
+        run: nix develop -c scripts/ci-assume-role.sh scripts/drift-check.sh
+
+  # ── apply ───────────────────────────────────────────────────────────────
+  # NOT IMPLEMENTED, and that is the correct state today.
+  #
+  # ADR-001 §4.1: no apply against production without Pedro's explicit, in-turn
+  # go — which a `push`-triggered workflow cannot represent. §4.2: a budget
+  # alarm must be the FIRST apply in any account, and that alarm does not exist
+  # yet (Account Foundation tab). Wiring an apply job now would encode a
+  # permission this repo has not earned.
+  #
+  # When it lands it belongs on `workflow_dispatch` with an explicit account
+  # input and a Forgejo deployment environment requiring manual approval —
+  # never on `push`.
