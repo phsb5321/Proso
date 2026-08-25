@@ -59,7 +59,7 @@ Identity Center is still empty, so `deploy_role_trusted_principal_arns` names
 `OrganizationAccountAccessRole` so that the role is assumable at all. That is a
 de-escalation path — the role it trusts is already administrator in this account
 — but it is not the end state. When `stacks/05-org-structure` is applied, the
-`SandboxAdmin` permission set already named in
+`ProsoInfraDeploy` permission set already named in
 `deploy_role_trusted_permission_set_names` carries the trust on its own and that
 line should be deleted.
 
