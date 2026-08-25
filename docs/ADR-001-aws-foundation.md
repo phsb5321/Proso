@@ -135,6 +135,31 @@ r-y7xb (root)
     └── proso-prod      (to create, GATED)
 ```
 
+### DECISION (25/08/2026, operator) — the workload account is Sandbox-Account
+
+**No new AWS account is created.** The site lands in the existing
+**`Sandbox-Account` 699475944323**.
+
+Why this over `proso-prod`, having proposed the latter first: the deciding
+factor was never "prod deserves its own account", it was **"the management
+account cannot be guardrailed"** — SCPs do not apply to it, and it holds the
+Object-Lock backups. `Sandbox-Account` satisfies that constraint completely: it
+is a member account, SCPs reach it, and it is nowhere near the backups. A third
+account would buy a tidier name and nothing else, at the cost of a second
+baseline to maintain and a 90-day close if it were ever wrong.
+
+Recorded so the reasoning survives: this is a *reversible* choice. If Proso ever
+earns real users, `stacks/15-member-account` already exists, written and
+unapplied — graduating is one apply plus a state move, not a redesign.
+
+Consequences:
+
+- `stacks/15-member-account` stays in the repo, **planned but never applied**.
+- `stacks/05-org-structure` still creates the `Workloads` OU and the corrected
+  SCP, because the SCP fix stands on its own: the existing `SandboxRestrictions`
+  forbids CloudFront and, in practice, Terraform.
+- Everything else targets `699475944323`.
+
 ### Account model
 
 ```
