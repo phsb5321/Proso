@@ -10,7 +10,23 @@ import { defineConfig } from 'wxt';
  * - ElevenLabs HTTP streaming TTS API
  * - Word-level text highlighting via CSS Custom Highlight API
  */
+/**
+ * Build the LISTED (Mozilla-hosted) variant rather than the self-distributed
+ * one. Set by `build:firefox-listed` / `zip:firefox-listed`.
+ *
+ * The two channels are the same code and the same extension id; they differ
+ * only in who serves updates. The distribution ADR (13/08/2026) keeps both:
+ * unlisted for controlled rollout, listed for the AMO audience. Encoding the
+ * difference here — rather than hand-editing a manifest before submission —
+ * keeps the submitted artifact reproducible from a build command.
+ */
+const listedBuild = process.env.PROSO_LISTED === '1';
+
 export default defineConfig({
+  // Keep the listed artifact beside the unlisted one instead of overwriting it:
+  // the two differ only by `update_url`, so a shared output directory makes it
+  // impossible to tell which channel a built XPI belongs to.
+  ...(listedBuild ? { outDir: '.output-listed' } : {}),
   modules: ['@wxt-dev/unocss'],
   unocss: {
     excludeEntrypoints: ['background', 'content'],
@@ -97,8 +113,19 @@ export default defineConfig({
       gecko: {
         id: '{41eb66cb-b520-4047-9b6c-63fdce6fca11}',
         strict_min_version: '109.0', // Firefox 109+ (AMO compat override to 109)
-        // Self-hosted auto-update for unlisted extension (Firefox doesn't check AMO for unlisted)
-        update_url: 'https://proso.com.br/updates.json',
+        // Self-hosted auto-update for the UNLISTED channel: Firefox does not
+        // check AMO for a self-distributed add-on, so the feed is the only way
+        // an installed copy ever updates.
+        //
+        // It must be ABSENT from a listed (Mozilla-hosted) submission. AMO's
+        // own validator rejects it outright:
+        //   MANIFEST_UPDATE_URL "update_url" is not allowed.
+        //   "browser_specific_settings.gecko.update_url" [is] not allowed for
+        //   Mozilla-hosted add-ons.
+        // (`web-ext lint`, 25/08/2026 — the only error on the 1.2.9 build.)
+        // Listed builds update through AMO itself, so dropping the key loses
+        // nothing; keeping it would make the listing unsubmittable.
+        ...(listedBuild ? {} : { update_url: 'https://proso.com.br/updates.json' }),
         // Required by AMO for all new extensions (mandatory since 2026).
         // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
         data_collection_permissions: {

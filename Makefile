@@ -18,7 +18,7 @@ FC_NUM_RUNS ?= 100
 	license-settings-gate license-settings-plants \
 	brand-site-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
-	stale duplication semantic docs dependencies quality inventory security verify brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
+	stale duplication semantic docs dependencies quality inventory security verify release-channels brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
 	verify-full adversarial gate ci status
 
 help: ## Show the delivery commands.
@@ -216,6 +216,12 @@ server-status-popover-plants: ## Prove every server-status-popover-gate assertio
 	@node scripts/server-status-popover-plants.mjs
 
 verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
+
+release-channels: ## Build both Firefox channels (unlisted + listed) and prove they differ only by update_url.
+	$(PNPM) --filter @proso/extension build:firefox
+	$(PNPM) --filter @proso/extension build:firefox-listed
+	@node scripts/release-channels-check.mjs
+	@npx web-ext lint --source-dir packages/extension/.output-listed/firefox-mv2 --output=text
 
 brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site identity assets must stay reproducible.
 	node scripts/verify-brand-assets.mjs

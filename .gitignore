@@ -28,6 +28,8 @@ node_modules
 web-ext-artifacts/
 .wxt/
 .output/
+# Listed (Mozilla-hosted) build variant — same code as .output, minus update_url.
+.output-listed/
 dist/
 build/
 
