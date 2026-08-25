@@ -130,10 +130,13 @@ The secret lives in Bitwarden (`api/aws-pedro-ops`) and in `~/.aws/credentials`
 this whole document exists to eliminate. It is step 3 below, and it goes away as
 soon as Identity Center login works:
 
+Use the short-lived `admin-user` console session obtained with `aws login`, not
+`PERSONAL_ROOT`:
+
 ```bash
-aws --profile PERSONAL_ROOT iam delete-access-key --user-name pedro-ops --access-key-id AKIA4MTWL5ZFZEDXBB4G
-aws --profile PERSONAL_ROOT iam delete-user-policy --user-name pedro-ops --policy-name pedro-ops-baseline
-aws --profile PERSONAL_ROOT iam delete-user --user-name pedro-ops
+aws --profile pedro-admin-session iam delete-access-key --user-name pedro-ops --access-key-id AKIA4MTWL5ZFZEDXBB4G
+aws --profile pedro-admin-session iam delete-user-policy --user-name pedro-ops --policy-name pedro-ops-baseline
+aws --profile pedro-admin-session iam delete-user --user-name pedro-ops
 rbw remove api/aws-pedro-ops
 ```
 
@@ -205,11 +208,14 @@ terraform plan -var-file=sandbox.tfvars -var='aws_profile=proso-deploy'
 - **Do not continue until this works.** Everything after this point removes a
   credential.
 
-### Step 3 — delete `pedro-ops` (reversible: re-run the bootstrap script)
+### Step 3 — delete `pedro-ops` (reversible with the non-root admin session)
 
 Run the four commands in §3. This removes the last static key this repo created.
 
-- **Rollback:** `scripts/bootstrap-pedro-ops.sh` recreates it (needs root once).
+- **Rollback:** recreate the same user/policy/key through the short-lived
+  `pedro-admin-session`. The historical root-bootstrap script was removed once
+  the scoped role worked; its implementation remains available in git history,
+  but root is no longer an allowed routine identity.
 
 ### Step 4 — deactivate the root key, DO NOT delete (GATED)
 
