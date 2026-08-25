@@ -296,6 +296,12 @@ jobs:
 
       - name: Upload visual test report
         uses: actions/upload-artifact@v4
+        # Diagnostics, never a gate. Forgejo's artifact backend rejects the
+        # upload-artifact@v4 protocol (`GHESNotSupportedError`), which failed
+        # visual-tests and e2e-tests as a whole even though the suites
+        # themselves had already reported. An artifact upload must not be able
+        # to redden a job whose tests passed.
+        continue-on-error: true
         if: always()
         with:
           name: playwright-visual-report
@@ -306,6 +312,12 @@ jobs:
 
       - name: Upload snapshot diffs
         uses: actions/upload-artifact@v4
+        # Diagnostics, never a gate. Forgejo's artifact backend rejects the
+        # upload-artifact@v4 protocol (`GHESNotSupportedError`), which failed
+        # visual-tests and e2e-tests as a whole even though the suites
+        # themselves had already reported. An artifact upload must not be able
+        # to redden a job whose tests passed.
+        continue-on-error: true
         if: failure()
         with:
           name: snapshot-diffs
@@ -347,6 +359,12 @@ jobs:
 
       - name: Upload E2E test report
         uses: actions/upload-artifact@v4
+        # Diagnostics, never a gate. Forgejo's artifact backend rejects the
+        # upload-artifact@v4 protocol (`GHESNotSupportedError`), which failed
+        # visual-tests and e2e-tests as a whole even though the suites
+        # themselves had already reported. An artifact upload must not be able
+        # to redden a job whose tests passed.
+        continue-on-error: true
         if: always()
         with:
           name: playwright-e2e-report

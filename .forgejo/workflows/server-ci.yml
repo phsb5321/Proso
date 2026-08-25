@@ -26,6 +26,24 @@ jobs:
   server-ci:
     name: Lint, Test & Build
     runs-on: ubuntu-latest
+    # Same requirement as ci.yml's server-test: the Prisma contract specs need a
+    # real PostgreSQL, and they cannot start their own from inside a job that is
+    # itself a container. Provisioning it here and handing it over as
+    # TEST_DATABASE_URL keeps this job honest instead of red.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: proso_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://test:test@postgres:5432/proso_test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
