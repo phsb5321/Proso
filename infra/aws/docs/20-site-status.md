@@ -58,6 +58,17 @@ $ echo $?
 0
 ```
 
+A post-subtree audit found one false-drift source: `aws_s3_object.source` stored
+the absolute checkout path, so an identical payload assembled in a feature
+worktree planned three object rewrites. The stack and module now reject absolute
+payload paths, and `example.tfvars` uses the same relative path in every checkout
+while `source_hash` remains the content trigger. The allowlisted Sandbox apply
+migrated exactly those paths (`0 added, 3 changed, 0 destroyed`); the follow-up
+plan was clean at `-detailed-exitcode` 0. Local MD5s still equal the three live
+S3 ETags, and a one-byte disposable `.xpi` change plans exactly one `source_hash`
+update. All 12 Terraform invariants turn red under their own falsification plant
+and return green after revert.
+
 ## Bug found and fixed by applying: the log-delivery policy fought AWS
 
 The first apply succeeded, and the very next plan wanted to change something

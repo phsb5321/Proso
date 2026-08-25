@@ -64,4 +64,9 @@ variable "site_source_dir" {
   EOT
   type        = string
   default     = null
+
+  validation {
+    condition     = var.site_source_dir == null ? true : !startswith(var.site_source_dir, "/")
+    error_message = "site_source_dir must be relative to this stack so plans are portable across worktrees."
+  }
 }

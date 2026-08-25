@@ -45,17 +45,23 @@ terraform init -backend=false
 
 ## Order of operations
 
-`cp example.tfvars sandbox.tfvars` first; it is gitignored and carries the
-account, the role to assume, and the path to the assembled site.
+Enter the Proso root `nix-shell`, then return here. `cp example.tfvars
+sandbox.tfvars` first; it is gitignored and carries the account, the role to
+assume, and the path to the assembled site.
 
 ```bash
+# From the Proso repository root:
+nix-shell
+cd infra/aws/stacks/20-site
+test -e sandbox.tfvars || cp example.tfvars sandbox.tfvars
+
 # 1. Assemble the site tree. Terraform reads updates.json and releases/*.xpi
 #    from it, so this comes before plan, not after.
 ../../scripts/deploy-site.sh assemble
 
 # 2. Gate, then plan. ADR-001 §4.4 — policy-as-code gates the plan, so the gate
 #    runs before it, not after the fact.
-(cd ../.. && nix develop -c scripts/gate.sh)
+(cd ../../../.. && make infra-check)
 terraform plan -var-file=sandbox.tfvars -out=site.tfplan
 
 # 3. Apply. The budget alarm in stacks/10-account-baseline must already be live
@@ -92,7 +98,7 @@ Only after step 5 is clean:
 2. Wait for the certificate to reach `ISSUED`
    (`aws acm describe-certificate --certificate-arn "$(terraform output -raw certificate_arn)"`).
    CloudFront cannot attach a certificate in any other state.
-3. `terraform apply -var site_source_dir=... -var attach_custom_domain=true`.
+3. `terraform apply -var-file=sandbox.tfvars -var attach_custom_domain=true`.
 4. **Pedro** flips the `proso.com.br` CNAME (`terraform output cutover_cname`).
    That step is deliberately outside this stack.
 

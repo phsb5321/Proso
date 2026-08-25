@@ -21,6 +21,10 @@ git diff --quiet -- . || {
   exit 1
 }
 
+# `terraform test` does not install providers. Initialise explicitly so a fresh
+# worktree tests planted behavior rather than failing on an empty plugin cache.
+terraform init -backend=false -input=false >/dev/null
+
 failed=0
 
 # falsify <run name> <file> <sed expression that plants the regression>
@@ -79,6 +83,14 @@ falsify xpi_objects_are_served_as_x_xpinstall releases.tf \
 # Installed extensions look for the manifest at the root and find nothing.
 falsify update_payload_lands_at_the_site_root releases.tf \
   's#^  key = "updates.json"$#  key = "meta/updates.json"#'
+
+# Stable paths still need hashes so changed bytes trigger an object update.
+falsify update_payload_changes_are_content_addressed releases.tf \
+  's#^  source_hash = filemd5("${var.release_source_dir}/releases/${each.value}")$#  source_hash = null#'
+
+# An absolute path would put checkout-specific state back into every object.
+falsify absolute_release_source_path_is_refused variables.tf \
+  's#condition     = var.release_source_dir == null ? true : !startswith(var.release_source_dir, "/")#condition     = var.release_source_dir == null ? true : var.release_source_dir != ""#'
 
 # The manifest may advertise any host, including the one being migrated away.
 falsify stale_update_host_is_refused_once_the_domain_is_attached releases.tf \
