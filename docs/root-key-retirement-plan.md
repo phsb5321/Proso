@@ -159,31 +159,46 @@ only one with a delay, and even that is recoverable within the grace window.
 
 ### Step 1 — configure Identity Center (reversible, no impact)
 
-Apply `stacks/05-org-structure`. Creates the `PlatformAdmins` group, the
-`SandboxAdmin` and `ManagementOps` permission sets, their assignments, the
-`Workloads` OU, and the Identity Center user for Pedro.
+Apply `stacks/05-org-structure`. Creates the `PlatformAdmins` group, three
+permission sets with their assignments, the `Workloads` OU, and the Identity
+Center user for Pedro.
+
+| Permission set | Account | Grants | Session |
+|---|---|---|---|
+| `ProsoInfraDeploy` | 699475944323 | assume `proso-deploy`; read/write the state bucket through its CMK | PT4H |
+| `WorkloadBreakGlass` | 699475944323 | `AdministratorAccess` | PT2H |
+| `ManagementOps` | 851725512267 | org/IAM/Identity Center read, budgets, backup-posture audit; denied backup contents | PT4H |
+
+`ProsoInfraDeploy` is the routine path and holds no admin — ADR-001 §2.5.
+`WorkloadBreakGlass` exists for one concrete reason, not as a comfort blanket:
+the first `stacks/00-bootstrap` apply *creates* the state bucket and the deploy
+role, so until it has run, `ProsoInfraDeploy` grants nothing usable.
 
 - **Gated:** the management account is production; this needs Pedro's go.
-- **Human step inside it:** creating the Identity Center user sends a one-time
-  password email. Pedro must open it, set a password and register MFA. Nothing
-  automates that, and nothing else in this plan can proceed until it is done.
+- **THE ONE HUMAN STEP.** Creating the Identity Center user makes AWS email a
+  one-time password link to `operator_email`. **Pedro must open that link, set a
+  password, and register an MFA device.** Nothing automates it — no API sets an
+  Identity Center password, and `aws sso login` is a browser device-authorisation
+  flow. Every step below is blocked until this is done.
 - **Rollback:** `terraform destroy` on this stack (the `Workloads` OU carries
   `prevent_destroy`, so remove it from state first if the OU should stay).
 
 ### Step 2 — prove the new path before removing the old one
 
 ```bash
-aws configure sso --profile pedro-sso   # start URL from the Identity Center console
-aws sso login --profile pedro-sso
-aws --profile pedro-sso sts get-caller-identity     # expect an assumed-role ARN
-aws --profile pedro-sso organizations list-accounts # expect the two accounts
+aws configure sso --profile proso-deploy   # start URL from the Identity Center console
+aws sso login --profile proso-deploy
+aws --profile proso-deploy sts get-caller-identity
+# expect: arn:aws:sts::699475944323:assumed-role/AWSReservedSSO_ProsoInfraDeploy_<suffix>/<user>
 ```
 
-Then re-run a real plan through it:
+Then re-run a real plan through it — the applied baseline is the honest test,
+because a wrong permission set shows up as a diff or a 403, not as silence:
 
 ```bash
 cd stacks/10-account-baseline
-terraform plan -var-file=sandbox.tfvars -var='aws_profile=pedro-sso-sandbox'
+terraform plan -var-file=sandbox.tfvars -var='aws_profile=proso-deploy'
+# expect: No changes. Your infrastructure matches the configuration.
 ```
 
 - **Rollback:** none needed; nothing has been removed.
@@ -252,7 +267,7 @@ aws --profile PERSONAL_ROOT iam delete-access-key --access-key-id AKIA4MTWL5ZFUH
 ### Step 7 — close the second path
 
 `admin-user` still holds `AdministratorAccess` with a console password. Once
-`ManagementOps` and `SandboxAdmin` cover daily work, either delete it or reduce
+`ManagementOps` and `WorkloadBreakGlass` cover daily work, either delete it or reduce
 it to a documented break-glass identity with MFA enforced. Track it as its own
 slice; it is not a reason to delay steps 1–6.
 

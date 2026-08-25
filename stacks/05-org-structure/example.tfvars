@@ -4,7 +4,15 @@
 # PLAN-ONLY. This stack touches the management account, where root lives.
 
 management_account_id = "851725512267"
-sandbox_account_id    = "699475944323"
+
+# ADR-001 §3 (operator decision, 25/08/2026): the workload account IS the
+# existing Sandbox-Account. No new account is created.
+workload_account_id = "699475944323"
+
+# These three must match stacks/00-bootstrap, which owns them.
+deploy_role_name  = "proso-deploy"
+state_bucket_name = "proso-tfstate-699475944323"
+state_kms_alias   = "alias/proso-tfstate-699475944323"
 
 root_id         = "r-y7xb"
 sandboxes_ou_id = "ou-y7xb-qkp97z4j"

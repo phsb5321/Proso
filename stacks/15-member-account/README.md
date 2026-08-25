@@ -3,10 +3,19 @@
 Creates the `proso-prod` member account inside the `Workloads` OU, and gives it
 a break-glass permission set.
 
-**GATED — ADR-001 §5. Plan freely; do not apply without Pedro's explicit,
-in-turn go.** Planned clean on 25/08/2026; not applied.
+> **NOT APPLIED, AND NOT WAITING TO BE.** ADR-001 §3 (operator decision,
+> 25/08/2026): the workload account is the existing **Sandbox-Account
+> 699475944323**. No new AWS account is created. This stack stays in the repo
+> deliberately — if Proso ever earns real users, graduating is one apply plus a
+> state move rather than a redesign. Until then it is a plan, not a queue item.
+>
+> The reasoning: the constraint was never "prod deserves its own account", it
+> was "the management account cannot be guardrailed" — SCPs do not apply to it
+> and it holds the Object-Lock backups. Sandbox-Account satisfies that in full.
 
-## Why it is gated
+Planned clean on 25/08/2026 (4 resources); not applied.
+
+## Why it would be gated even if it were wanted
 
 - **It uses root once.** Organizations account creation is the single operation
   ADR-001 §4.3 reserves for the root user.

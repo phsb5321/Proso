@@ -31,14 +31,50 @@ Root cannot reach the sandbox at all. Identity Center can.
 | `Workloads` OU | Sibling of the existing `Sandboxes` OU, not a parallel structure |
 | `PlatformAdmins` group | The assignment principal — membership changes need no Terraform run |
 | Identity Center user | Sends a one-time password email; **the human gate** |
-| `SandboxAdmin` permission set | `AdministratorAccess`, sandbox only, `PT8H` |
+| `ProsoInfraDeploy` permission set | Routine plan/apply in the workload account, `PT4H` |
+| `WorkloadBreakGlass` permission set | `AdministratorAccess` in the workload account, `PT2H` |
 | `ManagementOps` permission set | Inline least-privilege, management account, `PT4H` |
 | `SandboxGuardrails` SCP + attachment | Off by default — see the prerequisite below |
 
-`ManagementOps` can audit backup posture (bucket versioning, Object Lock
+The workload account is **Sandbox-Account 699475944323** (ADR-001 §3, operator
+decision 25/08/2026). The account is still *named* `Sandbox-Account` in AWS;
+that is a naming artifact of a deliberately reversible decision, not a mistake.
+
+### The three permission sets, and why the split
+
+**`ProsoInfraDeploy`** is the routine path and holds no admin — ADR-001 §2.5.
+It grants exactly two things:
+
+1. `sts:AssumeRole` on `proso-deploy`, the least-privilege boundary that
+   `stacks/00-bootstrap` owns. The same role is the target for a future OIDC CI
+   principal, so there is one policy to audit rather than two.
+2. Direct access to the state bucket and its CMK. This is not redundancy:
+   Terraform's S3 backend authenticates with the **ambient session**, not with
+   the provider's assumed role, and `sandbox.s3.tfbackend` carries no
+   `role_arn`. Without it, `terraform init` fails before the deploy role is ever
+   reached. The KMS grant is `Resource: "*"` bounded by `kms:ViaService` and
+   `kms:ResourceAliases`, because the key ARN does not exist until
+   `stacks/00-bootstrap` has been applied.
+
+> **The name is a cross-stack contract.** `stacks/00-bootstrap` sets
+> `deploy_role_trusted_permission_set_names = ["ProsoInfraDeploy"]`, and
+> `modules/deploy-role` builds its trust from
+> `*AWSReservedSSO_${name}_*`. Renaming the permission set here without
+> renaming it there silently revokes access to the deploy role — no error, just
+> an `AccessDenied` later. `tests/org_structure.tftest.hcl` asserts the literal
+> so the break is loud; it is falsified by planting the rename.
+
+**`WorkloadBreakGlass`** exists for one concrete reason: the first
+`stacks/00-bootstrap` apply *creates* the state bucket and the deploy role, so
+until it has run `ProsoInfraDeploy` grants nothing usable. After that it is for
+incidents. Its session is `PT2H` against `ProsoInfraDeploy`'s `PT4H` — privilege
+sets session length, not convenience.
+
+**`ManagementOps`** can audit backup posture (bucket versioning, Object Lock
 configuration, public-access block) but is explicitly denied `s3:GetObject*`,
 every `s3:Put*`/`Delete*`, and `s3:BypassGovernanceRetention`. It can prove the
-backups are safe; it cannot read or destroy one.
+backups are safe; it cannot read or destroy one. It deliberately cannot reach
+the workload account at all — that is what the other two are for.
 
 ## The SCP this stack attaches is a replacement, not the existing one
 
@@ -97,15 +133,29 @@ terraform plan -var-file=management.tfvars
 # Plan: 10 to add, 0 to change, 0 to destroy.
 ```
 
-## After it is applied
+## After it is applied — the one human step
 
-The Identity Center user must accept the emailed one-time password and register
-MFA. Nothing automates that. Then:
+Creating the Identity Center user makes AWS email a one-time password link to
+`operator_email`. **Pedro must open that link, set a password, and register an
+MFA device.** This cannot be automated: no API sets an Identity Center password,
+and `aws sso login` is a browser device-authorisation flow. Everything else in
+the root-key exit is blocked until it is done.
+
+Then:
 
 ```bash
-aws configure sso --profile pedro-sso
-aws sso login --profile pedro-sso
-aws --profile pedro-sso sts get-caller-identity
+aws configure sso --profile proso-deploy   # start URL from the Identity Center console
+aws sso login --profile proso-deploy
+aws --profile proso-deploy sts get-caller-identity
+# expect: .../AWSReservedSSO_ProsoInfraDeploy_<suffix>/<user>
+
+cd ../10-account-baseline
+terraform plan -var-file=sandbox.tfvars -var='aws_profile=proso-deploy'
+# expect: No changes. Your infrastructure matches the configuration.
 ```
 
-Once that works, `docs/root-key-retirement-plan.md` steps 3–6 become actionable.
+That last command is the real proof: the baseline is already applied, so a wrong
+permission set surfaces as a 403 or a diff rather than as silence.
+
+Once it works, `docs/root-key-retirement-plan.md` steps 3–6 become actionable —
+starting with deleting the interim `pedro-ops` IAM user and its static key.

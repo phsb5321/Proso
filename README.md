@@ -19,7 +19,7 @@ produced them: [`docs/ADR-001-aws-foundation.md`](docs/ADR-001-aws-foundation.md
 | `stacks/00-bootstrap` | State bucket + deploy role. Starts on local state, then migrates into itself. |
 | `stacks/05-org-structure` | OUs, SCP attachment, Identity Center permission sets. Plan-only — management account. |
 | `stacks/10-account-baseline` | Budget alarm, CloudTrail, password policy. **Applied in Sandbox.** |
-| `stacks/15-member-account` | Creates `proso-prod` in the `Workloads` OU. **Gated** (ADR-001 §5). |
+| `stacks/15-member-account` | Creates `proso-prod` in the `Workloads` OU. **Written, never applied** — ADR-001 §3 makes Sandbox-Account the workload account. Kept so graduating later is one apply, not a redesign. |
 | `stacks/20-site` | S3 + CloudFront + OAC + ACM for `proso.com.br` (≈ $0/month). |
 | `modules/` | Golden modules; each ships a `terraform test`. |
 | `policies/` | Standalone IAM policy JSON referenced by stacks. |

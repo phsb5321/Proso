@@ -4,6 +4,58 @@ locals {
     Stack       = "05-org-structure"
     Environment = "management"
   }
+
+  # Routine Terraform work needs two things, and only these two.
+  #
+  # 1. Assume the deploy role. That role is the least-privilege boundary
+  #    stacks/00-bootstrap defines; the same role is the target for a future
+  #    OIDC CI principal, so there is one policy to audit rather than two.
+  # 2. Reach the state backend directly. Terraform's S3 backend authenticates
+  #    with the *ambient* session, not with the provider's assumed role, and
+  #    stacks/00-bootstrap/sandbox.s3.tfbackend carries no role_arn. Without
+  #    this statement `terraform init` fails before the deploy role is ever
+  #    reached.
+  infra_deploy_inline = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "AssumeTheDeployRole"
+        Effect   = "Allow"
+        Action   = "sts:AssumeRole"
+        Resource = "arn:aws:iam::${var.workload_account_id}:role/${var.deploy_role_name}"
+      },
+      {
+        Sid      = "ReadWriteTerraformState"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "arn:aws:s3:::${var.state_bucket_name}/*"
+      },
+      {
+        Sid      = "ListTheStateBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"]
+        Resource = "arn:aws:s3:::${var.state_bucket_name}"
+      },
+      {
+        # The state bucket rejects AES256 writes, so every backend call goes
+        # through KMS. Scoped by alias rather than key ARN because the ARN does
+        # not exist until stacks/00-bootstrap has been applied, and by
+        # kms:ViaService so these grants are unusable outside S3.
+        Sid      = "UseTheStateKeyThroughS3Only"
+        Effect   = "Allow"
+        Action   = ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "s3.${var.region}.amazonaws.com"
+          }
+          "ForAnyValue:StringEquals" = {
+            "kms:ResourceAliases" = var.state_kms_alias
+          }
+        }
+      },
+    ]
+  })
 }
 
 # --------------------------------------------------------------- OU layout
@@ -117,21 +169,49 @@ resource "aws_identitystore_group_membership" "pedro" {
 
 # --------------------------------------------------------------- permission sets
 
-# Full admin, but only inside the sandbox. The blast radius is an account that
-# exists to be broken.
-module "sandbox_admin" {
+# The routine path. No admin: it can assume the deploy role and touch the state
+# backend, nothing else.
+#
+# The NAME IS A CONTRACT. stacks/00-bootstrap sets
+# `deploy_role_trusted_permission_set_names = ["ProsoInfraDeploy"]`, and the
+# deploy role's trust policy matches
+# `…:role/aws-reserved/sso.amazonaws.com/*AWSReservedSSO_ProsoInfraDeploy_*`.
+# Renaming this permission set silently locks everyone out of the deploy role.
+# tests/org_structure.tftest.hcl asserts the literal so the break is loud.
+module "infra_deploy" {
   source = "../../modules/sso-permission-set"
 
   instance_arn = var.sso_instance_arn
-  name         = "SandboxAdmin"
-  description  = "Administrator inside Sandbox-Account only. The account is disposable; the permission is not portable."
+  name         = "ProsoInfraDeploy"
+  description  = "Routine Terraform plan/apply in the workload account, via the least-privilege deploy role. Name is a contract with stacks/00-bootstrap."
+
+  inline_policy = local.infra_deploy_inline
+
+  # Longer than break-glass on purpose: this session is low-privilege and has
+  # to outlast a slow apply. Privilege, not convenience, sets session length.
+  session_duration = "PT4H"
+  principal_id     = aws_identitystore_group.platform.group_id
+  account_ids      = [var.workload_account_id]
+  tags             = local.tags
+}
+
+# Break-glass. Needed for a real reason, not as a comfort blanket: the very
+# first `stacks/00-bootstrap` apply creates the state bucket and the deploy
+# role, so neither exists yet and ProsoInfraDeploy grants nothing usable.
+# After that it is for incidents only.
+module "workload_break_glass" {
+  source = "../../modules/sso-permission-set"
+
+  instance_arn = var.sso_instance_arn
+  name         = "WorkloadBreakGlass"
+  description  = "Administrator in the workload account. For the first bootstrap apply and for incidents; routine work uses ProsoInfraDeploy."
 
   managed_policy_arns = ["arn:aws:iam::aws:policy/AdministratorAccess"]
   allow_admin         = true
 
-  session_duration = "PT8H"
+  session_duration = "PT2H"
   principal_id     = aws_identitystore_group.platform.group_id
-  account_ids      = [var.sandbox_account_id]
+  account_ids      = [var.workload_account_id]
   tags             = local.tags
 }
 

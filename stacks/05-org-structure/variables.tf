@@ -8,13 +8,39 @@ variable "management_account_id" {
   }
 }
 
-variable "sandbox_account_id" {
-  description = "Sandbox-Account, the target of the SandboxAdmin permission set."
+variable "workload_account_id" {
+  description = "The workload account. Per ADR-001 §3 (operator decision, 25/08/2026) this is the existing Sandbox-Account 699475944323 — no new account is created."
   type        = string
 
   validation {
-    condition     = can(regex("^[0-9]{12}$", var.sandbox_account_id))
-    error_message = "sandbox_account_id must be exactly 12 digits."
+    condition     = can(regex("^[0-9]{12}$", var.workload_account_id))
+    error_message = "workload_account_id must be exactly 12 digits."
+  }
+}
+
+variable "deploy_role_name" {
+  description = "Least-privilege deploy role in the workload account that ProsoInfraDeploy may assume. Must match role_name in stacks/00-bootstrap."
+  type        = string
+  default     = "proso-deploy"
+}
+
+variable "state_bucket_name" {
+  description = "Terraform state bucket. Must match stacks/00-bootstrap; the backend authenticates with the ambient session, so the permission set needs it by name."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$", var.state_bucket_name))
+    error_message = "state_bucket_name must be a valid S3 bucket name."
+  }
+}
+
+variable "state_kms_alias" {
+  description = "Alias of the CMK encrypting the state bucket. Scoping by alias avoids depending on a key ARN that does not exist until stacks/00-bootstrap is applied."
+  type        = string
+
+  validation {
+    condition     = startswith(var.state_kms_alias, "alias/")
+    error_message = "state_kms_alias must start with 'alias/' — kms:ResourceAliases matches the alias name, not a bare key id."
   }
 }
 
