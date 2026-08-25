@@ -23,6 +23,10 @@ Not assumed — read from the live account:
 | Current spend | **USD 23.40/month** (July), dominated by backup buckets |
 | Existing buckets | 5, incl. `nixos-server-backups` with **Object Lock** |
 | Existing IAM users | 7, incl. scoped `restic-objectlock-v1`, `dokku-backup-user`, `proxmox-backup` |
+| Org root | `r-y7xb` |
+| **OU** | `Sandboxes` `ou-y7xb-qkp97z4j` — already exists |
+| **SCPs** | `FullAWSAccess` (AWS-managed) + **`SandboxRestrictions`** (custom, already authored) |
+| **IAM Identity Center** | **ENABLED** — `ssoins-7223fcff316331ec`, identity store `d-9067ca0796` |
 | **`PERSONAL_ROOT` profile** | **`arn:aws:iam::851725512267:root` — literal ROOT credentials** |
 | Root access key | `AKIA4MTW…` created 2026-05-13, **Active** |
 
@@ -80,6 +84,56 @@ because it is a real fork: OpenTofu is a drop-in swap if the BSL licence or
 client-side state encryption later matters.
 
 ## 3. Architecture
+
+### Correction (25/08/2026, measured after first draft)
+
+The first draft of this ADR assumed a bare organization. It is not: an OU
+(`Sandboxes`), a **custom SCP** (`SandboxRestrictions`) and **IAM Identity
+Center** are already in place. Two consequences, and they are load-bearing:
+
+1. **Do not create IAM users for access.** Identity Center is enabled, so
+   humans and CI get **permission sets** assigned per account — short-lived
+   credentials, no static keys to leak or rotate. This is also the honest exit
+   from the root-key problem: the reason root is still used is that no
+   non-root path was wired, and one already exists.
+2. **The OU/SCP pattern is established** — extend it (`Workloads` OU) rather
+   than inventing a parallel structure.
+
+### "Projects" in AWS — the model this repo follows
+
+AWS has no `project` object (unlike GCP projects or Azure resource groups).
+Ranked by strength of isolation:
+
+| Mechanism | Isolates | Cost |
+|---|---|---|
+| **Account** | security, billing, quotas, blast radius — the ONLY hard boundary | free |
+| **OU** | groups accounts; the attach point for SCPs | free |
+| **SCP** | preventive guardrail; denies even to admins | free |
+| **Identity Center permission set** | who may do what, per account, no static keys | free |
+| Tags / Resource Groups | nothing — labels only | free |
+| Cost allocation tags | per-project cost attribution in Billing | free |
+
+**So: one project = one account.** Everything weaker is organisational
+comfort, not isolation.
+
+Deliberately NOT adopted while the target is ~$0/month:
+
+- **AWS Control Tower** — its baseline turns on **AWS Config** across accounts,
+  and Config bills per configuration item recorded and per rule evaluation.
+  Current guidance is blunt that these costs "spike fast". Revisit if a
+  compliance requirement appears.
+- **GuardDuty / Security Hub** — per-account, per-GB, after a trial window.
+
+Target structure:
+
+```
+r-y7xb (root)
+├── [management] Pedro Balbino 851725512267   <- stays workload-free
+├── Sandboxes OU        (SandboxRestrictions) <- exists
+│   └── Sandbox-Account 699475944323
+└── Workloads OU        (to create)
+    └── proso-prod      (to create, GATED)
+```
 
 ### Account model
 
