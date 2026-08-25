@@ -895,6 +895,84 @@ branch protection is still unavailable on this plan, and Forgejo results do not
 post back to GitHub PRs. SonarQube and the site publish are not ported; the site
 remains a host decision, not a CI problem.
 
+## Update — 24/08/2026 (late): the self-hosted gate is green, and it immediately earned its keep
+
+The migration recorded above landed and now runs the whole suite. **All five
+jobs pass on the server runner at `ec1a993`**: `extension-test`, `server-test`,
+`security-audit`, `visual-tests`, `e2e-tests`. Forgejo reports the verdict in
+`.status` (its `conclusion` stays null), which is worth knowing before reading
+its API.
+
+**Cost goal met and measured, not asserted.** The newest GitHub run record for
+this repository reports `jobs created: 0`. No job, no billable minute. Because
+CI lives in `.forgejo/workflows/`, that stays true after the outstanding invoice
+clears; only `release.yml`'s `v*` tag trigger can still dispatch on GitHub, and
+that is deliberate and documented in its header.
+
+**The first real CI run in 19 days found four genuine defects** that the dead
+GitHub Actions had been hiding — none of them artifacts of the new runner:
+
+1. A load-sensitive stopwatch (`200 paragraphs … <50ms` measured 54ms). The same
+   class PR #183 removed elsewhere; replaced with the observable outcome plus a
+   load-independent proxy — 200 distinct texts must occupy 200 single-element
+   fingerprint buckets, because bucket collapse is what would genuinely make
+   matching slow.
+2. Every Prisma contract spec failed. They call testcontainers, which needs a
+   docker socket the test process can reach — impossible inside a job that is
+   itself a container, and the same reason next-slice #16 recorded them as
+   environment-blocked. `TEST_DATABASE_URL` now short-circuits the container so a
+   CI-provided database runs the same specs unchanged; local runs keep their
+   throwaway container (verified 23/23). **The 23 Prisma contracts gate in CI for
+   the first time**, which closes next-slice #16.
+3. A shared-database parallelism race — measured 4 of 98 failing because suites
+   truncate each other's tables mid-assertion. `jest.config` enforces
+   `maxWorkers: 1` whenever `TEST_DATABASE_URL` is set, so the constraint cannot
+   be forgotten at a call site.
+4. `e2e-tests` never reported a test at all: it built only Chrome while
+   Playwright's `webServer` serves fixtures from `.output/firefox-mv2`, and
+   `serve-built.mjs` exits 1 when that directory has no `settings.html`.
+
+**One defect was self-inflicted and is worth recording as a scar.** PR #202
+committed five `node_modules` **symlinks**, because `.gitignore` carried only
+`node_modules/` and a trailing slash matches a directory but never a symlink of
+the same name — so `git add -A` swept them in. Every job then died at install
+(`ENOTDIR: not a directory, mkdir …`), a fresh clone was equally broken, and
+pulling the removal back deleted `node_modules` from the canonical checkout.
+`.gitignore` was repaired in #203, but an ignore rule only prevents the accident;
+it cannot detect a path already in the index. PR #206 adds the detection to
+`scripts/workspace-policy.mjs` (inside the `doctor` gate that runs first in
+`make verify`), asking git what the repository actually carries, and it is
+falsified by replaying the original mistake.
+
+Also note a correct non-event: PR #206 triggered no CI run, because `ci.yml`'s
+path filters cover `packages/**`, `pnpm-lock.yaml` and the workflow itself, and
+#206 touched only `scripts/`. A skipped run is the filter working.
+
+### Feature 200 is now actually installed
+
+The reader fixes had been merged but not deployed — the daily profile was still
+running the 18:38 build of 23/08, proven by an XPI hash matching the PR #199
+receipt byte-for-byte. Deployed 24/08 23:16 BRT: extension source at `HEAD` is
+byte-identical to the #200 merge (#201–#206 touched only CI, tests and scripts),
+and the built bundle carries the Feature 200 markers `setPlaybackLanguage`,
+`_handleOutsidePointerDown` and `speed-option`. Graceful shutdown, atomic XPI
+swap, relaunch through `app-scope` into its own `app.slice` scope. Settings are
+**byte-identical** across the swap (`storage.js` sha256 `e30b0a6a…` before and
+after — `localHostUrl`, `localHostEnabled`, `provider: local` all preserved),
+session restored to two windows, deadlock-watch re-armed. Receipt and one-file
+rollback: `~/.local/state/proso-deploy/20260824-231203-feature-200/`.
+
+### Still blocked, and genuinely not ours
+
+Publishing the corrected site remains the highest-value user-facing item and is
+**not a CI problem**. Measured again today: `proso.com.br` answers with
+`server: GitHub.com`, still serving `Coming Soon` ×3, "free tier works
+immediately" and "unlimited browser TTS" — all false. `updates.json` also points
+at `phsb5321.github.io`, so it is the auto-update lifeline as well as the
+marketing page. Moving it needs either a DNS change away from GitHub Pages or a
+repository-visibility/plan change; both are Pedro's, and neither is unblocked by
+self-hosted CI.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
