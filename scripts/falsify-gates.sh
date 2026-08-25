@@ -18,8 +18,10 @@
 #   D. the ratchet rejects an undocumented suppression
 #   E. the `terraform test` suite fails when the module regresses
 #   F. the secret scanner flags a planted credential
+#   G. the stack policy rejects an unclassified stack, and refuses to let the
+#      never-apply stack be applied or drift-planned
 #
-# Exit 0 only if all six hold.
+# Exit 0 only if all seven hold.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
@@ -27,6 +29,10 @@ require_tools trivy uv jq
 
 PLANT_DIR="stacks/_gate-falsification-plant"
 SECRET_PLANT=".gate-falsification-secret.txt"
+STACK_POLICY="policy/stack-policy.json"
+# Assertion G needs a stack directory git does NOT ignore, or check-stack-policy
+# correctly treats it as scratch and the assertion cannot fail.
+POLICY_PLANT_DIR="stacks/99-falsification-unclassified"
 SCRATCH="$(mktemp -d)"
 COMPLIANT_TF="$FIXTURE_COMPLIANT_DIR/main.tf"
 
@@ -34,6 +40,11 @@ COMPLIANT_TF="$FIXTURE_COMPLIANT_DIR/main.tf"
 # does `rm -rf "$PLANT_DIR"`, which would be destructive if another tab (or an
 # earlier crashed run) had put real work at that path. ADR-001 §4.6: destructive
 # operations are never autonomous — that applies to the local tree too.
+if [[ -e "$POLICY_PLANT_DIR" ]]; then
+  log "$POLICY_PLANT_DIR already exists; refusing to delete a directory this run did not create."
+  exit 2
+fi
+
 if [[ -e "$PLANT_DIR" ]]; then
   log "$PLANT_DIR already exists."
   log "This script creates and deletes that exact path. Inspect it and move it"
@@ -46,12 +57,16 @@ fi
 # taking them unconditionally costs nothing.
 cp "$COMPLIANT_TF" "$SCRATCH/main.tf.orig"
 cp "$CHECKOV_BASELINE" "$SCRATCH/baseline.orig"
+cp "$STACK_POLICY" "$SCRATCH/stack-policy.orig"
+cp .forgejo/workflows/terraform-ci.yml "$SCRATCH/ci.yml.orig"
 
 cleanup() {
-  rm -rf "$PLANT_DIR"
+  rm -rf "$PLANT_DIR" "$POLICY_PLANT_DIR"
   rm -f "$SECRET_PLANT"
   cp "$SCRATCH/main.tf.orig" "$COMPLIANT_TF"
   cp "$SCRATCH/baseline.orig" "$CHECKOV_BASELINE"
+  cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
+  cp "$SCRATCH/ci.yml.orig" .forgejo/workflows/terraform-ci.yml
   rm -rf "$SCRATCH"
 }
 # INT/TERM as well as EXIT: bash runs an EXIT trap on a normal or `set -e` exit,
@@ -221,5 +236,43 @@ assert_fails "planted credential detected" 'aws-access-key-id' \
 rm -f "$SECRET_PLANT"
 assert_passes "credential removed: gate.sh --stage secrets" \
   "$REPO_ROOT/scripts/gate.sh" --stage secrets
+
+# ── G: the never-apply rule is enforced, not merely written ───────────────
+# The 25/08/2026 operator decision says stacks/15-member-account is written and
+# NEVER applied. That is a guardrail, so it gets the same treatment as every
+# other one here: prove it can fail, or it is decoration.
+step "G. stack policy must reject an unclassified stack"
+mkdir -p "$POLICY_PLANT_DIR"
+cat >"$POLICY_PLANT_DIR/plant.tf" <<'TF'
+# Transient plant written by scripts/falsify-gates.sh. Removed on exit.
+resource "aws_ssm_parameter" "unclassified" {
+  name  = "/proso/falsification/unclassified"
+  type  = "String"
+  value = "a new stack nobody classified"
+}
+TF
+assert_fails "unclassified stack rejected" '99-falsification-unclassified' \
+  "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+rm -rf "$POLICY_PLANT_DIR"
+assert_passes "classified set accepted" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+
+step "G. a never-apply stack must not be drift-planned or CI-applied"
+# Flip 15-member-account into the drift plan. It has no state and targets a
+# different account, so including it would mean a red drift job every night for
+# a reason nobody should act on.
+jq '.stacks["15-member-account"].drift = true' "$SCRATCH/stack-policy.orig" >"$STACK_POLICY"
+assert_fails "forbidden stack in the drift plan rejected" 'must not be in the drift plan' \
+  "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+
+# And the case that actually loses an account: a workflow that applies it.
+jq '.stacks["15-member-account"].apply = "forbidden"' "$SCRATCH/stack-policy.orig" >"$STACK_POLICY"
+printf '\n# falsification probe\n#   run: terraform -chdir=stacks/15-member-account apply\n' \
+  >>.forgejo/workflows/terraform-ci.yml
+assert_fails "workflow applying the forbidden stack rejected" 'apply or destroy the forbidden stack' \
+  "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+cp "$SCRATCH/ci.yml.orig" .forgejo/workflows/terraform-ci.yml
+
+cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
+assert_passes "restored stack policy accepted" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
 
 summarise

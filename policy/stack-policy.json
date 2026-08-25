@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "note": "Which account each stack targets, whether it may be applied, and whether the nightly drift plan covers it. Enforced by scripts/check-stack-policy.sh (a gate stage) and consumed by scripts/drift-check.sh. A stack with no entry here fails the gate: classification is opt-in-by-review, never by default.",
+  "accounts": {
+    "management": "851725512267",
+    "workload": "699475944323"
+  },
+  "stacks": {
+    "00-bootstrap": {
+      "account": "workload",
+      "apply": "allowed",
+      "drift": true,
+      "reason": "State bucket and deploy role for the workload account. Applied to Sandbox-Account per the 25/08/2026 operator decision in ADR-001."
+    },
+    "05-org-structure": {
+      "account": "management",
+      "apply": "gated",
+      "drift": false,
+      "reason": "Creates the Workloads OU and the corrected SCP, which necessarily live in the management account — SCPs are an Organizations resource and only the management account can write them. Excluded from the nightly drift plan because CI authenticates as the workload-account deploy role and cannot read Organizations; planning it here would fail every night and train everyone to ignore a red drift job. Re-include if a management-account read role is ever added.",
+      "adr": "ADR-001 §3, decision of 25/08/2026"
+    },
+    "10-account-baseline": {
+      "account": "workload",
+      "apply": "allowed",
+      "drift": true,
+      "reason": "Budget alarm, CloudTrail and password policy for Sandbox-Account. ADR-001 §4.2 makes the budget alarm the first apply in the account, so this stack leads."
+    },
+    "15-member-account": {
+      "account": "management",
+      "apply": "forbidden",
+      "drift": false,
+      "reason": "Creates aws_organizations_account.proso_prod. The operator decided on 25/08/2026 that the workload account is the EXISTING Sandbox-Account 699475944323 and that no new account is created, so applying this stack would do the one thing that decision rules out — and an AWS account takes 90 days to close, making it the least reversible action available in this repo. It stays written and unapplied so that graduating later is one apply plus a state move rather than a redesign. Flipping this to \"allowed\" is an operator decision, not a maintenance edit: it needs a new ADR entry, because the guardrail is the whole reason the file is still here.",
+      "adr": "ADR-001, decision of 25/08/2026"
+    },
+    "20-site": {
+      "account": "workload",
+      "apply": "allowed",
+      "drift": true,
+      "reason": "S3 + CloudFront + OAC + ACM for proso.com.br, in Sandbox-Account. Applied only after 10-account-baseline has made spend observable."
+    }
+  }
+}

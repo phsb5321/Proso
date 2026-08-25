@@ -18,6 +18,7 @@ similar ones.
 | Stage | Tool | Catches |
 |---|---|---|
 | `baseline` | `scripts/check-baseline.sh` | an undocumented or expired suppression |
+| `stack-policy` | `scripts/check-stack-policy.sh` | an unclassified stack; a never-apply stack being applied or drift-planned |
 | `fmt` | `terraform fmt -check -recursive` | formatting drift |
 | `validate` | `terraform validate` | broken references, bad types |
 | `tflint` | tflint + AWS ruleset | correctness: deprecated syntax, invalid ARNs, dead declarations |
@@ -75,6 +76,7 @@ is current rather than a screenshot from the day it was built:
 | D | the ratchet rejects an undocumented suppression, **and** an accepted check re-used on a different resource |
 | E | `terraform test` fails when the module regresses |
 | F | the secret scanner flags a planted credential |
+| G | the stack policy rejects an unclassified stack, a never-apply stack in the drift plan, and a workflow that applies one |
 
 A and B scan a **copy** of the fixture from outside the repo. Both scanners
 auto-discover config from the working directory, and both configs skip that
@@ -151,6 +153,51 @@ at 04:00 BRT. Read-only by construction: `plan` only, `-lock=false`, no apply
 path. Exit 2 means drift and fails the job on purpose — a green tick next to
 "drift found" is how drift gets ignored for three weeks.
 
+## Which account each stack targets, and what may be applied
+
+The operator decided on 25/08/2026 that the workload account is the **existing
+Sandbox-Account 699475944323** and that no new account is created. That makes
+`stacks/15-member-account` a stack whose purpose is now ruled out: it creates
+`aws_organizations_account.proso_prod`, and an AWS account takes 90 days to
+close, so it is the least reversible action available anywhere in this repo.
+
+Until `policy/stack-policy.json` existed, "never applied" was a paragraph in an
+ADR — exactly the class of guardrail this tab replaces. Every stack now carries
+a classification:
+
+| Stack | Account | Apply | In drift plan |
+|---|---|---|---|
+| `00-bootstrap` | workload `699475944323` | allowed | yes |
+| `05-org-structure` | management `851725512267` | gated | no |
+| `10-account-baseline` | workload | allowed | yes |
+| `15-member-account` | management | **forbidden** | no |
+| `20-site` | workload | allowed | yes |
+
+`scripts/check-stack-policy.sh` fails the gate when a stack has no entry (a new
+stack must be classified by a human, not defaulted), when a `forbidden` entry
+lacks a substantive reason and an ADR citation, when a `forbidden` stack is put
+in the drift plan or declares a backend, and when any workflow applies or
+destroys one.
+
+It does **not** try to intercept a human typing `terraform apply` in that
+directory. Nothing in a repo can, and claiming otherwise would be worse than
+saying so. The controls that do hold: CI has no apply job at all, drift never
+plans it, the deploy role is scoped to the workload account while that stack
+targets management, and flipping the entry is a reviewable one-line diff that
+fails the gate unless a new ADR entry comes with it.
+
+### Why drift skips two stacks
+
+Both exclusions exist to stop the nightly job being red for a reason nobody
+should act on — which is how the one real drift alert gets ignored:
+
+- `15-member-account` has no state and never will, so every resource reads as
+  missing. Permanent "drift".
+- `05-org-structure` targets the management account. CI authenticates as the
+  workload deploy role and cannot read Organizations, so the plan simply errors.
+
+Skips are printed with their reason on every run, never silent.
+
 ## Credentials in CI
 
 `scripts/ci-assume-role.sh` wraps every AWS-touching command. It does two things
@@ -178,8 +225,13 @@ long-lived key exists anywhere in this pipeline.
 | Blocked | Needs | Owner |
 |---|---|---|
 | `plan` + `drift` jobs | `AWS_ROLE_TO_ASSUME` — an OIDC deploy role in Sandbox-Account 699475944323, trusting this Forgejo issuer | Account Foundation tab |
+| drift actually planning anything | per-stack `<env>.tfvars` (and `<env>.s3.tfbackend` where the stack uses a partial backend), following each stack's own README convention. These are gitignored — §4.5 — so CI must materialise them from Forgejo secrets. `scripts/drift-check.sh` names the exact missing file per stack and fails rather than skipping. | Pedro / Account Foundation tab |
 | CI running at all | a git remote; this repo has none, so nothing mirrors to Forgejo | Pedro |
 | `apply` job | a budget alarm first (ADR-001 §4.2), then an explicit `workflow_dispatch` with manual approval | Account Foundation tab, then Pedro |
+
+There is no window where the drift job is permanently red waiting on that
+config: the job is gated on `AWS_ROLE_TO_ASSUME`, so it does not run at all
+until the role exists, and whoever provisions the role provisions the tfvars.
 
 The plan and drift jobs are guarded on `vars.AWS_ROLE_TO_ASSUME` rather than
 commented out, so they start working the moment the role exists and stay

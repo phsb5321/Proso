@@ -53,6 +53,19 @@ if wanted baseline; then
   fi
 fi
 
+# ── 0b. stack policy ────────────────────────────────────────────────────
+# Which account each stack targets, and whether it may be applied at all. The
+# 25/08/2026 operator decision makes stacks/15-member-account never-apply; before
+# this stage that rule existed only as a paragraph in the ADR.
+if wanted stack-policy; then
+  step "stack policy — every stack classified, never-apply enforced"
+  if "$REPO_ROOT/scripts/check-stack-policy.sh"; then
+    ok "stack-policy"
+  else
+    bad "stack-policy"
+  fi
+fi
+
 # ── 1. fmt ─────────────────────────────────────────────────────────────────
 if wanted fmt; then
   step "terraform fmt -check -recursive"

@@ -34,6 +34,12 @@ pre-commit:
       glob: "quality-baselines/*.json"
       run: nix develop -c scripts/gate.sh --stage baseline
 
+    # Also cheap, and it fires on the commit that ADDS a stack — the moment the
+    # classification is missing and the author still remembers why.
+    stack-policy:
+      glob: "{policy/stack-policy.json,stacks/**}"
+      run: nix develop -c scripts/gate.sh --stage stack-policy
+
 pre-push:
   commands:
     # The full gate before anything leaves the machine. Slower, but a push is
