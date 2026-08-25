@@ -32,6 +32,27 @@ async function findForbiddenLocks() {
     );
 }
 
+// PR #202 committed five `node_modules` SYMLINKS. `.gitignore` carried only
+// `node_modules/`, and a trailing slash matches a directory but never a symlink
+// of the same name, so `git add -A` swept them in. Every CI job then died at
+// install with `ENOTDIR: not a directory, mkdir '.../node_modules'` -- pnpm
+// cannot create the directory over a checked-out symlink -- and a fresh clone
+// was equally broken. .gitignore was repaired in #203, but ignore rules only
+// stop the ACCIDENT; they do not detect a path already in the index. This gate
+// does, and it asks git rather than the filesystem so it sees exactly what the
+// repository would hand a cloner.
+async function findTrackedDependencyDirs() {
+  const { stdout } = await execFileAsync('git', ['ls-files', '--cached', '-z'], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+  return stdout
+    .split('\0')
+    .filter((relative) => relative !== '')
+    .filter((relative) => relative.split('/').includes('node_modules'));
+}
+
 const workspace = await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8');
 for (const requiredPattern of ['packages/*', 'services/*']) {
   if (!workspace.includes(`"${requiredPattern}"`)) {
@@ -49,6 +70,16 @@ if (rootManifest.packageManager !== 'pnpm@10.30.3') {
 const locks = await findForbiddenLocks(root);
 if (locks.length > 0) {
   throw new Error(`non-canonical package-manager lockfile(s): ${locks.sort().join(', ')}`);
+}
+
+const trackedDependencyDirs = await findTrackedDependencyDirs();
+if (trackedDependencyDirs.length > 0) {
+  throw new Error(
+    `node_modules must never be tracked; git carries: ${trackedDependencyDirs.sort().join(', ')}. ` +
+      'Run `git rm --cached <path>` on each. A symlink named node_modules is the usual cause ' +
+      '(sharing installed deps into a worktree) and `node_modules/` in .gitignore does NOT ' +
+      'match it, because a trailing slash matches only a directory.',
+  );
 }
 
 const zodSpecs = new Map();
