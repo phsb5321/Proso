@@ -6,8 +6,8 @@ tabs can be trusted.
 ## Deliverables
 1. **Pre-commit**: `terraform fmt`, `validate`, `tflint`.
 2. **Security scanning**: **Trivy** (tfsec is deprecated — do not use it) + **Checkov**. Wire both to fail closed.
-3. **CI on the self-hosted Forgejo runner** — the fleet already runs one (see the Proso repo's `.forgejo/workflows/`; GitHub Actions is dead account-wide and costs money, so do NOT put this on GitHub). Pipeline order: `fmt` -> `validate` -> `tflint` -> `Trivy`/`Checkov` -> `plan` -> **gated** apply.
-4. **Drift detection**: a scheduled plan that reports non-empty diffs.
+3. **CI on the self-hosted Forgejo runner** — the credential-free floor (`fmt` -> `validate` -> `tflint` -> Trivy/Checkov -> `terraform test`) lives at the git-root `.forgejo/workflows/`, which GitHub ignores. Measured topology supersedes the original live-plan proposal: Forgejo's OIDC issuer is Tailscale-only, so AWS cannot validate it.
+4. **Drift detection**: `scripts/drift-check.sh` is executable and read-only, but remains operator-run until a publicly reachable keyless issuer exists. An always-skipped schedule is not a delivered gate.
 5. A **baseline/ratchet** for accepted findings, each with a written reason and review date — mirroring the Proso repo's `quality-baselines/` convention. Never a blanket skip.
 
 ## Definition of done

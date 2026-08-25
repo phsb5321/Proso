@@ -17,8 +17,8 @@
 #      reason. `forbidden` needs a substantive one plus an ADR citation, since
 #      that is the entry a future reader will be most tempted to flip.
 #   3. No entry is stale: everything classified still exists on disk.
-#   4. No CI workflow can apply a forbidden stack. Today no apply job exists at
-#      all; this is what notices the day one is added.
+#   4. The Terraform CI workflow exists at the git-root Forgejo discovery path,
+#      and no workflow can apply a forbidden stack.
 #   5. A forbidden stack declares no backend, so it cannot participate in the
 #      normal remote-state flow without an obvious, reviewable edit.
 #
@@ -33,10 +33,18 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 require_tools jq git
 
 POLICY="policy/stack-policy.json"
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+WORKFLOW_DIR="$GIT_ROOT/.forgejo/workflows"
+TERRAFORM_WORKFLOW="$WORKFLOW_DIR/terraform-ci.yml"
 fail=0
 note() { printf '    %s\n' "$*" >&2; fail=1; }
 
 [[ -f "$POLICY" ]] || { note "missing $POLICY"; exit 1; }
+[[ -f "$TERRAFORM_WORKFLOW" ]] ||
+  note "missing required Terraform workflow at git-root path $TERRAFORM_WORKFLOW"
+if [[ "$GIT_ROOT" != "$REPO_ROOT" && -d "$REPO_ROOT/.forgejo/workflows" ]]; then
+  note "nested $REPO_ROOT/.forgejo/workflows is undiscoverable by Forgejo; workflows belong at $WORKFLOW_DIR"
+fi
 jq -e . "$POLICY" >/dev/null || { note "$POLICY is not valid JSON"; exit 1; }
 
 if [[ ! -d stacks ]]; then
@@ -120,7 +128,7 @@ done <<<"$classified"
 
 # (4) no workflow may apply a forbidden stack
 forbidden="$(jq -r '.stacks | to_entries[] | select(.value.apply == "forbidden") | .key' "$POLICY")"
-if [[ -n "$forbidden" && -d .forgejo/workflows ]]; then
+if [[ -n "$forbidden" && -d "$WORKFLOW_DIR" ]]; then
   while IFS= read -r s; do
     [[ -n "$s" ]] || continue
     while IFS= read -r wf; do
@@ -130,7 +138,7 @@ if [[ -n "$forbidden" && -d .forgejo/workflows ]]; then
       if grep -nE "terraform.*(apply|destroy)" "$wf" | grep -qF "$s"; then
         note "$wf appears to apply or destroy the forbidden stack '$s'"
       fi
-    done < <(find .forgejo/workflows -type f \( -name '*.yml' -o -name '*.yaml' \))
+    done < <(find "$WORKFLOW_DIR" -type f \( -name '*.yml' -o -name '*.yaml' \))
   done <<<"$forbidden"
 fi
 

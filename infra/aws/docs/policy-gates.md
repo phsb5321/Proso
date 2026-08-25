@@ -6,14 +6,17 @@ document is the operational half.
 
 ## One entrypoint
 
+From the Proso repository root:
+
 ```bash
-nix develop -c scripts/gate.sh
+nix-shell
+make infra-check
 ```
 
-CI runs that exact command. There is no CI-only policy, no extra flag the
-pipeline passes, and no stage that exists in one place and not the other — so
-"it passed locally" and "it passed in CI" are the same claim rather than two
-similar ones.
+CI runs that same Make target in the narrower pinned infra shell. There is no
+CI-only policy, no extra flag the pipeline passes, and no stage that exists in
+one place and not the other — so "it passed locally" and "it passed in CI" are
+the same claim rather than two similar ones.
 
 | Stage | Tool | Catches |
 |---|---|---|
@@ -27,7 +30,8 @@ similar ones.
 | `checkov` | checkov | safety, second opinion |
 | `test` | `terraform test` | resolved **values**, which the scanners never see |
 
-Run one stage with `scripts/gate.sh --stage <name>`.
+Run one stage with `infra/aws/scripts/gate.sh --stage <name>` from the Proso
+root (the script changes into its own subtree).
 
 `baseline` runs first on purpose: a rotten suppression must fail the build even
 when the code is clean, otherwise the ratchet quietly becomes a permanent skip.
@@ -57,7 +61,7 @@ as a literal in the script and trip the stage on every clean run.
 ## The gate's own test
 
 ```bash
-nix develop -c scripts/falsify-gates.sh
+nix develop ./infra/aws -c infra/aws/scripts/falsify-gates.sh
 ```
 
 A green pipeline means one of two things — everything is safe, or nothing is
@@ -65,7 +69,7 @@ being checked — and they look identical from outside. An empty repository, a
 mis-scoped `skip-path`, a renamed flag that silently disables a scanner, a
 `--soft-fail` someone added to unblock a release: each produces a green tick.
 
-Five assertions distinguish the two, and CI runs them on every push so the proof
+Eight assertions distinguish the two, and CI runs them on every push so the proof
 is current rather than a screenshot from the day it was built:
 
 | | Assertion |
@@ -76,7 +80,8 @@ is current rather than a screenshot from the day it was built:
 | D | the ratchet rejects an undocumented suppression, **and** an accepted check re-used on a different resource |
 | E | `terraform test` fails when the module regresses |
 | F | the secret scanner flags a planted credential |
-| G | the stack policy rejects an unclassified stack, a never-apply stack in the drift plan, and a workflow that applies one |
+| G | the stack policy requires Terraform CI at the git-root Forgejo path, rejects an unclassified stack, a never-apply stack in drift, and a workflow that applies one |
+| H | Checkov fails when any Terraform file cannot be parsed, even though Checkov itself exits 0 |
 
 A and B scan a **copy** of the fixture from outside the repo. Both scanners
 auto-discover config from the working directory, and both configs skip that
@@ -133,25 +138,29 @@ nix develop -c lefthook install
 `pre-commit` runs the fast correctness stages (fmt, validate, tflint, baseline);
 `pre-push` runs the whole gate. Trivy and Checkov are deliberately absent from
 `pre-commit` — a hook slow enough to be annoying gets bypassed, and a bypassed
-hook protects nothing. The security gate is enforced server-side, where
-`--no-verify` does not reach.
+hook protects nothing. Forgejo independently replays the gate when the GitHub
+`main` mirror advances; branch protection is unavailable, so that replay is
+post-merge evidence rather than a required pre-merge check.
 
 ## CI
 
-`.forgejo/workflows/terraform-ci.yml`, on the self-hosted Forgejo runner.
+The git-root `.forgejo/workflows/terraform-ci.yml` runs on the self-hosted
+Forgejo runner. Forgejo discovers workflows only at the repository root; the
+subtree path imported by PR #209 was inert. `check-stack-policy.sh` now requires
+the root file, and falsifier G proves removing it turns the gate red.
+
 GitHub Actions is blocked at the dispatch layer for this account and bills real
 money once restored; `.forgejo/workflows/` is a path GitHub ignores, which is
-the cost control.
+the cost control. The job uses `:host` labels (`[self-hosted, Linux, X64]`) and
+`nix develop ./infra/aws`, so it reuses the host store and pinned infra flake
+without installing the whole pnpm monorepo.
 
-Jobs run on the `:host` labels (`[self-hosted, Linux, X64]`) so `nix develop`
-uses the host store and every job runs the binaries pinned in `flake.lock`. The
-container label would mean re-installing the toolchain from the internet at an
-unpinned version on every run.
-
-`.forgejo/workflows/terraform-drift.yml` runs `scripts/drift-check.sh` nightly
-at 04:00 BRT. Read-only by construction: `plan` only, `-lock=false`, no apply
-path. Exit 2 means drift and fails the job on purpose — a green tick next to
-"drift found" is how drift gets ignored for three weeks.
+Only credential-free policy and falsification run in Forgejo. Live plan/drift
+is deliberately operator-run: Forgejo's OIDC issuer is Tailscale-only, so AWS
+cannot fetch its discovery/JWKS documents. Keeping an always-skipped scheduled
+job would be completion theatre, not drift detection. The GitHub-to-Forgejo
+mirror carries only `main`, so this is an independent post-merge replay, not a
+GitHub-PR required check.
 
 ## Which account each stack targets, and what may be applied
 
@@ -200,54 +209,38 @@ Skips are printed with their reason on every run, never silent.
 
 ## Credentials in CI
 
-`scripts/ci-assume-role.sh` wraps every AWS-touching command. It does two things
-before running anything:
+The active Forgejo workflow has **no AWS credential and no AWS-touching job**.
+That is the safety control: the runner host carries a `PERSONAL_ROOT` profile,
+and an SDK fallback to it would silently run as root against the management
+account. Credential-free Terraform validation uses mocked providers and
+`-backend=false` in an isolated `TF_DATA_DIR`.
 
-1. **Scrubs the ambient credential chain** — `AWS_ACCESS_KEY_ID`, the session
-   token, `AWS_PROFILE`, and the shared config/credentials files (pointed at
-   `/dev/null`), plus IMDS. This is the control, not defence in depth: the
-   runner host carries a `PERSONAL_ROOT` profile holding literal root keys for
-   `arn:aws:iam::851725512267:root`. Without scrubbing, the SDK's default chain
-   would fall back to it and the job would run as **root against the management
-   account**, succeeding silently — the worst available outcome, and exactly
-   what ADR-001 §4.3 forbids.
-2. **Verifies the assumed identity** is in Sandbox-Account `699475944323` and
-   exits otherwise. A trust policy pointing at the wrong account otherwise
-   produces a perfectly good plan against the wrong infrastructure, and nothing
-   in plan output says which account it ran in.
-
-The token itself is minted from Forgejo's OIDC endpoint (`permissions:
-id-token: write`) into `$RUNNER_TEMP` under `umask 077` and deleted on exit. No
-long-lived key exists anywhere in this pipeline.
+`scripts/ci-assume-role.sh` remains a prepared fail-closed wrapper for a future
+publicly verifiable Actions OIDC issuer: it scrubs environment/profile/IMDS,
+requires a web-identity token, and refuses any account other than
+`699475944323`. It is not invoked by Forgejo because AWS cannot validate that
+private issuer. No long-lived CI key fallback is accepted.
 
 ## What is not wired yet, and why
 
-| Blocked | Needs | Owner |
-|---|---|---|
-| `plan` + `drift` jobs | `AWS_ROLE_TO_ASSUME` — an OIDC deploy role in Sandbox-Account 699475944323, trusting this Forgejo issuer | Account Foundation tab |
-| drift actually planning anything | per-stack `<env>.tfvars` (and `<env>.s3.tfbackend` where the stack uses a partial backend), following each stack's own README convention. These are gitignored — §4.5 — so CI must materialise them from Forgejo secrets. `scripts/drift-check.sh` names the exact missing file per stack and fails rather than skipping. | Pedro / Account Foundation tab |
-| CI running at all | a git remote; this repo has none, so nothing mirrors to Forgejo | Pedro |
-| `apply` job | a budget alarm first (ADR-001 §4.2), then an explicit `workflow_dispatch` with manual approval | Account Foundation tab, then Pedro |
+| Blocked | Needs |
+|---|---|
+| keyless scheduled plan/drift | a publicly reachable OIDC issuer; GitHub Actions OIDC is the documented target, but GitHub dispatch is billing-blocked |
+| CI tfvars | non-secret per-stack values materialised only when keyless live plans exist; tracked backend configs already contain no secrets |
+| apply job | not planned; applies stay operator-run and policy-gated |
 
-There is no window where the drift job is permanently red waiting on that
-config: the job is gated on `AWS_ROLE_TO_ASSUME`, so it does not run at all
-until the role exists, and whoever provisions the role provisions the tfvars.
-
-The plan and drift jobs are guarded on `vars.AWS_ROLE_TO_ASSUME` rather than
-commented out, so they start working the moment the role exists and stay
-visibly pending until then. Everything up to and including the OIDC handshake is
-unexercised until that role exists — the gate and falsification jobs are the
-parts proven today.
+Local scoped plans are executable today: stacks 00 and 10 were both proven at
+exit 0 through `proso-deploy` on 25/08/2026. `scripts/drift-check.sh` remains the
+read-only multi-stack entrypoint; it is not represented as scheduled until it
+can really authenticate.
 
 ## Known follow-up
 
 `actions/checkout@v4` is a mutable tag resolved through Forgejo's action
 registry, so a moved tag could alter the workspace before the gate runs.
 Pinning to a commit SHA (`uses: https://code.forgejo.org/actions/checkout@<sha>`)
-is the fix. Deliberately not done here: it cannot be verified without a live
-Forgejo run, this repo has no remote yet, and shipping an unverifiable SHA that
-breaks every workflow is worse than the risk it removes. Do it in the same
-change that first proves CI runs.
+is the fix. Do it only with a live Forgejo run proving that exact SHA resolves;
+a syntactically valid but unavailable pin disables the whole gate.
 
 ## Adding a stack
 

@@ -1,0 +1,78 @@
+# Runs on the self-hosted Forgejo Actions runner (server host), NOT on GitHub.
+#
+# GitHub Actions is blocked at the DISPATCH layer for this account — every run
+# is `startup_failure` with 0 jobs — and it bills real money once dispatch is
+# restored. Living under `.forgejo/workflows/` (which GitHub ignores and Forgejo
+# reads) is the cost control, not just a directory preference. Same reasoning,
+# same runner, as the Proso repo's `.forgejo/workflows/ci.yml`.
+#
+# `runs-on: [self-hosted, Linux, X64]` maps to the runner's `:host` labels, so
+# jobs execute directly on the server with the host's `nix` and `/nix/store`.
+# That matters here: the whole toolchain is pinned in `flake.lock`, so every job
+# is `nix develop -c <script>` and CI runs byte-identical binaries to a
+# developer's laptop. The container label (`ubuntu-latest`) would mean
+# re-installing terraform/tflint/trivy from the internet on every run, at a
+# version nobody pinned.
+#
+# This workflow owns the credential-free policy gate only. Live plan/drift is
+# intentionally absent: Forgejo's OIDC issuer is Tailscale-only, so AWS cannot
+# fetch its discovery/JWKS documents. A skipped OIDC job is not a working gate.
+name: terraform-ci
+
+on:
+  # GitHub PR refs are not mirrored into Forgejo; pull_request applies only to
+  # a branch/PR created natively there. The GitHub->Forgejo main mirror makes
+  # push the active independent replay after merge.
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/aws/**'
+      - 'Makefile'
+      - 'shell.nix'
+      - '.forgejo/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/aws/**'
+      - 'Makefile'
+      - 'shell.nix'
+      - '.forgejo/workflows/**'
+
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── correctness + safety ────────────────────────────────────────────────
+  # One job, not five: the stages share a provider cache and a `terraform init`,
+  # and `gate.sh` already runs every stage even after one fails, so a single job
+  # still reports every problem in one pass.
+  gate:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain versions (pinned by infra/aws/flake.lock)
+        run: |
+          nix --option min-free 0 --option max-free 0 develop ./infra/aws -c bash -c '
+            terraform version | head -1
+            tflint --version   | head -1
+            trivy --version    | head -1
+          '
+          grep CHECKOV_VERSION infra/aws/policy/versions.sh
+
+      # fmt -> validate -> tflint -> trivy -> checkov -> terraform test.
+      # CI calls the same entrypoint a developer does; there is no CI-only
+      # variant of the policy to drift out of sync.
+      - name: Policy gate
+        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c make infra-check
+
+      # The gate's own test. Without this the job above proves only that
+      # nothing failed — which is also what an accidentally-disabled scanner
+      # produces. ADR-001 §4.7.
+      - name: Falsify the gate (plant must go RED, removal must go GREEN)
+        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c infra/aws/scripts/falsify-gates.sh
+
+  # No plan/apply job here. Credential-free checks run on Forgejo; live plans
+  # remain operator-run through the scoped Identity Center role until a
+  # publicly verifiable keyless issuer exists. No long-lived CI key fallback.
