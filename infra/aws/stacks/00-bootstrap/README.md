@@ -177,15 +177,13 @@ why a lifecycle rule cannot do it safely.
 
 ## Local verification (no credentials needed)
 
-Every gate below runs offline, because the tests use `mock_provider`.
+The repository gate runs offline because the tests use `mock_provider`. Invoke
+it through the Proso root shell rather than assembling a stack-specific toolchain.
 
 ```bash
-terraform fmt -recursive -check
-terraform init -backend=false && terraform validate
-terraform test                       # here, and in each module directory
-trivy config --exit-code 1 --severity LOW,MEDIUM,HIGH,CRITICAL \
-      --tf-vars example.tfvars .
-checkov -d ../.. --framework terraform --var-file example.tfvars
+cd ../../../..
+nix-shell
+make infra-check
 ```
 
 ## Variables

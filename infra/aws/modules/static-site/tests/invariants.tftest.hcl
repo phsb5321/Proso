@@ -199,6 +199,32 @@ run "update_payload_lands_at_the_site_root" {
   }
 }
 
+run "update_payload_changes_are_content_addressed" {
+  command = plan
+
+  assert {
+    condition = alltrue([
+      for object in values(aws_s3_object.release) : object.source_hash == filemd5(object.source)
+    ])
+    error_message = "an .xpi does not use its content hash; byte changes at a stable source path would be missed"
+  }
+
+  assert {
+    condition     = aws_s3_object.updates_manifest[0].source_hash == filemd5(aws_s3_object.updates_manifest[0].source)
+    error_message = "updates.json does not use its content hash; byte changes at a stable source path would be missed"
+  }
+}
+
+run "absolute_release_source_path_is_refused" {
+  command = plan
+
+  variables {
+    release_source_dir = abspath("./tests/fixtures/site")
+  }
+
+  expect_failures = [var.release_source_dir]
+}
+
 # The manifest is what tells an installed extension where to fetch from. If it
 # still advertises the old host after the cutover, publishing it here is worse
 # than not publishing it at all.

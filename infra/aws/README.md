@@ -44,32 +44,25 @@ Actions OIDC is the target instead.
 ## Toolchain
 
 Terraform ≥ 1.11 (S3-native state locking via `use_lockfile`; no DynamoDB lock
-table). Policy-as-code gates every plan:
-
-```bash
-export NIXPKGS_ALLOW_UNFREE=1
-nix shell --impure nixpkgs#terraform nixpkgs#trivy nixpkgs#tflint
-uvx --from checkov checkov -d . --framework terraform      # nixpkgs' checkov is currently broken
-trivy config --skip-dirs '**/.terraform' --exit-code 1 .
-```
+table). The Proso root `shell.nix` declares Terraform, tflint, Trivy, Checkov's
+`uv` runner, AWS CLI, jq and curl. Do not assemble an ad-hoc Nix shell for this
+subtree.
 
 One state file per stack, so a mistake in one cannot lock or corrupt another.
 
 ## Quick start
 
-The toolchain is pinned in `flake.lock` (Terraform, tflint, Trivy, uv, lefthook),
-so everyone runs the same binaries:
+Run the repository-level entrypoints from the Proso root:
 
 ```bash
-nix develop                       # enter the pinned toolchain
-nix develop -c lefthook install   # once per clone: pre-commit + pre-push hooks
+nix-shell                    # enter the toolchain declared by ./shell.nix
+make infra-check             # fmt -> validate -> tflint -> Trivy/Checkov -> test
+make infra-drift             # read-only plans; requires the documented sandbox config
 
-nix develop -c scripts/gate.sh          # fmt -> validate -> tflint -> Trivy/Checkov -> test
-nix develop -c scripts/falsify-gates.sh # prove the gate can still fail
-
-cd stacks/00-bootstrap
-terraform init
-terraform plan            # plan-only is always safe
+cd infra/aws/stacks/00-bootstrap
+test -e sandbox.tfvars || cp example.tfvars sandbox.tfvars
+terraform init -backend-config=sandbox.s3.tfbackend
+terraform plan -lock=false -var-file=sandbox.tfvars
 ```
 
 How the gates work, what is deliberately not wired yet, and how to accept a

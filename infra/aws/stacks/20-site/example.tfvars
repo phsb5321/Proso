@@ -21,4 +21,6 @@ attach_custom_domain = false
 # The assembled site tree: `scripts/deploy-site.sh assemble --out <dir>`.
 # Terraform reads updates.json and releases/*.xpi from here so their keys and
 # content types are enforced at plan time.
-site_source_dir = "/home/notroot/Documents/Code/personal/proso/.artifacts/site"
+# Relative to this stack so the value stored in Terraform state is identical in
+# every clone and worktree. Four parents reaches the Proso repository root.
+site_source_dir = "../../../../.artifacts/site"

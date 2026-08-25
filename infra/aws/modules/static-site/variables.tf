@@ -56,6 +56,11 @@ variable "release_source_dir" {
   EOT
   type        = string
   default     = null
+
+  validation {
+    condition     = var.release_source_dir == null ? true : !startswith(var.release_source_dir, "/")
+    error_message = "release_source_dir must be relative to the Terraform root so state is portable across worktrees."
+  }
 }
 
 variable "price_class" {

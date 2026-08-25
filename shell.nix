@@ -37,6 +37,9 @@ pkgs.mkShell {
     tflint
     trivy
     uv # installs the pinned checkov; see infra/aws/policy/versions.env
+    awscli2
+    jq
+    curl
 
     # Deterministic brand crop, SVG proof, and raster verification tools
     imagemagick

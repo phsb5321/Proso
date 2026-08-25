@@ -71,12 +71,14 @@ module "site" {
   name                 = "proso-site"
   domain_names         = ["proso.com.br"]
   attach_custom_domain = false
-  release_source_dir   = "/path/to/assembled/site"
+  release_source_dir   = "../../../../.artifacts/site"
 }
 ```
 
 `release_source_dir` is the tree produced by `scripts/deploy-site.sh assemble`:
-`updates.json` at its root and `releases/*.xpi` beneath it. Leave it `null` and
+`updates.json` at its root and `releases/*.xpi` beneath it. It must be relative
+to the Terraform root; an absolute checkout path is persisted in object state
+and creates false drift in every other clone or worktree. Leave it `null` and
 those objects are simply not managed — which also means the invariants above are
 not enforced, so do not leave it `null` in a real deployment.
 
@@ -90,9 +92,10 @@ terraform init -backend=false
 terraform test
 ```
 
-Ten runs, all offline against a mocked provider — no credentials, no AWS calls.
-Two of them are negative: a certificate requested outside `us-east-1` and an
-`updates.json` that still advertises the old host must both fail to plan.
+Twelve runs, all offline against a mocked provider — no credentials, no AWS
+calls. Three are negative: a certificate outside `us-east-1`, an absolute
+payload path, and an `updates.json` that still advertises the old host must all
+fail to plan.
 
 A test that cannot fail is not a test, so each run is falsified by plant:
 
