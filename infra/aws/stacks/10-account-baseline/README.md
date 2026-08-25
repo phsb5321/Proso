@@ -11,7 +11,7 @@ ADR-001 §4.2: nothing is created in an account until spend is observable.
 
 ```bash
 cp example.tfvars sandbox.tfvars     # gitignored; edit the email
-terraform init
+AWS_PROFILE=sandbox terraform init -backend-config=sandbox.s3.tfbackend
 terraform apply -var-file=sandbox.tfvars -target=module.budget   # 1. budget only
 terraform apply -var-file=sandbox.tfvars                         # 2. everything else
 ```
@@ -29,6 +29,13 @@ here and is the point: the first apply is deliberately partial.
 | S3 storage for trail + access logs | cents |
 
 ≈ **$1.10/month.** The `$5` default budget trips well before that matters.
+
+## State
+
+State is in the private, versioned, CMK-encrypted bootstrap bucket at
+`10-account-baseline/terraform.tfstate`, with S3-native locking. The original
+local state was migrated on 25/08/2026; do not reintroduce local state or a
+DynamoDB lock table.
 
 ## Verified after apply
 

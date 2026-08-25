@@ -5,6 +5,7 @@ variables {
   state_bucket_arn             = "arn:aws:s3:::proso-tfstate-699475944323"
   state_kms_key_arn            = "arn:aws:kms:us-east-1:699475944323:key/00000000-0000-0000-0000-000000000000"
   trusted_permission_set_names = ["ProsoInfraDeploy"]
+  read_only_bucket_prefixes    = ["sandbox-cloudtrail-699475944323"]
   tags                         = { Environment = "sandbox" }
 }
 
@@ -14,9 +15,29 @@ run "denies_iam_and_organizations" {
   assert {
     condition = length([
       for s in jsondecode(output.permissions_policy_json).Statement :
-      s if s.Effect == "Deny" && s.Resource == "*" && contains(try(tolist(s.Action), []), "iam:*")
+      s if s.Effect == "Deny" && s.Resource == "*" && try(toset(tolist(s.Action)), toset([tostring(s.Action)])) == toset([
+        "iam:Add*",
+        "iam:Attach*",
+        "iam:ChangePassword",
+        "iam:Create*",
+        "iam:Deactivate*",
+        "iam:Delete*",
+        "iam:Detach*",
+        "iam:Enable*",
+        "iam:PassRole",
+        "iam:Put*",
+        "iam:Remove*",
+        "iam:Reset*",
+        "iam:Resync*",
+        "iam:Set*",
+        "iam:Tag*",
+        "iam:Untag*",
+        "iam:Update*",
+        "iam:Upload*",
+        "organizations:*",
+      ])
     ]) == 1
-    error_message = "The permissions policy must contain an explicit Deny of iam:* on all resources."
+    error_message = "The permissions policy must explicitly deny every IAM mutation verb family while leaving read-only drift calls possible."
   }
 
   assert {
@@ -81,6 +102,56 @@ run "refuses_to_destroy_its_own_backend" {
       s if s.Effect == "Deny" && s.Action == "kms:ScheduleKeyDeletion"
     ]) == 1
     error_message = "Scheduling deletion of the state CMK must be denied."
+  }
+}
+
+run "baseline_drift_is_read_only" {
+  command = plan
+
+  assert {
+    condition = length([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      s if s.Effect == "Allow" &&
+      contains(try(tolist(s.Action), []), "iam:GetAccountPasswordPolicy") &&
+      contains(try(tolist(s.Action), []), "iam:GetRolePolicy") &&
+      contains(try(tolist(s.Action), []), "iam:ListRolePolicies") &&
+      contains(try(tolist(s.Action), []), "cloudtrail:Get*") &&
+      contains(try(tolist(s.Action), []), "kms:Describe*")
+    ]) == 1
+    error_message = "The routine role must be able to refresh every non-S3 account-baseline resource during a drift plan."
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      s if s.Sid == "BaselineBucketRead" &&
+      toset(s.Action) == toset(["s3:Get*", "s3:List*"]) &&
+      toset(s.Resource) == toset([
+        "arn:aws:s3:::sandbox-cloudtrail-699475944323*",
+      ])
+    ]) == 1
+    error_message = "Baseline buckets must be prefix-scoped, Get/List-only, and exclude object ARNs so audit log contents stay unreadable."
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      s if s.Sid == "BudgetRead" &&
+      s.Resource == "arn:aws:budgets::699475944323:budget/*" &&
+      contains(try(tolist(s.Action), []), "budgets:ListTagsForResource")
+    ]) == 1
+    error_message = "Budget reads must remain scoped to this account's budget ARNs rather than Resource = \"*\"."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(output.permissions_policy_json).Statement :
+      !contains(try(tolist(s.Action), []), "budgets:*") &&
+      !contains(try(tolist(s.Action), []), "budgets:ModifyBudget") &&
+      !contains(try(tolist(s.Action), []), "cloudtrail:StopLogging")
+      if s.Effect == "Allow"
+    ])
+    error_message = "A drift reader must not be able to delete the budget or stop the audit trail."
   }
 }
 

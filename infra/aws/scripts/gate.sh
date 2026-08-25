@@ -189,11 +189,25 @@ if wanted checkov; then
     fi
   else
     step "checkov"
-    if checkov --config-file .checkov.yml; then
+    checkov_output="$(mktemp)"
+    set +e
+    checkov --config-file .checkov.yml >"$checkov_output" 2>&1
+    checkov_rc=$?
+    set -e
+    cat "$checkov_output"
+
+    # Checkov exits 0 when every parsed resource is clean even if one Terraform
+    # file failed to parse. That is skipped-green: the unparsed file is exactly
+    # the file whose policy was never evaluated. Treat any non-zero parser
+    # count as a gate failure independently of Checkov's process status.
+    if grep -Eq 'Parsing errors:[[:space:]]*[1-9][0-9]*' "$checkov_output"; then
+      bad "checkov — Terraform parsing error left configuration unscanned"
+    elif ((checkov_rc == 0)); then
       ok "checkov"
     else
       bad "checkov"
     fi
+    rm -f "$checkov_output"
   fi
 fi
 

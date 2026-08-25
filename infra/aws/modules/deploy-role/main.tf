@@ -8,10 +8,30 @@
 
 locals {
   # Both policies are attached to the same role, so an explicit Deny here beats
-  # every Allow above — IAM evaluates Deny first, unconditionally.
+  # every Allow below — IAM evaluates Deny first, unconditionally. IAM reads are
+  # deliberately excluded: stacks/10-account-baseline needs
+  # GetAccountPasswordPolicy for drift detection. Mutation verb families remain
+  # explicitly denied so a future broad Allow cannot turn the deploy role into a
+  # privilege-escalation path.
   denied_actions = [
-    # Escalation: a role that can write IAM can grant itself anything.
-    "iam:*",
+    "iam:Add*",
+    "iam:Attach*",
+    "iam:ChangePassword",
+    "iam:Create*",
+    "iam:Deactivate*",
+    "iam:Delete*",
+    "iam:Detach*",
+    "iam:Enable*",
+    "iam:PassRole",
+    "iam:Put*",
+    "iam:Remove*",
+    "iam:Reset*",
+    "iam:Resync*",
+    "iam:Set*",
+    "iam:Tag*",
+    "iam:Untag*",
+    "iam:Update*",
+    "iam:Upload*",
     # Escalation: a role that can call Organizations can move or leave accounts,
     # or detach the SCPs that bound it.
     "organizations:*",
@@ -65,6 +85,14 @@ locals {
       "arn:aws:s3:::${p}*/*",
     ]
   ])
+
+  # Bucket ARNs only — deliberately no `/*`. Terraform refreshes bucket
+  # configuration; it never reads CloudTrail objects. Keeping object ARNs out
+  # makes s3:Get* unable to become GetObject even though the action wildcard is
+  # broad enough to survive provider-version changes.
+  read_only_bucket_arns = [
+    for p in var.read_only_bucket_prefixes : "arn:aws:s3:::${p}*"
+  ]
 
   # Identity Center provisions permission sets as roles with a generated name
   # suffix, so the trust is expressed as "any principal in this account whose
@@ -245,10 +273,33 @@ locals {
           Resource = "*"
         },
         {
-          Sid      = "CostVisibility"
-          Effect   = "Allow"
-          Action   = ["budgets:*"]
+          Sid    = "BudgetRead"
+          Effect = "Allow"
+          Action = [
+            "budgets:Describe*",
+            "budgets:ListTagsForResource",
+            "budgets:ViewBudget",
+          ]
           Resource = "arn:aws:budgets::${var.account_id}:budget/*"
+        },
+        {
+          Sid    = "BaselineAccountRead"
+          Effect = "Allow"
+          Action = [
+            "cloudtrail:Describe*",
+            "cloudtrail:Get*",
+            "cloudtrail:List*",
+            "iam:GetAccountPasswordPolicy",
+            "iam:GetRole",
+            "iam:GetRolePolicy",
+            "iam:ListAttachedRolePolicies",
+            "iam:ListRolePolicies",
+            "iam:ListRoleTags",
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+          ]
+          Resource = "*"
         },
         {
           Sid    = "MetricsRead"
@@ -260,6 +311,17 @@ locals {
             "cloudwatch:DescribeAlarms",
           ]
           Resource = "*"
+        },
+      ],
+      length(var.read_only_bucket_prefixes) == 0 ? [] : [
+        {
+          Sid    = "BaselineBucketRead"
+          Effect = "Allow"
+          Action = [
+            "s3:Get*",
+            "s3:List*",
+          ]
+          Resource = local.read_only_bucket_arns
         },
       ]
     )
