@@ -8,27 +8,16 @@
  * @module tests/regression/013-paragraph-mapping
  */
 
+import { createTextFingerprint, textsMatch } from '../helpers/text-fingerprint';
+
 describe('Feature 013: Paragraph Mapping Regression', () => {
   describe('Text Fingerprinting', () => {
-    /**
-     * Recreates the text fingerprinting logic from content-extractor.js
-     */
-    function createTextFingerprint(text) {
-      if (!text) return '';
-      return text
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .replace(/[^\w\s]/g, '')
-        .trim()
-        .substring(0, 50);
-    }
-
     test('should normalize whitespace variations', () => {
       const texts = [
         'Hello   world\n\ntest',
         'Hello world test',
         'Hello\tworld\rtest',
-        '  Hello world test  '
+        '  Hello world test  ',
       ];
 
       const fingerprints = texts.map(createTextFingerprint);
@@ -53,65 +42,37 @@ describe('Feature 013: Paragraph Mapping Regression', () => {
   });
 
   describe('Fuzzy Text Matching', () => {
-    function createTextFingerprint(text) {
-      if (!text) return '';
-      return text
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .replace(/[^\w\s]/g, '')
-        .trim()
-        .substring(0, 50);
-    }
-
-    function textsMatch(text1, text2) {
-      if (!text1 || !text2) return false;
-
-      const fp1 = createTextFingerprint(text1);
-      const fp2 = createTextFingerprint(text2);
-
-      if (fp1.length < 15 || fp2.length < 15) return false;
-
-      // Exact match
-      if (fp1 === fp2) return true;
-
-      // Prefix match
-      if (fp1.startsWith(fp2) || fp2.startsWith(fp1)) return true;
-
-      // Similarity check (~80% match)
-      const minLen = Math.min(fp1.length, fp2.length);
-      let matches = 0;
-      for (let i = 0; i < minLen; i++) {
-        if (fp1[i] === fp2[i]) matches++;
-      }
-      return (matches / minLen) >= 0.8;
-    }
-
     test('should match identical texts', () => {
-      expect(textsMatch(
-        'This is a longer paragraph with meaningful content.',
-        'This is a longer paragraph with meaningful content.'
-      )).toBe(true);
+      expect(
+        textsMatch(
+          'This is a longer paragraph with meaningful content.',
+          'This is a longer paragraph with meaningful content.',
+        ),
+      ).toBe(true);
     });
 
     test('should match texts with whitespace differences', () => {
-      expect(textsMatch(
-        'This is a  longer paragraph   with meaningful content.',
-        'This is a longer paragraph with meaningful content.'
-      )).toBe(true);
+      expect(
+        textsMatch(
+          'This is a  longer paragraph   with meaningful content.',
+          'This is a longer paragraph with meaningful content.',
+        ),
+      ).toBe(true);
     });
 
     test('should match texts with punctuation differences', () => {
-      expect(textsMatch(
-        "Hello, world! How are you doing today?",
-        "Hello world How are you doing today"
-      )).toBe(true);
+      expect(
+        textsMatch('Hello, world! How are you doing today?', 'Hello world How are you doing today'),
+      ).toBe(true);
     });
 
     test('should reject completely different texts', () => {
-      expect(textsMatch(
-        'This paragraph is about cats and dogs.',
-        'The weather today is sunny and warm.'
-      )).toBe(false);
+      expect(
+        textsMatch(
+          'This paragraph is about cats and dogs.',
+          'The weather today is sunny and warm.',
+        ),
+      ).toBe(false);
     });
 
     test('should reject short texts to prevent false positives', () => {
@@ -121,10 +82,12 @@ describe('Feature 013: Paragraph Mapping Regression', () => {
 
     test('should handle curly apostrophe differences', () => {
       // Readability may convert straight apostrophes to curly ones
-      expect(textsMatch(
-        "The player's health bar regenerates over time.",
-        "The player\u2019s health bar regenerates over time."
-      )).toBe(true);
+      expect(
+        textsMatch(
+          "The player's health bar regenerates over time.",
+          'The player\u2019s health bar regenerates over time.',
+        ),
+      ).toBe(true);
     });
   });
 
@@ -143,7 +106,7 @@ describe('Feature 013: Paragraph Mapping Regression', () => {
       '#content-wrapper',
       // Generic
       '.wiki-article',
-      '.article-content'
+      '.article-content',
     ];
 
     test('should include Fextralife selectors', () => {
@@ -211,7 +174,8 @@ describe('Feature 013: Paragraph Mapping Regression', () => {
     });
 
     test('should accept valid content paragraphs', () => {
-      const text = 'This is a valid paragraph with meaningful content that should be read aloud to the user.';
+      const text =
+        'This is a valid paragraph with meaningful content that should be read aloud to the user.';
       const linkTextLength = 0; // No links
       const minLength = 30;
       const threshold = 0.5;
