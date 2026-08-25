@@ -66,30 +66,39 @@ jobs:
   # from configuration that policy rejects.
   #
   # BLOCKED until the Account Foundation tab lands the OIDC deploy role: this
-  # job needs `AWS_ROLE_TO_ASSUME` (a role ARN in Sandbox-Account 699475944323)
-  # and `AWS_OIDC_TOKEN`. It is guarded on the secret rather than commented out,
-  # so it starts working the moment the secret exists and stays visibly pending
-  # until then.
+  # job needs the repo variable `AWS_ROLE_TO_ASSUME` (a role ARN in
+  # Sandbox-Account 699475944323). It is guarded on that variable rather than
+  # commented out, so it starts working the moment the role exists and stays
+  # visibly pending until then.
   #
   # Keyless on purpose: ADR-001 §2 puts long-lived access keys as the top
   # finding to avoid, and `PERSONAL_ROOT` is literal root credentials that must
-  # never reach a CI runner (§4.3).
+  # never reach a CI runner (§4.3). `scripts/ci-assume-role.sh` scrubs every
+  # ambient credential before authenticating and refuses to continue if the
+  # assumed identity is not in the sandbox account — so a stray profile on the
+  # runner cannot quietly become the identity this job plans with.
   plan:
     needs: gate
     runs-on: [self-hosted, Linux, X64]
     if: ${{ vars.AWS_ROLE_TO_ASSUME != '' }}
+    permissions:
+      # Required for Forgejo to issue the OIDC token. Without it the
+      # ACTIONS_ID_TOKEN_* pair is unset and ci-assume-role.sh fails closed
+      # rather than looking for another credential.
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Plan every stack (read-only)
+      # One step, not two: exported credentials do not survive a step boundary,
+      # so splitting the token minting from the plan would mean publishing the
+      # token path through $GITHUB_ENV and trusting the next step to inherit the
+      # same scrubbed environment.
+      - name: Assume the deploy role via OIDC, then plan (read-only)
         env:
           AWS_ROLE_ARN: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          AWS_WEB_IDENTITY_TOKEN_FILE: ${{ secrets.AWS_OIDC_TOKEN_FILE }}
           AWS_REGION: us-east-1
-        run: nix develop -c scripts/drift-check.sh
-        # Exit 2 is "drift", which is information, not a broken build. Exit 1
-        # (a stack that will not plan) still fails the job.
-        continue-on-error: false
+        run: nix develop -c scripts/ci-assume-role.sh scripts/drift-check.sh
 
   # ── apply ───────────────────────────────────────────────────────────────
   # NOT IMPLEMENTED, and that is the correct state today.

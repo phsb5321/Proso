@@ -29,7 +29,12 @@ jobs:
     # Same gate as the plan job in terraform-ci.yml: without the OIDC deploy
     # role there is nothing to authenticate as, and this must never fall back to
     # the root credentials in `PERSONAL_ROOT` (ADR-001 §4.3).
+    # `scripts/ci-assume-role.sh` enforces that: it scrubs the ambient
+    # credential chain and refuses any identity outside Sandbox-Account.
     if: ${{ vars.AWS_ROLE_TO_ASSUME != '' }}
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -37,11 +42,10 @@ jobs:
         id: plan
         env:
           AWS_ROLE_ARN: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          AWS_WEB_IDENTITY_TOKEN_FILE: ${{ secrets.AWS_OIDC_TOKEN_FILE }}
           AWS_REGION: us-east-1
         run: |
           set +e
-          nix develop -c scripts/drift-check.sh | tee drift.log
+          nix develop -c scripts/ci-assume-role.sh scripts/drift-check.sh | tee drift.log
           rc=${PIPESTATUS[0]}
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           # 2 = drift. Surfaced as a failed job so it is visible on the runs

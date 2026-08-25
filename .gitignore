@@ -33,3 +33,6 @@ drift.log
 # Transient plant written by scripts/falsify-gates.sh; removed on exit, ignored
 # so a killed run cannot leave a public bucket staged for commit.
 stacks/_gate-falsification-plant/
+
+# Transient credential plant written by scripts/falsify-gates.sh (assertion F).
+.gate-falsification-secret.txt

@@ -26,8 +26,11 @@ than pre-building an unused escape hatch.
 It runs as the **first** stage of `scripts/gate.sh`, so a rotten suppression
 fails the build even when the code is clean:
 
-1. Every check id in `checkov-baseline.json` has an entry in
-   `accepted-findings.json`. Suppressing without documenting fails.
+1. Every `(file, resource, check)` tuple in `checkov-baseline.json` has a
+   matching entry in `accepted-findings.json`. Suppressing without documenting
+   fails — and matching is per **resource**, not per check id, so accepting
+   `CKV_AWS_144` on one bucket does not pre-approve it on the next one. Entries
+   therefore need `path` and `resource`, not just `check`.
 2. Every entry has an `owner` and a `reason` of at least 80 characters.
    "not applicable" is not a reason; the check exists because it usually is
    applicable, so the entry has to say what is different here.
@@ -36,8 +39,10 @@ fails the build even when the code is clean:
 4. Nothing is documented that is no longer suppressed. Once a finding is fixed,
    its row must go, or the file slowly becomes fiction.
 
-`scripts/falsify-gates.sh` assertion **D** proves rule 1 still bites, by
-injecting a fake check id into the baseline and requiring the gate to reject it.
+`scripts/falsify-gates.sh` assertion **D** proves rule 1 still bites, twice: it
+injects a fake check id, then re-uses an *already accepted* check id on a
+different resource. Both must be rejected. The second case is the one an
+id-only comparison would wave through.
 
 ## Adding an entry
 

@@ -37,7 +37,7 @@ done
 
 wanted() { [[ -z "$ONLY_STAGE" || "$ONLY_STAGE" == "$1" ]]; }
 
-require_tools terraform tflint trivy uv jq
+require_tools terraform tflint trivy uv jq git
 
 readarray -t TF_DIRS < <(terraform_dirs)
 
@@ -107,6 +107,38 @@ if wanted trivy; then
   fi
 fi
 
+# ── 4c. secrets (ADR-001 §4.5) ─────────────────────────────────────────────
+# "No secret in state or repo" was the one §4 rule with nothing enforcing it:
+# `trivy config` scans for MISCONFIGURATION only, and .gitignore is a
+# convenience, not a boundary — it does nothing about a file already tracked, or
+# one added with `git add -f`.
+#
+# Two checks, because they catch different mistakes:
+#   - a tracked state file (state contains resource metadata and can contain
+#     secrets outright — ADR-001 §2.3)
+#   - a credential pattern anywhere in the tree
+if wanted secrets; then
+  step "secrets — no tracked state, no credential patterns"
+
+  tracked_state=$(git ls-files -- '*.tfstate' '*.tfstate.*' '*.tfvars' '*.tfvars.json' |
+                    grep -v -F 'example.tfvars' || true)
+  if [[ -n "$tracked_state" ]]; then
+    bad "secrets — state/vars files are TRACKED by git:"$'\n'"$tracked_state"
+  else
+    ok "secrets — no tracked state or tfvars"
+  fi
+
+  # `--scanners secret` over the working tree. The mock credentials in
+  # *.tftest.hcl are literal strings "mock-access-key"/"mock-secret-key" and do
+  # not match any provider pattern; if a future test needs a realistic-looking
+  # value, that is precisely the case this check should flag.
+  if trivy fs -q --scanners secret --exit-code 1 --skip-dirs '**/.terraform' .; then
+    ok "secrets — no credential patterns"
+  else
+    bad "secrets — credential pattern found (see above)"
+  fi
+fi
+
 # ── 4b. Checkov (safety) ───────────────────────────────────────────────────
 # Config in ./.checkov.yml. Two scanners, not one: they disagree often enough to
 # be worth the seconds. Checkov caught CKV_AWS_379 (no TLS-only bucket policy)
@@ -138,9 +170,24 @@ fi
 # a *.tftest.hcl; mock providers keep it credential-free.
 if wanted test; then
   step "terraform test"
-  local_found=0
+
+  # Coverage first. "At least one test file exists somewhere" is not the rule —
+  # under that reading a new module ships untested and the gate stays green
+  # because an unrelated fixture has a test. §4.7 is per module, so check per
+  # module. Stacks are deliberately excluded: they are compositions owned by the
+  # other tabs, and the ADR requires the test on the reusable unit.
+  if [[ -d modules ]]; then
+    while IFS= read -r m; do
+      [[ -n "$(find "$m" -maxdepth 1 -name '*.tf' -print -quit)" ]] || continue
+      if [[ -z "$(find "$m" -maxdepth 1 -name '*.tftest.hcl' -print -quit)" ]]; then
+        bad "test — module $m has no *.tftest.hcl (ADR-001 §4.7)"
+      fi
+    done < <(find modules -mindepth 1 -maxdepth 1 -type d | sort)
+  fi
+
+  found_any=0
   while IFS= read -r d; do
-    local_found=1
+    found_any=1
     if terraform -chdir="$d" init -backend=false -input=false -no-color >/dev/null &&
        terraform -chdir="$d" test -no-color; then
       ok "test $d"
@@ -149,7 +196,7 @@ if wanted test; then
     fi
   done < <(find . -path ./.git -prune -o -name '*.tftest.hcl' -print 2>/dev/null |
            xargs -r -n1 dirname | sort -u)
-  ((local_found)) || bad "test — no *.tftest.hcl anywhere (ADR-001 §4.7)"
+  ((found_any)) || bad "test — no *.tftest.hcl anywhere (ADR-001 §4.7)"
 fi
 
 summarise

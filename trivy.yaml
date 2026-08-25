@@ -25,7 +25,13 @@ misconfiguration:
 # LOW and is exactly the sort of finding that matters for an account whose
 # entire current spend is backups. Raising the floor to MEDIUM would silently
 # drop it.
+#
+# UNKNOWN is included for a different reason: a finding Trivy cannot grade is
+# filtered out by this list, and a filtered finding cannot trigger `exit-code`.
+# Omitting it makes every unrated check — typically a new or custom one —
+# invisible. The list is a display filter, not a risk judgement.
 severity:
+  - UNKNOWN
   - LOW
   - MEDIUM
   - HIGH

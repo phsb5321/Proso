@@ -38,7 +38,7 @@ require_tools() {
   done
   if ((${#missing[@]})); then
     log "Missing tools: ${missing[*]}"
-    log "Enter the pinned toolchain first:  nix develop -c \"\$0\" $*"
+    log "Enter the pinned toolchain first:  nix develop -c \"\$0\""
     exit 127
   fi
 }
@@ -46,13 +46,37 @@ require_tools() {
 # Terraform directories = every dir holding a .tf file, minus the scanner
 # fixtures and provider caches. Stacks appear here automatically as the other
 # tabs land them; nothing to keep in sync by hand.
+#
+# `find` failures are NOT swallowed. A blanket `|| true` across the pipeline
+# would render a permission error as "no directories found", and the gate would
+# then validate whatever it happened to see and report PASS. Only grep's exit 1
+# ("every candidate was the fixture") is tolerated, and only once find has
+# succeeded.
 terraform_dirs() {
-  find . \
+  local raw dirs rc
+  if ! raw=$(find . \
     -type d \( -name '.terraform' -o -name '.git' \) -prune -o \
-    -name '*.tf' -print 2>/dev/null |
-    xargs -r -n1 dirname |
-    sort -u |
-    grep -v "^\./${FIXTURE_VIOLATIONS_DIR}\$" || true
+    -name '*.tf' -print); then
+    log "terraform_dirs: find failed — refusing to report an empty list"
+    return 1
+  fi
+
+  [[ -n "$raw" ]] || return 0
+
+  set +e
+  dirs=$(printf '%s\n' "$raw" | xargs -r -n1 dirname | sort -u |
+    grep -v -x -F "./${FIXTURE_VIOLATIONS_DIR}")
+  rc=$?
+  set -e
+
+  # 0 = matches remain, 1 = everything was filtered out. Anything else is real.
+  if ((rc > 1)); then
+    log "terraform_dirs: filtering failed (exit $rc)"
+    return 1
+  fi
+
+  [[ -n "$dirs" ]] && printf '%s\n' "$dirs"
+  return 0
 }
 
 summarise() {
