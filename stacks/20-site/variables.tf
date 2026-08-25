@@ -1,3 +1,20 @@
+variable "account_id" {
+  description = "Account this stack is applied to. ADR-001 (25/08/2026): the workload account is Sandbox-Account 699475944323; no new account is created."
+  type        = string
+  default     = "699475944323"
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.account_id))
+    error_message = "account_id must be a 12-digit AWS account id."
+  }
+}
+
+variable "assume_role_arn" {
+  description = "Role assumed for plan and apply. The least-privilege proso-deploy role from stacks/00-bootstrap, not an admin role. Null uses ambient credentials."
+  type        = string
+  default     = null
+}
+
 variable "region" {
   description = "Must be us-east-1: CloudFront reads its certificate only from there."
   type        = string

@@ -18,6 +18,8 @@ skip-path:
   # The gate's red control. `scripts/falsify-gates.sh` scans it explicitly.
   - policy/fixtures/violations
   - .terraform
+  # scripts/gate.sh's own TF_DATA_DIR; same reason as .terraform above.
+  - .terraform-gate
 
 # Suppress the finding recorded in the baseline; anything NEW still fails.
 baseline: quality-baselines/checkov-baseline.json

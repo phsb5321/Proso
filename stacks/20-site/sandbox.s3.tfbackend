@@ -1,0 +1,14 @@
+bucket = "proso-tfstate-699475944323"
+key    = "20-site/terraform.tfstate"
+region = "us-east-1"
+
+# Not optional. With `encrypt = true` alone the backend sends
+# x-amz-server-side-encryption: AES256, which the state bucket's
+# DenyUnencryptedWrites policy rejects — the first state write fails with
+# AccessDenied. The alias ARN is used rather than the key id so this file stays
+# readable and does not change when the key is rotated.
+encrypt    = true
+kms_key_id = "arn:aws:kms:us-east-1:699475944323:alias/proso-tfstate-699475944323"
+
+# S3-native locking (Terraform >= 1.11). No DynamoDB lock table — ADR-001 §2.4.
+use_lockfile = true

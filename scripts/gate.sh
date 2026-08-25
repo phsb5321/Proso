@@ -41,6 +41,25 @@ require_tools terraform tflint trivy uv jq git
 
 readarray -t TF_DIRS < <(terraform_dirs)
 
+# The gate's own Terraform data directory, separate from the developer's.
+#
+# `terraform init -backend=false` is NOT offline once a directory has been
+# initialised against a real backend: the backend recorded in
+# `.terraform/terraform.tfstate` is still contacted, so the gate fails with
+# "No valid credential sources found" on the machine of anyone who has actually
+# deployed the stack. Pointing TF_DATA_DIR elsewhere makes the offline claim
+# true again, and leaves a working `.terraform` alone rather than reconfiguring
+# it out from under an apply.
+#
+# Relative, so `terraform -chdir=<dir>` resolves it inside that directory; one
+# shared absolute path would have every stack fight over a single lock file.
+export TF_DATA_DIR=".terraform-gate"
+
+# gate_init <dir> — initialise a directory for the offline stages only.
+gate_init() {
+  terraform -chdir="$1" init -backend=false -input=false -no-color >/dev/null
+}
+
 # ── 0. baseline hygiene ────────────────────────────────────────────────────
 # Runs FIRST: an expired or undocumented suppression must fail the build even
 # if the code is otherwise clean, or the ratchet decays into a permanent skip.
@@ -86,8 +105,8 @@ if wanted validate; then
     bad "validate — no .tf found anywhere; the gate would be vacuous"
   else
     for d in "${TF_DIRS[@]}"; do
-      if terraform -chdir="$d" init -backend=false -input=false -no-color >/dev/null &&
-         terraform -chdir="$d" validate -no-color; then
+      if gate_init "$d" &&
+        terraform -chdir="$d" validate -no-color; then
         ok "validate $d"
       else
         bad "validate $d"
@@ -207,8 +226,8 @@ if wanted test; then
   found_any=0
   while IFS= read -r d; do
     found_any=1
-    if terraform -chdir="$d" init -backend=false -input=false -no-color >/dev/null &&
-       terraform -chdir="$d" test -no-color; then
+    if gate_init "$d" &&
+      terraform -chdir="$d" test -no-color; then
       ok "test $d"
     else
       bad "test $d"

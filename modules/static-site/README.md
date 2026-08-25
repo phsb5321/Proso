@@ -31,6 +31,22 @@ refuses to publish an `updates.json` whose `update_link` hosts do not match the
 primary domain. Publishing a manifest that still points at the old host is worse
 than not publishing one at all.
 
+## A third silent failure, found by applying
+
+CloudWatch Logs writes vended logs under a prefix **it** chooses —
+`AWSLogs/<account>/CloudFront/`, with `s3_delivery_configuration.suffix_path`
+appended below that. Granting the delivery service any other prefix grants
+nothing; AWS then injects the statement it needs into the log bucket policy
+itself, and the next `terraform apply` deletes that statement and stops log
+delivery, from a plan that reads like a formatting change.
+
+So `logs_bucket_policy` writes the statement AWS writes, ARN-bound to the
+delivery source. Both bucket policies are built with `jsonencode` rather than
+`aws_iam_policy_document`, following `modules/deploy-role`: a data source is
+mocked away under `terraform test`, so asserting on it would prove nothing,
+while a local can be asserted against directly — which is what
+`log_delivery_is_granted_the_prefix_aws_actually_writes_to` does.
+
 ## Two-phase domain attachment
 
 `attach_custom_domain` exists because a CloudFront distribution cannot attach an
@@ -74,9 +90,9 @@ terraform init -backend=false
 terraform test
 ```
 
-Eight runs, all offline against a mocked provider — no credentials, no AWS
-calls. Two of them are negative: a certificate requested outside `us-east-1` and
-an `updates.json` that still advertises the old host must both fail to plan.
+Ten runs, all offline against a mocked provider — no credentials, no AWS calls.
+Two of them are negative: a certificate requested outside `us-east-1` and an
+`updates.json` that still advertises the old host must both fail to plan.
 
 A test that cannot fail is not a test, so each run is falsified by plant:
 
@@ -110,8 +126,14 @@ The two scanners overlap, so most rows below are one finding under two names.
 | `CKV_AWS_174` (viewer TLS >= 1.2) | distribution | Phase-1 only. AWS does not allow `minimum_protocol_version` to be raised on the CloudFront default certificate. The conditional in `viewer_certificate` sets `TLSv1.2_2021` as soon as `attach_custom_domain` is true, which is the only configuration end users reach. |
 | `CKV_AWS_144` (cross-region replication) | both buckets | Doubles the storage of a 1.2 MB bucket that is regenerated from git on every deploy. |
 | `CKV2_AWS_62` (event notifications) | both buckets | Notifications need a consumer. Wiring S3 to EventBridge with no rule attached satisfies the check and changes nothing; object-level auditing belongs to account-level CloudTrail data events. |
-| `CKV_AWS_18` (access logging) | log bucket only | A log bucket that logs its own access is a write loop. It is the terminal sink; the origin bucket **is** logged, into it. |
+| `CKV_AWS_18`, `AVD-AWS-0089` (access logging) | log bucket only | A log bucket that logs its own access is a write loop. It is the terminal sink; the origin bucket **is** logged, into it. |
 
 Two findings were fixed rather than waived: CloudFront access logging (standard
 logging v2) and the missing S3 lifecycle configuration (`CKV2_AWS_61`), which
 now expires superseded object versions along with the access logs.
+
+Trivy attributes `AVD-AWS-0132` and `AVD-AWS-0089` per resource, so the log
+bucket carries its own copies of the two suppressions above rather than
+inheriting the origin bucket's. For the log bucket, `AVD-AWS-0132` is not even a
+trade-off: S3 server access logging cannot write into a KMS-encrypted bucket at
+all, which Trivy's own rule text states.

@@ -1,5 +1,8 @@
 # Terraform
 **/.terraform/
+# scripts/gate.sh keeps its own TF_DATA_DIR so an offline stage cannot reach a
+# real backend through a developer's .terraform.
+**/.terraform-gate/
 *.tfstate
 *.tfstate.*
 *.tfplan

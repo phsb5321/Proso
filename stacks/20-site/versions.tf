@@ -29,6 +29,21 @@ terraform {
 provider "aws" {
   region = var.region
 
+  # A stale or wrong profile aborts at provider configuration rather than
+  # creating a distribution in the management account.
+  allowed_account_ids = [var.account_id]
+
+  # ADR-001 §2.5: routine plan/apply runs as the least-privilege deploy role,
+  # never as an admin. Null falls back to the ambient credentials, which is what
+  # `terraform test` and an offline validate use.
+  dynamic "assume_role" {
+    for_each = var.assume_role_arn == null ? [] : [var.assume_role_arn]
+    content {
+      role_arn     = assume_role.value
+      session_name = "terraform-20-site"
+    }
+  }
+
   # Environment is not decoration. The org's SandboxRestrictions SCP denies any
   # create call whose request carries no Environment tag; it is authored but
   # attached to nothing today, so this is what keeps the stack appliable the day

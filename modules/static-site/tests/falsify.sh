@@ -84,6 +84,16 @@ falsify update_payload_lands_at_the_site_root releases.tf \
 falsify stale_update_host_is_refused_once_the_domain_is_attached releases.tf \
   's#!var.attach_custom_domain || alltrue(\[#true || alltrue([#'
 
+# The grant is bound to the account instead of the distribution, so any
+# distribution in the account could read the origin.
+falsify origin_is_readable_only_by_this_distribution s3.tf \
+  's#"AWS:SourceArn" = aws_cloudfront_distribution.this.arn#"aws:SourceAccount" = data.aws_caller_identity.current.account_id#'
+
+# The grant names a prefix the delivery service never writes to, so AWS injects
+# its own statement and the next apply deletes it.
+falsify log_delivery_is_granted_the_prefix_aws_actually_writes_to s3.tf \
+  's#/AWSLogs/\${data.aws_caller_identity.current.account_id}/CloudFront/\*#/cloudfront/*#'
+
 echo
 if terraform test >/dev/null 2>&1; then
   echo "  suite green again after every revert"

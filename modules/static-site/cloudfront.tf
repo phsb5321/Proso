@@ -120,7 +120,9 @@ resource "aws_cloudwatch_log_delivery" "cloudfront" {
   delivery_source_name     = aws_cloudwatch_log_delivery_source.cloudfront.name
   delivery_destination_arn = aws_cloudwatch_log_delivery_destination.cloudfront.arn
   s3_delivery_configuration {
-    suffix_path                 = "cloudfront/{DistributionId}/{yyyy}/{MM}/{dd}"
+    # CloudWatch Logs prepends AWSLogs/{account-id}/CloudFront/ to this, so
+    # naming the service again here produces .../CloudFront/cloudfront/...
+    suffix_path                 = "{DistributionId}/{yyyy}/{MM}/{dd}"
     enable_hive_compatible_path = false
   }
 

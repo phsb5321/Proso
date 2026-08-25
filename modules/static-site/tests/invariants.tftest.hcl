@@ -212,3 +212,96 @@ run "stale_update_host_is_refused_once_the_domain_is_attached" {
 
   expect_failures = [aws_s3_object.updates_manifest]
 }
+
+# --- bucket policies ---------------------------------------------------------
+# Asserted against the local rather than a data source: aws_iam_policy_document
+# is mocked away here, so asserting on its .json would prove nothing.
+
+run "origin_is_readable_only_by_this_distribution" {
+  command = plan
+
+  # Both ARNs are assigned by AWS, so pin them to make the policy readable at
+  # plan time instead of a wall of "known after apply".
+  override_resource {
+    target          = aws_cloudfront_distribution.this
+    override_during = plan
+    values = {
+      arn = "arn:aws:cloudfront::699475944323:distribution/E2MOCKDIST"
+    }
+  }
+
+  override_resource {
+    target          = aws_s3_bucket.site
+    override_during = plan
+    values = {
+      arn = "arn:aws:s3:::proso-site-699475944323"
+    }
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(local.site_bucket_policy).Statement :
+      s if s.Effect == "Allow" && try(s.Principal.Service, null) != "cloudfront.amazonaws.com"
+    ]) == 0
+    error_message = "The origin bucket policy allows a principal other than CloudFront."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(local.site_bucket_policy).Statement :
+      try(s.Condition.StringEquals["AWS:SourceArn"], null) != null
+      if s.Effect == "Allow"
+    ])
+    error_message = "The CloudFront grant is not bound to a source ARN, so any distribution in any account could read the origin."
+  }
+}
+
+# The regression this catches was live on 25/08/2026: the module granted the
+# delivery service a prefix it never writes to, AWS injected the statement it
+# actually needed, and the next `terraform apply` planned to delete that
+# statement — stopping log delivery with nothing in the plan saying so.
+run "log_delivery_is_granted_the_prefix_aws_actually_writes_to" {
+  command = plan
+
+  override_resource {
+    target          = aws_s3_bucket.logs
+    override_during = plan
+    values = {
+      arn = "arn:aws:s3:::proso-site-699475944323-logs"
+    }
+  }
+
+  override_resource {
+    target          = aws_s3_bucket.site
+    override_during = plan
+    values = {
+      arn = "arn:aws:s3:::proso-site-699475944323"
+    }
+  }
+
+  override_resource {
+    target          = aws_cloudwatch_log_delivery_source.cloudfront
+    override_during = plan
+    values = {
+      arn = "arn:aws:logs:us-east-1:699475944323:delivery-source:proso-site-cf-access-logs"
+    }
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(local.logs_bucket_policy).Statement :
+      s if try(s.Principal.Service, null) == "delivery.logs.amazonaws.com"
+      && endswith(tostring(s.Resource), "/AWSLogs/699475944323/CloudFront/*")
+    ]) == 1
+    error_message = "The vended-log grant must target AWSLogs/<account>/CloudFront/*, the prefix CloudWatch Logs chooses; any other prefix grants nothing and leaves AWS to inject a statement the next apply deletes."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(local.logs_bucket_policy).Statement :
+      try(s.Condition.StringEquals["s3:x-amz-acl"], null) == "bucket-owner-full-control"
+      if try(s.Principal.Service, null) == "delivery.logs.amazonaws.com"
+    ])
+    error_message = "The vended-log grant must require the bucket-owner-full-control ACL header, as the service sends it and as AWS's own injected statement does."
+  }
+}

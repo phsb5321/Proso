@@ -1,21 +1,37 @@
 # `20-site` — proso.com.br on S3 + CloudFront
 
-One `static-site` module in `us-east-1`. Everything of substance is documented in
+One `static-site` module in `us-east-1`, applied to **Sandbox-Account
+699475944323** — the workload account per ADR-001's operator decision of
+25/08/2026. Everything of substance is documented in
 [`../../modules/static-site/README.md`](../../modules/static-site/README.md);
-this file is the operating procedure.
+this file is the operating procedure. Current state:
+[`../../docs/20-site-status.md`](../../docs/20-site-status.md).
+
+## Credentials
+
+Never root. The chain is `pedro-ops` (management account, assume-role only) →
+`OrganizationAccountAccessRole` (sandbox) → `proso-deploy`, the least-privilege
+role from `stacks/00-bootstrap`. Terraform performs the last hop itself, from
+`assume_role_arn` in the tfvars:
+
+```bash
+export AWS_PROFILE=sandbox     # pedro-ops -> OrganizationAccountAccessRole
+aws sts get-caller-identity    # expect .../assumed-role/OrganizationAccountAccessRole/...
+```
 
 ## Backend
 
-Partial configuration. The state bucket is an output of `stacks/00-bootstrap`,
-so it is supplied at init time rather than hardcoded here:
+Partial configuration — the state bucket belongs to `stacks/00-bootstrap`, so it
+is supplied at init time rather than hardcoded here. The committed
+`sandbox.s3.tfbackend` holds it:
 
 ```bash
-cat > backend.hcl <<'EOF'
-bucket = "<state bucket from stacks/00-bootstrap>"
-EOF
-
-terraform init -backend-config=backend.hcl
+terraform init -backend-config=sandbox.s3.tfbackend
 ```
+
+`kms_key_id` in that file is not optional: with `encrypt = true` alone the
+backend sends `x-amz-server-side-encryption: AES256`, which the state bucket's
+`DenyUnencryptedWrites` policy rejects.
 
 Locking is `use_lockfile = true` — S3-native, Terraform >= 1.11. There is no
 DynamoDB lock table and none should be added.
@@ -29,26 +45,42 @@ terraform init -backend=false
 
 ## Order of operations
 
+`cp example.tfvars sandbox.tfvars` first; it is gitignored and carries the
+account, the role to assume, and the path to the assembled site.
+
 ```bash
 # 1. Assemble the site tree. Terraform reads updates.json and releases/*.xpi
 #    from it, so this comes before plan, not after.
-../../scripts/deploy-site.sh assemble --out /tmp/proso-site
+../../scripts/deploy-site.sh assemble
 
-# 2. Plan. attach_custom_domain stays false: phase 1 serves on *.cloudfront.net.
-terraform plan -var site_source_dir=/tmp/proso-site
+# 2. Gate, then plan. ADR-001 §4.4 — policy-as-code gates the plan, so the gate
+#    runs before it, not after the fact.
+(cd ../.. && nix develop -c scripts/gate.sh)
+terraform plan -var-file=sandbox.tfvars -out=site.tfplan
 
-# 3. Apply — Sandbox-Account only, and only after the budget alarm in
-#    stacks/10-account-baseline is live in that account (ADR-001 §4.2).
-terraform apply -var site_source_dir=/tmp/proso-site
+# 3. Apply. The budget alarm in stacks/10-account-baseline must already be live
+#    in the account (ADR-001 §4.2); it is.
+terraform apply site.tfplan
 
 # 4. Publish the pages around the Terraform-owned objects and invalidate.
-../../scripts/deploy-site.sh deploy --site /tmp/proso-site
+#    updates.json and releases/*.xpi are NOT synced here — Terraform owns them,
+#    and the script verifies rather than overwrites them.
+../../scripts/deploy-site.sh deploy \
+  --site ~/Documents/Code/personal/proso/.artifacts/site \
+  --bucket "$(terraform output -raw bucket_name)" \
+  --distribution "$(terraform output -raw distribution_id)"
 
 # 5. Verify on the distribution's own domain, before any DNS change.
-curl -sI "https://$(terraform output -raw distribution_domain_name)/" | head -3
-curl -sI "https://$(terraform output -raw distribution_domain_name)/updates.json"
-curl -sI "https://$(terraform output -raw distribution_domain_name)/releases/proso-1.2.1.xpi" \
-  | grep -i content-type      # must be application/x-xpinstall
+D=$(terraform output -raw distribution_domain_name)
+curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/"
+curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/updates.json"
+curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/releases/proso-1.2.1.xpi"
+#   -> 200 application/x-xpinstall, or Firefox will not install it
+
+# 6. Prove there is no drift. Anything other than 0 here means the config and
+#    the account disagree — see docs/20-site-status.md for the one time that
+#    was AWS editing a bucket policy behind Terraform's back.
+terraform plan -detailed-exitcode -var-file=sandbox.tfvars
 ```
 
 ## Phase 2 — the custom domain

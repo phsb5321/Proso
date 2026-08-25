@@ -89,58 +89,52 @@ resource "aws_s3_bucket_lifecycle_configuration" "site" {
   }
 }
 
-data "aws_iam_policy_document" "site" {
-  statement {
-    sid     = "AllowCloudFrontOACRead"
-    effect  = "Allow"
-    actions = ["s3:GetObject"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["cloudfront.amazonaws.com"]
-    }
-
-    resources = ["${aws_s3_bucket.site.arn}/*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.this.arn]
-    }
-  }
-
-  statement {
-    sid     = "DenyInsecureTransport"
-    effect  = "Deny"
-    actions = ["s3:*"]
-
-    principals {
-      type        = "AWS"
-      identifiers = ["*"]
-    }
-
-    resources = [
-      aws_s3_bucket.site.arn,
-      "${aws_s3_bucket.site.arn}/*",
+# Built with jsonencode() rather than aws_iam_policy_document, following
+# modules/deploy-role: a data source is mocked away under `terraform test`, so
+# asserting on it would prove nothing. A local can be asserted against directly.
+locals {
+  site_bucket_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontOACRead"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.site.arn}/*"
+        Condition = {
+          StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.this.arn }
+        }
+      },
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = { AWS = "*" }
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.site.arn,
+          "${aws_s3_bucket.site.arn}/*",
+        ]
+        Condition = {
+          Bool = { "aws:SecureTransport" = "false" }
+        }
+      },
     ]
-
-    condition {
-      test     = "Bool"
-      variable = "aws:SecureTransport"
-      values   = ["false"]
-    }
-  }
+  })
 }
 
 resource "aws_s3_bucket_policy" "site" {
   bucket = aws_s3_bucket.site.id
-  policy = data.aws_iam_policy_document.site.json
+  policy = local.site_bucket_policy
 
   depends_on = [aws_s3_bucket_public_access_block.site]
 }
 
 # --- access log bucket -------------------------------------------------------
 
+# AVD-AWS-0089 is checkov CKV_AWS_18: a log bucket that logs its own access is a
+# write loop. This is the terminal sink.
+#trivy:ignore:AVD-AWS-0089
 resource "aws_s3_bucket" "logs" {
   # checkov:skip=CKV_AWS_18:A log bucket that logs its own access is a write loop.
   # This is the terminal sink; its own reads are covered by CloudTrail data events
@@ -181,6 +175,10 @@ resource "aws_s3_bucket_versioning" "logs" {
   }
 }
 
+# AVD-AWS-0132 / CKV_AWS_145 again, and here it is not even a trade: S3 server
+# access logging cannot write into a bucket encrypted with KMS, which Trivy's own
+# rule text says. SSE-S3 is the only option for a log destination.
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
   bucket = aws_s3_bucket.logs.id
 
@@ -219,85 +217,61 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
 # ACLs are disabled on the log bucket (BucketOwnerEnforced), so S3 server access
 # logging must be authorised by bucket policy rather than the legacy
 # LogDelivery ACL grant.
-data "aws_iam_policy_document" "logs" {
-  statement {
-    sid     = "AllowS3ServerAccessLogging"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["logging.s3.amazonaws.com"]
-    }
-
-    resources = ["${aws_s3_bucket.logs.arn}/s3-access/*"]
-
-    condition {
-      test     = "ArnLike"
-      variable = "aws:SourceArn"
-      values   = [aws_s3_bucket.site.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [data.aws_caller_identity.current.account_id]
-    }
-  }
-
-  # CloudFront standard logging v2 delivers through the vended-log pipeline,
-  # which writes as this service principal rather than as the distribution.
-  statement {
-    sid     = "AllowVendedLogDelivery"
-    effect  = "Allow"
-    actions = ["s3:PutObject"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
-    }
-
-    resources = ["${aws_s3_bucket.logs.arn}/cloudfront/*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceAccount"
-      values   = [data.aws_caller_identity.current.account_id]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-      values   = ["bucket-owner-full-control"]
-    }
-  }
-
-  statement {
-    sid     = "DenyInsecureTransport"
-    effect  = "Deny"
-    actions = ["s3:*"]
-
-    principals {
-      type        = "AWS"
-      identifiers = ["*"]
-    }
-
-    resources = [
-      aws_s3_bucket.logs.arn,
-      "${aws_s3_bucket.logs.arn}/*",
+# CloudWatch Logs writes vended logs under a prefix IT chooses:
+# AWSLogs/<account>/CloudFront/, with s3_delivery_configuration.suffix_path
+# appended below that. Granting any other prefix grants nothing, and AWS then
+# injects the statement it needs into this bucket policy on its own — which the
+# NEXT apply deletes, silently stopping log delivery. Measured 25/08/2026; the
+# statement below is the shape AWS wrote, so Terraform and the service agree.
+locals {
+  logs_bucket_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowS3ServerAccessLogging"
+        Effect    = "Allow"
+        Principal = { Service = "logging.s3.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.logs.arn}/s3-access/*"
+        Condition = {
+          ArnLike      = { "aws:SourceArn" = aws_s3_bucket.site.arn }
+          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+        }
+      },
+      {
+        Sid       = "AWSLogDeliveryWrite1"
+        Effect    = "Allow"
+        Principal = { Service = "delivery.logs.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/CloudFront/*"
+        Condition = {
+          ArnLike = { "aws:SourceArn" = aws_cloudwatch_log_delivery_source.cloudfront.arn }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+            "s3:x-amz-acl"      = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = { AWS = "*" }
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.logs.arn,
+          "${aws_s3_bucket.logs.arn}/*",
+        ]
+        Condition = {
+          Bool = { "aws:SecureTransport" = "false" }
+        }
+      },
     ]
-
-    condition {
-      test     = "Bool"
-      variable = "aws:SecureTransport"
-      values   = ["false"]
-    }
-  }
+  })
 }
 
 resource "aws_s3_bucket_policy" "logs" {
   bucket = aws_s3_bucket.logs.id
-  policy = data.aws_iam_policy_document.logs.json
+  policy = local.logs_bucket_policy
 
   depends_on = [aws_s3_bucket_public_access_block.logs]
 }

@@ -1,247 +1,169 @@
 # `stacks/20-site` — status, 25/08/2026
 
-Built and gated offline. **Not applied**: there is no credential into
-`Sandbox-Account` that is not the management-account root, and ADR-001 §4.3
-reserves root for one operation that belongs to another tab.
+**Live** on `https://d23aubpqrsmco3.cloudfront.net` in **Sandbox-Account
+699475944323**, per the operator decision recorded in ADR-001 (`da2c65a`): the
+workload account is Sandbox-Account and no new account is created.
 
-## Blocked: no non-root path into Sandbox-Account 699475944323
+DNS is untouched. `proso.com.br` still points at GitHub Pages; the cutover is
+Pedro's, and nothing in this stack performs it.
 
-> **CLEARED 25/08/2026 by the Account Foundation tab (`58a6e4d`).** A `sandbox`
-> profile now exists in `~/.aws/config`. It chains through an interim IAM user
-> `pedro-ops` in the management account and assumes
-> `OrganizationAccountAccessRole` in 699475944323 — use `--profile sandbox`, or
-> `aws_profile = "sandbox"` in a tfvars file.
->
-> ```console
-> $ aws --profile sandbox sts get-caller-identity
-> { "Account": "699475944323", "Arn":
->   "arn:aws:sts::699475944323:assumed-role/OrganizationAccountAccessRole/botocore-session-1787667530" }
-> ```
->
-> `stacks/10-account-baseline` has since been applied through it, budget alarm
-> first per ADR-001 §4.2. `pedro-ops` is a static key and therefore interim: the
-> permanent path is the Identity Center permission sets in
-> `stacks/05-org-structure`, and `pedro-ops` is deleted at step 3 of
-> `docs/root-key-retirement-plan.md`. Everything below is unchanged — it is the
-> evidence that produced the fix.
+## What is live
 
-This blocks `stacks/00-bootstrap` and `stacks/10-account-baseline` too — nothing
-can be applied in the sandbox until it is cleared.
+| | |
+|---|---|
+| Distribution | `E270HHOCYNLND` → `d23aubpqrsmco3.cloudfront.net` |
+| Origin bucket | `proso-site-699475944323` — private, OAC-only, versioned, SSE-S3 |
+| Log bucket | `proso-site-699475944323-logs` — 90-day expiry |
+| Certificate | `arn:aws:acm:us-east-1:699475944323:certificate/626a3f28-…` — `PENDING_VALIDATION`, **not attached** (phase 1) |
+| State | `s3://proso-tfstate-699475944323/20-site/terraform.tfstate`, S3-native locking |
+| Applied as | `proso-deploy` — the least-privilege role, never an admin, never root |
 
-Root cannot assume a role. Measured, not assumed:
+Route 53: **none**. No hosted zone exists or should; DNS stays at Cloudflare.
+
+### Measured on the wire
 
 ```console
-$ aws sts get-caller-identity --profile PERSONAL_ROOT
-{ "UserId": "851725512267", "Account": "851725512267",
-  "Arn": "arn:aws:iam::851725512267:root" }
+$ for u in "" updates.json releases/proso-1.2.1.xpi releases/voxpage-1.1.3.xpi \
+           pricing.html legal/terms.html sitemap.xml robots.txt; do
+    curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+      "https://d23aubpqrsmco3.cloudfront.net/$u"; done
+200 text/html; charset=utf-8
+200 application/json
+200 application/x-xpinstall          <- the invariant, on the wire
+200 application/x-xpinstall
+200 text/html; charset=utf-8
+200 text/html; charset=utf-8
+200 application/xml
+200 text/plain; charset=utf-8
 
-$ aws sts assume-role --profile PERSONAL_ROOT \
-    --role-arn arn:aws:iam::699475944323:role/OrganizationAccountAccessRole \
-    --role-session-name site-tab-probe
-aws: [ERROR]: An error occurred (AccessDenied) when calling the AssumeRole
-operation: Roles may not be assumed by root accounts.
+$ curl -sSI http://d23aubpqrsmco3.cloudfront.net/ | head -1
+HTTP/1.1 301 Moved Permanently
+
+$ curl -sS -o /dev/null -w '%{http_code}\n' \
+    https://proso-site-699475944323.s3.us-east-1.amazonaws.com/index.html
+403                                  <- origin is reachable only through the OAC
 ```
 
-And no other principal has an API key:
+Both silent killers are held where they cannot be forgotten: `.xpi` is served as
+`application/x-xpinstall`, and `updates.json` and `releases/` are at the site
+root. Terraform owns those three objects, so a regression fails `plan` rather
+than a user's browser.
+
+### No drift
 
 ```console
-$ aws iam list-users --profile PERSONAL_ROOT --query 'Users[].UserName'
-admin  admin-user  dokku-backup-user  exec-job-aggregator-ses
-proxmox-backup  restic-objectlock-v1  ses-smtp-alertmanager
-
-$ aws iam list-access-keys --user-name admin-user --profile PERSONAL_ROOT
-(empty)
-$ aws iam list-attached-user-policies --user-name admin-user --profile PERSONAL_ROOT
-arn:aws:iam::aws:policy/AdministratorAccess
+$ terraform plan -detailed-exitcode -var-file=sandbox.tfvars
+No changes. Your infrastructure matches the configuration.
+$ echo $?
+0
 ```
 
-`~/.aws/credentials` holds `PERSONAL_ROOT` (root) plus three DeliCasa profiles
-for an unrelated account. Nothing reaches 699475944323.
+## Bug found and fixed by applying: the log-delivery policy fought AWS
 
-### The unblock, and why it is not mine
-
-Identity Center is enabled and **empty**, which is the same conclusion
-`stacks/00-bootstrap` reached independently:
+The first apply succeeded, and the very next plan wanted to change something
+nobody had touched:
 
 ```console
-$ aws sso-admin list-instances --profile PERSONAL_ROOT
-ssoins-7223fcff316331ec | d-9067ca0796 | ACTIVE | created 2025-03-23
-
-$ aws sso-admin list-permission-sets \
-    --instance-arn arn:aws:sso:::instance/ssoins-7223fcff316331ec
-(empty)
-$ aws identitystore list-users --identity-store-id d-9067ca0796
-(empty)
+$ terraform plan -detailed-exitcode
+  # module.site.aws_s3_bucket_policy.logs will be updated in-place
+      - Sid       = "AWSLogDeliveryWrite1"
+      - Resource  = "arn:aws:s3:::proso-site-699475944323-logs/AWSLogs/699475944323/CloudFront/*"
+Plan: 0 to add, 1 to change, 0 to destroy.
 ```
 
-Per the ADR correction of 25/08/2026, the answer is a **permission set**, not an
-IAM user: an identity for Pedro, a `ProsoInfraDeploy` permission set, and an
-assignment onto 699475944323. `modules/deploy-role` already trusts exactly that
-principal pattern. That work is brief 04's and needs Pedro (a real person's
-identity, MFA enrolment).
+CloudWatch Logs writes vended logs under a prefix **it** chooses —
+`AWSLogs/<account>/CloudFront/`, with `suffix_path` appended below that. The
+module had granted `cloudfront/*`, a prefix nothing writes to, so the service
+injected the statement it actually needed into the bucket policy itself. The
+next apply would have deleted that statement and stopped log delivery, with a
+plan that read like a formatting change.
 
-There is also a console-only fallback, worth recording but **not** recommended
-now that the ADR says not to create IAM users for access:
+Fixed by writing the statement AWS writes, and by dropping the now-duplicated
+`cloudfront/` segment from `suffix_path` (the live config had become
+`AWSLogs/{account-id}/CloudFront/cloudfront/{DistributionId}/…`). Both bucket
+policies moved from `aws_iam_policy_document` to `jsonencode`, following
+`modules/deploy-role`'s note that a data source is mocked away under
+`terraform test` and asserting on it proves nothing — so the regression now has
+a test. Delivery is confirmed working:
 
 ```console
-$ aws iam get-login-profile --user-name admin-user --profile PERSONAL_ROOT
-{ "UserName": "admin-user", "CreateDate": "2025-03-26T23:00:09+00:00" }
-$ aws iam list-mfa-devices --user-name admin-user --profile PERSONAL_ROOT
-arn:aws:iam::851725512267:u2f/user/admin-user/Bitwarden-MZFYVDMZZFF2HFLFCICKKP2MNI
-$ aws organizations describe-account --account-id 699475944323 --profile PERSONAL_ROOT
-Id 699475944323 | JoinedMethod CREATED | 2024-12-27 | ACTIVE
+$ aws s3 ls s3://proso-site-699475944323-logs/ --recursive
+2026-08-25 14:06:35  12601 AWSLogs/699475944323/CloudFront/…/E270HHOCYNLND.2026-08-25-17.…parquet
 ```
 
-`admin-user` holds `AdministratorAccess`, a console password (vault entry
-`us-east-2.signin.aws.amazon.com`) and a Bitwarden U2F device, and
-`JoinedMethod = CREATED` means `OrganizationAccountAccessRole` already exists in
-the sandbox. So Identity Center can be populated from that console session
-without root ever being used — which is also the honest exit from next-slice #26.
+## [pending] Pedro: an orphaned KMS key, USD 1.00/month
 
-## Second blocker: the sandbox SCP forbids this stack outright
+`stacks/00-bootstrap` was applied by a sibling agent at 16:30 UTC while this
+tab's plan for the same stack was in flight. Mine lost the race and failed with
+`EntityAlreadyExists` / `BucketAlreadyExists` — but not before creating one KMS
+key, 16 seconds in:
 
-> **FIXED 25/08/2026 by the Account Foundation tab.** Both findings below were
-> correct and both are addressed in `stacks/05-org-structure`, which now authors
-> a replacement SCP, `SandboxGuardrails` (`policies/sandbox-guardrails.json`),
-> instead of attaching `SandboxRestrictions`:
->
-> 1. **`cloudfront:*` is no longer denied.** The free tier is indefinite and the
->    payload is 1.06 MB, so the deny was aimed at the wrong risk.
-> 2. **The untagged-resource rule is gone entirely**, not narrowed. Your
->    diagnosis understates it: `aws:RequestTag` only exists on operations that
->    accept tags at creation, and `s3:CreateBucket` is not one of them — the
->    provider issues `PutBucketTagging` afterwards — so even a fully tagged
->    bucket would have been denied. Tag hygiene belongs in an Organizations tag
->    policy; spend is caught by the budget alarm, which is already applied.
->
-> `SandboxGuardrails` keeps the useful half (deny genuinely expensive services,
-> which also enforces ADR-001's "DNS stays at Cloudflare" and "no DynamoDB lock
-> table" decisions) and adds one the old policy lacked: nothing in the sandbox
-> may stop CloudTrail or delete the budget.
->
-> Still gated, and it is why this is not yet live: the org root reports
-> `PolicyTypes: []`, so SCPs are not enabled at all and no policy can be created
-> or attached until
-> `aws organizations enable-policy-type --root-id r-y7xb --policy-type SERVICE_CONTROL_POLICY`
-> is run. `SandboxRestrictions` (p-ufly0ag5) can be deleted once the replacement
-> is attached.
+```
+KeyId 22610544-2b8a-4ed8-8043-e9ae9f5235a6   Enabled   2026-08-25T13:31:31-03:00
+```
 
-Independent of credentials. `SandboxRestrictions` denies `cloudfront:*`:
+It has no alias, no policy grant to anything, and no Terraform state referencing
+it — `terraform state rm` was used to drop it rather than have two states
+disagree, and the local bootstrap state was discarded in favour of the sibling's
+in S3. The live key is `2056b8bb-…`, which is what `alias/proso-tfstate-…` and
+the deploy role point at.
+
+It is tagged for identification:
 
 ```console
-$ aws organizations describe-policy --policy-id p-ufly0ag5 --query 'Policy.Content'
-{ "Sid": "DenyPaidServices", "Effect": "Deny", "Action": [ "rds:*",
-  "ec2:RunInstances", ..., "route53:*", "cloudfront:*", "apigateway:*", ... ] }
-{ "Sid": "DenyUntaggedResources", "Effect": "Deny",
-  "NotAction": ["iam:*","organizations:*","budgets:*","cloudwatch:Get*", ...],
-  "Condition": { "Null": { "aws:RequestTag/Environment": true } } }
+$ aws kms list-resource-tags --key-id 22610544-2b8a-4ed8-8043-e9ae9f5235a6
+Status=orphan
+Orphan-Reason=duplicate-of-alias-proso-tfstate-created-by-concurrent-apply-2026-08-25
+Orphan-Action=schedule-key-deletion-pending-operator
 ```
 
-A CloudFront distribution is the entire point of this stack, so under that SCP
-the stack cannot be applied in Sandbox-Account at any privilege level — an SCP
-denies admins too.
+Not deleted here: ADR-001 §4.6 — destructive operations are never autonomous —
+and `modules/deploy-role` explicitly denies `kms:ScheduleKeyDeletion`. It costs
+USD 1.00/month against a USD 5.00/month budget. One command, cancellable for the
+whole waiting period:
 
-It does not bite **today**, because the policy is attached to nothing and the
-account is not in the OU it was written for:
-
-```console
-$ aws organizations list-targets-for-policy --policy-id p-ufly0ag5
-(empty)
-$ aws organizations list-parents --child-id 699475944323
-PARENTS  r-y7xb  ROOT                       # not in ou-y7xb-qkp97z4j
-$ aws organizations list-accounts-for-parent --parent-id ou-y7xb-qkp97z4j
-(empty)
+```bash
+aws kms schedule-key-deletion --profile sandbox \
+  --key-id 22610544-2b8a-4ed8-8043-e9ae9f5235a6 --pending-window-in-days 30
 ```
 
-So it is a scheduled break, not a live one. Two things follow, both for the
-Account Foundation tab:
+## Cost
 
-1. `DenyPaidServices` needs a CloudFront carve-out, or the site stack is verified
-   somewhere other than the sandbox. CloudFront's free tier is indefinite, so it
-   is not a paid service at this size — the deny is aimed at the wrong risk.
-2. `DenyUntaggedResources` denies *any* create call whose request carries no
-   `Environment` tag, and roughly half of an S3 + CloudFront stack is
-   sub-resources that take no tags at all (`aws_s3_bucket_public_access_block`,
-   `aws_s3_bucket_policy`, `aws_cloudfront_origin_access_control`,
-   `aws_s3_bucket_versioning`, ...). No amount of tagging satisfies it. As
-   written it forbids Terraform, not untagged resources.
+Budget `sandbox-monthly-cost` is live at USD 5.00/month; actual spend is USD
+0.00 so far. This stack's own ceiling is USD 0.01/month:
 
-What this stack does about it: the provider `default_tags` now carry
-`Environment`, so every taggable resource satisfies the condition. That is
-necessary, not sufficient.
+| Line item | Expected |
+|---|---|
+| CloudFront requests + transfer | USD 0 — 1 TB / 10M requests free indefinitely, payload is 1.06 MB |
+| S3 storage | ~USD 0.00003/month for 1.2 MB |
+| Access logs (S3 + CloudFront) | bounded by the 90-day expiry on the log bucket |
+| ACM certificate | USD 0 |
+| Route 53 | none created |
+| *Orphaned KMS key (above)* | *USD 1.00/month until deleted — not this stack's* |
 
-## Fixed in passing: the deploy role could not have applied this stack
+## Phase 2 — the custom domain, when Pedro wants it
 
-`modules/deploy-role` (landed by `stacks/00-bootstrap`) was missing
-`s3:PutObjectTagging` — the site module tags `updates.json` and
-`releases/*.xpi`, and a tagged `PutObject` is authorised as both actions — and
-the whole CloudWatch Logs delivery API set that CloudFront standard logging v2
-needs. The apply would have failed partway through. Both are added, ARN-scoped,
-with a `covers_what_the_site_stack_applies` run so the gap cannot come back.
+Blocked on content, not on infrastructure. `updates.json` still advertises
+`https://phsb5321.github.io/Proso/releases/…` for both add-ons, so publishing it
+under `proso.com.br` would leave every installed extension updating from GitHub
+Pages. The module refuses to plan that once `attach_custom_domain = true` — the
+forcing function is deliberate.
 
-The log-delivery ARN scoping is unverified against a live apply, for the same
-reason everything else here is: no credential reaches the account.
+Order, once the Proso repo's `updates.json` is corrected:
 
-### What that leaves unverified
+1. Create the validation record at Cloudflare, proxy **off**:
+   `_2d2f3e6a75c9b9320d5cb5f2d66d39cb.proso.com.br. CNAME _bab0230780051a82f7f869e8d14a322d.jkddzztszm.acm-validations.aws.`
+2. Wait for `ISSUED` — CloudFront cannot attach a certificate in any other state.
+3. `terraform apply -var-file=sandbox.tfvars -var attach_custom_domain=true`
+4. **Pedro** points `proso.com.br` at `d23aubpqrsmco3.cloudfront.net`.
 
-Everything below the plan boundary. The configuration itself is complete — with
-credentials removed, the plan fails on credentials and nothing else:
+## Content defects, owned by the Proso repo
 
-```console
-$ terraform plan -var site_source_dir=…/site      # backend stripped, no creds
-Error: No valid credential sources found
-  with provider["registry.terraform.io/hashicorp/aws"]
-```
+Unchanged from the earlier report and still true of what is now being served —
+the brief says do not re-author the copy:
 
-Unverified until an apply happens: that CloudFront standard logging v2 attaches
-cleanly to a `BucketOwnerEnforced` bucket, that the OAC bucket policy admits the
-distribution, that the deploy role's log-delivery ARN scoping is accepted, and
-the real `Content-Type` on the wire.
-
-## Done and evidenced
-
-| Gate | Command | Result |
-|---|---|---|
-| Format | `terraform fmt -recursive -check` | clean |
-| Validate | `terraform validate` (module + stack) | Success |
-| Unit tests | `terraform test` | 8 passed, 0 failed (27 across the repo) |
-| Falsification | `./tests/falsify.sh` | 8/8 red on plant, green after revert |
-| Checkov | `checkov -d . --framework terraform --skip-download` | 109 passed, 0 failed, 17 skipped (repo-wide) |
-| Trivy | `trivy config --exit-code 1 --misconfig-scanners terraform .` | 0 misconfigurations |
-| TFLint | `tflint --recursive --minimum-failure-severity=warning` | 0 issues |
-| ShellCheck / shfmt | `scripts/deploy-site.sh`, `tests/falsify.sh` | clean |
-| Assemble | `./scripts/deploy-site.sh assemble` | 27 files, 1.2 MB — matches ADR-001 §1 |
-
-Every policy exception is stated inline at the resource it applies to and
-tabulated in `modules/static-site/README.md`.
-
-## Content defects found, owned by the Proso repo
-
-Not fixed here — the brief says do not re-author the copy — but they will bite
-at cutover:
-
-1. `updates.json` on `gh-pages` still advertises `https://phsb5321.github.io/Proso/releases/…`
-   for both add-ons. Published as-is behind `proso.com.br`, installed extensions
-   keep updating from GitHub Pages, and the migration achieves nothing. The
-   module refuses to plan this once `attach_custom_domain = true`, which is the
-   intended forcing function rather than a surprise at 3am.
-2. `updates.json` advertises 1.1.3 and 1.2.1; the shipped extension is 1.2.9.
+1. `updates.json` advertises `phsb5321.github.io` update links (blocks phase 2).
+2. It advertises 1.1.3 and 1.2.1; the shipped extension is 1.2.9.
 3. `index.html` sets `canonical` and `og:url` to `https://phsb5321.github.io/Proso/`
    while `sitemap.xml` and `robots.txt` already say `https://proso.com.br/`.
-4. `packages/site/package.json` is published as a site asset. Harmless, but it
-   is build metadata on a public page.
-
-## Next actions
-
-1. **[pending] Pedro** — populate Identity Center (user + `ProsoInfraDeploy`
-   permission set + assignment onto 699475944323), or hand brief 04 the go. The
-   console session for it is `admin-user`, not root.
-2. **[pending] brief 04** — decide `SandboxRestrictions` before it is attached:
-   CloudFront carve-out, and a `DenyUntaggedResources` rule that does not deny
-   every untaggable sub-resource.
-3. Budget alarm applied in Sandbox (`stacks/10-account-baseline`) — ADR-001 §4.2,
-   before this stack or any other.
-4. `terraform apply` here in Sandbox, phase 1, then verify on the
-   `*.cloudfront.net` domain per `stacks/20-site/README.md`.
-5. Correct `updates.json` in the Proso repo, then phase 2.
-6. **[pending] Pedro** — the DNS cutover at Cloudflare. Explicitly not this tab's.
+4. `packages/site/package.json` is published as a site asset.
