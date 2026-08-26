@@ -31,6 +31,11 @@ export XDG_CACHE_HOME="$scratch/cache"
 export XDG_DATA_HOME="$scratch/data"
 export UV_CACHE_DIR="$scratch/cache/uv"
 export UV_PYTHON_INSTALL_DIR="$scratch/data/uv/python"
-mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$UV_CACHE_DIR" "$UV_PYTHON_INSTALL_DIR"
+export TMPDIR="$scratch/tmp"
+export TMP="$TMPDIR"
+export TEMP="$TMPDIR"
+export TF_PLUGIN_CACHE_DIR="$scratch/terraform-plugin-cache"
+mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$UV_CACHE_DIR" \
+  "$UV_PYTHON_INSTALL_DIR" "$TMPDIR" "$TF_PLUGIN_CACHE_DIR"
 
 "$@"
