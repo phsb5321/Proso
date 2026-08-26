@@ -1,6 +1,6 @@
 # Account foundation status
 
-**Updated:** 25/08/2026 23:08 BRT
+**Updated:** 26/08/2026 02:10 BRT
 **Binding design:** [ADR-001](ADR-001-aws-foundation.md)
 
 This is the operational handoff for stacks 05/10, Identity Center, and the
@@ -149,13 +149,25 @@ Exactly the two actions named by the operator remain gated:
 single-account parent change; `PolicyTypes` remained empty, so no SCP became
 effective. The move is reversible and neither gated security action was used.
 
-## CI delivery status
+## CI delivery status — green on Forgejo
 
-PR #213 is merged. The credential-free Terraform workflow now lives at the
-git-root `.forgejo/workflows/` path that Forgejo discovers. It runs the policy
-and falsification gates without AWS credentials; Forgejo receives mirrored
-`main`, so this is an independent post-merge replay, not a GitHub-PR required
-check.
+PR #213 installed the credential-free Terraform workflow at the git-root path
+Forgejo discovers. The first real runs then exposed three host-only failures:
+
+1. DynamicUser state refused direct script execution, then uv Python and
+   Terraform provider binaries (`EACCES`). PRs #221/#222 run from an executable,
+   trap-cleaned scratch clone.
+2. Thirteen Terraform roots copied the same ~887 MB AWS provider until the
+   17 GB-free runner hit ENOSPC. PR #223 uses one per-run plugin cache; every
+   root symlinks to it. No global GC or shared-cache sweep.
+3. TFLint still downloaded/signature-verified its AWS ruleset on every scratch
+   run. PR #224 ships ruleset 0.48.0 from the pinned Nix flake.
+
+Forgejo run **18** on merged commit `8971ae3` completed **successfully** from
+01:55 to 02:09 BRT on 26/08/2026: policy gate, Checkov, all Terraform tests, and
+all falsifiers. It runs without AWS credentials. Because Forgejo receives
+mirrored `main`, this is independent post-merge evidence rather than a GitHub-PR
+required check.
 
 ## Next executable sequence
 
