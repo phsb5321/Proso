@@ -3,14 +3,18 @@
 OU layout, SCP attachment, and IAM Identity Center access. This is the stack
 that ends routine use of the root user.
 
-**PLAN-ONLY.** It runs in the management account (851725512267), where root and
-the backup buckets live. Planned clean on 25/08/2026; not applied.
+**APPLIED 25/08/2026.** It runs in management account `851725512267`.
+The apply created 13 resources, changed 0, destroyed 0, and included no SCP or
+account resource. State is in management-account bucket
+`proso-management-tfstate-851725512267` at
+`05-org-structure/terraform.tfstate`, CMK-encrypted and S3-native locked.
 
 ## Why Identity Center rather than IAM users
 
 ADR-001 §3 (correction): Identity Center is already enabled
 (`ssoins-7223fcff316331ec`, identity store `d-9067ca0796`) and has zero users
-and zero permission sets — switched on 2025-03-23 and never configured.
+and had zero users and permission sets before this stack was applied — it was
+switched on 23/03/2025 and left unconfigured until 25/08/2026.
 Permission sets issue short-lived credentials per account, so there is no static
 key to leak, rotate, or find in a backup.
 
@@ -111,29 +115,37 @@ Deliberately CLI, not Terraform: the only resource that owns this is
 `aws_organizations_organization`, and importing it would hand this stack
 authority over the organisation's feature set for the sake of a one-time toggle.
 
-Also not modelled, for the same reason: `Sandbox-Account` currently sits at the
-org root (`Paths: o-qtcsgow9oy/r-y7xb/699475944323/`), not inside the
-`Sandboxes` OU, so no OU-level SCP would reach it even once enabled. Moving it
-is one reversible call:
+The account move is deliberately not modelled: importing the account into
+Terraform would give this stack authority to close it, a 90-day operation.
+`Sandbox-Account` was moved from root `r-y7xb` into `Sandboxes`
+`ou-y7xb-qkp97z4j` on 25/08/2026 while `PolicyTypes` was still empty, so the
+move changed no effective permission. Reverse if needed:
 
 ```bash
-aws organizations move-account --account-id 699475944323 \
-  --source-parent-id r-y7xb --destination-parent-id ou-y7xb-qkp97z4j
+aws --profile PERSONAL_ROOT organizations move-account \
+  --account-id 699475944323 \
+  --source-parent-id ou-y7xb-qkp97z4j --destination-parent-id r-y7xb
 ```
 
-Importing the account into Terraform instead would give a stack the ability to
-close it — a 90-day operation. Not worth it.
-
-## Plan
+## State and current plan
 
 ```bash
-cp example.tfvars management.tfvars   # gitignored; set operator_email
-terraform init
-terraform plan -var-file=management.tfvars
-# Plan: 10 to add, 0 to change, 0 to destroy.
+cp example.tfvars management.tfvars   # gitignored; set operator_email/profile
+AWS_PROFILE=PERSONAL_ROOT terraform init -reconfigure \
+  -backend-config=management.s3.tfbackend
+AWS_PROFILE=PERSONAL_ROOT terraform plan \
+  -var-file=management.tfvars -detailed-exitcode
+# No changes. Your infrastructure matches the configuration.
 ```
 
-## After it is applied — the one human step
+The first apply used local state. A temporary copy in the workload backend was
+rejected during review because workload identities could rewrite state that
+`PERSONAL_ROOT` later applies. Stack 05 now owns a separate management-account
+backend; the active state was migrated there byte-for-byte (resource payload).
+The retired workload prefix is denied in both workload identities and sealed by
+the workload bucket policy.
+
+## Activation and SSO proof
 
 Creating the Identity Center user makes AWS email a one-time password link to
 `operator_email`. **Pedro must open that link, set a password, and register an
@@ -141,21 +153,22 @@ MFA device.** This cannot be automated: no API sets an Identity Center password,
 and `aws sso login` is a browser device-authorisation flow. Everything else in
 the root-key exit is blocked until it is done.
 
-Then:
+The access portal is `https://d-9067ca0796.awsapps.com/start/`. Profiles
+`proso-sso` (`ProsoInfraDeploy`, workload account) and `management-ops`
+(`ManagementOps`, management account) can be configured before activation; they
+contain no secret.
+
+From the Proso root, inside `nix-shell`:
 
 ```bash
-aws configure sso --profile proso-deploy   # start URL from the Identity Center console
-aws sso login --profile proso-deploy
-aws --profile proso-deploy sts get-caller-identity
-# expect: .../AWSReservedSSO_ProsoInfraDeploy_<suffix>/<user>
-
-cd ../10-account-baseline
-terraform plan -var-file=sandbox.tfvars -var='aws_profile=proso-deploy'
-# expect: No changes. Your infrastructure matches the configuration.
+infra/aws/scripts/prove-sso-path.sh --check  # ready before activation
+infra/aws/scripts/prove-sso-path.sh          # browser login + MFA, then proof
 ```
 
-That last command is the real proof: the baseline is already applied, so a wrong
-permission set surfaces as a 403 or a diff rather than as silence.
+The full proof verifies both AWSReservedSSO identities, assumes the scoped
+`proso-deploy` workload role, and requires no-change plans for stacks 00, 10,
+and 20. It then proves ManagementOps can read organization/IAM/backup posture.
+Any 403, wrong account/role, missing backend, or Terraform drift fails closed.
 
-Once it works, `docs/root-key-retirement-plan.md` steps 3–6 become actionable —
-starting with deleting the interim `pedro-ops` IAM user and its static key.
+Once it passes, the Identity Center path is proven. SCP enablement and root-key
+retirement remain separately gated operator security decisions.

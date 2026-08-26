@@ -266,31 +266,60 @@ resource "aws_s3_bucket_policy" "state" {
   bucket = aws_s3_bucket.state.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "DenyInsecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource  = [local.state_bucket_arn, "${local.state_bucket_arn}/*"]
-        Condition = {
-          Bool = { "aws:SecureTransport" = "false" }
-        }
-      },
-      {
-        # The bucket default is aws:kms with the CMK, but a client can override
-        # it per-object. Refusing anything else keeps "state is a secret" true
-        # for every object, not just the ones written with defaults.
-        Sid       = "DenyUnencryptedWrites"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:PutObject"
-        Resource  = "${local.state_bucket_arn}/*"
-        Condition = {
-          StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" }
-        }
-      },
-    ]
+    Statement = concat(
+      [
+        {
+          Sid       = "DenyInsecureTransport"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:*"
+          Resource  = [local.state_bucket_arn, "${local.state_bucket_arn}/*"]
+          Condition = {
+            Bool = { "aws:SecureTransport" = "false" }
+          }
+        },
+        {
+          # The bucket default is aws:kms with the CMK, but a client can override
+          # it per-object. Refusing anything else keeps "state is a secret" true
+          # for every object, not just the ones written with defaults.
+          Sid       = "DenyUnencryptedWrites"
+          Effect    = "Deny"
+          Principal = "*"
+          Action    = "s3:PutObject"
+          Resource  = "${local.state_bucket_arn}/*"
+          Condition = {
+            StringNotEquals = { "s3:x-amz-server-side-encryption" = "aws:kms" }
+          }
+        },
+      ],
+      flatten([
+        for index, prefix in var.sealed_state_prefixes : [
+          {
+            Sid       = "DenySealedStateObjects${index}"
+            Effect    = "Deny"
+            Principal = "*"
+            Action = [
+              "s3:GetObject",
+              "s3:GetObjectVersion",
+              "s3:PutObject",
+              "s3:DeleteObject",
+              "s3:DeleteObjectVersion",
+            ]
+            Resource = "${local.state_bucket_arn}/${prefix}*"
+          },
+          {
+            Sid       = "DenySealedStateListing${index}"
+            Effect    = "Deny"
+            Principal = "*"
+            Action    = "s3:ListBucket"
+            Resource  = local.state_bucket_arn
+            Condition = {
+              StringLike = { "s3:prefix" = "${prefix}*" }
+            }
+          },
+        ]
+      ])
+    )
   })
 
   depends_on = [aws_s3_bucket_public_access_block.state]

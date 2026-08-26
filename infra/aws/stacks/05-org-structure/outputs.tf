@@ -27,3 +27,18 @@ output "management_ops_permission_set_arn" {
   description = "ARN of the ManagementOps permission set."
   value       = module.management_ops.permission_set_arn
 }
+
+output "management_state_bucket_name" {
+  description = "Management-account bucket holding this stack's state."
+  value       = module.management_tfstate_backend.bucket_name
+}
+
+output "management_state_log_bucket_name" {
+  description = "Access-log bucket for the management state bucket."
+  value       = module.management_tfstate_backend.log_bucket_name
+}
+
+output "management_state_kms_key_arn" {
+  description = "CMK encrypting this stack's state."
+  value       = module.management_tfstate_backend.kms_key_arn
+}

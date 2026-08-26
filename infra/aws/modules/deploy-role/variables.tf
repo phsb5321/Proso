@@ -90,6 +90,21 @@ variable "read_only_bucket_prefixes" {
   default     = []
 }
 
+variable "denied_state_prefixes" {
+  description = "State-key prefixes owned by another account and explicitly denied even though StateObjects grants this role the rest of the bucket."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for prefix in var.denied_state_prefixes :
+      length(prefix) > 1 && endswith(prefix, "/") &&
+      !startswith(prefix, "/") && !strcontains(prefix, "..")
+    ])
+    error_message = "denied_state_prefixes must be relative, traversal-free directory prefixes ending in '/'."
+  }
+}
+
 variable "account_id" {
   description = "AWS account the role lives in, used to scope account-level ARNs."
   type        = string

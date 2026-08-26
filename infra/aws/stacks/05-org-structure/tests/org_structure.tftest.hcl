@@ -80,8 +80,70 @@ run "the_deploy_permission_set_can_reach_the_role_and_the_state_backend" {
   }
 
   assert {
+    condition = one([
+      for s in jsondecode(local.infra_deploy_inline).Statement : s
+      if s.Sid == "UseTheStateKeyThroughS3Only"
+      ]).Condition == {
+      StringEquals = {
+        "kms:ViaService" = "s3.us-east-1.amazonaws.com"
+      }
+      "ForAnyValue:StringEquals" = {
+        "kms:ResourceAliases" = "alias/proso-tfstate-699475944323"
+      }
+    }
+    error_message = "state KMS use must require both the exact alias and S3 via-service context"
+  }
+
+  assert {
     condition     = !strcontains(local.infra_deploy_inline, "\"s3:*\"")
     error_message = "state access must stay enumerated; s3:* on the state bucket would include bucket-level destruction"
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(local.infra_deploy_inline).Statement : s
+      if s.Sid == "DenyForeignAccountState" && s.Effect == "Deny" &&
+      toset(s.Action) == toset(["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject", "s3:DeleteObjectVersion"]) &&
+      s.Resource == "arn:aws:s3:::proso-tfstate-699475944323/05-org-structure/*"
+    ]) == 1
+    error_message = "ProsoInfraDeploy must deny the management-account state prefix even while it can use every workload state key"
+  }
+}
+
+run "management_ops_can_audit_but_not_mutate_identity_or_backups" {
+  command = plan
+
+  assert {
+    condition = length([
+      for s in jsondecode(file("${path.module}/../../policies/management-ops-inline.json")).Statement : s
+      if s.Sid == "ReadOrgIamAndIdentityCenterMetadata" &&
+      contains(s.Action, "organizations:List*") &&
+      contains(s.Action, "sso:List*") &&
+      contains(s.Action, "identitystore:List*")
+    ]) == 1
+    error_message = "ManagementOps must be able to audit Organizations, IAM Identity Center, and the identity store"
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(file("${path.module}/../../policies/management-ops-inline.json")).Statement : s
+      if s.Sid == "DenyBackupContentsAndAnyBucketMutation" &&
+      contains(s.Action, "s3:GetObject*") &&
+      contains(s.Action, "s3:BypassGovernanceRetention") &&
+      contains(s.Action, "kms:Decrypt")
+    ]) == 1
+    error_message = "ManagementOps must remain unable to read or mutate backup contents"
+  }
+
+  assert {
+    condition = alltrue(flatten([
+      for s in jsondecode(file("${path.module}/../../policies/management-ops-inline.json")).Statement : [
+        for action in try(s.Action, []) :
+        !can(regex("^(organizations|sso|sso-directory|identitystore):(Create|Update|Delete|Put|Attach|Detach|Provision|Tag|Untag)", action))
+        if s.Effect == "Allow"
+      ]
+    ]))
+    error_message = "ManagementOps is an audit permission set, not an unreviewed identity or organization mutation path"
   }
 }
 
@@ -96,6 +158,35 @@ run "both_permission_sets_land_in_the_workload_account" {
   assert {
     condition     = one(module.workload_break_glass.assigned_account_ids) == "699475944323"
     error_message = "ADR-001 §3: the workload account is Sandbox-Account 699475944323"
+  }
+}
+
+run "management_state_stays_in_the_management_account" {
+  command = plan
+
+  assert {
+    condition = (
+      local.management_state_bucket_name == "proso-management-tfstate-851725512267" &&
+      local.management_log_bucket_name == "proso-management-tfstate-logs-851725512267"
+    )
+    error_message = "stack 05 state and access logs must use management-account bucket names"
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(module.management_tfstate_backend.key_policy_json).Statement : s
+      if s.Sid == "EnableAccountIAM" &&
+      s.Principal.AWS == "arn:aws:iam::851725512267:root"
+    ]) == 1
+    error_message = "the management-state CMK must delegate to management-account IAM"
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(module.management_tfstate_backend.key_policy_json).Statement : s
+      if s.Effect == "Allow"
+    ]) == 1
+    error_message = "management-account root delegation must be the only Allow in the management-state CMK policy"
   }
 }
 

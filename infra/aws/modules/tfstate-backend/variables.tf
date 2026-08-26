@@ -36,6 +36,21 @@ variable "reader_principal_arns" {
   default     = []
 }
 
+variable "sealed_state_prefixes" {
+  description = "Object-key prefixes denied to every principal. Use after state has moved to another account so stale management state cannot be read, replaced, or deleted by workload identities."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for prefix in var.sealed_state_prefixes :
+      length(prefix) > 1 && endswith(prefix, "/") &&
+      !startswith(prefix, "/") && !strcontains(prefix, "..")
+    ])
+    error_message = "sealed_state_prefixes must be relative, traversal-free directory prefixes ending in '/'."
+  }
+}
+
 variable "tags" {
   description = "Tags applied to every resource in this module."
   type        = map(string)

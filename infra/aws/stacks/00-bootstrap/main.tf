@@ -29,6 +29,7 @@ locals {
   state_bucket_name      = "proso-tfstate-${var.account_id}"
   log_bucket_name        = "proso-tfstate-logs-${var.account_id}"
   baseline_bucket_prefix = "${var.environment}-cloudtrail-${var.account_id}"
+  denied_state_prefixes  = ["05-org-structure/"]
   drift_bucket_prefixes = [
     local.state_bucket_name,
     local.log_bucket_name,
@@ -47,6 +48,7 @@ module "tfstate_backend" {
   # it can be granted on the key in the same apply that creates the role.
   # Referencing module.deploy_role.role_arn here would be a cycle.
   reader_principal_arns = ["arn:aws:iam::${var.account_id}:role/proso-deploy"]
+  sealed_state_prefixes = var.sealed_state_prefixes
 
   tags = local.tags
 }
@@ -69,6 +71,7 @@ module "deploy_role" {
   # Both bootstrap and account-baseline are in the nightly drift set. The
   # role may inspect their bucket configuration, but no object ARN is granted.
   read_only_bucket_prefixes = local.drift_bucket_prefixes
+  denied_state_prefixes     = local.denied_state_prefixes
 
   tags = local.tags
 }

@@ -1,0 +1,11 @@
+bucket = "proso-management-tfstate-851725512267"
+key    = "05-org-structure/terraform.tfstate"
+region = "us-east-1"
+
+# The state bucket rejects AES256 writes. Use the stable management-account
+# alias so key rotation does not rewrite this configuration.
+encrypt    = true
+kms_key_id = "arn:aws:kms:us-east-1:851725512267:alias/proso-management-tfstate-851725512267"
+
+# Terraform >= 1.11: native S3 lockfile, never a DynamoDB table.
+use_lockfile = true

@@ -3,10 +3,11 @@
 mock_provider "aws" {}
 
 variables {
-  account_id      = "699475944323"
-  bucket_name     = "proso-tfstate-699475944323"
-  log_bucket_name = "proso-tfstate-logs-699475944323"
-  tags            = { Environment = "sandbox" }
+  account_id            = "699475944323"
+  bucket_name           = "proso-tfstate-699475944323"
+  log_bucket_name       = "proso-tfstate-logs-699475944323"
+  sealed_state_prefixes = ["05-org-structure/"]
+  tags                  = { Environment = "sandbox" }
 }
 
 run "state_bucket_is_not_public" {
@@ -93,6 +94,40 @@ run "encryption_is_on" {
     ]) == 1
     error_message = "The state bucket policy must deny non-TLS access."
   }
+}
+
+run "sealed_state_is_unreadable_and_immutable" {
+  command = plan
+
+  assert {
+    condition = length([
+      for s in jsondecode(aws_s3_bucket_policy.state.policy).Statement : s
+      if s.Sid == "DenySealedStateObjects0" && s.Effect == "Deny" &&
+      s.Principal == "*" &&
+      toset(s.Action) == toset(["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject", "s3:DeleteObjectVersion"]) &&
+      s.Resource == "arn:aws:s3:::proso-tfstate-699475944323/05-org-structure/*"
+    ]) == 1
+    error_message = "sealed management state must be unreadable, immutable, and undeletable to every workload principal"
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(aws_s3_bucket_policy.state.policy).Statement : s
+      if s.Sid == "DenySealedStateListing0" &&
+      s.Condition.StringLike["s3:prefix"] == "05-org-structure/*"
+    ]) == 1
+    error_message = "sealed state keys must not be listable by their prefix"
+  }
+}
+
+run "rejects_an_unsafe_sealed_prefix" {
+  command = plan
+
+  variables {
+    sealed_state_prefixes = ["../05-org-structure/"]
+  }
+
+  expect_failures = [var.sealed_state_prefixes]
 }
 
 run "access_logging_targets_the_log_bucket" {

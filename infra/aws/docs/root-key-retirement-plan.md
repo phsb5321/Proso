@@ -122,7 +122,8 @@ store `d-9067ca0796`) and has **zero users and zero permission sets** — switch
 on 2025-03-23 and never configured. Configuring it is the exit: permission sets
 issue short-lived credentials per account, with no static key anywhere.
 
-`stacks/05-org-structure` contains that configuration, planned and ready.
+`stacks/05-org-structure` is applied; activation/MFA and the executable SSO
+proof are the remaining replacement-path steps.
 
 ---
 
@@ -147,13 +148,13 @@ The secret lives in Bitwarden (`api/aws-pedro-ops`) and in `~/.aws/credentials`
 this whole document exists to eliminate. It is step 3 below, and it goes away as
 soon as Identity Center login works:
 
-Use the short-lived `admin-user` console session obtained with `aws login`, not
-`PERSONAL_ROOT`:
+Per ADR-001 §4.3's 25/08/2026 operator amendment, use the configured
+`PERSONAL_ROOT` profile once the SSO proof is green:
 
 ```bash
-aws --profile pedro-admin-session iam delete-access-key --user-name pedro-ops --access-key-id <ACCESS-KEY-ID>
-aws --profile pedro-admin-session iam delete-user-policy --user-name pedro-ops --policy-name pedro-ops-baseline
-aws --profile pedro-admin-session iam delete-user --user-name pedro-ops
+aws --profile PERSONAL_ROOT iam delete-access-key --user-name pedro-ops --access-key-id <ACCESS-KEY-ID>
+aws --profile PERSONAL_ROOT iam delete-user-policy --user-name pedro-ops --policy-name pedro-ops-baseline
+aws --profile PERSONAL_ROOT iam delete-user --user-name pedro-ops
 rbw remove api/aws-pedro-ops
 ```
 
@@ -165,6 +166,7 @@ rbw remove api/aws-pedro-ops
 |---|---|
 | IAM Identity Center, permission sets, assignments | **$0** — no charge for Identity Center itself |
 | Organizations, OUs, SCPs | **$0** |
+| Management-account Terraform state backend | ~**$1.00/mo** KMS CMK + cents of S3; active and isolated from workload IAM |
 | Management-account CloudTrail (§7, recommended) | ~**$1.00/mo** KMS CMK + cents of S3; management events on a first trail are free |
 | Sandbox baseline already applied | ~**$1.10/mo** (same CMK + storage) |
 
@@ -177,9 +179,9 @@ The whole plan is essentially free. Cost is not the reason it has waited.
 Each step names its rollback. Steps 1–3 are reversible in seconds; step 5 is the
 only one with a delay, and even that is recoverable within the grace window.
 
-### Step 1 — configure Identity Center (reversible, no impact)
+### Step 1 — configure Identity Center (COMPLETE 25/08/2026)
 
-Apply `stacks/05-org-structure`. Creates the `PlatformAdmins` group, three
+`stacks/05-org-structure` is applied. It created the `PlatformAdmins` group, three
 permission sets with their assignments, the `Workloads` OU, and the Identity
 Center user for Pedro.
 
@@ -194,7 +196,7 @@ Center user for Pedro.
 the first `stacks/00-bootstrap` apply *creates* the state bucket and the deploy
 role, so until it has run, `ProsoInfraDeploy` grants nothing usable.
 
-- **Gated:** the management account is production; this needs Pedro's go.
+- **Applied receipt:** 13 added, 0 changed, 0 destroyed; zero SCP/account resources.
 - **THE ONE HUMAN STEP.** Creating the Identity Center user makes AWS email a
   one-time password link to `operator_email`. **Pedro must open that link, set a
   password, and register an MFA device.** Nothing automates it — no API sets an
@@ -205,34 +207,29 @@ role, so until it has run, `ProsoInfraDeploy` grants nothing usable.
 
 ### Step 2 — prove the new path before removing the old one
 
-```bash
-aws configure sso --profile proso-deploy   # start URL from the Identity Center console
-aws sso login --profile proso-deploy
-aws --profile proso-deploy sts get-caller-identity
-# expect: arn:aws:sts::699475944323:assumed-role/AWSReservedSSO_ProsoInfraDeploy_<suffix>/<user>
-```
-
-Then re-run a real plan through it — the applied baseline is the honest test,
-because a wrong permission set shows up as a diff or a 403, not as silence:
+Profiles `proso-sso` and `management-ops` are preconfigured with the access
+portal/account/role metadata. After Pedro activates the invitation and MFA:
 
 ```bash
-cd stacks/10-account-baseline
-terraform plan -var-file=sandbox.tfvars -var='aws_profile=proso-deploy'
-# expect: No changes. Your infrastructure matches the configuration.
+infra/aws/scripts/prove-sso-path.sh --check
+infra/aws/scripts/prove-sso-path.sh
 ```
+
+The proof validates both AWSReservedSSO identities, the `proso-deploy` role hop,
+state access, and no-change plans for every applied workload stack (00/10/20).
+A wrong permission set becomes a 403, wrong ARN, or non-zero plan—not silence.
 
 - **Rollback:** none needed; nothing has been removed.
 - **Do not continue until this works.** Everything after this point removes a
   credential.
 
-### Step 3 — delete `pedro-ops` (reversible with the non-root admin session)
+### Step 3 — delete `pedro-ops` (after the SSO proof)
 
 Run the four commands in §3. This removes the last static key this repo created.
 
-- **Rollback:** recreate the same user/policy/key through the short-lived
-  `pedro-admin-session`. The historical root-bootstrap script was removed once
-  the scoped role worked; its implementation remains available in git history,
-  but root is no longer an allowed routine identity.
+- **Rollback:** recreate the same user/policy/key with `PERSONAL_ROOT`; the
+  replacement key will differ. Root is an authorised infra profile under the
+  amended ADR, while root-key retirement itself remains separately gated.
 
 ### Step 4 — deactivate the root key, DO NOT delete (GATED)
 
