@@ -97,6 +97,11 @@ const PLANTS = [
     expect: 'FAIL',
     guards: 'chunked playback is the only speculative local request path',
   },
+  {
+    plant: 'list-in-nav',
+    expect: 'FAIL',
+    guards: "the article's own list is read, and a list in a landmark is not",
+  },
 ];
 
 const REAL_HOST_PLANTS = [

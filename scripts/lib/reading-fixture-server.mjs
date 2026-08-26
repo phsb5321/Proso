@@ -53,6 +53,24 @@ export const ARTICLE_PARAGRAPHS = [
 export const ARTICLE_TITLE = 'Reading Outcome Spine Fixture';
 export const STALE_PROSO_ARTIFACT_COUNT = 22;
 
+/**
+ * The shape a reader reported silently skipped: a paragraph that ends in a
+ * colon, the list it introduces, and the paragraph that refers back to it. The
+ * items are one word each, which is the normal case for a list like this and
+ * the reason a length filter cannot be what admits them.
+ */
+export const ARTICLE_LIST_LEAD_IN = 'The reading pipeline runs in five ordered stages:';
+export const ARTICLE_LIST_ITEMS = ['Generate', 'Store', 'Ingest', 'Transform', 'Serve'];
+export const ARTICLE_LIST_FOLLOW_UP =
+  'The undercurrents running underneath all five stages are where most of the real work happens, which is why the list above has to be spoken rather than skipped.';
+
+/**
+ * Page chrome that is also `<li>`. None of it may reach the reader, which is
+ * the assertion that stops "read the list" from becoming "read the menu".
+ */
+export const ARTICLE_NAV_ITEMS = ['Home', 'Guides', 'Archive', 'About'];
+export const ARTICLE_FOOTER_ITEMS = ['Privacy policy', 'Terms of use', 'Cookie settings'];
+
 const firstParagraphRemainder = ARTICLE_PARAGRAPHS[0].slice('Sentence'.length);
 const articleParagraphsHtml = ARTICLE_PARAGRAPHS.map((text, index) =>
   index === 0
@@ -64,7 +82,21 @@ const staleFooterRoots = Array.from(
   () => '<div id="proso-sticky-footer"></div>',
 ).join('\n');
 
-const ARTICLE_HTML = `<!doctype html>
+const listHtml = (items) => `<ul>${items.map((text) => `<li>${text}</li>`).join('')}</ul>`;
+const linkListHtml = (items) =>
+  `<ul>${items
+    .map((text) => `<li><a href="/${encodeURIComponent(text)}">${text}</a></li>`)
+    .join('')}</ul>`;
+
+/**
+ * @param {{listInNav?: boolean}} options `listInNav` moves the article's own
+ *   list into the page navigation. The reading must lose it — that is the
+ *   plant proving the landmark guard, and the gate's list assertion, are both
+ *   load-bearing.
+ */
+function articleHtml(options = {}) {
+  const listInNav = options.listInNav === true;
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -72,14 +104,25 @@ const ARTICLE_HTML = `<!doctype html>
 </head>
 <body style="padding-bottom: ${STALE_PROSO_ARTIFACT_COUNT * 80}px">
 ${staleFooterRoots}
+<nav aria-label="Primary">
+${linkListHtml(ARTICLE_NAV_ITEMS)}
+${listInNav ? listHtml(ARTICLE_LIST_ITEMS) : ''}
+</nav>
 <article>
 <h1>${ARTICLE_TITLE}</h1>
 ${articleParagraphsHtml}
+<p>${ARTICLE_LIST_LEAD_IN}</p>
+${listInNav ? '' : listHtml(ARTICLE_LIST_ITEMS)}
+<p>${ARTICLE_LIST_FOLLOW_UP}</p>
 <a id="open-companion-tab" href="/article?tab=second" target="_blank" rel="noopener">Open companion article</a>
 </article>
+<footer>
+${linkListHtml(ARTICLE_FOOTER_ITEMS)}
+</footer>
 </body>
 </html>
 `;
+}
 
 /**
  * A short real MP3 so the audio element has something decodable to play.
@@ -189,7 +232,7 @@ function problem(res, status, code, detail) {
  * `localHostVoices` lets plant suites prove the real-host gate against a host
  * whose catalog differs from the Orange Pi fixture, including an empty catalog.
  *
- * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number}} options
+ * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number, listInNav?: boolean}} options
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer(options = {}) {
@@ -214,6 +257,7 @@ export async function startFixtureServer(options = {}) {
   const licenseMode = options.licenseMode ?? 'sold';
   const localHostVoices = options.localHostVoices ?? LOCAL_HOST_VOICES;
   const localHostDelayMs = Math.max(0, options.localHostDelayMs ?? 0);
+  const article = articleHtml({ listInNav: options.listInNav === true });
 
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -239,7 +283,7 @@ export async function startFixtureServer(options = {}) {
 
     if (url.pathname === '/article') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(ARTICLE_HTML);
+      res.end(article);
       return;
     }
 

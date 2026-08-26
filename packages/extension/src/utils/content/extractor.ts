@@ -342,14 +342,94 @@ function findBestContentBlock(): Element | null {
 }
 
 /**
+ * Landmarks whose list items are page chrome, never article prose.
+ *
+ * Applied to `li` only. A landmark check over every candidate type would drop
+ * the article's own `<header><h1>` title, which is the common shape.
+ */
+const CHROME_LANDMARKS =
+  'nav, header, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]';
+
+/**
+ * Link-text share above which a list is an index rather than prose.
+ *
+ * Measured over 108 lists on 7 real pages (Wikipedia, MDN, BBC, three docs
+ * sites, one blog) — method and table in
+ * `specs/210-reader-reads-lists/research.md`. Of the 33 lists outside any
+ * landmark, every article prose list measured <= 0.402 and the next list up was
+ * 0.599, so 0.5 sits in the measured gap. It is also the constant this file
+ * already uses for per-element link density, and Readability's own.
+ */
+const LIST_LINK_DENSITY_LIMIT = 0.5;
+
+/**
+ * Shortest list item worth reading. A prose list item is routinely a single
+ * word — "Generate", "Store", "Serve" — so length cannot be the guard that
+ * separates prose from navigation; `isProseListItem` is. This floor only
+ * rejects bullets and wrapper items that carry no text of their own.
+ */
+const MIN_LIST_ITEM_LENGTH = 2;
+
+function collapse(text: string | null | undefined): string {
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Link density of a list, over whitespace-collapsed text.
+ *
+ * Collapsing matters: with raw `textContent` the indentation between `<li>`
+ * elements inflates the denominator, and two of the 33 measured lists flip to
+ * "prose" because of it — MDN's "Skip to main content" skip-links (0.400 raw,
+ * 0.971 collapsed) and a backlink index (0.298 raw, 0.978 collapsed). Both
+ * would be read aloud.
+ */
+function listLinkDensity(list: Element): number {
+  const text = collapse(list.textContent);
+  if (text.length === 0) return 1;
+  const linkText = Array.from(list.querySelectorAll('a')).reduce(
+    (sum, a) => sum + collapse(a.textContent).length,
+    0,
+  );
+  return linkText / text.length;
+}
+
+/**
+ * Whether a list item is article prose the reader should hear.
+ *
+ * Navigation, footers, cookie bars and "related posts" are overwhelmingly
+ * `<li>`, so admitting list items requires a guard that is structural rather
+ * than length-based: the item must sit outside every chrome landmark, and its
+ * own list must not be link-saturated.
+ */
+function isProseListItem(el: Element): boolean {
+  if (el.closest(CHROME_LANDMARKS)) return false;
+
+  const list = el.closest('ul, ol');
+  if (list && listLinkDensity(list) > LIST_LINK_DENSITY_LIMIT) return false;
+
+  // An item's own text excludes any nested list, whose items are candidates in
+  // their own right. Without this a wrapper `<li><ul>…</ul></li>` is read in
+  // full and then repeated item by item.
+  const nested = Array.from(el.querySelectorAll(':scope > ul, :scope > ol')).reduce(
+    (sum, sub) => sum + collapse(sub.textContent).length,
+    0,
+  );
+  return collapse(el.textContent).length - nested >= MIN_LIST_ITEM_LENGTH;
+}
+
+/**
  * Find content paragraphs within an element
  */
 function findContentParagraphs(container: Element): Element[] {
   const paragraphs: Element[] = [];
   const seenTexts = new Set<string>();
 
+  // `li` belongs in this one ordered query, not in a second pass:
+  // `querySelectorAll` returns document order, and a list collected separately
+  // is appended after every paragraph — the article's own five bullet points
+  // read out after the paragraph that follows them.
   const candidates = container.querySelectorAll(
-    'p, h1, h2, h3, h4, h5, h6, blockquote, .wiki-paragraph, article p, .content p',
+    'p, h1, h2, h3, h4, h5, h6, li, blockquote, .wiki-paragraph, article p, .content p',
   );
 
   // T033: Two-pass approach to batch getComputedStyle() calls (035-selection-tts-hardening)
@@ -358,14 +438,19 @@ function findContentParagraphs(container: Element): Element[] {
   for (const el of candidates) {
     if (scorer.isInsideUnwantedElement(el)) continue;
     const text = el.textContent?.trim() || '';
-    if (text.length < 30) continue;
-    if (scorer.isNavigationText(text)) continue;
+    const isListItem = el.tagName === 'LI';
+    if (isListItem) {
+      if (!isProseListItem(el)) continue;
+    } else {
+      if (text.length < 30) continue;
+      if (scorer.isNavigationText(text)) continue;
 
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
-      (sum, a) => sum + (a.textContent?.length || 0),
-      0,
-    );
-    if (linkText > text.length * 0.5) continue;
+      const linkText = Array.from(el.querySelectorAll('a')).reduce(
+        (sum, a) => sum + (a.textContent?.length || 0),
+        0,
+      );
+      if (linkText > text.length * 0.5) continue;
+    }
 
     const normalizedText = text.toLowerCase().substring(0, 100);
     if (seenTexts.has(normalizedText)) continue;
@@ -381,29 +466,6 @@ function findContentParagraphs(container: Element): Element[] {
     if (position !== 'fixed' && position !== 'sticky') {
       paragraphs.push(preFilteredCandidates[i]);
     }
-  }
-
-  // Content-focused list items
-  const contentLists = container.querySelectorAll(
-    '.wiki-content li, .content li, article li, .prose li, .article-body li, [role="main"] li',
-  );
-  for (const el of contentLists) {
-    if (scorer.isInsideUnwantedElement(el)) continue;
-    const text = el.textContent?.trim() || '';
-    if (text.length < 30) continue;
-    if (scorer.isNavigationText(text)) continue;
-
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
-      (sum, a) => sum + (a.textContent?.length || 0),
-      0,
-    );
-    if (linkText > text.length * 0.5) continue;
-
-    const normalizedText = text.toLowerCase().substring(0, 100);
-    if (seenTexts.has(normalizedText)) continue;
-    seenTexts.add(normalizedText);
-
-    paragraphs.push(el);
   }
 
   return paragraphs;
@@ -1091,8 +1153,9 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     `Proso: Direct extraction from container: ${container.tagName}${container.id ? '#' + container.id : ''} (known: ${isKnownContentContainer})`,
   );
 
-  // Get all paragraph-like elements
-  const candidates = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote');
+  // Get all paragraph-like elements. `li` is in the ordered query so list
+  // items read in document order, between the paragraphs that surround them.
+  const candidates = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
 
   log.debug(`Proso: Found ${candidates.length} candidate elements`);
 
@@ -1107,19 +1170,27 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
 
     const text = el.textContent?.trim() || '';
 
-    // Minimum length check
-    if (text.length < 30) continue;
+    // A list item is judged by its list, not by its length: a one-word bullet
+    // is prose, and a whole `<nav>` of them is not. `isInsideUnwantedSubContainer`
+    // does not look at landmarks, so inside an `<article>` this is the only
+    // check that keeps an in-article `<nav>` out of the reading.
+    if (el.tagName === 'LI') {
+      if (!isProseListItem(el)) continue;
+    } else {
+      // Minimum length check
+      if (text.length < 30) continue;
 
-    // Skip navigation-like text (but be less aggressive for known content)
-    if (!isKnownContentContainer && scorer.isNavigationText(text)) continue;
+      // Skip navigation-like text (but be less aggressive for known content)
+      if (!isKnownContentContainer && scorer.isNavigationText(text)) continue;
 
-    // Skip high link density (navigation) - more lenient threshold for known content
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
-      (sum, a) => sum + (a.textContent?.length || 0),
-      0,
-    );
-    const linkThreshold = isKnownContentContainer ? 0.7 : 0.5;
-    if (linkText > text.length * linkThreshold) continue;
+      // Skip high link density (navigation) - more lenient threshold for known content
+      const linkText = Array.from(el.querySelectorAll('a')).reduce(
+        (sum, a) => sum + (a.textContent?.length || 0),
+        0,
+      );
+      const linkThreshold = isKnownContentContainer ? 0.7 : 0.5;
+      if (linkText > text.length * linkThreshold) continue;
+    }
 
     // Skip fixed/sticky elements
     try {
@@ -1130,33 +1201,6 @@ function extractParagraphsDirectlyFromDOM(): Element[] {
     }
 
     // Deduplicate using fingerprint
-    const fingerprint = createTextFingerprint(text);
-    if (seenFingerprints.has(fingerprint)) continue;
-    seenFingerprints.add(fingerprint);
-
-    paragraphs.push(el);
-  }
-
-  // Also check for content in list items (common in wikis)
-  const listItems = container.querySelectorAll('li');
-  for (const el of listItems) {
-    if (isKnownContentContainer) {
-      if (isInsideUnwantedSubContainer(el, container)) continue;
-    } else {
-      if (scorer.isInsideUnwantedElement(el)) continue;
-    }
-
-    const text = el.textContent?.trim() || '';
-    if (text.length < 30) continue;
-    if (!isKnownContentContainer && scorer.isNavigationText(text)) continue;
-
-    const linkText = Array.from(el.querySelectorAll('a')).reduce(
-      (sum, a) => sum + (a.textContent?.length || 0),
-      0,
-    );
-    const linkThreshold = isKnownContentContainer ? 0.7 : 0.5;
-    if (linkText > text.length * linkThreshold) continue;
-
     const fingerprint = createTextFingerprint(text);
     if (seenFingerprints.has(fingerprint)) continue;
     seenFingerprints.add(fingerprint);
@@ -1464,6 +1508,11 @@ function findParagraphElements(container: Element): Element[] {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: (node: Node) => {
       const el = node as Element;
+      // A prose list item is admitted on its own terms: the 20-character floor
+      // below would drop every one-word bullet an article prints.
+      if (el.tagName === 'LI') {
+        return isProseListItem(el) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
       if (scorer.isBlockElement(el) && (el.textContent?.trim().length || 0) > 20) {
         const nestedBlocks = el.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li');
         const hasNestedContent = Array.from(nestedBlocks).some(
