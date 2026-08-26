@@ -29,6 +29,7 @@ import { Err } from '../../core/shared/result';
 import type {
   AudioRequest,
   AudioResponse,
+  ChunkedSynthesisOptions,
   IAudioGenerator,
   Voice,
 } from '../../ports/audio-generator.port';
@@ -176,6 +177,7 @@ export class FallbackAudioAdapter implements IAudioGenerator {
   async *generateAudioChunks(
     request: AudioRequest,
     signal?: AbortSignal,
+    options?: ChunkedSynthesisOptions,
   ): AsyncGenerator<Result<AudioResponse, AudioError>, void, void> {
     const gate = await this.gate();
     if (!gate.ok) {
@@ -213,8 +215,10 @@ export class FallbackAudioAdapter implements IAudioGenerator {
       return;
     }
 
-    // Called as a method so the generator keeps its `this` binding.
-    const iterator = primary.generateAudioChunks(request, signal);
+    // Called as a method so the generator keeps its `this` binding. The
+    // lookahead is forwarded verbatim: dropping it here would reinstate the
+    // per-paragraph cold start on the very route that needs it (PROSO-209).
+    const iterator = primary.generateAudioChunks(request, signal, options);
     const first = await iterator.next();
     if (first.done) {
       this.lastReason = 'local route produced no audio';

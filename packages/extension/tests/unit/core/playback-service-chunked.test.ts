@@ -18,6 +18,7 @@ import type { Result } from '../../../src/core/shared/result';
 import type {
   AudioRequest,
   AudioResponse,
+  ChunkedSynthesisOptions,
   IAudioGenerator,
   Voice,
 } from '../../../src/ports/audio-generator.port';
@@ -43,6 +44,10 @@ class ChunkedMockGenerator implements IAudioGenerator {
   readonly supportedLanguages: readonly string[] = ['pt-BR', 'en-US'];
   readonly yieldedChunks: string[] = [];
   readonly requests: AudioRequest[] = [];
+  readonly chunkCalls: Array<{
+    readonly request: AudioRequest;
+    readonly options?: ChunkedSynthesisOptions;
+  }> = [];
 
   constructor(
     readonly sentences: string[] = ['First sentence.', 'Second sentence.'],
@@ -53,7 +58,12 @@ class ChunkedMockGenerator implements IAudioGenerator {
     throw new Error('chunked generator has no single-shot path');
   }
 
-  async *generateAudioChunks(): AsyncGenerator<Result<AudioResponse, AudioError>, void, void> {
+  async *generateAudioChunks(
+    request: AudioRequest,
+    _signal?: AbortSignal,
+    options?: ChunkedSynthesisOptions,
+  ): AsyncGenerator<Result<AudioResponse, AudioError>, void, void> {
+    this.chunkCalls.push({ request, options });
     for (const sentence of this.sentences) {
       this.requests.push({ text: sentence, voice: null, speed: 1, language: 'en' });
       const index = this.yieldedChunks.length;
@@ -211,6 +221,34 @@ describe('PlaybackService chunked path', () => {
     expect(generator.yieldedChunks).toEqual(
       testParagraphs[0] ? ['First sentence.', 'Second sentence.'] : [],
     );
+  });
+
+  it('hands the generator the next paragraph so its prefetch spans the boundary', async () => {
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Byte-identical to the request text paragraph 1 will be read with: the
+    // generator adopts primed work by comparing the two, so an approximation
+    // silently reverts to a cold start at the boundary (PROSO-209).
+    expect(generator.chunkCalls[0]?.options?.nextText).toBe('Next paragraph. With two sentences.');
+
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.getState().currentParagraphIndex).toBe(1);
+    expect(generator.chunkCalls[1]?.request.text).toBe(generator.chunkCalls[0]?.options?.nextText);
+    // Nothing follows the last paragraph, so nothing is primed for it.
+    expect(generator.chunkCalls[1]?.options?.nextText).toBeNull();
+  });
+
+  it('announces only the speakable part of the next paragraph', async () => {
+    const paragraphs = ['First sentence. Second sentence.', '────. Actual words.'];
+    await service.start(paragraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(generator.chunkCalls[0]?.options?.nextText).toBe('Actual words.');
   });
 
   it("consumes the queued chunk on 'ended' instead of advancing the paragraph", async () => {

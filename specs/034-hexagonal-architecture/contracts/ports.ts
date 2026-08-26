@@ -65,76 +65,30 @@ export type ProviderId =
  * - CartesiaAudioAdapter
  * - BrowserAudioAdapter
  */
-export interface IAudioGenerator {
-  /**
-   * Generate audio from text
-   * @param request - Audio generation request
-   * @returns Result with audio response or error
-   */
-  generateAudio(request: AudioRequest): Promise<Result<AudioResponse, AudioError>>;
+// `IAudioGenerator` used to be copied out in full here. It was removed on
+// 25/08/2026 because the copy had DRIFTED from the shipped interface and was
+// therefore misleading rather than informative: it lacked `signal` (T015
+// cancellation), `supportsChunkedSynthesis` and `generateAudioChunks` (spec 100
+// FR-7), and `ChunkedSynthesisOptions` (PROSO-209 cross-paragraph priming).
+//
+// A design-time contract that contradicts the code is a liability, and keeping
+// two copies in step by hand is the maintenance cost that produced the drift.
+// The live interface is the single source of truth:
+//
+//   packages/extension/src/ports/audio-generator.port.ts
+//
+// Spec 034's actual record — what was decided and why — is unchanged in its
+// spec.md and plan.md. Only this stale duplicate is gone.
 
-  /**
-   * Get available voices for a language
-   * @param language - Optional BCP-47 language code
-   * @returns Result with voice list or error
-   */
-  getVoices(language?: string): Promise<Result<Voice[], AudioError>>;
 
-  /**
-   * Check if provider credentials are valid
-   * @returns True if credentials are valid
-   */
-  validateCredentials(): Promise<boolean>;
+// The audio-domain types (AudioRequest, AudioResponse, WordTiming, Voice,
+// AudioError) were hand-copied here and have been removed for the same reason
+// as IAudioGenerator above: the copies had drifted, and jscpd confirmed them as
+// verbatim duplicates of the live definitions. Two copies of a type kept in
+// step by hand is how the drift happened in the first place.
+//
+// Live source of truth:  packages/extension/src/ports/audio-generator.port.ts
 
-  /**
-   * Provider identifier
-   */
-  readonly providerId: ProviderId;
-
-  /**
-   * Whether this provider supports word-level timing
-   */
-  readonly supportsWordTiming: boolean;
-
-  /**
-   * Supported languages (BCP-47 codes). Empty array means all languages supported.
-   */
-  readonly supportedLanguages: readonly string[];
-}
-
-export interface AudioRequest {
-  readonly text: string;
-  readonly voice: string | null;
-  readonly speed: number;
-  readonly language: string | null;
-}
-
-export interface AudioResponse {
-  readonly audioBlob: Blob;
-  readonly durationMs: number;
-  readonly wordTimings: readonly WordTiming[] | null;
-}
-
-export interface WordTiming {
-  readonly word: string;
-  readonly startMs: number;
-  readonly endMs: number;
-}
-
-export interface Voice {
-  readonly id: string;
-  readonly name: string;
-  readonly language: string | null;
-  readonly gender: 'male' | 'female' | 'neutral' | null;
-}
-
-export type AudioError =
-  | { type: 'network'; message: string }
-  | { type: 'rate_limit'; retryAfterMs: number }
-  | { type: 'invalid_credentials' }
-  | { type: 'unsupported_language'; language: string }
-  | { type: 'text_too_long'; maxLength: number }
-  | { type: 'provider_error'; code: string; message: string };
 
 // ============================================================================
 // CACHE STORE PORT

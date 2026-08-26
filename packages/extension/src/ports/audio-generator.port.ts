@@ -39,6 +39,26 @@ export interface WordTiming {
 }
 
 /**
+ * Extra context for a chunked synthesis run (PROSO-209).
+ */
+export interface ChunkedSynthesisOptions {
+  /**
+   * The `request.text` the caller will pass for the paragraph AFTER this one,
+   * or null when there is none. It must be byte-identical to that future
+   * request's text: a generator primes on this string and adopts the primed
+   * work by comparing it, so a paraphrase silently degrades to a cold start.
+   *
+   * Why it exists: a chunked generator keeps one synthesis in flight plus one
+   * prefetch, and that pipeline is per paragraph. On the last sentence the
+   * prefetch slot goes idle, and the next paragraph then starts from nothing —
+   * a full synthesis round trip of silence at every paragraph boundary. This
+   * lets the generator spend the idle slot on the next paragraph's first
+   * sentence instead.
+   */
+  readonly nextText?: string | null;
+}
+
+/**
  * Voice information for provider.
  */
 export interface Voice {
@@ -81,13 +101,6 @@ export interface IAudioGenerator {
   readonly supportsChunkedSynthesis?: boolean;
 
   /**
-   * Synthesize a request at sentence granularity, yielding each chunk as it
-   * completes. The first yielded result is the first sentence's audio; the
-   * consumer plays it while the generator prefetches the rest (at most one
-   * in flight plus at most one prefetched). Only required when
-   * `supportsChunkedSynthesis` is true.
-   */
-  /**
    * Get available voices for a language.
    * @param language - Optional BCP-47 language code
    * @returns Result with voice list or error
@@ -110,9 +123,21 @@ export interface IAudioGenerator {
    */
   readonly supportsWordTiming: boolean;
 
+  /**
+   * Synthesize a request at sentence granularity, yielding each chunk as it
+   * completes. The first yielded result is the first sentence's audio; the
+   * consumer plays it while the generator prefetches the rest (at most one
+   * in flight plus at most one prefetched). Only required when
+   * `supportsChunkedSynthesis` is true.
+   *
+   * `options.nextText` lets the generator carry its prefetch across the
+   * paragraph boundary; a caller that omits it still gets correct audio, just
+   * a cold start per paragraph.
+   */
   generateAudioChunks?(
     request: AudioRequest,
     signal?: AbortSignal,
+    options?: ChunkedSynthesisOptions,
   ): AsyncGenerator<Result<AudioResponse, AudioError>, void, void>;
 
   /**

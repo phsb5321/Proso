@@ -757,7 +757,7 @@ export class PlaybackService {
     const chunkSources = this.locateChunkSources(text, speakableSentences);
 
     const request: AudioRequest = {
-      text: speakableSentences.join(' '),
+      text: chunkedRequestText(speakableSentences),
       voice: this.state.voice,
       speed: this.state.speed,
       language: this.detectedLanguage,
@@ -770,10 +770,15 @@ export class PlaybackService {
       await this.setError(error, undefined, generation);
       return Err(error);
     }
-    // Called as a method so the generator keeps its `this` binding.
+    // Called as a method so the generator keeps its `this` binding. The next
+    // paragraph's text rides along so the generator can carry its prefetch
+    // across the boundary (PROSO-209) instead of starting the next paragraph
+    // cold — which is what made the reader stall for a full synthesis round
+    // trip between every paragraph.
     const iterator = this.audioGenerator.generateAudioChunks(
       request,
       this.currentAbortController?.signal,
+      { nextText: this.nextChunkedRequestText(index) },
     );
 
     // Chunk 0 — the paragraph starts playing as soon as the first sentence is
@@ -817,6 +822,24 @@ export class PlaybackService {
       preconvertedBasis:
         firstChunk.wordTimings && firstChunk.wordTimings.length > 0 ? 'provider' : 'estimated',
     });
+  }
+
+  /**
+   * The exact `request.text` the chunked path will send for the paragraph
+   * after `index`, or null when there is none to read.
+   *
+   * Derived through the same steps as the current paragraph's request text
+   * rather than approximated: the generator adopts primed work by comparing
+   * this string against the request it later receives, so anything short of
+   * byte equality silently degrades back to a cold start.
+   */
+  private nextChunkedRequestText(index: number): string | null {
+    const text = this.state.paragraphs[index + 1];
+    if (!text) return null;
+    const split = splitSentences(text);
+    if (isErr(split)) return null;
+    const speakable = split.value.filter(hasSpeakableWords);
+    return speakable.length > 0 ? chunkedRequestText(speakable) : null;
   }
 
   /** Consume the chunk iterator into the queue, ahead of playback. */
@@ -1646,6 +1669,16 @@ export class PlaybackService {
     );
     await this.checkHighlight('updateFooterState', result);
   }
+}
+
+/**
+ * The text a paragraph's speakable sentences are sent to a chunked generator
+ * as. One definition because two call sites must agree byte for byte: the
+ * paragraph being read, and the same paragraph announced a turn earlier as
+ * `nextText` (PROSO-209).
+ */
+function chunkedRequestText(speakableSentences: readonly string[]): string {
+  return speakableSentences.join(' ');
 }
 
 /**

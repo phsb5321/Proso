@@ -23,6 +23,7 @@ beforeAll(() => {
   }
 });
 import {
+  APPLIANCE_MAX_IN_FLIGHT,
   APPLIANCE_MAX_TEXT_UTF8_BYTES,
   APPLIANCE_RECOMMENDED_CONCURRENCY,
   APPLIANCE_TTS_ADMISSION_LIMIT,
@@ -161,6 +162,131 @@ function makeAdapter(options: StubOptions = {}): {
   return {
     adapter: new LocalHostAudioAdapter({ baseUrl: BASE_URL, fetchFn: fetchStub }),
     fetchStub,
+  };
+}
+
+/** Yield to the macrotask queue so pending fetch continuations can run. */
+function tick(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+type ChunkIterator = AsyncGenerator<Result<AudioResponse, AudioError>, void, void>;
+
+/** One `/v1/tts` request the deferred host is holding open. */
+interface HeldRequest {
+  readonly input: string;
+  settled: boolean;
+  aborted: boolean;
+  finish(outcome: 'ok' | 'abort'): void;
+}
+
+/**
+ * A host that answers `/v1/tts` only when the test says so.
+ *
+ * Priming is a claim about WHEN a request leaves the extension relative to
+ * playback, and a stub that answers instantly cannot express it: every request
+ * would be settled before the next one is issued, so no overlap and no cold
+ * start would ever be observable. Holding requests open makes both real. An
+ * abort settles the request the way a real `fetch` does, so a cancelled prime
+ * genuinely releases its slot.
+ */
+function makeDeferredHost(options: { readonly latencyMs?: number } = {}) {
+  const held: HeldRequest[] = [];
+  let inFlight = 0;
+  let peakInFlight = 0;
+
+  const fetchFn = async (url: string, init?: RequestInit): Promise<Response> => {
+    if (url.endsWith('/v1/capabilities')) return fakeResponse({ body: CAPABILITIES });
+    if (!url.endsWith('/v1/tts')) throw new Error(`unexpected url ${url}`);
+
+    const { input } = JSON.parse(String(init?.body)) as { input: string };
+    inFlight += 1;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+
+    return new Promise<Response>((resolve, reject) => {
+      const entry: HeldRequest = {
+        input,
+        settled: false,
+        aborted: false,
+        finish(outcome) {
+          if (entry.settled) return;
+          entry.settled = true;
+          inFlight -= 1;
+          if (outcome === 'abort') {
+            entry.aborted = true;
+            const error = new Error('The operation was aborted');
+            error.name = 'AbortError';
+            reject(error);
+            return;
+          }
+          resolve(fakeResponse({ buffer: makeWav(), headers: { 'content-type': 'audio/wav' } }));
+        },
+      };
+      held.push(entry);
+      init?.signal?.addEventListener('abort', () => entry.finish('abort'));
+      if (options.latencyMs !== undefined) {
+        setTimeout(() => entry.finish('ok'), options.latencyMs);
+      }
+    });
+  };
+
+  const releaseAll = (): void => {
+    for (const entry of held) entry.finish('ok');
+  };
+
+  return {
+    get maxInFlight(): number {
+      return peakInFlight;
+    },
+    adapter: (): LocalHostAudioAdapter => new LocalHostAudioAdapter({ baseUrl: BASE_URL, fetchFn }),
+    inputs: (): string[] => held.map((entry) => entry.input),
+    pendingInputs: (): string[] =>
+      held.filter((entry) => !entry.settled).map((entry) => entry.input),
+    abortedInputs: (): string[] =>
+      held.filter((entry) => entry.aborted).map((entry) => entry.input),
+    countOf: (input: string): number => held.filter((entry) => entry.input === input).length,
+    releaseAll,
+    release(input: string): void {
+      const entry = held.find((candidate) => candidate.input === input);
+      if (!entry)
+        throw new Error(`the host was never asked to synthesize ${JSON.stringify(input)}`);
+      entry.finish('ok');
+    },
+    /** Resolve once the host has been asked for `input` at least `count` times. */
+    async waitForRequest(input: string, count = 1): Promise<void> {
+      for (let attempt = 0; attempt < 500; attempt += 1) {
+        if (held.filter((entry) => entry.input === input).length >= count) return;
+        await tick();
+      }
+      throw new Error(
+        `the host was never asked to synthesize ${JSON.stringify(input)} ${count} time(s); it saw ${JSON.stringify(held.map((entry) => entry.input))}`,
+      );
+    },
+    /**
+     * Consume a chunk iterator to completion. With no configured latency the
+     * held requests are answered whenever the generator would otherwise block;
+     * with latency they are left to expire on their own, so the in-flight peak
+     * stays the one the pipeline actually produced.
+     */
+    async drain(iterator: ChunkIterator): Promise<Array<Result<AudioResponse, AudioError>>> {
+      const chunks: Array<Result<AudioResponse, AudioError>> = [];
+      const pending = Symbol('pending');
+      for (;;) {
+        const step = iterator.next();
+        let settled: IteratorResult<Result<AudioResponse, AudioError>, void> | null = null;
+        for (let attempt = 0; attempt < 2000 && settled === null; attempt += 1) {
+          const outcome = await Promise.race([step, tick().then(() => pending)]);
+          if (outcome === pending) {
+            if (options.latencyMs === undefined) releaseAll();
+          } else {
+            settled = outcome as IteratorResult<Result<AudioResponse, AudioError>, void>;
+          }
+        }
+        if (settled === null) throw new Error('the chunk generator never made progress');
+        if (settled.done) return chunks;
+        chunks.push(settled.value);
+      }
+    },
   };
 }
 
@@ -680,6 +806,129 @@ describe('LocalHostAudioAdapter', () => {
       await adapter.generateAudio(request);
 
       expect(ttsCall(fetchStub).url).toBe(`${BASE_URL}/v1/tts`);
+    });
+  });
+
+  describe('cross-paragraph priming (PROSO-209)', () => {
+    const PARAGRAPH_A = 'A one. A two.';
+    const PARAGRAPH_B = 'B one. B two.';
+
+    it('starts the next paragraph before it yields the current one’s last chunk', async () => {
+      const host = makeDeferredHost();
+      const adapter = host.adapter();
+      const iterator = adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
+        nextText: PARAGRAPH_B,
+      });
+
+      const firstChunk = iterator.next();
+      await host.waitForRequest('A one.');
+      host.release('A one.');
+      expect((await firstChunk).done).toBe(false);
+
+      // Asking for the last chunk is what frees the prefetch slot, so the next
+      // paragraph's first sentence must already be at the host before that
+      // chunk comes back — not after playback has drained.
+      const lastChunk = iterator.next();
+      await host.waitForRequest('B one.');
+      expect(host.pendingInputs()).toContain('B one.');
+
+      host.release('A two.');
+      host.release('B one.');
+      expect((await lastChunk).done).toBe(false);
+      expect((await iterator.next()).done).toBe(true);
+    });
+
+    /**
+     * Read paragraph A to completion while announcing B, then wait until the
+     * host has actually been asked for B's first sentence.
+     *
+     * Three boundary tests need exactly this preamble, and repeating it tripped
+     * the duplication gate. Naming it also names the thing under test: the
+     * prime happens DURING paragraph A, not after it.
+     */
+    const primeAcrossBoundary = async () => {
+      const host = makeDeferredHost();
+      const adapter = host.adapter();
+
+      await host.drain(
+        adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
+          nextText: PARAGRAPH_B,
+        }),
+      );
+      await host.waitForRequest('B one.');
+      return { host, adapter };
+    };
+
+    it('yields the next paragraph’s first chunk without a new round trip', async () => {
+      // The prime completed while the reader was still hearing paragraph A.
+      const { host, adapter } = await primeAcrossBoundary();
+      host.release('B one.');
+      expect(host.pendingInputs()).not.toContain('B one.');
+
+      const iterator = adapter.generateAudioChunks({ ...request, text: PARAGRAPH_B }, undefined, {
+        nextText: null,
+      });
+      const first = await iterator.next();
+      if (first.done) throw new Error('the primed paragraph yielded nothing');
+      expectOkResponse(first.value);
+
+      // The whole point: no second request for the sentence that starts the
+      // paragraph. On the pre-PROSO-209 pipeline this is 2 — a full synthesis
+      // round trip of silence at every boundary.
+      expect(host.countOf('B one.')).toBe(1);
+      await host.drain(iterator);
+    });
+
+    it('never exceeds two synthesis requests in flight across a boundary', async () => {
+      // Real latency, so overlap actually happens and the peak is meaningful.
+      const host = makeDeferredHost({ latencyMs: 20 });
+      const adapter = host.adapter();
+      const paragraphs = ['A one. A two. A three.', 'B one. B two.', 'C one.'];
+
+      for (const [index, text] of paragraphs.entries()) {
+        await host.drain(
+          adapter.generateAudioChunks({ ...request, text }, undefined, {
+            nextText: paragraphs[index + 1] ?? null,
+          }),
+        );
+      }
+
+      expect(host.maxInFlight).toBe(APPLIANCE_MAX_IN_FLIGHT);
+      expect(host.maxInFlight).toBeLessThanOrEqual(CAPABILITIES.limits.queueCapacity);
+    });
+
+    it('abandons a prime the next request does not match', async () => {
+      const { host, adapter } = await primeAcrossBoundary();
+      expect(host.pendingInputs()).toContain('B one.');
+
+      // The reader changed voice mid-article: the primed audio is the wrong
+      // voice, so it is cancelled rather than played or left holding a slot.
+      const iterator = adapter.generateAudioChunks(
+        { ...request, text: PARAGRAPH_B, voice: 'en_US-test-voice', language: 'en-US' },
+        undefined,
+        { nextText: null },
+      );
+      const first = iterator.next();
+      await host.waitForRequest('B one.', 2);
+
+      expect(host.abortedInputs()).toEqual(['B one.']);
+      expect(host.countOf('B one.')).toBe(2);
+      host.releaseAll();
+      expect((await first).done).toBe(false);
+      await host.drain(iterator);
+    });
+
+    it('primes nothing when no paragraph follows', async () => {
+      const host = makeDeferredHost();
+      const adapter = host.adapter();
+
+      await host.drain(
+        adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
+          nextText: null,
+        }),
+      );
+
+      expect(host.inputs()).toEqual(['A one.', 'A two.']);
     });
   });
 
