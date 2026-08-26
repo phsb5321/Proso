@@ -228,8 +228,16 @@ assert_passes "restored: gate.sh --stage test" "$REPO_ROOT/scripts/gate.sh" --st
 #
 # The value authorises nothing; it is random text of the right shape.
 step "F. plant a credential -> the secrets stage must go RED"
-probe_key="AKIA""2E0A8F3B244C9986"
-probe_secret="kR8vQ2mZ7nT4wX1yB6cD""9eF3gH5jK0lM8nP2qR7s"
+# The probe is GENERATED, never written down. Splitting a literal is not
+# enough: adjacent strings ("aaa""bbb") read as one token to gitleaks, and
+# even a lone 20-character value assigned to a `*secret*` name trips
+# generic-api-key. Both variants were measured failing on 25/08/2026 after
+# this script moved in-tree and `make verify` began scanning it.
+#
+# Generating also makes the comment above literally true -- there is no
+# credential in this file to leak, only a shape produced at runtime.
+probe_key="AKIA$(LC_ALL=C tr -dc 'A-Z0-9' </dev/urandom | head -c 16)"
+probe_secret="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
 {
   echo "aws_access_key_id = ${probe_key}"
   echo "aws_secret_access_key = ${probe_secret}"
