@@ -1,6 +1,6 @@
 # Account foundation status
 
-**Updated:** 25/08/2026 17:45 BRT
+**Updated:** 25/08/2026 23:08 BRT
 **Binding design:** [ADR-001](ADR-001-aws-foundation.md)
 
 This is the operational handoff for stacks 05/10, Identity Center, and the
@@ -50,49 +50,18 @@ from the routine backend/provider path.
   gate failure.
 - Independent different-family review: `ALLOW` after all findings were repaired.
 
-## Planned, not live
+## `05-org-structure` and Identity Center — live
 
-### `stacks/05-org-structure` and Identity Center
-
-The credential-free plan is clean:
-
-```text
-Plan: 13 to add, 0 to change, 0 to destroy.
-```
-
-It creates the `Workloads` OU, `PlatformAdmins` group and Pedro user, plus these
-permission sets and account assignments:
-
-| Permission set | Account | Purpose |
-|---|---|---|
-| `ProsoInfraDeploy` | 699475944323 | routine scoped Terraform + state |
-| `WorkloadBreakGlass` | 699475944323 | PT2H incident/first-bootstrap admin |
-| `ManagementOps` | 851725512267 | management metadata/budget/backup-posture audit |
-
-`attach_service_control_policies = false`; the plan contains **zero**
-`aws_organizations_policy` or `aws_organizations_policy_attachment` resources.
-No Identity Center resource has been applied yet.
-
-The non-root management path is blocked at authentication, not at Terraform:
-`aws login` with the existing `admin-user` console identity reached **“Additional
-verification required”** for its registered passkey/security key. No temporary
-CLI session was issued. Once that passkey gesture is completed, the prepared
-13-create plan can be regenerated and applied without root. Creating the
-Identity Center user then sends Pedro the one-time activation link; setting the
-password and registering Identity Center MFA is the documented human step before
-`aws sso login` can prove the new path.
-
-## Update — 25/08/2026 21:5x BRT: `05-org-structure` APPLIED with root
+### Applied 25/08/2026
 
 The blocker recorded below was authentication, not Terraform: `aws login` with
 the `admin-user` console identity stopped at a passkey/security-key prompt that
 only Pedro can satisfy, so no non-root CLI session could be issued.
 
 **Pedro directed the use of the `PERSONAL_ROOT` profile to unblock it**, and the
-stack is now applied. This is coherent with ADR-001 rather than a breach of it:
-root's one sanctioned job is to create the structure that replaces root, and
-that is exactly this stack — it builds the Identity Center path whose whole
-purpose is to end routine root use.
+stack is now applied. ADR-001 §4.3 was subsequently amended: `PERSONAL_ROOT` is
+an authorised profile for this project's plans and applies; destructive posture
+changes remain separately gated.
 
 Blast radius was measured before applying, not after:
 
@@ -120,6 +89,30 @@ Apply complete! Resources: 13 added, 0 changed, 0 destroyed.
 `operator_email` was the placeholder `you@example.com` in `example.tfvars`; it
 was set to the organisation's own management email, which is already proven
 deliverable for AWS mail and is where the activation link must land.
+
+### State and permission-policy verification — 25/08/2026 23:08 BRT
+
+- A security review rejected stack-05 state in the workload account: both
+  `proso-deploy` and ProsoInfraDeploy could rewrite state that `PERSONAL_ROOT`
+  later applies. The active 32-resource state now lives in management bucket
+  `proso-management-tfstate-851725512267`, encrypted by management CMK
+  `00d8ddcb-d5fc-4d48-a85a-8d205dbd38a3`; migration preserved the complete
+  resource payload.
+- The retired workload prefix `05-org-structure/` is explicitly denied in both
+  workload identity policies and sealed against every principal by the bucket
+  policy. A live HeadObject probe returns access denied.
+- Creating the isolated backend added 19 resources and updated only the
+  ProsoInfraDeploy inline policy; it destroyed nothing. Final live plans for
+  stacks 00 and 05 both return detailed exit code 0: **no changes**.
+- Live permission-set documents match Terraform: ProsoInfraDeploy can assume
+  `proso-deploy`, read/write only the state bucket, and use its CMK only through
+  S3 with the expected alias; ManagementOps matches the audited read/deny
+  policy; WorkloadBreakGlass has only `AdministratorAccess` and a PT2H session.
+- IAM simulation proves the AWSReservedSSO Proso role may assume `proso-deploy`
+  and read state, while IAM creation and CloudTrail-object reads are denied.
+- Profiles `proso-sso` and `management-ops` are preconfigured with non-secret
+  portal/account/role metadata. `scripts/prove-sso-path.sh --check` passes now;
+  the full proof is ready for the moment Pedro activates the invitation/MFA.
 
 ### Still gated, and NOT touched by this apply
 
@@ -151,31 +144,27 @@ Exactly the two actions named by the operator remain gated:
    modified. The ≥7-day backup observation window starts only after the new SSO
    path is proven.
 
-The account move from root into `Sandboxes` OU is also not executed yet because
-it uses the same passkey-gated non-root management session. It does not require
-root and is reversible.
+`Sandbox-Account` moved from root `r-y7xb` into `Sandboxes`
+`ou-y7xb-qkp97z4j` on 25/08/2026. The preflight and postflight both proved the
+single-account parent change; `PolicyTypes` remained empty, so no SCP became
+effective. The move is reversible and neither gated security action was used.
 
 ## CI delivery status
 
-PR #213 moves the credential-free Terraform workflow from the undiscoverable
-`infra/aws/.forgejo/` subtree to the git-root `.forgejo/workflows/` path. It
-also removes the impossible Forgejo-to-AWS OIDC plan/drift jobs: the issuer is
-Tailscale-only, so AWS cannot fetch discovery/JWKS, and no static CI key fallback
-is accepted.
-
-That PR is locally green and independently reviewed, but it changes a workflow
-and therefore remains **`[pending] Pedro: merge PR #213`** under the repository
-merge policy. Forgejo receives only mirrored `main`, so this workflow is an
-independent post-merge replay, not a GitHub-PR required check.
+PR #213 is merged. The credential-free Terraform workflow now lives at the
+git-root `.forgejo/workflows/` path that Forgejo discovers. It runs the policy
+and falsification gates without AWS credentials; Forgejo receives mirrored
+`main`, so this is an independent post-merge replay, not a GitHub-PR required
+check.
 
 ## Next executable sequence
 
-1. Pedro completes the existing `admin-user` passkey prompt for `aws login`.
-2. Regenerate and inspect the stack-05 plan; require 13 create / 0 change / 0
-   destroy and zero SCP resources; apply it.
-3. Pedro opens the Identity Center activation email and registers MFA.
-4. Prove `ProsoInfraDeploy` with real no-change plans for stacks 00 and 10.
-5. Remove the transitional `OrganizationAccountAccessRole` trust and delete the
-   interim `pedro-ops` user/key through the short-lived non-root admin session.
-6. Only with a separate in-turn authorization: enable SCPs and begin the root-key
-   retirement grace window.
+1. Pedro opens the Identity Center activation email, sets the password, and
+   registers MFA.
+2. Run `infra/aws/scripts/prove-sso-path.sh`; require the two AWSReservedSSO
+   identities, scoped role hop, and clean plans for stacks 00/10/20.
+3. After that proof, remove the transitional `OrganizationAccountAccessRole`
+   trust and retire the interim `pedro-ops` user/key using the authorised
+   `PERSONAL_ROOT` profile.
+4. SCP enablement and root-access-key retirement remain separately gated and
+   untouched.

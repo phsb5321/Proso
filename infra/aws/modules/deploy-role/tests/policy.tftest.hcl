@@ -6,6 +6,7 @@ variables {
   state_kms_key_arn            = "arn:aws:kms:us-east-1:699475944323:key/00000000-0000-0000-0000-000000000000"
   trusted_permission_set_names = ["ProsoInfraDeploy"]
   read_only_bucket_prefixes    = ["sandbox-cloudtrail-699475944323"]
+  denied_state_prefixes        = ["05-org-structure/"]
   tags                         = { Environment = "sandbox" }
 }
 
@@ -152,6 +153,22 @@ run "baseline_drift_is_read_only" {
       if s.Effect == "Allow"
     ])
     error_message = "A drift reader must not be able to delete the budget or stop the audit trail."
+  }
+}
+
+run "denies_management_state_in_the_workload_bucket" {
+  command = plan
+
+  assert {
+    condition = length([
+      for s in jsondecode(output.permissions_policy_json).Statement : s
+      if s.Sid == "DenyForeignAccountState" && s.Effect == "Deny" &&
+      toset(s.Action) == toset(["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject", "s3:DeleteObjectVersion"]) &&
+      toset(s.Resource) == toset([
+        "arn:aws:s3:::proso-tfstate-699475944323/05-org-structure/*",
+      ])
+    ]) == 1
+    error_message = "the workload deploy role must never read, rewrite, or delete management-account state"
   }
 }
 

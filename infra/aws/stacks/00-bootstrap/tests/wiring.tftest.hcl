@@ -52,6 +52,18 @@ run "deploy_role_can_read_the_baseline_without_changing_it" {
   }
 }
 
+run "management_state_is_sealed_from_workload_identities" {
+  command = plan
+
+  assert {
+    condition = (
+      toset(var.sealed_state_prefixes) == toset(local.denied_state_prefixes) &&
+      toset(local.denied_state_prefixes) == toset(["05-org-structure/"])
+    )
+    error_message = "the resource-policy seal and deploy-role deny must cover the same retired management-state prefix"
+  }
+}
+
 run "access_is_identity_center_only" {
   command = plan
 

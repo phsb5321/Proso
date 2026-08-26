@@ -236,8 +236,11 @@ step "F. plant a credential -> the secrets stage must go RED"
 #
 # Generating also makes the comment above literally true -- there is no
 # credential in this file to leak, only a shape produced at runtime.
-probe_key="AKIA$(LC_ALL=C tr -dc 'A-Z0-9' </dev/urandom | head -c 16)"
-probe_secret="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+# `tr … | head -c N` is not safe under this script's pipefail: head exits after
+# N bytes, tr receives SIGPIPE, and the whole falsifier dies with 141 before it
+# writes the plant. Read an exact byte count instead, then hex-encode it.
+probe_key="AKIA$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n' | tr 'a-f' 'A-F')"
+probe_secret="$(od -An -N20 -tx1 /dev/urandom | tr -d ' \n')"
 {
   echo "aws_access_key_id = ${probe_key}"
   echo "aws_secret_access_key = ${probe_secret}"

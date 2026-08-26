@@ -5,6 +5,9 @@ locals {
     Environment = "management"
   }
 
+  management_state_bucket_name = "proso-management-tfstate-${var.management_account_id}"
+  management_log_bucket_name   = "proso-management-tfstate-logs-${var.management_account_id}"
+
   # Routine Terraform work needs two things, and only these two.
   #
   # 1. Assume the deploy role. That role is the least-privilege boundary
@@ -18,6 +21,18 @@ locals {
   infra_deploy_inline = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid    = "DenyForeignAccountState"
+        Effect = "Deny"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:DeleteObjectVersion",
+        ]
+        Resource = "arn:aws:s3:::${var.state_bucket_name}/05-org-structure/*"
+      },
       {
         Sid      = "AssumeTheDeployRole"
         Effect   = "Allow"
@@ -56,6 +71,19 @@ locals {
       },
     ]
   })
+}
+
+# Management-account state must have a management-account authorization
+# boundary. Keeping it in the workload bucket would let workload identities
+# rewrite state that PERSONAL_ROOT later applies.
+module "management_tfstate_backend" {
+  source = "../../modules/tfstate-backend"
+
+  account_id      = var.management_account_id
+  bucket_name     = local.management_state_bucket_name
+  log_bucket_name = local.management_log_bucket_name
+
+  tags = local.tags
 }
 
 # --------------------------------------------------------------- OU layout

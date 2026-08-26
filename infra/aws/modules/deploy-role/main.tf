@@ -94,6 +94,10 @@ locals {
     for p in var.read_only_bucket_prefixes : "arn:aws:s3:::${p}*"
   ]
 
+  denied_state_object_arns = [
+    for prefix in var.denied_state_prefixes : "${var.state_bucket_arn}/${prefix}*"
+  ]
+
   # Identity Center provisions permission sets as roles with a generated name
   # suffix, so the trust is expressed as "any principal in this account whose
   # ARN looks like this permission set" rather than as a literal ARN.
@@ -158,6 +162,20 @@ locals {
           Action   = action
           Resource = resources
         }
+      ],
+      length(var.denied_state_prefixes) == 0 ? [] : [
+        {
+          Sid    = "DenyForeignAccountState"
+          Effect = "Deny"
+          Action = [
+            "s3:GetObject",
+            "s3:GetObjectVersion",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:DeleteObjectVersion",
+          ]
+          Resource = local.denied_state_object_arns
+        },
       ],
       [
         {

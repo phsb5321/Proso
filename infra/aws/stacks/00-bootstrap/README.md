@@ -155,6 +155,15 @@ expires `.tflock` automatically; see the note in
 [`modules/tfstate-backend/main.tf`](../../modules/tfstate-backend/main.tf) for
 why a lifecycle rule cannot do it safely.
 
+## Sealed management-state prefix
+
+Stack 05 state briefly lived under `05-org-structure/` in this workload bucket.
+That cross-account placement is retired. The bucket policy denies every
+principal object/version Get, Put, and Delete, plus List requests that explicitly
+target the prefix; an unprefixed bucket listing may expose the key name but never
+its contents. `proso-deploy` carries a mirrored identity deny. The current stale
+object remains sealed indefinitely; noncurrent versions expire after 90 days.
+
 ## Local verification (no credentials needed)
 
 The repository gate runs offline because the tests use `mock_provider`. Invoke
@@ -175,6 +184,7 @@ make infra-check
 | `region` | `us-east-1` | CloudFront needs its ACM certs here |
 | `bootstrap_assume_role_arn` | `null` | `OrganizationAccountAccessRole` during phase 1, when the deploy role does not exist yet |
 | `deploy_role_trusted_permission_set_names` | `[]` | Preferred access path — Identity Center, no static keys |
-| `deploy_role_trusted_principal_arns` | `[]` | Only for a non-Identity-Center principal, e.g. a future OIDC CI role |
+| `deploy_role_trusted_principal_arns` | `[]` | Transitional exact-ARN principals such as `OrganizationAccountAccessRole` |
 | `deploy_role_require_mfa` | `true` | Applies to the exact-ARN statement only — see `modules/deploy-role/README.md` |
 | `managed_bucket_prefixes` | `["proso-site-"]` | Widen only with evidence of a failing plan |
+| `sealed_state_prefixes` | `["05-org-structure/"]` | Retired cross-account state denied at the bucket boundary |

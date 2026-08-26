@@ -58,3 +58,9 @@ variable "managed_bucket_prefixes" {
   type        = list(string)
   default     = ["proso-site-"]
 }
+
+variable "sealed_state_prefixes" {
+  description = "Retired state prefixes denied to every workload principal after their authority moved to another account."
+  type        = list(string)
+  default     = ["05-org-structure/"]
+}

@@ -53,6 +53,7 @@ inside Identity Center, which the Account Foundation tab owns.
 | `organizations:*` | `*` | Could move accounts or detach the SCPs bounding it |
 | `s3:DeleteBucket` | `*` | ADR-001 §4.6 — a bucket-replacing plan is a human decision |
 | `kms:ScheduleKeyDeletion`, `kms:DisableKey` | state CMK | Would render all state unreadable |
+| configured foreign-account state prefixes | retired keys | Workload identities must not read or rewrite management state that root applies |
 
 Encoding §4.6 in IAM rather than in a runbook means an agent that ignores the
 runbook is still stopped by the API.
@@ -101,6 +102,7 @@ replacement, `SandboxGuardrails`, behind the Pedro-gated SCP enablement.
 | `state_kms_key_arn` | *(required)* | |
 | `managed_bucket_prefixes` | `["proso-"]` | The stack narrows this to `proso-site-` |
 | `read_only_bucket_prefixes` | `[]` | Baseline buckets that drift plans may inspect, never mutate |
+| `denied_state_prefixes` | `[]` | Foreign-account state denied despite the broad state-bucket grant |
 | `account_id` | *(required)* | |
 
 At least one of `trusted_permission_set_names` / `trusted_principal_arns` must
@@ -114,5 +116,5 @@ so asserting on it would prove nothing; a local can be asserted directly.
 
 ```console
 $ terraform test
-Success! 11 passed, 0 failed.
+Success! 12 passed, 0 failed.
 ```

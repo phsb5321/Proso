@@ -64,6 +64,7 @@ authorisation boundary for state and a CloudTrail record of every decrypt.
 | `noncurrent_version_retention_days` | `90` | Every apply writes a version; unbounded retention is a slow cost leak |
 | `log_retention_days` | `90` | |
 | `reader_principal_arns` | `[]` | Extra principals granted decrypt on the CMK |
+| `sealed_state_prefixes` | `[]` | Retired cross-account state denied to every principal at the bucket boundary |
 | `tags` | `{}` | Must include `Environment` — the SCP requires it |
 
 ## Tests
@@ -72,11 +73,11 @@ authorisation boundary for state and a CloudTrail record of every decrypt.
 
 ```console
 $ terraform test
-Success! 5 passed, 0 failed.
+Success! 7 passed, 0 failed.
 ```
 
 Covers: all four public-access-block flags on both buckets, no wildcard-principal
 `Allow` in the bucket policy, `BucketOwnerEnforced`, versioning enabled,
 `aws:kms` encryption with rotation, the deny-unencrypted and deny-insecure-
-transport statements, log delivery target, and rejection of a malformed
-`account_id`.
+transport statements, sealed-prefix read/write/delete/list denial, log delivery
+target, and rejection of malformed account IDs or unsafe sealed prefixes.
