@@ -55,6 +55,13 @@ readarray -t TF_DIRS < <(terraform_dirs)
 # shared absolute path would have every stack fight over a single lock file.
 export TF_DATA_DIR=".terraform-gate"
 
+# The AWS provider is hundreds of MB. Without one shared cache, each of the 13
+# module/stack roots installs another copy and the Forgejo host runner exhausts
+# its disk before tests finish. Terraform hardlinks from this cache when the
+# filesystem supports it; the scratch wrapper owns and deletes the directory.
+export TF_PLUGIN_CACHE_DIR="${TF_PLUGIN_CACHE_DIR:-${TMPDIR:-/tmp}/proso-terraform-plugin-cache}"
+mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
 # gate_init <dir> — initialise a directory for the offline stages only.
 gate_init() {
   terraform -chdir="$1" init -backend=false -input=false -no-color >/dev/null
