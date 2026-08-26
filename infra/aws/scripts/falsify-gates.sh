@@ -79,6 +79,17 @@ cleanup() {
 # killed run cannot leave a public bucket staged for commit.
 trap cleanup EXIT INT TERM
 
+# The Forgejo host runner can read checkout scripts but its host-executor path
+# refuses direct execution. Route repository shell scripts through bash while
+# leaving binaries and shell functions unchanged.
+run_command() {
+  if [[ "${1:-}" == "$REPO_ROOT"/scripts/*.sh ]]; then
+    bash "$@"
+  else
+    "$@"
+  fi
+}
+
 # Two arguments before the command: a label, and a pattern the output MUST
 # contain. A bare "exit code was nonzero" is not proof the gate worked — a
 # scanner that crashed on a missing policy bundle, a `terraform init` that could
@@ -87,7 +98,7 @@ trap cleanup EXIT INT TERM
 # specific finding this assertion is about.
 assert_fails() {
   local label="$1" expect="$2"; shift 2
-  if "$@" >"$SCRATCH/out" 2>&1; then
+  if run_command "$@" >"$SCRATCH/out" 2>&1; then
     bad "$label — expected FAILURE, got success (the gate is not gating)"
     sed -n '1,20p' "$SCRATCH/out" >&2
   elif ! grep -qE "$expect" "$SCRATCH/out"; then
@@ -100,7 +111,7 @@ assert_fails() {
 
 assert_passes() {
   local label="$1"; shift
-  if "$@" >"$SCRATCH/out" 2>&1; then
+  if run_command "$@" >"$SCRATCH/out" 2>&1; then
     ok "$label — correctly GREEN"
   else
     bad "$label — expected success, got failure"

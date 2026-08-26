@@ -71,7 +71,7 @@ jobs:
       # nothing failed — which is also what an accidentally-disabled scanner
       # produces. ADR-001 §4.7.
       - name: Falsify the gate (plant must go RED, removal must go GREEN)
-        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c infra/aws/scripts/falsify-gates.sh
+        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c bash infra/aws/scripts/falsify-gates.sh
 
   # No plan/apply job here. Credential-free checks run on Forgejo; live plans
   # remain operator-run through the scoped Identity Center role until a

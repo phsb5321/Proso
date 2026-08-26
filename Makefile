@@ -224,10 +224,10 @@ release-channels: ## Build both Firefox channels (unlisted + listed) and prove t
 	@npx web-ext lint --source-dir packages/extension/.output-listed/firefox-mv2 --output=text
 
 infra-check: ## Run the AWS infrastructure gate (fmt, validate, tflint, Trivy, Checkov) in infra/aws.
-	@./infra/aws/scripts/gate.sh
+	@bash ./infra/aws/scripts/gate.sh
 
 infra-drift: ## Report drift between the Terraform state and what is actually deployed.
-	@./infra/aws/scripts/drift-check.sh
+	@bash ./infra/aws/scripts/drift-check.sh
 
 brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site identity assets must stay reproducible.
 	node scripts/verify-brand-assets.mjs
