@@ -36,6 +36,7 @@ import { Err, Ok } from '../../core/shared/result';
 import type {
   AudioRequest,
   AudioResponse,
+  ChunkedSynthesisOptions,
   IAudioGenerator,
   Voice,
 } from '../../ports/audio-generator.port';
@@ -69,6 +70,17 @@ export const APPLIANCE_TTS_ADMISSION_LIMIT = 4;
  * chunk pipeline keeps one synthesis in flight plus at most one prefetch.
  */
 export const APPLIANCE_RECOMMENDED_CONCURRENCY = 1;
+
+/**
+ * Synthesis requests this adapter will ever have in flight at once.
+ *
+ * The chunk pipeline holds one in flight plus one prefetch, and the
+ * cross-paragraph prime (PROSO-209) reuses the prefetch slot rather than
+ * adding a third: it starts only on the last sentence, when the prefetch would
+ * otherwise be idle. The measured host answers a third concurrent request with
+ * 429 `queue_full` (`queueCapacity: 2`), so this is a ceiling, not a target.
+ */
+export const APPLIANCE_MAX_IN_FLIGHT = 2;
 
 /**
  * Error codes this adapter reports through `provider_error`.
@@ -192,6 +204,16 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
   private readonly fetchFn: FetchLike;
   private readonly maxTextUtf8Bytes: number;
   private capabilities: ApplianceCapabilities | null = null;
+  /**
+   * The next paragraph's first sentence, started early (PROSO-209). Holds its
+   * own controller because the caller aborts the current paragraph's signal at
+   * exactly the moment this audio is needed.
+   */
+  private primed: {
+    readonly key: string;
+    readonly promise: Promise<Result<AudioResponse, AudioError>>;
+    readonly controller: AbortController;
+  } | null = null;
 
   constructor(options: LocalHostAudioAdapterOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
@@ -229,10 +251,17 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
    *
    * A paragraph that is a single sentence yields one chunk — the whole
    * paragraph — which is also the honest upper bound on first audio.
+   *
+   * The pipeline spans paragraphs (PROSO-209): on the last sentence the
+   * prefetch slot is free, so it is spent on `options.nextText`'s first
+   * sentence, and the next run adopts that work instead of re-issuing it.
+   * Without this the reader heard a full synthesis round trip (~3s measured)
+   * of silence at every paragraph boundary, because each run started cold.
    */
   async *generateAudioChunks(
     request: AudioRequest,
     signal?: AbortSignal,
+    options?: ChunkedSynthesisOptions,
   ): AsyncGenerator<Result<AudioResponse, AudioError>, void, void> {
     const split = splitSentences(request.text);
     if (!split.ok) {
@@ -251,14 +280,59 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
     const synthesizeNext = (sentence: string): Promise<Result<AudioResponse, AudioError>> =>
       this.synthesize({ ...request, text: sentence }, signal);
 
-    inFlight = synthesizeNext(sentences[0]!);
+    inFlight = this.adoptPrimed(request, sentences[0]!) ?? synthesizeNext(sentences[0]!);
     for (let i = 1; i <= sentences.length; i += 1) {
-      const nextPrefetch: Promise<Result<AudioResponse, AudioError>> | null =
-        i < sentences.length ? synthesizeNext(sentences[i]!) : null;
+      let nextPrefetch: Promise<Result<AudioResponse, AudioError>> | null = null;
+      if (i < sentences.length) {
+        nextPrefetch = synthesizeNext(sentences[i]!);
+      } else {
+        // Last sentence: the prefetch slot is idle, so it primes the next
+        // paragraph instead of nothing. Still at most two in flight.
+        this.prime(request, options?.nextText ?? null);
+      }
       yield (await inFlight)!;
       inFlight = nextPrefetch;
       if (signal?.aborted) return;
     }
+  }
+
+  /**
+   * Take over a previously primed first sentence when it is exactly the work
+   * this run is about to issue. A mismatch — the reader changed voice, speed
+   * or jumped elsewhere — aborts the primed request rather than leaving it to
+   * hold a slot against the host's concurrency limit.
+   */
+  private adoptPrimed(
+    request: AudioRequest,
+    sentence: string,
+  ): Promise<Result<AudioResponse, AudioError>> | null {
+    const primed = this.primed;
+    if (!primed) return null;
+    this.primed = null;
+    if (primed.key === primedKey(request, sentence)) return primed.promise;
+    primed.controller.abort();
+    return null;
+  }
+
+  /** Start the next paragraph's first sentence, replacing any stale prime. */
+  private prime(request: AudioRequest, nextText: string | null): void {
+    this.primed?.controller.abort();
+    this.primed = null;
+    if (!nextText) return;
+
+    const split = splitSentences(nextText);
+    if (!split.ok) return;
+    const sentence = split.value.find((candidate) =>
+      hasSpeakableWords(normalizeLocalHostSynthesisText(candidate)),
+    );
+    if (!sentence) return;
+
+    const controller = new AbortController();
+    this.primed = {
+      key: primedKey(request, sentence),
+      promise: this.synthesize({ ...request, text: sentence }, controller.signal),
+      controller,
+    };
   }
 
   async getVoices(language?: string): Promise<Result<Voice[], AudioError>> {
@@ -489,6 +563,15 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
       );
     }
   }
+}
+
+/**
+ * Identity of a primed synthesis: the exact parameters that produced it.
+ * Anything that would change the audio changes the key, so a prime is adopted
+ * only when it is indistinguishable from the request it replaces.
+ */
+function primedKey(request: AudioRequest, sentence: string): string {
+  return JSON.stringify([sentence, request.voice, request.speed, request.language]);
 }
 
 /** Map an `application/problem+json` reply onto a typed `AudioError`. */
