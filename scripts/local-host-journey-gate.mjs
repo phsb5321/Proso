@@ -61,6 +61,11 @@ import {
   resolveFirefox,
 } from './lib/firefox-popup.mjs';
 import {
+  ARTICLE_FOOTER_ITEMS,
+  ARTICLE_LIST_FOLLOW_UP,
+  ARTICLE_LIST_ITEMS,
+  ARTICLE_LIST_LEAD_IN,
+  ARTICLE_NAV_ITEMS,
   LOCAL_HOST_VOICES,
   STALE_PROSO_ARTIFACT_COUNT,
   WORD_SYNC_SENTENCES,
@@ -107,6 +112,9 @@ const NAME = {
  *                 route is never turned on. Storing an address must stay inert.
  *   host-down     point the reader's address at a dead port.
  *   enable-name   look the enable control up under a name it does not carry.
+ *   list-in-nav   serve the article's own list inside the page navigation. The
+ *                 reading must lose it, which is what proves both the list
+ *                 assertion and the landmark guard behind it are load-bearing.
  */
 const PLANT = process.env.LOCAL_HOST_PLANT ?? '';
 
@@ -320,7 +328,10 @@ async function main() {
     );
   }
 
-  const fixture = await startFixtureServer({ localHostDelayMs: APPLIANCE_URL ? 0 : 5000 });
+  const fixture = await startFixtureServer({
+    localHostDelayMs: APPLIANCE_URL ? 0 : 5000,
+    listInNav: PLANT === 'list-in-nav',
+  });
   // The reader's own host. `localhost` rather than `127.0.0.1` because the
   // product only accepts https, or http for localhost — the fixture binds to
   // the loopback address either name resolves to.
@@ -830,6 +841,57 @@ async function main() {
       `one player, body padding ${playing.bodyPadding}`,
     );
     record('paragraph highlighted in the page', playing.highlighted[0].slice(0, 60));
+
+    // What the reader actually got, read off the page rather than off a
+    // request log, so it holds in appliance mode too: the content script
+    // stamps every extracted block with its reading index
+    // (`paragraph-selector.ts:174-175`). An article that prints a list and is
+    // read without it is the PROSO-210 symptom — the reader heard "all five
+    // stages" and never the five.
+    const reading = await waitFor(
+      'the reading order the extension marked in the page',
+      async () => {
+        const marked = await driver.execute(
+          `return Array.from(document.querySelectorAll('[data-proso-select-index]')).map((el) => ({
+             index: Number(el.dataset.prosoSelectIndex),
+             tag: el.tagName,
+             text: el.textContent.replace(/\\s+/g, ' ').trim(),
+           })).sort((a, b) => a.index - b.index);`,
+        );
+        return Array.isArray(marked) && marked.length > 0 ? marked : null;
+      },
+      { timeoutMs: 20_000 },
+    );
+    const readingTexts = reading.map((entry) => entry.text);
+    const leadIn = readingTexts.indexOf(ARTICLE_LIST_LEAD_IN);
+    const followUp = readingTexts.indexOf(ARTICLE_LIST_FOLLOW_UP);
+    if (leadIn < 0 || followUp < 0) {
+      fail(
+        `The paragraphs around the article's list were not read at all (lead-in ${leadIn}, follow-up ${followUp}): ${JSON.stringify(readingTexts)}`,
+      );
+    }
+    const between = readingTexts.slice(leadIn + 1, followUp);
+    if (JSON.stringify(between) !== JSON.stringify(ARTICLE_LIST_ITEMS)) {
+      fail(
+        `The article's list is not read in document order between the paragraphs around it — ` +
+          `expected ${JSON.stringify(ARTICLE_LIST_ITEMS)}, read ${JSON.stringify(between)}`,
+      );
+    }
+    record(
+      "the article's list was read in order, between its own paragraphs",
+      `${ARTICLE_LIST_ITEMS.length} items: ${ARTICLE_LIST_ITEMS.join(', ')}`,
+    );
+
+    const chrome = [...ARTICLE_NAV_ITEMS, ...ARTICLE_FOOTER_ITEMS].filter((item) =>
+      readingTexts.includes(item),
+    );
+    if (chrome.length > 0) {
+      fail(`Page chrome reached the reader: ${JSON.stringify(chrome)}`);
+    }
+    record(
+      'navigation and footer list items stayed out of the reading',
+      `${ARTICLE_NAV_ITEMS.length + ARTICLE_FOOTER_ITEMS.length} chrome items on the page, 0 read`,
+    );
 
     const whilePlaying = await waitFor(
       'the popup control to announce Pause while playing',
