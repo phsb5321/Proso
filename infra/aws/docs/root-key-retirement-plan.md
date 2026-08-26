@@ -1,5 +1,22 @@
 # Retiring the root access key — costed, reversible, evidenced
 
+> **Key ids are redacted in this document on purpose.** They were committed
+> literally until 25/08/2026, when `gitleaks` (via `make verify`) flagged four
+> of them. An access key id is not the secret half of a credential, but it
+> names a live credential and helps target it, so it does not belong in a
+> tracked file. Read the current ones from the API instead, which is also the
+> only way to be sure they are current:
+>
+> ```bash
+> aws iam list-access-keys --user-name pedro-ops --profile PERSONAL_ROOT \
+>   --query 'AccessKeyMetadata[].{Id:AccessKeyId,Status:Status,Created:CreateDate}'
+> aws iam list-access-keys --profile PERSONAL_ROOT   # the root key
+> ```
+>
+> Substitute the id into the commands below where `<ACCESS-KEY-ID>` appears.
+
+
+
 **Date:** 25/08/2026 · **Status:** plan; steps 4–6 are gated on Pedro
 **Closes:** Proso `docs/reading-journey-status.md` next-slice #26, open since 15/08/2026
 **Binding context:** ADR-001 §4.3, §5
@@ -112,7 +129,7 @@ issue short-lived credentials per account, with no static key anywhere.
 ## 3. Interim credential to be removed (disclosure)
 
 Before the Identity Center correction landed, this tab created an IAM user
-`pedro-ops` (`AKIA4MTWL5ZFZEDXBB4G`) so that anything at all could run against
+`pedro-ops` (`<ACCESS-KEY-ID>`) so that anything at all could run against
 Sandbox-Account — root cannot assume roles, and no other programmatic principal
 existed. Its policy is `policies/pedro-ops-baseline.json`: assume-role into the
 sandbox, read-only org/IAM metadata, and an explicit `Deny` on `s3:*`,
@@ -134,7 +151,7 @@ Use the short-lived `admin-user` console session obtained with `aws login`, not
 `PERSONAL_ROOT`:
 
 ```bash
-aws --profile pedro-admin-session iam delete-access-key --user-name pedro-ops --access-key-id AKIA4MTWL5ZFZEDXBB4G
+aws --profile pedro-admin-session iam delete-access-key --user-name pedro-ops --access-key-id <ACCESS-KEY-ID>
 aws --profile pedro-admin-session iam delete-user-policy --user-name pedro-ops --policy-name pedro-ops-baseline
 aws --profile pedro-admin-session iam delete-user --user-name pedro-ops
 rbw remove api/aws-pedro-ops
@@ -221,7 +238,7 @@ Run the four commands in §3. This removes the last static key this repo created
 
 ```bash
 aws --profile PERSONAL_ROOT iam update-access-key \
-  --access-key-id AKIA4MTWL5ZFUHWJGOXB --status Inactive
+  --access-key-id <ACCESS-KEY-ID> --status Inactive
 ```
 
 - **Rollback, instant:** the same command with `--status Active`. This is the
@@ -262,7 +279,7 @@ A `LastUsedDate` that stops advancing is the signal to roll back step 4.
 ### Step 6 — delete the root key (GATED, irreversible)
 
 ```bash
-aws --profile PERSONAL_ROOT iam delete-access-key --access-key-id AKIA4MTWL5ZFUHWJGOXB
+aws --profile PERSONAL_ROOT iam delete-access-key --access-key-id <ACCESS-KEY-ID>
 ```
 
 - **Rollback:** none. A new root key can be created, but this specific
