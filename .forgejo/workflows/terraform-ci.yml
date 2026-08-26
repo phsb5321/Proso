@@ -65,13 +65,17 @@ jobs:
       # CI calls the same entrypoint a developer does; there is no CI-only
       # variant of the policy to drift out of sync.
       - name: Policy gate
-        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c make infra-check
+        run: >-
+          FORGEJO_EXEC_TMPDIR=/tmp bash infra/aws/scripts/forgejo-exec-scratch.sh
+          nix --option min-free 0 --option max-free 0 develop ./infra/aws -c make infra-check
 
       # The gate's own test. Without this the job above proves only that
       # nothing failed — which is also what an accidentally-disabled scanner
       # produces. ADR-001 §4.7.
       - name: Falsify the gate (plant must go RED, removal must go GREEN)
-        run: nix --option min-free 0 --option max-free 0 develop ./infra/aws -c bash infra/aws/scripts/falsify-gates.sh
+        run: >-
+          FORGEJO_EXEC_TMPDIR=/tmp bash infra/aws/scripts/forgejo-exec-scratch.sh
+          nix --option min-free 0 --option max-free 0 develop ./infra/aws -c bash infra/aws/scripts/falsify-gates.sh
 
   # No plan/apply job here. Credential-free checks run on Forgejo; live plans
   # remain operator-run through the scoped Identity Center role until a
