@@ -11,7 +11,11 @@ Current live/planned split: [`docs/account-foundation-status.md`](docs/account-f
 2. A **budget alarm is the first apply** in any account — nothing else is created
    until spend is observable.
 3. **Root credentials are used for exactly one operation** (creating the member
-   account) and never for routine work.
+   account) and never for routine work. **Superseded 25/08/2026** — see
+   ADR-001 §4 rule 3: `PERSONAL_ROOT` is an authorised profile for this
+   project's infra work. Prefer `proso-scoped` where it already works, but
+   never stall on credentials; what is gated is destructive action, not the
+   choice of profile.
 
 ## Layout
 
