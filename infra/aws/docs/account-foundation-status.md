@@ -82,6 +82,64 @@ Identity Center user then sends Pedro the one-time activation link; setting the
 password and registering Identity Center MFA is the documented human step before
 `aws sso login` can prove the new path.
 
+## Update — 25/08/2026 21:5x BRT: `05-org-structure` APPLIED with root
+
+The blocker recorded below was authentication, not Terraform: `aws login` with
+the `admin-user` console identity stopped at a passkey/security-key prompt that
+only Pedro can satisfy, so no non-root CLI session could be issued.
+
+**Pedro directed the use of the `PERSONAL_ROOT` profile to unblock it**, and the
+stack is now applied. This is coherent with ADR-001 rather than a breach of it:
+root's one sanctioned job is to create the structure that replaces root, and
+that is exactly this stack — it builds the Identity Center path whose whole
+purpose is to end routine root use.
+
+Blast radius was measured before applying, not after:
+
+```
+actions: {'create': 13}
+SCP resources: 0
+account/member creates: 0
+```
+
+```
+Apply complete! Resources: 13 added, 0 changed, 0 destroyed.
+```
+
+### Live, verified independently after the apply
+
+| Resource | Value |
+|---|---|
+| `Workloads` OU | `ou-y7xb-a029svns` (sibling of `Sandboxes` `ou-y7xb-qkp97z4j`) |
+| `ProsoInfraDeploy` | `ps-2670fee9caf657ad` — 4h sessions, → Sandbox-Account |
+| `ManagementOps` | `ps-70926e4ddc9365f7` — 4h sessions, → management |
+| `WorkloadBreakGlass` | `ps-cd142da24ace6f76` — 2h sessions, `AdministratorAccess` |
+| `PlatformAdmins` group | `4468f408-8031-70b0-fd16-fea17c6d660a` |
+| Identity Center user | `pedro` → `pedrobalbino@proton.me` |
+
+`operator_email` was the placeholder `you@example.com` in `example.tfvars`; it
+was set to the organisation's own management email, which is already proven
+deliverable for AWS mail and is where the activation link must land.
+
+### Still gated, and NOT touched by this apply
+
+Both remain exactly as before — the operator authorised root for this stack, not
+for these:
+
+1. **`SERVICE_CONTROL_POLICY` on root `r-y7xb`** — still disabled
+   (`PolicyTypes: []`). `attach_service_control_policies = false`, so the plan
+   contained **zero** SCP resources and `SandboxRestrictions` is still inert.
+2. **The root access key** — untouched. Its ≥7-day backup observation window
+   cannot start until the SSO path is proven end to end.
+
+### The one human step, now the only thing in the way
+
+Creating the Identity Center user sends a one-time activation link to
+`pedrobalbino@proton.me`. Setting that password and registering Identity Center
+MFA cannot be automated. Until it is done, `aws sso login` cannot be proven, and
+until *that* is proven the root key should not be retired — the order matters,
+because retiring the key before the replacement works would leave no path in.
+
 ## Pedro-gated AWS actions — deliberately untouched
 
 Exactly the two actions named by the operator remain gated:
