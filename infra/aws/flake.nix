@@ -34,6 +34,7 @@
         packages = with pkgs; [
           terraform # >= 1.11 for `use_lockfile` (ADR-001 §2.4)
           tflint
+          tflint-plugins.tflint-ruleset-aws
           trivy
           uv # installs the pinned checkov; see note above
           lefthook # pre-commit driver, matching the Proso repo
@@ -42,6 +43,9 @@
           curl # future public-issuer OIDC wrapper; see scripts/ci-assume-role.sh
           git
         ];
+
+        TFLINT_AWS_PLUGIN = "${pkgs.tflint-plugins.tflint-ruleset-aws}/bin/tflint-ruleset-aws";
+        TFLINT_AWS_PLUGIN_VERSION = pkgs.tflint-plugins.tflint-ruleset-aws.version;
       };
     });
 
