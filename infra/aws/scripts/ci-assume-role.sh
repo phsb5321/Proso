@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Mint a Forgejo OIDC token, assume the deploy role with it, verify which
-# account we actually landed in, then exec the given command.
+# Mint an Actions OIDC token from a publicly verifiable issuer, assume the
+# deploy role, verify the account, then exec the given command.
 #
 #   scripts/ci-assume-role.sh scripts/drift-check.sh
 #
@@ -21,9 +21,10 @@
 #      wrong account produces a working plan against the wrong infrastructure,
 #      and nothing in a plan's output announces which account it ran in.
 #
-# Lives in a script rather than inline in the workflow so that both
-# terraform-ci.yml and terraform-drift.yml get identical handling, and so the
-# logic is reviewable as shell instead of as YAML-quoted shell.
+# Prepared for a future keyless live-plan workflow. The active Forgejo workflow
+# does not invoke it because Forgejo's issuer is Tailscale-only and AWS cannot
+# validate it; see docs/forgejo-oidc-federation.md. Keeping the credential
+# handling here makes it reviewable as shell instead of YAML-quoted shell.
 
 set -euo pipefail
 

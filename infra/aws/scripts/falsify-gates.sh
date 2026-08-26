@@ -18,8 +18,8 @@
 #   D. the ratchet rejects an undocumented suppression
 #   E. the `terraform test` suite fails when the module regresses
 #   F. the secret scanner flags a planted credential
-#   G. the stack policy rejects an unclassified stack, and refuses to let the
-#      never-apply stack be applied or drift-planned
+#   G. the stack policy requires root-discovered CI, rejects an unclassified
+#      stack, and refuses to let the never-apply stack be applied or drift-planned
 #   H. Checkov rejects Terraform it cannot parse instead of scanning around it
 #
 # Exit 0 only if all eight hold.
@@ -27,6 +27,9 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
 require_tools trivy uv jq
+
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+CI_WORKFLOW="$GIT_ROOT/.forgejo/workflows/terraform-ci.yml"
 
 PLANT_DIR="stacks/_gate-falsification-plant"
 SECRET_PLANT=".gate-falsification-secret.txt"
@@ -59,7 +62,7 @@ fi
 cp "$COMPLIANT_TF" "$SCRATCH/main.tf.orig"
 cp "$CHECKOV_BASELINE" "$SCRATCH/baseline.orig"
 cp "$STACK_POLICY" "$SCRATCH/stack-policy.orig"
-cp .forgejo/workflows/terraform-ci.yml "$SCRATCH/ci.yml.orig"
+cp "$CI_WORKFLOW" "$SCRATCH/ci.yml.orig"
 
 cleanup() {
   rm -rf "$PLANT_DIR" "$POLICY_PLANT_DIR"
@@ -67,7 +70,7 @@ cleanup() {
   cp "$SCRATCH/main.tf.orig" "$COMPLIANT_TF"
   cp "$SCRATCH/baseline.orig" "$CHECKOV_BASELINE"
   cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
-  cp "$SCRATCH/ci.yml.orig" .forgejo/workflows/terraform-ci.yml
+  cp "$SCRATCH/ci.yml.orig" "$CI_WORKFLOW"
   rm -rf "$SCRATCH"
 }
 # INT/TERM as well as EXIT: bash runs an EXIT trap on a normal or `set -e` exit,
@@ -257,6 +260,13 @@ assert_fails "unclassified stack rejected" '99-falsification-unclassified' \
 rm -rf "$POLICY_PLANT_DIR"
 assert_passes "classified set accepted" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
 
+step "G. Terraform CI must live at Forgejo's git-root discovery path"
+rm -f "$CI_WORKFLOW"
+assert_fails "missing root Terraform workflow rejected" 'missing required Terraform workflow at git-root path' \
+  "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+cp "$SCRATCH/ci.yml.orig" "$CI_WORKFLOW"
+assert_passes "root Terraform workflow restored" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
+
 step "G. a never-apply stack must not be drift-planned or CI-applied"
 # Flip 15-member-account into the drift plan. It has no state and targets a
 # different account, so including it would mean a red drift job every night for
@@ -268,10 +278,10 @@ assert_fails "forbidden stack in the drift plan rejected" 'must not be in the dr
 # And the case that actually loses an account: a workflow that applies it.
 jq '.stacks["15-member-account"].apply = "forbidden"' "$SCRATCH/stack-policy.orig" >"$STACK_POLICY"
 printf '\n# falsification probe\n#   run: terraform -chdir=stacks/15-member-account apply\n' \
-  >>.forgejo/workflows/terraform-ci.yml
+  >>"$CI_WORKFLOW"
 assert_fails "workflow applying the forbidden stack rejected" 'apply or destroy the forbidden stack' \
   "$REPO_ROOT/scripts/gate.sh" --stage stack-policy
-cp "$SCRATCH/ci.yml.orig" .forgejo/workflows/terraform-ci.yml
+cp "$SCRATCH/ci.yml.orig" "$CI_WORKFLOW"
 
 cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
 assert_passes "restored stack policy accepted" "$REPO_ROOT/scripts/gate.sh" --stage stack-policy

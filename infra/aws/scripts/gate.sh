@@ -2,7 +2,7 @@
 #
 # The policy gate. ADR-001 §2 pipeline order:
 #
-#   fmt -> validate -> tflint -> Trivy/Checkov -> (plan, gated apply: CI only)
+#   fmt -> validate -> tflint -> Trivy/Checkov -> terraform test
 #
 # CI calls exactly this script, so a green run here and a green run on the
 # Forgejo runner are the same claim. Every stage runs even after an earlier one
@@ -98,7 +98,8 @@ fi
 # ── 2. validate ────────────────────────────────────────────────────────────
 # `terraform validate` needs an initialised directory but NOT credentials — it
 # does not configure providers. So this stage stays offline-safe and is not the
-# place where AWS access is required; that is the plan stage, in CI only.
+# place where AWS access is required; live plans are a separate scoped operator
+# action because Forgejo cannot federate its private OIDC issuer to AWS.
 if wanted validate; then
   step "terraform validate (${#TF_DIRS[@]} dir(s))"
   if ((${#TF_DIRS[@]} == 0)); then

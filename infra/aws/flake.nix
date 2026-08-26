@@ -39,7 +39,7 @@
           lefthook # pre-commit driver, matching the Proso repo
           awscli2
           jq
-          curl # mints the CI OIDC token; see .forgejo/workflows/terraform-ci.yml
+          curl # future public-issuer OIDC wrapper; see scripts/ci-assume-role.sh
           git
         ];
       };

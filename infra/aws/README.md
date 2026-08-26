@@ -27,7 +27,7 @@ Current live/planned split: [`docs/account-foundation-status.md`](docs/account-f
 | `scripts/` | The policy gate, its falsification test, and one-off bootstrap scripts. |
 | `policy/fixtures/` | Green and red controls that keep the gate falsifiable. |
 | `quality-baselines/` | Accepted findings — each with a reason and an expiry date. |
-| `.forgejo/workflows/` | CI on the self-hosted runner. Not `.github/` — that path bills money. |
+| repo-root `.forgejo/workflows/terraform-ci.yml` | CI on the self-hosted runner. Forgejo discovers workflows only at the git root. |
 
 ## Access
 
@@ -37,10 +37,11 @@ credentials, no static key to leak or rotate. See
 that retires the root access key,
 [`docs/root-key-retirement-plan.md`](docs/root-key-retirement-plan.md).
 
-CI federates to AWS over OIDC. Forgejo Actions supports OIDC but its issuer is
+Forgejo CI runs only the credential-free policy gate. Its OIDC issuer is
 Tailscale-only, so AWS cannot validate the token — measured and written up in
 [`docs/forgejo-oidc-federation.md`](docs/forgejo-oidc-federation.md). GitHub
-Actions OIDC is the target instead.
+Actions OIDC remains the keyless target for future live plan/drift; no static CI
+key is accepted as a fallback.
 
 ## Toolchain
 
