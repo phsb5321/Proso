@@ -126,10 +126,21 @@ fi
 # ── 3. tflint (correctness) ────────────────────────────────────────────────
 if wanted tflint; then
   step "tflint --recursive"
-  # `--init` is idempotent and cheap once the plugin is cached; running it here
-  # means a fresh runner does not need a separate bootstrap step.
-  if tflint --init >/dev/null 2>&1 &&
-     tflint --recursive --minimum-failure-severity=warning; then
+  # CI's Nix shell carries the matching AWS ruleset. Installing it from the
+  # network on every ephemeral runner adds GitHub/Sigstore availability to the
+  # gate and was the last red stage after provider caching. The root shell keeps
+  # a documented fallback for developers outside the pinned infra shell.
+  tflint_ready=0
+  if [[ -n "${TFLINT_AWS_PLUGIN:-}" && -n "${TFLINT_AWS_PLUGIN_VERSION:-}" ]]; then
+    plugin_dir="$HOME/.tflint.d/plugins/github.com/terraform-linters/tflint-ruleset-aws/$TFLINT_AWS_PLUGIN_VERSION"
+    mkdir -p "$plugin_dir"
+    ln -sf "$TFLINT_AWS_PLUGIN" "$plugin_dir/tflint-ruleset-aws"
+    tflint_ready=1
+  elif tflint --init; then
+    tflint_ready=1
+  fi
+
+  if ((tflint_ready)) && tflint --recursive --minimum-failure-severity=warning; then
     ok "tflint"
   else
     bad "tflint"
