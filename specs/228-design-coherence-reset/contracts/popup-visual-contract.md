@@ -36,7 +36,7 @@ This is the acceptance surface for Feature 228. Pixel snapshots are evidence, bu
 - computed foreground/background and control-border/surface pairs are measured on real rendered elements in both themes: text ≥4.5:1 and meaningful button, seek, speed, input, and select boundaries ≥3:1;
 - semantic success/warning/error/info are separate from brand roles; populated/exhausted credit state is never communicated by brand green alone;
 - neutral Queue counts use the action role rather than the error role and are rendered in the long-title fixture;
-- production popup CSS and built popup JavaScript contain no direct forbidden effects; a computed-style sweep additionally proves that no loaded legacy token resolves to a gradient, internal shadow, backdrop filter, brightness/blur/drop-shadow filter, or equivalent rendered escape hatch;
+- popup source CSS rejects direct forbidden effects and built JavaScript rejects direct effect injection; computed-style sweeps cover elements and pseudo-elements across player, first-run, Tools, populated Queue, and permission states in both themes so no loaded legacy token can resolve to a gradient, internal shadow, backdrop filter, brightness/blur/drop-shadow filter, or equivalent rendered escape hatch;
 - popup width is the explicit intrinsic role (`360px` default), not `100vw`, `min(..., 100vw)`, or another viewport-relative cap;
 - no looping animation runs in ready/playing/paused state;
 - tabs are not enclosed in a filled rounded segmented-control container;

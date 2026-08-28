@@ -16,6 +16,7 @@ function builtAsset(directory, prefix, suffix) {
 }
 
 function rgbToHex(color) {
+  if (!/^rgba?\(/i.test(color.trim())) throw new Error(`unsupported computed color: ${color}`);
   const channels = color.match(/[\d.]+/g)?.map(Number);
   if (!channels || channels.length < 3) throw new Error(`unsupported computed color: ${color}`);
   if (channels.length > 3 && channels[3] < 1) {
@@ -119,16 +120,18 @@ async function expectPlayerContrast(page) {
 async function expectNoRenderedEffects(page) {
   const violations = await page.locator('#popup, #popup *').evaluateAll((nodes) =>
     nodes
-      .map((node) => {
-        const style = getComputedStyle(node);
-        return {
-          element: node.id || node.getAttribute('class') || node.tagName.toLowerCase(),
-          backgroundImage: style.backgroundImage,
-          boxShadow: style.boxShadow,
-          filter: style.filter,
-          backdropFilter: style.getPropertyValue('backdrop-filter'),
-        };
-      })
+      .flatMap((node) =>
+        ['', '::before', '::after'].map((pseudo) => {
+          const style = getComputedStyle(node, pseudo || null);
+          return {
+            element: `${node.id || node.getAttribute('class') || node.tagName.toLowerCase()}${pseudo}`,
+            backgroundImage: style.backgroundImage,
+            boxShadow: style.boxShadow,
+            filter: style.filter,
+            backdropFilter: style.getPropertyValue('backdrop-filter'),
+          };
+        }),
+      )
       .filter(
         ({ backgroundImage, boxShadow, filter, backdropFilter }) =>
           /gradient/i.test(backgroundImage) ||
@@ -315,6 +318,10 @@ test.describe('Feature 228 popup visual contract', () => {
       'background-color',
       'rgba(0, 0, 0, 0)',
     );
+    const progressBox = await page.locator('#progress-container').boundingBox();
+    const seekBox = await page.locator('#progress-seek').boundingBox();
+    expect(seekBox?.width).toBeGreaterThanOrEqual(progressBox?.width ?? Number.POSITIVE_INFINITY);
+    expect(seekBox?.height).toBeGreaterThanOrEqual(progressBox?.height ?? Number.POSITIVE_INFINITY);
     await expectPlayerContrast(page);
     await expectNoRenderedEffects(page);
 
@@ -386,6 +393,7 @@ test.describe('Feature 228 popup visual contract', () => {
   test('first-run keeps both routes and removes transport from layout', async ({ page }) => {
     await openPopup(page, 'light');
     await showFirstRun(page);
+    await expectNoRenderedEffects(page);
     for (const selector of [
       '#first-run-host-url',
       '#first-run-host-connect',
@@ -444,6 +452,7 @@ test.describe('Feature 228 popup visual contract', () => {
     await openPopup(page, 'dark');
     await showFirstRun(page);
     await showRouteError(page);
+    await expectNoRenderedEffects(page);
     await expectComputedContrast(page, {
       label: 'dark first-run route error',
       foregroundSelector: '#first-run-host-status',
@@ -465,11 +474,13 @@ test.describe('Feature 228 popup visual contract', () => {
     await openPopup(page, 'light');
     await expect(page.locator('#summarize-section')).toHaveCount(0);
     await selectPanel(page, 'tools');
+    await expectNoRenderedEffects(page);
     await expect(page.locator('#highlights-section')).toBeVisible();
     await expect(page.locator('#ocr-section')).toBeHidden();
 
     await selectPanel(page, 'queue');
     await populateQueue(page);
+    await expectNoRenderedEffects(page);
     await expect(page.locator('#queue-tab-badge')).toHaveText('1');
     await expect(page.locator('#queue-count')).toHaveText('1 item');
     await expect(page.getByRole('button', { name: 'Add to reading queue' })).toBeVisible();
@@ -486,6 +497,7 @@ test.describe('Feature 228 popup visual contract', () => {
     await openPopup(page, 'dark');
     await selectPanel(page, 'queue');
     await populateQueue(page);
+    await expectNoRenderedEffects(page);
     await expectComputedContrast(page, {
       label: 'dark queue count badge',
       foregroundSelector: '#queue-tab-badge',
@@ -518,6 +530,7 @@ test.describe('Feature 228 popup visual contract', () => {
       }
       fill?.classList.add('proso-popup__credits-bar-fill--exhausted');
     });
+    await expectNoRenderedEffects(page);
     await expect(page.getByRole('button', { name: 'Grant access' })).toBeVisible();
     await expect(page.locator('#credits-warning')).toContainText('exhausted');
     const semanticColor = await page

@@ -491,10 +491,9 @@ body {
 
 .proso-popup__progress-seek {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: -1px;
+  width: auto;
+  height: auto;
   opacity: 0;
   cursor: pointer;
   -webkit-appearance: none;
@@ -688,21 +687,6 @@ body {
 
 .proso-popup__cost-value--savings {
   color: var(--color-success, #10b981);
-}
-
-.proso-popup__cost-cache-bar {
-  height: 4px;
-  background: var(--color-bg-tertiary, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-full, 9999px);
-  overflow: hidden;
-  margin-top: var(--spacing-xs, 4px);
-}
-
-.proso-popup__cost-cache-fill {
-  height: 100%;
-  background: var(--color-success, #10b981);
-  border-radius: var(--radius-full, 9999px);
-  transition: width var(--transition-normal, 200ms) ease;
 }
 
 /* ========================================
