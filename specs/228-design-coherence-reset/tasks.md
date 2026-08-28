@@ -10,32 +10,32 @@
 
 ## Phase 2 — Falsifiers before implementation
 
-- [ ] T006 [US1] Add a built-popup visual test that asserts current Player state surfaces and captures light/dark baselines.
-- [ ] T007 [US2] Add first-run assertions/capture covering both routes, destination copy, and transport focus exclusion.
-- [ ] T008 [US3] Add built-popup tab/tabpanel assertions plus Tools and long-title Queue fixtures; retain the production-controller Jest suite as the Arrow/Home/End authority.
-- [ ] T009 [US4] Add permission-repair and populated/exhausted cost/credit fixtures; require text/icon semantics independent from brand color.
-- [ ] T010 [US1] Prove pre-fix plants: forbidden gradient/glow/filter/hover-scale, invalid color pairing, identical light/dark roles, missing status/speed/Queue/focus, and viewport-relative intrinsic sizing all fail closed (the latter through the real Firefox visible-panel check).
+- [x] T006 [US1] Add a built-popup visual test that asserts current Player state surfaces and captures light/dark baselines.
+- [x] T007 [US2] Add first-run assertions/capture covering both routes, destination copy, and transport focus exclusion.
+- [x] T008 [US3] Add built-popup tab/tabpanel assertions plus Tools and long-title Queue fixtures; retain the production-controller Jest suite as the Arrow/Home/End authority.
+- [x] T009 [US4] Add permission-repair and populated/exhausted cost/credit fixtures; require text/icon semantics independent from brand color.
+- [x] T010 [US1] Prove pre-fix plants: forbidden gradient/glow/filter/hover-scale, invalid color pairing, identical light/dark roles, missing status/speed/Queue/focus, and viewport-relative intrinsic sizing all fail closed (the latter through the real Firefox visible-panel check).
 
 ## Phase 3 — Brand roles and subtraction
 
-- [ ] T011 [US1] Add additive role tokens and an executable allowed foreground/surface pair matrix to `packages/extension/src/styles/tokens.css`, then explicitly load them from the popup entrypoint.
-- [ ] T012 [US4] Remove hidden AI Summary markup from `popup/index.html`.
-- [ ] T013 [US4] Remove summary-only element references/runtime hide logic from `popup/main.ts` and summary-only rules from `popup/style.css`.
-- [ ] T014 [US1] Mark the play/pause control as the sole state-dependent primary transport without changing its ID/name/handler.
+- [x] T011 [US1] Add additive role tokens and an executable allowed foreground/surface pair matrix to `packages/extension/src/styles/tokens.css`, then explicitly load them from the popup entrypoint.
+- [x] T012 [US4] Remove hidden AI Summary markup from `popup/index.html`.
+- [x] T013 [US4] Remove summary-only element references/runtime hide logic from `popup/main.ts` and summary-only rules from `popup/style.css`.
+- [x] T014 [US1] Mark the play/pause control as the sole state-dependent primary transport without changing its ID/name/handler.
 
 ## Phase 4 — Popup visual implementation
 
-- [ ] T015 [US1] Refactor popup base/header/tab/status/progress/transport/speed/footer rules to the hierarchy-first role contract.
-- [ ] T016 [US2] Refactor first-run route layout while preserving both forms, status regions, destination copy, and focus behavior.
-- [ ] T017 [US3] Refactor Tools/Queue/highlighting surfaces with direct tab access and bounded containers only where required.
-- [ ] T018 [US4] Refactor permission recovery, cost, credits, success/warning/error states without hiding factual state.
-- [ ] T019 [US1] Implement light/dark divergence, contrast-safe focus, fixed 360px Firefox intrinsic sizing, 200% browser-zoom parity, and reduced-motion behavior; remove all forbidden gradient/glow/filter/scale effects from popup CSS and built JS.
+- [x] T015 [US1] Refactor popup base/header/tab/status/progress/transport/speed/footer rules to the hierarchy-first role contract.
+- [x] T016 [US2] Refactor first-run route layout while preserving both forms, status regions, destination copy, and focus behavior.
+- [x] T017 [US3] Refactor Tools/Queue/highlighting surfaces with direct tab access and bounded containers only where required.
+- [x] T018 [US4] Refactor permission recovery, cost, credits, success/warning/error states without hiding factual state.
+- [x] T019 [US1] Implement light/dark divergence, contrast-safe focus, fixed 360px Firefox intrinsic sizing, 200% browser-zoom parity, and reduced-motion behavior; remove all forbidden gradient/glow/filter/scale effects from popup CSS and built JS.
 
 ## Phase 5 — Verification
 
-- [ ] T020 [US1] Run popup visual controls for player light/dark, first-run, focus, permission, Queue, and account states; create only the minimum popup-specific reviewed baselines where pixels add evidence beyond DOM/style assertions.
-- [ ] T021 [US1] Re-run every plant; each must fail for its named reason, then restore a clean tree and green control.
-- [ ] T022 [US1] Run focused popup/accessibility tests and the full extension unit baseline with all available workers.
+- [x] T020 [US1] Run popup visual controls for player light/dark, first-run, focus, permission, Queue, and account states; create only the minimum popup-specific reviewed baselines where pixels add evidence beyond DOM/style assertions.
+- [x] T021 [US1] Re-run every plant; each must fail for its named reason, then restore a clean tree and green control.
+- [x] T022 [US1] Run focused popup/accessibility tests and the full extension unit baseline with bounded workers after the saturated-host replay.
 - [ ] T023 [US1] Run Firefox and Chrome builds, seeded fuzz (record seed/replay), `make verify`, and relevant quality/security/dependency gates.
 - [ ] T024 [US1] Run the loaded-Firefox real-host public actor; require decoded playback, visible highlight, working tab policy, and zero managed synthesis calls.
 - [ ] T025 [US1] Obtain a different-family exact-head review; repair every grounded finding additively and rerun affected gates.

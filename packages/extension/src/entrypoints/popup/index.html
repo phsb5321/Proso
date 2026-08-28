@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proso</title>
+  <link rel="stylesheet" href="../../styles/tokens.css">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -242,7 +243,7 @@
 
           <button
             id="play-pause-btn"
-            class="proso-button proso-button--icon proso-button--primary proso-popup__play-btn"
+            class="proso-button proso-button--icon proso-button--primary proso-popup__play-btn proso-popup__transport-primary"
             title="Play"
             aria-label="Play"
             data-testid="popup-play-pause-btn"
@@ -327,57 +328,6 @@
 
       <!-- Tools Panel -->
       <div id="panel-tools" class="proso-popup__panel" role="tabpanel" aria-labelledby="tab-tools" hidden>
-        <!-- Summarize Section -->
-        <section class="proso-popup__tool-section" id="summarize-section">
-          <h3 class="proso-popup__tool-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-            AI Summary
-          </h3>
-          <p class="proso-popup__tool-desc">Get key points from this article using AI</p>
-          <button
-            id="summarize-btn"
-            class="proso-button proso-button--secondary proso-popup__tool-btn"
-            title="Get AI summary of article"
-            aria-label="Summarize article"
-          >
-            <span id="summarize-btn-text">Summarize</span>
-          </button>
-          <!-- Summary Display (hidden by default) -->
-          <div class="proso-popup__summary" id="summary-display" hidden>
-            <div class="proso-popup__summary-header">
-              <span class="proso-popup__summary-title">Summary</span>
-              <button
-                id="read-summary-btn"
-                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
-                title="Read summary aloud"
-                aria-label="Read summary aloud"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                </svg>
-              </button>
-              <button
-                id="close-summary-btn"
-                class="proso-button proso-button--icon proso-button--ghost proso-button--small"
-                title="Close summary"
-                aria-label="Close summary"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            <ul class="proso-popup__summary-bullets" id="summary-bullets"></ul>
-          </div>
-        </section>
-
         <!-- OCR Section -->
         <section class="proso-popup__tool-section" id="ocr-section" hidden>
           <h3 class="proso-popup__tool-title">
