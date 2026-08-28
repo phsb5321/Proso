@@ -216,23 +216,6 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --popup-background: var(--popup-ink);
-  --popup-surface: #080f20;
-  --popup-surface-raised: #10192c;
-  --popup-text: var(--popup-paper);
-  --popup-text-secondary: #c1c7c4;
-  --popup-text-muted: #929b98;
-  --popup-line: rgba(247, 247, 242, 0.18);
-  --popup-action: var(--popup-brand-on-ink);
-  --popup-action-hover: #54f7b1;
-  --popup-action-contrast: var(--popup-ink);
-  --popup-focus: var(--popup-brand-on-ink);
-  --popup-active-bg: rgba(33, 242, 153, 0.1);
-  --popup-success: #5ee5a2;
-  --popup-warning: #ffc857;
-  --popup-error: #ff7b86;
-  --popup-info: #82b9ff;
-
   /* Background colors */
   --color-bg-primary: #1a1a2e;
   --color-bg-secondary: #16213e;
@@ -288,23 +271,6 @@
 /* Force light theme regardless of system preference */
 :root[data-theme="light"] {
   color-scheme: light;
-
-  --popup-background: var(--popup-paper);
-  --popup-surface: #ffffff;
-  --popup-surface-raised: #eef0eb;
-  --popup-text: var(--popup-ink);
-  --popup-text-secondary: #37404a;
-  --popup-text-muted: #626c73;
-  --popup-line: #d7dbd4;
-  --popup-action: var(--popup-action-on-paper);
-  --popup-action-hover: #00543b;
-  --popup-action-contrast: #ffffff;
-  --popup-focus: var(--popup-action-on-paper);
-  --popup-active-bg: rgba(0, 107, 79, 0.08);
-  --popup-success: #12633f;
-  --popup-warning: #8a5300;
-  --popup-error: #a52430;
-  --popup-info: #1f5f9f;
 
   /* Background colors */
   --color-bg-primary: #ffffff;
