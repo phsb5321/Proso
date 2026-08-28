@@ -36,9 +36,9 @@
 - [x] T020 [US1] Run popup visual controls for player light/dark, real-viewport and full-content first-run, focus, permission, Queue, and account states; create only the minimum popup-specific reviewed baselines where pixels add evidence beyond DOM/style assertions.
 - [x] T021 [US1] Re-run every plant, including intrinsic-width and rendered-contrast regressions; each must fail for its named reason, then restore a clean tree and green control.
 - [x] T022 [US1] Run focused popup/accessibility tests and the full extension unit baseline with bounded workers after the saturated-host replay; make the exposed cross-paragraph ordering checks scheduler-independent and give the real 3s retry-backoff test a bounded 10s ceiling.
-- [ ] T023 [US1] Run Firefox and Chrome builds, seeded fuzz (record seed/replay), `make verify`, and relevant quality/security/dependency gates.
-- [ ] T024 [US1] Run the loaded-Firefox real-host public actor; require decoded playback, visible highlight, working tab policy, and zero managed synthesis calls.
-- [ ] T025 [US1] Obtain a different-family exact-head review; repair every grounded finding additively and rerun affected gates.
+- [x] T023 [US1] Run Firefox/Chrome/Edge builds, seeded fuzz (`FC_SEED=20260828`, `FC_NUM_RUNS=2000`), serialized `make verify-full`, and quality/security/dependency gates.
+- [x] T024 [US1] Run the loaded-Firefox real-host public actor; require decoded playback, visible highlight, working tab policy, and zero managed synthesis calls.
+- [x] T025 [US1] Obtain different-family exact-head reviews; repair every grounded hierarchy, contrast, provenance, effect-sweep, and seek hit-testing finding, prove the associated plants, and rerun affected gates.
 
 ## Phase 6 — Delivery
 
