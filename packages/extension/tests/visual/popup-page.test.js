@@ -231,6 +231,30 @@ async function showRouteError(page) {
   });
 }
 
+async function showPermissionExhausted(page) {
+  await page.evaluate(() => {
+    const grant = document.getElementById('grant-access-row');
+    const reason = document.getElementById('grant-access-reason');
+    if (grant) grant.hidden = false;
+    if (reason) reason.textContent = 'Host access is required before this page can be read.';
+    const credits = document.getElementById('credits-section');
+    const remaining = document.getElementById('credits-remaining');
+    const total = document.getElementById('credits-total');
+    const warning = document.getElementById('credits-warning');
+    const fill = document.getElementById('credits-bar-fill');
+    if (credits) credits.hidden = false;
+    if (remaining) remaining.textContent = '0';
+    if (total) total.textContent = '/ 500,000';
+    if (warning) {
+      warning.hidden = false;
+      warning.textContent = 'Managed credits exhausted. Use your own key or local host.';
+      warning.className = 'proso-popup__credits-warning proso-popup__credits-warning--exhausted';
+    }
+    fill?.classList.add('proso-popup__credits-bar-fill--exhausted');
+  });
+  await waitForLayoutStable(page, '#credits-section', 60);
+}
+
 async function expectNoHorizontalOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -318,10 +342,19 @@ test.describe('Feature 228 popup visual contract', () => {
       'background-color',
       'rgba(0, 0, 0, 0)',
     );
-    const progressBox = await page.locator('#progress-container').boundingBox();
-    const seekBox = await page.locator('#progress-seek').boundingBox();
-    expect(seekBox?.width).toBeGreaterThanOrEqual(progressBox?.width ?? Number.POSITIVE_INFINITY);
-    expect(seekBox?.height).toBeGreaterThanOrEqual(progressBox?.height ?? Number.POSITIVE_INFINITY);
+    const seekEdgeHits = await page.evaluate(() => {
+      const track = document.getElementById('progress-container')?.getBoundingClientRect();
+      if (!track) return [];
+      const x = track.left + track.width / 2;
+      const y = track.top + track.height / 2;
+      return [
+        [x, track.top + 0.5],
+        [x, track.bottom - 0.5],
+        [track.left + 0.5, y],
+        [track.right - 0.5, y],
+      ].map(([pointX, pointY]) => document.elementFromPoint(pointX, pointY)?.id ?? '');
+    });
+    expect(seekEdgeHits).toEqual(Array(4).fill('progress-seek'));
     await expectPlayerContrast(page);
     await expectNoRenderedEffects(page);
 
@@ -504,32 +537,15 @@ test.describe('Feature 228 popup visual contract', () => {
       backgroundSelector: '#queue-tab-badge',
       minimum: 4.5,
     });
+    await selectPanel(page, 'tools');
+    await expectNoRenderedEffects(page);
   });
 
   test('permission and exhausted-credit state stay factual and non-color-only', async ({
     page,
   }) => {
     await openPopup(page, 'light');
-    await page.evaluate(() => {
-      const grant = document.getElementById('grant-access-row');
-      const reason = document.getElementById('grant-access-reason');
-      if (grant) grant.hidden = false;
-      if (reason) reason.textContent = 'Host access is required before this page can be read.';
-      const credits = document.getElementById('credits-section');
-      const remaining = document.getElementById('credits-remaining');
-      const total = document.getElementById('credits-total');
-      const warning = document.getElementById('credits-warning');
-      const fill = document.getElementById('credits-bar-fill');
-      if (credits) credits.hidden = false;
-      if (remaining) remaining.textContent = '0';
-      if (total) total.textContent = '/ 500,000';
-      if (warning) {
-        warning.hidden = false;
-        warning.textContent = 'Managed credits exhausted. Use your own key or local host.';
-        warning.className = 'proso-popup__credits-warning proso-popup__credits-warning--exhausted';
-      }
-      fill?.classList.add('proso-popup__credits-bar-fill--exhausted');
-    });
+    await showPermissionExhausted(page);
     await expectNoRenderedEffects(page);
     await expect(page.getByRole('button', { name: 'Grant access' })).toBeVisible();
     await expect(page.locator('#credits-warning')).toContainText('exhausted');
@@ -592,6 +608,10 @@ test.describe('Feature 228 popup visual contract', () => {
       .evaluate((node) => getComputedStyle(node).color);
     expect(rgbToHex(savingsColor)).not.toBe(brandColors.brandOnInk);
     expect(rgbToHex(savingsColor)).not.toBe(brandColors.actionOnPaper);
+
+    await openPopup(page, 'dark');
+    await showPermissionExhausted(page);
+    await expectNoRenderedEffects(page);
   });
 
   test('200% browser zoom preserves the intrinsic popup without horizontal overflow', async ({

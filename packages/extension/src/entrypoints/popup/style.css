@@ -475,7 +475,6 @@ body {
   background: var(--popup-surface-raised);
   border: 1px solid var(--popup-line-strong);
   border-radius: 3px;
-  overflow: hidden;
 }
 
 .proso-popup__progress-bar {

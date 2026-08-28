@@ -19,7 +19,7 @@ This is the acceptance surface for Feature 228. Pixel snapshots are evidence, bu
 
 - exactly one selected popup tab and one visible tab panel;
 - play/pause is the only `.proso-popup__transport-primary` control;
-- previous, next, stop, progress seek, and speed slider are visible in player mode;
+- previous, next, stop, progress seek, and speed slider are visible in player mode; the invisible seek input hit-tests across all four bordered track edges and its focus outline is not clipped;
 - every critical icon button has an accessible name and a minimum 44×44px target; the sole primary transport is 56×56px;
 - status text is visible and live on the unfilled page surface; the colored dot is supplementary;
 - `#summarize-section`, `#summarize-btn`, `#summary-display`, and summary-only element references do not exist;
