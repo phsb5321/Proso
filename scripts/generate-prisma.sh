@@ -23,7 +23,7 @@ fi
 
 if [[ -f /etc/NIXOS && -x "$(command -v nix || true)" ]]; then
   printf 'Native Prisma engine unavailable; resolving the NixOS engine package.\n' >&2
-  engine_root="$(nix build --no-link --print-out-paths nixpkgs#prisma-engines)"
+  engine_root="$(nix --option min-free 0 --option max-free 0 build --no-link --print-out-paths nixpkgs#prisma-engines)"
   if [[ ! -x "$engine_root/bin/schema-engine" ]]; then
     printf 'NixOS Prisma schema engine was not found at %s\n' "$engine_root" >&2
     exit 1
