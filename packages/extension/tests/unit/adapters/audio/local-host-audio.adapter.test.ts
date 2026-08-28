@@ -849,13 +849,24 @@ describe('LocalHostAudioAdapter', () => {
     const primeAcrossBoundary = async () => {
       const host = makeDeferredHost();
       const adapter = host.adapter();
+      const iterator = adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
+        nextText: PARAGRAPH_B,
+      });
 
-      await host.drain(
-        adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
-          nextText: PARAGRAPH_B,
-        }),
-      );
+      // Step A explicitly: generic drain() releases every held request and may
+      // settle the B prime in the same tick as A's last sentence.
+      const first = iterator.next();
+      await host.waitForRequest('A one.');
+      host.release('A one.');
+      expect((await first).done).toBe(false);
+
+      const last = iterator.next();
+      await host.waitForRequest('A two.');
       await host.waitForRequest('B one.');
+      host.release('A two.');
+      expect((await last).done).toBe(false);
+      expect((await iterator.next()).done).toBe(true);
+
       return { host, adapter };
     };
 
