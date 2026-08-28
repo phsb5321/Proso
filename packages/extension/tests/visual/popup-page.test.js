@@ -16,12 +16,15 @@ function builtAsset(directory, prefix, suffix) {
 }
 
 function rgbToHex(color) {
-  const channels = color
-    .match(/[\d.]+/g)
-    ?.slice(0, 3)
-    .map(Number);
-  if (!channels || channels.length !== 3) throw new Error(`unsupported computed color: ${color}`);
-  return `#${channels.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+  const channels = color.match(/[\d.]+/g)?.map(Number);
+  if (!channels || channels.length < 3) throw new Error(`unsupported computed color: ${color}`);
+  if (channels.length > 3 && channels[3] < 1) {
+    throw new Error(`contrast pair must resolve to an opaque color: ${color}`);
+  }
+  return `#${channels
+    .slice(0, 3)
+    .map((channel) => Math.round(channel).toString(16).padStart(2, '0'))
+    .join('')}`.toUpperCase();
 }
 
 function luminance(hex) {
@@ -89,6 +92,20 @@ async function expectPlayerContrast(page) {
       minimum: 3,
     },
     {
+      label: 'seek track boundary',
+      foregroundSelector: '#progress-container',
+      foregroundProperty: 'border-top-color',
+      backgroundSelector: 'body',
+      minimum: 3,
+    },
+    {
+      label: 'speed track boundary',
+      foregroundSelector: '#speed-slider',
+      foregroundProperty: 'border-top-color',
+      backgroundSelector: 'body',
+      minimum: 3,
+    },
+    {
       label: 'primary transport label',
       foregroundSelector: '#play-pause-btn',
       backgroundSelector: '#play-pause-btn',
@@ -97,6 +114,30 @@ async function expectPlayerContrast(page) {
   ]) {
     await expectComputedContrast(page, pair);
   }
+}
+
+async function expectNoRenderedEffects(page) {
+  const violations = await page.locator('#popup, #popup *').evaluateAll((nodes) =>
+    nodes
+      .map((node) => {
+        const style = getComputedStyle(node);
+        return {
+          element: node.id || node.getAttribute('class') || node.tagName.toLowerCase(),
+          backgroundImage: style.backgroundImage,
+          boxShadow: style.boxShadow,
+          filter: style.filter,
+          backdropFilter: style.getPropertyValue('backdrop-filter'),
+        };
+      })
+      .filter(
+        ({ backgroundImage, boxShadow, filter, backdropFilter }) =>
+          /gradient/i.test(backgroundImage) ||
+          boxShadow !== 'none' ||
+          filter !== 'none' ||
+          (backdropFilter !== '' && backdropFilter !== 'none'),
+      ),
+  );
+  expect(violations, JSON.stringify(violations, null, 2)).toEqual([]);
 }
 
 async function openPopup(page, colorScheme = 'light', freezeMotion = true) {
@@ -242,7 +283,7 @@ test.describe('Feature 228 popup visual contract', () => {
     const light = await roles(page);
     expect(light).toMatchObject({
       ink: '#010616',
-      paper: '#F7F7F2',
+      paper: '#F8F8F9',
       brandOnInk: '#21F299',
       actionOnPaper: '#006B4F',
     });
@@ -275,6 +316,7 @@ test.describe('Feature 228 popup visual contract', () => {
       'rgba(0, 0, 0, 0)',
     );
     await expectPlayerContrast(page);
+    await expectNoRenderedEffects(page);
 
     for (const selector of [
       '#prev-btn',
@@ -335,6 +377,7 @@ test.describe('Feature 228 popup visual contract', () => {
       'rgba(0, 0, 0, 0)',
     );
     await expectPlayerContrast(page);
+    await expectNoRenderedEffects(page);
     await expect(page.locator('#popup')).toHaveScreenshot('popup-player-dark.png');
     await page.locator('#play-pause-btn').focus();
     await expect(page.locator('#popup')).toHaveScreenshot('popup-focus-dark.png');
@@ -509,6 +552,33 @@ test.describe('Feature 228 popup visual contract', () => {
     });
     await expect(page.locator('#credits-remaining')).toHaveText('320,000');
     expect(rgbToHex(populated.fill)).toBe(populated.infoRole);
+
+    await page.evaluate(() => {
+      const estimate = document.getElementById('cost-estimate');
+      const savingsRow = document.getElementById('cost-savings-row');
+      const savings = document.getElementById('cost-savings');
+      if (estimate) estimate.textContent = '$0.12';
+      if (savingsRow) savingsRow.hidden = false;
+      if (savings) savings.textContent = '$0.04 (25%)';
+    });
+    await expect(page.locator('#cost-estimate')).toHaveText('$0.12');
+    await expect(page.locator('#cost-savings')).toHaveText('$0.04 (25%)');
+    for (const [label, foregroundSelector] of [
+      ['populated cost', '#cost-estimate'],
+      ['cache savings', '#cost-savings'],
+    ]) {
+      await expectComputedContrast(page, {
+        label,
+        foregroundSelector,
+        backgroundSelector: 'body',
+        minimum: 4.5,
+      });
+    }
+    const savingsColor = await page
+      .locator('#cost-savings')
+      .evaluate((node) => getComputedStyle(node).color);
+    expect(rgbToHex(savingsColor)).not.toBe(brandColors.brandOnInk);
+    expect(rgbToHex(savingsColor)).not.toBe(brandColors.actionOnPaper);
   });
 
   test('200% browser zoom preserves the intrinsic popup without horizontal overflow', async ({

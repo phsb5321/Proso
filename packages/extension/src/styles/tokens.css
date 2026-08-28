@@ -20,7 +20,7 @@
      Brand roles never carry success/warning/error meaning.
      ---------------------------------------- */
   --brand-ink: #010616;
-  --brand-paper: #f7f7f2;
+  --brand-paper: #f8f8f9;
   --brand-green: #21f299;
   --brand-green-deep: #006b4f;
 
@@ -34,7 +34,7 @@
   --popup-text: var(--popup-paper);
   --popup-text-secondary: #c1c7c4;
   --popup-text-muted: #929b98;
-  --popup-line: rgba(247, 247, 242, 0.18);
+  --popup-line: rgba(248, 248, 249, 0.18);
   --popup-line-strong: #686b72;
   --popup-action: var(--popup-brand-on-ink);
   --popup-action-hover: #54f7b1;

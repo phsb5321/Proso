@@ -31,12 +31,12 @@ This is the acceptance surface for Feature 228. Pixel snapshots are evidence, bu
 
 ## Style assertions
 
-- loaded popup role variables include ink `#010616`, paper `#F7F7F2`, on-ink brand `#21F299`, and on-paper interactive `#006B4F`;
+- loaded popup role variables include ink `#010616`, tracked vector-system paper `#F8F8F9`, on-ink brand `#21F299`, and on-paper interactive `#006B4F`;
 - the executable pair matrix permits spring-green-on-ink and deep-green-on-paper, and rejects spring-green-on-paper plus deep-green-on-ink;
-- computed foreground/background and control-border/surface pairs are measured on real rendered elements in both themes: text ≥4.5:1 and meaningful boundaries ≥3:1;
+- computed foreground/background and control-border/surface pairs are measured on real rendered elements in both themes: text ≥4.5:1 and meaningful button, seek, speed, input, and select boundaries ≥3:1;
 - semantic success/warning/error/info are separate from brand roles; populated/exhausted credit state is never communicated by brand green alone;
 - neutral Queue counts use the action role rather than the error role and are rendered in the long-title fixture;
-- production popup CSS **and built popup JS** contain no `linear-gradient`, `radial-gradient`, large-blur internal `box-shadow`, `backdrop-filter`, `filter: brightness|blur|drop-shadow`, or hover/pseudo-state `transform: scale`;
+- production popup CSS and built popup JavaScript contain no direct forbidden effects; a computed-style sweep additionally proves that no loaded legacy token resolves to a gradient, internal shadow, backdrop filter, brightness/blur/drop-shadow filter, or equivalent rendered escape hatch;
 - popup width is the explicit intrinsic role (`360px` default), not `100vw`, `min(..., 100vw)`, or another viewport-relative cap;
 - no looping animation runs in ready/playing/paused state;
 - tabs are not enclosed in a filled rounded segmented-control container;

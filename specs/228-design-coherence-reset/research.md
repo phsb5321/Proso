@@ -91,14 +91,14 @@ Trend commentary informed the vocabulary only. Product and platform decisions be
 “Use the brand” does not mean putting spring green on white. Measured contrast:
 
 - `#21F299` on `#010616`: **13.69:1** — valid dark-surface brand accent.
-- `#21F299` on `#F7F7F2`: **1.37:1** — unusable for text/control boundaries.
-- derived deep green `#006B4F` on `#F7F7F2`: **6.08:1** — valid light-surface action/text accent.
-- navy `#010616` on `#F7F7F2`: **18.81:1**.
+- `#21F299` on `#F8F8F9`: **1.39:1** — unusable for text/control boundaries.
+- derived deep green `#006B4F` on `#F8F8F9`: **6.15:1** — valid light-surface action/text accent.
+- navy `#010616` on `#F8F8F9`: **19.04:1**.
 
 Role contract:
 
 - ink: `#010616`;
-- paper: `#F7F7F2`;
+- paper: `#F8F8F9`, matching `brand/PROVENANCE.md` and the Feature 161 vector contract;
 - surface: white/light or navy/dark;
 - brand signal on ink: `#21F299`;
 - interactive accent on paper: `#006B4F`;
@@ -109,6 +109,7 @@ Role contract:
 
 A cross-family critique identified useful failure modes:
 
+- use the tracked vector-system paper `#F8F8F9`; a provisional `#F7F7F2` would create a second source of truth;
 - do not apply spring green unchanged on light surfaces;
 - do not hide speed in pursuit of one primary action;
 - retain Queue and Tools one click away until a replacement surface exists (telemetry is forbidden by the constitution, so no analytics experiment decides this);
