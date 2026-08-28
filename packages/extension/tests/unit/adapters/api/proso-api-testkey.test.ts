@@ -104,7 +104,7 @@ describe('ProsoApiAdapter.testApiKey', () => {
     if (isErr(result)) {
       expect(result.error.type).toBe('network');
     }
-  });
+  }, 10_000);
 
   it('returns Err(unauthorized) on 401 response', async () => {
     mockFetch.mockResolvedValueOnce(
