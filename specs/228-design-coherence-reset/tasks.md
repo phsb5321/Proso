@@ -14,7 +14,7 @@
 - [x] T007 [US2] Add first-run assertions/capture covering both routes, destination copy, and transport focus exclusion.
 - [x] T008 [US3] Add built-popup tab/tabpanel assertions plus Tools and long-title Queue fixtures; retain the production-controller Jest suite as the Arrow/Home/End authority.
 - [x] T009 [US4] Add permission-repair and populated/exhausted cost/credit fixtures; require text/icon semantics independent from brand color.
-- [x] T010 [US1] Prove pre-fix plants: forbidden gradient/glow/filter/hover-scale, invalid color pairing, identical light/dark roles, missing status/speed/Queue/focus, and viewport-relative intrinsic sizing all fail closed (the latter through the real Firefox visible-panel check).
+- [x] T010 [US1] Prove pre-fix plants: forbidden gradient/glow/filter/hover-scale, invalid color pairing, identical light/dark roles, missing status/speed/Queue/focus, and viewport-relative intrinsic sizing all fail closed (the latter through both a static/provisional-viewport assertion and the real Firefox visible-panel check).
 
 ## Phase 3 — Brand roles and subtraction
 
@@ -33,8 +33,8 @@
 
 ## Phase 5 — Verification
 
-- [x] T020 [US1] Run popup visual controls for player light/dark, first-run, focus, permission, Queue, and account states; create only the minimum popup-specific reviewed baselines where pixels add evidence beyond DOM/style assertions.
-- [x] T021 [US1] Re-run every plant; each must fail for its named reason, then restore a clean tree and green control.
+- [x] T020 [US1] Run popup visual controls for player light/dark, real-viewport and full-content first-run, focus, permission, Queue, and account states; create only the minimum popup-specific reviewed baselines where pixels add evidence beyond DOM/style assertions.
+- [x] T021 [US1] Re-run every plant, including intrinsic-width and rendered-contrast regressions; each must fail for its named reason, then restore a clean tree and green control.
 - [x] T022 [US1] Run focused popup/accessibility tests and the full extension unit baseline with bounded workers after the saturated-host replay.
 - [ ] T023 [US1] Run Firefox and Chrome builds, seeded fuzz (record seed/replay), `make verify`, and relevant quality/security/dependency gates.
 - [ ] T024 [US1] Run the loaded-Firefox real-host public actor; require decoded playback, visible highlight, working tab policy, and zero managed synthesis calls.

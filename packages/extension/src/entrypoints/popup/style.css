@@ -175,8 +175,8 @@ body {
   height: 14px;
   padding: 0 4px;
   border-radius: var(--radius-full, 9999px);
-  background: var(--color-error, #ef4444);
-  color: white;
+  background: var(--popup-action);
+  color: var(--popup-action-contrast);
   font-size: 9px;
   font-weight: 600;
   line-height: 14px;
@@ -520,12 +520,6 @@ body {
   min-width: 0;
 }
 
-.proso-popup__play-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-full, 9999px);
-}
-
 .proso-popup__play-btn svg {
   width: 24px;
   height: 24px;
@@ -571,11 +565,11 @@ body {
 }
 
 .proso-popup__speed-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: var(--color-accent-primary, #0d9488);
-  border: none;
-  border-radius: var(--radius-full, 9999px);
+  width: 18px;
+  height: 18px;
+  background: var(--popup-action);
+  border: 2px solid var(--popup-background);
+  border-radius: 50%;
   cursor: pointer;
 }
 
@@ -587,7 +581,7 @@ body {
   width: 100%;
   min-height: 44px;
   padding: 8px 10px;
-  border: 1px solid var(--popup-line);
+  border: 1px solid var(--popup-line-strong);
   border-radius: var(--popup-radius-sm);
   background: var(--popup-surface);
   color: var(--popup-text);
@@ -629,7 +623,7 @@ body {
   padding: var(--spacing-sm, 8px) var(--spacing-lg, 32px) var(--spacing-sm, 8px)
     var(--spacing-md, 12px);
   background: var(--color-bg-secondary, #16213e);
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--popup-line-strong);
   border-radius: var(--radius-sm, 4px);
   color: var(--color-text-primary, #ffffff);
   font-family: inherit;
@@ -912,7 +906,7 @@ body {
 .proso-button--secondary {
   background: transparent;
   color: var(--popup-text-secondary);
-  border-color: var(--popup-line);
+  border-color: var(--popup-line-strong);
 }
 
 .proso-button--secondary:hover {
@@ -937,6 +931,12 @@ body {
   width: var(--min-touch-target, 44px);
   height: var(--min-touch-target, 44px);
   border-radius: var(--popup-radius-md);
+}
+
+.proso-button--icon.proso-popup__play-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
 }
 
 .proso-button:disabled {
@@ -964,34 +964,9 @@ body {
    ======================================== */
 
 @media (prefers-color-scheme: light) {
-  html,
-  body {
-    background: var(--color-bg-primary, #ffffff);
-    color: var(--color-text-primary, #1e293b);
-  }
-
-  .proso-popup__status {
-    background: var(--color-bg-secondary, #f8fafc);
-  }
-
-  .proso-popup__progress {
-    background: var(--color-bg-secondary, #f8fafc);
-  }
-
-  .proso-popup__speed-slider {
-    background: var(--color-bg-secondary, #f8fafc);
-  }
-
   .proso-select {
-    background-color: var(--color-bg-secondary, #f8fafc);
-    color: var(--color-text-primary, #1e293b);
-    /* Light mode dropdown arrow */
+    /* The custom arrow cannot inherit a CSS color inside its data URI. */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231e293b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  }
-
-  .proso-select option {
-    background: var(--color-bg-primary, #ffffff);
-    color: var(--color-text-primary, #1e293b);
   }
 }
 
@@ -1011,22 +986,6 @@ body {
 
 .proso-popup__queue-add-btn {
   flex: 1;
-}
-
-.proso-popup__queue-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: var(--popup-radius-sm);
-  background: var(--popup-action);
-  color: white;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-  text-align: center;
 }
 
 .proso-popup__queue-sidebar {
@@ -1372,7 +1331,7 @@ body {
 }
 
 .proso-popup__route-status--error {
-  color: var(--color-danger, #ef4444);
+  color: var(--popup-error);
 }
 
 .proso-popup__route-status--ok {
@@ -1386,40 +1345,4 @@ body {
 .proso-popup__panel--firstrun .proso-popup__speed,
 .proso-popup__panel--firstrun .proso-popup__cost {
   display: none;
-}
-
-/* Firefox reduces the CSS viewport at high zoom. Reflow rather than preserving
-   the nominal 360px popup width and forcing horizontal scroll. */
-@media (max-width: 240px) {
-  .proso-popup {
-    padding-inline: 10px;
-  }
-
-  .proso-popup__tab {
-    gap: 0;
-    padding-inline: 4px;
-    font-size: 11px;
-  }
-
-  .proso-popup__tab svg {
-    display: none;
-  }
-
-  .proso-popup__controls {
-    gap: 6px;
-  }
-
-  .proso-popup__host-form,
-  .proso-popup__byok-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .proso-popup__byok-row button {
-    grid-column: auto;
-  }
-
-  .proso-popup__highlight-actions,
-  .proso-popup__queue-controls {
-    flex-wrap: wrap;
-  }
 }

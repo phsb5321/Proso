@@ -24,9 +24,9 @@
   --brand-green: #21f299;
   --brand-green-deep: #006b4f;
 
-  --popup-ink: #010616;
-  --popup-paper: #f7f7f2;
-  --popup-brand-on-ink: #21f299;
+  --popup-ink: var(--brand-ink);
+  --popup-paper: var(--brand-paper);
+  --popup-brand-on-ink: var(--brand-green);
   --popup-action-on-paper: var(--brand-green-deep);
   --popup-background: var(--popup-ink);
   --popup-surface: #080f20;
@@ -35,6 +35,7 @@
   --popup-text-secondary: #c1c7c4;
   --popup-text-muted: #929b98;
   --popup-line: rgba(247, 247, 242, 0.18);
+  --popup-line-strong: #686b72;
   --popup-action: var(--popup-brand-on-ink);
   --popup-action-hover: #54f7b1;
   --popup-action-contrast: var(--popup-ink);
@@ -142,6 +143,7 @@
     --popup-text-secondary: #37404a;
     --popup-text-muted: #626c73;
     --popup-line: #d7dbd4;
+    --popup-line-strong: #7f887f;
     --popup-action: var(--popup-action-on-paper);
     --popup-action-hover: #00543b;
     --popup-action-contrast: #ffffff;

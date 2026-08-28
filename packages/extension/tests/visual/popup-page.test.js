@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { expect, test } from '@playwright/test';
 import { disableAnimations, waitForLayoutStable } from '../helpers/disable-animations.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,6 +35,68 @@ function luminance(hex) {
 function contrast(foreground, background) {
   const [lighter, darker] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+async function expectComputedContrast(
+  page,
+  {
+    label,
+    foregroundSelector,
+    foregroundProperty = 'color',
+    backgroundSelector,
+    backgroundProperty = 'background-color',
+    minimum,
+  },
+) {
+  const pair = await page.evaluate(
+    ({ foregroundSelector, foregroundProperty, backgroundSelector, backgroundProperty }) => ({
+      foreground: getComputedStyle(document.querySelector(foregroundSelector)).getPropertyValue(
+        foregroundProperty,
+      ),
+      background: getComputedStyle(document.querySelector(backgroundSelector)).getPropertyValue(
+        backgroundProperty,
+      ),
+    }),
+    { foregroundSelector, foregroundProperty, backgroundSelector, backgroundProperty },
+  );
+  const foreground = rgbToHex(pair.foreground);
+  const background = rgbToHex(pair.background);
+  expect(
+    contrast(foreground, background),
+    `${label}: ${foreground} on ${background}`,
+  ).toBeGreaterThanOrEqual(minimum);
+}
+
+async function expectPlayerContrast(page) {
+  for (const pair of [
+    {
+      label: 'status text',
+      foregroundSelector: '#status-text',
+      backgroundSelector: 'body',
+      minimum: 4.5,
+    },
+    {
+      label: 'paragraph position',
+      foregroundSelector: '#paragraph-info',
+      backgroundSelector: 'body',
+      minimum: 4.5,
+    },
+    {
+      label: 'secondary transport boundary',
+      foregroundSelector: '#prev-btn',
+      foregroundProperty: 'border-top-color',
+      backgroundSelector: 'body',
+      minimum: 3,
+    },
+    {
+      label: 'primary transport label',
+      foregroundSelector: '#play-pause-btn',
+      backgroundSelector: '#play-pause-btn',
+      minimum: 4.5,
+    },
+  ]) {
+    await expectComputedContrast(page, pair);
+  }
 }
 
 async function openPopup(page, colorScheme = 'light', freezeMotion = true) {
@@ -89,6 +151,42 @@ async function selectPanel(page, name) {
   await waitForLayoutStable(page, `#panel-${name}`, 60);
 }
 
+async function populateQueue(page) {
+  await page.evaluate(() => {
+    const badge = document.getElementById('queue-tab-badge');
+    const count = document.getElementById('queue-count');
+    const list = document.getElementById('queue-list');
+    const empty = document.getElementById('queue-empty-message');
+    if (badge) {
+      badge.hidden = false;
+      badge.textContent = '1';
+    }
+    if (count) count.textContent = '1 item';
+    if (empty) empty.hidden = true;
+    if (list) {
+      list.innerHTML = `<div class="proso-popup__queue-item">
+        <span class="proso-popup__queue-item-status" aria-hidden="true">1</span>
+        <span class="proso-popup__queue-item-info">
+          <span class="proso-popup__queue-item-title">A deliberately long article title that must never push queue actions outside the popup</span>
+          <span class="proso-popup__queue-item-domain">example.com</span>
+        </span>
+        <button class="proso-popup__queue-item-remove" aria-label="Remove from queue">×</button>
+      </div>`;
+    }
+  });
+  await waitForLayoutStable(page, '#panel-queue', 60);
+}
+
+async function showRouteError(page) {
+  await page.evaluate(() => {
+    const status = document.getElementById('first-run-host-status');
+    if (status) {
+      status.textContent = 'The host could not be reached.';
+      status.classList.add('proso-popup__route-status--error');
+    }
+  });
+}
+
 async function expectNoHorizontalOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -121,6 +219,17 @@ test.describe('Feature 228 popup visual contract', () => {
     ];
     for (const pattern of forbiddenCss)
       expect(css, `forbidden popup CSS: ${pattern}`).not.toMatch(pattern);
+
+    const intrinsicRules = css.match(/html,\s*body\s*\{([^}]*)\}/i)?.[1];
+    expect(intrinsicRules, 'html/body intrinsic sizing block').toBeTruthy();
+    expect(intrinsicRules, 'popup width must retain its 360px intrinsic fallback').toMatch(
+      /width\s*:\s*var\(--popup-width,\s*360px\)/i,
+    );
+    expect(
+      intrinsicRules,
+      'intrinsic width must not depend on the provisional viewport',
+    ).not.toMatch(/(?:width|max-width)\s*:[^;]*(?:\bvw\b|%|\bmin\s*\()/i);
+
     expect(js, 'built popup JS must not inject a scale/filter effect').not.toMatch(
       /style\.(?:transform|filter)\s*=\s*["'`][^"'`]*(?:scale|blur|drop-shadow|brightness)/i,
     );
@@ -161,6 +270,12 @@ test.describe('Feature 228 popup visual contract', () => {
     ]) {
       await expect(page.locator(selector), `${selector} must stay visible`).toBeVisible();
     }
+    await expect(page.locator('.proso-popup__status')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await expectPlayerContrast(page);
+
     for (const selector of [
       '#prev-btn',
       '#play-pause-btn',
@@ -173,6 +288,9 @@ test.describe('Feature 228 popup visual contract', () => {
       expect(box.width, `${selector} width`).toBeGreaterThanOrEqual(44);
       expect(box.height, `${selector} height`).toBeGreaterThanOrEqual(44);
     }
+    const primaryBox = await page.locator('#play-pause-btn').boundingBox();
+    expect(primaryBox?.width).toBe(56);
+    expect(primaryBox?.height).toBe(56);
 
     const tabsStyle = await page.locator('.proso-popup__tabs').evaluate((node) => {
       const style = getComputedStyle(node);
@@ -212,6 +330,11 @@ test.describe('Feature 228 popup visual contract', () => {
     const dark = await roles(page);
     expect(dark.background).not.toBe(light.background);
     expect(dark.color).not.toBe(light.color);
+    await expect(page.locator('.proso-popup__status')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await expectPlayerContrast(page);
     await expect(page.locator('#popup')).toHaveScreenshot('popup-player-dark.png');
     await page.locator('#play-pause-btn').focus();
     await expect(page.locator('#popup')).toHaveScreenshot('popup-focus-dark.png');
@@ -231,6 +354,17 @@ test.describe('Feature 228 popup visual contract', () => {
     }
     await expect(page.locator('#first-run-subtitle')).toContainText('no account');
     await expect(page.locator('.proso-popup__route-note')).toContainText('exact address');
+    for (const selector of ['#first-run-host-url', '#first-run-byok-provider']) {
+      await expectComputedContrast(page, {
+        label: `${selector} boundary`,
+        foregroundSelector: selector,
+        foregroundProperty: 'border-top-color',
+        backgroundSelector: '.proso-popup__route',
+        minimum: 3,
+      });
+    }
+    await expect(page).toHaveScreenshot('popup-first-run-viewport-light.png');
+
     for (const selector of [
       '#progress-container',
       '.proso-popup__controls',
@@ -255,6 +389,33 @@ test.describe('Feature 228 popup visual contract', () => {
       document.body.style.overflow = 'visible';
     });
     await expect(page.locator('#popup')).toHaveScreenshot('popup-first-run-light.png');
+
+    await showRouteError(page);
+    await expectComputedContrast(page, {
+      label: 'light first-run route error',
+      foregroundSelector: '#first-run-host-status',
+      backgroundSelector: '.proso-popup__route',
+      minimum: 4.5,
+    });
+
+    await openPopup(page, 'dark');
+    await showFirstRun(page);
+    await showRouteError(page);
+    await expectComputedContrast(page, {
+      label: 'dark first-run route error',
+      foregroundSelector: '#first-run-host-status',
+      backgroundSelector: '.proso-popup__route',
+      minimum: 4.5,
+    });
+    for (const selector of ['#first-run-host-url', '#first-run-byok-provider']) {
+      await expectComputedContrast(page, {
+        label: `dark ${selector} boundary`,
+        foregroundSelector: selector,
+        foregroundProperty: 'border-top-color',
+        backgroundSelector: '.proso-popup__route',
+        minimum: 3,
+      });
+    }
   });
 
   test('Tools and long-title Queue remain direct and dead tools stay absent', async ({ page }) => {
@@ -265,25 +426,29 @@ test.describe('Feature 228 popup visual contract', () => {
     await expect(page.locator('#ocr-section')).toBeHidden();
 
     await selectPanel(page, 'queue');
-    await page.evaluate(() => {
-      const list = document.getElementById('queue-list');
-      const empty = document.getElementById('queue-empty-message');
-      if (empty) empty.hidden = true;
-      if (list) {
-        list.innerHTML = `<div class="proso-popup__queue-item">
-          <span class="proso-popup__queue-item-status" aria-hidden="true">1</span>
-          <span class="proso-popup__queue-item-info">
-            <span class="proso-popup__queue-item-title">A deliberately long article title that must never push queue actions outside the popup</span>
-            <span class="proso-popup__queue-item-domain">example.com</span>
-          </span>
-          <button class="proso-popup__queue-item-remove" aria-label="Remove from queue">×</button>
-        </div>`;
-      }
-    });
+    await populateQueue(page);
+    await expect(page.locator('#queue-tab-badge')).toHaveText('1');
+    await expect(page.locator('#queue-count')).toHaveText('1 item');
     await expect(page.getByRole('button', { name: 'Add to reading queue' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Remove from queue' })).toBeVisible();
+    await expectComputedContrast(page, {
+      label: 'light queue count badge',
+      foregroundSelector: '#queue-tab-badge',
+      backgroundSelector: '#queue-tab-badge',
+      minimum: 4.5,
+    });
     await expectNoHorizontalOverflow(page);
     await expect(page.locator('#popup')).toHaveScreenshot('popup-queue-long-title-light.png');
+
+    await openPopup(page, 'dark');
+    await selectPanel(page, 'queue');
+    await populateQueue(page);
+    await expectComputedContrast(page, {
+      label: 'dark queue count badge',
+      foregroundSelector: '#queue-tab-badge',
+      backgroundSelector: '#queue-tab-badge',
+      minimum: 4.5,
+    });
   });
 
   test('permission and exhausted-credit state stay factual and non-color-only', async ({
@@ -318,13 +483,45 @@ test.describe('Feature 228 popup visual contract', () => {
     const brandColors = await roles(page);
     expect(rgbToHex(semanticColor)).not.toBe(brandColors.brandOnInk);
     expect(rgbToHex(semanticColor)).not.toBe(brandColors.actionOnPaper);
+    await expectComputedContrast(page, {
+      label: 'exhausted-credit message',
+      foregroundSelector: '#credits-warning',
+      backgroundSelector: 'body',
+      minimum: 4.5,
+    });
     await expect(page.locator('#popup')).toHaveScreenshot('popup-permission-exhausted-light.png');
+
+    const populated = await page.evaluate(() => {
+      const remaining = document.getElementById('credits-remaining');
+      const warning = document.getElementById('credits-warning');
+      const fill = document.getElementById('credits-bar-fill');
+      if (remaining) remaining.textContent = '320,000';
+      if (warning) warning.hidden = true;
+      if (fill) {
+        fill.className = 'proso-popup__credits-bar-fill proso-popup__credits-bar-fill--normal';
+        fill.style.width = '64%';
+      }
+      const root = getComputedStyle(document.documentElement);
+      return {
+        fill: fill ? getComputedStyle(fill).backgroundColor : '',
+        infoRole: root.getPropertyValue('--popup-info').trim().toUpperCase(),
+      };
+    });
+    await expect(page.locator('#credits-remaining')).toHaveText('320,000');
+    expect(rgbToHex(populated.fill)).toBe(populated.infoRole);
   });
 
   test('200% browser zoom preserves the intrinsic popup without horizontal overflow', async ({
     page,
   }) => {
     await openPopup(page, 'light');
+    await page.setViewportSize({ width: 200, height: 550 });
+    const intrinsicWidth = await page.evaluate(() => ({
+      html: document.documentElement.getBoundingClientRect().width,
+      body: document.body.getBoundingClientRect().width,
+    }));
+    expect(intrinsicWidth).toEqual({ html: 360, body: 360 });
+
     // Firefox toolbar panels preserve the popup's 360 CSS-pixel intrinsic width
     // and expand the outer panel under full-page zoom. CSS zoom + a doubled
     // viewport reproduces that contract without the false 20px intrinsic loop
