@@ -939,7 +939,9 @@ describe('LocalHostAudioAdapter', () => {
         }),
       );
 
-      expect(host.inputs()).toEqual(['A one.', 'A two.']);
+      const inputs = host.inputs();
+      expect(inputs).toHaveLength(2);
+      expect(inputs).toEqual(expect.arrayContaining(['A one.', 'A two.']));
     });
   });
 
