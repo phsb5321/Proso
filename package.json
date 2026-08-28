@@ -18,7 +18,7 @@
     "knip": "knip",
     "knip:production": "knip --production",
     "knip:fix": "knip --fix --allow-remove-files",
-    "postinstall": "lefthook install || true"
+    "postinstall": "if git rev-parse --git-dir >/dev/null 2>&1; then hooks_path=$(git config --get core.hooksPath 2>/dev/null); status=$?; if [ \"$status\" -eq 0 ]; then [ -n \"$hooks_path\" ] || lefthook install; elif [ \"$status\" -eq 1 ]; then lefthook install; else exit \"$status\"; fi; fi"
   },
   "devDependencies": {
     "dependency-cruiser": "17.4.3",
