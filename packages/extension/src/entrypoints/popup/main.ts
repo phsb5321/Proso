@@ -88,14 +88,6 @@ const elements = {
   speedSlider: document.getElementById('speed-slider') as HTMLInputElement,
   speedValue: document.getElementById('speed-value') as HTMLSpanElement,
 
-  // Summarize
-  summarizeBtn: document.getElementById('summarize-btn') as HTMLButtonElement,
-  summarizeBtnText: document.getElementById('summarize-btn-text') as HTMLSpanElement,
-  summaryDisplay: document.getElementById('summary-display') as HTMLDivElement,
-  summaryBullets: document.getElementById('summary-bullets') as HTMLUListElement,
-  readSummaryBtn: document.getElementById('read-summary-btn') as HTMLButtonElement,
-  closeSummaryBtn: document.getElementById('close-summary-btn') as HTMLButtonElement,
-
   // Export
   exportBtn: document.getElementById('export-btn') as HTMLButtonElement,
   exportBtnText: document.getElementById('export-btn-text') as HTMLSpanElement,
@@ -132,8 +124,7 @@ const elements = {
   creditsBarFill: document.getElementById('credits-bar-fill') as HTMLDivElement,
   creditsWarning: document.getElementById('credits-warning') as HTMLSpanElement,
 
-  // Collapsible sections (hidden by default in CSS)
-  summarizeSection: document.getElementById('summarize-section') as HTMLElement,
+  // Provider-dependent sections (hidden by default in CSS)
   exportSection: document.getElementById('export-section') as HTMLElement,
 
   // Highlight section (T093-T095)
@@ -284,17 +275,11 @@ function updateTimingBasis(basis: PlaybackState['timingBasis']): void {
  * In the tabbed layout, tool sections are visible by default.
  * This function hides sections that require API keys when those keys aren't configured.
  *
- * - Summarize section: hidden (no AI provider currently available; OpenAI/Anthropic removed in 056)
  * - Export section: shown if ElevenLabs API key is configured
  */
 async function updateSectionVisibility(): Promise<void> {
   try {
     const result = await browser.storage.local.get(['elevenlabsApiKey', 'provider']);
-
-    // Summarize section: hidden until an AI provider is (re-)added
-    if (elements.summarizeSection) {
-      elements.summarizeSection.hidden = true;
-    }
 
     // Show Export section only if ElevenLabs audio provider has API key configured
     const hasAudioApiKey = !!result.elevenlabsApiKey;
@@ -304,7 +289,6 @@ async function updateSectionVisibility(): Promise<void> {
 
     log.debug('[Popup] Section visibility updated', {
       hasAudioApiKey,
-      summarize: false,
       export: hasAudioApiKey,
     });
   } catch (error) {

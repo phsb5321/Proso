@@ -15,6 +15,40 @@
   color-scheme: dark light;
 
   /* ----------------------------------------
+     Canonical identity + popup roles (Feature 228)
+     Spring green is valid only on ink; deep green is the light-surface action.
+     Brand roles never carry success/warning/error meaning.
+     ---------------------------------------- */
+  --brand-ink: #010616;
+  --brand-paper: #f8f8f9;
+  --brand-green: #21f299;
+  --brand-green-deep: #006b4f;
+
+  --popup-ink: var(--brand-ink);
+  --popup-paper: var(--brand-paper);
+  --popup-brand-on-ink: var(--brand-green);
+  --popup-action-on-paper: var(--brand-green-deep);
+  --popup-background: var(--popup-ink);
+  --popup-surface: #080f20;
+  --popup-surface-raised: #10192c;
+  --popup-text: var(--popup-paper);
+  --popup-text-secondary: #c1c7c4;
+  --popup-text-muted: #929b98;
+  --popup-line: rgba(248, 248, 249, 0.18);
+  --popup-line-strong: #686b72;
+  --popup-action: var(--popup-brand-on-ink);
+  --popup-action-hover: #54f7b1;
+  --popup-action-contrast: var(--popup-ink);
+  --popup-focus: var(--popup-brand-on-ink);
+  --popup-active-bg: rgba(33, 242, 153, 0.1);
+  --popup-success: #5ee5a2;
+  --popup-warning: #ffc857;
+  --popup-error: #ff7b86;
+  --popup-info: #82b9ff;
+  --popup-radius-sm: 4px;
+  --popup-radius-md: 6px;
+
+  /* ----------------------------------------
      Background Colors
      Layer hierarchy: tertiary (deepest) → primary (surface)
      ---------------------------------------- */
@@ -102,6 +136,24 @@
    ======================================== */
 @media (prefers-color-scheme: light) {
   :root {
+    --popup-background: var(--popup-paper);
+    --popup-surface: #ffffff;
+    --popup-surface-raised: #eef0eb;
+    --popup-text: var(--popup-ink);
+    --popup-text-secondary: #37404a;
+    --popup-text-muted: #626c73;
+    --popup-line: #d7dbd4;
+    --popup-line-strong: #7f887f;
+    --popup-action: var(--popup-action-on-paper);
+    --popup-action-hover: #00543b;
+    --popup-action-contrast: #ffffff;
+    --popup-focus: var(--popup-action-on-paper);
+    --popup-active-bg: rgba(0, 107, 79, 0.08);
+    --popup-success: #12633f;
+    --popup-warning: #8a5300;
+    --popup-error: #a52430;
+    --popup-info: #1f5f9f;
+
     /* Background colors */
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f8fafc;
