@@ -27,7 +27,7 @@
 #
 # Exit codes mirror `terraform plan -detailed-exitcode`:
 #   0  no drift
-#   1  a stack failed to plan (credentials, syntax, provider) — a real failure
+#   1  a stack failed to plan, or no stack was planned — a real failure
 #   2  drift detected  <- the interesting one; CI reports it, nobody is paged
 #
 # PER-STACK CONFIG follows the convention the stacks already document in their
@@ -138,7 +138,7 @@ for stack in "${REQUESTED[@]}"; do
     -detailed-exitcode -input=false -lock=false -no-color "${plan_args[@]}"
   rc=$?
   set -e
-  ((PLANNED++))
+  PLANNED=$((PLANNED + 1))
 
   case "$rc" in
     0) ok "$stack — no drift" ;;
@@ -167,6 +167,12 @@ if ((${#DRIFTED[@]})); then
   log "needs Pedro's explicit go (ADR-001 §4.1), and a budget alarm must already"
   log "exist there (§4.2)."
   exit 2
+fi
+
+if ((PLANNED == 0)); then
+  log ""
+  log "planned 0 stacks — everything in scope was skipped; refusing to report no drift"
+  exit 1
 fi
 
 log ""

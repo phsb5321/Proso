@@ -22,6 +22,7 @@ the same claim rather than two similar ones.
 |---|---|---|
 | `baseline` | `scripts/check-baseline.sh` | an undocumented or expired suppression |
 | `stack-policy` | `scripts/check-stack-policy.sh` | an unclassified stack; a never-apply stack being applied or drift-planned |
+| `drift-self-test` | `scripts/drift-check.self-test.sh` | control-flow errors that abort a clean multi-stack drift run |
 | `fmt` | `terraform fmt -check -recursive` | formatting drift |
 | `validate` | `terraform validate` | broken references, bad types |
 | `tflint` | tflint + AWS ruleset | correctness: deprecated syntax, invalid ARNs, dead declarations |
@@ -69,7 +70,7 @@ being checked — and they look identical from outside. An empty repository, a
 mis-scoped `skip-path`, a renamed flag that silently disables a scanner, a
 `--soft-fail` someone added to unblock a release: each produces a green tick.
 
-Eight assertions distinguish the two, and CI runs them on every push so the proof
+Nine assertions distinguish the two, and CI runs them on every push so the proof
 is current rather than a screenshot from the day it was built:
 
 | | Assertion |
@@ -82,6 +83,7 @@ is current rather than a screenshot from the day it was built:
 | F | the secret scanner flags a planted credential |
 | G | the stack policy requires Terraform CI at the git-root Forgejo path, rejects an unclassified stack, a never-apply stack in drift, and a workflow that applies one |
 | H | Checkov fails when any Terraform file cannot be parsed, even though Checkov itself exits 0 |
+| I | the drift self-test rejects the original `set -e` counter regression |
 
 A and B scan a **copy** of the fixture from outside the repo. Both scanners
 auto-discover config from the working directory, and both configs skip that
@@ -93,9 +95,9 @@ non-zero exit. A scanner that crashed on a missing policy bundle, a
 `terraform init` that could not reach the registry, and a typo in the script all
 exit non-zero and would otherwise be recorded as "correctly RED".
 
-The script mutates the checkout (it regresses `main.tf`, edits the baseline, and
-writes a plant directory). Snapshots are taken up front and restored by a trap
-on `EXIT`, `INT` and `TERM`; it refuses to start if the plant path already
+The script mutates the checkout (it regresses `main.tf` and `drift-check.sh`,
+edits the baseline, and writes a plant directory). Snapshots are taken up front
+and restored by a trap on `EXIT`, `INT` and `TERM`; it refuses to start if the plant path already
 exists rather than deleting a directory it did not create; and both transient
 plants are `.gitignore`d, so even a `SIGKILL` cannot leave a public bucket or a
 credential staged for commit.

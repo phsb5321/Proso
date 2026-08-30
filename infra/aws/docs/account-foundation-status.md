@@ -1,6 +1,6 @@
 # Account foundation status
 
-**Updated:** 26/08/2026 02:10 BRT
+**Updated:** 30/08/2026 11:45 BRT
 **Binding design:** [ADR-001](ADR-001-aws-foundation.md)
 
 This is the operational handoff for stacks 05/10, Identity Center, and the
@@ -44,8 +44,10 @@ from the routine backend/provider path.
 
 - `make infra-check`: green (fmt, validate, tflint, Trivy, secret scan,
   Checkov, and Terraform tests).
-- Eight falsification groups: green, including public-bucket, credential,
-  forbidden-stack, missing-root-workflow, and malformed-Terraform plants.
+- Nine falsification groups: green locally on 30/08/2026; assertion I is new
+  and awaits Forgejo replay. They include public-bucket, credential,
+  forbidden-stack, missing-root-workflow, malformed-Terraform, and
+  drift-counter plants.
 - Checkov's observed false-green (`Parsing errors: 1`, process exit 0) is now a
   gate failure.
 - Independent different-family review: `ALLOW` after all findings were repaired.
@@ -165,8 +167,8 @@ Forgejo discovers. The first real runs then exposed three host-only failures:
 
 Forgejo run **18** on merged commit `8971ae3` completed **successfully** from
 01:55 to 02:09 BRT on 26/08/2026: policy gate, Checkov, all Terraform tests, and
-all falsifiers. It runs without AWS credentials. Because Forgejo receives
-mirrored `main`, this is independent post-merge evidence rather than a GitHub-PR
+all eight then-current falsifiers. It runs without AWS credentials. Because
+Forgejo receives mirrored `main`, this is independent post-merge evidence rather than a GitHub-PR
 required check.
 
 ## Next executable sequence

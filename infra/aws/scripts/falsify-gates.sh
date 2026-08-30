@@ -10,7 +10,7 @@
 # still goes RED on demand, and it runs in CI on every push, so the proof is
 # current rather than a screenshot from the day it was built.
 #
-# Eight assertions:
+# Nine assertions:
 #   A. Trivy   flags the committed FAIL fixture
 #   B. Checkov flags the committed FAIL fixture
 #   C. the brief's definition of done, end to end: planting a public S3 bucket
@@ -21,8 +21,9 @@
 #   G. the stack policy requires root-discovered CI, rejects an unclassified
 #      stack, and refuses to let the never-apply stack be applied or drift-planned
 #   H. Checkov rejects Terraform it cannot parse instead of scanning around it
+#   I. the drift self-test rejects the original clean-plan counter regression
 #
-# Exit 0 only if all eight hold.
+# Exit 0 only if all nine hold.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
@@ -39,6 +40,7 @@ STACK_POLICY="policy/stack-policy.json"
 POLICY_PLANT_DIR="stacks/99-falsification-unclassified"
 SCRATCH="$(mktemp -d)"
 COMPLIANT_TF="$FIXTURE_COMPLIANT_DIR/main.tf"
+DRIFT_CHECK="$REPO_ROOT/scripts/drift-check.sh"
 
 # Refuse to run rather than delete someone else's directory. The cleanup below
 # does `rm -rf "$PLANT_DIR"`, which would be destructive if another tab (or an
@@ -63,6 +65,7 @@ cp "$COMPLIANT_TF" "$SCRATCH/main.tf.orig"
 cp "$CHECKOV_BASELINE" "$SCRATCH/baseline.orig"
 cp "$STACK_POLICY" "$SCRATCH/stack-policy.orig"
 cp "$CI_WORKFLOW" "$SCRATCH/ci.yml.orig"
+cp "$DRIFT_CHECK" "$SCRATCH/drift-check.orig"
 
 cleanup() {
   rm -rf "$PLANT_DIR" "$POLICY_PLANT_DIR"
@@ -71,6 +74,7 @@ cleanup() {
   cp "$SCRATCH/baseline.orig" "$CHECKOV_BASELINE"
   cp "$SCRATCH/stack-policy.orig" "$STACK_POLICY"
   cp "$SCRATCH/ci.yml.orig" "$CI_WORKFLOW"
+  cp "$SCRATCH/drift-check.orig" "$DRIFT_CHECK"
   rm -rf "$SCRATCH"
 }
 # INT/TERM as well as EXIT: bash runs an EXIT trap on a normal or `set -e` exit,
@@ -318,5 +322,19 @@ assert_fails "Checkov parsing failure rejected" 'Terraform parsing error left co
   "$REPO_ROOT/scripts/gate.sh" --stage checkov
 cp "$SCRATCH/main.tf.orig" "$COMPLIANT_TF"
 assert_passes "parseable Terraform restored" "$REPO_ROOT/scripts/gate.sh" --stage checkov
+
+# ── I: the drift self-test catches the original counter bug ─────────────────
+# Under `set -e`, post-increment returns failure when its old value is zero.
+# Replant the exact regression so this new gate stage proves it can go red.
+step "I. regress the drift counter -> the self-test stage must go RED"
+sed -i 's/^  PLANNED=\$((PLANNED + 1))$/  ((PLANNED++))/' "$DRIFT_CHECK"
+if ! grep -qxF '  ((PLANNED++))' "$DRIFT_CHECK"; then
+  bad "I setup — could not apply the drift-counter regression"
+else
+  assert_fails "regressed drift counter rejected" 'two clean plans exited 1' \
+    "$REPO_ROOT/scripts/gate.sh" --stage drift-self-test
+fi
+cp "$SCRATCH/drift-check.orig" "$DRIFT_CHECK"
+assert_passes "restored drift counter" "$REPO_ROOT/scripts/gate.sh" --stage drift-self-test
 
 summarise
