@@ -1,4 +1,4 @@
-# `stacks/20-site` — status, 25/08/2026
+# `stacks/20-site` — status, 30/08/2026
 
 **Live** on `https://d23aubpqrsmco3.cloudfront.net` in **Sandbox-Account
 699475944323**, per the operator decision recorded in ADR-001 (`da2c65a`): the
@@ -7,6 +7,34 @@ workload account is Sandbox-Account and no new account is created.
 DNS is untouched. `proso.com.br` still points at GitHub Pages; the cutover is
 Pedro's, and nothing in this stack performs it.
 
+## Update — 30/08/2026 11:53 BRT
+
+A read-only drift replay after PR #231 requested the two stacks this handoff
+owns:
+
+- `00-bootstrap`: no changes.
+- `20-site`: `1 to add, 0 to change, 0 to destroy` — a replacement ACM
+  certificate only.
+
+Policy-listed `10-account-baseline` was not part of this scoped command; this is
+not a claim that every drift-enabled stack was replayed.
+
+ACM still returns the original certificate ARN, now with status
+`VALIDATION_TIMED_OUT` (`FAILED` in the list summary). CloudTrail contains no
+`DeleteCertificate` event. The AWS provider treats that terminal certificate
+as absent, which is why Terraform describes it as deleted and proposes a new
+request.
+
+The live distribution is unaffected: the root and `updates.json` return 200,
+the `.xpi` returns `application/x-xpinstall`, and CloudFront still has no aliases.
+`proso.com.br` still serves GitHub Pages. No apply, destroy, state mutation, or
+DNS change was made.
+
+**[pending] Pedro:** coordinate a fresh certificate request with the Cloudflare
+validation record. Applying the replacement before that window would only
+repeat the timeout; both the apply and every DNS change remain explicitly
+gated.
+
 ## What is live
 
 | | |
@@ -14,7 +42,7 @@ Pedro's, and nothing in this stack performs it.
 | Distribution | `E270HHOCYNLND` → `d23aubpqrsmco3.cloudfront.net` |
 | Origin bucket | `proso-site-699475944323` — private, OAC-only, versioned, SSE-S3 |
 | Log bucket | `proso-site-699475944323-logs` — 90-day expiry |
-| Certificate | `arn:aws:acm:us-east-1:699475944323:certificate/626a3f28-…` — `PENDING_VALIDATION`, **not attached** (phase 1) |
+| Certificate | `arn:aws:acm:us-east-1:699475944323:certificate/626a3f28-…` — `VALIDATION_TIMED_OUT`, **not attached** (phase 1) |
 | State | `s3://proso-tfstate-699475944323/20-site/terraform.tfstate`, S3-native locking |
 | Applied as | `proso-deploy` — the least-privilege role, never an admin, never root |
 
@@ -49,7 +77,9 @@ Both silent killers are held where they cannot be forgotten: `.xpi` is served as
 root. Terraform owns those three objects, so a regression fails `plan` rather
 than a user's browser.
 
-### No drift
+### Historical clean plan — 25/08/2026
+
+This transcript is superseded by the 30/08/2026 drift update above.
 
 ```console
 $ terraform plan -detailed-exitcode -var-file=sandbox.tfvars
@@ -154,19 +184,24 @@ Budget `sandbox-monthly-cost` is live at USD 5.00/month; actual spend is USD
 
 ## Phase 2 — the custom domain, when Pedro wants it
 
-Blocked on content, not on infrastructure. `updates.json` still advertises
-`https://phsb5321.github.io/Proso/releases/…` for both add-ons, so publishing it
-under `proso.com.br` would leave every installed extension updating from GitHub
-Pages. The module refuses to plan that once `attach_custom_domain = true` — the
-forcing function is deliberate.
+Blocked on content and a coordinated validation window. `updates.json` still
+advertises `https://phsb5321.github.io/Proso/releases/…` for both add-ons, so
+publishing it under `proso.com.br` would leave every installed extension
+updating from GitHub Pages. The module refuses to plan that once
+`attach_custom_domain = true` — the forcing function is deliberate.
 
 Order, once the Proso repo's `updates.json` is corrected:
 
-1. Create the validation record at Cloudflare, proxy **off**:
-   `_2d2f3e6a75c9b9320d5cb5f2d66d39cb.proso.com.br. CNAME _bab0230780051a82f7f869e8d14a322d.jkddzztszm.acm-validations.aws.`
-2. Wait for `ISSUED` — CloudFront cannot attach a certificate in any other state.
-3. `terraform apply -var-file=sandbox.tfvars -var attach_custom_domain=true`
-4. **Pedro** points `proso.com.br` at `d23aubpqrsmco3.cloudfront.net`.
+1. **Pedro** confirms he is ready to create the Cloudflare validation record
+   and authorizes the reviewed Sandbox apply.
+2. Re-run the plan and apply only the replacement certificate action — no
+   destroy and no unrelated change.
+3. Read the replacement's current `acm_validation_records`; **Pedro** creates
+   that CNAME at Cloudflare with proxying **off**. Do not reuse a stale value
+   copied from this runbook.
+4. Wait for `ISSUED` — CloudFront cannot attach a certificate in any other state.
+5. `terraform apply -var-file=sandbox.tfvars -var attach_custom_domain=true`.
+6. **Pedro** points `proso.com.br` at `d23aubpqrsmco3.cloudfront.net`.
 
 ## Content defects, owned by the Proso repo
 

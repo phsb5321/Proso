@@ -91,7 +91,11 @@ terraform plan -detailed-exitcode -var-file=sandbox.tfvars
 
 ## Phase 2 — the custom domain
 
-Only after step 5 is clean:
+Only after step 5 is clean. If the current certificate is
+`VALIDATION_TIMED_OUT`, its output cannot be used to revive it: follow
+[`../../docs/20-site-status.md`](../../docs/20-site-status.md), apply only the
+reviewed replacement once Pedro is ready to validate it, then read the new
+outputs.
 
 1. `terraform output acm_validation_records` → create them at Cloudflare, proxy
    **off**.
