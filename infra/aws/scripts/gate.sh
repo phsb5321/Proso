@@ -92,6 +92,18 @@ if wanted stack-policy; then
   fi
 fi
 
+# ── 0c. drift-check control flow ───────────────────────────────────────────
+# Credential-free regression: two clean plans must both reach the no-drift
+# summary. This catches `set -e` control-flow errors without contacting AWS.
+if wanted drift-self-test; then
+  step "drift-check self-test — clean plans reach the final summary"
+  if bash "$REPO_ROOT/scripts/drift-check.self-test.sh"; then
+    ok "drift-self-test"
+  else
+    bad "drift-self-test"
+  fi
+fi
+
 # ── 1. fmt ─────────────────────────────────────────────────────────────────
 if wanted fmt; then
   step "terraform fmt -check -recursive"
