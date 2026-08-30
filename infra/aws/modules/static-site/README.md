@@ -59,8 +59,12 @@ lives at Cloudflare.
 | 2 | `true` | `var.domain_names` | attached, must be `ISSUED` |
 
 Between the two, someone creates the records from the `acm_validation_records`
-output at Cloudflare with proxying **off**. The final CNAME cutover
-(`cutover_cname` output) is Pedro's, not this module's.
+output at Cloudflare with proxying **off**. If validation reaches
+`VALIDATION_TIMED_OUT`, the AWS provider treats the terminal certificate as
+absent and the next plan proposes a replacement. Do not apply that replacement
+until Pedro is ready to create its current validation record; otherwise the
+same timeout repeats. The final CNAME cutover (`cutover_cname` output) is
+Pedro's, not this module's.
 
 ## Usage
 
