@@ -35,6 +35,7 @@ pkgs.mkShell {
     # ignore rather than reject — two concurrent applies would both proceed.
     terraform
     tflint
+    tflint-plugins.tflint-ruleset-aws
     trivy
     uv # installs the pinned checkov; see infra/aws/policy/versions.env
     awscli2
@@ -103,6 +104,11 @@ pkgs.mkShell {
     which
     git
   ];
+
+  # This ambient package version must match infra/aws/.tflint.hcl. Nixpkgs drift
+  # fails closed in TFLint until the two versions are realigned.
+  TFLINT_AWS_PLUGIN = "${pkgs.tflint-plugins.tflint-ruleset-aws}/tflint-ruleset-aws";
+  TFLINT_AWS_PLUGIN_VERSION = pkgs.tflint-plugins.tflint-ruleset-aws.version;
 
   shellHook = ''
     echo "Proso Development Environment"
