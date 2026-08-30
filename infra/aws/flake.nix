@@ -44,7 +44,7 @@
           git
         ];
 
-        TFLINT_AWS_PLUGIN = "${pkgs.tflint-plugins.tflint-ruleset-aws}/bin/tflint-ruleset-aws";
+        TFLINT_AWS_PLUGIN = "${pkgs.tflint-plugins.tflint-ruleset-aws}/tflint-ruleset-aws";
         TFLINT_AWS_PLUGIN_VERSION = pkgs.tflint-plugins.tflint-ruleset-aws.version;
       };
     });
