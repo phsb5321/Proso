@@ -110,7 +110,8 @@ JSON
 # validator that expected the same inherited value, and then bundled only
 # HEAD^..HEAD — a passing review of a fraction of the change.
 readonly REVIEW_BASE_REF='origin/main'
-readonly GATE_RECEIPT="$(DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/validate-gate-receipt.sh)"
+GATE_RECEIPT="$(DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/validate-gate-receipt.sh)"
+readonly GATE_RECEIPT
 DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/change-bundle.sh "$CHANGES_PATH"
 readonly HEAD_SHA="$(git rev-parse HEAD)"
 readonly CHANGES_SHA="$(sha256sum "$CHANGES_PATH" | cut -d ' ' -f 1)"

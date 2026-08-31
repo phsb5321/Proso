@@ -19,7 +19,7 @@ FC_NUM_RUNS ?= 100
 	brand-site-plants \
 	fuzz user-gate-diagnostic chrome-mv3-diagnostics user-gate test-fast test build build-chrome build-all coverage architecture \
 	stale duplication semantic docs dependencies quality inventory security verify release-channels infra-check infra-drift brand-assets icons preflight-test dokku-check dokku-deploy server-status-popover-gate server-status-popover-plants \
-	verify-full adversarial gate ci status
+	verify-full adversarial-self-test adversarial gate ci status
 
 help: ## Show the delivery commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Proso delivery harness\n\n"} \
@@ -241,7 +241,10 @@ icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
 verify-full: verify coverage build-all quality dependencies subscription-deploy-rehearsal ## Deep deterministic gate before review.
 	@./scripts/write-gate-receipt.sh
 
-adversarial: ## Run a different-family, typed, fail-closed review (requires GENERATOR_FAMILY).
+adversarial-self-test: ## Prove invalid gate receipts stop before reviewer launch.
+	@./scripts/adversarial-review.self-test.sh
+
+adversarial: adversarial-self-test ## Run a different-family, typed, fail-closed review (requires GENERATOR_FAMILY).
 	@test -n "$(GENERATOR_FAMILY)" || { \
 		echo "GENERATOR_FAMILY is required: openai, anthropic, or zhipu" >&2; exit 2; }
 	@DETERMINISTIC_GATE='make verify-full: PASS' \

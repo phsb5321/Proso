@@ -35,6 +35,7 @@ and an agent review cannot override a red deterministic check.
 | `make dependencies` | OSV lockfile scan; new, stale, malformed, or expired evidence fails |
 | `make verify-full` | Fast floor plus coverage, Firefox/Chrome/Edge builds, quality, and dependency ratchets |
 | `make inventory` | Compatibility alias for the fail-closed Knip ratchet |
+| `make adversarial-self-test` | Isolated missing receipt must stop before a fake reviewer executable |
 | `GENERATOR_FAMILY=openai make gate` | Full deterministic gate, then exact-ID Anthropic typed review |
 | `GENERATOR_FAMILY=openai ADVERSARIAL_REVIEWER=meta-llama make gate` | Capacity fallback: exact Meta Llama 3.3 70B review through the configured Groq lane |
 | `GENERATOR_FAMILY=anthropic make gate` | Full deterministic gate, then exact-ID OpenAI typed review |
