@@ -6,7 +6,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
 
-export FIREFOX_BIN="${FIREFOX_BIN:-$(command -v firefox-nightly || command -v firefox)}"
+FIREFOX_BIN="${FIREFOX_BIN:-$(command -v firefox-nightly || command -v firefox)}"
+export FIREFOX_BIN
 export NODE_OPTIONS="${NODE_OPTIONS:---experimental-vm-modules}"
 
 make doctor
