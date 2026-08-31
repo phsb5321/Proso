@@ -73,10 +73,24 @@ if (listed.manifest.version !== unlisted.manifest.version) {
   );
 }
 
-// AMO requires the data-collection taxonomy on new submissions; without it the
-// listing is refused regardless of update_url.
-if (!listed.settings.data_collection_permissions) {
+// AMO defines collection as any data handled outside the add-on or local
+// browser. Reading necessarily transmits the requested page text, so claiming
+// `none` is false even though telemetry is absent. The listed build must name
+// websiteContent as required and must not retain optional telemetry categories.
+const collection = listed.settings.data_collection_permissions;
+if (!collection) {
   failures.push('listed build has no data_collection_permissions — AMO requires it');
+} else {
+  if (JSON.stringify(collection.required) !== JSON.stringify(['websiteContent'])) {
+    failures.push(
+      `listed build declares required data ${JSON.stringify(collection.required)} — expected websiteContent`,
+    );
+  }
+  if (Array.isArray(collection.optional) && collection.optional.length > 0) {
+    failures.push(
+      `listed build still declares optional data ${JSON.stringify(collection.optional)} — public telemetry is disabled`,
+    );
+  }
 }
 
 if (failures.length > 0) {
