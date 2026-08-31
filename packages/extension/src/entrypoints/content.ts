@@ -14,6 +14,9 @@
  */
 
 import { browser } from 'wxt/browser';
+// WXT injects this auto-import at build time (.wxt/types/imports.d.ts); the
+// explicit import is the same binding and makes the entrypoint jest-importable.
+import { defineContentScript } from 'wxt/utils/define-content-script';
 import type { TextQuoteSelector } from '../core/highlight';
 import { toAnchoringReport } from '../core/highlight/anchoring-report';
 import { reconcileStaleContentArtifacts } from '../utils/content/content-artifact-cleanup';
