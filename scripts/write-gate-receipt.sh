@@ -10,9 +10,11 @@ for command_name in cut date git jq mktemp mv rm sha256sum; do
   }
 done
 
-readonly RECEIPT_PATH="${GATE_RECEIPT_PATH:-$(git rev-parse --git-path proso-gate-receipt.json)}"
+RECEIPT_PATH="${GATE_RECEIPT_PATH:-$(git rev-parse --git-path proso-gate-receipt.json)}"
+readonly RECEIPT_PATH
 readonly BASE_REF="${DIFF_BASE_REF:-origin/main}"
-readonly BUNDLE_PATH="$(mktemp -t proso-gate-bundle.XXXXXXXX.patch)"
+BUNDLE_PATH="$(mktemp -t proso-gate-bundle.XXXXXXXX.patch)"
+readonly BUNDLE_PATH
 RECEIPT_TEMP="$(mktemp "${RECEIPT_PATH}.XXXXXXXX")"
 readonly RECEIPT_TEMP
 cleanup() {
@@ -21,10 +23,14 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 ./scripts/change-bundle.sh "$BUNDLE_PATH"
-readonly HEAD_SHA="$(git rev-parse HEAD)"
-readonly BASE_SHA="$(git rev-parse "${BASE_REF}^{commit}")"
-readonly DIFF_SHA="$(sha256sum "$BUNDLE_PATH" | cut -d ' ' -f 1)"
-readonly VERIFIED_AT="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
+HEAD_SHA="$(git rev-parse HEAD)"
+readonly HEAD_SHA
+BASE_SHA="$(git rev-parse "${BASE_REF}^{commit}")"
+readonly BASE_SHA
+DIFF_SHA="$(sha256sum "$BUNDLE_PATH" | cut -d ' ' -f 1)"
+readonly DIFF_SHA
+VERIFIED_AT="$(date --utc '+%Y-%m-%dT%H:%M:%SZ')"
+readonly VERIFIED_AT
 
 jq -n \
   --arg head "$HEAD_SHA" \

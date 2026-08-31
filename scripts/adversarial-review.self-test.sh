@@ -3,7 +3,20 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-readonly ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel)"
+readonly ROOT
+readonly TRUST_CHAIN_SCRIPTS=(
+  "$ROOT/scripts/adversarial-review.sh"
+  "$ROOT/scripts/adversarial-review.self-test.sh"
+  "$ROOT/scripts/validate-gate-receipt.sh"
+  "$ROOT/scripts/write-gate-receipt.sh"
+)
+if grep -nE '^[[:space:]]*readonly[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=.*\$\(' \
+  "${TRUST_CHAIN_SCRIPTS[@]}"; then
+  printf 'Self-test failed: receipt trust chain masks a command status with readonly\n' >&2
+  exit 1
+fi
+
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/proso-adversarial-self-test.XXXXXXXX")"
 readonly TEMP_ROOT
 readonly REPO="$TEMP_ROOT/repo"

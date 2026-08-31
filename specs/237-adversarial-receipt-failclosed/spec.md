@@ -2,25 +2,26 @@
 
 ## Problem
 
-`adversarial-review.sh` captures the receipt validator with
-`readonly VALUE="$(command)"`. Bash returns `readonly`'s success status rather
-than the command substitution's failure, so `set -e` does not stop. With a
-non-empty candidate, a missing or invalid gate receipt can still reach the model
-command.
+The receipt write/validate/review trust chain captures command substitutions
+with `readonly VALUE="$(command)"`. Bash returns `readonly`'s success status
+rather than the command substitution's failure, so `set -e` does not stop. With
+a non-empty candidate, a missing or invalid gate receipt can still reach the
+model command; failed hash/ref reads can also be trusted as empty values.
 
 ## Goal
 
-Any receipt-validation failure aborts before bundle construction or reviewer
-launch, and a permanent isolated self-test proves the model boundary stays
-unreached.
+Every trusted command substitution preserves its failure status, receipt
+validation aborts before bundle construction or reviewer launch, and a permanent
+isolated self-test proves both the model boundary and the unsafe-pattern ban.
 
 ## Requirements
 
-- REQ-1: Preserve the validator's non-zero status by separating assignment from
-  the `readonly` declaration.
+- REQ-1: In receipt write, validate, and review scripts, separate every trusted
+  command-substitution assignment from its `readonly` declaration.
 - REQ-2: A missing receipt exits non-zero before any reviewer executable runs.
-- REQ-3: The self-test uses an isolated temporary Git repository, a non-empty
-  candidate diff, and a fake reviewer marker; it never calls a provider.
+- REQ-3: The self-test rejects the unsafe declaration pattern across the trust
+  chain, then uses an isolated temporary Git repository, a non-empty candidate
+  diff, and a fake reviewer marker; it never calls a provider.
 - REQ-4: The self-test rejects both a touched marker and failure for any reason
   other than the expected missing-receipt message.
 - REQ-5: `make adversarial` runs this self-test before the real typed review.

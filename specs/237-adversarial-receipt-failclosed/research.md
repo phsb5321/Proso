@@ -27,3 +27,9 @@ Reverting only the split assignment makes that same command exit 2 with
 `Self-test failed: missing receipt reached the reviewer executable`. Restoring
 the split returns it to exit 0. The fake executable only touches a marker; no
 provider command is used.
+
+A later exact-head review found the identical declaration around trusted Git,
+JQ, hash, date, and temporary-path reads in the receipt writer and validator.
+The fix now covers that whole trust chain. The self-test also scans those scripts
+for the masking pattern; a one-line reintroduction exits 2 and names the exact
+file/line before the isolated model-boundary test runs.

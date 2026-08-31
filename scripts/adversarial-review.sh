@@ -113,8 +113,10 @@ readonly REVIEW_BASE_REF='origin/main'
 GATE_RECEIPT="$(DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/validate-gate-receipt.sh)"
 readonly GATE_RECEIPT
 DIFF_BASE_REF="$REVIEW_BASE_REF" ./scripts/change-bundle.sh "$CHANGES_PATH"
-readonly HEAD_SHA="$(git rev-parse HEAD)"
-readonly CHANGES_SHA="$(sha256sum "$CHANGES_PATH" | cut -d ' ' -f 1)"
+HEAD_SHA="$(git rev-parse HEAD)"
+readonly HEAD_SHA
+CHANGES_SHA="$(sha256sum "$CHANGES_PATH" | cut -d ' ' -f 1)"
+readonly CHANGES_SHA
 
 readonly RELEVANT_FILES=(Makefile docs/agent-delivery-harness.md)
 for file in "${RELEVANT_FILES[@]}"; do

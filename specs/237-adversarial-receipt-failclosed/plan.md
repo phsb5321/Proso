@@ -2,10 +2,11 @@
 
 ## Approach
 
-1. Split `GATE_RECEIPT="$(validate...)"` from `readonly GATE_RECEIPT`, matching
-   the repository's existing safe assignment pattern.
-2. Add a shell self-test that builds a minimal temporary Git repository with an
-   `origin/main` baseline and one candidate change.
+1. Split command-substitution assignments from `readonly` throughout receipt
+   write, validate, and review scripts, matching the repository's safe pattern.
+2. Add a static trust-chain check for the masking declaration, then build a
+   minimal temporary Git repository with an `origin/main` baseline and one
+   candidate change.
 3. Put a fake `claude` executable first on that isolated run's `PATH`; it only
    touches a marker.
 4. Point the review script at a missing receipt and require non-zero exit, the
