@@ -5,17 +5,53 @@ IFS=$'\n\t'
 
 ROOT="$(git rev-parse --show-toplevel)"
 readonly ROOT
-[[ -d "$ROOT/scripts" ]] || {
-  printf 'Self-test failed: scripts directory is missing\n' >&2
-  exit 1
+TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/proso-adversarial-self-test.XXXXXXXX")"
+readonly TEMP_ROOT
+readonly REPO="$TEMP_ROOT/repo"
+readonly FAKE_BIN="$TEMP_ROOT/bin"
+readonly MODEL_MARKER="$TEMP_ROOT/model-called"
+readonly OUTPUT="$TEMP_ROOT/output.log"
+readonly MALFORMED_OUTPUT="$TEMP_ROOT/malformed-output.log"
+readonly TRACKED_MANIFEST="$TEMP_ROOT/tracked.z"
+
+cleanup() {
+  rm -rf -- "$TEMP_ROOT"
 }
+trap cleanup EXIT INT TERM
+
+git -C "$ROOT" ls-files -z >"$TRACKED_MANIFEST"
+shell_scripts=()
+while IFS= read -r -d '' tracked_path; do
+  # .specify scripts are vendored spec-kit tooling, not Proso delivery gates.
+  if [[ "$tracked_path" == .specify/* ]]; then
+    continue
+  fi
+  full_path="$ROOT/$tracked_path"
+  if [[ ! -r "$full_path" ]]; then
+    printf 'Self-test failed: tracked file is unreadable: %s\n' "$tracked_path" >&2
+    exit 1
+  fi
+  first_line=''
+  if ! IFS= read -r first_line <"$full_path"; then
+    [[ -n "$first_line" ]] || continue
+  fi
+  if [[ "$first_line" =~ ^#!.*(bash|sh|zsh|ksh|dash)([[:space:]]|$) ]]; then
+    shell_scripts+=("$full_path")
+  fi
+done <"$TRACKED_MANIFEST"
+if [[ "${#shell_scripts[@]}" -eq 0 ]]; then
+  printf 'Self-test failed: no tracked shell scripts were discovered\n' >&2
+  exit 1
+fi
+readonly -a shell_scripts
+
 mask_scan_status=0
-grep -rnE --include='*.sh' \
-  '^[[:space:]]*readonly[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=.*\$\(' \
-  "$ROOT/scripts" || mask_scan_status=$?
+grep -nE \
+  '^[[:space:]]*(readonly|local|declare|export)([[:space:]]+-[^[:space:]]*)?[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=.*\$\(' \
+  "${shell_scripts[@]}" || mask_scan_status=$?
 case "$mask_scan_status" in
   0)
-    printf 'Self-test failed: delivery script masks a command status with readonly\n' >&2
+    printf 'Self-test failed: delivery script masks a command status in a declaration\n' >&2
     exit 1
     ;;
   1) ;;
@@ -25,19 +61,6 @@ case "$mask_scan_status" in
     exit 1
     ;;
 esac
-
-TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/proso-adversarial-self-test.XXXXXXXX")"
-readonly TEMP_ROOT
-readonly REPO="$TEMP_ROOT/repo"
-readonly FAKE_BIN="$TEMP_ROOT/bin"
-readonly MODEL_MARKER="$TEMP_ROOT/model-called"
-readonly OUTPUT="$TEMP_ROOT/output.log"
-readonly MALFORMED_OUTPUT="$TEMP_ROOT/malformed-output.log"
-
-cleanup() {
-  rm -rf -- "$TEMP_ROOT"
-}
-trap cleanup EXIT INT TERM
 
 mkdir -p "$REPO/scripts" "$REPO/docs" "$FAKE_BIN"
 cp -- "$ROOT/scripts/adversarial-review.sh" "$REPO/scripts/"

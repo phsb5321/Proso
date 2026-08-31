@@ -42,6 +42,13 @@ placeholder prose that clears structural minima but fails this semantic check.
 
 The next review found three remaining masked `mktemp` calls in
 `scripts/opengrep-check.sh` and noted that the static grep treated a read error
-like no match. Those declarations are split too; the guard now scans every shell
-script and handles grep statuses 0 (unsafe), 1 (clean), and >1 (tool/read error)
-separately. The prompt heredoc also contains no backtick substitution.
+like no match. Those declarations are split too; the guard handles grep statuses
+0 (unsafe), 1 (clean), and >1 (tool/read error) separately. The prompt heredoc
+also contains no backtick substitution.
+
+The first widened guard still scanned only `scripts/*.sh`. The final discovery
+walks every tracked file, classifies shell scripts by shebang (including infra
+and extensionless oracles), and scans `readonly`, `local`, `declare`, and
+`export` declarations. It excludes only tracked `.specify` spec-kit tooling,
+which is vendored rather than a Proso delivery gate. This exposed and repaired
+the two masked `FIREFOX_BIN` exports in `scripts/oracles/`.

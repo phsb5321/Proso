@@ -4,8 +4,8 @@
 
 1. Split command-substitution assignments from `readonly` throughout delivery
    shell scripts, matching the repository's safe pattern.
-2. Add a fail-closed repository-wide shell-script check for the masking
-   declaration, then build a
+2. Add a fail-closed check over tracked project-owned shell scripts (excluding
+   vendored `.specify` tooling), then build a
    minimal temporary Git repository with an `origin/main` baseline and one
    candidate change.
 3. Put a fake `claude` executable first on that isolated run's `PATH`; it only

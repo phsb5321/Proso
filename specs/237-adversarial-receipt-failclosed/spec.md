@@ -19,10 +19,10 @@ isolated self-test proves both the model boundary and the unsafe-pattern ban.
 - REQ-1: Across delivery shell scripts, separate every command-substitution
   assignment from its `readonly` declaration so `set -e` sees failures.
 - REQ-2: A missing receipt exits non-zero before any reviewer executable runs.
-- REQ-3: The self-test scans every delivery shell script for the unsafe
-  declaration and distinguishes no-match from grep errors, then uses an isolated
-  temporary Git repository, a non-empty diff, and a fake reviewer marker; it
-  never calls a provider.
+- REQ-3: The self-test discovers every tracked project-owned shell script by
+  shebang (excluding vendored `.specify` tooling), rejects unsafe declarations,
+  and distinguishes no-match from grep errors; its isolated fake reviewer never
+  calls a provider.
 - REQ-4: The self-test rejects both a touched marker and failure for any reason
   other than the expected missing-receipt message.
 - REQ-5: `make adversarial` runs this self-test before the real typed review.
