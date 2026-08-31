@@ -35,7 +35,7 @@ and an agent review cannot override a red deterministic check.
 | `make dependencies` | OSV lockfile scan; new, stale, malformed, or expired evidence fails |
 | `make verify-full` | Fast floor plus coverage, Firefox/Chrome/Edge builds, quality, and dependency ratchets |
 | `make inventory` | Compatibility alias for the fail-closed Knip ratchet |
-| `make adversarial-self-test` | Invalid receipts stop before fake review; generic verdict evidence is rejected after launch |
+| `make adversarial-self-test` | Invalid receipts, oversized context, and generic verdict evidence fail closed without providers |
 | `GENERATOR_FAMILY=openai make gate` | Full deterministic gate, then exact-ID Anthropic typed review |
 | `GENERATOR_FAMILY=openai ADVERSARIAL_REVIEWER=meta-llama make gate` | Capacity fallback: exact Meta Llama 3.3 70B review through the configured Groq lane |
 | `GENERATOR_FAMILY=anthropic make gate` | Full deterministic gate, then exact-ID OpenAI typed review |
@@ -105,7 +105,7 @@ reason to treat a green run as Feature 095 acceptance.
 | jscpd | Adopted | Changed-code clones block; tracked-source inventory prevents size-limit omissions |
 | Gitleaks | Adopted | Scans tracked and non-ignored working-tree files; known placeholders use exact fingerprints |
 | GNU Make | Adopted | Small stable interface over existing commands; no new runtime dependency |
-| Claude/Codex/Meta structured output | Adopted | Exact model IDs, family checks, inlined full diff/context, typed fail-closed review |
+| Claude/Codex/Meta structured output | Adopted | Full diff inline; repo-aware lanes read named context, tool-less Meta gets it inline |
 | Knip 6 | Adopted with an expiring baseline | Gateway-aware configuration blocks new unused files/exports/dependencies without deleting on age alone |
 | dependency-cruiser | Adopted | Enforces TypeScript package/layer direction across the actual resolved graph |
 | OpenGrep | Adopted locally | Narrow anti-defanging rules have counted positive fixtures; no source upload or hosted account |

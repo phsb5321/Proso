@@ -119,13 +119,24 @@ CHANGES_SHA="$(sha256sum "$CHANGES_PATH" | cut -d ' ' -f 1)"
 readonly CHANGES_SHA
 
 readonly RELEVANT_FILES=(Makefile docs/agent-delivery-harness.md)
+if [[ "$REVIEWER_FAMILY" == 'meta' ]]; then
+  context_instruction='Required unchanged files are inlined below.'
+else
+  context_instruction='Use read-only repository tools to read every required path below before verdict.'
+fi
+readonly context_instruction
+
 for file in "${RELEVANT_FILES[@]}"; do
   if [[ ! -r "$file" ]]; then
     printf 'Required review context is unreadable: %s\n' "$file" >&2
     exit 1
   fi
-  printf '\n===== RELEVANT FILE: %s =====\n' "$file" >>"$CONTEXT_PATH"
-  cat -- "$file" >>"$CONTEXT_PATH"
+  if [[ "$REVIEWER_FAMILY" == 'meta' ]]; then
+    printf '\n===== RELEVANT FILE: %s =====\n' "$file" >>"$CONTEXT_PATH"
+    cat -- "$file" >>"$CONTEXT_PATH"
+  else
+    printf '%s\n' "$file" >>"$CONTEXT_PATH"
+  fi
 done
 
 {
@@ -138,8 +149,9 @@ Deterministic gate evidence: ${DETERMINISTIC_GATE}
 Bound receipt evidence: ${GATE_RECEIPT}
 Reviewed candidate: HEAD=${HEAD_SHA}; change_bundle_sha256=${CHANGES_SHA}
 
-Inspect the complete diff against ${REVIEW_BASE_REF}, including untracked files. Trace every
-requirement to concrete code and test evidence:
+Inspect the complete diff against ${REVIEW_BASE_REF}, including untracked files.
+${context_instruction}
+Trace every requirement to concrete code and test evidence:
 REQ-1. The deterministic receipt binds the tested HEAD, exact base SHA, and exact tracked-plus-untracked
    change-bundle hash; missing, malformed, wrong-base, parent-SHA, or changed-diff receipts fail.
 REQ-2. Coverage runs extension/server/gateway suites, requires every LCOV report, and blocks changed
@@ -170,7 +182,7 @@ EOF
 ===== COMPLETE CHANGE BUNDLE =====
 EOF
   cat "$CHANGES_PATH"
-  printf '\n===== UNCHANGED PRODUCTION CONTEXT =====\n'
+  printf '\n===== REQUIRED REPOSITORY CONTEXT =====\n'
   cat "$CONTEXT_PATH"
 } >"$PROMPT_PATH"
 
