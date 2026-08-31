@@ -31,7 +31,7 @@ and an agent review cannot override a red deterministic check.
 | `make user-gate` | Fails closed until a public-control Firefox actor, outcome matrix, and unified receipt satisfy Feature 095 |
 | `make verify` | Tool readiness, formatting, lint, type checks, reader smoke, security tests, source secret scan |
 | `make coverage` | All three test suites plus ≥80% coverage on changed production lines; missing reports fail |
-| `make quality` | Import boundaries, Knip/clone/OpenGrep ratchets, active-doc contract, and legacy cycle evidence |
+| `make quality` | Import boundaries, Knip/clone/OpenGrep ratchets, classified jscpd artifact, active-doc contract, and legacy cycle evidence |
 | `make dependencies` | OSV lockfile scan; new, stale, malformed, or expired evidence fails |
 | `make verify-full` | Fast floor plus coverage, Firefox/Chrome/Edge builds, quality, and dependency ratchets |
 | `make inventory` | Compatibility alias for the fail-closed Knip ratchet |
@@ -102,7 +102,7 @@ reason to treat a green run as Feature 095 acceptance.
 |---|---|---|
 | Jest, WXT, Biome, TypeScript | Adopted | Already pinned; directly exercise the current packages |
 | Madge | Adopted after repair | `--extensions ts` prevents the previous zero-file false green |
-| jscpd | Adopted | Existing 10% threshold is measurable; current scoped result is below it |
+| jscpd | Adopted | Changed-code clones block; each run retains classified legacy/introduced evidence locally |
 | Gitleaks | Adopted | Scans tracked and non-ignored working-tree files; known placeholders use exact fingerprints |
 | GNU Make | Adopted | Small stable interface over existing commands; no new runtime dependency |
 | Claude/Codex/Meta structured output | Adopted | Exact model IDs, family checks, inlined full diff/context, typed fail-closed review |
@@ -163,6 +163,11 @@ Measured against the Slice 1b foundation on 30/07/2026:
 - jscpd reports **136** legacy production clone groups, with zero touching changed lines;
 - the active-doc contract owns five canonical documents and rejects expiry or broken relative
   links.
+
+Each current duplication run overwrites `.artifacts/quality/jscpd-report.json` with versioned
+`legacy` and `introduced` arrays containing jscpd's complete records, validates count parity, and
+then removes only the temporary scanner directory. This artifact makes accepted legacy locations
+visible; it is evidence, not a suppression baseline.
 
 The ratchets reject both new findings and stale suppressions. They also reject missing coverage
 reports, malformed scanner JSON, missing tools/base commits, and an empty Jest selection. OpenGrep
