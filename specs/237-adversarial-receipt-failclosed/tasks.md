@@ -6,4 +6,5 @@
 - [x] T4 Run the self-test from `make adversarial`
 - [x] T5 Revert-plant the masking pattern and confirm the self-test goes red
 - [x] T6 Reject a structurally valid but semantically generic fake verdict
-- [ ] T7 Run deterministic and different-family gates
+- [x] T7 Deterministic and Anthropic different-family gate PASS at `0658ea2`
+      with zero findings
