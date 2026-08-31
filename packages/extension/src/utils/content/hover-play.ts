@@ -25,23 +25,32 @@ export const HOVERABLE_CLASS = 'proso-hoverable';
  * extraction candidates (login shells, empty app frames). The popup and the
  * first playback start keep extracting regardless.
  */
-const MIN_BODY_TEXT_CHARS = 500;
+const MIN_PROSE_TEXT_CHARS = 500;
 
 /**
  * Selector matching interactive elements whose clicks must keep their native
  * behavior instead of starting or seeking playback.
  */
-const INTERACTIVE_SELECTOR =
-  'a, button, input, select, textarea, [contenteditable], [role="button"], [role="link"]';
+const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, [role="button"], [role="link"]';
+const PROSE_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, blockquote, li';
+const NON_READING_CONTAINER_SELECTOR = 'nav, aside, footer, [aria-hidden="true"]';
 
 /**
  * Cheap page-suitability gate for ambient extraction.
- * Reads body text length only — no scoring, no layout forcing.
+ * Counts prose-like elements only — no script/style payloads, scoring, or
+ * layout forcing — and stops as soon as the threshold is reached.
  */
 export function isAmbientExtractionCandidate(doc: Document): boolean {
   const body = doc.body;
   if (!body) return false;
-  return (body.textContent?.length ?? 0) >= MIN_BODY_TEXT_CHARS;
+
+  let textChars = 0;
+  for (const element of body.querySelectorAll(PROSE_SELECTOR)) {
+    if (element.closest(NON_READING_CONTAINER_SELECTOR)) continue;
+    textChars += element.textContent?.trim().length ?? 0;
+    if (textChars >= MIN_PROSE_TEXT_CHARS) return true;
+  }
+  return false;
 }
 
 /**
@@ -65,8 +74,12 @@ export function markHoverAffordance(paragraphs: readonly Element[]): number {
  * or seek playback.
  */
 export function shouldIgnoreParagraphClick(target: Element, selection: Selection | null): boolean {
-  if (target.closest(INTERACTIVE_SELECTOR)) {
-    return true;
+  if (target.closest(INTERACTIVE_SELECTOR)) return true;
+
+  const editable = target.closest('[contenteditable]');
+  if (editable) {
+    const state = editable.getAttribute('contenteditable')?.trim().toLowerCase();
+    if (state !== 'false') return true;
   }
   return selection !== null && !selection.isCollapsed;
 }

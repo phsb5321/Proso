@@ -30,6 +30,12 @@ describe('isAmbientExtractionCandidate', () => {
     document.body.innerHTML = `<main><p>${paragraph}</p><p>${paragraph}</p></main>`;
     expect(isAmbientExtractionCandidate(document)).toBe(true);
   });
+
+  it('rejects script and style payloads without readable prose', () => {
+    const payload = 'x'.repeat(1_000);
+    document.body.innerHTML = `<script>${payload}</script><style>${payload}</style><p>Sign in</p>`;
+    expect(isAmbientExtractionCandidate(document)).toBe(false);
+  });
 });
 
 describe('markHoverAffordance', () => {
@@ -78,6 +84,18 @@ describe('shouldIgnoreParagraphClick', () => {
       const target = document.getElementById(id) as Element;
       expect(shouldIgnoreParagraphClick(target, null)).toBe(true);
     }
+  });
+
+  it('honors explicit contenteditable state', () => {
+    document.body.innerHTML =
+      '<p><span id="editable" contenteditable="true">edit</span>' +
+      '<span id="static" contenteditable="false">read</span></p>';
+    expect(shouldIgnoreParagraphClick(document.getElementById('editable') as Element, null)).toBe(
+      true,
+    );
+    expect(shouldIgnoreParagraphClick(document.getElementById('static') as Element, null)).toBe(
+      false,
+    );
   });
 
   it('ignores the terminating click of a drag text-selection', () => {

@@ -82,6 +82,11 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     setExtractedParagraphs([]);
     sendMessageMock.mockClear();
     addMessageListenerMock.mockClear();
+    Object.defineProperty(window, 'requestIdleCallback', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
     setSelection(null);
     articleDom();
   });
@@ -105,6 +110,25 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     );
     expect(paragraphClicks).toHaveLength(1);
     expect(paragraphClicks[0][0]).toMatchObject({ paragraphIndex: 1 });
+  });
+
+  it('schedules ambient extraction through requestIdleCallback when available', () => {
+    const requestIdleCallback = jest.fn(
+      (callback: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void) => {
+        callback({ didTimeout: false, timeRemaining: () => 50 });
+        return 1;
+      },
+    );
+    Object.defineProperty(window, 'requestIdleCallback', {
+      value: requestIdleCallback,
+      configurable: true,
+      writable: true,
+    });
+
+    (content as { main?: (ctx?: unknown) => void }).main?.();
+
+    expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 3000 });
+    expect(document.getElementById('p1')?.classList.contains('proso-hoverable')).toBe(true);
   });
 
   it('keeps one paragraph ordering from pre-idle extraction through playback', async () => {
