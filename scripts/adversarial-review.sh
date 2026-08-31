@@ -64,7 +64,7 @@ cat >"$SCHEMA_PATH" <<'JSON'
   "required": ["verdict", "summary", "requirementTraces", "findings"],
   "properties": {
     "verdict": { "type": "string", "enum": ["PASS", "BLOCK"] },
-    "summary": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 80 },
     "requirementTraces": {
       "type": "array",
       "minItems": 6,
@@ -78,9 +78,9 @@ cat >"$SCHEMA_PATH" <<'JSON'
             "type": "string",
             "enum": ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6"]
           },
-          "requirement": { "type": "string", "minLength": 1 },
+          "requirement": { "type": "string", "minLength": 40 },
           "status": { "type": "string", "enum": ["PASS", "FAIL"] },
-          "evidence": { "type": "string", "minLength": 1 }
+          "evidence": { "type": "string", "minLength": 80 }
         }
       }
     },
@@ -94,8 +94,8 @@ cat >"$SCHEMA_PATH" <<'JSON'
           "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
           "file": { "type": "string", "minLength": 1 },
           "line": { "type": "integer", "minimum": 1 },
-          "problem": { "type": "string", "minLength": 1 },
-          "fix": { "type": "string", "minLength": 1 }
+          "problem": { "type": "string", "minLength": 40 },
+          "fix": { "type": "string", "minLength": 40 }
         }
       }
     }
@@ -155,8 +155,9 @@ REQ-6. The implementation is the minimum local tool set, records licensing/eligi
 
 Treat malformed evidence, missing requirement traces, deterministic red checks, unverified claims,
 or any material finding as BLOCK. PASS requires zero findings and every trace status PASS.
-Return exactly one trace for each ID REQ-1 through REQ-6. Every evidence string must name the exact
-supplied file and the concrete assertion, command, or content that supports the status. Planted
+Return exactly one trace for each ID REQ-1 through REQ-6. Copy each requirement sentence above
+verbatim into its `requirement` field. Every evidence string must name the exact supplied file and
+the concrete assertion, command, or content that supports the status. Planted
 violation results are recorded in docs/reading-journey-status.md; do not claim the review script
 performs those mutations. Return only a JSON object matching the supplied schema. Do not use
 Markdown fences.
@@ -267,19 +268,33 @@ else
 fi
 
 jq -e '
-  type == "object"
+  {
+    "REQ-1": "The deterministic receipt binds the tested HEAD, exact base SHA, and exact tracked-plus-untracked change-bundle hash; missing, malformed, wrong-base, parent-SHA, or changed-diff receipts fail.",
+    "REQ-2": "Coverage runs extension/server/gateway suites, requires every LCOV report, and blocks changed production lines below 80% without demanding an arbitrary whole-repository cleanup.",
+    "REQ-3": "dependency-cruiser and changed-code jscpd block new boundary violations/cycles/clones while keeping classified legacy findings visible.",
+    "REQ-4": "Knip and OSV baselines use stable fingerprints, owner/reason/issue/expiry metadata, and reject new, stale, malformed, or expired evidence.",
+    "REQ-5": "OpenGrep fixtures prove workflow/test anti-defanging rules; Gitleaks scans the PR commit range plus the working tree; active docs reject expired ownership and broken relative links.",
+    "REQ-6": "The implementation is the minimum local tool set, records licensing/eligibility skips, changes no workflow/production/release/deploy behavior, and makes no browser or production acceptance claim."
+  } as $expected
+  | type == "object"
   and (.verdict == "PASS" or .verdict == "BLOCK")
-  and (.summary | type == "string" and length > 0)
+  and (.summary | type == "string" and length >= 80)
   and (.requirementTraces | type == "array" and length == 6)
   and (all(.requirementTraces[];
     (.id | type == "string")
-    and
-    (.status == "PASS" or .status == "FAIL")
-    and (.requirement | type == "string" and length > 0)
-    and (.evidence | type == "string" and length > 0)))
+    and (.status == "PASS" or .status == "FAIL")
+    and (.requirement == $expected[.id])
+    and (.evidence | type == "string" and length >= 80)
+    and (.evidence | test("([[:alnum:]_.-]+/)+[[:alnum:]_.-]+"))))
   and (([.requirementTraces[].id] | sort) ==
     ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6"])
   and (.findings | type == "array")
+  and (all(.findings[];
+    (.severity == "critical" or .severity == "high" or .severity == "medium" or .severity == "low")
+    and (.file | type == "string" and length > 0)
+    and (.line | type == "number" and . >= 1)
+    and (.problem | type == "string" and length >= 40)
+    and (.fix | type == "string" and length >= 40)))
 ' "$VERDICT_PATH" >/dev/null || {
   printf 'Adversarial reviewer returned a malformed verdict:\n' >&2
   jq . "$VERDICT_PATH" >&2

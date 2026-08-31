@@ -12,6 +12,9 @@
 4. Point the review script at a missing receipt and require non-zero exit, the
    exact validator diagnostic, and an absent model marker.
 5. Make the self-test a prerequisite of `make adversarial`.
+6. Require verbatim canonical requirement text, meaningful lengths, and a
+   repository path in every evidence trace; exercise this with a long generic
+   fake verdict that passes structural minima but fails semantic validation.
 
 ## Constitution check
 

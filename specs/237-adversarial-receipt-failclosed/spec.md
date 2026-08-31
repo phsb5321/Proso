@@ -25,8 +25,11 @@ isolated self-test proves both the model boundary and the unsafe-pattern ban.
 - REQ-4: The self-test rejects both a touched marker and failure for any reason
   other than the expected missing-receipt message.
 - REQ-5: `make adversarial` runs this self-test before the real typed review.
+- REQ-6: A verdict must copy each canonical requirement exactly and provide
+  meaningful, concrete file-path evidence; schema-valid placeholder prose fails.
 
 ## Acceptance
 
 `make adversarial-self-test` prints PASS. Reverting the split assignment makes
-the same test fail because the fake reviewer marker is touched.
+the test fail because the fake reviewer marker is touched; a long but generic
+fake verdict fails the semantic validator after reviewer launch.

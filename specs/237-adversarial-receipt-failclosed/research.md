@@ -33,3 +33,9 @@ JQ, hash, date, and temporary-path reads in the receipt writer and validator.
 The fix now covers that whole trust chain. The self-test also scans those scripts
 for the masking pattern; a one-line reintroduction exits 2 and names the exact
 file/line before the isolated model-boundary test runs.
+
+A subsequent reviewer returned `summary: "test"`, requirements `r1`…`r6`, and
+evidence `e1`…`e6`; the old validator accepted it as PASS. The schema and final
+validator now require meaningful lengths, verbatim canonical requirements, and
+a repository path in every trace. The isolated fake reviewer returns long
+placeholder prose that clears structural minima but fails this semantic check.
