@@ -127,6 +127,21 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(paragraphClicks[0][0]).toMatchObject({ paragraphIndex: 1 });
   });
 
+  it('enables popup selection mode after ambient cache warming', async () => {
+    const listener = startContentWithMessageListener();
+    jest.advanceTimersByTime(1300);
+    const paragraph = document.getElementById('p1') as Element;
+    expect(paragraph.classList.contains('proso-hoverable')).toBe(true);
+    expect(paragraph.classList.contains('proso-selectable')).toBe(false);
+
+    await listener({ action: 'getParagraphs' });
+    await Promise.resolve();
+    jest.advanceTimersByTime(20);
+    await Promise.resolve();
+
+    expect(paragraph.classList.contains('proso-selectable')).toBe(true);
+  });
+
   it('schedules ambient extraction through requestIdleCallback when available', () => {
     const requestIdleCallback = jest.fn(
       (callback: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void) => {

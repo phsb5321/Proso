@@ -1044,7 +1044,7 @@ export default defineContentScript({
           }
           const paragraphTexts = extractor.getParagraphTexts();
           const paragraphElements = extractor.getExtractedParagraphs();
-          if (needsExtraction) enableParagraphSelectionMode(paragraphElements);
+          enableParagraphSelectionMode(paragraphElements);
 
           return Promise.resolve({
             paragraphs: paragraphTexts.map((text, index) => ({
@@ -1064,7 +1064,7 @@ export default defineContentScript({
             extractor.extractText('article');
           }
           const paragraphElements = extractor.getExtractedParagraphs();
-          if (needsExtraction) enableParagraphSelectionMode(paragraphElements);
+          enableParagraphSelectionMode(paragraphElements);
 
           const fullText = extractor.getParagraphTexts().join('\n\n');
           return Promise.resolve({
