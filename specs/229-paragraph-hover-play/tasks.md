@@ -10,6 +10,8 @@
 - [x] T6 Unit and entrypoint suites for hover marking and guarded clicks
 - [x] T7 Preserve ambient paragraph ordering through idle click-to-play with a
       cache-preserving extraction request, covered in entrypoint and handler tests
-- [ ] T8 Rerun deterministic and seeded fuzz gates on the final base
-- [ ] T9 Rerun `make user-gate` and record its fail-closed Feature 095 verdict
+- [x] T8 `make verify` + seed `20260730` / 100-run `make fuzz` green at
+      `21f280b`
+- [x] T9 `make user-gate` at `21f280b`: loaded-Firefox diagnostic PASS and
+      receipt written; Feature 095 remains honestly BLOCKED (exit 2)
 - [ ] T10 Rerun the final different-family gate
