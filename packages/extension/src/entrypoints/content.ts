@@ -24,6 +24,7 @@ import { isExtensionPage } from '../utils/content/extension-page';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import {
+  HOVERABLE_CLASS,
   isAmbientExtractionCandidate,
   markHoverAffordance,
   shouldIgnoreParagraphClick,
@@ -308,18 +309,18 @@ function injectContentStyles(): void {
     }
 
     /* Ambient hover-play affordance (Feature 229) — paint-only, never reflows */
-    .proso-hoverable {
+    .${HOVERABLE_CLASS} {
       cursor: pointer;
     }
 
-    .proso-hoverable:hover {
+    .${HOVERABLE_CLASS}:hover {
       background-color: rgba(13, 148, 136, 0.08) !important;
       box-shadow: inset 3px 0 0 rgba(13, 148, 136, 0.55) !important;
       border-radius: 4px;
     }
 
     @media (prefers-color-scheme: dark) {
-      .proso-hoverable:hover {
+      .${HOVERABLE_CLASS}:hover {
         background-color: rgba(20, 184, 166, 0.12) !important;
         box-shadow: inset 3px 0 0 rgba(20, 184, 166, 0.65) !important;
       }

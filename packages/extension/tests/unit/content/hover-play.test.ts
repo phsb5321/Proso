@@ -36,6 +36,14 @@ describe('isAmbientExtractionCandidate', () => {
     document.body.innerHTML = `<script>${payload}</script><style>${payload}</style><p>Sign in</p>`;
     expect(isAmbientExtractionCandidate(document)).toBe(false);
   });
+
+  it('rejects navigation prose that is not reading content', () => {
+    const navigation = 'Navigation item with enough repeated text to cross the threshold. '.repeat(
+      10,
+    );
+    document.body.innerHTML = `<nav><p>${navigation}</p></nav><main><p>Sign in</p></main>`;
+    expect(isAmbientExtractionCandidate(document)).toBe(false);
+  });
 });
 
 describe('markHoverAffordance', () => {
