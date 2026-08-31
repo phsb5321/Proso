@@ -126,9 +126,6 @@ interface OptionsElements {
   clearAllQueue: HTMLButtonElement;
   queueStatus: HTMLElement;
 
-  // Telemetry elements (T018)
-  telemetryEnabled: HTMLInputElement;
-
   // Local synthesis host (PROSO-110)
   localHostEnabled: HTMLInputElement;
   pronunciationLexiconEnabled: HTMLInputElement;
@@ -233,9 +230,6 @@ function getElements(): OptionsElements {
     clearAllQueue: getElement<HTMLButtonElement>('clearAllQueue'),
     queueStatus: getElement<HTMLElement>('queueStatus'),
 
-    // Telemetry elements (T018)
-    telemetryEnabled: getElement<HTMLInputElement>('telemetryEnabled'),
-
     // Local synthesis host (PROSO-110)
     localHostEnabled: getElement<HTMLInputElement>('localHostEnabled'),
     pronunciationLexiconEnabled: getElement<HTMLInputElement>('pronunciationLexiconEnabled'),
@@ -276,9 +270,6 @@ export async function initOptionsPage(): Promise<void> {
   const licenseSettings = createLicenseSettingsController();
   setupAccordions();
 
-  // T018: Initialize telemetry for settings page
-  await initTelemetry();
-
   await loadSettings();
   await loadQuickSettings();
   await loadLocalHostSettings();
@@ -288,7 +279,6 @@ export async function initOptionsPage(): Promise<void> {
   await loadQueueConfig();
   await loadCacheStats();
   await loadThemePreference();
-  await loadTelemetryConfig();
 
   setupQuickSettingsEventListeners();
   setupLocalHostEventListeners();
@@ -298,7 +288,6 @@ export async function initOptionsPage(): Promise<void> {
   setupQueueEventListeners();
   setupCacheEventListeners();
   setupHighlightsEventListeners();
-  setupTelemetryEventListeners();
   setupStorageChangeListener();
   setupSidebarNavigation();
   setupThemeEventListener();
@@ -2020,56 +2009,6 @@ async function reloadSectionSettings(section: string): Promise<void> {
 // ========================================
 
 /**
- * Initialize usage tracker for settings page context.
- * Loads config from storage and tracks settings.opened event.
- */
-async function initTelemetry(): Promise<void> {
-  try {
-    // Load telemetry config from storage
-    const stored = await browser.storage.local.get([
-      'telemetryEnabled',
-      'telemetryGatewayUrl',
-      'telemetryGatewayToken',
-    ]);
-
-    // Skip if telemetry is disabled
-    if (stored.telemetryEnabled === false) {
-      log.info('[Settings] Telemetry disabled by user');
-      return;
-    }
-
-    // Only initialize if gateway is configured (seeded by onInstalled handler)
-    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
-    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
-
-    if (!gatewayUrl || !gatewayToken) {
-      return;
-    }
-
-    await usageTracker.initialize({
-      gatewayUrl,
-      gatewayToken,
-      entrypoint: 'options',
-      debugMode: process.env.NODE_ENV !== 'production',
-    });
-
-    // Track settings page opened
-    usageTracker.track('settings.opened', {});
-
-    // Track settings page closed on unload
-    window.addEventListener('beforeunload', () => {
-      usageTracker.track('settings.closed', {});
-      // Best-effort flush
-      usageTracker.destroy();
-    });
-
-    log.info('[Settings] Telemetry initialized');
-  } catch (error) {
-    log.warn('[Settings] Telemetry init failed', { error });
-  }
-}
-
-/**
  * Track setting change events with debouncing
  */
 const trackSettingDebounce = new Map<string, number>();
@@ -2085,50 +2024,6 @@ function trackSettingChange(eventType: string, data?: Record<string, unknown>): 
 
   trackSettingDebounce.set(eventType, now);
   usageTracker.track(eventType, data);
-}
-
-/**
- * Load telemetry configuration from storage
- * T018: Telemetry opt-out toggle
- */
-async function loadTelemetryConfig(): Promise<void> {
-  if (!elements) return;
-
-  try {
-    const result = await browser.storage.local.get('telemetryEnabled');
-
-    // Default to true (opt-in by default)
-    const enabled = result.telemetryEnabled !== false;
-    elements.telemetryEnabled.checked = enabled;
-  } catch (error) {
-    log.error('Error loading telemetry config', { error });
-    // Default to enabled on error
-    elements.telemetryEnabled.checked = true;
-  }
-}
-
-/**
- * Setup telemetry-specific event listeners
- * T018: Telemetry opt-out toggle
- */
-function setupTelemetryEventListeners(): void {
-  if (!elements) return;
-
-  elements.telemetryEnabled.addEventListener('change', async () => {
-    if (!elements) return;
-
-    const enabled = elements.telemetryEnabled.checked;
-    await browser.storage.local.set({ telemetryEnabled: enabled });
-
-    // Track the change (if enabling, track immediately; if disabling, best-effort)
-    if (enabled) {
-      usageTracker.track('settings.telemetry_enabled', {});
-      toast.success('Usage telemetry enabled');
-    } else {
-      usageTracker.track('settings.telemetry_disabled', {});
-      toast.success('Usage telemetry disabled');
-    }
-  });
 }
 
 // ========================================

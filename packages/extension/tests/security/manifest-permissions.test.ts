@@ -74,7 +74,6 @@ describe('Manifest Permissions', () => {
       'scripting', // Programmatic content script injection
       'downloads', // Writing MP3 and highlight exports to disk
       'https://api.elevenlabs.io/*', // ElevenLabs TTS API
-      'https://logs.proso.com.br/*', // Telemetry gateway
     ];
 
     it('should only declare allowed permissions', () => {
@@ -114,6 +113,48 @@ describe('Manifest Permissions', () => {
       // quietly pass by skipping on a machine that has not built the extension.
       const content = fs.readFileSync(WXT_CONFIG_PATH, 'utf-8');
       expect(content).toContain("'downloads'");
+    });
+  });
+
+  describe('No remote telemetry in the public build', () => {
+    it('declares no telemetry host or build-time gateway', () => {
+      const content = fs.readFileSync(WXT_CONFIG_PATH, 'utf-8');
+      expect(content).not.toContain('logs.proso.com.br');
+      expect(content).not.toContain('TELEMETRY_GATEWAY');
+
+      const manifest = getBuiltManifest();
+      if (!manifest) {
+        console.log('Skipping built-manifest assertion: Build not found');
+        return;
+      }
+      const serialized = JSON.stringify(manifest);
+      expect(serialized).not.toContain('logs.proso.com.br');
+    });
+
+    it('declares required page-text transmission without optional telemetry', () => {
+      const manifest = getBuiltManifest();
+      if (!manifest) {
+        console.log('Skipping built-manifest assertion: Build not found');
+        return;
+      }
+      const gecko = (manifest.browser_specific_settings as Record<string, unknown>)?.gecko as
+        | Record<string, unknown>
+        | undefined;
+      const collection = gecko?.data_collection_permissions as Record<string, unknown> | undefined;
+      expect(collection?.required).toEqual(['websiteContent']);
+      expect(collection?.optional).toBeUndefined();
+    });
+
+    it('has no entrypoint that initializes the usage tracker', () => {
+      for (const relative of [
+        'src/entrypoints/background.ts',
+        'src/entrypoints/content.ts',
+        'src/entrypoints/options/controller.ts',
+        'src/entrypoints/popup/main.ts',
+      ]) {
+        const content = fs.readFileSync(path.join(ROOT_DIR, relative), 'utf-8');
+        expect(content).not.toContain('usageTracker.initialize');
+      }
     });
   });
 

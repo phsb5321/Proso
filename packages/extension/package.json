@@ -87,5 +87,5 @@
     "wxt": "^0.20.13"
   },
   "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
-  "license": "MIT"
+  "license": "AGPL-3.0-or-later"
 }

@@ -50,7 +50,7 @@ import { unknownMessageResponse } from '../utils/messaging/error-response';
 import { logUnknownMessage } from '../utils/telemetry';
 
 // Usage observability (043-usage-observability-loki)
-import { installConsoleCapture, installErrorCapture, usageTracker } from '../utils/telemetry/usage';
+import { usageTracker } from '../utils/telemetry/usage';
 
 // Chrome MV3 has no worker DOM, so `Audio` is undefined there (spec 106
 // C1/C2). Installs a worker-safe shim before anything can call `new Audio()`;
@@ -197,32 +197,7 @@ const messageHandlers: Record<string, MessageHandler> = {
 export default defineBackground(() => {
   log.info('Proso background service worker started');
 
-  // Seed telemetry gateway config from build-time constants on install/update
-  browser.runtime.onInstalled.addListener(async (details) => {
-    try {
-      const existing = await browser.storage.local.get([
-        'telemetryGatewayUrl',
-        'telemetryGatewayToken',
-      ]);
-
-      const updates: Record<string, string> = {};
-
-      // Only seed if not already configured (don't overwrite user/options changes)
-      if (!existing.telemetryGatewayUrl && __TELEMETRY_GATEWAY_URL__) {
-        updates.telemetryGatewayUrl = __TELEMETRY_GATEWAY_URL__;
-      }
-      if (!existing.telemetryGatewayToken && __TELEMETRY_GATEWAY_TOKEN__) {
-        updates.telemetryGatewayToken = __TELEMETRY_GATEWAY_TOKEN__;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await browser.storage.local.set(updates);
-        log.info(`[Background] Telemetry config seeded on ${details.reason}`);
-      }
-    } catch (error) {
-      log.warn('[Background] Failed to seed telemetry config', { error });
-    }
-
+  browser.runtime.onInstalled.addListener(async () => {
     // Create the "Read with Proso" context menu idempotently. removeAll() first
     // avoids "duplicate id" errors when onInstalled fires again on update.
     try {
@@ -237,62 +212,6 @@ export default defineBackground(() => {
       log.warn('[Background] Failed to register context menu', { error });
     }
   });
-
-  // Initialize usage observability (043-usage-observability-loki)
-  // Gateway URL and token are loaded from storage or environment
-  const initUsageTracker = async () => {
-    try {
-      // Get telemetry config from storage (set via options page)
-      const result = await browser.storage.local.get([
-        'telemetryEnabled',
-        'telemetryGatewayUrl',
-        'telemetryGatewayToken',
-      ]);
-
-      // Only initialize if telemetry is enabled
-      if (result.telemetryEnabled === false) {
-        log.info('[Background] Usage telemetry disabled by user');
-        return;
-      }
-
-      // Use gateway config from storage (seeded by onInstalled handler)
-      const gatewayUrl = result.telemetryGatewayUrl as string | undefined;
-      const gatewayToken = result.telemetryGatewayToken as string | undefined;
-
-      if (!gatewayUrl || !gatewayToken) {
-        log.info('[Background] Telemetry gateway not configured, skipping');
-        return;
-      }
-
-      await usageTracker.initialize({
-        gatewayUrl,
-        gatewayToken,
-        entrypoint: 'background',
-        enabled: true,
-        debugMode: process.env.NODE_ENV !== 'production',
-      });
-
-      // Install global error capture
-      installErrorCapture(usageTracker);
-
-      // Install console capture to forward console logs to telemetry
-      installConsoleCapture(usageTracker, {
-        captureLog: true,
-        captureDebug: true,
-        captureInfo: true,
-        captureWarn: true,
-        captureError: true,
-      });
-
-      // Track background start event
-      usageTracker.track('background.started');
-
-      log.info('[Background] Usage telemetry initialized');
-    } catch (error) {
-      log.warn('[Background] Failed to initialize usage telemetry', { error });
-    }
-  };
-  initUsageTracker();
 
   // Initialize hexagonal architecture (034-hexagonal-architecture). The
   // readiness promise gates inbound messages (PROSO-90): the listener below

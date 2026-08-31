@@ -228,13 +228,19 @@ server-status-popover-gate: ## Prove the settings server-status popover stays vi
 server-status-popover-plants: ## Prove every server-status-popover-gate assertion catches a planted break.
 	@node scripts/server-status-popover-plants.mjs
 
-verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test ## Fast delivery floor.
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test amo-publication-self-test ## Fast delivery floor.
 
 release-channels: ## Build both Firefox channels (unlisted + listed) and prove they differ only by update_url.
 	$(PNPM) --filter @proso/extension build:firefox
 	$(PNPM) --filter @proso/extension build:firefox-listed
 	@node scripts/release-channels-check.mjs
 	@npx web-ext lint --source-dir packages/extension/.output-listed/firefox-mv2 --output=text
+
+amo-publication: ## Require the reviewed version to be publicly listed on Mozilla Add-ons.
+	@node scripts/amo-publication-check.mjs
+
+amo-publication-self-test: ## Prove the AMO done-oracle catches every false-green state.
+	@node scripts/amo-publication-check.self-test.mjs
 
 infra-check: ## Run the AWS infrastructure gate (fmt, validate, tflint, Trivy, Checkov) in infra/aws.
 	@bash ./infra/aws/scripts/gate.sh

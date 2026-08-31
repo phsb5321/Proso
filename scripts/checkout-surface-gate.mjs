@@ -146,9 +146,9 @@ const PLANTS = {
   },
   'github-install': {
     file: 'index.html',
-    from: '<a href="#install-status" class="btn btn--primary btn--lg">',
+    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary btn--lg">',
     to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--lg">',
-    breaks: 'install controls never link a private GitHub releases page',
+    breaks: 'install controls link only the public Mozilla Add-ons listing',
   },
   'stale-jsonld': {
     file: 'index.html',
@@ -1341,63 +1341,54 @@ check(
   },
 );
 
-check(
-  'install controls name the Firefox signing wait and link nowhere private',
-  async (JSDOM, plant) => {
-    for (const page of [
-      'index.html',
-      'pricing.html',
-      'success.html',
-      'privacy.html',
-      'terms.html',
-    ]) {
-      const source = readSite(page, plant);
-      assert(!/github\.com/i.test(source), `${page} still links github.com`);
-    }
+check('install controls link only the public Mozilla Add-ons listing', async (JSDOM, plant) => {
+  const listingUrl = 'https://addons.mozilla.org/firefox/addon/proso/';
+  const pages = ['index.html', 'pricing.html', 'success.html', 'privacy.html', 'terms.html'];
 
-    const indexHtml = readSite('index.html', plant);
-    let extensionPkg;
-    try {
-      extensionPkg = JSON.parse(
-        readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
-      );
-    } catch {
-      throw new Blocked('packages/extension/package.json is missing');
-    }
-    assert(
-      indexHtml.includes(`"softwareVersion": "${extensionPkg.version}"`),
-      `JSON-LD does not advertise the extension's real version ${extensionPkg.version}`,
-    );
-    assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a download it cannot serve');
-
-    const window = await openPage(JSDOM, {
-      html: 'index.html',
-      url: 'https://proso.com.br/',
-      config: undefined,
-      scripts: ['main.js'],
-      plant,
-    });
-    const installs = Array.from(window.document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
+  for (const page of pages) {
+    const source = readSite(page, plant);
+    assert(!/github\.com/i.test(source), `${page} still links github.com`);
+    const document = new JSDOM(source).window.document;
+    const installs = Array.from(document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
       (link) => /install/i.test(link.textContent || ''),
     );
-    assert(installs.length > 0, 'the landing page has no install control to check');
+    assert(installs.length > 0, `${page} has no install control to check`);
     for (const link of installs) {
       const href = link.getAttribute('href') || '';
-      assert(
-        !/^https?:\/\//i.test(href),
-        `an install control still navigates away from the site: "${href}"`,
-      );
+      assert(href === listingUrl, `${page} install control targets "${href}", not ${listingUrl}`);
     }
+  }
 
-    const status = window.document.getElementById('install-status');
-    assert(status, 'the landing page has no install-status section');
-    const statusText = status.textContent || '';
-    assert(
-      /AMO|Mozilla|signing/i.test(statusText),
-      `the install status does not name the Firefox signing wait: "${statusText.trim()}"`,
+  const indexHtml = readSite('index.html', plant);
+  let extensionPkg;
+  try {
+    extensionPkg = JSON.parse(
+      readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
     );
-  },
-);
+  } catch {
+    throw new Blocked('packages/extension/package.json is missing');
+  }
+  assert(
+    indexHtml.includes(`"softwareVersion": "${extensionPkg.version}"`),
+    `JSON-LD does not advertise the extension's real version ${extensionPkg.version}`,
+  );
+  assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a direct download');
+
+  const window = await openPage(JSDOM, {
+    html: 'index.html',
+    url: 'https://proso.com.br/',
+    config: undefined,
+    scripts: ['main.js'],
+    plant,
+  });
+  const status = window.document.getElementById('install-status');
+  assert(status, 'the landing page has no install-status section');
+  const statusText = status.textContent || '';
+  assert(
+    /Mozilla Add-ons|AMO/i.test(statusText) && !/pending|not available/i.test(statusText),
+    `the install status does not name the published Mozilla listing: "${statusText.trim()}"`,
+  );
+});
 
 check('a pending retry delay is clamped to a safe floor and ceiling', async (JSDOM, plant) => {
   const source = readSite(path.join('assets', 'js', 'success.js'), plant);

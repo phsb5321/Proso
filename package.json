@@ -28,7 +28,7 @@
     "typescript": "^5.9.3"
   },
   "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "pnpm": {
     "onlyBuiltDependencies": [
       "@biomejs/biome",

@@ -1709,64 +1709,6 @@ async function displayVersion(): Promise<void> {
   }
 }
 
-// ============================================
-// Telemetry (T016: Popup Telemetry)
-// ============================================
-
-/**
- * Initialize usage tracker for popup context.
- * Loads config from storage and tracks popup.opened event.
- */
-async function initTelemetry(): Promise<void> {
-  try {
-    // Load telemetry config from storage
-    const stored = await browser.storage.local.get([
-      'telemetryEnabled',
-      'telemetryGatewayUrl',
-      'telemetryGatewayToken',
-    ]);
-
-    // Skip if telemetry is disabled
-    if (stored.telemetryEnabled === false) {
-      log.info('[Popup] Telemetry disabled by user');
-      return;
-    }
-
-    // Only initialize if gateway is configured (seeded by onInstalled handler)
-    const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
-    const gatewayToken = stored.telemetryGatewayToken as string | undefined;
-
-    if (!gatewayUrl || !gatewayToken) {
-      return;
-    }
-
-    await usageTracker.initialize({
-      gatewayUrl,
-      gatewayToken,
-      entrypoint: 'popup',
-      debugMode: process.env.NODE_ENV !== 'production',
-    });
-
-    // Track popup opened
-    usageTracker.track('popup.opened', {
-      provider: currentState.provider,
-    });
-
-    // Track popup closed on unload
-    window.addEventListener('beforeunload', () => {
-      usageTracker.track('popup.closed', {
-        provider: currentState.provider,
-      });
-      // Best-effort flush
-      usageTracker.destroy();
-    });
-
-    log.info('[Popup] Telemetry initialized');
-  } catch (error) {
-    log.warn('[Popup] Telemetry init failed', { error });
-  }
-}
-
 /**
  * Track a user interaction event.
  * Debounces rapid clicks to prevent duplicate events.
@@ -1960,13 +1902,10 @@ async function handleCreateHighlight(): Promise<void> {
 async function init(): Promise<void> {
   log.info('[Popup] Initializing...');
 
-  // Public controls must work as soon as the popup DOM is visible. Telemetry
-  // and state reads may await storage/background work, so bind first.
+  // Public controls must work as soon as the popup DOM is visible. State reads
+  // may await storage/background work, so bind first.
   setupEventListeners();
   setupMessageListener();
-
-  // T016: Initialize usage tracker for popup telemetry
-  await initTelemetry();
 
   // Display version
   await displayVersion();

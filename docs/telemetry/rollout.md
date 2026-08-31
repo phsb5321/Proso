@@ -1,6 +1,8 @@
 # Proso Telemetry Rollout Plan
 
-This document outlines the gradual rollout strategy for Proso's usage telemetry system.
+> **Retired on 31/08/2026.** This plan was never completed. Public AMO builds initialize no telemetry, request no telemetry host permission, expose no telemetry toggle, and declare no data collection. The phases below are retained only as historical design context and are not an active roadmap.
+
+This document outlines the original gradual rollout strategy for Proso's usage telemetry system.
 
 ## Overview
 

@@ -42,5 +42,3 @@ declare namespace chrome {
  * Build-time constants injected by Vite define in wxt.config.ts.
  * Seeded into browser.storage.local at install time by runtime.onInstalled handler.
  */
-declare const __TELEMETRY_GATEWAY_URL__: string;
-declare const __TELEMETRY_GATEWAY_TOKEN__: string;

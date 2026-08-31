@@ -53,9 +53,6 @@ export default defineConfig({
       // Audio and never touches this API.
       ...(env.browser === 'chrome' ? ['offscreen'] : []),
     ],
-    host_permissions: [
-      'https://logs.proso.com.br/*', // Telemetry gateway
-    ],
     // PROSO-110: requestable-only host origins for the reader-operated
     // synthesis host. NOTHING here is granted at install time — the grant
     // happens at configure time via permissions.request() for the narrowest
@@ -129,8 +126,12 @@ export default defineConfig({
         // Required by AMO for all new extensions (mandatory since 2026).
         // Generates compatibility warnings for Firefox <140 but AMO rejects without it.
         data_collection_permissions: {
-          required: ['none'],
-          optional: ['websiteContent', 'technicalAndInteraction'],
+          // Reading necessarily transmits the text the user asks to hear to
+          // their chosen provider, the Proso API, or their configured host.
+          // Mozilla classifies any data handled outside the add-on/browser as
+          // collection, so websiteContent is required even though no telemetry
+          // or browsing history leaves the public build.
+          required: ['websiteContent'],
         },
       },
     },
@@ -165,15 +166,6 @@ export default defineConfig({
         alias: {
           '@proso/shared': path.resolve(__dirname, '../shared/src'),
         },
-      },
-      // T001 (056): Build-time telemetry config injection
-      // Token is read from env vars at build time and seeded into browser.storage.local at install
-      // See research.md RQ-1 for the hybrid approach
-      define: {
-        __TELEMETRY_GATEWAY_URL__: JSON.stringify(
-          process.env.TELEMETRY_GATEWAY_URL || 'https://logs.proso.com.br/ingest',
-        ),
-        __TELEMETRY_GATEWAY_TOKEN__: JSON.stringify(process.env.TELEMETRY_GATEWAY_TOKEN || ''),
       },
       build: {
         target: 'es2020',
