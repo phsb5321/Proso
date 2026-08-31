@@ -39,3 +39,9 @@ evidence `e1`…`e6`; the old validator accepted it as PASS. The schema and fina
 validator now require meaningful lengths, verbatim canonical requirements, and
 a repository path in every trace. The isolated fake reviewer returns long
 placeholder prose that clears structural minima but fails this semantic check.
+
+The next review found three remaining masked `mktemp` calls in
+`scripts/opengrep-check.sh` and noted that the static grep treated a read error
+like no match. Those declarations are split too; the guard now scans every shell
+script and handles grep statuses 0 (unsafe), 1 (clean), and >1 (tool/read error)
+separately. The prompt heredoc also contains no backtick substitution.

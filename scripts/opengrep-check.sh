@@ -17,9 +17,12 @@ if ! git rev-parse --verify --quiet "${BASE_REF}^{commit}" >/dev/null; then
 fi
 
 readonly FIXTURE_DIR='scripts/quality/fixtures/opengrep'
-readonly TEST_LOG="$(mktemp -t proso-opengrep-test.XXXXXXXX.log)"
-readonly TEST_REPORT="$(mktemp -t proso-opengrep-test.XXXXXXXX.json)"
-readonly REPORT="$(mktemp -t proso-opengrep.XXXXXXXX.json)"
+TEST_LOG="$(mktemp -t proso-opengrep-test.XXXXXXXX.log)"
+readonly TEST_LOG
+TEST_REPORT="$(mktemp -t proso-opengrep-test.XXXXXXXX.json)"
+readonly TEST_REPORT
+REPORT="$(mktemp -t proso-opengrep.XXXXXXXX.json)"
+readonly REPORT
 cleanup() {
   rm -f -- "$TEST_LOG" "$TEST_REPORT" "$REPORT"
 }

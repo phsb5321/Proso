@@ -156,7 +156,7 @@ REQ-6. The implementation is the minimum local tool set, records licensing/eligi
 Treat malformed evidence, missing requirement traces, deterministic red checks, unverified claims,
 or any material finding as BLOCK. PASS requires zero findings and every trace status PASS.
 Return exactly one trace for each ID REQ-1 through REQ-6. Copy each requirement sentence above
-verbatim into its `requirement` field. Every evidence string must name the exact supplied file and
+verbatim into its requirement field. Every evidence string must name the exact supplied file and
 the concrete assertion, command, or content that supports the status. Planted
 violation results are recorded in docs/reading-journey-status.md; do not claim the review script
 performs those mutations. Return only a JSON object matching the supplied schema. Do not use

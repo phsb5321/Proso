@@ -5,17 +5,26 @@ IFS=$'\n\t'
 
 ROOT="$(git rev-parse --show-toplevel)"
 readonly ROOT
-readonly TRUST_CHAIN_SCRIPTS=(
-  "$ROOT/scripts/adversarial-review.sh"
-  "$ROOT/scripts/adversarial-review.self-test.sh"
-  "$ROOT/scripts/validate-gate-receipt.sh"
-  "$ROOT/scripts/write-gate-receipt.sh"
-)
-if grep -nE '^[[:space:]]*readonly[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=.*\$\(' \
-  "${TRUST_CHAIN_SCRIPTS[@]}"; then
-  printf 'Self-test failed: receipt trust chain masks a command status with readonly\n' >&2
+[[ -d "$ROOT/scripts" ]] || {
+  printf 'Self-test failed: scripts directory is missing\n' >&2
   exit 1
-fi
+}
+mask_scan_status=0
+grep -rnE --include='*.sh' \
+  '^[[:space:]]*readonly[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=.*\$\(' \
+  "$ROOT/scripts" || mask_scan_status=$?
+case "$mask_scan_status" in
+  0)
+    printf 'Self-test failed: delivery script masks a command status with readonly\n' >&2
+    exit 1
+    ;;
+  1) ;;
+  *)
+    printf 'Self-test failed: could not scan delivery scripts (grep exit %s)\n' \
+      "$mask_scan_status" >&2
+    exit 1
+    ;;
+esac
 
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/proso-adversarial-self-test.XXXXXXXX")"
 readonly TEMP_ROOT
@@ -116,6 +125,11 @@ fi
 if ! grep -F 'Adversarial reviewer returned a malformed verdict:' "$MALFORMED_OUTPUT" >/dev/null; then
   cat "$MALFORMED_OUTPUT" >&2
   printf 'Self-test rejected generic reviewer evidence for the wrong reason\n' >&2
+  exit 1
+fi
+if grep -F 'command not found' "$MALFORMED_OUTPUT" >/dev/null; then
+  cat "$MALFORMED_OUTPUT" >&2
+  printf 'Self-test failed: reviewer prompt executed shell content\n' >&2
   exit 1
 fi
 
