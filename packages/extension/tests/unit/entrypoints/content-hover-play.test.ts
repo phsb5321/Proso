@@ -10,6 +10,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import content from '../../../src/entrypoints/content';
+import { setExtractedParagraphs } from '../../../src/utils/content/extractor';
 
 // jsdom has no ResizeObserver; StickyFooter's constructor requires one.
 class ResizeObserverStub {
@@ -37,9 +38,15 @@ const sendMessageMock = browser.runtime.sendMessage as unknown as {
   mock: { calls: unknown[][] };
 };
 
+type ContentMessageListener = (message: { action: string; [key: string]: unknown }) => unknown;
+const addMessageListenerMock = browser.runtime.onMessage.addListener as unknown as {
+  mockClear: () => void;
+  mock: { calls: Array<[ContentMessageListener]> };
+};
+
 beforeAll(() => {
   jest.useFakeTimers();
-  sendMessageMock.mockResolvedValue({ success: true });
+  sendMessageMock.mockResolvedValue({ success: true, highlights: [] });
 });
 
 function setSelection(selection: { isCollapsed: boolean } | null): void {
@@ -72,7 +79,9 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     // drives a fresh main() (duplicate page listeners behave identically).
     const proso = (window as { Proso?: { _contentInitialized?: boolean } }).Proso;
     if (proso) proso._contentInitialized = undefined;
+    setExtractedParagraphs([]);
     sendMessageMock.mockClear();
+    addMessageListenerMock.mockClear();
     setSelection(null);
     articleDom();
   });
@@ -96,6 +105,33 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     );
     expect(paragraphClicks).toHaveLength(1);
     expect(paragraphClicks[0][0]).toMatchObject({ paragraphIndex: 1 });
+  });
+
+  it('keeps ambient paragraph ordering when playback requests cached extraction', async () => {
+    (content as { main?: (ctx?: unknown) => void }).main?.();
+    jest.advanceTimersByTime(1300);
+
+    const originalTexts = ['p1', 'p2', 'p3'].map(
+      (id) => document.getElementById(id)?.textContent?.trim() ?? '',
+    );
+    document
+      .querySelector('article')
+      ?.insertAdjacentHTML('beforeend', `<p id="p4">Fourth paragraph. ${LOREM}</p>`);
+
+    const listenerCall =
+      addMessageListenerMock.mock.calls[addMessageListenerMock.mock.calls.length - 1];
+    if (!listenerCall) throw new Error('content message listener was not registered');
+    const response = await listenerCall[0]({
+      action: 'extractText',
+      mode: 'article',
+      useCache: true,
+    });
+
+    expect(response).toEqual({
+      text: originalTexts.join('\n\n'),
+      paragraphs: originalTexts,
+      mode: 'article',
+    });
   });
 
   it('keeps link clicks native and ignores them as paragraph clicks', () => {

@@ -14,6 +14,10 @@ existing extractor cache. The only genuinely new pieces are:
 4. One shared guard inserted in the click handler after the play-icon branch;
    the now-redundant per-branch interactive-element check in the selection
    branch collapses into it.
+5. The idle/stopped `PARAGRAPH_CLICKED` handler marks its existing article
+   extraction request cache-preserving. Content reuses a populated ambient
+   cache, but falls back to extraction when idle work has not run, so the
+   clicked DOM index and playback queue always use the same ordering.
 
 ## Constitution check
 
@@ -22,9 +26,9 @@ existing extractor cache. The only genuinely new pieces are:
 - Security by Default: no new surfaces, permissions, or secrets. PASS.
 - Modular Architecture: pure helpers live in `utils/content/`, entrypoint only
   wires them. PASS.
-- Test Coverage for Critical Paths: unit tests cover the gate, the marker, and
-  the guard; the click path itself is already exercised by existing suites.
-  PASS.
+- Test Coverage for Critical Paths: unit tests cover the gate, marker, guard,
+  real content entrypoint, and background click handler, including preservation
+  of ambient cache ordering through first playback. PASS.
 
 ## Risks
 
@@ -35,8 +39,10 @@ existing extractor cache. The only genuinely new pieces are:
 
 ## Verification
 
-- `pnpm --filter @proso/extension test:unit -- hover-play` (new suite)
+- Targeted unit suites: `content-hover-play.test.ts`, `hover-play.test.ts`, and
+  `playback.handlers.test.ts`
 - `make verify` deterministic floor
 - `make fuzz`
 - `make user-gate` (fail-closed public acceptance; collect diagnostic evidence)
-- `GENERATOR_FAMILY=zhipu make gate` (different-family typed review)
+- `GENERATOR_FAMILY=openai make gate` (final Anthropic review is independent
+  from both the original Zhipu implementation and the OpenAI repair)

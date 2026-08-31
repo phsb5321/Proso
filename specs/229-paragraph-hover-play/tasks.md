@@ -1,13 +1,15 @@
 # Feature 229 — Tasks
 
 - [x] T1 Spec + plan (this directory)
-- [ ] T2 `utils/content/hover-play.ts`: `isAmbientExtractionCandidate`,
+- [x] T2 `utils/content/hover-play.ts`: `isAmbientExtractionCandidate`,
       `markHoverAffordance`, `shouldIgnoreParagraphClick`
-- [ ] T3 Ambient idle extraction + hover marking in `content.ts` main()
-- [ ] T4 Paint-only hover CSS in injected content styles
-- [ ] T5 Shared paragraph-click guard in `setupParagraphClickHandlers`;
+- [x] T3 Ambient idle extraction + hover marking in `content.ts` main()
+- [x] T4 Paint-only hover CSS in injected content styles
+- [x] T5 Shared paragraph-click guard in `setupParagraphClickHandlers`;
       collapse redundant per-branch check
-- [ ] T6 Unit suite `tests/unit/content/hover-play.test.ts`
-- [ ] T7 `make verify` + `make fuzz` green
-- [ ] T8 `make user-gate` run with recorded evidence (fail-closed gate)
-- [ ] T9 Different-family gate `GENERATOR_FAMILY=zhipu make gate`
+- [x] T6 Unit and entrypoint suites for hover marking and guarded clicks
+- [x] T7 Preserve ambient paragraph ordering through idle click-to-play with a
+      cache-preserving extraction request, covered in entrypoint and handler tests
+- [ ] T8 `make verify` + `make fuzz` green at final HEAD
+- [ ] T9 `make user-gate` run with recorded evidence (fail-closed gate)
+- [ ] T10 Final different-family gate `GENERATOR_FAMILY=openai make gate`

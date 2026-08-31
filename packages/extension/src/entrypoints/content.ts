@@ -386,6 +386,7 @@ interface FooterStateMessage extends LegacyMessage {
 interface ExtractTextMessage extends LegacyMessage {
   action: 'extractText';
   mode: 'selection' | 'article' | 'full';
+  useCache?: boolean;
 }
 
 /**
@@ -527,6 +528,14 @@ export default defineContentScript({
     // ========================================================================
     // Helper Functions
     // ========================================================================
+
+    /** T046: Enable popup paragraph selection after a fresh extraction. */
+    function enableParagraphSelectionMode(paragraphs: Element[]): void {
+      if (!paragraphSelector || paragraphs.length === 0) return;
+      paragraphSelector.enableSelectionMode(paragraphs, []).catch((error) => {
+        log.warn('Proso: Failed to enable selection mode', { error });
+      });
+    }
 
     /**
      * Jump to a clicked paragraph (only during active playback)
@@ -985,16 +994,16 @@ export default defineContentScript({
         // ====================================================================
         case 'extractText': {
           const msg = message as ExtractTextMessage;
-          const text = extractor.extractText(msg.mode);
+          const reuseCache =
+            msg.useCache === true &&
+            msg.mode === 'article' &&
+            extractor.getExtractedParagraphs().length > 0;
+          const text = reuseCache
+            ? extractor.getParagraphTexts().join('\n\n')
+            : extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators
-          if (paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          if (!reuseCache) enableParagraphSelectionMode(paragraphElements);
 
           // Return the result directly so background can await it
           return Promise.resolve({
@@ -1013,13 +1022,7 @@ export default defineContentScript({
           }
           const paragraphTexts = extractor.getParagraphTexts();
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators (only on fresh extraction)
-          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          if (needsExtraction) enableParagraphSelectionMode(paragraphElements);
 
           return Promise.resolve({
             paragraphs: paragraphTexts.map((text, index) => ({
@@ -1037,13 +1040,7 @@ export default defineContentScript({
             extractor.extractText('article');
           }
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators (only on fresh extraction)
-          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          if (needsExtraction) enableParagraphSelectionMode(paragraphElements);
 
           const fullText = extractor.getParagraphTexts().join('\n\n');
           return Promise.resolve({

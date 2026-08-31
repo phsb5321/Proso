@@ -700,10 +700,12 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
             return Ok({ success: false, playbackStarted: false, error: 'No active tab' });
           }
 
-          // Extract text from the page
+          // Preserve the paragraph order that produced the clicked index;
+          // content still extracts here when the ambient cache is empty.
           const extractResult = await sendToContentScript(tab.id, {
             action: 'extractText',
             mode: 'article',
+            useCache: true,
           });
 
           if (
