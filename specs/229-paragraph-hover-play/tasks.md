@@ -11,7 +11,7 @@
 - [x] T7 Preserve ambient paragraph ordering through idle click-to-play with a
       cache-preserving extraction request, covered in entrypoint and handler tests
 - [x] T8 `make verify` + seed `20260730` / 100-run `make fuzz` green at
-      `21f280b`
-- [x] T9 `make user-gate` at `21f280b`: loaded-Firefox diagnostic PASS and
+      `8bd7cca`
+- [x] T9 `make user-gate` at `8bd7cca`: loaded-Firefox diagnostic PASS and
       receipt written; Feature 095 remains honestly BLOCKED (exit 2)
 - [ ] T10 Rerun the final different-family gate
