@@ -107,20 +107,24 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(paragraphClicks[0][0]).toMatchObject({ paragraphIndex: 1 });
   });
 
-  it('keeps ambient paragraph ordering when playback requests cached extraction', async () => {
+  it('keeps one paragraph ordering from pre-idle extraction through playback', async () => {
     (content as { main?: (ctx?: unknown) => void }).main?.();
-    jest.advanceTimersByTime(1300);
-
     const originalTexts = ['p1', 'p2', 'p3'].map(
       (id) => document.getElementById(id)?.textContent?.trim() ?? '',
     );
-    document
-      .querySelector('article')
-      ?.insertAdjacentHTML('beforeend', `<p id="p4">Fourth paragraph. ${LOREM}</p>`);
-
     const listenerCall =
       addMessageListenerMock.mock.calls[addMessageListenerMock.mock.calls.length - 1];
     if (!listenerCall) throw new Error('content message listener was not registered');
+
+    const initialResponse = await listenerCall[0]({ action: 'getParagraphs' });
+    expect(initialResponse).toEqual({
+      paragraphs: originalTexts.map((text, index) => ({ index, text })),
+    });
+
+    jest.advanceTimersByTime(1300);
+    document
+      .querySelector('article')
+      ?.insertAdjacentHTML('beforeend', `<p id="p4">Fourth paragraph. ${LOREM}</p>`);
     const response = await listenerCall[0]({
       action: 'extractText',
       mode: 'article',
