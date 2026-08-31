@@ -15,4 +15,4 @@
 - [x] T9 `make user-gate` at `ae89e8d`: loaded-Firefox diagnostic PASS and
       `.artifacts/smoke-reading/receipt.json` written; Feature 095 remains
       honestly BLOCKED (exit 2)
-- [ ] T10 Rerun the final different-family gate after reviewer fixes
+- [x] T10 Final different-family gate PASS at `b305437` with zero findings
