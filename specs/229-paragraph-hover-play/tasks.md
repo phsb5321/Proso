@@ -14,4 +14,5 @@
       `8bd7cca`
 - [x] T9 `make user-gate` at `8bd7cca`: loaded-Firefox diagnostic PASS and
       receipt written; Feature 095 remains honestly BLOCKED (exit 2)
-- [ ] T10 Rerun the final different-family gate
+- [x] T10 `GENERATOR_FAMILY=openai make gate` at implementation head `95160cc`:
+      Anthropic PASS with no findings; 3,287 tests and 84.00% diff coverage
