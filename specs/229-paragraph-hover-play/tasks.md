@@ -10,9 +10,6 @@
 - [x] T6 Unit and entrypoint suites for hover marking and guarded clicks
 - [x] T7 Preserve ambient paragraph ordering through idle click-to-play with a
       cache-preserving extraction request, covered in entrypoint and handler tests
-- [x] T8 `make verify` + seed `20260730` / 100-run `make fuzz` green at
-      `ae89e8d`
-- [x] T9 `make user-gate` at `ae89e8d`: loaded-Firefox diagnostic PASS and
-      `.artifacts/smoke-reading/receipt.json` written; Feature 095 remains
-      honestly BLOCKED (exit 2)
-- [x] T10 Final different-family gate PASS at `b305437` with zero findings
+- [ ] T8 Rerun deterministic and seeded fuzz gates on the final base
+- [ ] T9 Rerun `make user-gate` and record its fail-closed Feature 095 verdict
+- [ ] T10 Rerun the final different-family gate
