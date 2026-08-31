@@ -21,7 +21,7 @@ The blocking policy remains unchanged.
 - REQ-2: The artifact has a versioned schema with distinct `legacy` and
   `introduced` arrays and retains each complete jscpd duplicate record.
 - REQ-3: Artifact counts exactly match the current scanner report; each run
-  overwrites stale evidence and validates the persisted schema/counts.
+  atomically overwrites stale evidence and validates the persisted schema/counts.
 - REQ-4: Any introduced clone still exits non-zero and is listed under
   `introduced`; zero introduced clones still exits zero.
 - REQ-5: Do not add a suppression baseline, lower a threshold, or retain the

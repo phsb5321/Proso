@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -8,8 +8,10 @@ import { changedLines } from './changed-lines.mjs';
 const outputDirectory = mkdtempSync(path.join(tmpdir(), 'proso-jscpd-'));
 const evidenceDirectory = path.resolve('.artifacts/quality');
 const evidencePath = path.join(evidenceDirectory, 'jscpd-report.json');
+const pendingEvidencePath = `${evidencePath}.${process.pid}.tmp`;
 mkdirSync(evidenceDirectory, { recursive: true });
 rmSync(evidencePath, { force: true });
+rmSync(pendingEvidencePath, { force: true });
 
 try {
   const result = spawnSync(
@@ -64,7 +66,8 @@ try {
     legacy,
     introduced,
   };
-  writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  writeFileSync(pendingEvidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  renameSync(pendingEvidencePath, evidencePath);
 
   const persisted = JSON.parse(readFileSync(evidencePath, 'utf8'));
   if (
@@ -93,5 +96,6 @@ try {
   }
   console.log(`Detailed report: ${path.relative(process.cwd(), evidencePath)}`);
 } finally {
+  rmSync(pendingEvidencePath, { force: true });
   rmSync(outputDirectory, { recursive: true, force: true });
 }
