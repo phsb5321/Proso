@@ -14,12 +14,21 @@
  */
 
 import { browser } from 'wxt/browser';
+// WXT injects this auto-import at build time (.wxt/types/imports.d.ts); the
+// explicit import is the same binding and makes the entrypoint jest-importable.
+import { defineContentScript } from 'wxt/utils/define-content-script';
 import type { TextQuoteSelector } from '../core/highlight';
 import { toAnchoringReport } from '../core/highlight/anchoring-report';
 import { reconcileStaleContentArtifacts } from '../utils/content/content-artifact-cleanup';
 import { isExtensionPage } from '../utils/content/extension-page';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
+import {
+  HOVERABLE_CLASS,
+  isAmbientExtractionCandidate,
+  markHoverAffordance,
+  shouldIgnoreParagraphClick,
+} from '../utils/content/hover-play';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
@@ -298,6 +307,24 @@ function injectContentStyles(): void {
         transition: none !important;
       }
     }
+
+    /* Ambient hover-play affordance (Feature 229) — paint-only, never reflows */
+    .${HOVERABLE_CLASS} {
+      cursor: pointer;
+    }
+
+    .${HOVERABLE_CLASS}:hover {
+      background-color: rgba(13, 148, 136, 0.08) !important;
+      box-shadow: inset 3px 0 0 rgba(13, 148, 136, 0.55) !important;
+      border-radius: 4px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${HOVERABLE_CLASS}:hover {
+        background-color: rgba(20, 184, 166, 0.12) !important;
+        box-shadow: inset 3px 0 0 rgba(20, 184, 166, 0.65) !important;
+      }
+    }
   `;
 
   document.head.appendChild(style);
@@ -360,6 +387,7 @@ interface FooterStateMessage extends LegacyMessage {
 interface ExtractTextMessage extends LegacyMessage {
   action: 'extractText';
   mode: 'selection' | 'article' | 'full';
+  useCache?: boolean;
 }
 
 /**
@@ -502,6 +530,14 @@ export default defineContentScript({
     // Helper Functions
     // ========================================================================
 
+    /** T046: Enable popup paragraph selection after a fresh extraction. */
+    function enableParagraphSelectionMode(paragraphs: Element[]): void {
+      if (!paragraphSelector || paragraphs.length === 0) return;
+      paragraphSelector.enableSelectionMode(paragraphs, []).catch((error) => {
+        log.warn('Proso: Failed to enable selection mode', { error });
+      });
+    }
+
     /**
      * Jump to a clicked paragraph (only during active playback)
      */
@@ -526,6 +562,42 @@ export default defineContentScript({
     }
 
     /**
+     * Ambient hover-play (Feature 229): extract once at idle so paragraph
+     * clicks can start playback without any popup interaction, then mark the
+     * paragraphs with the paint-only hover affordance.
+     */
+    function runAmbientHoverPlayExtraction(): void {
+      try {
+        if (
+          extractor.getLastExtractionMode() === 'article' &&
+          extractor.getExtractedParagraphs().length > 0
+        ) {
+          markHoverAffordance(extractor.getExtractedParagraphs());
+          return;
+        }
+        if (!isAmbientExtractionCandidate(document)) {
+          log.debug('Proso: Skipping ambient hover-play extraction (page not text-rich)');
+          return;
+        }
+        const text = extractor.extractText('article');
+        if (!text) return;
+        const marked = markHoverAffordance(extractor.getExtractedParagraphs());
+        log.debug('Proso: Ambient hover-play extraction marked paragraphs', { marked });
+      } catch (error) {
+        log.warn('Proso: Ambient hover-play extraction failed', { error });
+      }
+    }
+
+    function setupAmbientHoverPlay(): void {
+      // FR-1: defer off the critical path; never block or break the page.
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => runAmbientHoverPlayExtraction(), { timeout: 3000 });
+      } else {
+        window.setTimeout(runAmbientHoverPlayExtraction, 1200);
+      }
+    }
+
+    /**
      * Setup paragraph click handlers
      * - During playback: clicking a paragraph jumps to it
      * - Selection mode: clicking selects (visual only), play icon starts playback
@@ -539,6 +611,13 @@ export default defineContentScript({
 
         // Ignore clicks on play icons (they have their own handlers)
         if (target.closest('.proso-play-icon')) {
+          return;
+        }
+
+        // FR-4/FR-5: one shared guard for every paragraph-click branch —
+        // interactive elements keep their native behavior and the terminating
+        // click of a drag text-selection never starts or seeks playback.
+        if (shouldIgnoreParagraphClick(target, window.getSelection())) {
           return;
         }
 
@@ -562,6 +641,21 @@ export default defineContentScript({
             jumpToClickedParagraph(index);
           }
           return;
+        }
+
+        // A selection read shares the extractor module but not article indexes.
+        // Refresh before mapping a hover click so index N still means article N.
+        if (
+          extractor.getLastExtractionMode() !== 'article' &&
+          isAmbientExtractionCandidate(document)
+        ) {
+          try {
+            extractor.extractText('article');
+            markHoverAffordance(extractor.getExtractedParagraphs());
+          } catch (error) {
+            log.warn('Proso: Could not refresh article cache for paragraph click', { error });
+            return;
+          }
         }
 
         // Check if clicking on an extracted paragraph
@@ -919,16 +1013,17 @@ export default defineContentScript({
         // ====================================================================
         case 'extractText': {
           const msg = message as ExtractTextMessage;
-          const text = extractor.extractText(msg.mode);
+          const reuseCache =
+            msg.useCache === true &&
+            msg.mode === 'article' &&
+            extractor.getLastExtractionMode() === 'article' &&
+            extractor.getExtractedParagraphs().length > 0;
+          const text = reuseCache
+            ? extractor.getParagraphTexts().join('\n\n')
+            : extractor.extractText(msg.mode);
           const paragraphTexts = extractor.getParagraphTexts();
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators
-          if (paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          if (!reuseCache) enableParagraphSelectionMode(paragraphElements);
 
           // Return the result directly so background can await it
           return Promise.resolve({
@@ -941,19 +1036,15 @@ export default defineContentScript({
         // T046: Handle getParagraphs from popup
         case 'getParagraphs': {
           // Extract content if not already extracted
-          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          const needsExtraction =
+            extractor.getLastExtractionMode() !== 'article' ||
+            extractor.getExtractedParagraphs().length === 0;
           if (needsExtraction) {
             extractor.extractText('article');
           }
           const paragraphTexts = extractor.getParagraphTexts();
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators (only on fresh extraction)
-          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          enableParagraphSelectionMode(paragraphElements);
 
           return Promise.resolve({
             paragraphs: paragraphTexts.map((text, index) => ({
@@ -966,18 +1057,14 @@ export default defineContentScript({
         // T046: Handle getArticleText from popup
         case 'getArticleText': {
           // Extract content if not already extracted
-          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          const needsExtraction =
+            extractor.getLastExtractionMode() !== 'article' ||
+            extractor.getExtractedParagraphs().length === 0;
           if (needsExtraction) {
             extractor.extractText('article');
           }
           const paragraphElements = extractor.getExtractedParagraphs();
-
-          // T046: Enable selection mode for hover indicators (only on fresh extraction)
-          if (needsExtraction && paragraphSelector && paragraphElements.length > 0) {
-            paragraphSelector.enableSelectionMode(paragraphElements, []).catch((err) => {
-              log.warn('Proso: Failed to enable selection mode', { error: err });
-            });
-          }
+          enableParagraphSelectionMode(paragraphElements);
 
           const fullText = extractor.getParagraphTexts().join('\n\n');
           return Promise.resolve({
@@ -1519,6 +1606,10 @@ export default defineContentScript({
 
     // Setup click handlers when script loads
     setupParagraphClickHandlers();
+
+    // Feature 229: ambient hover-play — idle extraction + hover affordance so
+    // any paragraph click can start playback without opening the popup first.
+    setupAmbientHoverPlay();
 
     /**
      * Scroll event listener for auto-scroll debounce

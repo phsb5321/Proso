@@ -166,6 +166,7 @@ const UNWANTED_CONFIG: UnwantedConfig = {
  * This is module-level state that persists across function calls
  */
 let extractedParagraphs: Element[] = [];
+let lastExtractionMode: ExtractionMode | null = null;
 
 // ============================================================================
 // Public API Functions
@@ -176,6 +177,11 @@ let extractedParagraphs: Element[] = [];
  */
 export function getExtractedParagraphs(): Element[] {
   return extractedParagraphs;
+}
+
+/** Get the mode that populated the current paragraph cache. */
+export function getLastExtractionMode(): ExtractionMode | null {
+  return lastExtractionMode;
 }
 
 /**
@@ -192,8 +198,13 @@ export function getParagraphTexts(): string[] {
 /**
  * Set extracted paragraphs
  */
-export function setExtractedParagraphs(paragraphs: Element[]): void {
+export function setExtractedParagraphs(paragraphs: Element[], mode?: ExtractionMode | null): void {
   extractedParagraphs = paragraphs;
+  if (mode !== undefined) {
+    lastExtractionMode = mode;
+  } else if (paragraphs.length === 0) {
+    lastExtractionMode = null;
+  }
 }
 
 /**
@@ -202,16 +213,26 @@ export function setExtractedParagraphs(paragraphs: Element[]): void {
 export function extractText(mode: ExtractionMode): string {
   log.debug(`Proso: extractText() called with mode: "${mode}"`);
 
+  // A failed/empty selection must not leave an earlier article cache wearing a
+  // selection provenance label.
+  if (mode === 'selection') extractedParagraphs = [];
+
+  let text: string;
   switch (mode) {
     case 'selection':
-      return extractSelection();
+      text = extractSelection();
+      break;
     case 'article':
-      return extractArticle();
+      text = extractArticle();
+      break;
     case 'full':
     default:
       log.debug('Proso: Using full page extraction (consider using article mode)');
-      return extractFullPage();
+      text = extractFullPage();
+      break;
   }
+  lastExtractionMode = mode;
+  return text;
 }
 
 /**

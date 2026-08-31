@@ -15,6 +15,7 @@
 import { browser } from 'wxt/browser';
 import { z } from 'zod';
 import { createLogger } from '../logging/logger';
+import { shouldIgnoreParagraphClick } from './hover-play';
 
 const log = createLogger('content');
 
@@ -393,14 +394,11 @@ export class ParagraphSelector {
         return;
       }
 
-      // Check if clicked on selectable paragraph (but not an interactive element)
+      // Use the same interactive/selection guard as ambient paragraph clicks.
+      if (shouldIgnoreParagraphClick(target, window.getSelection())) return;
+
       const selectableEl = target.closest(`.${SELECTABLE_CLASS}`) as HTMLElement | null;
       if (selectableEl) {
-        // Don't interfere with links or buttons inside paragraphs
-        if (target.closest('a, button, input, [role="button"], [role="link"]')) {
-          return;
-        }
-
         const index = Number.parseInt(selectableEl.dataset.prosoSelectIndex || '', 10);
         if (!isNaN(index)) {
           this.selectParagraph(index);
