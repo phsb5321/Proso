@@ -1,11 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { changedLines } from './changed-lines.mjs';
 
 const outputDirectory = mkdtempSync(path.join(tmpdir(), 'proso-jscpd-'));
+const evidenceDirectory = path.resolve('.artifacts/quality');
+const evidencePath = path.join(evidenceDirectory, 'jscpd-report.json');
+const pendingEvidencePath = `${evidencePath}.${process.pid}.tmp`;
+mkdirSync(evidenceDirectory, { recursive: true });
+rmSync(evidencePath, { force: true });
+rmSync(pendingEvidencePath, { force: true });
+
 try {
   const result = spawnSync(
     'pnpm',
@@ -46,6 +53,33 @@ try {
     return false;
   });
 
+  const introducedSet = new Set(introduced);
+  const legacy = report.duplicates.filter((duplicate) => !introducedSet.has(duplicate));
+  const evidence = {
+    schemaVersion: 1,
+    summary: {
+      total: report.duplicates.length,
+      legacy: legacy.length,
+      introduced: introduced.length,
+    },
+    statistics: report.statistics,
+    legacy,
+    introduced,
+  };
+  writeFileSync(pendingEvidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  renameSync(pendingEvidencePath, evidencePath);
+
+  const persisted = JSON.parse(readFileSync(evidencePath, 'utf8'));
+  if (
+    persisted.schemaVersion !== 1 ||
+    !Array.isArray(persisted.legacy) ||
+    !Array.isArray(persisted.introduced) ||
+    persisted.summary?.total !== report.duplicates.length ||
+    persisted.legacy.length + persisted.introduced.length !== report.duplicates.length
+  ) {
+    throw new Error('persisted jscpd evidence failed schema or count validation');
+  }
+
   if (introduced.length > 0) {
     console.error(
       `Changed-code duplication detected:\n${introduced
@@ -56,11 +90,12 @@ try {
         )
         .join('\n')}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+  } else {
+    console.log(`Duplication ratchet: ${legacy.length} legacy clones, 0 touching changed lines.`);
   }
-  console.log(
-    `Duplication ratchet: ${report.duplicates.length} legacy clones, 0 touching changed lines.`,
-  );
+  console.log(`Detailed report: ${path.relative(process.cwd(), evidencePath)}`);
 } finally {
+  rmSync(pendingEvidencePath, { force: true });
   rmSync(outputDirectory, { recursive: true, force: true });
 }
