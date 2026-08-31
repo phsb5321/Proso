@@ -71,7 +71,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     // main() is idempotence-guarded per page; reset the guard so each test
     // drives a fresh main() (duplicate page listeners behave identically).
     const proso = (window as { Proso?: { _contentInitialized?: boolean } }).Proso;
-    if (proso) delete proso._contentInitialized;
+    if (proso) proso._contentInitialized = undefined;
     sendMessageMock.mockClear();
     setSelection(null);
     articleDom();
