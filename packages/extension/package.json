@@ -41,7 +41,7 @@
     "lint:manifest": "web-ext lint --source-dir .output/firefox-mv2",
     "deps:check": "madge --extensions ts --circular src/entrypoints/ src/utils/",
     "deps:graph": "madge --image deps.svg src/entrypoints/ src/utils/",
-    "duplication": "jscpd --threshold 10 --min-tokens 50 src/entrypoints/ src/utils/",
+    "duplication": "jscpd --threshold 10 --min-tokens 50 --max-lines 10000 --max-size 1mb src/entrypoints/ src/utils/",
     "quality": "pnpm run deps:check && pnpm run duplication",
     "icons:generate": "node scripts/generate-icons.mjs --run",
     "icons:check": "node scripts/generate-icons.mjs --check",

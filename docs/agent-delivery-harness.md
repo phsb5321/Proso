@@ -102,7 +102,7 @@ reason to treat a green run as Feature 095 acceptance.
 |---|---|---|
 | Jest, WXT, Biome, TypeScript | Adopted | Already pinned; directly exercise the current packages |
 | Madge | Adopted after repair | `--extensions ts` prevents the previous zero-file false green |
-| jscpd | Adopted | Changed-code clones block; each run retains classified legacy/introduced evidence locally |
+| jscpd | Adopted | Changed-code clones block; tracked-source inventory prevents size-limit omissions |
 | Gitleaks | Adopted | Scans tracked and non-ignored working-tree files; known placeholders use exact fingerprints |
 | GNU Make | Adopted | Small stable interface over existing commands; no new runtime dependency |
 | Claude/Codex/Meta structured output | Adopted | Exact model IDs, family checks, inlined full diff/context, typed fail-closed review |
@@ -166,8 +166,10 @@ Measured against the Slice 1b foundation on 30/07/2026:
 
 Each current duplication run overwrites `.artifacts/quality/jscpd-report.json` with versioned
 `legacy` and `introduced` arrays containing jscpd's complete records, validates count parity, and
-then removes only the temporary scanner directory. This artifact makes accepted legacy locations
-visible; it is evidence, not a suppression baseline.
+then removes only the temporary scanner directory. Before classification, it compares jscpd's
+reported sources with Git's tracked CSS/HTML/JS/TS inventory under all four source roots; a size
+ceiling or parser omission therefore fails by file name instead of producing an empty finding set.
+This artifact makes accepted legacy locations visible; it is evidence, not a suppression baseline.
 
 The ratchets reject both new findings and stale suppressions. They also reject missing coverage
 reports, malformed scanner JSON, missing tools/base commits, and an empty Jest selection. OpenGrep

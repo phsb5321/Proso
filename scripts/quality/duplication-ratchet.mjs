@@ -5,6 +5,18 @@ import path from 'node:path';
 
 import { changedLines } from './changed-lines.mjs';
 
+const scanRoots = [
+  'packages/extension/src',
+  'packages/server/src',
+  'packages/shared/src',
+  'services/proso-log-gateway/src',
+];
+const sourceExtensions = new Set(['.css', '.html', '.js', '.jsx', '.ts', '.tsx']);
+// ponytail: ceilings bound scanner memory; the inventory check below names any
+// owned source that outgrows them so the limit can be raised deliberately.
+const maxSourceLines = process.env.JSCPD_MAX_LINES ?? '10000';
+const maxSourceSize = process.env.JSCPD_MAX_SIZE ?? '1mb';
+
 const outputDirectory = mkdtempSync(path.join(tmpdir(), 'proso-jscpd-'));
 const evidenceDirectory = path.resolve('.artifacts/quality');
 const evidencePath = path.join(evidenceDirectory, 'jscpd-report.json');
@@ -27,10 +39,11 @@ try {
       '100',
       '--min-tokens',
       '50',
-      'packages/extension/src',
-      'packages/server/src',
-      'packages/shared/src',
-      'services/proso-log-gateway/src',
+      '--max-lines',
+      maxSourceLines,
+      '--max-size',
+      maxSourceSize,
+      ...scanRoots,
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
@@ -41,6 +54,31 @@ try {
   const reportPath = path.join(outputDirectory, 'jscpd-report.json');
   const report = JSON.parse(readFileSync(reportPath, 'utf8'));
   if (!Array.isArray(report.duplicates)) throw new Error('jscpd report has an invalid schema');
+
+  const formats = report.statistics?.formats;
+  if (!formats || typeof formats !== 'object') {
+    throw new Error('jscpd report has no source inventory');
+  }
+  const scannedSources = new Set(
+    Object.values(formats).flatMap((format) => Object.keys(format.sources ?? {})),
+  );
+  const trackedResult = spawnSync('git', ['ls-files', '-z', '--', ...scanRoots], {
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (trackedResult.status !== 0 || trackedResult.error) {
+    throw new Error(
+      `could not inventory tracked sources: ${trackedResult.error?.message ?? trackedResult.stderr}`,
+    );
+  }
+  const trackedSources = trackedResult.stdout
+    .split('\0')
+    .filter((file) => file.length > 0 && sourceExtensions.has(path.extname(file)));
+  const omittedSources = trackedSources.filter((file) => !scannedSources.has(file));
+  if (omittedSources.length > 0) {
+    throw new Error(`jscpd omitted tracked source files:\n${omittedSources.join('\n')}`);
+  }
+
   const changed = changedLines();
   const introduced = report.duplicates.filter((duplicate) => {
     for (const side of [duplicate.firstFile, duplicate.secondFile]) {
@@ -63,6 +101,10 @@ try {
       introduced: introduced.length,
     },
     statistics: report.statistics,
+    sourceInventory: {
+      tracked: trackedSources,
+      scanned: [...scannedSources].sort(),
+    },
     legacy,
     introduced,
   };
