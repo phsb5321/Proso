@@ -88,6 +88,15 @@ function startContentWithMessageListener(): ContentMessageListener {
   return listenerCall[0];
 }
 
+function paragraphClickMessages(): unknown[][] {
+  return sendMessageMock.mock.calls.filter(
+    (call) =>
+      typeof call[0] === 'object' &&
+      call[0] !== null &&
+      (call[0] as { type?: string }).type === 'PARAGRAPH_CLICKED',
+  );
+}
+
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
     // main() is idempotence-guarded per page; reset the guard so each test
@@ -117,12 +126,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     const p2 = document.getElementById('p2') as Element;
     p2.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const paragraphClicks = sendMessageMock.mock.calls.filter(
-      (call) =>
-        typeof call[0] === 'object' &&
-        call[0] !== null &&
-        (call[0] as { type?: string }).type === 'PARAGRAPH_CLICKED',
-    );
+    const paragraphClicks = paragraphClickMessages();
     expect(paragraphClicks).toHaveLength(1);
     expect(paragraphClicks[0][0]).toMatchObject({ paragraphIndex: 1 });
   });
@@ -204,6 +208,27 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
 
     expect(response).toMatchObject({ paragraphs: originalTexts, mode: 'article' });
     expect((response as { text: string }).text).toContain(originalTexts[0]);
+    expect(getLastExtractionMode()).toBe('article');
+  });
+
+  it.each([
+    ['cold cache', () => setExtractedParagraphs([])],
+    [
+      'selection cache',
+      () => setExtractedParagraphs([document.getElementById('p3') as Element], 'selection'),
+    ],
+  ])('refreshes %s before mapping a real paragraph click', (_name, seedCache) => {
+    (content as { main?: (ctx?: unknown) => void }).main?.();
+    sendMessageMock.mockClear();
+    seedCache();
+
+    document.getElementById('p2')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const paragraphClicks = paragraphClickMessages();
+    expect(paragraphClicks.length).toBeGreaterThan(0);
+    for (const call of paragraphClicks) {
+      expect(call[0]).toMatchObject({ paragraphIndex: 1 });
+    }
     expect(getLastExtractionMode()).toBe('article');
   });
 
