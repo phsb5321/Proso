@@ -77,9 +77,7 @@ function articleDom(): void {
 }
 
 function articleParagraphTexts(): string[] {
-  return ['p1', 'p2', 'p3'].map(
-    (id) => document.getElementById(id)?.textContent?.trim() ?? '',
-  );
+  return ['p1', 'p2', 'p3'].map((id) => document.getElementById(id)?.textContent?.trim() ?? '');
 }
 
 function startContentWithMessageListener(): ContentMessageListener {
