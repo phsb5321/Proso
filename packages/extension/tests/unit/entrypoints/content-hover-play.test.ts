@@ -10,7 +10,10 @@
 
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import content from '../../../src/entrypoints/content';
-import { setExtractedParagraphs } from '../../../src/utils/content/extractor';
+import {
+  getLastExtractionMode,
+  setExtractedParagraphs,
+} from '../../../src/utils/content/extractor';
 
 // jsdom has no ResizeObserver; StickyFooter's constructor requires one.
 class ResizeObserverStub {
@@ -73,6 +76,20 @@ function articleDom(): void {
     '</article>';
 }
 
+function articleParagraphTexts(): string[] {
+  return ['p1', 'p2', 'p3'].map(
+    (id) => document.getElementById(id)?.textContent?.trim() ?? '',
+  );
+}
+
+function startContentWithMessageListener(): ContentMessageListener {
+  (content as { main?: (ctx?: unknown) => void }).main?.();
+  const listenerCall =
+    addMessageListenerMock.mock.calls[addMessageListenerMock.mock.calls.length - 1];
+  if (!listenerCall) throw new Error('content message listener was not registered');
+  return listenerCall[0];
+}
+
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
     // main() is idempotence-guarded per page; reset the guard so each test
@@ -124,23 +141,22 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
       configurable: true,
       writable: true,
     });
+    setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
 
     (content as { main?: (ctx?: unknown) => void }).main?.();
 
     expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 3000 });
+    expect(getLastExtractionMode()).toBe('article');
     expect(document.getElementById('p1')?.classList.contains('proso-hoverable')).toBe(true);
   });
 
   it('keeps one paragraph ordering from pre-idle extraction through playback', async () => {
-    (content as { main?: (ctx?: unknown) => void }).main?.();
-    const originalTexts = ['p1', 'p2', 'p3'].map(
-      (id) => document.getElementById(id)?.textContent?.trim() ?? '',
-    );
-    const listenerCall =
-      addMessageListenerMock.mock.calls[addMessageListenerMock.mock.calls.length - 1];
-    if (!listenerCall) throw new Error('content message listener was not registered');
+    const originalTexts = articleParagraphTexts();
+    const listener = startContentWithMessageListener();
+    setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
 
-    const initialResponse = await listenerCall[0]({ action: 'getParagraphs' });
+    const initialResponse = await listener({ action: 'getParagraphs' });
+    expect(getLastExtractionMode()).toBe('article');
     expect(initialResponse).toEqual({
       paragraphs: originalTexts.map((text, index) => ({ index, text })),
     });
@@ -149,7 +165,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     document
       .querySelector('article')
       ?.insertAdjacentHTML('beforeend', `<p id="p4">Fourth paragraph. ${LOREM}</p>`);
-    const response = await listenerCall[0]({
+    const response = await listener({
       action: 'extractText',
       mode: 'article',
       useCache: true,
@@ -160,6 +176,22 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
       paragraphs: originalTexts,
       mode: 'article',
     });
+  });
+
+  it('does not serve a selection cache as an article cache', async () => {
+    const originalTexts = articleParagraphTexts();
+    const listener = startContentWithMessageListener();
+    setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
+
+    const response = await listener({
+      action: 'extractText',
+      mode: 'article',
+      useCache: true,
+    });
+
+    expect(response).toMatchObject({ paragraphs: originalTexts, mode: 'article' });
+    expect((response as { text: string }).text).toContain(originalTexts[0]);
+    expect(getLastExtractionMode()).toBe('article');
   });
 
   it('keeps link clicks native and ignores them as paragraph clicks', () => {

@@ -5,7 +5,7 @@
  * @module tests/unit/content/paragraph-selector
  */
 
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // Mock browser API - unused in this file since we test the mock implementation
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -639,7 +639,16 @@ function flushMicrotasks(): Promise<void> {
  * real class installs on paragraph elements. Naming the one member under test
  * keeps the escape hatch typed instead of widening the instance to `any`.
  */
-type ParagraphSelectorInternals = { handlePlayFromParagraph(index: number): void };
+type ParagraphSelectorInternals = {
+  handlePlayFromParagraph(index: number): void;
+  setupEventHandlers(): void;
+  state: {
+    isActive: boolean;
+    selectedIndex: number | null;
+    paragraphElements: Element[];
+    cachedIndices: number[];
+  };
+};
 
 describe('T011: playback failure toast (089-reading-reliability)', () => {
   let realSelector: InstanceType<typeof ParagraphSelector>;
@@ -650,6 +659,16 @@ describe('T011: playback failure toast (089-reading-reliability)', () => {
     document.getElementById(FAILURE_TOAST_ID)?.remove();
     realSelector = new ParagraphSelector();
     internals = realSelector as unknown as ParagraphSelectorInternals;
+    Object.defineProperty(window, 'getSelection', {
+      value: () => null,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    realSelector.disableSelectionMode();
+    document.body.replaceChildren();
   });
 
   it('should show an accessible alert toast when the background resolves success:false', async () => {
@@ -687,5 +706,39 @@ describe('T011: playback failure toast (089-reading-reliability)', () => {
 
     const toast = document.body.querySelector('[role="alert"]');
     expect(toast?.textContent).toBe('Failed to start playback from this paragraph.');
+  });
+
+  it('uses the shared guard for capture-phase selection clicks', () => {
+    document.body.innerHTML = `
+      <p id="paragraph" class="proso-selectable" data-proso-select-index="0">
+        <select id="select"><option>choice</option></select>
+        <span id="editable" contenteditable="true">edit</span>
+        <span id="static" contenteditable="false">read</span>
+      </p>
+    `;
+    const paragraph = document.getElementById('paragraph') as Element;
+    internals.state = {
+      isActive: true,
+      selectedIndex: null,
+      paragraphElements: [paragraph],
+      cachedIndices: [],
+    };
+    internals.setupEventHandlers();
+
+    for (const id of ['select', 'editable']) {
+      document.getElementById(id)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(realSelector.getSelectedIndex()).toBeNull();
+    }
+
+    Object.defineProperty(window, 'getSelection', {
+      value: () => ({ isCollapsed: false }),
+      configurable: true,
+    });
+    paragraph.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(realSelector.getSelectedIndex()).toBeNull();
+
+    Object.defineProperty(window, 'getSelection', { value: () => null, configurable: true });
+    document.getElementById('static')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(realSelector.getSelectedIndex()).toBe(0);
   });
 });

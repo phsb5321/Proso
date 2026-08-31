@@ -568,7 +568,10 @@ export default defineContentScript({
      */
     function runAmbientHoverPlayExtraction(): void {
       try {
-        if (extractor.getExtractedParagraphs().length > 0) {
+        if (
+          extractor.getLastExtractionMode() === 'article' &&
+          extractor.getExtractedParagraphs().length > 0
+        ) {
           markHoverAffordance(extractor.getExtractedParagraphs());
           return;
         }
@@ -638,6 +641,21 @@ export default defineContentScript({
             jumpToClickedParagraph(index);
           }
           return;
+        }
+
+        // A selection read shares the extractor module but not article indexes.
+        // Refresh before mapping a hover click so index N still means article N.
+        if (
+          extractor.getLastExtractionMode() !== 'article' &&
+          isAmbientExtractionCandidate(document)
+        ) {
+          try {
+            extractor.extractText('article');
+            markHoverAffordance(extractor.getExtractedParagraphs());
+          } catch (error) {
+            log.warn('Proso: Could not refresh article cache for paragraph click', { error });
+            return;
+          }
         }
 
         // Check if clicking on an extracted paragraph
@@ -998,6 +1016,7 @@ export default defineContentScript({
           const reuseCache =
             msg.useCache === true &&
             msg.mode === 'article' &&
+            extractor.getLastExtractionMode() === 'article' &&
             extractor.getExtractedParagraphs().length > 0;
           const text = reuseCache
             ? extractor.getParagraphTexts().join('\n\n')
@@ -1017,7 +1036,9 @@ export default defineContentScript({
         // T046: Handle getParagraphs from popup
         case 'getParagraphs': {
           // Extract content if not already extracted
-          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          const needsExtraction =
+            extractor.getLastExtractionMode() !== 'article' ||
+            extractor.getExtractedParagraphs().length === 0;
           if (needsExtraction) {
             extractor.extractText('article');
           }
@@ -1036,7 +1057,9 @@ export default defineContentScript({
         // T046: Handle getArticleText from popup
         case 'getArticleText': {
           // Extract content if not already extracted
-          const needsExtraction = extractor.getExtractedParagraphs().length === 0;
+          const needsExtraction =
+            extractor.getLastExtractionMode() !== 'article' ||
+            extractor.getExtractedParagraphs().length === 0;
           if (needsExtraction) {
             extractor.extractText('article');
           }
