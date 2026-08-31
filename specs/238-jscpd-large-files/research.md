@@ -1,7 +1,8 @@
 # Feature 238 — Pre-fix evidence
 
-`packages/extension/src/entrypoints/content.ts` is 62,245 bytes and over 1,800
-lines. `jscpd --help` documents `--max-lines` defaulting to 1,000.
+At candidate base `9aad289`, `packages/extension/src/entrypoints/content.ts` is
+59,626 bytes and 1,742 lines (`git cat-file -s` / `git show | wc -l`).
+`jscpd --help` documents `--max-lines` defaulting to 1,000.
 
 A direct scan of `packages/extension/src/entrypoints/` reported nine TypeScript
 files and zero TypeScript clones, but its JSON `statistics.formats.typescript.sources`
