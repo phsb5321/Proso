@@ -236,6 +236,9 @@ release-channels: ## Build both Firefox channels (unlisted + listed) and prove t
 	@node scripts/release-channels-check.mjs
 	@npx web-ext lint --source-dir packages/extension/.output-listed/firefox-mv2 --output=text
 
+amo-package: ## Build the listed Firefox ZIP and complete corresponding-source archive.
+	@pnpm run zip:firefox-listed
+
 amo-publication: ## Require the reviewed version to be publicly listed on Mozilla Add-ons.
 	@node scripts/amo-publication-check.mjs
 
