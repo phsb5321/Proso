@@ -20,6 +20,11 @@ import { reconcileStaleContentArtifacts } from '../utils/content/content-artifac
 import { isExtensionPage } from '../utils/content/extension-page';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
+import {
+  isAmbientExtractionCandidate,
+  markHoverAffordance,
+  shouldIgnoreParagraphClick,
+} from '../utils/content/hover-play';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
@@ -298,6 +303,24 @@ function injectContentStyles(): void {
         transition: none !important;
       }
     }
+
+    /* Ambient hover-play affordance (Feature 229) — paint-only, never reflows */
+    .proso-hoverable {
+      cursor: pointer;
+    }
+
+    .proso-hoverable:hover {
+      background-color: rgba(13, 148, 136, 0.08) !important;
+      box-shadow: inset 3px 0 0 rgba(13, 148, 136, 0.55) !important;
+      border-radius: 4px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .proso-hoverable:hover {
+        background-color: rgba(20, 184, 166, 0.12) !important;
+        box-shadow: inset 3px 0 0 rgba(20, 184, 166, 0.65) !important;
+      }
+    }
   `;
 
   document.head.appendChild(style);
@@ -526,6 +549,39 @@ export default defineContentScript({
     }
 
     /**
+     * Ambient hover-play (Feature 229): extract once at idle so paragraph
+     * clicks can start playback without any popup interaction, then mark the
+     * paragraphs with the paint-only hover affordance.
+     */
+    function runAmbientHoverPlayExtraction(): void {
+      try {
+        if (extractor.getExtractedParagraphs().length > 0) {
+          markHoverAffordance(extractor.getExtractedParagraphs());
+          return;
+        }
+        if (!isAmbientExtractionCandidate(document)) {
+          log.debug('Proso: Skipping ambient hover-play extraction (page not text-rich)');
+          return;
+        }
+        const text = extractor.extractText('article');
+        if (!text) return;
+        const marked = markHoverAffordance(extractor.getExtractedParagraphs());
+        log.debug('Proso: Ambient hover-play extraction marked paragraphs', { marked });
+      } catch (error) {
+        log.warn('Proso: Ambient hover-play extraction failed', { error });
+      }
+    }
+
+    function setupAmbientHoverPlay(): void {
+      // FR-1: defer off the critical path; never block or break the page.
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => runAmbientHoverPlayExtraction(), { timeout: 3000 });
+      } else {
+        window.setTimeout(runAmbientHoverPlayExtraction, 1200);
+      }
+    }
+
+    /**
      * Setup paragraph click handlers
      * - During playback: clicking a paragraph jumps to it
      * - Selection mode: clicking selects (visual only), play icon starts playback
@@ -539,6 +595,13 @@ export default defineContentScript({
 
         // Ignore clicks on play icons (they have their own handlers)
         if (target.closest('.proso-play-icon')) {
+          return;
+        }
+
+        // FR-4/FR-5: one shared guard for every paragraph-click branch —
+        // interactive elements keep their native behavior and the terminating
+        // click of a drag text-selection never starts or seeks playback.
+        if (shouldIgnoreParagraphClick(target, window.getSelection())) {
           return;
         }
 
@@ -1519,6 +1582,10 @@ export default defineContentScript({
 
     // Setup click handlers when script loads
     setupParagraphClickHandlers();
+
+    // Feature 229: ambient hover-play — idle extraction + hover affordance so
+    // any paragraph click can start playback without opening the popup first.
+    setupAmbientHoverPlay();
 
     /**
      * Scroll event listener for auto-scroll debounce
