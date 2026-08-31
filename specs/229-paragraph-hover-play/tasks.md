@@ -15,4 +15,5 @@
 - [x] T9 `make user-gate` run at `fa629ba`: loaded-Firefox diagnostic PASS,
       receipt `.artifacts/smoke-reading/receipt.json`; Feature 095 verdict
       remains honestly BLOCKED (exit 2)
-- [ ] T10 Final different-family gate `GENERATOR_FAMILY=openai make gate`
+- [x] T10 Final different-family gate `GENERATOR_FAMILY=openai make gate` PASS
+      at `3449980` with zero findings
