@@ -158,7 +158,7 @@ const PLANTS = {
   },
   'stale-jsonld': {
     file: 'index.html',
-    from: '"softwareVersion": "1.2.10",',
+    from: '"softwareVersion": "1.2.11",',
     to: '"softwareVersion": "1.0.0",',
     breaks: 'JSON-LD advertises the extension version in packages/extension/package.json',
   },

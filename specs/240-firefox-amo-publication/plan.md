@@ -23,7 +23,7 @@ Store submission and DNS cutover are external release actions. They proceed only
 
 1. Preserve the current private dashboard state as the before receipt.
 2. Change the add-on’s distribution mode from self-hosted to Mozilla-hosted for the new version only.
-3. Upload the listed 1.2.10 ZIP and source archive, provide reproducible build instructions and permission justification, and submit it for review.
+3. Upload the listed 1.2.11 ZIP and source archive, provide reproducible build instructions and permission justification, and submit it for review.
 4. Update the product page from VoxPage to Proso, complete listing metadata, privacy policy, licence, categories, and screenshots.
 5. Poll anonymous AMO endpoints until the public oracle passes or Mozilla supplies an actionable review finding.
 

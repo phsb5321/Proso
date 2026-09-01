@@ -27,7 +27,7 @@ pnpm --filter @proso/extension zip:firefox-listed
 The listed package is written to:
 
 ```text
-packages/extension/.output-listed/prosoextension-1.2.10-firefox.zip
+packages/extension/.output-listed/prosoextension-1.2.11-firefox.zip
 ```
 
 The source uses WXT 0.20.13, Vite 6.4.3, and esbuild minification. It uses no

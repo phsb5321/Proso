@@ -48,9 +48,10 @@ import { LEGACY_BRIDGE } from '../handlers/legacy-bridge';
 import { unknownMessageResponse } from '../utils/messaging/error-response';
 // Unknown message telemetry (041-firefox-first-pivot T1.3)
 import { logUnknownMessage } from '../utils/telemetry';
+import { clearRetiredTelemetryState } from '../utils/telemetry/retired-state';
 
 // Usage observability (043-usage-observability-loki)
-import { usageTracker } from '../utils/telemetry/usage';
+import { usageTracker } from '../utils/telemetry/usage/tracker';
 
 // Chrome MV3 has no worker DOM, so `Audio` is undefined there (spec 106
 // C1/C2). Installs a worker-safe shim before anything can call `new Audio()`;
@@ -58,25 +59,6 @@ import { usageTracker } from '../utils/telemetry/usage';
 installOffscreenAudioElementShim();
 
 const log = createLogger('background');
-
-const RETIRED_TELEMETRY_KEYS = [
-  'telemetryEnabled',
-  'telemetryGatewayUrl',
-  'telemetryGatewayToken',
-  'telemetry.installId',
-] as const;
-
-async function clearRetiredTelemetryState(): Promise<void> {
-  await browser.storage.local.remove([...RETIRED_TELEMETRY_KEYS]);
-  if (!globalThis.indexedDB) return;
-
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase('proso_usage');
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error ?? new Error('telemetry database cleanup failed'));
-    request.onblocked = () => reject(new Error('telemetry database cleanup was blocked'));
-  });
-}
 
 // ============================================
 // Message Router
@@ -217,12 +199,7 @@ export default defineBackground(() => {
   log.info('Proso background service worker started');
 
   browser.runtime.onInstalled.addListener(async () => {
-    try {
-      await clearRetiredTelemetryState();
-      log.info('[Background] Retired telemetry state cleared');
-    } catch (error) {
-      log.warn('[Background] Could not clear retired telemetry state', { error });
-    }
+    void clearRetiredTelemetryState(browser.storage.local, globalThis.indexedDB, log.warn);
 
     // Create the "Read with Proso" context menu idempotently. removeAll() first
     // avoids "duplicate id" errors when onInstalled fires again on update.

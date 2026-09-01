@@ -8,7 +8,7 @@
  */
 
 import type { Result } from '../core/shared/result';
-import { usageTracker } from '../utils/telemetry/usage';
+import { usageTracker } from '../utils/telemetry/usage/tracker';
 import type { Handler, HandlerError } from './registry';
 import { HandlerRegistry } from './registry';
 

@@ -26,7 +26,7 @@ import {
   hostPermissionPatternForOrigin,
   requestHostPermissionForOrigin,
 } from '../../utils/permissions/match-pattern';
-import { usageTracker } from '../../utils/telemetry/usage';
+import { usageTracker } from '../../utils/telemetry/usage/tracker';
 import { showPlaybackStartFailure } from './playback-failure';
 import { bindPopupTabs } from './popup-tabs';
 

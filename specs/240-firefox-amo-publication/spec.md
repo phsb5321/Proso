@@ -4,7 +4,7 @@ Date: 31/08/2026
 
 ## Problem
 
-Firefox users cannot discover or install Proso from Mozilla Add-ons. Mozilla has approved versions 1.1.3, 1.2.0, and 1.2.1 only for self-distribution under the retired name **VoxPage**. The public product page does not exist, the corrected publication candidate is version 1.2.10, and the live website sends anonymous visitors to a private GitHub Releases page that returns 404.
+Firefox users cannot discover or install Proso from Mozilla Add-ons. Mozilla has approved versions 1.1.3, 1.2.0, and 1.2.1 only for self-distribution under the retired name **VoxPage**. The public product page does not exist, the final publication candidate is version 1.2.11, and the live website sends anonymous visitors to a private GitHub Releases page that returns 404.
 
 ## User stories
 
@@ -53,7 +53,7 @@ The add-on, website, source metadata, and Mozilla listing identify the product a
 
 ## Success criteria
 
-1. Anonymous AMO lookup by GUID returns HTTP 200 with a public current version at least 1.2.10.
+1. Anonymous AMO lookup by GUID returns HTTP 200 with a public current version at least 1.2.11.
 2. AMO search and the public product URL expose Proso, not VoxPage.
 3. The submitted artifact passes the repository release-channel check and `web-ext lint` with zero errors.
 4. The live site links to AMO and serves its update feed and signed XPI with unchanged integrity.

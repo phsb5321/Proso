@@ -65,7 +65,7 @@ import {
   originCoveredByGrantedPatterns,
   requestHostPermissionForOrigin,
 } from '../../utils/permissions/match-pattern';
-import { usageTracker } from '../../utils/telemetry/usage';
+import { usageTracker } from '../../utils/telemetry/usage/tracker';
 import { showConfirmModal } from './components/modal';
 import { setupSidebarKeyboardNav } from './components/sidebar';
 import { toast } from './components/toast';

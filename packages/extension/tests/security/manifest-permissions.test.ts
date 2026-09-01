@@ -162,16 +162,20 @@ describe('Manifest Permissions', () => {
         path.join(ROOT_DIR, 'src/entrypoints/background.ts'),
         'utf-8',
       );
+      const cleanup = fs.readFileSync(
+        path.join(ROOT_DIR, 'src/utils/telemetry/retired-state.ts'),
+        'utf-8',
+      );
       for (const key of [
         'telemetryEnabled',
         'telemetryGatewayUrl',
         'telemetryGatewayToken',
         'telemetry.installId',
       ]) {
-        expect(background).toContain(`'${key}'`);
+        expect(cleanup).toContain(`'${key}'`);
       }
-      expect(background).toContain("indexedDB.deleteDatabase('proso_usage')");
-      expect(background).toContain('await clearRetiredTelemetryState()');
+      expect(cleanup).toContain("databases.deleteDatabase('proso_usage')");
+      expect(background).toContain('void clearRetiredTelemetryState(');
     });
   });
 

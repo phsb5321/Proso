@@ -9,7 +9,7 @@ const baseAddon = {
   slug: 'proso',
   name: { 'en-US': 'Proso' },
   status: 'public',
-  current_version: { version: '1.2.10', file: { status: 'public' } },
+  current_version: { version: '1.2.11', file: { status: 'public' } },
 };
 
 let response = baseAddon;
@@ -77,8 +77,8 @@ try {
     { ...baseAddon, status: 'unlisted' },
     { ...baseAddon, slug: 'voxpage' },
     { ...baseAddon, name: { 'en-US': 'VoxPage' } },
-    { ...baseAddon, current_version: { version: '1.2.9', file: { status: 'public' } } },
-    { ...baseAddon, current_version: { version: '1.2.10', file: { status: 'awaiting_review' } } },
+    { ...baseAddon, current_version: { version: '1.2.10', file: { status: 'public' } } },
+    { ...baseAddon, current_version: { version: '1.2.11', file: { status: 'awaiting_review' } } },
     null,
   ];
 
