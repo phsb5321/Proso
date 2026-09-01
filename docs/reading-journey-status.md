@@ -1085,7 +1085,12 @@ certificate reached `ISSUED`; CloudFront attached `proso.com.br` with
 stale install/free-tier claims, four AMO links, correct canonical URL, both XPI
 hashes intact, source archive SHA-256
 `796681f961d8d6b672d8b8c771702ba270b18a0d3063c6b149adcbf1533d8310`, and no
-public workspace `package.json`. Final Terraform plan: **No changes**.
+public workspace `package.json`. Final Terraform plan: **No changes**. The stale
+`www` hostname now redirects HTTP → HTTPS → the canonical apex while preserving
+path and query. The four
+published contact addresses (`support`, `privacy`, `security`, `commercial`) now
+route through Cloudflare Email Routing to the verified Proton destination; a
+Gmail-to-support probe was received with the expected delivered-to address.
 
 The broader Feature 095 `make user-gate` remains honestly BLOCKED on its existing
 public-control anomaly/restart/soak and unified-receipt requirements; the loaded

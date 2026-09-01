@@ -247,7 +247,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Support email setup | **[MUST]** | S | Domain | [ ] |
+| Support email setup | **[MUST]** | S | Domain | [x] |
 | Help desk software selection | **[SHOULD]** | S | None | [ ] |
 | Ticket management system | **[SHOULD]** | M | Help desk | [ ] |
 | Response time SLA definition | **[SHOULD]** | S | None | [ ] |
@@ -457,7 +457,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Email support (support@proso.com.br) | **[MUST]** | S | Domain | [ ] |
+| Email support (support@proso.com.br) | **[MUST]** | S | Domain | [x] |
 | Help desk integration | **[SHOULD]** | M | Email | [ ] |
 | Community Discord/forum | **[NICE]** | M | None | [ ] |
 | In-app feedback widget | **[SHOULD]** | M | None | [ ] |
