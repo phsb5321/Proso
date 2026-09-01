@@ -224,16 +224,6 @@ This logs all events to the browser console.
 3. Find `proso_usage` database
 4. Check `events` object store
 
-### Test Gateway Connection
-
-```bash
-# Test with curl
-curl -X POST http://localhost:3000/ingest \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer dev-token" \
-  -d '{"events":[{"ts":"2024-01-01T00:00:00.000Z","event":"test","eventGroup":"system","level":"info","msg":"test","entrypoint":"background","extVersion":"1.0.0","installId":"550e8400-e29b-41d4-a716-446655440000","sessionId":"550e8400-e29b-41d4-a716-446655440001"}]}'
-```
-
 ## Grafana Dashboards
 
 If using Grafana with Loki:
