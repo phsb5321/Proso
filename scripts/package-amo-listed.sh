@@ -37,6 +37,7 @@ archive_paths=(
   pnpm-lock.yaml
   pnpm-workspace.yaml
   shell.nix
+  tsconfig.base.json
   scripts/shared-source-digest.mjs
   packages/extension
   packages/shared
