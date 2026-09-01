@@ -35,6 +35,32 @@ validation record. Applying the replacement before that window would only
 repeat the timeout; both the apply and every DNS change remain explicitly
 gated.
 
+## Update — 31/08/2026 21:40 BRT — root cause of the first timeout; zone measured healthy
+
+Read-only evidence gathered 31/08:
+
+- ACM `626a3f28-…` expected the validation record
+  `_2d2f3e6a75c9b9320d5cb5f2d66d39cb.proso.com.br` CNAME
+  `_bab0230780051a82f7f869e8d14a322d.jkddzztszm.acm-validations.aws.`.
+- That record EXISTS in the Cloudflare zone today: `kolton.ns.cloudflare.com`
+  serves it authoritatively (a proxied record would be hidden — so proxying is
+  OFF), and 1.1.1.1, 8.8.8.8, and 9.9.9.9 all resolve it publicly with the
+  exact expected value.
+- The zone has no CAA records (`dig proso.com.br CAA` is empty) and no DNSSEC
+  delegation (no DS at the .br TLD); neither can block an ACM validator.
+
+So the record is correct but late: the certificate was requested 25/08 13:56
+BRT and its 72-hour validation window closed ~28/08 before the record was in
+place. The failure was coordination, not DNS. A replacement request with its
+CURRENT record present during the window validates under normal conditions,
+which retires the "would only repeat the timeout" premise above. The stale
+`_2d2f3e6a…` record belongs to the dead certificate; delete it in the same
+window.
+
+**[pending] Pedro (same gate, sharpened):** the apply + validation-record
+window, then the final cutover. Every step stays explicitly gated; the
+window is now evidence-backed end to end.
+
 ## What is live
 
 | | |
@@ -184,13 +210,14 @@ Budget `sandbox-monthly-cost` is live at USD 5.00/month; actual spend is USD
 
 ## Phase 2 — the custom domain, when Pedro wants it
 
-Blocked on content and a coordinated validation window. `updates.json` still
-advertises `https://phsb5321.github.io/Proso/releases/…` for both add-ons, so
-publishing it under `proso.com.br` would leave every installed extension
-updating from GitHub Pages. The module refuses to plan that once
-`attach_custom_domain = true` — the forcing function is deliberate.
+Blocked on the coordinated validation window only. The content blocker is
+gone: the payload on CloudFront has served `https://proso.com.br/releases/…`
+update links since the re-assemble (verified 31/08), so the module's
+update_link-host forcing function is satisfied and
+`attach_custom_domain = true` plans clean once the replacement certificate is
+ISSUED.
 
-Order, once the Proso repo's `updates.json` is corrected:
+Order, once Pedro is ready:
 
 1. **Pedro** confirms he is ready to create the Cloudflare validation record
    and authorizes the reviewed Sandbox apply.
@@ -205,11 +232,15 @@ Order, once the Proso repo's `updates.json` is corrected:
 
 ## Content defects, owned by the Proso repo
 
-Unchanged from the earlier report and still true of what is now being served —
-the brief says do not re-author the copy:
+Updated 31/08 against the live CloudFront payload:
 
-1. `updates.json` advertises `phsb5321.github.io` update links (blocks phase 2).
-2. It advertises 1.1.3 and 1.2.1; the shipped extension is 1.2.9.
-3. `index.html` sets `canonical` and `og:url` to `https://phsb5321.github.io/Proso/`
-   while `sitemap.xml` and `robots.txt` already say `https://proso.com.br/`.
-4. `packages/site/package.json` is published as a site asset.
+1. RESOLVED — `updates.json` now advertises `https://proso.com.br/releases/…`
+   for both add-ons (verified on the wire 31/08).
+2. OPEN, owned by the AMO/distribution track: the public channel advertises
+   1.1.3 and 1.2.1 while the shipped extension is 1.2.9. Publishing 1.2.9 is
+   that track's call, not this stack's.
+3. RESOLVED by #239 (2026-08-31): canonical/og:url/JSON-LD across five pages
+   plus the legal/terms canonical and brand-home link now say proso.com.br;
+   ships with the next `assemble`.
+4. OPEN: `packages/site/package.json` is published as a site asset (200 on
+   the distribution, 31/08).
