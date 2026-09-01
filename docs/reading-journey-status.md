@@ -1052,6 +1052,46 @@ marketing page. Moving it needs either a DNS change away from GitHub Pages or a
 repository-visibility/plan change; both are Pedro's, and neither is unblocked by
 self-hosted CI.
 
+## Update — 31/08/2026: the public Firefox distribution is submitted and the site cut over
+
+Feature 240 closes every repository and hosting prerequisite for public Firefox
+distribution, but does not call Mozilla review complete before the public oracle
+passes.
+
+The listed 1.2.9 artifact uses the existing GUID, omits only the
+self-distributed `update_url`, declares the required `websiteContent`
+transmission honestly, and removes remote usage telemetry from the public build:
+no tracker initializer, telemetry host permission, build-time gateway seam, or
+settings toggle remains. `make release-channels` passes with zero Mozilla lint
+errors/warnings. The product is now **Proso** at slug `proso`; the listing has
+complete description/categories/support/privacy, custom AGPL-3.0-or-later text,
+an icon, four captioned screenshots, release/reviewer notes, and complete
+corresponding source. AMO version `6452602` is **Awaiting Review**. Public slug
+and GUID probes remain 404/401, so the install outcome is not yet green.
+
+The source-package check caught a real release defect before submission: WXT’s
+default source ZIP contained only the extension workspace and omitted the root
+lock/workspace plus `packages/shared`, so reviewers could not reproduce the
+monorepo build. `make amo-package` now archives the complete committed tree with
+`SOURCE_COMMIT` and `AMO_BUILD.md`. A fresh extraction installed from the frozen
+lock and rebuilt all 19 packaged files byte-for-byte.
+
+The public site no longer depends on the dead GitHub Pages deployment. The
+corrected tree, update manifest, signed XPIs, and exact 1.2.9 source archive are
+live behind the private S3/OAC origin and CloudFront. A replacement ACM
+certificate reached `ISSUED`; CloudFront attached `proso.com.br` with
+`TLSv1.2_2021`; Cloudflare moved the DNS-only apex CNAME from
+`phsb5321.github.io` to `d23aubpqrsmco3.cloudfront.net`. Live checks show zero
+stale install/free-tier claims, four AMO links, correct canonical URL, both XPI
+hashes intact, source archive SHA-256
+`796681f961d8d6b672d8b8c771702ba270b18a0d3063c6b149adcbf1533d8310`, and no
+public workspace `package.json`. Final Terraform plan: **No changes**.
+
+The broader Feature 095 `make user-gate` remains honestly BLOCKED on its existing
+public-control anomaly/restart/soak and unified-receipt requirements; the loaded
+Firefox diagnostic still passes install → synthesis → highlight → pause/resume.
+Store publication does not rewrite that separate verdict.
+
 ## Next verified slices
 
 1. ~~Create a retained Docker-only Firefox acceptance fixture that observes a real synthesis request
@@ -1382,8 +1422,7 @@ self-hosted CI.
    filtering, and sentence-two highlight transition; the real Supertonic 3 bridge.3 run also
    passes. Kokoro-FastAPI `26eec068` is explicitly rejected for exact PT-BR sync: RTF 0.23825 but
    `timestamps:null` on realistic date/currency/glyph input. Exact completion remains gated on the
-   full deterministic/plant/review/merge/deploy chain.
-29. **Local synthesis aligned to Lectrice's Magpie bridge — contract pinned (17/09/2026).** Pedro
+   full deterministic/plant/review/merge/deploy chain.29. **Local synthesis aligned to Lectrice's Magpie bridge — contract pinned (17/09/2026).** Pedro
    directed that Proso's local synthesis use the same local model as Lectrice. Lectrice's local
    model is the pinned Magpie TTS Multilingual 357M GGUF Q6_K (model SHA256 `8291ffde2e13…`,
    Vulkan/RADV on the RX 5700 XT) served by its loopback bridge `tools/magpie/lectrice_magpie_bridge.py`

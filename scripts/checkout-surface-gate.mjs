@@ -1385,8 +1385,8 @@ check('install controls link only the public Mozilla Add-ons listing', async (JS
   assert(status, 'the landing page has no install-status section');
   const statusText = status.textContent || '';
   assert(
-    /Mozilla Add-ons|AMO/i.test(statusText) && !/pending|not available/i.test(statusText),
-    `the install status does not name the published Mozilla listing: "${statusText.trim()}"`,
+    /Mozilla Add-ons|AMO/i.test(statusText) && /Awaiting Review|published/i.test(statusText),
+    `the install status names neither the current review nor the published listing: "${statusText.trim()}"`,
   );
 });
 

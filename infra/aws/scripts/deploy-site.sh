@@ -19,7 +19,8 @@
 #
 # updates.json and releases/*.xpi are NOT synced here. Terraform owns them
 # (modules/static-site/releases.tf) so their keys and content types are enforced
-# at plan time; this script only checks that what Terraform published is intact.
+# at plan time. Corresponding-source .zip archives share releases/ but are
+# published by this script as application/zip.
 set -euo pipefail
 
 readonly REPO_DEFAULT="${HOME}/Documents/Code/personal/proso"
@@ -42,6 +43,7 @@ content_type_for() {
     ico) echo "image/x-icon" ;;
     woff2) echo "font/woff2" ;;
     xpi) echo "application/x-xpinstall" ;;
+    zip) echo "application/zip" ;;
     *) echo "" ;;
   esac
 }
@@ -77,6 +79,8 @@ cmd_assemble() {
   mkdir -p "$out"
   cp -r "$repo/packages/site/." "$out/"
   cp -r "$repo/packages/legal" "$out/legal"
+  # Workspace metadata is not a public site asset.
+  rm "$out/package.json"
 
   # The auto-update payload lives only on gh-pages; it is built by the release
   # workflow, not by the site sources.
@@ -157,6 +161,15 @@ cmd_deploy() {
       --no-progress
   done
 
+  # Corresponding-source archives are public release material but not part of
+  # Firefox's auto-update protocol, so Terraform does not need to own them.
+  aws s3 sync "$site/releases" "s3://$bucket/releases" \
+    "${aws_dry[@]}" \
+    --exclude '*' \
+    --include '*.zip' \
+    --content-type "application/zip" \
+    --no-progress
+
   # CNAME has no extension and is a GitHub Pages artefact; it is harmless but
   # must not be published as octet-stream if it is published at all.
   if [[ -f "$site/CNAME" ]]; then
@@ -175,6 +188,10 @@ cmd_deploy() {
     while IFS= read -r xpi; do
       verify_object "$bucket" "releases/$(basename "$xpi")" "application/x-xpinstall"
     done < <(find "$site/releases" -name '*.xpi' -type f)
+    local archive
+    while IFS= read -r archive; do
+      verify_object "$bucket" "releases/$(basename "$archive")" "application/zip"
+    done < <(find "$site/releases" -name '*.zip' -type f)
 
     echo "==> orphaned objects (present in the bucket, absent from $site)"
     report_orphans "$bucket" "$site" "$prune"

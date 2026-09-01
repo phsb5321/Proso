@@ -70,3 +70,25 @@ Both downloaded bytes match their advertised hashes, but GitHub Pages serves bot
 - Server metadata and public site terms: AGPL-3.0 / AGPL-3.0-or-later
 
 The objective licence normalization target is AGPL-3.0-or-later because that is the current public offer and server/source posture; this removes contradictory metadata rather than inventing a new public licence.
+
+## Submission outcome — 31/08/2026
+
+- Listed version id: `6452602`
+- Binary version: 1.2.9
+- Uploaded binary SHA-256: `6c63c81cd5db92dad0a3832a568178e8f8adf6a724a47ea4a8236248cf504d9d`
+- Corresponding-source SHA-256: `796681f961d8d6b672d8b8c771702ba270b18a0d3063c6b149adcbf1533d8310`
+- Source revision: `210da8b4ff6bb9f3d1eb5e430a9440fcc9801940`
+- Automated validation: 0 errors; AMO status `Awaiting Review`
+- Identity: name and slug are now `Proso` / `proso`
+- Listing metadata: summary, full description, Language Support and Photos/Music & Videos categories, support address/site, custom AGPL-3.0-or-later text, privacy policy, icon, four screenshots with captions, release notes, and reviewer notes
+
+WXT’s generated source ZIP was rejected before upload: it contained only the extension workspace, omitted the root lock/workspace and shared package, and could not reproduce the monorepo build. `scripts/package-amo-listed.sh` now archives the complete committed tree and adds `SOURCE_COMMIT`. A fresh extraction installed from the frozen lock and rebuilt all 19 packaged files byte-for-byte; tree-manifest SHA-256 `ef79f8ef7f30ed4a2795117487cc07da976f9026fbc19720f37be3874f9eb512`.
+
+## Site/cutover outcome — 31/08/2026 21:52 BRT
+
+- `gh-pages` PR #238 published the exact source archive and changed existing update links to `proso.com.br`; both XPI hashes stayed unchanged.
+- The corrected site, source archive, update manifest, and signed XPIs were published to the private S3/OAC origin through least-privilege role `proso-deploy`.
+- A replacement ACM certificate was requested, validated by an exact DNS-only Cloudflare CNAME, reached `ISSUED`, and was attached to CloudFront with `TLSv1.2_2021`.
+- The Cloudflare apex CNAME changed from `phsb5321.github.io` to `d23aubpqrsmco3.cloudfront.net`, DNS only. The prior target is the rollback value.
+- Live `proso.com.br` serves the corrected site through CloudFront, with zero stale install/free-tier claims, four AMO links, correct canonical URL, both XPI hashes intact, source archive SHA intact, and no public workspace `package.json`.
+- Final Terraform plan: `No changes`.

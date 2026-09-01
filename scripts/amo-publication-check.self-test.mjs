@@ -13,6 +13,8 @@ const baseAddon = {
 };
 
 let response = baseAddon;
+let siteHtml =
+  '<a href="http://placeholder/firefox/addon/proso/"></a><section data-amo-status="published"></section>';
 const server = http.createServer((request, reply) => {
   if (request.url?.startsWith('/api/v5/addons/addon/')) {
     reply.writeHead(response ? 200 : 404, { 'content-type': 'application/json' });
@@ -22,6 +24,11 @@ const server = http.createServer((request, reply) => {
   if (request.url === '/firefox/addon/proso/') {
     reply.writeHead(200, { 'content-type': 'text/html' });
     reply.end('<!doctype html><title>Proso</title>');
+    return;
+  }
+  if (request.url === '/') {
+    reply.writeHead(200, { 'content-type': 'text/html' });
+    reply.end(siteHtml.replace('http://placeholder', origin));
     return;
   }
   reply.writeHead(404).end();
@@ -44,6 +51,7 @@ function run() {
         ...process.env,
         AMO_API_BASE_URL: `${origin}/api/v5`,
         AMO_PRODUCT_BASE_URL: origin,
+        PROSO_SITE_BASE_URL: origin,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -81,7 +89,14 @@ try {
     assert.match(result.stderr, /AMO publication FAIL/);
   }
 
-  console.log(`AMO publication self-test PASS — ${failures.length} false-green plants caught`);
+  response = baseAddon;
+  siteHtml =
+    '<a href="http://placeholder/firefox/addon/proso/"></a><section data-amo-status="awaiting-review"></section>';
+  result = await run();
+  assert.notEqual(result.status, 0, 'pending-site plant passed');
+  assert.match(result.stderr, /AMO publication FAIL/);
+
+  console.log(`AMO publication self-test PASS — ${failures.length + 1} false-green plants caught`);
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }

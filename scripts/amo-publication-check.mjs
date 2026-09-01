@@ -6,6 +6,7 @@ const GUID = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
 const SLUG = 'proso';
 const API_BASE = process.env.AMO_API_BASE_URL || 'https://addons.mozilla.org/api/v5';
 const PRODUCT_BASE = process.env.AMO_PRODUCT_BASE_URL || 'https://addons.mozilla.org';
+const SITE_BASE = process.env.PROSO_SITE_BASE_URL || 'https://proso.com.br';
 
 function fail(message) {
   console.error(`AMO publication FAIL: ${message}`);
@@ -74,6 +75,14 @@ try {
   const finalPath = new URL(product.url).pathname;
   if (!finalPath.endsWith(`/firefox/addon/${SLUG}/`)) {
     fail(`product page redirected to unexpected path ${JSON.stringify(finalPath)}`);
+  }
+
+  const siteResponse = await get(`${SITE_BASE}/`, 'public Proso site');
+  const siteHtml = await siteResponse.text();
+  const listingUrl = `${PRODUCT_BASE}/firefox/addon/${SLUG}/`;
+  if (!siteHtml.includes(listingUrl)) fail(`public site does not link ${listingUrl}`);
+  if (!siteHtml.includes('data-amo-status="published"')) {
+    fail('public site still claims a pending or unknown AMO state');
   }
 
   if (!process.exitCode) {
