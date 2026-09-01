@@ -15,12 +15,14 @@ proven is listed in its own section rather than left implied.
 
 - `proso.com.br` now serves the corrected site from the private S3/OAC origin
   through CloudFront. The homepage, privacy/terms, update manifest, signed XPIs,
-  and 1.2.9 corresponding source are publicly reachable with correct content
-  types and hashes; the private GitHub Releases install link is gone.
-- Firefox 1.2.9 is submitted as a Mozilla-hosted listed version under **Proso**
+  and corresponding source for every distributed version are publicly reachable
+  with correct content types and hashes; the private GitHub Releases install
+  link is gone.
+- Corrected Firefox 1.2.10 is submitted as a Mozilla-hosted listed version under **Proso**
   with 0 validation errors, complete listing assets/privacy/licence/source, and
-  status **Awaiting Review**. The install CTA points at AMO and remains a 404
-  until Mozilla publishes it; the anonymous public oracle is deliberately red.
+  status **Awaiting Review**. Install controls stay on the honest status callout;
+  its AMO link remains a 404 until Mozilla publishes, so the anonymous public
+  oracle is deliberately red.
 - This distribution work did not enable checkout. The site still ships empty
   Paddle configuration and cannot take payment, preserving the fail-closed
   money-path invariant below.

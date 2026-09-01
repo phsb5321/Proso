@@ -20,7 +20,7 @@ The coordinated phase-2 cutover completed end to end:
    `d23aubpqrsmco3.cloudfront.net`, DNS only.
 
 Post-cutover probes return HTTP 200 for the homepage, legal pages, update
-manifest, both signed XPIs, and the 1.2.9 corresponding-source archive. XPI
+manifest, both signed XPIs, and corresponding-source archives for every distributed version plus the 1.2.10 AMO candidate. XPI
 content type is `application/x-xpinstall`; source is `application/zip`; both
 update hashes match downloaded bytes. The stale public `package.json` was
 removed with an S3 versioned delete marker. A final Terraform plan reports
@@ -182,6 +182,6 @@ ready.
 
 The content blockers are also closed: update links use `proso.com.br`, canonical
 and Open Graph URLs use the custom domain, the workspace `package.json` is not a
-site asset, and the exact submitted 1.2.9 source archive is publicly available.
-The signed self-distributed channel intentionally remains at 1.2.1; the 1.2.9
+site asset, and minimal build-tested source closures for 1.1.3, 1.2.1, and the corrected 1.2.10 candidate are publicly available.
+The signed self-distributed channel intentionally remains at 1.2.1; the 1.2.10
 binary is the separate Mozilla-hosted listing and is awaiting Mozilla review.

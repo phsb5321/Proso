@@ -120,7 +120,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 | Firefox data_collection_permissions manifest | **[MUST]** | S | None | [x] |
 | Source code submission (Firefox) | **[MUST]** | S | Clean build process | [x] |
 
-**Firefox listing state (31/08/2026):** version 1.2.9, product metadata, privacy policy, custom AGPL-3.0-or-later text, icon, four screenshots, reviewer notes, and complete corresponding source are submitted with 0 validation errors. AMO status is **Awaiting Review**; store approval remains unchecked in the launch section until the anonymous public oracle passes.
+**Firefox listing state (31/08/2026):** corrected version 1.2.10, product metadata, privacy policy, custom AGPL-3.0-or-later text, icon, four screenshots, reviewer notes, and minimal reproducible corresponding source are submitted with 0 validation errors. The unpublished 1.2.9 draft was disabled after independent review. AMO status is **Awaiting Review**; store approval remains unchecked until the anonymous public oracle passes.
 
 **Chrome Web Store Requirements**:
 - [$5 one-time registration fee](https://www.extensionradar.com/blog/how-to-make-chrome-extension)

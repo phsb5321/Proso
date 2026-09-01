@@ -94,3 +94,16 @@ WXT’s generated source ZIP was rejected before upload: it contained only the e
 - Final Terraform plan: `No changes`.
 - `www.proso.com.br` no longer serves the stale GitHub Pages site: its proxied CNAME points at the apex, an enabled HTTPS WWW-to-apex redirect preserves path/query, and a companion HTTP-to-HTTPS redirect produces a verified two-hop HTTP journey to the canonical URL.
 - Cloudflare Email Routing is enabled with verified destination `pedrobalbino@proton.me`; `support@`, `privacy@`, `security@`, and `commercial@proso.com.br` are active literal routes. Cloudflare owns three MX records plus SPF/DKIM; the previous null MX and deny-all SPF are the recorded rollback values. A Gmail message to `support@proso.com.br` arrived in Proton with `Delivered-To: pedrobalbino@proton.me`, proving the public support address end to end.
+
+## Independent gate and corrected candidate — 31/08/2026 23:37 BRT
+
+The first Anthropic different-family gate BLOCKED exact head `7590491` on three reproduced completion blockers: pending install CTAs required the public 404; the submitted source named a dangling pre-rebase commit and exposed the entire private monorepo; and the Knip gate found two telemetry capture exports orphaned by the removal. It also found missing historical source offers and optional BYOK authentication disclosure.
+
+The corrected 1.2.10 candidate closes each finding:
+
+- Pending install controls route to the honest in-page status; only the status callout links AMO. The gate binds `data-amo-status` to both copy and every CTA, with a mismatch plant.
+- Required `websiteContent` remains; optional `authenticationInfo` covers BYOK credentials; no telemetry category exists.
+- Retired telemetry identifiers/credentials/IndexedDB events are cleared on update, and the two unused capture modules are deleted. Knip reports 46 known, 0 new.
+- Source packaging requires a clean HEAD exactly pushed to its origin branch and archives only the extension build closure. Version 1.2.10 source SHA-256 is `e9bf6504efd5b443b33ce4c2c1346431ecee833dadf354dc4f5d6321630d2116`, bound to reachable commit `c270d8e` and PR #241. Fresh extraction rebuilt all 19 package files byte-for-byte; tree SHA-256 `bde87bd97d6d5f690352eff251af16627ac4e332290d070cb1a85b83bd526e08`.
+- Build-tested historical source closures are live for 1.1.3 (`3fa96c20…`) and 1.2.1 (`5f371c4d…`); the dangling 1.2.9 archive is removed.
+- The unpublished AMO 1.2.9 candidate is disabled. Corrected AMO version `6452761` (1.2.10) is submitted with binary SHA-256 `6edf5661d6f48f787d90722d544bf0a7829bfe8a55dc701435fd40fa8460a406`, complete source and reviewer notes, 0 validation errors, and status **Awaiting Review**.
