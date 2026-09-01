@@ -34,7 +34,7 @@ Legal pages deploy alongside the marketing site via `.github/workflows/deploy-si
 1. Push changes to `main` branch
 2. GitHub Action copies `packages/legal/` into `packages/site/legal/`
 3. Deploys to `phsb5321/Proso` repo
-4. Accessible at `https://phsb5321.github.io/Proso/legal/terms.html`
+4. Accessible at `https://proso.com.br/legal/terms.html`
 
 ## Updating the ToS
 
