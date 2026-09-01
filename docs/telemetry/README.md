@@ -1,6 +1,6 @@
 # Proso Telemetry System
 
-> **Public-build status (31/08/2026): disabled.** The AMO build has no telemetry host permission, gateway configuration, settings toggle, or entrypoint initializer and declares only the required `websiteContent` transmission used for synthesis. The modules below remain as inactive historical/internal tooling; calls into the uninitialized tracker are no-ops.
+> **Public-build status (31/08/2026): disabled.** The AMO build has no telemetry host permission, gateway configuration, settings toggle, or entrypoint initializer and declares required `websiteContent` plus optional BYOK `authenticationInfo`; neither category is telemetry. The modules below remain as inactive historical/internal tooling; calls into the uninitialized tracker are no-ops.
 
 This documentation covers the retained usage-telemetry implementation.
 

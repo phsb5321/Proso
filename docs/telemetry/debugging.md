@@ -185,7 +185,11 @@ count(count by (sessionId) ({app="proso"} | json))
 {app="proso"} | json | event=~"shipper\\.circuit_.*"
 ```
 
-### Check Gateway Health
+### Retired gateway health (internal history)
+
+The public AMO build no longer requests `logs.proso.com.br`, seeds a gateway,
+or initializes the usage tracker. The commands below apply only to a separately
+configured internal build and are not a public-build troubleshooting path.
 
 1. Query Loki for gateway logs (if logged separately):
    ```logql

@@ -131,7 +131,7 @@ describe('Manifest Permissions', () => {
       expect(serialized).not.toContain('logs.proso.com.br');
     });
 
-    it('declares required page-text transmission without optional telemetry', () => {
+    it('declares required page text and optional BYOK auth without telemetry', () => {
       const manifest = getBuiltManifest();
       if (!manifest) {
         console.log('Skipping built-manifest assertion: Build not found');
@@ -142,7 +142,7 @@ describe('Manifest Permissions', () => {
         | undefined;
       const collection = gecko?.data_collection_permissions as Record<string, unknown> | undefined;
       expect(collection?.required).toEqual(['websiteContent']);
-      expect(collection?.optional).toBeUndefined();
+      expect(collection?.optional).toEqual(['authenticationInfo']);
     });
 
     it('has no entrypoint that initializes the usage tracker', () => {
@@ -155,6 +155,23 @@ describe('Manifest Permissions', () => {
         const content = fs.readFileSync(path.join(ROOT_DIR, relative), 'utf-8');
         expect(content).not.toContain('usageTracker.initialize');
       }
+    });
+
+    it('clears retired telemetry identifiers, credentials, and buffered events on update', () => {
+      const background = fs.readFileSync(
+        path.join(ROOT_DIR, 'src/entrypoints/background.ts'),
+        'utf-8',
+      );
+      for (const key of [
+        'telemetryEnabled',
+        'telemetryGatewayUrl',
+        'telemetryGatewayToken',
+        'telemetry.installId',
+      ]) {
+        expect(background).toContain(`'${key}'`);
+      }
+      expect(background).toContain("indexedDB.deleteDatabase('proso_usage')");
+      expect(background).toContain('await clearRetiredTelemetryState()');
     });
   });
 

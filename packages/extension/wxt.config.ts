@@ -35,7 +35,7 @@ export default defineConfig({
   manifest: (env) => ({
     name: 'Proso',
     description: 'Text-to-speech for web pages with word-level highlighting',
-    version: '1.2.9',
+    version: '1.2.10',
     permissions: [
       'storage',
       'unlimitedStorage', // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
@@ -132,6 +132,10 @@ export default defineConfig({
           // collection, so websiteContent is required even though no telemetry
           // or browsing history leaves the public build.
           required: ['websiteContent'],
+          // BYOK is optional; when selected, the provider credential leaves
+          // Firefox for that synthesis request and Mozilla classifies it as
+          // authentication information.
+          optional: ['authenticationInfo'],
         },
       },
     },

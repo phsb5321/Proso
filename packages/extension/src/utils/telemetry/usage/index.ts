@@ -6,18 +6,16 @@
  * symbol is not listed here, it's intentionally private to this folder.
  *
  * Current consumers:
- * - `entrypoints/background.ts` → `installConsoleCapture`, `installErrorCapture`, `usageTracker`
- * - `entrypoints/popup/main.ts`, `entrypoints/options/controller.ts`,
- *   `handlers/instrumented-registry.ts` → `usageTracker`
- * - `entrypoints/content.ts` → `hashUrlSync`, `usageTracker`
+ * - background debug handlers and legacy instrumentation → `usageTracker`
  * - `handlers/logging.handlers.ts` → `hashUrl`
  * - `utils/queue/store.ts` → `UsageShipper`
+ *
+ * Public entrypoints never initialize the tracker; calls are retained no-ops
+ * until the remaining legacy instrumentation is removed.
  *
  * @module utils/telemetry/usage
  */
 
 export { usageTracker } from './tracker';
 
-export { installErrorCapture } from './error-capture';
-export { installConsoleCapture } from './console-capture';
 export { hashUrlSync } from './redaction';

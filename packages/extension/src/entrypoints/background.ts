@@ -59,6 +59,25 @@ installOffscreenAudioElementShim();
 
 const log = createLogger('background');
 
+const RETIRED_TELEMETRY_KEYS = [
+  'telemetryEnabled',
+  'telemetryGatewayUrl',
+  'telemetryGatewayToken',
+  'telemetry.installId',
+] as const;
+
+async function clearRetiredTelemetryState(): Promise<void> {
+  await browser.storage.local.remove([...RETIRED_TELEMETRY_KEYS]);
+  if (!globalThis.indexedDB) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('proso_usage');
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error('telemetry database cleanup failed'));
+    request.onblocked = () => reject(new Error('telemetry database cleanup was blocked'));
+  });
+}
+
 // ============================================
 // Message Router
 // ============================================
@@ -198,6 +217,13 @@ export default defineBackground(() => {
   log.info('Proso background service worker started');
 
   browser.runtime.onInstalled.addListener(async () => {
+    try {
+      await clearRetiredTelemetryState();
+      log.info('[Background] Retired telemetry state cleared');
+    } catch (error) {
+      log.warn('[Background] Could not clear retired telemetry state', { error });
+    }
+
     // Create the "Read with Proso" context menu idempotently. removeAll() first
     // avoids "duplicate id" errors when onInstalled fires again on update.
     try {

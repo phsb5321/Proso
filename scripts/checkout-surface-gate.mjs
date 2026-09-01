@@ -146,13 +146,19 @@ const PLANTS = {
   },
   'github-install': {
     file: 'index.html',
-    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary btn--lg">',
-    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--lg">',
-    breaks: 'install controls link only the public Mozilla Add-ons listing',
+    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
+    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
+    breaks: 'the status callout links only the public Mozilla Add-ons listing',
+  },
+  'amo-status-mismatch': {
+    file: 'index.html',
+    from: '<section id="install-status" data-amo-status="awaiting-review">',
+    to: '<section id="install-status" data-amo-status="published">',
+    breaks: 'the install controls and copy agree with the AMO state marker',
   },
   'stale-jsonld': {
     file: 'index.html',
-    from: '"softwareVersion": "1.2.9",',
+    from: '"softwareVersion": "1.2.10",',
     to: '"softwareVersion": "1.0.0",',
     breaks: 'JSON-LD advertises the extension version in packages/extension/package.json',
   },
@@ -1341,9 +1347,18 @@ check(
   },
 );
 
-check('install controls link only the public Mozilla Add-ons listing', async (JSDOM, plant) => {
+check('install controls and copy agree with the AMO state', async (JSDOM, plant) => {
   const listingUrl = 'https://addons.mozilla.org/firefox/addon/proso/';
   const pages = ['index.html', 'pricing.html', 'success.html', 'privacy.html', 'terms.html'];
+  const indexHtml = readSite('index.html', plant);
+  const indexDocument = new JSDOM(indexHtml).window.document;
+  const status = indexDocument.getElementById('install-status');
+  assert(status, 'the landing page has no install-status section');
+  const amoStatus = status.dataset.amoStatus;
+  assert(
+    amoStatus === 'awaiting-review' || amoStatus === 'published',
+    `unknown AMO status ${JSON.stringify(amoStatus)}`,
+  );
 
   for (const page of pages) {
     const source = readSite(page, plant);
@@ -1352,14 +1367,37 @@ check('install controls link only the public Mozilla Add-ons listing', async (JS
     const installs = Array.from(document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
       (link) => /install/i.test(link.textContent || ''),
     );
+    const expectedHref =
+      amoStatus === 'published'
+        ? listingUrl
+        : page === 'index.html'
+          ? '#install-status'
+          : 'index.html#install-status';
     assert(installs.length > 0, `${page} has no install control to check`);
     for (const link of installs) {
       const href = link.getAttribute('href') || '';
-      assert(href === listingUrl, `${page} install control targets "${href}", not ${listingUrl}`);
+      assert(
+        href === expectedHref,
+        `${page} install control targets "${href}", expected "${expectedHref}" for ${amoStatus}`,
+      );
     }
   }
 
-  const indexHtml = readSite('index.html', plant);
+  const listingLink = status.querySelector(`a[href="${listingUrl}"]`);
+  assert(listingLink, `the install status does not link ${listingUrl}`);
+  const statusText = status.textContent || '';
+  if (amoStatus === 'awaiting-review') {
+    assert(
+      /Awaiting Review/i.test(statusText) && !/is published/i.test(statusText),
+      `awaiting-review copy is inconsistent: "${statusText.trim()}"`,
+    );
+  } else {
+    assert(
+      /published/i.test(statusText) && !/Awaiting Review/i.test(statusText),
+      `published copy is inconsistent: "${statusText.trim()}"`,
+    );
+  }
+
   let extensionPkg;
   try {
     extensionPkg = JSON.parse(
@@ -1374,20 +1412,13 @@ check('install controls link only the public Mozilla Add-ons listing', async (JS
   );
   assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a direct download');
 
-  const window = await openPage(JSDOM, {
+  await openPage(JSDOM, {
     html: 'index.html',
     url: 'https://proso.com.br/',
     config: undefined,
     scripts: ['main.js'],
     plant,
   });
-  const status = window.document.getElementById('install-status');
-  assert(status, 'the landing page has no install-status section');
-  const statusText = status.textContent || '';
-  assert(
-    /Mozilla Add-ons|AMO/i.test(statusText) && /Awaiting Review|published/i.test(statusText),
-    `the install status names neither the current review nor the published listing: "${statusText.trim()}"`,
-  );
 });
 
 check('a pending retry delay is clamped to a safe floor and ceiling', async (JSDOM, plant) => {

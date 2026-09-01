@@ -27,7 +27,7 @@ pnpm --filter @proso/extension zip:firefox-listed
 The listed package is written to:
 
 ```text
-packages/extension/.output-listed/prosoextension-1.2.9-firefox.zip
+packages/extension/.output-listed/prosoextension-1.2.10-firefox.zip
 ```
 
 The source uses WXT 0.20.13, Vite 6.4.3, and esbuild minification. It uses no
@@ -43,5 +43,6 @@ make release-channels
 
 This builds listed and self-distributed Firefox variants, verifies that their
 version and extension ID match, verifies the `update_url` channel boundary,
-checks the required `websiteContent` data declaration with no optional
-telemetry category, and runs Mozilla’s `web-ext lint` against the listed build.
+checks required `websiteContent`, optional BYOK `authenticationInfo`, and the
+absence of telemetry categories, then runs Mozilla’s `web-ext lint` against the
+listed build.
