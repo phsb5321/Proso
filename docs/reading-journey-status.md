@@ -14,7 +14,10 @@ This found defects missed by the earlier unit-only proof: initial clicks had
 two listeners; status changes rebuilt the footer and lost keyboard/focus state;
 and the old voice could finish and advance the paragraph while replacement
 audio was still loading. The shared lifecycle and voice-change seams are now
-repaired with red/green regressions. `make reader-controls-plants` catches omitted
+repaired with red/green regressions. Screenshot inspection also found the
+voice label clipped by the inherited circular-button width; an accessibility
+geometry assertion reproduced it, and explicit label-button sizing fixes it.
+`make reader-controls-plants` catches omitted
 voice-selection and retry actions by their specific failure, rejecting crashes
 and stale receipts. Accessibility clients retain a strong service reference in
 the disposable browser so Gecko GC cannot drop pending focus requests.

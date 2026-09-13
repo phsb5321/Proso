@@ -25,8 +25,11 @@ async function accessible(driver, target = null, action = null) {
       const flags = Ci.nsIAccessibleStates;
       const visible = !(state.value & (flags.STATE_INVISIBLE | flags.STATE_OFFSCREEN));
       const enabled = !(state.value & flags.STATE_UNAVAILABLE);
+      const x = {}, y = {}, width = {}, height = {};
+      node.getBounds(x, y, width, height);
       const entry = { role: service.getStringRole(node.role), name: node.name,
-        visible, enabled, focused: Boolean(state.value & flags.STATE_FOCUSED) };
+        visible, enabled, focused: Boolean(state.value & flags.STATE_FOCUSED),
+        bounds: {x:x.value, y:y.value, width:width.value, height:height.value} };
       entries.push(entry);
       if (target && visible && entry.role === target.role && entry.name === target.name) {
         matches.push({node, entry});

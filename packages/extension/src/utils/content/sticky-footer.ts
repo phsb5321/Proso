@@ -550,7 +550,7 @@ function getStyles(): string {
     .language-option:hover { background: rgba(255, 255, 255, 0.1); }
     .language-option.active { background: var(--footer-accent); color: white; font-weight: 600; }
     .voice-control { position: relative; }
-    .voice-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; max-width: 128px; gap: 5px; }
+    .voice-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; width: auto; min-width: 80px; max-width: 128px; gap: 5px; }
     .voice-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; flex-shrink: 0; }
     .voice-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .voice-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 180px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; }

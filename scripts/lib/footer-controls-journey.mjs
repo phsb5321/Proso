@@ -114,7 +114,12 @@ export async function runFooterControlsJourney(driver, fixture, artifactDir, rec
         { timeoutMs: 20000, intervalMs: 100 },
       );
       await state('Pause');
-      await findAccessible(driver, 'pushbutton', `Voice: ${voice}`);
+      const voiceButton = await findAccessible(driver, 'pushbutton', `Voice: ${voice}`);
+      const playButton = await findAccessible(driver, 'toggle button', 'Pause');
+      assert.ok(
+        voiceButton.bounds.width >= playButton.bounds.width * 1.5,
+        'voice label has room beside its icon, rather than inheriting the circular icon-button width',
+      );
       record('footer voice choice reaches current-paragraph synthesis and playback', voice);
     }
 
