@@ -71,6 +71,11 @@ export async function runFooterControlsJourney(driver, fixture, artifactDir, rec
     await activate('toggle button', 'Pause');
     await state('Play');
     record('footer Pause holds a publicly resumable state');
+    // Slow the short fixture clip through the same public control a reader
+    // uses, leaving a measurable window for the native accessibility cache.
+    await activate('pushbutton', 'Playback speed 1x');
+    await activate('listbox option', '0.5x');
+    await findAccessible(driver, 'pushbutton', 'Playback speed 0.5x');
     await openVoices();
     await pressKey(driver, '\uE00C'); // Escape
     act('Escape', 'native keyboard');
@@ -88,9 +93,9 @@ export async function runFooterControlsJourney(driver, fixture, artifactDir, rec
       ['River', false],
       ['Atlas', true],
     ]) {
+      await openVoices();
       const before = await driver.execute(`return (() => {${READ_PAGE}})();`);
       const requestsBefore = fixture.localRequests.length;
-      await openVoices();
       if (plant !== 'voice' || voice !== 'Atlas') {
         await activate('listbox option', voice, keyboard);
       }

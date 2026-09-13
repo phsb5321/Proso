@@ -57,6 +57,9 @@ selection/Escape/focus, and Close player. Retain exact request history,
 accessibility snapshots, screenshot, process log and build hashes on failure
 as well as success. Missing accessibility/control is BLOCKED. Add negative
 plants so a broken voice path cannot pass on a renamed button alone.
+The actor selects 0.5x through the public speed control before the short-clip
+campaign, leaving a measurable window for Firefox's asynchronous accessibility
+cache under host load; response/current-first-word assertions stay unchanged.
 
 Hypothesis: public footer actions still fail at seams mocked by unit tests.
 Falsifier: named actions produce neither the expected voice-specific HTTP
