@@ -40,6 +40,28 @@ voice selection changes playback instead of selecting a voice.
   only for the test driver; the extension manifest gains no permission.
 - Tests and gates remain fail-closed. An unresolved full gate is not a pass.
 
+## Public-footer continuation — 13/09/2026
+
+Use Firefox's platform accessibility tree (`nsIAccessibilityService`) to find
+visible footer controls by role/name and invoke their public accessibility
+activation, or focus and send WebDriver keys. Do not query the closed shadow
+DOM, call extension handlers, or mutate storage after the actor starts.
+A synthetic closed-root button probe confirmed that Firefox exposes its public
+`pushbutton` name in this tree without changing the root's mode.
+
+Extend the existing local-host public journey rather than duplicating its
+settings/permission setup. An opt-in fixture-only footer campaign checks:
+voice catalog, successful voice change with a matching HTTP request and playing
+state, a predetermined failed voice request followed by Play recovery, keyboard
+selection/Escape/focus, and Close player. Retain exact request history,
+accessibility snapshots, screenshot, process log and build hashes on failure
+as well as success. Missing accessibility/control is BLOCKED. Add negative
+plants so a broken voice path cannot pass on a renamed button alone.
+
+Hypothesis: public footer actions still fail at seams mocked by unit tests.
+Falsifier: named actions produce neither the expected voice-specific HTTP
+request nor the subsequent visible playing state within a bounded wait.
+
 ## Known delivery constraints
 
 `main` was unprotected and its protection endpoint returned HTTP 403 on

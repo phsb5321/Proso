@@ -56,7 +56,14 @@ export const footerStateSchema = z.object({
 /**
  * Playback status schema
  */
-export const playbackStatusSchema = z.enum(['stopped', 'loading', 'playing', 'paused']);
+export const playbackStatusSchema = z.enum([
+  'idle',
+  'stopped',
+  'loading',
+  'playing',
+  'paused',
+  'error',
+]);
 
 /**
  * Internal playback state schema (used by StickyFooter class)
@@ -1187,10 +1194,13 @@ export class StickyFooter {
         });
       }
 
-      // Update play/pause button if status changed
+      // Keep the controls and their focus/listeners alive through transitions.
       if (previousStatus !== this.playbackState.status) {
-        this._render();
-        this._announce(this.playbackState.status === 'playing' ? 'Playing' : 'Paused');
+        const playing = this.playbackState.status === 'playing';
+        this._playPauseBtn?.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+        this._playPauseBtn?.setAttribute('aria-pressed', String(playing));
+        this._playPauseBtn?.replaceChildren(createSvgIcon(playing ? 'pause' : 'play'));
+        this._announce(playing ? 'Playing' : 'Paused');
       }
 
       // Announce paragraph change
@@ -1416,14 +1426,6 @@ export class StickyFooter {
   private _setupEventListeners(): void {
     if (!this.shadowRoot) return;
 
-    const dragHandle = this.shadowRoot.querySelector('.drag-handle');
-    if (dragHandle) {
-      dragHandle.addEventListener('mousedown', this._onDragStart as EventListener);
-      dragHandle.addEventListener('touchstart', this._onDragStart as EventListener, {
-        passive: false,
-      });
-    }
-
     document.addEventListener('mousemove', this._onDragMove as EventListener);
     document.addEventListener('mouseup', this._onDragEnd);
     document.addEventListener('touchmove', this._onDragMove as EventListener, { passive: false });
@@ -1432,12 +1434,6 @@ export class StickyFooter {
     // footer. Shadow-DOM retargeting makes e.target the host for footer
     // content, so contains() cleanly separates footer clicks from page clicks.
     document.addEventListener('mousedown', this._onOutsidePointerDown);
-
-    if (this._footerEl) {
-      this._footerEl.addEventListener('keydown', this._onKeyDown);
-    }
-
-    this._attachButtonListeners();
   }
 
   /**
@@ -1445,6 +1441,15 @@ export class StickyFooter {
    */
   private _attachButtonListeners(): void {
     if (!this.shadowRoot) return;
+
+    // These nodes are recreated by _render (e.g. minimize), unlike document
+    // listeners. Bind once per render, not a second time during show().
+    this._footerEl?.addEventListener('keydown', this._onKeyDown);
+    const dragHandle = this.shadowRoot.querySelector('.drag-handle');
+    dragHandle?.addEventListener('mousedown', this._onDragStart as EventListener);
+    dragHandle?.addEventListener('touchstart', this._onDragStart as EventListener, {
+      passive: false,
+    });
 
     const buttons = this.shadowRoot.querySelectorAll('[data-action]');
     buttons.forEach((btn) => {

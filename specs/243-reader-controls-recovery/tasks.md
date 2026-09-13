@@ -23,9 +23,14 @@ Unchecked delivery gates must not be inferred from local unit results.
   Exact-head replay is part of the PR evidence, not an acceptance waiver.
 - [ ] T008 Clear the full deterministic gate without suppressing the new
   dependency advisories; retain the first failure in the recovery evidence.
-- [ ] T009 Satisfy `make user-gate` / Feature 095, including a public footer
-  voice/retry journey. Current footer proofs use unit/contract seams, not a
-  loaded-browser footer actor.
+- [x] T009a Add `make reader-controls-gate`: real Firefox platform-accessibility
+  footer actor, voice-specific response/current-sentence restart, native Enter
+  and Escape, failure/Play retry, Close, and two severed-action plants.
+- [x] T009b Fix browser-discovered duplicate click listeners, status-change
+  keyboard/focus loss and stale old-voice playback advancing the paragraph;
+  retain unit and browser red/green evidence.
+- [ ] T009 Satisfy the remaining `make user-gate` / Feature 095 outcomes,
+  including restart, bounded soak, accounting and unified acceptance receipts.
 - [ ] T010 Obtain a capable exact-head different-family gate. Do not launch
   the retired models pinned by the legacy adversarial script.
 - [ ] T011 Restore protected-base eligibility and inspect exact-head CI/review
@@ -40,6 +45,8 @@ Unchecked delivery gates must not be inferred from local unit results.
   fixture separately without changing production credit expiration.
 
 - Voice-list invalidation after changing providers while a footer is alive.
+- The managed ServerTtsAudioAdapter still returns an empty voice catalog;
+  public voice-switch acceptance currently covers only the local-host route.
 - Reconciliation after routing during a read and then stopping that read.
 - Observer scheduling under prolonged idle starvation; pending work currently
   becomes eligible again before the scheduled idle callback executes.

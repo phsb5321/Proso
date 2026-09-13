@@ -165,6 +165,15 @@ describe('PlaybackService reader controls', () => {
       expect(service.getState().currentParagraphIndex).toBe(0);
     });
 
+    it('keeps an explicitly paused reading paused after selecting a new voice', async () => {
+      await service.start(paragraphs, tabId, pageUrl);
+      await service.pause();
+      await chooseVoice('mock-voice-2');
+      expect(audioGenerator.generateAudioCalls.at(-1)?.voice).toBe('mock-voice-2');
+      expect(service.getState().status).toBe('paused');
+      expect(service.getState().currentParagraphIndex).toBe(0);
+    });
+
     it('does not synthesize when the voice is unchanged', async () => {
       await service.start(paragraphs, tabId, pageUrl);
       await chooseVoice('mock-voice-2');

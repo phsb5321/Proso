@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { StickyFooter } from '../../helpers/footer-test-environment';
+import { StickyFooter, sendMessage, showFooter } from '../../helpers/footer-test-environment';
 import type { FooterInternals } from '../../helpers/footer-test-environment';
 
 describe('StickyFooter runtime coherence', () => {
@@ -15,6 +15,33 @@ describe('StickyFooter runtime coherence', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it('sends exactly one action for one freshly shown control click', async () => {
+    const { footer, root } = await showFooter();
+    root.querySelector<HTMLButtonElement>('[aria-label="Next paragraph"]')?.click();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'footer.action', action: 'next' });
+    footer.hide();
+  });
+
+  it('keeps controls, focus and keyboard listeners across playback status changes', async () => {
+    const { footer, root } = await showFooter();
+    const voice = root.querySelector<HTMLButtonElement>('.voice-btn');
+    voice?.focus();
+    for (const status of ['playing', 'paused', 'loading', 'error'] as const) {
+      footer.updateState({ status });
+      expect(root.querySelector('.voice-btn')).toBe(voice);
+      expect(root.activeElement).toBe(voice);
+      voice?.click();
+      expect(root.querySelector('.voice-dropdown')?.classList.contains('open')).toBe(true);
+      voice?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(root.querySelector('.voice-dropdown')?.classList.contains('open')).toBe(false);
+      expect(root.querySelector('.btn-play-pause')?.getAttribute('aria-label')).toBe(
+        status === 'playing' ? 'Pause' : 'Play',
+      );
+    }
+    footer.hide();
   });
 
   it('adopts the document after a previous content-script world was destroyed', async () => {

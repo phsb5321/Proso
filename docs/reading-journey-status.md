@@ -1,5 +1,31 @@
 # Reading journey status
 
+## Update — 13/09/2026: the footer itself now has a browser actor
+
+`make reader-controls-gate` uses Firefox's platform accessibility tree to reach
+the built extension's closed-root controls by public role/name. Native Enter
+selects Atlas; Escape closes the list. The local-host fixture records each
+selected voice, and acceptance waits for its audio response **and** a visible
+restart of the same sentence—not merely a request or an optimistic label.
+A predetermined synthesis failure exposes an actionable error; the footer's
+Play retries that text and resumes. Close clears the UI and stops new requests.
+
+This found defects missed by the earlier unit-only proof: initial clicks had
+two listeners; status changes rebuilt the footer and lost keyboard/focus state;
+and the old voice could finish and advance the paragraph while replacement
+audio was still loading. The shared lifecycle and voice-change seams are now
+repaired with red/green regressions. `make reader-controls-plants` catches omitted
+voice-selection and retry actions by their specific failure, rejecting crashes
+and stale receipts. Accessibility clients retain a strong service reference in
+the disposable browser so Gecko GC cannot drop pending focus requests.
+
+PR #243 remains a **draft, not merged or deployed**. These are fixture-backed
+local-host control proofs, not narrator-quality acceptance or the original docs
+site's exact freeze. Managed voice catalogs remain empty in ServerTtsAudioAdapter.
+Full Feature 095 restart/soak/accounting acceptance, dependency/server-fixture
+repairs, independent review and protected-base eligibility remain outstanding.
+Durable continuation evidence: `~/.local/state/proso/reader-controls-2026-09-13/`.
+
 ## Recovery — 12/09/2026: reader controls (Feature 243)
 
 The interrupted reader repair was still staged: its commit had failed the

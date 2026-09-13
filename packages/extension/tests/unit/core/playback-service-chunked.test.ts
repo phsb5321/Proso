@@ -148,6 +148,33 @@ describe('PlaybackService chunked path', () => {
     });
   });
 
+  it('silences the old voice and ignores its ended event while the replacement loads', async () => {
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    const pause = jest.spyOn(Audio.prototype, 'pause');
+    let release = () => {};
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    generator.generateAudioChunks = async function* (request) {
+      generator.chunkCalls.push({ request });
+      await ready;
+      yield Ok({ audioBlob: new Blob(['replacement']), durationMs: 1000, wordTimings: null });
+    };
+    await mockSettingsStore.updateSettings({ voice: 'River' });
+    try {
+      expect(pause).toHaveBeenCalled();
+      expect(service.getState().status).toBe('loading');
+      endedHandler?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(service.getState().currentParagraphIndex).toBe(0);
+      expect(generator.chunkCalls.at(-1)?.request.text).toContain('First sentence');
+    } finally {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await service.stop();
+    }
+  });
+
   it('does not start the paragraph lookahead prefetcher for a chunked generator', async () => {
     const prefetchStart = jest.fn();
     const prefetchStop = jest.fn();

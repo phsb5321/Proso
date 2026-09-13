@@ -509,6 +509,17 @@ export class PlaybackService {
       this.state.status !== 'stopped';
     if (!readable) return;
 
+    // The old clip must not finish and advance the paragraph while its new
+    // voice is still synthesizing. Keep a reader's explicit pause intact.
+    this.audioElement?.pause();
+    this.state = {
+      ...this.state,
+      status: this.state.status === 'paused' ? 'paused' : 'loading',
+      progress: 0,
+      error: null,
+    };
+    this.emitAudioPosition();
+    void this.updateFooterState();
     this.deps.prefetch?.service.clearBuffer();
     await this.generateCurrentParagraph();
   }

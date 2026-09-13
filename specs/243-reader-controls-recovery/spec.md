@@ -122,8 +122,36 @@ word spans the highlighter writes during playback.
 | The voice control works | `tests/unit/content/sticky-footer-voice.test.ts` |
 | Routed paragraphs stay clickable | `make hover-affordance-gate` in a real Firefox |
 
-The footer attaches a **closed** shadow root, so its rendered readouts are not
-observable from a WebDriver-injected script. The bar, the clock and the voice
-control are therefore proven at three deterministic seams — service → wire →
-rendered width — rather than by reading the live footer. The hover affordance
-is in the light DOM and is proven in the browser.
+The footer attaches a **closed** shadow root, so ordinary page scripts cannot
+query it. On 13/09/2026, a platform-accessibility actor closed part of that
+observation gap: `make reader-controls-gate` locates the actual footer's
+Firefox accessibility roles/names, activates them, and uses native Enter/Escape.
+It neither opens the shadow root nor invokes an extension handler/message.
+
+The local-host fixture campaign proves Pause, Resume, catalog opening, Escape,
+voice change during playback, native-keyboard voice selection, visible
+current-sentence restart after the selected voice's audio response, a
+predetermined synthesis failure, Play retry, and Close with cleared UI and no
+further synthesis. `make reader-controls-plants` requires omission of Atlas
+selection and omission of Play retry to fail their respective assertions; a
+crash or stale receipt cannot count as a caught plant.
+
+This does not prove full Feature 095 acceptance, real-provider narrator quality,
+managed-provider voice catalogs, or the original docs site's exact freeze.
+The server audio adapter currently returns an empty managed voice catalog;
+the proven voice-selection route is the reader-operated local host.
+
+Browser findings added on 13/09/2026:
+
+- Fresh footer rendering attached button listeners twice. Status updates
+  replaced the footer nodes and discarded keyboard listeners/focus. One
+  listener per node lifetime and in-place play-button updates fix both;
+  `sticky-footer-coherence.test.ts` has red/green regressions.
+- Voice selection left the old clip playing while replacement synthesis was
+  pending. Its `ended` event advanced to another paragraph before the new
+  voice's first clip arrived. `applyVoiceChange()` silences it and enters
+  loading (preserving an explicit pause); chunked and paused-voice regressions
+  plus the browser's response/visible-restart oracle pin this race.
+
+The bar and clock retain their deterministic service → wire → rendered-width
+proof; the hover affordance remains light-DOM browser evidence.
