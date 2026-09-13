@@ -22,10 +22,16 @@ export interface FooterState {
   readonly status: PlaybackStatus;
   readonly currentIndex: number;
   readonly totalParagraphs: number;
+  /**
+   * Position in the whole article, 0-1 — not within the current paragraph.
+   * The footer's wire contract is a 0-100 percentage; the adapter converts.
+   */
   readonly progress: number;
   readonly currentTime: string;
   readonly totalTime: string;
   readonly speed: number;
+  /** Voice the article is being read in; `null` means the provider picks. */
+  readonly voice: string | null;
 }
 
 /**

@@ -11,6 +11,7 @@
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import content from '../../../src/entrypoints/content';
 import {
+  getExtractedParagraphs,
   getLastExtractionMode,
   setExtractedParagraphs,
 } from '../../../src/utils/content/extractor';
@@ -26,6 +27,16 @@ Object.defineProperty(window, 'ResizeObserver', {
   configurable: true,
   writable: true,
 });
+
+// Disconnect observers from the previous content-script world between cases.
+const observers = new Set<MutationObserver>();
+const NativeMutationObserver = window.MutationObserver;
+window.MutationObserver = class extends NativeMutationObserver {
+  constructor(callback: MutationCallback) {
+    super(callback);
+    observers.add(this);
+  }
+};
 
 // Force the setTimeout scheduling branch so fake timers can advance it
 // (production Firefox takes the requestIdleCallback branch of the same call).
@@ -99,6 +110,9 @@ function paragraphClickMessages(): unknown[][] {
 
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
+    for (const observer of observers) observer.disconnect();
+    observers.clear();
+    jest.clearAllTimers();
     // main() is idempotence-guarded per page; reset the guard so each test
     // drives a fresh main() (duplicate page listeners behave identically).
     const proso = (window as { Proso?: { _contentInitialized?: boolean } }).Proso;
@@ -253,5 +267,32 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     p1.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(sendMessageMock.mock.calls).toHaveLength(0);
+  });
+
+  it('rechecks active reading when a queued routed-content idle pass executes', async () => {
+    const idleCallbacks: Array<() => void> = [];
+    window.requestIdleCallback = (callback) => {
+      idleCallbacks.push(() => callback({ didTimeout: false, timeRemaining: () => 50 }));
+      return idleCallbacks.length;
+    };
+    const listener = startContentWithMessageListener();
+    idleCallbacks.shift()?.();
+    const originalParagraphs = [...getExtractedParagraphs()];
+    document
+      .querySelector('article')
+      ?.insertAdjacentHTML('beforeend', `<p id="routed">Routed paragraph. ${LOREM}</p>`);
+    await Promise.resolve(); // deliver MutationObserver records
+    jest.advanceTimersByTime(1500); // queue, but do not execute, the idle pass
+    expect(idleCallbacks.length).toBeGreaterThan(0);
+
+    await listener({ action: 'FOOTER_SHOW' });
+    expect(document.querySelector('#proso-sticky-footer')).not.toBeNull();
+    try {
+      for (const callback of idleCallbacks) callback();
+      expect(getExtractedParagraphs()).toEqual(originalParagraphs);
+      expect(document.getElementById('routed')?.classList.contains('proso-hoverable')).toBe(false);
+    } finally {
+      await listener({ action: 'FOOTER_HIDE' });
+    }
   });
 });

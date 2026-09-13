@@ -71,6 +71,15 @@ const playbackStateSchema = z.object({
   speed: z.number().min(0.5).max(2.0),
   languageCode: z.string().default('en'),
   isAutoDetected: z.boolean().default(true),
+  /** Voice currently in use; `null` means the provider picks. */
+  voiceId: z.string().nullable().default(null),
+  voiceName: z.string().nullable().default(null),
+});
+
+/** One selectable voice, as `audio.getVoices` reports it. */
+const footerVoiceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
 });
 
 /**
@@ -134,6 +143,7 @@ export type ButtonOptions = z.infer<typeof buttonOptionsSchema>;
 export type IconName = z.infer<typeof iconNameSchema>;
 export type FooterAction = z.infer<typeof footerActionSchema>;
 export type StorageState = z.infer<typeof storageStateSchema>;
+export type FooterVoice = z.infer<typeof footerVoiceSchema>;
 
 // ============================================================================
 // Constants
@@ -155,6 +165,10 @@ const SPEED_OPTIONS: readonly number[] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0] 
 
 // Error notification defaults (T001: 035-selection-tts-hardening)
 const ERROR_DISPLAY_DURATION_MS = 5000;
+
+// Voice control labels
+const DEFAULT_VOICE_LABEL = 'Default';
+const VOICE_BUTTON_MAX_CHARS = 12;
 
 // ============================================================================
 // SVG Icon Creation
@@ -528,10 +542,21 @@ function getStyles(): string {
     .language-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 6px; white-space: nowrap; transition: background 100ms ease; }
     .language-option:hover { background: rgba(255, 255, 255, 0.1); }
     .language-option.active { background: var(--footer-accent); color: white; font-weight: 600; }
+    .voice-control { position: relative; }
+    .voice-btn { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; max-width: 128px; gap: 5px; }
+    .voice-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none; flex-shrink: 0; }
+    .voice-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .voice-dropdown { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--footer-bg-secondary); border: 1px solid var(--footer-border); border-radius: 10px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); padding: 4px; display: none; min-width: 180px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; }
+    .voice-dropdown.open { display: block; }
+    .voice-option { display: block; width: 100%; padding: 6px 12px; border: none; background: transparent; color: var(--footer-text); font-size: 12px; text-align: left; cursor: pointer; border-radius: 6px; white-space: nowrap; transition: background 100ms ease; }
+    .voice-option:hover { background: rgba(255, 255, 255, 0.1); }
+    .voice-option.active { background: var(--footer-accent); color: white; font-weight: 600; }
+    .voice-status { display: block; padding: 6px 12px; font-size: 12px; color: var(--footer-text-muted); white-space: nowrap; }
     .footer.minimized .progress-section,
     .footer.minimized .controls .btn:not(.btn-play-pause),
     .footer.minimized .speed-control,
     .footer.minimized .language-control,
+    .footer.minimized .voice-control,
     .footer.minimized .btn-minimize { display: none; }
     .footer.minimized .controls { justify-content: center; flex: 1; }
     .actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -609,7 +634,14 @@ export class StickyFooter {
     speed: 1.0,
     languageCode: 'en',
     isAutoDetected: true,
+    voiceId: null,
+    voiceName: null,
   };
+
+  /** Voices offered in the dropdown; empty until the reader first opens it. */
+  private _voices: readonly FooterVoice[] = [];
+  private _voiceRequest: Promise<void> | null = null;
+  private _voicesUnavailable = false;
 
   private _resizeObserver: ResizeObserver | null = null;
   private _mutationObserver: MutationObserver | null = null;
@@ -630,6 +662,8 @@ export class StickyFooter {
   private _speedDropdown: HTMLDivElement | null = null;
   private _langBtn: HTMLButtonElement | null = null;
   private _langDropdown: HTMLDivElement | null = null;
+  private _voiceBtn: HTMLButtonElement | null = null;
+  private _voiceDropdown: HTMLDivElement | null = null;
 
   // Bound event handlers
   private readonly _onDragStart: (e: MouseEvent | TouchEvent) => void;
@@ -879,6 +913,52 @@ export class StickyFooter {
     langControl.appendChild(langDropdown);
     footer.appendChild(langControl);
 
+    // Voice control — a reader who dislikes the narrator has to be able to
+    // change it where they are listening, not by leaving the article for the
+    // settings page and starting over.
+    const voiceControl = document.createElement('div');
+    voiceControl.className = 'voice-control';
+
+    const voiceBtn = createButton({
+      className: 'btn voice-btn',
+      ariaLabel: `Voice: ${this._voiceLabel()}`,
+      action: 'toggleVoice',
+    });
+    voiceBtn.dataset.testid = 'footer-voice-btn';
+
+    const voiceSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    voiceSvg.setAttribute('viewBox', '0 0 24 24');
+    voiceSvg.setAttribute('width', '14');
+    voiceSvg.setAttribute('height', '14');
+    voiceSvg.setAttribute('aria-hidden', 'true');
+    // Microphone: a stem under a rounded capsule, drawn as two paths.
+    const micBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    micBody.setAttribute('d', 'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z');
+    const micArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    micArc.setAttribute('d', 'M5 10v1a7 7 0 0 0 14 0v-1M12 19v3');
+    voiceSvg.appendChild(micBody);
+    voiceSvg.appendChild(micArc);
+
+    const voiceText = document.createElement('span');
+    voiceText.className = 'voice-name';
+    voiceText.textContent = this._voiceLabel();
+    voiceBtn.textContent = '';
+    voiceBtn.appendChild(voiceSvg);
+    voiceBtn.appendChild(voiceText);
+
+    this._voiceBtn = voiceBtn;
+    voiceControl.appendChild(voiceBtn);
+
+    const voiceDropdown = document.createElement('div');
+    voiceDropdown.className = 'voice-dropdown';
+    voiceDropdown.setAttribute('role', 'listbox');
+    voiceDropdown.setAttribute('aria-label', 'Select voice');
+    this._voiceDropdown = voiceDropdown;
+    voiceControl.appendChild(voiceDropdown);
+    this._renderVoiceOptions();
+
+    footer.appendChild(voiceControl);
+
     // Paragraph indicator
     const indicator = document.createElement('span');
     indicator.className = 'paragraph-indicator';
@@ -1001,6 +1081,8 @@ export class StickyFooter {
     this._speedDropdown = null;
     this._langBtn = null;
     this._langDropdown = null;
+    this._voiceBtn = null;
+    this._voiceDropdown = null;
     reconcileStaleFooterArtifacts(document);
 
     log.debug('Proso: Sticky footer hidden');
@@ -1013,6 +1095,10 @@ export class StickyFooter {
     const previousStatus = this.playbackState.status;
     const previousParagraph = this.playbackState.currentParagraph;
 
+    if (state.voiceId !== undefined && state.voiceName === undefined) {
+      this.playbackState.voiceName =
+        this._voices.find((voice) => voice.id === state.voiceId)?.name ?? null;
+    }
     Object.assign(this.playbackState, state);
 
     if (this.shadowRoot) {
@@ -1076,6 +1162,12 @@ export class StickyFooter {
           'aria-label',
           `Language: ${this.playbackState.isAutoDetected ? 'Auto-detected' : ''} ${this.playbackState.languageCode.toUpperCase()}`,
         );
+      }
+
+      // Keep the voice control in sync however the choice arrived — the
+      // footer's own dropdown, the settings page, or the popup.
+      if (state.voiceId !== undefined || state.voiceName !== undefined) {
+        this._refreshVoiceControl();
       }
 
       // Feature 200: keep language-dropdown option highlights in sync with
@@ -1455,10 +1547,17 @@ export class StickyFooter {
       case 'toggleSpeed':
         this._toggleSpeedDropdown();
         this._closeLanguageDropdown();
+        this._closeVoiceDropdown();
         break;
       case 'toggleLanguage':
         this._toggleLanguageDropdown();
         this._closeSpeedDropdown();
+        this._closeVoiceDropdown();
+        break;
+      case 'toggleVoice':
+        this._toggleVoiceDropdown();
+        this._closeSpeedDropdown();
+        this._closeLanguageDropdown();
         break;
       case 'toggleMinimize':
         this.isMinimized = !this.isMinimized;
@@ -1515,6 +1614,152 @@ export class StickyFooter {
     }
   }
 
+  /**
+   * Toggle voice dropdown, fetching the voice list on first open.
+   *
+   * Lazily, because the list costs a provider round trip and most readings
+   * never touch it — the footer must not pay for it on every article.
+   */
+  private _toggleVoiceDropdown(): void {
+    if (!this._voiceDropdown) return;
+    const opening = !this._voiceDropdown.classList.contains('open');
+    this._voiceDropdown.classList.toggle('open', opening);
+    if (opening) void this._loadVoices();
+  }
+
+  /**
+   * Close voice dropdown
+   */
+  private _closeVoiceDropdown(): void {
+    if (this._voiceDropdown) {
+      this._voiceDropdown.classList.remove('open');
+    }
+  }
+
+  /** Text shown on the voice button: the chosen voice, or the default. */
+  private _voiceLabel(): string {
+    const name = this.playbackState.voiceName ?? this.playbackState.voiceId;
+    if (!name) return DEFAULT_VOICE_LABEL;
+    return name.length > VOICE_BUTTON_MAX_CHARS
+      ? `${name.slice(0, VOICE_BUTTON_MAX_CHARS - 1)}\u2026`
+      : name;
+  }
+
+  /**
+   * Ask the background for the current provider's voices, once.
+   *
+   * A failure is reported in the dropdown rather than swallowed, and clears
+   * the in-flight marker so the next open retries.
+   */
+  private async _loadVoices(): Promise<void> {
+    if (this._voices.length > 0 || this._voiceRequest) return this._voiceRequest ?? undefined;
+
+    this._voiceRequest = (async () => {
+      try {
+        const response = await browser.runtime.sendMessage({ type: 'audio.getVoices' });
+        const parsed = z
+          .object({ voices: z.array(footerVoiceSchema.passthrough()) })
+          .safeParse(response);
+        this._voices = parsed.success
+          ? parsed.data.voices.map((voice) => ({ id: voice.id, name: voice.name }))
+          : [];
+        this._voicesUnavailable = !parsed.success || this._voices.length === 0;
+        // The background reports the active voice by id; give it its name now
+        // that one is known, so the button stops showing a provider id.
+        const active = this._voices.find((voice) => voice.id === this.playbackState.voiceId);
+        if (active) this.playbackState.voiceName = active.name;
+      } catch (error) {
+        log.error('Proso: Failed to load voices for the footer', { error });
+        this._voices = [];
+        this._voicesUnavailable = true;
+      } finally {
+        this._voiceRequest = null;
+        this._renderVoiceOptions();
+        this._refreshVoiceControl();
+      }
+    })();
+
+    return this._voiceRequest;
+  }
+
+  /** Bring the voice button and its options back in step with the state. */
+  private _refreshVoiceControl(): void {
+    if (this._voiceBtn) {
+      const label = this._voiceBtn.querySelector('.voice-name');
+      if (label) label.textContent = this._voiceLabel();
+      this._voiceBtn.setAttribute('aria-label', `Voice: ${this._voiceLabel()}`);
+    }
+    // Playback updates arrive throughout a clip. Keep option nodes (and the
+    // reader's keyboard focus) rather than rebuilding the menu on each tick.
+    for (const option of this._voiceDropdown?.querySelectorAll<HTMLElement>('.voice-option') ??
+      []) {
+      const selected = (option.dataset.voiceId ?? null) === this.playbackState.voiceId;
+      option.classList.toggle('active', selected);
+      option.setAttribute('aria-selected', String(selected));
+    }
+  }
+
+  /** Rebuild the voice dropdown from whatever is currently known. */
+  private _renderVoiceOptions(): void {
+    const dropdown = this._voiceDropdown;
+    if (!dropdown) return;
+
+    dropdown.replaceChildren();
+
+    const addOption = (id: string | null, name: string): void => {
+      const option = document.createElement('button');
+      option.className = 'voice-option';
+      const isActive = this.playbackState.voiceId === id;
+      if (isActive) option.classList.add('active');
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(isActive));
+      option.setAttribute('tabindex', '0');
+      if (id !== null) option.dataset.voiceId = id;
+      option.dataset.voiceName = name;
+      option.textContent = name;
+      dropdown.appendChild(option);
+    };
+
+    addOption(null, DEFAULT_VOICE_LABEL);
+    for (const voice of this._voices) addOption(voice.id, voice.name);
+
+    if (this._voices.length === 0) {
+      const status = document.createElement('span');
+      status.className = 'voice-status';
+      status.textContent = this._voicesUnavailable ? 'No voices available' : 'Loading voices\u2026';
+      dropdown.appendChild(status);
+    }
+
+    this._attachVoiceOptionListeners();
+  }
+
+  /** Wire the rebuilt options; re-render replaces the nodes each time. */
+  private _attachVoiceOptionListeners(): void {
+    const dropdown = this._voiceDropdown;
+    if (!dropdown) return;
+
+    dropdown.querySelectorAll<HTMLElement>('.voice-option').forEach((option) => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._selectVoice(option.dataset.voiceId ?? null, option.dataset.voiceName ?? null);
+      });
+    });
+  }
+
+  /**
+   * Adopt a voice: persist it, then reflect it locally.
+   *
+   * The re-read happens in the background — `audio.setVoice` writes the
+   * settings store, and PlaybackService re-synthesizes the paragraph in
+   * progress off that change — so the footer only owns its own appearance.
+   */
+  private _selectVoice(voiceId: string | null, voiceName: string | null): void {
+    this._sendMessage('audio.setVoice', { voiceId });
+    this._closeVoiceDropdown();
+    this.updateState({ voiceId, voiceName: voiceId === null ? null : voiceName });
+    this._announce(`Voice ${voiceId === null ? DEFAULT_VOICE_LABEL : (voiceName ?? voiceId)}`);
+  }
+
   // ==========================================================================
   // Drag Handlers
   // ==========================================================================
@@ -1530,6 +1775,7 @@ export class StickyFooter {
     if (!this.container.contains(target)) {
       this._closeSpeedDropdown();
       this._closeLanguageDropdown();
+      this._closeVoiceDropdown();
     }
   }
 
@@ -1580,6 +1826,9 @@ export class StickyFooter {
     switch (e.key) {
       case ' ':
       case 'Enter':
+        // Native option buttons already activate on Enter/Space. Cancelling
+        // their default action here turns a voice choice into Play/Pause.
+        if ((e.target as HTMLElement)?.closest('button[role="option"]')) return;
         if ((e.target as HTMLElement)?.dataset?.action) {
           e.preventDefault();
           this._handleAction((e.target as HTMLElement).dataset.action!);
@@ -1592,6 +1841,7 @@ export class StickyFooter {
         e.preventDefault();
         this._closeSpeedDropdown();
         this._closeLanguageDropdown();
+        this._closeVoiceDropdown();
         break;
       case 'ArrowLeft':
         if ((e.target as HTMLElement)?.classList?.contains('progress-bar')) {

@@ -39,6 +39,20 @@ import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
 
 /**
+ * "The settings store has not told us a voice yet." Distinct from `null`,
+ * which is a real stored value meaning "let the provider choose", so the first
+ * notification after subscribing cannot be read as a reader changing voice.
+ */
+const UNOBSERVED_VOICE = Symbol('unobserved-voice');
+
+/**
+ * Rough seconds-per-paragraph used for the footer's elapsed/total readout.
+ * The reader gets a position, not a duration promise: real clip lengths are
+ * only known one paragraph at a time.
+ */
+const ESTIMATED_SECONDS_PER_PARAGRAPH = 15;
+
+/**
  * Dependencies required by PlaybackService.
  */
 export interface PlaybackServiceDependencies {
@@ -102,6 +116,10 @@ export class PlaybackService {
   // Mutable audio generator reference (updated on provider switch)
   private audioGenerator: IAudioGenerator;
 
+  // Last voice the settings store published, so the first notification after
+  // subscribing is a baseline rather than a change (see subscribeToSettings).
+  private lastPublishedVoice: string | null | typeof UNOBSERVED_VOICE = UNOBSERVED_VOICE;
+
   constructor(private readonly deps: PlaybackServiceDependencies) {
     // PROSO-136: seed from the resolved configuration rather than adopting the
     // hardcoded vendor default wholesale. `subscribeToSettings()` exists to keep
@@ -144,6 +162,17 @@ export class PlaybackService {
     tabId: number,
     pageUrl: string,
   ): Promise<Result<PlaybackState, PlaybackError>> {
+    // A session begins reading in whatever voice state currently holds, so
+    // that is the baseline every later settings notification is compared
+    // against. Seeding it here rather than by reading the store at
+    // construction matters: `getSettings()` is what first initializes the
+    // settings store, and initialization applies pending migrations, which
+    // write to storage. Doing that at container init reordered boot and had
+    // migration v6 rewrite a configured provider out from under the popup.
+    if (this.lastPublishedVoice === UNOBSERVED_VOICE) {
+      this.lastPublishedVoice = this.state.voice;
+    }
+
     // Validate we can start
     if (!playbackStateValidation.canStart(this.state)) {
       // If already playing, stop first
@@ -224,6 +253,15 @@ export class PlaybackService {
    */
   async resume(): Promise<Result<PlaybackState, PlaybackError>> {
     if (!playbackStateValidation.canResume(this.state)) {
+      // Play is the whole of the reader's recovery vocabulary. In `error` and
+      // `loading` the footer shows the play glyph over an element holding no
+      // playable clip, so refusing here left the button pressable and inert:
+      // a failed paragraph, or a transition whose fetch was superseded, froze
+      // the article at that point with nothing to press. Re-read the paragraph
+      // the reader can see instead — that is what the glyph promises.
+      if (playbackStateValidation.canRetry(this.state)) {
+        return this.generateCurrentParagraph();
+      }
       return Err(playbackError.playbackFailed('Cannot resume: not paused'));
     }
 
@@ -443,12 +481,36 @@ export class PlaybackService {
   }
 
   /**
-   * Update voice (requires regenerating audio).
+   * Update voice without touching the clip being played.
+   *
+   * Callers are internal route repairs — adopting the local host's own voice,
+   * rolling a failed provider commit back — which must not restart audio. A
+   * voice the *reader* picks arrives through the settings store instead and is
+   * applied immediately; see `subscribeToSettings()`.
    */
   async setVoice(voice: string | null): Promise<void> {
     this.state = playbackStateTransitions.updateSettings(this.state, {
       voice,
     });
+  }
+
+  /**
+   * Re-read the paragraph in progress with the voice just chosen.
+   *
+   * Everything already synthesized carries the old voice, so the prefetch
+   * buffer is dropped first; the paragraph cache is keyed by voice and needs
+   * no eviction. Nothing to re-read (idle, stopped, no paragraphs) is not a
+   * failure — the next start picks the new voice up from state.
+   */
+  private async applyVoiceChange(): Promise<void> {
+    const readable =
+      this.state.paragraphs.length > 0 &&
+      this.state.status !== 'idle' &&
+      this.state.status !== 'stopped';
+    if (!readable) return;
+
+    this.deps.prefetch?.service.clearBuffer();
+    await this.generateCurrentParagraph();
   }
 
   /**
@@ -469,6 +531,13 @@ export class PlaybackService {
 
   /**
    * Subscribe to settings changes.
+   *
+   * The store is where a reader's voice choice lands from every surface — the
+   * footer's voice control, the popup, the settings page — so this is the one
+   * place that can notice one and act on it. The comparison is against the
+   * last value the *store* published, not against `state.voice`, because
+   * `setVoice()` moves state on its own for internal route repairs and those
+   * must not be mistaken for a reader asking to be read to differently.
    */
   subscribeToSettings(): void {
     if (this.settingsUnsubscribe) {
@@ -476,12 +545,23 @@ export class PlaybackService {
     }
 
     this.settingsUnsubscribe = this.deps.settingsStore.subscribe((settings: Settings) => {
+      const previousVoice = this.lastPublishedVoice;
+      this.lastPublishedVoice = settings.voice;
+
       this.state = playbackStateTransitions.updateSettings(this.state, {
         provider: settings.provider,
         voice: settings.voice,
         speed: settings.speed,
         mode: settings.mode,
       });
+
+      const isReaderVoiceChange =
+        previousVoice !== UNOBSERVED_VOICE && previousVoice !== settings.voice;
+      if (isReaderVoiceChange) {
+        void this.applyVoiceChange().catch((error) =>
+          this.funnelPlaybackError(error, this.playbackGeneration),
+        );
+      }
     });
   }
 
@@ -1646,20 +1726,31 @@ export class PlaybackService {
   private async updateFooterState(): Promise<void> {
     if (this.state.activeTabId === null) return;
 
-    // Estimate current/total time from progress and paragraph count
-    const avgSecondsPerParagraph = 15; // rough estimate
-    const totalSeconds = this.state.totalParagraphs * avgSecondsPerParagraph;
-    const currentSeconds = Math.round(this.state.progress * totalSeconds);
+    // `state.progress` is the fraction of the CURRENT paragraph, but every
+    // footer readout describes the whole article: the bar sits between an
+    // elapsed and a total time, and the footer's own seek maps a position on
+    // it back to a paragraph index. Feeding it the paragraph fraction printed
+    // `14:00 / 14:00` on paragraph 11 of 56 — elapsed equal to total, beside a
+    // bar at zero — because the last paragraph read happened to be nearly
+    // over. Position in the article is paragraphs finished plus how far into
+    // this one.
+    const { currentParagraphIndex, totalParagraphs, progress } = this.state;
+    const paragraphsRead = Math.min(totalParagraphs, currentParagraphIndex + progress);
+    const documentProgress = totalParagraphs > 0 ? paragraphsRead / totalParagraphs : 0;
+
+    const totalSeconds = totalParagraphs * ESTIMATED_SECONDS_PER_PARAGRAPH;
+    const currentSeconds = Math.round(paragraphsRead * ESTIMATED_SECONDS_PER_PARAGRAPH);
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
     const footerState: FooterState & { readonly timingBasis: WordTimingBasis } = {
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,
-      progress: this.state.progress,
+      progress: documentProgress,
       currentTime: formatTime(currentSeconds),
       totalTime: formatTime(totalSeconds),
       speed: this.state.speed,
+      voice: this.state.voice,
       timingBasis: this.currentTimingBasis,
     };
 

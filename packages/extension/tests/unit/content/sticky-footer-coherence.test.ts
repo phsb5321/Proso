@@ -1,40 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-class TestResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
-globalThis.MutationObserver = TestResizeObserver as unknown as typeof MutationObserver;
-
-// Feature 200: the footer attaches a CLOSED shadow root; open it in tests so
-// dropdown state (option highlights, open class) is observable. Applied before
-// any StickyFooter instance calls show().
-const originalAttachShadow = Element.prototype.attachShadow;
-Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
-  return originalAttachShadow.call(this, { ...init, mode: 'open' });
-} as typeof Element.prototype.attachShadow;
-
-const storageGet = jest.fn(async () => ({}));
-const storageSet = jest.fn(async () => undefined);
-const sendMessage = jest.fn(async () => ({}));
-
-jest.unstable_mockModule('wxt/browser', () => ({
-  browser: {
-    runtime: { sendMessage },
-    storage: { local: { get: storageGet, set: storageSet } },
-  },
-}));
-
-const { StickyFooter } = await import('../../../src/utils/content/sticky-footer');
-
-type FooterInternals = {
-  _handleAction(action: string, data?: { value?: number }): void;
-  _formatPositionIndicator(): string;
-  shadowRoot: ShadowRoot | null;
-};
+import { StickyFooter } from '../../helpers/footer-test-environment';
+import type { FooterInternals } from '../../helpers/footer-test-environment';
 
 describe('StickyFooter runtime coherence', () => {
   beforeEach(() => {
@@ -102,6 +69,19 @@ describe('StickyFooter runtime coherence', () => {
 
     footer.hide();
     expect(document.body.style.paddingBottom).toBe('12px');
+  });
+
+  it('draws the progress fill proportional to the percentage it is sent', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const root = (footer as unknown as FooterInternals).shadowRoot;
+
+    footer.updateState({ progress: 42, currentTime: '5:53', totalTime: '14:00' });
+
+    const fill = root?.querySelector<HTMLElement>('.progress-fill');
+    expect(fill?.style.width).toBe('42%');
+    expect(root?.querySelector('.progress-bar')?.getAttribute('aria-valuenow')).toBe('42');
+    footer.hide();
   });
 
   it('renders the first paragraph with the same one-based counter as the popup', () => {

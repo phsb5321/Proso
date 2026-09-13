@@ -120,7 +120,14 @@ export class Driver {
  */
 export async function launch({ binary, prefs = {}, headless = true, extraArgs = [] }) {
   const port = await freePort();
-  const proc = spawn('geckodriver', ['--port', String(port), '--host', '127.0.0.1'], {
+  // geckodriver 0.37+ refuses this Firefox argument in capabilities. Preserve
+  // the callers' explicit opt-in, but grant it at the driver process boundary.
+  const systemAccessFlags = ['-remote-allow-system-access', '--remote-allow-system-access'];
+  const driverArgs = ['--port', String(port), '--host', '127.0.0.1'];
+  if (extraArgs.some((arg) => systemAccessFlags.includes(arg))) {
+    driverArgs.push('--allow-system-access');
+  }
+  const proc = spawn('geckodriver', driverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const logs = [];
@@ -147,7 +154,10 @@ export async function launch({ binary, prefs = {}, headless = true, extraArgs = 
       alwaysMatch: {
         'moz:firefoxOptions': {
           binary,
-          args: [...(headless ? ['-headless'] : []), ...extraArgs],
+          args: [
+            ...(headless ? ['-headless'] : []),
+            ...extraArgs.filter((arg) => !systemAccessFlags.includes(arg)),
+          ],
           prefs,
         },
         pageLoadStrategy: 'normal',

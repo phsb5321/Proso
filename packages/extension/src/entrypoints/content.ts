@@ -25,6 +25,7 @@ import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import {
   HOVERABLE_CLASS,
+  hasUnmarkedProse,
   isAmbientExtractionCandidate,
   markHoverAffordance,
   shouldIgnoreParagraphClick,
@@ -46,6 +47,13 @@ import type { HighlightColor } from '../utils/schemas/highlight.schema';
 import { hashUrlSync, usageTracker } from '../utils/telemetry/usage';
 
 const log = createLogger('content');
+
+/**
+ * Floor between two hover-play re-marking passes. Extraction is the expensive
+ * part; a page that streams content in must not be able to run it back to
+ * back.
+ */
+const HOVER_REMARK_MIN_INTERVAL_MS = 1500;
 
 // ============================================================================
 // CSS Injection
@@ -379,6 +387,7 @@ interface FooterStateMessage extends LegacyMessage {
   currentParagraph?: number;
   totalParagraphs?: number;
   speed?: number;
+  voice?: string | null;
 }
 
 /**
@@ -566,9 +575,12 @@ export default defineContentScript({
      * clicks can start playback without any popup interaction, then mark the
      * paragraphs with the paint-only hover affordance.
      */
-    function runAmbientHoverPlayExtraction(): void {
+    function runAmbientHoverPlayExtraction({ reExtract = false } = {}): void {
+      // Playback can start after scheduling but before the idle callback runs.
+      if (stickyFooter?.isFooterVisible()) return;
       try {
         if (
+          !reExtract &&
           extractor.getLastExtractionMode() === 'article' &&
           extractor.getExtractedParagraphs().length > 0
         ) {
@@ -588,13 +600,62 @@ export default defineContentScript({
       }
     }
 
+    /** Run a hover-play pass off the critical path; never block the page. */
+    function scheduleHoverPlayPass(options: { reExtract?: boolean } = {}): void {
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => runAmbientHoverPlayExtraction(options), { timeout: 3000 });
+      } else {
+        window.setTimeout(() => runAmbientHoverPlayExtraction(options), 1200);
+      }
+    }
+
+    /**
+     * Follow the page when its article is replaced without a document load.
+     *
+     * On a client-routed site the content script is never restarted, so the
+     * single idle pass above is the only marking that ever happens and every
+     * paragraph the router brings in is unclickable — the shape a reader hit
+     * on a docs site whose sidebar navigates in place.
+     *
+     * Two guards keep this off the hot path: `hasUnmarkedProse` rejects our
+     * own word spans and footer chrome, and passes are spaced so a chatty page
+     * cannot make the extractor run back to back. Re-extraction is skipped
+     * outright while the footer is up: paragraph indexes are the reading
+     * position, and renumbering them mid-article would move the highlight and
+     * every click target under the reader.
+     */
+    function watchRoutedContent(): void {
+      if (typeof MutationObserver !== 'function' || !document.body) return;
+
+      let passPending = false;
+      let lastPassAt = 0;
+
+      const readingInProgress = () => stickyFooter?.isFooterVisible() === true;
+
+      const observer = new MutationObserver((records) => {
+        if (passPending || readingInProgress()) return;
+        if (!hasUnmarkedProse(records)) return;
+
+        passPending = true;
+        const wait = Math.max(0, HOVER_REMARK_MIN_INTERVAL_MS - (Date.now() - lastPassAt));
+        window.setTimeout(() => {
+          passPending = false;
+          lastPassAt = Date.now();
+          if (readingInProgress()) return;
+          scheduleHoverPlayPass({ reExtract: true });
+        }, wait);
+      });
+
+      // No teardown: the observer is scoped to this document and is collected
+      // with it. The cleanup list here is for blob URLs and audio, which are
+      // the things that outlive a document.
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
     function setupAmbientHoverPlay(): void {
       // FR-1: defer off the critical path; never block or break the page.
-      if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(() => runAmbientHoverPlayExtraction(), { timeout: 3000 });
-      } else {
-        window.setTimeout(runAmbientHoverPlayExtraction, 1200);
-      }
+      scheduleHoverPlayPass();
+      watchRoutedContent();
     }
 
     /**
@@ -1213,6 +1274,9 @@ export default defineContentScript({
             currentParagraph: msg.currentParagraph ?? 0,
             totalParagraphs: msg.totalParagraphs ?? 0,
             speed: msg.speed ?? 1.0,
+            // Only carried when the sender knows it; omitting leaves the
+            // footer's current label alone rather than resetting it.
+            ...(msg.voice !== undefined ? { voiceId: msg.voice } : {}),
           };
           stickyFooter.updateState(playbackState);
           break;

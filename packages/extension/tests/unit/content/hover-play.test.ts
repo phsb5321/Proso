@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import {
   HOVERABLE_CLASS,
+  hasUnmarkedProse,
   isAmbientExtractionCandidate,
   markHoverAffordance,
   shouldIgnoreParagraphClick,
@@ -120,5 +121,50 @@ describe('shouldIgnoreParagraphClick', () => {
       false,
     );
     expect(shouldIgnoreParagraphClick(target, null)).toBe(false);
+  });
+});
+
+describe('hasUnmarkedProse', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  /** A MutationRecord is only read for `addedNodes` here. */
+  const added = (...nodes: Node[]): MutationRecord[] =>
+    [{ addedNodes: nodes as unknown as NodeList }] as unknown as MutationRecord[];
+
+  it('is false for an empty batch', () => {
+    expect(hasUnmarkedProse([])).toBe(false);
+  });
+
+  it('is true for a routed article the affordance has not reached', () => {
+    const article = document.createElement('div');
+    article.innerHTML = '<p>A paragraph a client-side router just brought in.</p>';
+    expect(hasUnmarkedProse(added(article))).toBe(true);
+  });
+
+  it('is true for a bare prose element added on its own', () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Appended directly to the article.';
+    expect(hasUnmarkedProse(added(paragraph))).toBe(true);
+  });
+
+  it('is false once every added paragraph is already marked', () => {
+    const article = document.createElement('div');
+    article.innerHTML = `<p class="${HOVERABLE_CLASS}">Already hoverable.</p>`;
+    expect(hasUnmarkedProse(added(article))).toBe(false);
+  });
+
+  it('is false for the word spans the highlighter writes while reading', () => {
+    const paragraph = document.createElement('p');
+    paragraph.className = HOVERABLE_CLASS;
+    const word = document.createElement('span');
+    word.className = 'proso-w';
+    paragraph.appendChild(word);
+    expect(hasUnmarkedProse(added(word))).toBe(false);
+  });
+
+  it('is false for text nodes and other non-elements', () => {
+    expect(hasUnmarkedProse(added(document.createTextNode('bare text')))).toBe(false);
   });
 });

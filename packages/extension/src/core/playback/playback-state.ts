@@ -228,6 +228,18 @@ export const playbackStateValidation = {
   canResume: (state: PlaybackState): boolean => state.status === 'paused',
 
   /**
+   * Check if Play should re-read the current paragraph instead of resuming a
+   * paused element.
+   *
+   * `error` and `loading` both render the play glyph over an element with no
+   * audio behind it — a synthesis that failed, or a paragraph transition whose
+   * fetch was superseded and never landed. Treating those as "cannot resume"
+   * made the footer's only control do nothing at all, for good.
+   */
+  canRetry: (state: PlaybackState): boolean =>
+    (state.status === 'error' || state.status === 'loading') && state.paragraphs.length > 0,
+
+  /**
    * Check if there is a next paragraph.
    */
   hasNext: (state: PlaybackState): boolean =>

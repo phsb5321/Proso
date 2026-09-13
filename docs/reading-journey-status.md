@@ -1,5 +1,35 @@
 # Reading journey status
 
+## Recovery — 12/09/2026: reader controls (Feature 243)
+
+The interrupted reader repair was still staged: its commit had failed the
+three-clone test ratchet, and no remote feature branch existed. Recovery
+consolidated test setup without deleting assertions, then reproduced and fixed
+four additional footer regressions (external voice labels, Escape, native
+keyboard selection, focus retention) and a queued hover pass racing playback.
+The shared Firefox launcher also needed geckodriver 0.37's process-level
+`--allow-system-access`; all three privilege opt-in cases now pass.
+
+Public popup playback and the local-host fixture journey passed in disposable
+Firefox profiles. These do **not** prove live footer voice switching or the
+original docs-site freeze is solved. The hover gate observes routed paragraphs,
+idle DOM-write counts and responsiveness. The full user acceptance gate remains
+blocked by Feature 095; `make verify-full` additionally stops at 14 high-severity
+dependency advisory paths discovered against the unchanged lockfile. The
+extension suite passes 3,316 tests (one pre-existing skip). The workspace run
+also exposes two unchanged Paddle integration failures: their fixed credit
+period ended on 12/09/2026 at 17:00 BRT, so validation correctly returns zero
+credits. That date-dependent fixture needs its own test repair, not a production
+credit-expiry change.
+
+Delivery is **not complete or deployed**. GitHub reports `main` unprotected and
+protection HTTP 403; no merge may bypass that gate. The legacy review script
+pins retired models, and no exact-head cross-family verdict has been earned.
+Continuation: [plan](../specs/243-reader-controls-recovery/plan.md) and
+[tasks](../specs/243-reader-controls-recovery/tasks.md). Durable recovery logs and
+receipts: `~/.local/state/proso/reader-controls-2026-09-12/` (including first red
+results). Do not treat older green receipts below as current release approval.
+
 The 30/07/2026 Mac Firefox installation and local TTS experiment is recorded in
 [`docs/research/local-reader-lab-2026-07-30.md`](research/local-reader-lab-2026-07-30.md).
 That Mac run remains partially verified because macOS denied UI automation. The gap it named —

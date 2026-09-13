@@ -61,8 +61,9 @@ jest.unstable_mockModule(resolve(srcDir, 'composition'), () => ({
 }));
 
 // Dynamic imports after mocks are wired
-const { registerFooterHandlers, setHighlightSync, setActiveTabId } =
-  await import('../../../src/handlers/footer.handlers');
+const { registerFooterHandlers, setHighlightSync, setActiveTabId } = await import(
+  '../../../src/handlers/footer.handlers'
+);
 const { HandlerRegistry } = await import('../../../src/handlers/registry');
 
 // ---------------------------------------------------------------------------
@@ -296,6 +297,7 @@ describe('footer.handlers', () => {
         currentTime: '0:45',
         totalTime: '2:30',
         speed: 1.5,
+        voice: null,
       });
     });
 
@@ -361,6 +363,7 @@ describe('footer.handlers', () => {
         currentTime: '0:00',
         totalTime: '0:00',
         speed: 0.5,
+        voice: null,
       });
     });
   });
@@ -729,6 +732,7 @@ describe('footer.handlers', () => {
         currentTime: '0:30',
         totalTime: '2:30',
         speed: 1.5,
+        voice: null,
       });
     });
 
