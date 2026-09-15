@@ -21,6 +21,12 @@ Store submission and DNS cutover are external release actions. They proceed only
 
 ### Slice B — Mozilla product and version
 
+**Reconciled 15/09/2026:** 1.2.10 is already public (addon 2978221, version
+6452761, file 4996936). Preserve it; the upload below is a future 1.2.11 update,
+not a replacement for an unpublished draft. No repeat submission, disable or
+release action is authorized by this status reconciliation. The current oracle
+correctly remains red for the unreleased 1.2.11 candidate and stale site copy.
+
 1. Preserve the current private dashboard state as the before receipt.
 2. Change the add-on’s distribution mode from self-hosted to Mozilla-hosted for the new version only.
 3. Upload the listed 1.2.11 ZIP and source archive, provide reproducible build instructions and permission justification, and submit it for review.
