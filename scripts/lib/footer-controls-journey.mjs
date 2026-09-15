@@ -145,12 +145,20 @@ export async function runFooterControlsJourney(driver, fixture, artifactDir, rec
     await screenshot('retry-error');
     const retryStart = fixture.localRequests.length;
     if (plant !== 'retry') await activate('toggle button', 'Play');
+    // Chunk requests run concurrently: sentence two can reach the fixture
+    // before the retried sentence. Match identity, not HTTP arrival order.
     const recovered = await waitFor(
       'Play retries the failed voice/paragraph',
       async () =>
         fixture.localRequests
           .slice(retryStart)
-          .find((r) => r.body.voice === 'Retry' && r.respondedAt && r.status !== 422),
+          .find(
+            (r) =>
+              r.body.voice === 'Retry' &&
+              r.body.input === failed.body.input &&
+              r.respondedAt &&
+              r.status !== 422,
+          ),
       { timeoutMs: 20000 },
     );
     assert.equal(recovered.body.input, failed.body.input, 'Play retries the same text');
@@ -158,7 +166,10 @@ export async function runFooterControlsJourney(driver, fixture, artifactDir, rec
       'recovered audio restarts the failed sentence visibly',
       async () => {
         const page = await driver.execute(`return (() => {${READ_PAGE}})();`);
-        return page.activeWord === recovered.body.input.split(/\s+/)[0];
+        return (
+          page.activeWord === recovered.body.input.split(/\s+/)[0] &&
+          page.highlighted.some((text) => text.includes(recovered.body.input))
+        );
       },
       { timeoutMs: 5000, intervalMs: 100 },
     );

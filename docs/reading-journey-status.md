@@ -1,5 +1,25 @@
 # Reading journey status
 
+## Update — 15/09/2026: catalog lifetime regression
+
+The footer no longer keeps its first nonempty voice catalog for its entire
+lifetime. Each menu opening queries the current adapter, removes former choices
+while loading, and accepts only the latest opening's response. Hiding the footer
+invalidates pending requests. Changed catalogs and out-of-order success/failure
+are covered at the footer boundary; a full public-settings host switch is still
+unverified, as are push updates while the menu stays open.
+
+The public footer campaign exposed a separate observer error: concurrent sentence
+requests can arrive in either order. Retry now matches the failed voice **and
+text**, then still requires its response and exact first-word restart in the
+highlighted paragraph. First-failure evidence is retained; no playback assertion
+was dropped. Evidence: `~/.local/state/proso/reader-controls-2026-09-15/`.
+
+PR #243 remains draft and unmerged. Current routing permits full GLM-5.3 review
+of personal-repository code without sensitive logs; Claude capacity is DOWN.
+Dependency audit, full Feature 095 acceptance, server clock fixtures and
+protected-base eligibility remain separate blockers, not waived by a review.
+
 ## Update — 13/09/2026: the footer itself now has a browser actor
 
 `make reader-controls-gate` uses Firefox's platform accessibility tree to reach

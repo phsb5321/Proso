@@ -647,7 +647,7 @@ export class StickyFooter {
 
   /** Voices offered in the dropdown; empty until the reader first opens it. */
   private _voices: readonly FooterVoice[] = [];
-  private _voiceRequest: Promise<void> | null = null;
+  private _voiceGeneration = 0;
   private _voicesUnavailable = false;
 
   private _resizeObserver: ResizeObserver | null = null;
@@ -1060,6 +1060,7 @@ export class StickyFooter {
    * Hide the footer
    */
   hide(): void {
+    this._voiceGeneration++;
     if (!this.container) {
       reconcileStaleFooterArtifacts(document);
       this.isVisible = false;
@@ -1620,7 +1621,7 @@ export class StickyFooter {
   }
 
   /**
-   * Toggle voice dropdown, fetching the voice list on first open.
+   * Toggle voice dropdown, fetching the current voice list on each open.
    *
    * Lazily, because the list costs a provider round trip and most readings
    * never touch it — the footer must not pay for it on every article.
@@ -1650,41 +1651,38 @@ export class StickyFooter {
       : name;
   }
 
-  /**
-   * Ask the background for the current provider's voices, once.
-   *
-   * A failure is reported in the dropdown rather than swallowed, and clears
-   * the in-flight marker so the next open retries.
-   */
+  /** Refresh on opening; the adapter, not this footer, owns provider caching. */
   private async _loadVoices(): Promise<void> {
-    if (this._voices.length > 0 || this._voiceRequest) return this._voiceRequest ?? undefined;
-
-    this._voiceRequest = (async () => {
-      try {
-        const response = await browser.runtime.sendMessage({ type: 'audio.getVoices' });
-        const parsed = z
-          .object({ voices: z.array(footerVoiceSchema.passthrough()) })
-          .safeParse(response);
-        this._voices = parsed.success
-          ? parsed.data.voices.map((voice) => ({ id: voice.id, name: voice.name }))
-          : [];
-        this._voicesUnavailable = !parsed.success || this._voices.length === 0;
-        // The background reports the active voice by id; give it its name now
-        // that one is known, so the button stops showing a provider id.
-        const active = this._voices.find((voice) => voice.id === this.playbackState.voiceId);
-        if (active) this.playbackState.voiceName = active.name;
-      } catch (error) {
-        log.error('Proso: Failed to load voices for the footer', { error });
-        this._voices = [];
-        this._voicesUnavailable = true;
-      } finally {
-        this._voiceRequest = null;
+    // ponytail: opening is the freshness boundary; live open-menu updates would
+    // need a background catalog-invalidation event, not a second provider cache.
+    const generation = ++this._voiceGeneration;
+    this._voices = [];
+    this._voicesUnavailable = false;
+    this.playbackState.voiceName = null;
+    this._renderVoiceOptions();
+    this._refreshVoiceControl();
+    try {
+      const response = await browser.runtime.sendMessage({ type: 'audio.getVoices' });
+      if (generation !== this._voiceGeneration) return;
+      const parsed = z
+        .object({ voices: z.array(footerVoiceSchema.passthrough()) })
+        .safeParse(response);
+      this._voices = parsed.success
+        ? parsed.data.voices.map((voice) => ({ id: voice.id, name: voice.name }))
+        : [];
+      this._voicesUnavailable = !parsed.success || this._voices.length === 0;
+      this.playbackState.voiceName =
+        this._voices.find((voice) => voice.id === this.playbackState.voiceId)?.name ?? null;
+    } catch (error) {
+      if (generation !== this._voiceGeneration) return;
+      log.error('Proso: Failed to load voices for the footer', { error });
+      this._voicesUnavailable = true;
+    } finally {
+      if (generation === this._voiceGeneration) {
         this._renderVoiceOptions();
         this._refreshVoiceControl();
       }
-    })();
-
-    return this._voiceRequest;
+    }
   }
 
   /** Bring the voice button and its options back in step with the state. */

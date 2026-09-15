@@ -30,7 +30,7 @@ describe('StickyFooter voice control', () => {
     document.body.innerHTML = '';
     document.body.removeAttribute('style');
     jest.clearAllMocks();
-    sendMessage.mockImplementation(async () => ({
+    sendMessage.mockReset().mockImplementation(async () => ({
       voices: [
         { id: 'voice-river', name: 'River' },
         { id: 'voice-atlas', name: 'Atlas' },
@@ -156,6 +156,88 @@ describe('StickyFooter voice control', () => {
     expect(sendMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'footer.action' }),
     );
+    footer.hide();
+  });
+
+  it('refreshes the catalog on reopen without leaving old provider choices clickable', async () => {
+    const { footer, root } = await showFooter();
+    await openVoiceDropdown(footer);
+    root.querySelector<HTMLElement>('[data-voice-id="voice-river"]')?.click();
+    let finish!: (value: unknown) => void;
+    sendMessage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    await openVoiceDropdown(footer);
+    expect(optionLabels(root)).toEqual(['Default']);
+    expect(root.querySelector('.voice-status')?.textContent).toBe('Loading voices…');
+    expect(root.querySelector('.voice-name')?.textContent).not.toBe('River');
+    finish({ voices: [{ id: 'voice-sage', name: 'Sage' }] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(optionLabels(root)).toEqual(['Default', 'Sage']);
+    root.querySelector<HTMLElement>('[data-voice-id="voice-sage"]')?.click();
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'audio.setVoice', voiceId: 'voice-sage' });
+    footer.hide();
+  });
+
+  it.each(['resolve', 'reject'] as const)(
+    'ignores an older catalog %s after reopening or recreating the footer',
+    async (outcome) => {
+      const { footer, root } = await showFooter();
+      let resolveOld!: (value: unknown) => void;
+      let rejectOld!: (error: Error) => void;
+      sendMessage.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            resolveOld = resolve;
+            rejectOld = reject;
+          }),
+      );
+      await openVoiceDropdown(footer);
+      // A provider can change while a previous catalog request is still pending.
+      if (outcome === 'resolve') {
+        (footer as unknown as FooterInternals)._handleAction('toggleVoice');
+      } else {
+        footer.hide();
+        await footer.show();
+      }
+      sendMessage.mockResolvedValueOnce({ voices: [{ id: 'voice-sage', name: 'Sage' }] });
+      const currentRoot = await openVoiceDropdown(footer);
+      expect(optionLabels(currentRoot)).toEqual(['Default', 'Sage']);
+      const option = currentRoot.querySelector<HTMLElement>('[data-voice-id="voice-sage"]');
+      option?.focus();
+      if (outcome === 'resolve') resolveOld({ voices: [{ id: 'voice-old', name: 'Old' }] });
+      else rejectOld(new Error('old provider unavailable'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(optionLabels(currentRoot)).toEqual(['Default', 'Sage']);
+      expect(currentRoot.activeElement).toBe(option);
+      expect(currentRoot.querySelector('.voice-status')).toBeNull();
+      expect(outcome === 'resolve' ? currentRoot === root : currentRoot !== root).toBe(true);
+      footer.hide();
+    },
+  );
+
+  it('discards a hidden footer catalog before a replacement menu is opened', async () => {
+    const { footer } = await showFooter();
+    footer.updateState({ voiceId: 'voice-old' });
+    let finish!: (value: unknown) => void;
+    sendMessage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await openVoiceDropdown(footer);
+    footer.hide();
+    finish({ voices: [{ id: 'voice-old', name: 'Old provider name' }] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await footer.show();
+    const root = (footer as unknown as FooterInternals).shadowRoot;
+    expect(root?.querySelector('.voice-name')?.textContent).not.toBe('Old provider name');
+    expect(root?.querySelector('[data-voice-id="voice-old"]')).toBeNull();
     footer.hide();
   });
 

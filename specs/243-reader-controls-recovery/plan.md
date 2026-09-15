@@ -65,6 +65,28 @@ Hypothesis: public footer actions still fail at seams mocked by unit tests.
 Falsifier: named actions produce neither the expected voice-specific HTTP
 request nor the subsequent visible playing state within a bounded wait.
 
+## Catalog continuation — 15/09/2026
+
+Reproduced: the first nonempty footer catalog survives every later opening;
+reopening during an old pending request cannot query the newly selected route.
+The existing `audio.getVoices` handler already consults the current adapter.
+Refresh lazily on each opening rather than introducing another settings event
+or duplicating the adapter cache. Clear old choices while loading, retain only
+the latest opening's result, and invalidate pending results on hide. Playback
+ticks must still preserve option focus. This is freshness on opening, not live
+catalog push while the menu is already open.
+
+Acceptance: red/green Jest cases for changed catalogs, loading state, old success
+and old failure arriving late; full extension/fuzz; public footer baseline and
+negative plants. Those Firefox campaigns cover repeated menu openings, not an
+actual host switch: the local adapter caches its capabilities for its lifetime,
+so changing the fixture response would not reproduce a provider switch. Keep
+that browser-specific gap explicit; the deterministic catalog-transition cases
+exercise the footer boundary without pretending to test the full switch. No new provider,
+permission, or production network destination. Exact-head full GLM-5.3 review is
+eligible for this personal-repository code packet under the current policy;
+exclude private logs/credentials and preserve all unresolved delivery gates.
+
 ## Known delivery constraints
 
 `main` was unprotected and its protection endpoint returned HTTP 403 on

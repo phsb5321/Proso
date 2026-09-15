@@ -29,6 +29,11 @@ Unchecked delivery gates must not be inferred from local unit results.
 - [x] T009b Fix browser-discovered duplicate click listeners, status-change
   keyboard/focus loss and stale old-voice playback advancing the paragraph;
   retain unit and browser red/green evidence.
+- [x] T009c Refresh catalogs on every menu opening; remove old choices while
+  loading and discard older success/failure or hidden-footer responses. Pin
+  changed-catalog and pending-request races with red/green tests.
+- [ ] T009d Prove a real provider/host switch via public settings while the
+  content script survives; repeated-menu Firefox coverage is not that proof.
 - [ ] T009 Satisfy the remaining `make user-gate` / Feature 095 outcomes,
   including restart, bounded soak, accounting and unified acceptance receipts.
 - [ ] T010 Obtain a capable exact-head different-family gate. Do not launch
@@ -44,7 +49,8 @@ Unchecked delivery gates must not be inferred from local unit results.
   Two tests now expect active credits from an expired period; repair the clock
   fixture separately without changing production credit expiration.
 
-- Voice-list invalidation after changing providers while a footer is alive.
+- Voice lists refresh on opening. Push updates during an already-open menu
+  and the full public provider-switch journey remain unverified.
 - The managed ServerTtsAudioAdapter still returns an empty voice catalog;
   public voice-switch acceptance currently covers only the local-host route.
 - Reconciliation after routing during a read and then stopping that read.
