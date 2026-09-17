@@ -19,14 +19,14 @@
  * @module tests/unit/handlers/footer.handlers
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import type { IHighlightSynchronizer } from '../../../src/ports/highlight-sync.port';
+import { fileURLToPath } from 'node:url';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type {
-  FooterOperationResponse,
   FooterActionResponse,
+  FooterOperationResponse,
 } from '../../../src/handlers/footer.handlers';
+import type { IHighlightSynchronizer } from '../../../src/ports/highlight-sync.port';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -276,7 +276,7 @@ describe('footer.handlers', () => {
       status: 'playing' as const,
       currentIndex: 3,
       totalParagraphs: 10,
-      progress: 0.3,
+      progress: 30,
       currentTime: '0:45',
       totalTime: '2:30',
       speed: 1.5,
@@ -293,6 +293,7 @@ describe('footer.handlers', () => {
         status: 'playing',
         currentIndex: 3,
         totalParagraphs: 10,
+        // wire 30 (percent) -> internal 0.3
         progress: 0.3,
         currentTime: '0:45',
         totalTime: '2:30',
@@ -439,15 +440,33 @@ describe('footer.handlers', () => {
       expect(result.action).toBe('stop');
     });
 
-    it('should succeed even with an unknown action name', async () => {
-      // footer.action is a passthrough — it does not validate action names
+    it('should refuse an unknown action name', async () => {
+      // A refused action must not report success: the dead-Play lesson. The
+      // old passthrough acknowledged unknown actions as successes.
       const outer = await registry.dispatch('footer.action', {
         action: 'unknown-action',
       });
       const result = unwrapDispatch(outer) as FooterActionResponse;
 
-      expect(result.success).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('unknown footer action');
       expect(result.action).toBe('unknown-action');
+    });
+
+    it('should refuse a seek without a numeric value', async () => {
+      const outer = await registry.dispatch('footer.action', { action: 'seek' });
+      const result = unwrapDispatch(outer) as FooterActionResponse;
+
+      expect(result.success).toBe(false);
+      expect(mockPlaybackService.seekToParagraph).not.toHaveBeenCalled();
+    });
+
+    it('should refuse a speed change without a numeric value', async () => {
+      const outer = await registry.dispatch('footer.action', { action: 'speed' });
+      const result = unwrapDispatch(outer) as FooterActionResponse;
+
+      expect(result.success).toBe(false);
+      expect(mockPlaybackService.setSpeed).not.toHaveBeenCalled();
     });
 
     it('should not require highlightSync to be set', async () => {
@@ -707,12 +726,16 @@ describe('footer.handlers', () => {
     it('should require all footer state fields in stateUpdate', async () => {
       mockSync.updateFooterState.mockResolvedValue(okResult(undefined));
 
+      // The stateUpdate wire contract carries 0-100 (the footer speaks
+      // percentages); the internal domain is 0-1 and the adapter renders x100.
+      // A caller meaning 20% sends 20 — the old passthrough stored 20 and the
+      // adapter rendered 2000%.
       const fullState = {
         tabId: 1,
         status: 'playing' as const,
         currentIndex: 2,
         totalParagraphs: 10,
-        progress: 0.2,
+        progress: 20,
         currentTime: '0:30',
         totalTime: '2:30',
         speed: 1.5,

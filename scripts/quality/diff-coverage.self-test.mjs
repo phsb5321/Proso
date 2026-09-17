@@ -134,8 +134,27 @@ try {
     portsSkipped,
   );
 
+  // Scenario 4: executable code inside the ports directory is NOT covered by
+  // the type-only exemption. A planted function in a port file must fail
+  // closed and name the exact file.
+  const executablePortPath = 'packages/extension/src/ports/executable.port.ts';
+  writeFileSync(
+    path.join(fixtureRoot, executablePortPath),
+    'export function portFactory(): number {\n  return 7;\n}\n',
+  );
+  const executablePort = run(process.execPath, ['scripts/quality/diff-coverage.mjs']);
+  const executablePortOutput = `${executablePort.stdout}${executablePort.stderr}`;
+  assert(
+    executablePort.status !== 0 &&
+      executablePortOutput.includes(
+        `changed production file(s) absent from coverage reports: ${executablePortPath}`,
+      ),
+    'executable code inside ports/ was not charged',
+    executablePort,
+  );
+
   process.stdout.write(
-    'Diff coverage self-test: deletion-only file skipped; uncovered added file failed closed; type-only ports skipped.',
+    'Diff coverage self-test: deletion-only file skipped; uncovered added file failed closed; type-only ports skipped; executable ports charged.',
   );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });

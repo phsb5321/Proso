@@ -8,7 +8,8 @@
  */
 
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
-import { isErr } from '../core/shared/result';
+import { playbackError } from '../core/shared/errors';
+import { Err, isErr } from '../core/shared/result';
 import type { FooterState, IHighlightSynchronizer } from '../ports/highlight-sync.port';
 import { createLogger } from '../utils/logging/logger';
 import type { HandlerRegistry } from './registry';
@@ -175,7 +176,10 @@ async function handleFooterStateUpdate(params: unknown): Promise<FooterOperation
     status: parsed.data.status,
     currentIndex: parsed.data.currentIndex,
     totalParagraphs: parsed.data.totalParagraphs,
-    progress: parsed.data.progress,
+    // The wire contract is 0-100 (footer slider/fill speak percentages);
+    // the internal FooterState domain is 0-1 and updateFooterState renders
+    // x100 again. Divide once here or the registered path renders 10000%.
+    progress: parsed.data.progress / 100,
     currentTime: parsed.data.currentTime,
     totalTime: parsed.data.totalTime,
     speed: parsed.data.speed,
@@ -237,11 +241,17 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
         outcome = await service.stop();
         break;
       case 'seek':
-        if (typeof parsed.data.value === 'number') {
-          // The footer sends a 0-100 progress percentage; convert it to a
-          // paragraph index (mirrors playback.seek). Previously the raw percent
-          // was passed straight to seekToParagraph, so any seek clamped to the
-          // last paragraph (e.g. 50% on a 10-paragraph article -> index 50 -> 9).
+        if (typeof parsed.data.value !== 'number') {
+          // A refused action must not report success (the dead-Play lesson):
+          // fall through to the isErr branch with a failed result.
+          outcome = Err(playbackError.playbackFailed('seek requires a numeric value'));
+          break;
+        }
+        // The footer sends a 0-100 progress percentage; convert it to a
+        // paragraph index (mirrors playback.seek). Previously the raw percent
+        // was passed straight to seekToParagraph, so any seek clamped to the
+        // last paragraph (e.g. 50% on a 10-paragraph article -> index 50 -> 9).
+        {
           const { totalParagraphs } = service.getState();
           const paragraphIndex =
             totalParagraphs > 0 ? Math.floor((parsed.data.value / 100) * totalParagraphs) : 0;
@@ -249,12 +259,21 @@ async function handleFooterAction(params: unknown): Promise<FooterActionResponse
         }
         break;
       case 'speed':
-        if (typeof parsed.data.value === 'number') {
-          service.setSpeed(parsed.data.value);
+        if (typeof parsed.data.value !== 'number') {
+          outcome = Err(playbackError.playbackFailed('speed requires a numeric value'));
+          break;
         }
+        // An unawaited setSpeed reported success before the speed existed;
+        // failures (or later refusals) must surface as refusals.
+        outcome = await service.setSpeed(parsed.data.value);
         break;
       default:
-        log.warn('[Footer] Unknown action', { action: parsed.data.action });
+        log.warn('[Footer] Unknown action refused', { action: parsed.data.action });
+        return {
+          success: false,
+          error: `unknown footer action: ${String(parsed.data.action)}`,
+          action: parsed.data.action,
+        };
     }
 
     if (outcome && isErr(outcome)) {

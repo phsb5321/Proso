@@ -11,11 +11,25 @@ const reportPaths = [
 ];
 const sourcePattern =
   /^(packages\/(extension|server|shared)|services\/proso-log-gateway)\/src\/.*\.ts$/;
-// Extension ports are type-only contracts (constitution: adapters hold the
-// runtime). Type-imported modules are erased before execution, so no LCOV
-// record can ever exist for them; server ports stay charged — they are
-// abstract classes with potential runtime surface.
-const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)|^packages\/extension\/src\/ports\//;
+// Extension ports are contracts, but not all of them are type-only:
+// api-client.port.ts carries an executable factory. A changed port file is
+// therefore skipped only when its CONTENT is type-only (no function, class,
+// arrow, or new-expression) — those modules are erased before execution and
+// no LCOV record can ever exist for them. Executable port code stays charged;
+// server ports are always charged (abstract classes with runtime surface).
+const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)/;
+const portDirPattern = /^packages\/extension\/src\/ports\//;
+const executableTokenPattern = /\b(function|class)\b|=>|\bnew /;
+const repositoryRootForPorts = process.cwd();
+function isTypeOnlyPortFile(file) {
+  if (!portDirPattern.test(file)) return false;
+  try {
+    const content = readFileSync(path.join(repositoryRootForPorts, file), 'utf8');
+    return !executableTokenPattern.test(content);
+  } catch {
+    return false;
+  }
+}
 
 function normalizeSource(source, reportPath) {
   const repositoryRoot = process.cwd();
@@ -57,6 +71,7 @@ for (const [file, lines] of changedLines()) {
   // may legitimately have no LCOV source record. Missing LCOV still fails for
   // every file with at least one added production line (self-test scenario 2).
   if (!sourcePattern.test(file) || excludedPattern.test(file) || lines.size === 0) continue;
+  if (isTypeOnlyPortFile(file)) continue;
   const fileCoverage = coverage.get(file);
   if (fileCoverage === undefined) {
     missingFiles.push(file);

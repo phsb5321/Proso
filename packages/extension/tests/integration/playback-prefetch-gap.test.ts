@@ -22,7 +22,7 @@ import type {
   IAudioGenerator,
 } from '../../src/ports/audio-generator.port';
 import { PlaybackQueue } from '../../src/utils/playback/playback-queue';
-import { PrefetchService } from '../../src/utils/playback/prefetch';
+import { createPrefetchPlaybackHarness } from '../helpers/prefetch-playback-harness';
 import {
   createMockAudioUrlProvider,
   createMockCacheStore,
@@ -115,24 +115,9 @@ describe('playback prefetch gap (NFR-001)', () => {
 
   it('plays the next paragraph without re-paying network latency once prefetch has warmed the buffer', async () => {
     const { generator, callCount } = createDelayedAudioGenerator();
-    const queue = new PlaybackQueue();
-    const prefetch = new PrefetchService({
-      maxBufferSize: 5,
-      maxConcurrent: 2,
-      batchIntervalMs: BATCH_INTERVAL_MS,
-    });
-    const service = new PlaybackService({
-      audioGenerator: generator,
-      audioUrlProvider: createMockAudioUrlProvider(),
-      cacheStore: createMockCacheStore(),
-      highlightSync: createMockHighlightSync({ validTabIds: [TAB_ID] }),
-      settingsStore: createMockSettingsStore(),
-      prefetch: { service: prefetch, queue },
-    });
-    prefetch.configure(
-      queue,
-      (text, index) => service.generatePrefetchAudio(text, index),
-      (index) => service.isParagraphCached(index),
+    const { audioUrlProvider, prefetch, queue, service } = createPrefetchPlaybackHarness(
+      generator,
+      { tabId: TAB_ID, batchIntervalMs: BATCH_INTERVAL_MS },
     );
 
     const pendingStart = service.start([FIRST_PARAGRAPH, SECOND_PARAGRAPH], TAB_ID, PAGE_URL);

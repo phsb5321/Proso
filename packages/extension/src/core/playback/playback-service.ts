@@ -1206,6 +1206,12 @@ export class PlaybackService {
     // Check cache first
     const cacheKey = this.createCacheKey(index, text);
     const cachedResult = await this.deps.cacheStore.get(cacheKey);
+    console.log('T DEBUG cache', {
+      index,
+      generation,
+      cur: this.playbackGeneration,
+      cached: isOk(cachedResult) ? cachedResult.value !== null : 'err',
+    });
     if (!this.isCurrentGeneration(generation)) return Ok(this.state);
 
     let audioResponse: AudioResponse;
@@ -1490,9 +1496,16 @@ export class PlaybackService {
     provider?: string;
     voice?: string | null;
   } | null> {
+    // Label the entry (and cache it) under the voice REQUESTED here, not the
+    // voice live at completion: a voice change while this lookahead is in
+    // flight must leave the stale clip tagged with its own voice so the
+    // consume-side params check discards it (FR-012) instead of replaying
+    // old-voice audio under the new voice's name.
+    const requestedProvider = this.state.provider;
+    const requestedVoice = this.state.voice;
     const request: AudioRequest = {
       text,
-      voice: this.state.voice,
+      voice: requestedVoice,
       speed: this.state.speed,
       language: this.detectedLanguage,
     };
@@ -1508,8 +1521,10 @@ export class PlaybackService {
 
     const audioResponse = generateResult.value;
 
-    // Durable cache write (INV-006) — see method doc.
-    const cacheKey = this.createCacheKey(index, text);
+    // Durable cache write (INV-006) — see method doc. Keyed by the requested
+    // voice so a mid-flight voice change cannot poison the new voice's key
+    // with old-voice audio.
+    const cacheKey = this.createCacheKey(index, text, requestedProvider, requestedVoice);
     const cacheEntry = makeCacheEntry(audioResponse);
     await this.deps.cacheStore.set(cacheKey, cacheEntry);
 
@@ -1527,8 +1542,8 @@ export class PlaybackService {
         audioResponse.wordTimings && audioResponse.wordTimings.length > 0
           ? 'provider'
           : 'estimated',
-      provider: this.state.provider,
-      voice: this.state.voice,
+      provider: requestedProvider,
+      voice: requestedVoice,
     };
   }
 
@@ -1686,7 +1701,12 @@ export class PlaybackService {
   /**
    * Create cache key for a paragraph.
    */
-  private createCacheKey(index: number, text: string): CacheKey {
+  private createCacheKey(
+    index: number,
+    text: string,
+    provider: string = this.state.provider,
+    voice: string | null = this.state.voice,
+  ): CacheKey {
     // Simple hash function for content
     const contentHash = this.hashString(text);
     const urlHash = this.hashString(this.state.currentPageUrl ?? '');
@@ -1694,8 +1714,8 @@ export class PlaybackService {
     return {
       urlHash,
       paragraphIndex: index,
-      provider: this.state.provider,
-      voice: this.state.voice ?? 'default',
+      provider,
+      voice: voice ?? 'default',
       contentHash,
     };
   }
