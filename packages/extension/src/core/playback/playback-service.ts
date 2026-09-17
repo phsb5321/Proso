@@ -37,6 +37,13 @@ import {
 } from './playback-state';
 import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
+import {
+  buildSpokenPlan,
+  planLocaleFor,
+  projectCharTimings,
+  type SpokenPlan,
+  type SpokenPlanLocale,
+} from '../speech/spoken-plan';
 
 /**
  * "The settings store has not told us a voice yet." Distinct from `null`,
@@ -90,6 +97,8 @@ export interface PlaybackServiceDependencies {
 export class PlaybackService {
   private state: PlaybackState;
   private audioElement: HTMLAudioElement | null = null;
+  /** Spoken plan of the chunked paragraph currently draining (slice 245). */
+  private chunkPlan: SpokenPlan | null = null;
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
   private playbackGeneration = 0;
@@ -531,6 +540,15 @@ export class PlaybackService {
     this.detectedLanguage = language;
   }
 
+  /** The locale the spoken plan normalizes for, or null to pass text through. */
+  private spokenPlanLocale(): SpokenPlanLocale | null {
+    return planLocaleFor(this.detectedLanguage);
+  }
+
+  private buildParagraphPlan(text: string): SpokenPlan {
+    return buildSpokenPlan(text, this.spokenPlanLocale());
+  }
+
   /**
    * Update extraction mode.
    */
@@ -757,6 +775,31 @@ export class PlaybackService {
     return estimateWordTimings(text, durationMs, this.detectedLanguage);
   }
 
+  /** Convert projection output to the published timeline item shape. */
+  private toTimelineItems(
+    items: ReadonlyArray<{
+      word: string;
+      charOffset: number;
+      charLength: number;
+      startMs: number;
+      endMs: number;
+    }>,
+  ): Array<{
+    word: string;
+    charOffset: number;
+    charLength: number;
+    startTimeMs: number;
+    endTimeMs: number;
+  }> {
+    return items.map(({ word, charOffset, charLength, startMs, endMs }) => ({
+      word,
+      charOffset,
+      charLength,
+      startTimeMs: startMs,
+      endTimeMs: endMs,
+    }));
+  }
+
   /**
    * Binary search for the word index at a given playback time.
    */
@@ -837,7 +880,12 @@ export class PlaybackService {
     const textResult = await this.paragraphTextOrError(index, generation);
     if (isErr(textResult)) return textResult;
     const text = textResult.value;
-    const sourceResult = splitSentences(text);
+    // The engine synthesizes the SPOKEN text; the plan keeps the alignment
+    // back to the printed source so highlights land on printed tokens.
+    const spokenPlan = this.buildParagraphPlan(text);
+    const synthesisText = spokenPlan.spokenText;
+    this.chunkPlan = spokenPlan;
+    const sourceResult = splitSentences(synthesisText);
     if (isErr(sourceResult)) {
       const error = this.convertAudioError(sourceResult.error);
       await this.setError(error, undefined, generation);
@@ -845,7 +893,7 @@ export class PlaybackService {
     }
     const speakableSentences = sourceResult.value.filter(hasSpeakableWords);
     if (speakableSentences.length === 0) return this.next();
-    const chunkSources = this.locateChunkSources(text, speakableSentences);
+    const chunkSources = this.locateChunkSources(synthesisText, speakableSentences);
 
     const request: AudioRequest = {
       text: chunkedRequestText(speakableSentences),
@@ -927,7 +975,8 @@ export class PlaybackService {
   private nextChunkedRequestText(index: number): string | null {
     const text = this.state.paragraphs[index + 1];
     if (!text) return null;
-    const split = splitSentences(text);
+    const spoken = this.buildParagraphPlan(text).spokenText;
+    const split = splitSentences(spoken);
     if (isErr(split)) return null;
     const speakable = split.value.filter(hasSpeakableWords);
     return speakable.length > 0 ? chunkedRequestText(speakable) : null;
@@ -1079,12 +1128,34 @@ export class PlaybackService {
         ? this.convertProviderTimings(providerTimings, source.text)
         : this.estimateWordTimings(source.text, durationMs);
 
-    return localTimings.map((timing) => ({
+    const paragraphSpoken = localTimings.map((timing) => ({
       ...timing,
       charOffset: source.charOffset + timing.charOffset,
       startTimeMs: timeOffsetMs + timing.startTimeMs,
       endTimeMs: timeOffsetMs + timing.endTimeMs,
     }));
+    // Project the paragraph-spoken domain onto the printed source so word
+    // highlights track printed tokens across spoken expansions (slice 245).
+    if (this.chunkPlan) {
+      const projected = projectCharTimings(
+        paragraphSpoken.map(({ word, charOffset, charLength, startTimeMs, endTimeMs }) => ({
+          word,
+          charOffset,
+          charLength,
+          startMs: startTimeMs,
+          endMs: endTimeMs,
+        })),
+        this.chunkPlan,
+      );
+      return projected.map(({ word, charOffset, charLength, startMs, endMs }) => ({
+        word,
+        charOffset,
+        charLength,
+        startTimeMs: startMs,
+        endTimeMs: endMs,
+      }));
+    }
+    return paragraphSpoken;
   }
 
   /**
@@ -1109,6 +1180,10 @@ export class PlaybackService {
     generation: number,
   ): Promise<boolean> {
     if (durationMs <= 0) return true;
+    // The spoken plan is rebuilt from the (immutable) source paragraph: the
+    // synthesis request carried plan.spokenText, so estimates and provider
+    // timings are projected back onto printed tokens here (slice 245).
+    const spokenPlan = this.buildParagraphPlan(paragraphText);
     let wordTimings: Array<{
       word: string;
       charOffset: number;
@@ -1123,11 +1198,36 @@ export class PlaybackService {
       wordTimings = [...preconvertedTimings];
       this.currentTimingBasis = preconvertedBasis ?? 'estimated';
     } else if (providerTimings && providerTimings.length > 0) {
-      // Use real provider timestamps (e.g. ElevenLabs, cached entries)
-      wordTimings = this.convertProviderTimings(providerTimings, paragraphText);
+      // Use real provider timestamps (e.g. ElevenLabs, cached entries) —
+      // anchored to the spoken text, then projected onto printed tokens.
+      const spokenTimings = this.convertProviderTimings(providerTimings, spokenPlan.spokenText);
+      wordTimings = this.toTimelineItems(
+        projectCharTimings(
+          spokenTimings.map((timing) => ({
+            word: timing.word,
+            charOffset: 0,
+            charLength: 0,
+            startMs: timing.startTimeMs,
+            endMs: timing.endTimeMs,
+          })),
+          spokenPlan,
+        ),
+      );
       this.currentTimingBasis = 'provider';
     } else {
-      wordTimings = this.estimateWordTimings(paragraphText, durationMs);
+      const estimated = this.estimateWordTimings(spokenPlan.spokenText, durationMs);
+      wordTimings = this.toTimelineItems(
+        projectCharTimings(
+          estimated.map(({ word, charOffset, charLength, startTimeMs, endTimeMs }) => ({
+            word,
+            charOffset,
+            charLength,
+            startMs: startTimeMs,
+            endMs: endTimeMs,
+          })),
+          spokenPlan,
+        ),
+      );
       this.currentTimingBasis = 'estimated';
     }
 
@@ -1185,6 +1285,8 @@ export class PlaybackService {
     const textResult = await this.paragraphTextOrError(index, generation);
     if (isErr(textResult)) return textResult;
     const text = textResult.value;
+    const spokenPlan = this.buildParagraphPlan(text);
+    const synthesisText = spokenPlan.spokenText;
 
     // Consult the prefetch buffer first (T013): a buffered entry for this
     // index, tagged with the params that produced it (T016/FR-012), skips
@@ -1203,8 +1305,9 @@ export class PlaybackService {
       }
     }
 
-    // Check cache first
-    const cacheKey = this.createCacheKey(index, text);
+    // Check cache first — keyed by the SPOKEN text, since that is what the
+    // audio contains (normalization may have rewritten the source).
+    const cacheKey = this.createCacheKey(index, synthesisText);
     const cachedResult = await this.deps.cacheStore.get(cacheKey);
     console.log('T DEBUG cache', {
       index,
@@ -1233,7 +1336,7 @@ export class PlaybackService {
     } else {
       // Generate new audio
       const request: AudioRequest = {
-        text,
+        text: synthesisText,
         voice: this.state.voice,
         speed: this.state.speed,
         language: this.detectedLanguage,
