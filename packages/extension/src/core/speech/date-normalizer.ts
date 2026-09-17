@@ -283,10 +283,14 @@ export function findSpeechDateReplacements(
   }
 
   for (const match of text.matchAll(EN_ISO_DATE)) {
+    const year = Number(match[2]);
+    const month = Number(match[3]);
+    const day = Number(match[4]);
+    if (!isDateReal(year, month, day)) continue;
     claimEnDate(
-      Number(match[3]),
-      Number(match[4]),
-      Number(match[2]),
+      month,
+      day,
+      year,
       match.index + match[1].length,
       match[0].length - match[1].length,
     );
