@@ -17,12 +17,20 @@
 
 - **Remediate by override, not allowlist, wherever upstream ships a fix.**
   Version-qualified pnpm overrides follow the existing ratchet style
-  (`multer@<2.3.0`, `smol-toml@<=1.7.0`, `browserslist@<=4.28.6`,
-  `fast-uri@>=3.0.0 <3.1.6`, `js-yaml@>=3.0.0 <3.15.2`,
-  `js-yaml@>=4.0.0 <4.3.2`, `mysql2@<3.22.0`, `svgo` direct bump to 4.1.0,
+  (`multer@<2.3.0`, `smol-toml@<=1.7.0` (upstream fix 1.7.1; 1.8.0 chosen as
+  the current release), `browserslist@<=4.28.6`, `fast-uri@>=3.0.0 <3.1.6`,
+  `js-yaml@>=3.0.0 <3.15.2`, `js-yaml@>=4.0.0 <4.3.2`,
+  `mysql2@<3.23.1` (highest fix across GHSA-3f6p-5ww8-9rcr's 3.22.0 and
+  GHSA-rgwj-5xj2-c3m3's 3.23.1), `svgo` direct bump to 4.1.0,
   `hono@>=4.0.0 <4.13.5`, `qs@<6.16.0`, `vitest`/`@vitest/mocker` to 4.1.11).
-  Superseded multer ratchet keys were removed: with multiple matching
-  selectors pnpm resolved the stale range and silently kept 2.2.0.
+- **One selector per package, highest floor.** With multiple matching
+  selectors the LAST match wins, so superseded keys silently shadow newer
+  floors — that is exactly how multer stayed at 2.2.0 despite a correct
+  override. Every package's keys are consolidated to a single selector whose
+  range covers all vulnerable versions and whose floor is the highest fix
+  (including pre-existing overlaps for hono, qs, fast-uri, js-yaml, vitest,
+  @hono/node-server, protobufjs). Selectors only match vulnerable ranges, so
+  consolidation can never downgrade an already-fixed version.
 - **Baseline only the no-fix advisory.** GHSA-vwc7-r8mq-g2x9 (adm-zip symlink
   overwrite) lists no fixed release; it rides the dev-tooling chain
   (extraction tooling, not runtime server code). Added to
