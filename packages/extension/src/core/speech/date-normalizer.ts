@@ -151,7 +151,11 @@ function yearWordsPt(year: number): string | null {
   const hundreds = Math.floor((year % 1000) / 100);
   const tail = year % 100;
   let spoken = thousands === 1 ? 'mil' : `${PT_ONES[thousands]} mil`;
-  if (hundreds > 0) spoken += ` e ${PT_HUNDREDS[hundreds]}`;
+  if (hundreds > 0) {
+    // "cem" stands alone; "cento" only composes with a tail.
+    const hundredsWord = hundreds === 1 && tail === 0 ? 'cem' : PT_HUNDREDS[hundreds];
+    spoken += ` e ${hundredsWord}`;
+  }
   if (tail > 0) spoken += ` e ${belowHundredPt(tail)}`;
   return spoken;
 }
@@ -170,13 +174,35 @@ function yearWordsEn(year: number): string | null {
   return spoken;
 }
 
+const EN_ORDINAL_ONES = [
+  'zeroth',
+  'first',
+  'second',
+  'third',
+  'fourth',
+  'fifth',
+  'sixth',
+  'seventh',
+  'eighth',
+  'ninth',
+  'tenth',
+  'eleventh',
+  'twelfth',
+  'thirteenth',
+  'fourteenth',
+  'fifteenth',
+  'sixteenth',
+  'seventeenth',
+  'eighteenth',
+  'nineteenth',
+];
+
 function ordinalEn(day: number): string {
-  const teens = day >= 11 && day <= 13;
-  const last = day % 10;
-  const suffix = teens ? 'th' : last === 1 ? 'st' : last === 2 ? 'nd' : last === 3 ? 'rd' : 'th';
-  const word = belowHundredEn(day);
-  // twenty-nine -> twenty-ninth (the 'e' drops before the suffix).
-  return word.endsWith('nine') && !teens ? `${word.slice(0, -1)}${suffix}` : `${word}${suffix}`;
+  if (day < 20) return EN_ORDINAL_ONES[day] ?? `${day}th`;
+  const tens = EN_TENS[Math.floor(day / 10)] ?? String(Math.floor(day / 10));
+  const ones = day % 10;
+  if (ones === 0) return `${tens}ieth`; // twentieth, thirtieth
+  return `${tens}-${EN_ORDINAL_ONES[ones]}`; // twenty-first, thirty-ninth
 }
 
 function daysInMonth(year: number, month: number): number {

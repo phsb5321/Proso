@@ -82,4 +82,30 @@ describe('findSpeechDateReplacements', () => {
   it('refuses version-adjacent digit groups', () => {
     expect(spoken('v1.12/05/2026', 'pt-BR')).toEqual([]);
   });
+
+  it('speaks proper EN ordinals', () => {
+    expect(spoken('2026-09-01', 'en')).toEqual(['September first, two thousand twenty-six']);
+    expect(spoken('2026-09-02', 'en')).toEqual(['September second, two thousand twenty-six']);
+    expect(spoken('2026-09-03', 'en')).toEqual(['September third, two thousand twenty-six']);
+    expect(spoken('2026-09-29', 'en')).toEqual(['September twenty-ninth, two thousand twenty-six']);
+  });
+
+  it('validates ISO dates instead of speaking impossible ones', () => {
+    expect(spoken('2023-02-29', 'en')).toEqual([]);
+    expect(spoken('2026-02-31', 'en')).toEqual([]);
+    expect(spoken('2026-13-01', 'en')).toEqual([]);
+  });
+
+  it('keeps slash-date and ISO results ordered by source position', () => {
+    const text = '17/05/2026 then 2026-09-17';
+    const replacements = findSpeechDateReplacements(text, 'en');
+    const starts = replacements.map((r) => r.sourceStart);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+  });
+
+  it('speaks exact hundreds as cem in PT-BR years', () => {
+    expect(spoken('01/01/2100', 'pt-BR')).toEqual([
+      'um de janeiro de dois mil e cem',
+    ]);
+  });
 });
