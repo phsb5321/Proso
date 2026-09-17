@@ -1,40 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-class TestResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-globalThis.ResizeObserver = TestResizeObserver as unknown as typeof ResizeObserver;
-globalThis.MutationObserver = TestResizeObserver as unknown as typeof MutationObserver;
-
-// Feature 200: the footer attaches a CLOSED shadow root; open it in tests so
-// dropdown state (option highlights, open class) is observable. Applied before
-// any StickyFooter instance calls show().
-const originalAttachShadow = Element.prototype.attachShadow;
-Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
-  return originalAttachShadow.call(this, { ...init, mode: 'open' });
-} as typeof Element.prototype.attachShadow;
-
-const storageGet = jest.fn(async () => ({}));
-const storageSet = jest.fn(async () => undefined);
-const sendMessage = jest.fn(async () => ({}));
-
-jest.unstable_mockModule('wxt/browser', () => ({
-  browser: {
-    runtime: { sendMessage },
-    storage: { local: { get: storageGet, set: storageSet } },
-  },
-}));
-
-const { StickyFooter } = await import('../../../src/utils/content/sticky-footer');
-
-type FooterInternals = {
-  _handleAction(action: string, data?: { value?: number }): void;
-  _formatPositionIndicator(): string;
-  shadowRoot: ShadowRoot | null;
-};
+import { StickyFooter, sendMessage, showFooter } from '../../helpers/footer-test-environment';
+import type { FooterInternals } from '../../helpers/footer-test-environment';
 
 describe('StickyFooter runtime coherence', () => {
   beforeEach(() => {
@@ -48,6 +15,33 @@ describe('StickyFooter runtime coherence', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it('sends exactly one action for one freshly shown control click', async () => {
+    const { footer, root } = await showFooter();
+    root.querySelector<HTMLButtonElement>('[aria-label="Next paragraph"]')?.click();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'footer.action', action: 'next' });
+    footer.hide();
+  });
+
+  it('keeps controls, focus and keyboard listeners across playback status changes', async () => {
+    const { footer, root } = await showFooter();
+    const voice = root.querySelector<HTMLButtonElement>('.voice-btn');
+    voice?.focus();
+    for (const status of ['playing', 'paused', 'loading', 'error'] as const) {
+      footer.updateState({ status });
+      expect(root.querySelector('.voice-btn')).toBe(voice);
+      expect(root.activeElement).toBe(voice);
+      voice?.click();
+      expect(root.querySelector('.voice-dropdown')?.classList.contains('open')).toBe(true);
+      voice?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(root.querySelector('.voice-dropdown')?.classList.contains('open')).toBe(false);
+      expect(root.querySelector('.btn-play-pause')?.getAttribute('aria-label')).toBe(
+        status === 'playing' ? 'Pause' : 'Play',
+      );
+    }
+    footer.hide();
   });
 
   it('adopts the document after a previous content-script world was destroyed', async () => {
@@ -102,6 +96,19 @@ describe('StickyFooter runtime coherence', () => {
 
     footer.hide();
     expect(document.body.style.paddingBottom).toBe('12px');
+  });
+
+  it('draws the progress fill proportional to the percentage it is sent', async () => {
+    const footer = new StickyFooter();
+    await footer.show();
+    const root = (footer as unknown as FooterInternals).shadowRoot;
+
+    footer.updateState({ progress: 42, currentTime: '5:53', totalTime: '14:00' });
+
+    const fill = root?.querySelector<HTMLElement>('.progress-fill');
+    expect(fill?.style.width).toBe('42%');
+    expect(root?.querySelector('.progress-bar')?.getAttribute('aria-valuenow')).toBe('42');
+    footer.hide();
   });
 
   it('renders the first paragraph with the same one-based counter as the popup', () => {

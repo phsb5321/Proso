@@ -16,7 +16,11 @@ import { PlaybackService } from '../../../src/core/playback/playback-service';
 import type { AudioError } from '../../../src/core/shared/errors';
 import { Ok, isOk } from '../../../src/core/shared/result';
 import type { Result } from '../../../src/core/shared/result';
-import type { AudioResponse, IAudioGenerator } from '../../../src/ports/audio-generator.port';
+import type {
+  AudioRequest,
+  AudioResponse,
+  IAudioGenerator,
+} from '../../../src/ports/audio-generator.port';
 import { PlaybackQueue } from '../../../src/utils/playback/playback-queue';
 import { PrefetchService } from '../../../src/utils/playback/prefetch';
 import {
@@ -25,6 +29,15 @@ import {
   createMockHighlightSync,
   createMockSettingsStore,
 } from '../../mocks';
+
+import { createPrefetchPlaybackHarness } from '../../helpers/prefetch-playback-harness';
+
+/** Poll a condition with a bounded wall-clock budget. */
+async function waitForIt(condition: () => boolean): Promise<void> {
+  for (let i = 0; i < 50 && !condition(); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
 
 /** A generator whose clip is always ready — the fetch window is not the subject here. */
 function createInstantAudioGenerator(): IAudioGenerator {
@@ -303,26 +316,8 @@ describe('PlaybackService pause during a paragraph load', () => {
     // is exactly the window a reader hits when pausing between paragraphs of a
     // warm article, and a status of `playing` over a paused audio element is
     // the same lost press.
-    const audioGenerator = createInstantAudioGenerator();
-
-    const queue = new PlaybackQueue();
-    const prefetch = new PrefetchService({
-      maxBufferSize: 5,
-      maxConcurrent: 2,
-      batchIntervalMs: 1,
-    });
-    const service = new PlaybackService({
-      audioGenerator,
-      audioUrlProvider: createMockAudioUrlProvider(),
-      cacheStore: createMockCacheStore(),
-      highlightSync: createMockHighlightSync({ validTabIds: [7] }),
-      settingsStore: createMockSettingsStore(),
-      prefetch: { service: prefetch, queue },
-    });
-    prefetch.configure(
-      queue,
-      (text, index) => service.generatePrefetchAudio(text, index),
-      (index) => service.isParagraphCached(index),
+    const { audioGenerator, prefetch, service } = createPrefetchPlaybackHarness(
+      createInstantAudioGenerator(),
     );
 
     await service.start(['first paragraph', 'second paragraph'], 7, 'https://example.test/article');
@@ -330,9 +325,7 @@ describe('PlaybackService pause during a paragraph load', () => {
     // Wait for the lookahead batch to buffer paragraph 1. The premise of the
     // test is that next() takes the prefetch route, so assert it rather than
     // assuming it.
-    for (let i = 0; i < 50 && !prefetch.has(1); i++) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
+    await waitForIt(() => prefetch.has(1));
     expect(prefetch.has(1)).toBe(true);
 
     // The press lands while the buffered clip is being attached.
@@ -352,5 +345,55 @@ describe('PlaybackService pause during a paragraph load', () => {
       playSpy.mockRestore();
       prefetch.stop();
     }
+  });
+
+  it('discards a prefetch entry completed under an old voice (FR-012)', async () => {
+    // A voice change while a lookahead request is still in flight used to
+    // label the completed entry with the NEW voice (the label was read at
+    // completion, not at request time), so the consume-side params check
+    // passed and pre-change audio played under the new voice's name. The
+    // entry must carry the voice it was REQUESTED with and be discarded.
+    const { audioGenerator, generateMock, audioUrlProvider, prefetch, service } =
+      createPrefetchPlaybackHarness(createInstantAudioGenerator());
+    let released = false;
+    let releaseSecond: (() => void) | undefined;
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    generateMock.mockImplementation(async (...args: unknown[]) => {
+      const request = args[0] as AudioRequest;
+      if (request.text.includes('second') && !released) {
+        await secondGate;
+      }
+      return Ok({
+        audioBlob: new Blob([request.voice ?? 'voiceless'], { type: 'audio/mpeg' }),
+        durationMs: 1_000,
+        wordTimings: null,
+      });
+    });
+
+    await service.start(['first paragraph', 'second paragraph'], 7, 'https://example.test/article');
+
+    // Wait until the lookahead for paragraph 1 is IN FLIGHT (unvoiced), then
+    // change the voice mid-flight.
+    await waitForIt(() => generateMock.mock.calls.length >= 2);
+    expect(generateMock.mock.calls.length).toBe(2);
+    await service.setVoice('cold-voice');
+
+    // Release the stale lookahead. Its label must be the voice it was
+    // requested with, so the consume path discards it and pays for a fresh
+    // cold-voice synthesis instead of replaying pre-change audio.
+    released = true;
+    releaseSecond?.();
+    await waitForIt(() => prefetch.has(1));
+    expect(prefetch.has(1)).toBe(true);
+    await service.next();
+
+    const requestedVoices = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).voice);
+    expect(requestedVoices).toEqual([null, null, 'cold-voice']);
+    // The stale entry's blob URL was revoked, not leaked (FR-011).
+    expect(audioUrlProvider.revokeUrlCalls).toContain('mock://audio/2');
+    expect(service.getState().status).toBe('playing');
+    prefetch.stop();
   });
 });

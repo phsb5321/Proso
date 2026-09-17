@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -11,7 +12,34 @@ const reportPaths = [
 ];
 const sourcePattern =
   /^(packages\/(extension|server|shared)|services\/proso-log-gateway)\/src\/.*\.ts$/;
+// Extension ports are contracts, but not all of them are type-only:
+// api-client.port.ts carries an executable factory. A changed port file is
+// therefore skipped only when it ERASES to no JavaScript at all (pure
+// interfaces/types vanish under transpilation; enums, const initializers and
+// functions survive). Executable port code stays charged; server ports are
+// always charged (abstract classes with runtime surface).
 const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)/;
+const portDirPattern = /^packages\/extension\/src\/ports\//;
+function isTypeOnlyPortFile(file) {
+  if (!portDirPattern.test(file)) return false;
+  try {
+    const moduleRequire = createRequire(
+      process.env.DIFF_COVERAGE_TS_MODULE ??
+        path.join(process.cwd(), 'packages/extension/package.json'),
+    );
+    const typescript = moduleRequire('typescript');
+    const source = readFileSync(path.join(process.cwd(), file), 'utf8');
+    const { outputText } = typescript.transpileModule(source, {
+      compilerOptions: {
+        target: typescript.ScriptTarget.ES2020,
+        removeComments: true,
+      },
+    });
+    return outputText.replace(/export\s*\{\s*\};?/g, '').trim() === '';
+  } catch {
+    return false;
+  }
+}
 
 function normalizeSource(source, reportPath) {
   const repositoryRoot = process.cwd();
@@ -53,6 +81,7 @@ for (const [file, lines] of changedLines()) {
   // may legitimately have no LCOV source record. Missing LCOV still fails for
   // every file with at least one added production line (self-test scenario 2).
   if (!sourcePattern.test(file) || excludedPattern.test(file) || lines.size === 0) continue;
+  if (isTypeOnlyPortFile(file)) continue;
   const fileCoverage = coverage.get(file);
   if (fileCoverage === undefined) {
     missingFiles.push(file);

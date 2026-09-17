@@ -73,6 +73,7 @@ describe('HighlightSyncAdapter wire-message contract (T013)', () => {
         currentTime: '1:30',
         totalTime: '5:00',
         speed: 1.25,
+        voice: null,
       };
 
       const result = await adapter.updateFooterState(tabId, state);
@@ -95,6 +96,37 @@ describe('HighlightSyncAdapter wire-message contract (T013)', () => {
 
       // Regression guard: no `currentText` field on the footer payload.
       expect(message).not.toHaveProperty('currentText');
+    });
+
+    it('sends progress as the percentage the footer draws with', async () => {
+      // FooterState.progress is a 0-1 fraction; the footer writes what it
+      // receives straight into a CSS width and reports it as a 0-100 slider
+      // value. Sending the fraction through drew every bar under 1% wide.
+      const state: FooterState = {
+        status: 'playing',
+        currentIndex: 5,
+        totalParagraphs: 10,
+        progress: 0.42,
+        currentTime: '1:03',
+        totalTime: '2:30',
+        speed: 1.0,
+        voice: 'voice-river',
+      };
+
+      await adapter.updateFooterState(tabId, state);
+
+      const [, message] = browser.tabs.sendMessage.mock.calls[0] as [
+        number,
+        Record<string, unknown>,
+      ];
+      expect(message.progress).toBeCloseTo(42);
+      expect(message.voice).toBe('voice-river');
+
+      // The popup reads the same fraction and does its own conversion.
+      const [broadcast] = browser.runtime.sendMessage.mock.calls[0] as [
+        { state: Record<string, unknown> },
+      ];
+      expect(broadcast.state.progress).toBe(42);
     });
   });
 });

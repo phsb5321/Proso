@@ -232,7 +232,7 @@ function problem(res, status, code, detail) {
  * `localHostVoices` lets plant suites prove the real-host gate against a host
  * whose catalog differs from the Orange Pi fixture, including an empty catalog.
  *
- * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number, listInNav?: boolean}} options
+ * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number, localHostFailFirstVoice?: string, listInNav?: boolean}} options
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer(options = {}) {
@@ -368,8 +368,23 @@ export async function startFixtureServer(options = {}) {
           return;
         }
 
+        const failVoice = options.localHostFailFirstVoice;
+        const shouldFail =
+          body.voice === failVoice &&
+          !localRequests.some((request) => request.body.voice === failVoice);
         const requestRecord = { at: Date.now(), respondedAt: null, body, idempotencyKey: key };
         localRequests.push(requestRecord);
+        if (shouldFail) {
+          requestRecord.respondedAt = Date.now();
+          requestRecord.status = 422;
+          problem(
+            res,
+            422,
+            'fixture_synthesis_failed',
+            'Fixture synthesis failed; press Play to retry',
+          );
+          return;
+        }
         const respond = () => {
           requestRecord.respondedAt = Date.now();
           const wav = wavForText(String(body.input));

@@ -27,6 +27,8 @@ and an agent review cannot override a red deterministic check.
 | `make user-gate-diagnostic` | Focused properties followed by the built extension's internal-dispatch Firefox diagnostic |
 | `make public-actor-gate` | Public-control-only Firefox journey: Unified Extensions button → browser action → popup controls addressed by accessible name → page-visible reading state. PASS/FAIL/BLOCKED, never skipped-green |
 | `make public-actor-plants` | Severs one link per run and requires the matching assertion to report BLOCKED or FAIL; a plant that passes is a failure |
+| `make reader-controls-gate` | Public Firefox accessibility actor drives footer Pause/Resume, voice selection (including native Enter), Escape, synthesis failure/Play retry and Close against the local-host fixture; requires voice-specific response and visible sentence restart |
+| `make reader-controls-plants` | Baseline must pass; missing Atlas selection and missing Play retry must fail by their specific assertions and fresh receipts, not merely exit non-zero |
 | `make brand-site-plants` | Swaps the retired wa-era favicon/og-image (and an untracked og-image) back into the site and requires `verify-brand-assets.mjs` to go red naming the planted asset; a plant that passes is a failure |
 | `make user-gate` | Fails closed until a public-control Firefox actor, outcome matrix, and unified receipt satisfy Feature 095 |
 | `make verify` | Tool readiness, formatting, lint, type checks, reader smoke, security tests, source secret scan |
@@ -95,6 +97,17 @@ TTS answers 402 and browser speech synthesis was removed. Second, it sets
 extension popup panel and a remote popup's document is opaque to the parent process; the click, the
 listener and the rendered popup are real, only the process boundary is relaxed. Neither limit is a
 reason to treat a green run as Feature 095 acceptance.
+
+The footer campaign locates the browser's public accessibility roles and names
+through `nsIAccessibilityService`; it does not query the closed shadow DOM or
+invoke extension handlers. It retains the accessibility-service client in the
+disposable browser between calls so GC cannot drop pending actions. The shared
+launcher translates the callers' explicit system-access opt-in to geckodriver
+0.37's process flag; unprivileged callers stay unprivileged. This changes no
+extension manifest permission. Receipts under `.artifacts/reader-controls-gate/`
+include build hashes, accessibility snapshots, action trace, fixture requests,
+screenshots and process logs. A passing footer slice does not satisfy the full
+Feature 095 restart/soak/accounting matrix or the original live-site report.
 
 ## Tool decisions
 

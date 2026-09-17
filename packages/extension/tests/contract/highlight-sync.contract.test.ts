@@ -142,17 +142,18 @@ export function runHighlightSyncContractTests(
     });
 
     describe('updateFooterState()', () => {
-      it('should return a Result type', async () => {
-        const state: FooterState = {
-          status: 'playing',
-          currentIndex: 0,
-          totalParagraphs: 10,
-          progress: 0.5,
-          currentTime: '0:00',
-          totalTime: '2:30',
-          speed: 1.0,
-        };
+      const state: FooterState = {
+        status: 'playing',
+        currentIndex: 0,
+        totalParagraphs: 10,
+        progress: 0.5,
+        currentTime: '0:00',
+        totalTime: '2:30',
+        speed: 1.0,
+        voice: null,
+      };
 
+      it('should return a Result type', async () => {
         const result = await adapter.updateFooterState(validTabId, state);
 
         expect(typeof result.ok).toBe('boolean');
@@ -170,17 +171,7 @@ export function runHighlightSyncContractTests(
         const statuses = ['idle', 'loading', 'playing', 'paused', 'stopped', 'error'] as const;
 
         for (const status of statuses) {
-          const state: FooterState = {
-            status,
-            currentIndex: 0,
-            totalParagraphs: 10,
-            progress: 0.5,
-            currentTime: '0:00',
-            totalTime: '2:30',
-            speed: 1.0,
-          };
-
-          const result = await adapter.updateFooterState(validTabId, state);
+          const result = await adapter.updateFooterState(validTabId, { ...state, status });
           expect(typeof result.ok).toBe('boolean');
         }
       });

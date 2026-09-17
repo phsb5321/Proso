@@ -120,7 +120,14 @@ export class Driver {
  */
 export async function launch({ binary, prefs = {}, headless = true, extraArgs = [] }) {
   const port = await freePort();
-  const proc = spawn('geckodriver', ['--port', String(port), '--host', '127.0.0.1'], {
+  // geckodriver 0.37+ refuses this Firefox argument in capabilities. Preserve
+  // the callers' explicit opt-in, but grant it at the driver process boundary.
+  const systemAccessFlags = ['-remote-allow-system-access', '--remote-allow-system-access'];
+  const driverArgs = ['--port', String(port), '--host', '127.0.0.1'];
+  if (extraArgs.some((arg) => systemAccessFlags.includes(arg))) {
+    driverArgs.push('--allow-system-access');
+  }
+  const proc = spawn('geckodriver', driverArgs, {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const logs = [];
@@ -129,43 +136,54 @@ export async function launch({ binary, prefs = {}, headless = true, extraArgs = 
   proc.on('exit', (code) => logs.push(`geckodriver exited with ${code}\n`));
 
   const base = `http://127.0.0.1:${port}`;
-  await waitFor(
-    'geckodriver to accept connections',
-    async () => {
-      try {
-        const response = await fetch(`${base}/status`);
-        return response.ok;
-      } catch {
-        return false;
-      }
-    },
-    { timeoutMs: 20_000, intervalMs: 200 },
-  );
-
-  const capabilities = {
-    capabilities: {
-      alwaysMatch: {
-        'moz:firefoxOptions': {
-          binary,
-          args: [...(headless ? ['-headless'] : []), ...extraArgs],
-          prefs,
-        },
-        pageLoadStrategy: 'normal',
-        acceptInsecureCerts: true,
+  try {
+    await waitFor(
+      'geckodriver to accept connections',
+      async () => {
+        try {
+          const response = await fetch(`${base}/status`);
+          return response.ok;
+        } catch {
+          return false;
+        }
       },
-    },
-  };
+      { timeoutMs: 20_000, intervalMs: 200 },
+    );
 
-  const response = await fetch(`${base}/session`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(capabilities),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    proc.kill('SIGTERM');
-    const detail = payload?.value?.message ?? JSON.stringify(payload);
-    throw new WebDriverError(`Could not start Firefox: ${detail}\n${logs.join('')}`);
+    const capabilities = {
+      capabilities: {
+        alwaysMatch: {
+          'moz:firefoxOptions': {
+            binary,
+            args: [
+              ...(headless ? ['-headless'] : []),
+              ...extraArgs.filter((arg) => !systemAccessFlags.includes(arg)),
+            ],
+            prefs,
+          },
+          pageLoadStrategy: 'normal',
+          acceptInsecureCerts: true,
+        },
+      },
+    };
+
+    const response = await fetch(`${base}/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(capabilities),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      proc.kill('SIGTERM');
+      const detail = payload?.value?.message ?? JSON.stringify(payload);
+      throw new WebDriverError(`Could not start Firefox: ${detail}\n${logs.join('')}`);
+    }
+    return new Driver(base, payload.value.sessionId, proc, logs);
+  } catch (error) {
+    // Fail-closed cleanup: any exception before a Driver exists (wait
+    // timeout, connection refusal, malformed session response) must not
+    // orphan a privileged --allow-system-access geckodriver process.
+    proc?.kill('SIGTERM');
+    throw error;
   }
-  return new Driver(base, payload.value.sessionId, proc, logs);
 }

@@ -35,6 +35,9 @@ const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, [role="button"
 const PROSE_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, blockquote, li';
 const NON_READING_CONTAINER_SELECTOR = 'nav, aside, footer, [aria-hidden="true"]';
 
+/** Proso's own injected surfaces, whose churn is never page content. */
+const PROSO_UI_SELECTOR = '#proso-sticky-footer, .proso-w, .proso-play-icon';
+
 /**
  * Cheap page-suitability gate for ambient extraction.
  * Counts prose-like elements only — no script/style payloads, scoring, or
@@ -66,6 +69,32 @@ export function markHoverAffordance(paragraphs: readonly Element[]): number {
     marked += 1;
   }
   return marked;
+}
+
+/**
+ * Does this batch of DOM changes contain prose the affordance has not reached?
+ *
+ * A client-side router replaces the article without a document load, so the
+ * one idle marking pass at content-script start is the only one that ever
+ * runs and every routed paragraph arrives unmarked. Re-extracting on any
+ * mutation would be far too expensive, so the answer is true only for an added
+ * element that is, or contains, an unmarked prose element: the word spans the
+ * highlighter writes into a paragraph already marked, footer chrome, and
+ * attribute churn all answer false, and a page being read does not re-extract
+ * on its own repaints.
+ */
+export function hasUnmarkedProse(records: readonly MutationRecord[]): boolean {
+  for (const record of records) {
+    for (const node of record.addedNodes) {
+      if (!(node instanceof Element)) continue;
+      if (node.closest(PROSO_UI_SELECTOR)) continue;
+      if (node.matches(PROSE_SELECTOR) && !node.classList.contains(HOVERABLE_CLASS)) return true;
+      for (const candidate of node.querySelectorAll(PROSE_SELECTOR)) {
+        if (!candidate.classList.contains(HOVERABLE_CLASS)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

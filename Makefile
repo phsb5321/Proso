@@ -12,7 +12,7 @@ FC_NUM_RUNS ?= 100
 
 .PHONY: help doctor bootstrap format-check lint typecheck smoke-reader smoke-reading \
 	smoke-server-boot subscription-deploy-rehearsal subscription-deploy-rehearsal-plant \
-	browser-linkage \
+	browser-linkage hover-affordance-gate reader-controls-gate reader-controls-plants \
 	local-host-journey-gate local-host-journey-plants highlight-tab-focus-oracle \
 	checkout-surface-gate checkout-surface-plants checkout-deploy-readiness \
 	license-settings-gate license-settings-plants \
@@ -68,6 +68,19 @@ public-actor-gate: browser-linkage ## Drive the built extension through public c
 public-actor-plants: ## Prove every public-actor-gate assertion catches a planted break.
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/public-actor-plants.mjs
+
+reader-controls-gate: browser-linkage ## Prove footer voice changes and retry through Firefox accessibility controls.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/lib/firefox-accessibility.self-test.mjs
+	@READER_CONTROLS=1 node scripts/local-host-journey-gate.mjs
+
+reader-controls-plants: browser-linkage ## Prove missing voice and retry actions fail the footer journey.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/reader-controls-plants.mjs
+
+hover-affordance-gate: browser-linkage ## Prove paragraphs stay clickable after a client-side route change.
+	$(PNPM) --filter @proso/extension build:firefox
+	@node scripts/hover-affordance-gate.mjs
 
 local-host-journey-gate: ## Prove the account-free read: the reader's own host serves the article and the managed route is never called.
 	$(PNPM) --filter @proso/extension build:firefox

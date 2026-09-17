@@ -26,6 +26,7 @@ export const footerStateUpdateParamsSchema = z.object({
   currentTime: z.string(),
   totalTime: z.string(),
   speed: z.number().min(0.5).max(2.0),
+  voice: z.string().nullable().optional(),
 });
 
 export const footerActionParamsSchema = z.object({

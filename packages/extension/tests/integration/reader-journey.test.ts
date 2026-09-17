@@ -23,6 +23,11 @@ import {
   setExtractedParagraphs,
 } from '../../src/utils/content/extractor';
 import {
+  createLocalHostFetchMock,
+  ensureWebCryptoSubtle,
+  wavResponse,
+} from '../helpers/local-host-audio-fixtures';
+import {
   createMockAudioUrlProvider,
   createMockCacheStore,
   createMockHighlightSync,
@@ -38,6 +43,10 @@ const SECOND_PARAGRAPH =
   'A reliable reader must also let people pause, resume, change speed, and move between paragraphs without losing their place.';
 const THIRD_PARAGRAPH =
   'This final paragraph makes the article long enough for the production extraction heuristic and confirms ordered navigation.';
+/** The three sentences the local-host journey synthesizes, in reading order. */
+const SENTENCES = [FIRST_PARAGRAPH, SECOND_PARAGRAPH, THIRD_PARAGRAPH];
+/** MockAudioUrlProvider's default URL prefix. */
+const MOCK_AUDIO_URL_PREFIX = 'mock://audio/';
 
 const mockFetch = jest.fn<typeof fetch>();
 
@@ -99,7 +108,12 @@ describe('reader journey', () => {
     `;
   });
 
+  /** Restores the uninstrumented global Audio after the PROSO-110 oracle. */
+  let restoreAudio: (() => void) | undefined;
+
   afterEach(() => {
+    restoreAudio?.();
+    restoreAudio = undefined;
     setExtractedParagraphs([]);
     document.body.replaceChildren();
   });
@@ -167,15 +181,7 @@ describe('reader journey', () => {
   });
 
   it('reads an article through the local synthesis host at sentence granularity (PROSO-110)', async () => {
-    // jsdom's Crypto exposes no `subtle`; the adapter needs it for the
-    // idempotency key (spec D-6). Node's webcrypto fills the gap.
-    if (!globalThis.crypto?.subtle) {
-      const { webcrypto } = await import('node:crypto');
-      Object.defineProperty(globalThis.crypto, 'subtle', {
-        value: webcrypto.subtle,
-        configurable: true,
-      });
-    }
+    await ensureWebCryptoSubtle();
     const LOCAL_BASE = 'https://host.example';
     const CAPABILITIES = {
       apiVersion: '1',
@@ -190,51 +196,23 @@ describe('reader journey', () => {
       },
     };
 
-    // WAV fixture builder (mono 16-bit, duration by byte count).
-    function wavResponse(durationMs = 500): Response {
-      const byteRate = 22050 * 2;
-      const dataBytes = Math.round((byteRate * durationMs) / 1000);
-      const buffer = new ArrayBuffer(44 + dataBytes);
-      const view = new DataView(buffer);
-      const tag = (offset: number, s: string) => {
-        for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
-      };
-      tag(0, 'RIFF');
-      view.setUint32(4, 36 + dataBytes, true);
-      tag(8, 'WAVE');
-      tag(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, 1, true);
-      view.setUint32(24, 22050, true);
-      view.setUint32(28, byteRate, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
-      tag(36, 'data');
-      view.setUint32(40, dataBytes, true);
-      return {
-        ok: true,
-        status: 200,
-        headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'audio/wav' : null) },
-        arrayBuffer: async () => buffer,
-        json: async () => {
-          throw new Error('not json');
-        },
-      } as unknown as Response;
+    // WAV fixture builder: shared module (mono 16-bit, duration by byte
+    // count). The sentence index rides in the first data byte for the
+    // ordered-playback oracle below.
+    function localWavResponse(sentenceIndex: number): Response {
+      return wavResponse(400, sentenceIndex);
     }
 
-    const localFetch = jest.fn<typeof fetch>();
-    localFetch.mockImplementation(async (url: unknown) => {
-      if (String(url).endsWith('/v1/capabilities')) {
-        return {
-          ok: true,
-          status: 200,
-          headers: { get: () => 'application/json' },
-          json: async () => CAPABILITIES,
-        } as unknown as Response;
-      }
-      if (String(url).endsWith('/v1/tts')) return wavResponse(400);
-      throw new Error(`unexpected url ${String(url)}`);
+    const localFetch = createLocalHostFetchMock({
+      capabilities: CAPABILITIES,
+      tts: (init) => {
+        const request = JSON.parse(String(init?.body)) as { input: string };
+        const sentenceIndex = SENTENCES.indexOf(request.input);
+        // An unknown input must fail loudly, never alias to sentence zero's
+        // marker byte (zero-filled buffers decode as SENTENCES[0]).
+        if (sentenceIndex < 0) throw new Error(`unexpected tts input: ${request.input}`);
+        return localWavResponse(sentenceIndex);
+      },
     });
 
     const extractedText = extractText('article');
@@ -247,10 +225,7 @@ describe('reader journey', () => {
     const service = new PlaybackService({
       audioGenerator: new FallbackAudioAdapter({
         primary: new LocalHostAudioAdapter({ baseUrl: LOCAL_BASE, fetchFn: localFetch }),
-        secondary: new ServerTtsAudioAdapter(
-          new ProsoApiAdapter(SERVER_URL),
-          TTSProvider.OpenAI,
-        ),
+        secondary: new ServerTtsAudioAdapter(new ProsoApiAdapter(SERVER_URL), TTSProvider.OpenAI),
         gate: async () => ({ ok: true }),
       }),
       audioUrlProvider,
@@ -262,18 +237,76 @@ describe('reader journey', () => {
     // local host needs it to pick a voice (spec D-2).
     service.setLanguage('en');
 
+    // Ordered-playback oracle (PROSO-110): the chunk producer overlaps the
+    // next sentence's synthesis with the live one, and under load a lookahead
+    // request can be initiated before the live chunk's (observed 15/09:
+    // ttsCalls[0] held sentence two). Fetch and createUrl initiation order is
+    // therefore NOT playback order. Each WAV carries its sentence's index in
+    // its first data byte, and a recording Audio element captures the src
+    // sequence playback actually consumed — the order the reader hears.
+    const playedSrcs: string[] = [];
+    const OriginalAudio = globalThis.Audio;
+    const SharedMock = OriginalAudio as unknown as new () => Record<string, unknown>;
+    const RecordingAudio = function RecordingAudio(this: Record<string, unknown>) {
+      const element = new SharedMock();
+      let src = '';
+      Object.defineProperty(element, 'src', {
+        get: () => src,
+        set: (value: string) => {
+          src = value;
+          if (value) playedSrcs.push(value);
+        },
+        configurable: true,
+      });
+      return element;
+    } as unknown as { new (): HTMLAudioElement };
+    restoreAudio = () => {
+      globalThis.Audio = OriginalAudio;
+    };
+    globalThis.Audio = RecordingAudio as unknown as typeof Audio;
+
     await assertStartedPlaying(service, paragraphs, TAB_ID, PAGE_URL);
 
-    // Sentence-granular synthesis: each /v1/tts call carries ONE sentence, and
-    // the first paragraph started playing from its first chunk (FR-7/FR-11).
-    const ttsCalls = localFetch.mock.calls.filter(([url]) => String(url).endsWith('/v1/tts'));
-    expect(ttsCalls.length).toBeGreaterThanOrEqual(1);
-    const firstBody = JSON.parse(String(ttsCalls[0]?.[1]?.body)) as { input: string };
-    // Chunk 0 is the first SENTENCE, not the whole paragraph — the paragraph
-    // was split at sentence granularity (spec FR-7).
-    expect(firstBody.input).toBe(FIRST_PARAGRAPH);
-    expect(firstBody.input.endsWith('.')).toBe(true);
+    // Sentence-granular synthesis (FR-7): every /v1/tts request carries ONE
+    // sentence — never the whole paragraph.
+    const ttsInputs = localFetch.mock.calls
+      .filter(([url]) => String(url).endsWith('/v1/tts'))
+      .map(([, init]) => (JSON.parse(String(init?.body)) as { input: string }).input);
+    expect(ttsInputs.length).toBeGreaterThanOrEqual(1);
+    for (const input of ttsInputs) {
+      expect(SENTENCES).toContain(input);
+    }
+
+    // The first clip the player consumed (FR-11) was the paragraph's first
+    // sentence, regardless of which synthesis request the producer pipeline
+    // happened to initiate first.
     expect(audioUrlProvider.createUrlCalls.length).toBeGreaterThanOrEqual(1);
+    expect(playedSrcs.length).toBeGreaterThanOrEqual(1);
+    const firstPlayed = playedSrcs[0]!;
+    expect(firstPlayed.startsWith(MOCK_AUDIO_URL_PREFIX)).toBe(true);
+    const firstChunkIndex = Number(firstPlayed.slice(MOCK_AUDIO_URL_PREFIX.length)) - 1;
+    const firstClipData = audioUrlProvider.createUrlCalls[firstChunkIndex]?.data;
+    expect(firstClipData).toBeDefined();
+    /** jsdom's Blob lacks arrayBuffer(); read bytes via FileReader. */
+    async function blobBytes(blob: Blob): Promise<Uint8Array> {
+      if (typeof (blob as { arrayBuffer?: unknown }).arrayBuffer === 'function') {
+        return new Uint8Array(await blob.arrayBuffer());
+      }
+      const reader = new FileReader();
+      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(blob);
+      });
+      return new Uint8Array(buffer);
+    }
+
+    const clipData =
+      firstClipData instanceof Blob
+        ? await blobBytes(firstClipData)
+        : new Uint8Array(firstClipData!);
+    const firstPlayedSentence = SENTENCES[clipData[44]!];
+    expect(firstPlayedSentence).toBe(FIRST_PARAGRAPH);
 
     // The chunked path never writes the paragraph cache (host idempotency is
     // its own cache).

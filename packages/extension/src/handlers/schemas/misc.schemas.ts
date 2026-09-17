@@ -16,7 +16,9 @@ export const audioGetVoicesParamsSchema = z.object({
 });
 
 export const audioSetVoiceParamsSchema = z.object({
-  voiceId: z.string().min(1),
+  // `null` is the stored value meaning "let the provider choose", and the
+  // reader has to be able to get back to it once they have picked a voice.
+  voiceId: z.string().min(1).nullable(),
 });
 
 export const audioValidateCredentialsParamsSchema = z.object({

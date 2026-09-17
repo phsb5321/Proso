@@ -73,11 +73,20 @@ import {
   startFixtureServer,
 } from './lib/reading-fixture-server.mjs';
 import { launch, sleep, waitFor } from './lib/webdriver.mjs';
+import { FOOTER_VOICES, runFooterControlsJourney } from './lib/footer-controls-journey.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..');
 const buildDir = path.join(repoRoot, 'packages/extension/.output/firefox-mv2');
-const artifactDir = path.join(repoRoot, '.artifacts/local-host-journey-gate');
+const readerControls = process.env.READER_CONTROLS === '1';
+const footerPlant = process.env.FOOTER_CONTROLS_PLANT ?? '';
+const artifactDir = readerControls
+  ? path.join(
+      repoRoot,
+      '.artifacts/reader-controls-gate',
+      encodeURIComponent(footerPlant || 'baseline'),
+    )
+  : path.join(repoRoot, '.artifacts/local-host-journey-gate');
 
 /** Pinning the internal UUID makes `moz-extension://` addressable up front. */
 const ADDON_ID = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
@@ -328,9 +337,19 @@ async function main() {
     );
   }
 
+  if (!['', 'voice', 'retry'].includes(footerPlant)) blocked('Unknown footer-controls plant');
+  if (readerControls && (APPLIANCE_URL || PLANT || !EXPECT_TAB_STOP)) {
+    blocked('Reader controls campaign requires the unplanted, tab-stop-enabled local fixture');
+  }
   const fixture = await startFixtureServer({
     localHostDelayMs: APPLIANCE_URL ? 0 : 5000,
     listInNav: PLANT === 'list-in-nav',
+    ...(readerControls
+      ? {
+          localHostVoices: [...LOCAL_HOST_VOICES, ...FOOTER_VOICES],
+          localHostFailFirstVoice: 'Retry',
+        }
+      : {}),
   });
   // The reader's own host. `localhost` rather than `127.0.0.1` because the
   // product only accepts https, or http for localhost — the fixture binds to
@@ -344,23 +363,24 @@ async function main() {
     `${fixture.origin} (article${APPLIANCE_URL ? '' : ' + synthesis host'})`,
   );
 
-  const driver = await launch({
-    binary,
-    headless: process.env.GATE_HEADED !== '1',
-    extraArgs: ['-remote-allow-system-access'],
-    prefs: {
-      'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
-      ...JOURNEY_PREFS,
-      // The optional-permission doorhanger is a chrome-level popup WebDriver
-      // cannot address from content context. Turning the prompt off grants the
-      // request the page makes; the request itself, its user gesture, and the
-      // resulting grant are all real. What this does NOT prove is the reader
-      // reading and accepting the doorhanger.
-      'extensions.webextOptionalPermissionPrompts': false,
-    },
-  });
-
+  let driver;
   try {
+    driver = await launch({
+      binary,
+      headless: process.env.GATE_HEADED !== '1',
+      extraArgs: ['-remote-allow-system-access'],
+      prefs: {
+        'extensions.webextensions.uuids': JSON.stringify({ [ADDON_ID]: ADDON_UUID }),
+        ...JOURNEY_PREFS,
+        // The optional-permission doorhanger is a chrome-level popup WebDriver
+        // cannot address from content context. Turning the prompt off grants the
+        // request the page makes; the request itself, its user gesture, and the
+        // resulting grant are all real. What this does NOT prove is the reader
+        // reading and accepting the doorhanger.
+        'extensions.webextOptionalPermissionPrompts': false,
+      },
+    });
+
     await driver.installAddon(buildDir);
     record('built extension installed in Firefox');
 
@@ -1080,6 +1100,17 @@ async function main() {
       await activateTab(driver, secondArticleHandle, 'Return to the second article tab');
     }
 
+    if (readerControls) {
+      await dismissBrowserActionPanel(driver);
+      await runFooterControlsJourney(
+        driver,
+        fixture,
+        path.join(artifactDir, 'footer-controls'),
+        record,
+        act,
+      );
+    }
+
     mkdirSync(artifactDir, { recursive: true });
     const screenshot = await driver.session('GET', '/screenshot');
     const screenshotPath = path.join(artifactDir, 'local-host-journey.png');
@@ -1097,8 +1128,11 @@ async function main() {
         `${APPLIANCE_URL ? ` (real appliance ${APPLIANCE_URL})` : ''}\n`,
     );
   } finally {
-    await driver.quit();
-    await fixture.close();
+    try {
+      await driver?.quit();
+    } finally {
+      await fixture.close();
+    }
   }
 }
 
@@ -1123,6 +1157,14 @@ function writeReceipt({
     provesFr1Why:
       'Every audio byte came from a host the actor configured through the settings UI; the managed /api/v1/tts/synthesize route recorded zero requests.',
     internalDispatch: false,
+    readerControls:
+      process.env.READER_CONTROLS === '1'
+        ? {
+            receipt: 'footer-controls/footer-receipt.json',
+            plant: process.env.FOOTER_CONTROLS_PLANT || null,
+            fullFeature095: false,
+          }
+        : null,
     relaxations: [
       'extensions.webextensions.remote=false — a remote popup document is opaque to the parent process, so its accessible names cannot be read at all out-of-process.',
       'extensions.webextOptionalPermissionPrompts=false — the grant request, its user gesture and the resulting permission are real; the doorhanger the reader would accept is not exercised.',

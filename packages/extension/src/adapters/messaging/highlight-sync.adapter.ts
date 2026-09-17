@@ -172,10 +172,15 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
         status: state.status,
         currentParagraph: state.currentIndex,
         totalParagraphs: state.totalParagraphs,
-        progress: state.progress,
+        // The footer speaks percentages end to end — its slider ARIA, its
+        // keyboard steps and its seek all carry 0-100, and its fill is written
+        // straight into a CSS width. Passing the 0-1 domain fraction through
+        // rendered every bar under one percent wide, whatever had been read.
+        progress: state.progress * 100,
         currentTime: state.currentTime,
         totalTime: state.totalTime,
         speed: state.speed,
+        voice: state.voice,
       });
 
       // Broadcast to popup for bidirectional sync (popup may not be open)

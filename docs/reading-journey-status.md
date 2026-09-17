@@ -1,5 +1,84 @@
 # Reading journey status
 
+## Update — 15/09/2026: catalog lifetime regression
+
+The footer no longer keeps its first nonempty voice catalog for its entire
+lifetime. Each menu opening queries the current adapter, removes former choices
+while loading, and accepts only the latest opening's response. Hiding the footer
+invalidates pending requests. Changed catalogs and out-of-order success/failure
+are covered at the footer boundary; a full public-settings host switch is still
+unverified, as are push updates while the menu stays open.
+
+The public footer campaign exposed a separate observer error: concurrent sentence
+requests can arrive in either order. Retry now matches the failed voice **and
+text**, then still requires its response and exact first-word restart in the
+highlighted paragraph. First-failure evidence is retained; no playback assertion
+was dropped. Evidence: `~/.local/state/proso/reader-controls-2026-09-15/`.
+
+PR #243 remains draft and unmerged. Current routing permits full GLM-5.3 review
+of personal-repository code without sensitive logs; Claude capacity is DOWN.
+Dependency audit, full Feature 095 acceptance, server clock fixtures and
+protected-base eligibility remain separate blockers, not waived by a review.
+
+## Update — 13/09/2026: the footer itself now has a browser actor
+
+`make reader-controls-gate` uses Firefox's platform accessibility tree to reach
+the built extension's closed-root controls by public role/name. Native Enter
+selects Atlas; Escape closes the list. The local-host fixture records each
+selected voice, and acceptance waits for its audio response **and** a visible
+restart of the same sentence—not merely a request or an optimistic label.
+A predetermined synthesis failure exposes an actionable error; the footer's
+Play retries that text and resumes. Close clears the UI and stops new requests.
+
+This found defects missed by the earlier unit-only proof: initial clicks had
+two listeners; status changes rebuilt the footer and lost keyboard/focus state;
+and the old voice could finish and advance the paragraph while replacement
+audio was still loading. The shared lifecycle and voice-change seams are now
+repaired with red/green regressions. Screenshot inspection also found the
+voice label clipped by the inherited circular-button width; an accessibility
+geometry assertion reproduced it, and explicit label-button sizing fixes it.
+`make reader-controls-plants` catches omitted
+voice-selection and retry actions by their specific failure, rejecting crashes
+and stale receipts. Accessibility clients retain a strong service reference in
+the disposable browser so Gecko GC cannot drop pending focus requests.
+
+PR #243 remains a **draft, not merged or deployed**. These are fixture-backed
+local-host control proofs, not narrator-quality acceptance or the original docs
+site's exact freeze. Managed voice catalogs remain empty in ServerTtsAudioAdapter.
+Full Feature 095 restart/soak/accounting acceptance, dependency/server-fixture
+repairs, independent review and protected-base eligibility remain outstanding.
+Durable continuation evidence: `~/.local/state/proso/reader-controls-2026-09-13/`.
+
+## Recovery — 12/09/2026: reader controls (Feature 243)
+
+The interrupted reader repair was still staged: its commit had failed the
+three-clone test ratchet, and no remote feature branch existed. Recovery
+consolidated test setup without deleting assertions, then reproduced and fixed
+four additional footer regressions (external voice labels, Escape, native
+keyboard selection, focus retention) and a queued hover pass racing playback.
+The shared Firefox launcher also needed geckodriver 0.37's process-level
+`--allow-system-access`; all three privilege opt-in cases now pass.
+
+Public popup playback and the local-host fixture journey passed in disposable
+Firefox profiles. These do **not** prove live footer voice switching or the
+original docs-site freeze is solved. The hover gate observes routed paragraphs,
+idle DOM-write counts and responsiveness. The full user acceptance gate remains
+blocked by Feature 095; `make verify-full` additionally stops at 14 high-severity
+dependency advisory paths discovered against the unchanged lockfile. The
+extension suite passes 3,316 tests (one pre-existing skip). The workspace run
+also exposes two unchanged Paddle integration failures: their fixed credit
+period ended on 12/09/2026 at 17:00 BRT, so validation correctly returns zero
+credits. That date-dependent fixture needs its own test repair, not a production
+credit-expiry change.
+
+Delivery is **not complete or deployed**. GitHub reports `main` unprotected and
+protection HTTP 403; no merge may bypass that gate. The legacy review script
+pins retired models, and no exact-head cross-family verdict has been earned.
+Continuation: [plan](../specs/243-reader-controls-recovery/plan.md) and
+[tasks](../specs/243-reader-controls-recovery/tasks.md). Durable recovery logs and
+receipts: `~/.local/state/proso/reader-controls-2026-09-12/` (including first red
+results). Do not treat older green receipts below as current release approval.
+
 The 30/07/2026 Mac Firefox installation and local TTS experiment is recorded in
 [`docs/research/local-reader-lab-2026-07-30.md`](research/local-reader-lab-2026-07-30.md).
 That Mac run remains partially verified because macOS denied UI automation. The gap it named —
@@ -1304,3 +1383,21 @@ self-hosted CI.
    passes. Kokoro-FastAPI `26eec068` is explicitly rejected for exact PT-BR sync: RTF 0.23825 but
    `timestamps:null` on realistic date/currency/glyph input. Exact completion remains gated on the
    full deterministic/plant/review/merge/deploy chain.
+29. **Local synthesis aligned to Lectrice's Magpie bridge — contract pinned (17/09/2026).** Pedro
+   directed that Proso's local synthesis use the same local model as Lectrice. Lectrice's local
+   model is the pinned Magpie TTS Multilingual 357M GGUF Q6_K (model SHA256 `8291ffde2e13…`,
+   Vulkan/RADV on the RX 5700 XT) served by its loopback bridge `tools/magpie/lectrice_magpie_bridge.py`
+   at `http://127.0.0.1:5301`. Proso's `LocalHostAudioAdapter` was already wire-compatible with that
+   surface by design (same `/health`, `/v1/capabilities`, `/v1/tts` family as the Orange Pi wrapper):
+   strict `{input, voice, speed}` body, 16–128-char `Idempotency-Key`, `accept: audio/wav`,
+   problem+json error mapping (`payload_too_large`, `engine_failed`, retryable). The new
+   `tests/integration/local-host-magpie-bridge.test.ts` now replays the bridge's exact capabilities
+   document (ten preset voices `Aria/Jason/John/Leo/Sofia` × `en`/`pt-BR`, preferred 300-byte chunk
+   bound, `runtime` model-identity block) and proves readiness, voice discovery/filtering, exact
+   request shape, sentence-granular chunking within bounds, and typed engine-failure mapping — 6
+   cases, green, included in the 169-suite full run. The settings page host-address placeholder now
+   shows `http://127.0.0.1:5301` (still a user-configured value; nothing is auto-enabled). Known
+   operational gap, owned by the Lectrice lane: the bridge is not currently running on desktop
+   (port 5301 refused 17/09) and is started manually via `start-transient.sh`, not declaratively.
+   Proso hard-bounds chunks at 8192 bytes; the bridge's advertised 300 is its preferred chunk size
+   and the bridge accepts larger inputs, so no client change was needed.
