@@ -74,7 +74,8 @@ const CAPABILITIES = {
 };
 
 const PT_SENTENCE = 'A leitura em voz alta deve preservar a atenção do leitor.';
-const PT_PARAGRAPH = `${PT_SENTENCE} A voz sintética deve seguir o texto com marcações visíveis.`;
+const PT_SENTENCE_TWO = 'A voz sintética deve seguir o texto com marcações visíveis.';
+const PT_PARAGRAPH = `${PT_SENTENCE} ${PT_SENTENCE_TWO}`;
 
 describe('LocalHostAudioAdapter against the Lectrice Magpie bridge', () => {
   const fetchMock = createLocalHostFetchMock({
@@ -164,23 +165,32 @@ describe('LocalHostAudioAdapter against the Lectrice Magpie bridge', () => {
       expect(isOk(chunk)).toBe(true);
       if (isOk(chunk)) chunks.push('ok');
     }
-    // One chunk per speakable sentence, in reading order.
+    // One chunk per speakable sentence. The producer pipelines lookahead, so
+    // request-initiation order is not playback order — assert the exact SET
+    // (each sentence exactly once), not the arrival order.
     expect(chunks.length).toBe(2);
     const bodies = fetchMock.mock.calls
       .filter(([url]) => String(url).endsWith('/v1/tts'))
       .map(([, init]) => JSON.parse(String(init?.body)) as { input: string });
-    expect([...bodies].map((b) => b.input).sort()).toEqual([PT_SENTENCE, expect.any(String)]);
+    expect(bodies.map((b) => b.input).sort()).toEqual(
+      [PT_SENTENCE, PT_SENTENCE_TWO].sort(),
+    );
     for (const body of bodies) {
-      // Hard wire bound: the bridge 413s inputs beyond 8192 UTF-8 bytes.
+      // Hard wire bound: the bridge 413s inputs beyond 8192 UTF-8 bytes. The
+      // advertised 300 is the bridge's PREFERRED chunk size; a single long
+      // sentence cannot be split further and is accepted up to this bound.
       expect(new TextEncoder().encode(body.input).length).toBeLessThanOrEqual(8192);
     }
   });
 
   it('maps the bridge problem+json engine failure to a typed error', async () => {
     // A dedicated adapter: capabilities cache on the instance for its
-    // lifetime, and the failure must land on the POST, not a lookup.
+    // lifetime. Warm the cache FIRST (validateCredentials only probes
+    // /health, so generateAudio would otherwise spend the once-mock on the
+    // capabilities GET) so the injected 503 lands on the POST itself.
     const failing = new LocalHostAudioAdapter({ baseUrl: BASE_URL, fetchFn: fetchMock });
-    await failing.validateCredentials();
+    expect(await failing.getVoices('pt-BR')).toMatchObject({ ok: true });
+    fetchMock.mockClear();
     fetchMock.mockImplementationOnce(async () => problemJsonResponse(503, 'engine_failed', false));
     const result = await failing.generateAudio({
       text: PT_SENTENCE,
@@ -192,5 +202,9 @@ describe('LocalHostAudioAdapter against the Lectrice Magpie bridge', () => {
     if (isErr(result)) {
       expect(result.error).toMatchObject({ type: 'provider_error', code: 'engine_failed' });
     }
+    // The failure must have been the synthesis POST, not a metadata lookup.
+    const calledUrls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(calledUrls.filter((url) => url.endsWith('/v1/tts'))).toHaveLength(1);
+    expect(calledUrls.filter((url) => url.endsWith('/v1/capabilities'))).toHaveLength(0);
   });
 });

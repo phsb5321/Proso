@@ -204,11 +204,14 @@ describe('reader journey', () => {
     }
 
     const localFetch = createLocalHostFetchMock({
-      health: { status: 'ok', ready: true, version: 'test' },
       capabilities: CAPABILITIES,
       tts: (init) => {
         const request = JSON.parse(String(init?.body)) as { input: string };
-        return localWavResponse(SENTENCES.indexOf(request.input));
+        const sentenceIndex = SENTENCES.indexOf(request.input);
+        // An unknown input must fail loudly, never alias to sentence zero's
+        // marker byte (zero-filled buffers decode as SENTENCES[0]).
+        if (sentenceIndex < 0) throw new Error(`unexpected tts input: ${request.input}`);
+        return localWavResponse(sentenceIndex);
       },
     });
 

@@ -31,6 +31,7 @@ export function wavResponse(durationMs = 500, sentenceIndex = -1): Response {
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, 1, true);
+  view.setUint32(24, 22050, true);
   view.setUint32(28, byteRate, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
@@ -84,18 +85,23 @@ export function problemJsonResponse(status: number, code: string, retryable: boo
 }
 
 /**
- * Fetch mock routed by the host contract: `/health`, `/v1/capabilities`,
- * `/v1/tts`. The tts route receives the request init so callers can vary the
- * audio payload per request (e.g. sentence markers).
+ * Fetch mock routed by the host contract: `/v1/capabilities`, `/v1/tts`, and
+ * `/health` only when a health payload is supplied — otherwise `/health` is an
+ * unexpected call and throws, preserving strict-call detection for journeys
+ * that never probe health. The tts route receives the request init so callers
+ * can vary the audio payload per request (e.g. sentence markers).
  */
 export function createLocalHostFetchMock(routes: {
-  health: unknown;
+  health?: unknown;
   capabilities: unknown;
   tts: (init?: RequestInit) => Response;
 }): jest.Mock<typeof fetch> {
   const fetchMock = jest.fn<typeof fetch>();
   fetchMock.mockImplementation(async (url: unknown, init?: RequestInit) => {
-    if (String(url).endsWith('/health')) return jsonResponse(routes.health);
+    if (String(url).endsWith('/health')) {
+      if (routes.health === undefined) throw new Error(`unexpected url ${String(url)}`);
+      return jsonResponse(routes.health);
+    }
     if (String(url).endsWith('/v1/capabilities')) return jsonResponse(routes.capabilities);
     if (String(url).endsWith('/v1/tts')) return routes.tts(init);
     throw new Error(`unexpected url ${String(url)}`);
