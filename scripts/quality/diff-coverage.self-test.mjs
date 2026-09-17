@@ -10,7 +10,14 @@ function run(command, arguments_, options = {}) {
   return spawnSync(command, arguments_, {
     cwd: fixtureRoot,
     encoding: 'utf8',
-    env: { ...process.env, DIFF_BASE_REF: 'HEAD' },
+    env: {
+      ...process.env,
+      DIFF_BASE_REF: 'HEAD',
+      DIFF_COVERAGE_TS_MODULE: path.join(
+        repositoryRoot,
+        'packages/extension/node_modules/typescript',
+      ),
+    },
     ...options,
   });
 }
@@ -135,23 +142,27 @@ try {
   );
 
   // Scenario 4: executable code inside the ports directory is NOT covered by
-  // the type-only exemption. A planted function in a port file must fail
-  // closed and name the exact file.
-  const executablePortPath = 'packages/extension/src/ports/executable.port.ts';
-  writeFileSync(
-    path.join(fixtureRoot, executablePortPath),
-    'export function portFactory(): number {\n  return 7;\n}\n',
-  );
-  const executablePort = run(process.execPath, ['scripts/quality/diff-coverage.mjs']);
-  const executablePortOutput = `${executablePort.stdout}${executablePort.stderr}`;
-  assert(
-    executablePort.status !== 0 &&
-      executablePortOutput.includes(
-        `changed production file(s) absent from coverage reports: ${executablePortPath}`,
-      ),
-    'executable code inside ports/ was not charged',
-    executablePort,
-  );
+  // the type-only exemption. A planted function AND a planted enum (which the
+  // token-sniffing predecessor missed) must each fail closed and name the
+  // exact file.
+  for (const [name, body] of [
+    ['executable.port.ts', 'export function portFactory(): number {\n  return 7;\n}\n'],
+    ['enum.port.ts', 'export enum PortMode {\n  Static = "static",\n}\n'],
+  ]) {
+    const executablePortPath = `packages/extension/src/ports/${name}`;
+    writeFileSync(path.join(fixtureRoot, executablePortPath), body);
+    const executablePort = run(process.execPath, ['scripts/quality/diff-coverage.mjs']);
+    const executablePortOutput = `${executablePort.stdout}${executablePort.stderr}`;
+    assert(
+      executablePort.status !== 0 &&
+        executablePortOutput.includes(
+          `changed production file(s) absent from coverage reports: ${executablePortPath}`,
+        ),
+      `executable port file ${name} was not charged`,
+      executablePort,
+    );
+    rmSync(path.join(fixtureRoot, executablePortPath));
+  }
 
   process.stdout.write(
     'Diff coverage self-test: deletion-only file skipped; uncovered added file failed closed; type-only ports skipped; executable ports charged.',

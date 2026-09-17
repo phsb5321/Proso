@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -13,19 +14,28 @@ const sourcePattern =
   /^(packages\/(extension|server|shared)|services\/proso-log-gateway)\/src\/.*\.ts$/;
 // Extension ports are contracts, but not all of them are type-only:
 // api-client.port.ts carries an executable factory. A changed port file is
-// therefore skipped only when its CONTENT is type-only (no function, class,
-// arrow, or new-expression) — those modules are erased before execution and
-// no LCOV record can ever exist for them. Executable port code stays charged;
-// server ports are always charged (abstract classes with runtime surface).
+// therefore skipped only when it ERASES to no JavaScript at all (pure
+// interfaces/types vanish under transpilation; enums, const initializers and
+// functions survive). Executable port code stays charged; server ports are
+// always charged (abstract classes with runtime surface).
 const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)/;
 const portDirPattern = /^packages\/extension\/src\/ports\//;
-const executableTokenPattern = /\b(function|class)\b|=>|\bnew /;
-const repositoryRootForPorts = process.cwd();
 function isTypeOnlyPortFile(file) {
   if (!portDirPattern.test(file)) return false;
   try {
-    const content = readFileSync(path.join(repositoryRootForPorts, file), 'utf8');
-    return !executableTokenPattern.test(content);
+    const moduleRequire = createRequire(
+      process.env.DIFF_COVERAGE_TS_MODULE ??
+        path.join(process.cwd(), 'packages/extension/package.json'),
+    );
+    const typescript = moduleRequire('typescript');
+    const source = readFileSync(path.join(process.cwd(), file), 'utf8');
+    const { outputText } = typescript.transpileModule(source, {
+      compilerOptions: {
+        target: typescript.ScriptTarget.ES2020,
+        removeComments: true,
+      },
+    });
+    return outputText.replace(/export\s*\{\s*\};?/g, '').trim() === '';
   } catch {
     return false;
   }
