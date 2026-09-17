@@ -39,7 +39,16 @@ export const SPELL_LETTER_BY_LETTER: readonly string[] = [
 ];
 
 const SPELL_SET = new Set(SPELL_LETTER_BY_LETTER);
-const ACRONYM_TOKEN = /\b[A-Z]{3,}\b/g;
+// Unicode-aware standalone-token check: \b is ASCII-only in JS and would
+// falsely match `API` inside `caféAPI` or `APIção`.
+const ACRONYM_TOKEN = /[A-Z]{3,}/g;
+
+function standalone(text: string, start: number, end: number): boolean {
+  const before = start > 0 ? text[start - 1] : '';
+  const after = end < text.length ? text[end] : '';
+  const letterish = (ch: string) => /[\p{L}\p{N}_]/u.test(ch);
+  return !letterish(before) && !letterish(after);
+}
 
 export function findSpeechAcronymReplacements(
   text: string,
@@ -50,6 +59,7 @@ export function findSpeechAcronymReplacements(
   for (const match of text.matchAll(ACRONYM_TOKEN)) {
     const token = match[0];
     if (!SPELL_SET.has(token)) continue;
+    if (!standalone(text, match.index, match.index + token.length)) continue;
     replacements.push({
       sourceStart: match.index,
       sourceEnd: match.index + token.length,

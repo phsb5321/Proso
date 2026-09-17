@@ -282,5 +282,6 @@ export function findSpeechDateReplacements(
     );
   }
 
+  replacements.sort((a, b) => a.sourceStart - b.sourceStart);
   return replacements;
 }
