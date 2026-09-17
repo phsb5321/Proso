@@ -109,8 +109,33 @@ try {
     uncovered,
   );
 
+  // Scenario 3: added type-only lines under the extension's ports directory
+  // are contract surface, not executable code — type-imported modules are
+  // erased before execution, so no LCOV record can ever exist for them. The
+  // exclusion must not mask scenario 2's fail-closed behavior for real code.
+  mkdirSync(path.join(extensionSource, 'ports'), { recursive: true });
+  writeFileSync(
+    path.join(extensionSource, 'ports', 'reader.port.ts'),
+    'export interface ReaderPort {\n  readonly started: boolean;\n}\n',
+  );
+  const plantStillFails = run(process.execPath, ['scripts/quality/diff-coverage.mjs']);
+  assert(
+    plantStillFails.status !== 0 &&
+      `${plantStillFails.stdout}${plantStillFails.stderr}`.includes('uncovered-plant'),
+    'the ports exclusion masked the uncovered plant',
+    plantStillFails,
+  );
+  rmSync(path.join(fixtureRoot, uncoveredPath));
+  const portsSkipped = run(process.execPath, ['scripts/quality/diff-coverage.mjs']);
+  assert(
+    portsSkipped.status === 0 &&
+      portsSkipped.stdout.includes('no changed executable production lines.'),
+    'added type-only lines under src/ports were not skipped',
+    portsSkipped,
+  );
+
   process.stdout.write(
-    'Diff coverage self-test: deletion-only file skipped; uncovered added file failed closed.\n',
+    'Diff coverage self-test: deletion-only file skipped; uncovered added file failed closed; type-only ports skipped.',
   );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });

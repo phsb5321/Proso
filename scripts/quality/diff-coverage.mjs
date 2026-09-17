@@ -11,7 +11,11 @@ const reportPaths = [
 ];
 const sourcePattern =
   /^(packages\/(extension|server|shared)|services\/proso-log-gateway)\/src\/.*\.ts$/;
-const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)/;
+// Extension ports are type-only contracts (constitution: adapters hold the
+// runtime). Type-imported modules are erased before execution, so no LCOV
+// record can ever exist for them; server ports stay charged — they are
+// abstract classes with potential runtime surface.
+const excludedPattern = /(^|\/)(generated\/|.*\.d\.ts$)|^packages\/extension\/src\/ports\//;
 
 function normalizeSource(source, reportPath) {
   const repositoryRoot = process.cwd();
