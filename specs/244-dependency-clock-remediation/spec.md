@@ -39,8 +39,11 @@
 - **Derive the fixture clock, never hard-code it.** `paddle-provisioning-journey`
   now builds every date from `Date.now()` (purchase modeled 30 days ago, 31-day
   period → live at processing time; renewal at period end; cancel/older-update
-  ordering preserved). Production expiry semantics are untouched and still
-  asserted: an expired period yields zero credits.
+  ordering preserved). Production expiry semantics are untouched; the
+  expired-period-yields-zero behavior is asserted at the contract/unit layer
+  (`packages/server/tests/contract/prisma-credit.repository.spec.ts` and
+  `packages/server/tests/unit/core/subscription/license-validation.service.spec.ts`)
+  — the journey itself models the live-period case.
 
 ## Verification
 
