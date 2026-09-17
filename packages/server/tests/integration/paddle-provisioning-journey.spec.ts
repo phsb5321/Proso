@@ -34,8 +34,17 @@ const PRICES = {
 const CUSTOMER_ID = 'ctm_realbuyer000000000000000001';
 const SUBSCRIPTION_ID = 'sub_realpurchase0000000000000001';
 const TRANSACTION_ID = 'txn_realpurchase0000000000000001';
-const PERIOD_START = '2026-08-12T20:00:00.000Z';
-const PERIOD_END = '2026-09-12T20:00:00.000Z';
+// The fixture clock is DERIVED, never hard-coded: a purchase modeled 30 days
+// ago with a 31-day billing period leaves the period live at processing time,
+// so production credit expiry sees an active allocation. The previous literal
+// (12/09/2026) rotted five days after it was written and zeroed the credits a
+// valid purchase must grant.
+const DAY_MS = 86_400_000;
+const FIXTURE_NOW = Date.now();
+const isoFromNow = (days: number, seconds = 0): string =>
+  new Date(FIXTURE_NOW + days * DAY_MS + seconds * 1_000).toISOString();
+const PERIOD_START = isoFromNow(-30);
+const PERIOD_END = isoFromNow(1);
 
 interface Harness {
   readonly app: INestApplication;
@@ -106,7 +115,7 @@ function transactionEvent(
   return {
     event_id: eventId,
     event_type: 'transaction.completed',
-    occurred_at: '2026-08-12T20:00:02.000Z',
+    occurred_at: isoFromNow(-30, 2),
     data: {
       id: TRANSACTION_ID,
       customer_id: CUSTOMER_ID,
@@ -138,7 +147,7 @@ function subscriptionEvent(
   return {
     event_id: eventId,
     event_type: 'subscription.created',
-    occurred_at: '2026-08-12T20:00:01.000Z',
+    occurred_at: isoFromNow(-30, 1),
     data: {
       id: SUBSCRIPTION_ID,
       transaction_id: TRANSACTION_ID,
@@ -348,7 +357,7 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
     const unsupported = {
       event_id: 'evt_customerupdate0000000000000001',
       event_type: 'customer.updated',
-      occurred_at: '2026-08-12T20:00:00.000Z',
+      occurred_at: isoFromNow(-30),
       data: { id: CUSTOMER_ID },
     };
 
@@ -402,7 +411,7 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
         status: SubscriptionStatus.Active,
         paddleTransactionId: TRANSACTION_ID,
         licenseClaimHash: CLAIM_HASH,
-        paddleOccurredAt: new Date('2026-08-12T20:00:02.000Z'),
+        paddleOccurredAt: new Date(isoFromNow(-30, 2)),
       });
     },
     60_000,
@@ -506,11 +515,11 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
       id: renewalTransaction,
       custom_data: { license_claim_hash: CLAIM_HASH },
       billing_period: {
-        starts_at: '2026-09-12T20:00:00.000Z',
-        ends_at: '2026-10-12T20:00:00.000Z',
+        starts_at: PERIOD_END,
+        ends_at: isoFromNow(31),
       },
     });
-    renewal.occurred_at = '2026-09-12T20:00:02.000Z';
+    renewal.occurred_at = isoFromNow(1, 2);
 
     expect((await deliver(harness, renewal)).status).toBe(200);
     expect((await deliver(harness, renewal)).status).toBe(200);
@@ -540,18 +549,18 @@ describe('Paddle provisioning (real AppModule, raw HTTP, PostgreSQL)', () => {
 
     const canceled = {
       ...subscriptionEvent('evt_cancelnewer000000000000000001', {
-        canceled_at: '2026-08-20T00:00:00.000Z',
+        canceled_at: isoFromNow(-23),
         current_billing_period: null,
       }),
       event_type: 'subscription.canceled',
-      occurred_at: '2026-08-20T00:00:01.000Z',
+      occurred_at: isoFromNow(-23, 1),
     };
     expect((await deliver(harness, canceled)).status).toBe(200);
 
     const olderUpdate = {
       ...subscriptionEvent('evt_updateolder000000000000000001', { status: 'active' }),
       event_type: 'subscription.updated',
-      occurred_at: '2026-08-13T00:00:00.000Z',
+      occurred_at: isoFromNow(-29),
     };
     expect((await deliver(harness, olderUpdate)).status).toBe(200);
 
