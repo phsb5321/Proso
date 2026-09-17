@@ -1382,4 +1382,21 @@ self-hosted CI.
    filtering, and sentence-two highlight transition; the real Supertonic 3 bridge.3 run also
    passes. Kokoro-FastAPI `26eec068` is explicitly rejected for exact PT-BR sync: RTF 0.23825 but
    `timestamps:null` on realistic date/currency/glyph input. Exact completion remains gated on the
-   full deterministic/plant/review/merge/deploy chain.
+   full deterministic/plant/review/merge/deploy chain.29. **Local synthesis aligned to Lectrice's Magpie bridge — contract pinned (17/09/2026).** Pedro
+   directed that Proso's local synthesis use the same local model as Lectrice. Lectrice's local
+   model is the pinned Magpie TTS Multilingual 357M GGUF Q6_K (model SHA256 `8291ffde2e13…`,
+   Vulkan/RADV on the RX 5700 XT) served by its loopback bridge `tools/magpie/lectrice_magpie_bridge.py`
+   at `http://127.0.0.1:5301`. Proso's `LocalHostAudioAdapter` was already wire-compatible with that
+   surface by design (same `/health`, `/v1/capabilities`, `/v1/tts` family as the Orange Pi wrapper):
+   strict `{input, voice, speed}` body, 16–128-char `Idempotency-Key`, `accept: audio/wav`,
+   problem+json error mapping (`payload_too_large`, `engine_failed`, retryable). The new
+   `tests/integration/local-host-magpie-bridge.test.ts` now replays the bridge's exact capabilities
+   document (ten preset voices `Aria/Jason/John/Leo/Sofia` × `en`/`pt-BR`, preferred 300-byte chunk
+   bound, `runtime` model-identity block) and proves readiness, voice discovery/filtering, exact
+   request shape, sentence-granular chunking within bounds, and typed engine-failure mapping — 6
+   cases, green, included in the 169-suite full run. The settings page host-address placeholder now
+   shows `http://127.0.0.1:5301` (still a user-configured value; nothing is auto-enabled). Known
+   operational gap, owned by the Lectrice lane: the bridge is not currently running on desktop
+   (port 5301 refused 17/09) and is started manually via `start-transient.sh`, not declaratively.
+   Proso hard-bounds chunks at 8192 bytes; the bridge's advertised 300 is its preferred chunk size
+   and the bridge accepts larger inputs, so no client change was needed.

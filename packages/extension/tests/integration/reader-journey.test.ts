@@ -23,6 +23,11 @@ import {
   setExtractedParagraphs,
 } from '../../src/utils/content/extractor';
 import {
+  createLocalHostFetchMock,
+  ensureWebCryptoSubtle,
+  wavResponse,
+} from '../helpers/local-host-audio-fixtures';
+import {
   createMockAudioUrlProvider,
   createMockCacheStore,
   createMockHighlightSync,
@@ -176,15 +181,7 @@ describe('reader journey', () => {
   });
 
   it('reads an article through the local synthesis host at sentence granularity (PROSO-110)', async () => {
-    // jsdom's Crypto exposes no `subtle`; the adapter needs it for the
-    // idempotency key (spec D-6). Node's webcrypto fills the gap.
-    if (!globalThis.crypto?.subtle) {
-      const { webcrypto } = await import('node:crypto');
-      Object.defineProperty(globalThis.crypto, 'subtle', {
-        value: webcrypto.subtle,
-        configurable: true,
-      });
-    }
+    await ensureWebCryptoSubtle();
     const LOCAL_BASE = 'https://host.example';
     const CAPABILITIES = {
       apiVersion: '1',
@@ -199,59 +196,20 @@ describe('reader journey', () => {
       },
     };
 
-    // WAV fixture builder (mono 16-bit, duration by byte count). The sentence
-    // index is written into the first data byte so a played clip can be
-    // identified back to its sentence (ordered-playback oracle below).
-    function wavResponse(durationMs = 500, sentenceIndex = -1): Response {
-      const byteRate = 22050 * 2;
-      const dataBytes = Math.round((byteRate * durationMs) / 1000);
-      const buffer = new ArrayBuffer(44 + dataBytes);
-      const view = new DataView(buffer);
-      const tag = (offset: number, s: string) => {
-        for (let i = 0; i < 4; i++) view.setUint8(offset + i, s.charCodeAt(i));
-      };
-      tag(0, 'RIFF');
-      view.setUint32(4, 36 + dataBytes, true);
-      tag(8, 'WAVE');
-      tag(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, 1, true);
-      view.setUint32(24, 22050, true);
-      view.setUint32(28, byteRate, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
-      tag(36, 'data');
-      view.setUint32(40, dataBytes, true);
-      if (sentenceIndex >= 0) view.setUint8(44, sentenceIndex);
-      return {
-        ok: true,
-        status: 200,
-        headers: {
-          get: (name: string) => (name.toLowerCase() === 'content-type' ? 'audio/wav' : null),
-        },
-        arrayBuffer: async () => buffer,
-        json: async () => {
-          throw new Error('not json');
-        },
-      } as unknown as Response;
+    // WAV fixture builder: shared module (mono 16-bit, duration by byte
+    // count). The sentence index rides in the first data byte for the
+    // ordered-playback oracle below.
+    function localWavResponse(sentenceIndex: number): Response {
+      return wavResponse(400, sentenceIndex);
     }
 
-    const localFetch = jest.fn<typeof fetch>();
-    localFetch.mockImplementation(async (url: unknown, init?: RequestInit) => {
-      if (String(url).endsWith('/v1/capabilities')) {
-        return {
-          ok: true,
-          status: 200,
-          headers: { get: () => 'application/json' },
-          json: async () => CAPABILITIES,
-        } as unknown as Response;
-      }
-      if (String(url).endsWith('/v1/tts')) {
+    const localFetch = createLocalHostFetchMock({
+      health: { status: 'ok', ready: true, version: 'test' },
+      capabilities: CAPABILITIES,
+      tts: (init) => {
         const request = JSON.parse(String(init?.body)) as { input: string };
-        return wavResponse(400, SENTENCES.indexOf(request.input));
-      }
-      throw new Error(`unexpected url ${String(url)}`);
+        return localWavResponse(SENTENCES.indexOf(request.input));
+      },
     });
 
     const extractedText = extractText('article');
