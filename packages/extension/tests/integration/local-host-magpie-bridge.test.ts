@@ -172,9 +172,7 @@ describe('LocalHostAudioAdapter against the Lectrice Magpie bridge', () => {
     const bodies = fetchMock.mock.calls
       .filter(([url]) => String(url).endsWith('/v1/tts'))
       .map(([, init]) => JSON.parse(String(init?.body)) as { input: string });
-    expect(bodies.map((b) => b.input).sort()).toEqual(
-      [PT_SENTENCE, PT_SENTENCE_TWO].sort(),
-    );
+    expect(bodies.map((b) => b.input).sort()).toEqual([PT_SENTENCE, PT_SENTENCE_TWO].sort());
     for (const body of bodies) {
       // Hard wire bound: the bridge 413s inputs beyond 8192 UTF-8 bytes. The
       // advertised 300 is the bridge's PREFERRED chunk size; a single long
