@@ -79,6 +79,17 @@
       "owner": "proso",
       "reason": "Build/deploy-time-only chain through prisma > @prisma/config. The patched 8.0.0 is pure ESM while @prisma/config resolves a CommonJS-compatible version below 8; review with the matching exact-path audit allowlist.",
       "issue": "deterministic-floor-pr183"
+    },
+    {
+      "tool": "osv-scanner",
+      "fingerprint": "e2b7aaa272254c7df88796c9147ff9beda742082e465ae1ca2b8af87b5a675f1",
+      "package": "adm-zip",
+      "version": "0.6.0",
+      "advisory": "GHSA-vwc7-r8mq-g2x9",
+      "severity": "MODERATE",
+      "owner": "proso",
+      "reason": "No upstream fix: GHSA-vwc7-r8mq-g2x9 lists no fixed release. Transitive dev tooling (extraction path used by archive tooling, not runtime server code). Rebaseline when upstream publishes a fix.",
+      "issue": "dependency-remediation-244"
     }
   ]
 }
