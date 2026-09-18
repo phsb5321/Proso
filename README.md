@@ -232,7 +232,7 @@ and read the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## License
 
 The repository's licensing metadata is not yet internally consistent: [`LICENSE`](LICENSE)
-contains GPL-3.0 text, while package metadata says MIT and the README badge says AGPL-3.0. The
+contains GPL-3.0 text, while package metadata says MIT and contributor docs have said AGPL-3.0. The
 former `COMMERCIAL.md` was deleted because its terms were stale. Do not infer commercial or
 redistribution terms from the contradictory metadata; the owner must choose and reconcile one
 license in a dedicated legal-metadata change.
