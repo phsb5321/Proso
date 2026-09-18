@@ -149,9 +149,10 @@
     <section id="install-status">
       <div class="container container--narrow">
         <div class="callout">
-          <h2>Firefox installation is not available yet</h2>
-          <p>Proso&rsquo;s Firefox extension is real and open source, but the signed build is pending <strong>Mozilla signing (AMO)</strong> and our self-hosted release automation. Until the signed build is published, we will not link a build that is stale or unreachable &mdash; this notice is the honest state of the install button.</p>
-          <p>When the signed build ships, the install button on this site will point straight at it.</p>
+          <h2>Install Proso for Firefox</h2>
+          <p>Proso is published on Mozilla Add-ons. Firefox 109 or later is required.</p>
+          <p><a href="https://addons.mozilla.org/en-US/firefox/addon/proso/" class="btn btn--primary">Add to Firefox</a></p>
+          <p>Before listening, configure a provider API key, a synthesis host you operate, or an eligible managed plan. Provider charges may apply.</p>
         </div>
       </div>
     </section>
@@ -218,7 +219,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>Privacy by Design</h3>
-            <p>API keys cached locally in your browser, forwarded securely for synthesis and never stored on our servers. No telemetry, no tracking, no data collection. Open-source code you can audit.</p>
+            <p>API keys cached locally in your browser, forwarded securely for synthesis and never stored on our servers. The public AMO build sends no usage telemetry. The text you ask to hear is sent to your configured synthesis destination. See our privacy policy for details.</p>
           </div>
         </div>
       </div>
@@ -236,7 +237,7 @@
             <div class="step__number">1</div>
             <div class="step__content">
               <h3>Install the Extension</h3>
-              <p>Once the signed Firefox build ships (pending Mozilla AMO review), one click from this site. No account needed, no signup forms. To hear audio on the free tier, add your own provider API key in settings or point Proso at a synthesis host you run yourself &mdash; both are free on every tier.</p>
+              <p>One click from Mozilla Add-ons installs the signed build. No account needed, no signup forms. To hear audio on the free tier, add your own provider API key in settings or point Proso at a synthesis host you run yourself &mdash; both are free on every tier.</p>
             </div>
           </div>
           <div class="step">
@@ -285,9 +286,9 @@
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Smart text extraction</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Speed control</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Paragraph navigation</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> BYOK &mdash; your own API key, any provider</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> BYOK &mdash; your own key from a supported provider</li>
               <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed voices</span></li>
-              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Premium voices</span></li>
+              <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Managed premium voices</span></li>
               <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>
             </ul>
             <a href="#install-status" class="btn btn--primary">Install for Firefox</a>
@@ -304,7 +305,7 @@
             </div>
             <ul class="pricing-card__features" role="list">
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Free</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 500,000 managed characters per month</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 500,000 managed credits per month</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Managed voices</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Premium voices</li>
               <li><span class="pricing-card__dash" aria-hidden="true">&mdash;</span> <span class="text-muted">Priority support</span></li>
@@ -323,7 +324,7 @@
             </div>
             <ul class="pricing-card__features" role="list">
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Everything in Pro</li>
-              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 2,000,000 managed characters per month</li>
+              <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> 2,000,000 managed credits per month</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Managed voices</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Premium voices</li>
               <li><span class="pricing-card__check" aria-hidden="true">&#10003;</span> Priority support</li>
@@ -334,7 +335,7 @@
 
         <div class="callout">
           <h3>Bring Your Own Key (BYOK)</h3>
-          <p>Already have an OpenAI, ElevenLabs, Groq, or Cartesia API key? Use premium voices for free on any tier &mdash; including Free. No managed credits needed. Your keys, your usage, your control.</p>
+          <p>Already have an OpenAI, ElevenLabs, Groq, or Cartesia API key? Use supported premium voices with BYOK on any tier, including Free. Proso charges no BYOK subscription fee; provider usage is billed separately. No managed credits are spent.</p>
         </div>
       </div>
     </section>

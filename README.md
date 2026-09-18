@@ -1,20 +1,19 @@
 # Proso
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
-[![CI](https://github.com/phsb5321/Proso/actions/workflows/ci.yml/badge.svg)](https://github.com/phsb5321/Proso/actions/workflows/ci.yml)
-[![Firefox 109+](https://img.shields.io/badge/Firefox-109%2B-orange.svg)](https://www.mozilla.org/firefox/)
+**Read web pages aloud in Firefox, with word highlighting and playback controls.**
 
-**Transform any webpage into an immersive audio experience**
+[![Install for Firefox](https://img.shields.io/badge/Install-Firefox-orange)](https://addons.mozilla.org/en-US/firefox/addon/proso/)
 
-> **Firefox-First**: Proso is developed and optimized for Firefox. It uses an event-page
-> background with DOM access and native `Audio` playback. Speech synthesis is server-backed.
+[Website](https://proso.com.br/) · [Plans and pricing](https://proso.com.br/pricing.html) ·
+[Get help](SUPPORT.md) · [Support development](#support-the-project) · [License status](#license)
 
-Proso is a Firefox extension that uses AI-powered text-to-speech to read web pages aloud with
-natural, expressive voices. The product contract requires an account-free reading path, but current
-`main` does not satisfy it: server-managed TTS requires an eligible plan and browser TTS was
-removed. BYOK remains available without an account. See the tracked
-[`reading journey contract`](specs/095-reading-journey-contract/spec.md) for the blocking gap and
-the evidence required before the anonymous path is claimed again.
+Proso reads articles, full pages, or selected text. The extension is free to install.
+To generate audio, configure your own provider API key (BYOK), a synthesis host you
+operate, or an eligible managed plan. BYOK needs no Proso account; provider charges
+may apply. There is no built-in browser TTS fallback.
+
+Published Firefox builds are available on Mozilla Add-ons. Development status for
+`main` is tracked separately in the [reading journey status](docs/reading-journey-status.md).
 
 ## Features
 
@@ -30,22 +29,26 @@ the evidence required before the anonymous path is claimed again.
 
 ## Installation
 
-### From GitHub Releases
+### Install in Firefox
 
-1. Go to the [Releases](https://github.com/phsb5321/Proso/releases) page
-2. Download the latest `.xpi` file
-3. Open the file with Firefox to install
+1. Open [Proso on Mozilla Add-ons](https://addons.mozilla.org/en-US/firefox/addon/proso/).
+2. Choose **Add to Firefox** and review the requested permissions.
+3. Open Proso settings and configure your audio source before starting playback.
 
-### Manual Installation (Development)
+Firefox 109 or later is required. See Mozilla Add-ons for the current published version.
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/phsb5321/Proso.git
-   ```
-2. Open Firefox and navigate to `about:debugging`
-3. Click "This Firefox" in the sidebar
-4. Click "Load Temporary Add-on..."
-5. Build the Firefox extension and select `.output/firefox-mv2/manifest.json`
+### Load a development build
+
+```bash
+git clone https://github.com/phsb5321/Proso.git
+cd Proso
+pnpm install --frozen-lockfile
+pnpm --filter @proso/extension build:firefox
+```
+
+Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
+select `packages/extension/.output/firefox-mv2/manifest.json`. Temporary add-ons
+must be loaded again after restarting Firefox.
 
 ## Setup
 
@@ -63,7 +66,7 @@ Proso routes synthesis through its server and currently supports these providers
 1. Click the Proso icon in your toolbar
 2. Click the gear icon to open Settings
 3. Select your preferred provider
-4. Optionally enter that provider's API key to use BYOK
+4. Enter that provider's API key for BYOK, or configure an eligible managed plan
 
 ## Usage
 
@@ -207,32 +210,29 @@ Proso automatically detects page language using **franc-min**:
 
 ## Support the project
 
-Proso is free, ad-free, and stays that way. If it helps you read more, you can support development:
+Proso is built by solo developer Pedro H S Balbino. Support helps fund maintenance,
+accessibility fixes, Firefox releases, speech-quality testing, and API infrastructure.
 
-- **[proso.com.br/apoiar](https://proso.com.br/apoiar.html)** — PIX (Brazil, no fees), with Ko-fi for
-  international supporters and GitHub Sponsors enabled as those profiles go live
+The extension is free to install. BYOK provider usage may cost money; managed
+synthesis is a separate paid service. Donations do not buy credits, change plans,
+or grant commercial licensing rights.
 
-[![Support Proso](https://img.shields.io/badge/support-PIX%20%C2%B7%20Ko--fi-06b6d4)](https://proso.com.br/apoiar.html)
+Donation options are being configured. PIX, Ko-fi, and GitHub Sponsors will be
+linked here once their payment destinations are live.
 
-Donations are support, not purchases: they do not grant credits or change your plan. Commercial
-licensing stays on the [pricing page](https://proso.com.br/pricing.html).
+For managed plans, see [pricing](https://proso.com.br/pricing.html).
+For commercial licensing inquiries, contact [commercial@proso.com.br](mailto:commercial@proso.com.br).
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes following our commit conventions
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+Bug reports, documentation fixes, translations, accessibility feedback, and code
+contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks,
+and read the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
 The repository's licensing metadata is not yet internally consistent: [`LICENSE`](LICENSE)
-contains GPL-3.0 text, while package metadata says MIT and the README badge says AGPL-3.0. The
+contains GPL-3.0 text, while package metadata says MIT and contributor docs have said AGPL-3.0. The
 former `COMMERCIAL.md` was deleted because its terms were stale. Do not infer commercial or
 redistribution terms from the contradictory metadata; the owner must choose and reconcile one
 license in a dedicated legal-metadata change.
