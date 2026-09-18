@@ -17,7 +17,7 @@ interface WordToken {
 const WORD_PATTERN =
   /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{M}\p{N}]+(?:['’\-‐‑‒–—][\p{L}\p{M}\p{N}]+)*/gu;
 
-function tokenizeWords(text: string): WordToken[] {
+export function tokenizeWords(text: string): WordToken[] {
   return Array.from(text.matchAll(WORD_PATTERN), (match) => ({
     word: match[0],
     charOffset: match.index,
