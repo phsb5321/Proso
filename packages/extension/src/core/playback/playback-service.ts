@@ -171,6 +171,9 @@ export class PlaybackService {
     tabId: number,
     pageUrl: string,
   ): Promise<Result<PlaybackState, PlaybackError>> {
+    // A fresh session never inherits a pending transition from a previous one.
+    this.transitionInFlight = null;
+
     // A session begins reading in whatever voice state currently holds, so
     // that is the baseline every later settings notification is compared
     // against. Seeding it here rather than by reading the store at
@@ -323,6 +326,11 @@ export class PlaybackService {
     const generation = ++this.playbackGeneration;
     const activeTabId = this.state.activeTabId;
 
+    // Session boundary (see start()): drop any pending transition slot. The
+    // stale transition's own completion is identity-checked, so it cannot
+    // clobber a slot installed by whatever comes next.
+    this.transitionInFlight = null;
+
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
     this.currentAbortController?.abort();
@@ -376,6 +384,32 @@ export class PlaybackService {
    * Move to next paragraph.
    */
   async next(): Promise<Result<PlaybackState, PlaybackError>> {
+    return this.joinTransition(() => this.runNext());
+  }
+
+  /**
+   * Serialize paragraph transitions. A single advance may be triggered twice
+   * at the same instant (clip `ended` landing as the reader presses Next, or
+   * a double press); without the join both calls increment the index and a
+   * paragraph is skipped invisibly. Concurrent calls share the in-flight
+   * transition instead.
+   */
+  private joinTransition(
+    run: () => Promise<Result<PlaybackState, PlaybackError>>,
+  ): Promise<Result<PlaybackState, PlaybackError>> {
+    if (this.transitionInFlight) return this.transitionInFlight;
+    // Start synchronously: next()/previous() update state and abort the
+    // superseded generation before they first yield, and callers (and tests)
+    // rely on that immediate effect.
+    const started = run();
+    const guarded = started.finally(() => {
+      if (this.transitionInFlight === guarded) this.transitionInFlight = null;
+    });
+    this.transitionInFlight = guarded;
+    return guarded;
+  }
+
+  private async runNext(): Promise<Result<PlaybackState, PlaybackError>> {
     if (!playbackStateValidation.hasNext(this.state)) {
       // At end, stop playback
       return this.stop();
@@ -394,6 +428,10 @@ export class PlaybackService {
    * Move to previous paragraph.
    */
   async previous(): Promise<Result<PlaybackState, PlaybackError>> {
+    return this.joinTransition(() => this.runPrevious());
+  }
+
+  private async runPrevious(): Promise<Result<PlaybackState, PlaybackError>> {
     if (!playbackStateValidation.hasPrevious(this.state)) {
       // At beginning, restart current paragraph
       return this.seek(0);
@@ -844,6 +882,11 @@ export class PlaybackService {
     error?: string;
   }> = [];
   private chunkQueueDone = false;
+  /** True while the reader waits, post-'ended', for a slow producer. */
+  private chunkAdvanceWait = false;
+  private chunkWaitTicks = 0;
+  /** Joins concurrent paragraph transitions (ended + Next races). */
+  private transitionInFlight: Promise<Result<PlaybackState, PlaybackError>> | null = null;
   private chunkTotalMs = 0;
   private chunkPlayedMs = 0;
   private chunkBaseMs = 0;
@@ -892,7 +935,9 @@ export class PlaybackService {
       return Err(error);
     }
     const speakableSentences = sourceResult.value.filter(hasSpeakableWords);
-    if (speakableSentences.length === 0) return this.next();
+    // Internal skip: call the unjoined body. Joining here would await the
+    // very transition that is awaiting this call (promise cycle → lock).
+    if (speakableSentences.length === 0) return this.runNext();
     const chunkSources = this.locateChunkSources(synthesisText, speakableSentences);
 
     const request: AudioRequest = {
@@ -1035,7 +1080,17 @@ export class PlaybackService {
       // finding the queue done-and-empty — the normal failure funnel reports
       // it there rather than dying silently.
     } finally {
-      this.chunkQueueDone = true;
+      // A superseded producer finishing late must not mark the CURRENT
+      // paragraph done (the flag is per-current-paragraph state) nor wake a
+      // reader waiting on a different paragraph's producer.
+      if (this.chunkGeneration === generation && this.isCurrentGeneration(generation)) {
+        this.chunkQueueDone = true;
+        // Wake a reader that is waiting on this producer: the next chunk may
+        // be queued already, and a done-and-empty queue may advance.
+        if (this.chunkAdvanceWait) {
+          this.continueChunkedOrAdvance();
+        }
+      }
     }
   }
 
@@ -1046,7 +1101,43 @@ export class PlaybackService {
     this.chunkTotalMs = 0;
     this.chunkPlayedMs = 0;
     this.chunkBaseMs = 0;
+    this.chunkAdvanceWait = false;
+    this.chunkWaitTicks = 0;
     this.chunkGeneration = generation;
+  }
+
+  /**
+   * Wait for a slow chunk producer, bounded: re-arms every 500ms while the
+   * drain runs and fails honestly after ~30s instead of advancing early and
+   * silently dropping the paragraph's remaining sentences.
+   */
+  private scheduleChunkContinuation(generation: number): void {
+    setTimeout(() => {
+      if (
+        this.chunkGeneration !== generation ||
+        !this.isCurrentGeneration(generation) ||
+        this.currentAudioUrl === null ||
+        this.state.status !== 'playing'
+      ) {
+        return;
+      }
+      if (!this.chunkAdvanceWait) return;
+      if (this.chunkQueue.length > 0 || this.chunkQueueDone) {
+        this.continueChunkedOrAdvance();
+        return;
+      }
+      this.chunkWaitTicks += 1;
+      if (this.chunkWaitTicks > 60) {
+        this.chunkAdvanceWait = false;
+        void this.setError(
+          playbackError.playbackFailed('Synthesis stalled before the paragraph finished'),
+          undefined,
+          generation,
+        );
+        return;
+      }
+      this.scheduleChunkContinuation(generation);
+    }, 500);
   }
 
   /**
@@ -1762,21 +1853,13 @@ export class PlaybackService {
         return;
       }
       if (!this.chunkQueueDone && this.chunkGeneration >= 0) {
-        // The drain is still running: wait briefly for the next chunk rather
-        // than advancing. Bind the callback to this generation so stop cannot
-        // leave a timer that restarts reading later.
-        const generation = this.chunkGeneration;
-        setTimeout(() => {
-          if (
-            this.chunkGeneration !== generation ||
-            !this.isCurrentGeneration(generation) ||
-            this.currentAudioUrl === null ||
-            this.state.status !== 'playing'
-          ) {
-            return;
-          }
-          this.continueChunkedOrAdvance();
-        }, 500);
+        // The drain is still running: WAIT for the next chunk rather than
+        // advancing (a slow producer used to lose the paragraph's remaining
+        // sentences after 500ms). The wait resolves early when the drain
+        // finishes; a stalled producer fails honestly instead of skipping.
+        this.chunkAdvanceWait = true;
+        this.chunkWaitTicks = 0;
+        this.scheduleChunkContinuation(this.chunkGeneration);
         return;
       }
       this.resetChunkState(-1);
@@ -1803,14 +1886,18 @@ export class PlaybackService {
         return;
       }
       if (this.chunkQueue.length > 0) {
+        this.chunkAdvanceWait = false;
         const generation = this.chunkGeneration;
         void this.playNextChunk().catch((error) => this.funnelPlaybackError(error, generation));
-      } else {
+      } else if (this.chunkQueueDone) {
+        this.chunkAdvanceWait = false;
         this.resetChunkState(-1);
         const nextPromise = this.next();
         const generation = this.playbackGeneration;
         void nextPromise.catch((error) => this.funnelPlaybackError(error, generation));
       }
+      // Queue empty and the producer is still running: the caller re-arms the
+      // wait (scheduleChunkContinuation) instead of advancing early.
     };
 
     this.audioElement.addEventListener('error', () => {
