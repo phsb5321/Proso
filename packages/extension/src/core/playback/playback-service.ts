@@ -1205,8 +1205,10 @@ export class PlaybackService {
         projectCharTimings(
           spokenTimings.map((timing) => ({
             word: timing.word,
-            charOffset: 0,
-            charLength: 0,
+            // Provider offsets address the SPOKEN text and must survive into
+            // the projection — zeroing them collapsed every mark to offset 0.
+            charOffset: timing.charOffset,
+            charLength: timing.charLength,
             startMs: timing.startTimeMs,
             endMs: timing.endTimeMs,
           })),
@@ -1558,7 +1560,8 @@ export class PlaybackService {
   async isParagraphCached(index: number): Promise<boolean> {
     const text = this.state.paragraphs[index];
     if (!text) return false;
-    const cacheKey = this.createCacheKey(index, text);
+    // Same identity the live and prefetch paths write with: the spoken text.
+    const cacheKey = this.createCacheKey(index, this.buildParagraphPlan(text).spokenText);
     const cachedResult = await this.deps.cacheStore.get(cacheKey);
     return (
       isOk(cachedResult) &&
@@ -1606,8 +1609,13 @@ export class PlaybackService {
     // old-voice audio under the new voice's name.
     const requestedProvider = this.state.provider;
     const requestedVoice = this.state.voice;
+    // Prefetch must synthesize the same SPOKEN text the live path sends,
+    // otherwise a prefetched paragraph reads un-normalized and the durable
+    // cache key disagrees with the live one.
+    const plan = this.buildParagraphPlan(text);
+    const spokenText = plan.spokenText;
     const request: AudioRequest = {
-      text,
+      text: spokenText,
       voice: requestedVoice,
       speed: this.state.speed,
       language: this.detectedLanguage,
@@ -1624,10 +1632,10 @@ export class PlaybackService {
 
     const audioResponse = generateResult.value;
 
-    // Durable cache write (INV-006) — see method doc. Keyed by the requested
-    // voice so a mid-flight voice change cannot poison the new voice's key
-    // with old-voice audio.
-    const cacheKey = this.createCacheKey(index, text, requestedProvider, requestedVoice);
+    // Durable cache write (INV-006) — see method doc. Keyed by the SPOKEN
+    // text (what the audio contains) and the requested voice, so a mid-flight
+    // voice change cannot poison the new voice's key with old-voice audio.
+    const cacheKey = this.createCacheKey(index, spokenText, requestedProvider, requestedVoice);
     const cacheEntry = makeCacheEntry(audioResponse);
     await this.deps.cacheStore.set(cacheKey, cacheEntry);
 
@@ -1635,8 +1643,8 @@ export class PlaybackService {
 
     const wordTimings =
       audioResponse.wordTimings && audioResponse.wordTimings.length > 0
-        ? this.convertProviderTimings(audioResponse.wordTimings, text)
-        : this.estimateWordTimings(text, audioResponse.durationMs ?? 0);
+        ? this.convertProviderTimings(audioResponse.wordTimings, spokenText)
+        : this.estimateWordTimings(spokenText, audioResponse.durationMs ?? 0);
 
     return {
       audioUrl,

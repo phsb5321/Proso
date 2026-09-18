@@ -38,7 +38,7 @@ export interface SpokenPlan {
 }
 
 // URLs and dotted version numbers are never rewritten.
-const PROTECTED_PATTERN = /https?:\/\/\S+|\b\d+(?:\.\d+){2,}\b/g;
+const PROTECTED_PATTERN = /https?:\/\/\S+|\b\d+(?:\.\d+){2,}\b/gi;
 
 /** Map a playback language tag to a plan locale, or null when unsupported. */
 export function planLocaleFor(language: string | null | undefined): SpokenPlanLocale | null {
@@ -153,12 +153,14 @@ export function projectChunkWordTimings(
   chunkSpokenText: string,
   chunkSpokenStart: number,
 ): WordTiming[] {
+  const tokens: Array<{ word: string; charOffset: number; charLength: number }> =
+    tokenizeWords(chunkSpokenText);
+  // Cardinality is validated for identity plans too: a mismatch means the
+  // timings do not describe this text, and returning them would mis-anchor.
+  if (tokens.length !== spokenTimings.length) return [];
   if (plan.segments.length === 0) {
     return spokenTimings.map((timing) => ({ ...timing }));
   }
-  const tokens: Array<{ word: string; charOffset: number; charLength: number }> =
-    tokenizeWords(chunkSpokenText);
-  if (tokens.length !== spokenTimings.length) return [];
   const charItems = tokens.map((token, i) => {
     const timing = spokenTimings[i]!;
     return {
@@ -214,6 +216,10 @@ export function projectCharTimings(
     }
     return { segmentIndex: -1, charOffset: timing.charOffset, charLength: timing.charLength };
   });
+  // A timing that lands outside every segment means the alignment is invalid
+  // (e.g. provider timings for text this plan does not describe): fail open
+  // rather than publishing mis-anchored marks.
+  if (classified.some((item) => item.segmentIndex < 0)) return [];
 
   const projected: Array<{
     word: string;
@@ -228,6 +234,7 @@ export function projectCharTimings(
     let groupEnd = groupStart + 1;
     while (
       groupEnd < classified.length &&
+      head.segmentIndex >= 0 &&
       classified[groupEnd]!.segmentIndex === head.segmentIndex &&
       plan.segments[head.segmentIndex]!.kind === 'replace'
     ) {
@@ -236,20 +243,6 @@ export function projectCharTimings(
     const startTime = timings[groupStart]!.startMs;
     const endTime = timings[groupEnd - 1]!.endMs;
 
-    if (head.segmentIndex < 0) {
-      for (let i = groupStart; i < groupEnd; i++) {
-        const timing = timings[i]!;
-        projected.push({
-          word: '',
-          charOffset: timing.charOffset,
-          charLength: timing.charLength,
-          startMs: timing.startMs,
-          endMs: timing.endMs,
-        });
-      }
-      groupStart = groupEnd;
-      continue;
-    }
     const segment = plan.segments[head.segmentIndex]!;
     if (segment.kind === 'replace') {
       const slice = plan.sourceText.slice(segment.sourceStart ?? 0, segment.sourceEnd ?? 0);
@@ -258,10 +251,11 @@ export function projectCharTimings(
       let elapsed = 0;
       for (const word of sourceWords) {
         const share = (word[0].length / total) * (endTime - startTime);
-        const wordStart = (segment.sourceStart ?? 0) + elapsed;
         projected.push({
           word: word[0],
-          charOffset: Math.round(wordStart),
+          // Character offset comes from the source match, never from elapsed
+          // time (they are unrelated quantities).
+          charOffset: (segment.sourceStart ?? 0) + (word.index ?? 0),
           charLength: word[0].length,
           startMs: Math.round(startTime + elapsed),
           endMs: Math.round(startTime + elapsed + share),

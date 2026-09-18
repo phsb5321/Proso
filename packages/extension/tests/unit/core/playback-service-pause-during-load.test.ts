@@ -347,6 +347,27 @@ describe('PlaybackService pause during a paragraph load', () => {
     }
   });
 
+  it('prefetches the spoken text and keys the cache by it', async () => {
+    // The lookahead path must synthesize the same normalized text the live
+    // path sends, and write the durable cache under the same identity —
+    // otherwise a prefetched paragraph reads un-normalized and the cache
+    // disagrees with live playback.
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator());
+    service.setLanguage('en');
+
+    await service.start(
+      ['In 2022 he wrote.', 'Another 2022 paragraph.'],
+      7,
+      'https://example.test/article',
+    );
+    await waitForIt(() => generateMock.mock.calls.length >= 2);
+
+    const prefetchRequest = generateMock.mock.calls[1]?.[0] as AudioRequest;
+    expect(prefetchRequest.text).toContain('two thousand twenty-two');
+    expect(await service.isParagraphCached(1)).toBe(true);
+    await service.stop();
+  });
+
   it('discards a prefetch entry completed under an old voice (FR-012)', async () => {
     // A voice change while a lookahead request is still in flight used to
     // label the completed entry with the NEW voice (the label was read at

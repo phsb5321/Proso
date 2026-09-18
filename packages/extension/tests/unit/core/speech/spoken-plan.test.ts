@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   buildSpokenPlan,
   planLocaleFor,
+  projectCharTimings,
   projectChunkWordTimings,
   SPOKEN_PLAN_REVISION,
 } from '../../../../src/core/speech/spoken-plan';
@@ -79,6 +80,54 @@ describe('projectChunkWordTimings', () => {
     const timings = evenTimings(identity.spokenText);
     const projected = projectChunkWordTimings(timings, identity, identity.spokenText, 0);
     expect(projected.map((t) => t.word)).toEqual(['Plain', 'words', 'only.']);
+  });
+
+  it('maps replace char offsets from the source match, not elapsed time', () => {
+    // Two printed words inside one replacement: their offsets must point at
+    // the source positions of those words.
+    const paragraph = 'Custou R$ 1.234,50 ontem.';
+    const plan = buildSpokenPlan(paragraph, 'pt-BR');
+    expect(plan.spokenText).not.toContain('1.234,50');
+    const items = [
+      { word: 'Custou', charOffset: 0, charLength: 6, startMs: 0, endMs: 100 },
+      { word: 'mil', charOffset: 7, charLength: 3, startMs: 100, endMs: 200 },
+      { word: 'duzentos', charOffset: 11, charLength: 8, startMs: 200, endMs: 300 },
+      { word: 'e', charOffset: 20, charLength: 1, startMs: 300, endMs: 320 },
+      { word: 'trinta', charOffset: 22, charLength: 6, startMs: 320, endMs: 420 },
+      { word: 'e', charOffset: 29, charLength: 1, startMs: 420, endMs: 440 },
+      { word: 'cinquenta', charOffset: 31, charLength: 9, startMs: 440, endMs: 560 },
+      { word: 'centavos', charOffset: 41, charLength: 8, startMs: 560, endMs: 680 },
+      { word: 'ontem', charOffset: 50, charLength: 5, startMs: 680, endMs: 760 },
+    ];
+    const projected = projectCharTimings(items, plan);
+    const reais = projected.find((item) => item.word === 'R$');
+    const cents = projected.find((item) => item.word === '1.234,50');
+    expect(reais?.charOffset).toBe(paragraph.indexOf('R$'));
+    expect(cents?.charOffset).toBe(paragraph.indexOf('1.234,50'));
+    expect(paragraph.slice(reais!.charOffset, reais!.charOffset + reais!.charLength)).toBe('R$');
+  });
+
+  it('fails open when any timing falls outside the plan segments', () => {
+    const plan = buildSpokenPlan('In 2022 he wrote.', 'en');
+    const items = [
+      { word: 'In', charOffset: 0, charLength: 2, startMs: 0, endMs: 50 },
+      { word: 'stray', charOffset: 999, charLength: 5, startMs: 50, endMs: 80 },
+      { word: 'stray2', charOffset: 1010, charLength: 6, startMs: 80, endMs: 110 },
+    ];
+    expect(projectCharTimings(items, plan)).toEqual([]);
+  });
+
+  it('protects uppercase URL schemes too', () => {
+    const source = 'See HTTPS://example.com/?n=2022 and 2022 now.';
+    const plan = buildSpokenPlan(source, 'en');
+    expect(plan.spokenText).toContain('HTTPS://example.com/?n=2022');
+    expect(plan.spokenText).toContain('two thousand twenty-two');
+  });
+
+  it('validates cardinality for identity plans too', () => {
+    const identity = buildSpokenPlan('Read words', null);
+    const timings = [{ word: 'Read', startMs: 0, endMs: 100 }];
+    expect(projectChunkWordTimings(timings, identity, identity.spokenText, 0)).toEqual([]);
   });
 
   it('returns empty when timings and spoken words disagree (fail-open)', () => {
