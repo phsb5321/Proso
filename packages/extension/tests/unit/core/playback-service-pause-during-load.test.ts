@@ -352,7 +352,9 @@ describe('PlaybackService pause during a paragraph load', () => {
     // path sends, and write the durable cache under the same identity —
     // otherwise a prefetched paragraph reads un-normalized and the cache
     // disagrees with live playback.
-    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator());
+    const { generateMock, highlightSync, service } = createPrefetchPlaybackHarness(
+      createInstantAudioGenerator(),
+    );
     service.setLanguage('en');
 
     await service.start(
@@ -365,6 +367,18 @@ describe('PlaybackService pause during a paragraph load', () => {
     const prefetchRequest = generateMock.mock.calls[1]?.[0] as AudioRequest;
     expect(prefetchRequest.text).toContain('two thousand twenty-two');
     expect(await service.isParagraphCached(1)).toBe(true);
+
+    // Consuming the prefetched paragraph must publish timings in SOURCE
+    // coordinates: the printed token, never the spoken expansion words, and
+    // with offsets that point into the paragraph text.
+    const timelineSpy = jest.spyOn(highlightSync, 'setWordTimeline');
+    await service.next();
+    const published = timelineSpy.mock.calls.at(-1)?.[2] ?? [];
+    const words = published.map((timing) => timing.word);
+    expect(words).toContain('2022');
+    expect(words).not.toContain('thousand');
+    const paragraphWord = published.find((timing) => timing.word === 'paragraph');
+    expect(paragraphWord?.charOffset).toBe('Another 2022 paragraph.'.indexOf('paragraph'));
     await service.stop();
   });
 

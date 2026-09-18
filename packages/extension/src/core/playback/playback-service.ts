@@ -1641,10 +1641,24 @@ export class PlaybackService {
 
     const audioUrl = await this.deps.audioUrlProvider.createUrl(audioResponse.audioBlob);
 
-    const wordTimings =
+    const localTimings =
       audioResponse.wordTimings && audioResponse.wordTimings.length > 0
         ? this.convertProviderTimings(audioResponse.wordTimings, spokenText)
         : this.estimateWordTimings(spokenText, audioResponse.durationMs ?? 0);
+    // Project onto printed tokens HERE: the consumption path publishes these
+    // timings verbatim, so spoken-domain words/offsets would leak through.
+    const wordTimings = this.toTimelineItems(
+      projectCharTimings(
+        localTimings.map(({ word, charOffset, charLength, startTimeMs, endTimeMs }) => ({
+          word,
+          charOffset,
+          charLength,
+          startMs: startTimeMs,
+          endMs: endTimeMs,
+        })),
+        plan,
+      ),
+    );
 
     return {
       audioUrl,
