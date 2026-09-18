@@ -39,6 +39,36 @@ async function waitForIt(condition: () => boolean): Promise<void> {
   }
 }
 
+/**
+ * Start a session whose settings read is still pending and then stop it.
+ * Shared by the two start-ownership regressions (slow read, rejecting read).
+ */
+async function stopWhileSettingsReadPending(options: {
+  delayMs: number;
+  reject: boolean;
+}): Promise<{ generateMock: jest.Mock; service: PlaybackService }> {
+  const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+    settingsLatencyMs: options.reject ? undefined : options.delayMs,
+  });
+  if (options.reject) {
+    (service as unknown as { deps: { settingsStore: { getSettings: () => Promise<unknown> } } }).deps.settingsStore =
+      {
+        getSettings: () =>
+          new Promise((_resolve, reject) => {
+            setTimeout(() => reject(new Error('storage unavailable')), options.delayMs);
+          }),
+      };
+  }
+  service.setLanguage('en');
+
+  const starting = service.start(['Proso reads.'], 7, 'https://example.test/article');
+  await new Promise((resolve) => setTimeout(resolve, Math.max(5, Math.floor(options.delayMs / 4))));
+  await service.stop();
+  await starting;
+  await new Promise((resolve) => setTimeout(resolve, options.delayMs + 40));
+  return { generateMock, service };
+}
+
 /** A generator whose clip is always ready — the fetch window is not the subject here. */
 function createInstantAudioGenerator(): IAudioGenerator {
   return {
@@ -348,19 +378,39 @@ describe('PlaybackService pause during a paragraph load', () => {
   });
 
   it('abandons a start whose settings read outlives a stop', async () => {
+    const { generateMock, service } = await stopWhileSettingsReadPending({
+      delayMs: 60,
+      reject: false,
+    });
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('abandons a start whose settings read rejects after a stop', async () => {
+    const { generateMock, service } = await stopWhileSettingsReadPending({
+      delayMs: 40,
+      reject: true,
+    });
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('lets the latest concurrent start win', async () => {
     const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
-      settingsLatencyMs: 60,
+      settingsLatencyMs: 40,
     });
     service.setLanguage('en');
 
-    const starting = service.start(['Proso reads.'], 7, 'https://example.test/article');
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    await service.stop();
-    await starting;
-    await new Promise((resolve) => setTimeout(resolve, 90));
+    const first = service.start(['Older article.'], 7, 'https://example.test/older');
+    const second = service.start(['Newer article.'], 7, 'https://example.test/newer');
+    await Promise.all([first, second]);
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
 
-    expect(generateMock).not.toHaveBeenCalled();
-    expect(service.getState().status).toBe('stopped');
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts).not.toContain('Older article.');
+    expect(texts).toContain('Newer article.');
+    expect(service.getState().status).toBe('playing');
+    await service.stop();
   });
 
   it('discards a prefetched clip whose spoken text no longer matches the rules', async () => {

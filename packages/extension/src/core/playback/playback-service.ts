@@ -102,6 +102,12 @@ export class PlaybackService {
   private chunkPlan: SpokenPlan | null = null;
   /** Reader-owned pronunciation entries, refreshed from settings (251). */
   private pronunciationLexicon: readonly PronunciationEntry[] = [];
+  /**
+   * Monotonic start ownership (251): assigned synchronously on start() entry
+   * so the LATEST start wins when two overlap, and bumped by stop() so any
+   * pending start's settings read is invalidated (rejection included).
+   */
+  private startAttempt = 0;
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
   private playbackGeneration = 0;
@@ -178,19 +184,21 @@ export class PlaybackService {
     this.transitionInFlight = null;
     // Settings may not have published yet in this session; read the lexicon
     // directly so the first paragraph already speaks the reader's entries.
-    // The read is guarded: a Stop (or another start) landing during it bumps
-    // the generation, and this start must then abandon instead of resurrecting
-    // playback after the reader ended the session.
-    const settingsReadGeneration = this.playbackGeneration;
+    // Ownership is claimed synchronously: a Stop (or a newer start) landing
+    // during the read invalidates this attempt on BOTH outcomes, so a stop
+    // cannot be resurrected and the latest start always wins.
+    const attempt = ++this.startAttempt;
+    let settings: Settings | null = null;
     try {
-      const settings = await this.deps.settingsStore.getSettings();
-      if (this.playbackGeneration !== settingsReadGeneration) {
-        return Ok(this.state);
-      }
-      this.applyLexiconSettings(settings);
+      settings = await this.deps.settingsStore.getSettings();
     } catch {
       // Keep the last known lexicon; playback must not fail on a settings read.
+      settings = null;
     }
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
+    }
+    if (settings) this.applyLexiconSettings(settings);
 
     // A session begins reading in whatever voice state currently holds, so
     // that is the baseline every later settings notification is compared
@@ -348,6 +356,8 @@ export class PlaybackService {
     // stale transition's own completion is identity-checked, so it cannot
     // clobber a slot installed by whatever comes next.
     this.transitionInFlight = null;
+    // Invalidate any start still awaiting its settings read.
+    this.startAttempt += 1;
 
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
