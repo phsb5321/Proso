@@ -33,7 +33,14 @@ export function parsePronunciationRules(
   text: string,
   previous: readonly PronunciationEntry[] = [],
 ): ParsePronunciationResult {
-  const byMatch = new Map(previous.map((entry) => [entry.match, entry]));
+  // A match may legitimately repeat across locales; keep every previous entry
+  // available once so a round-trip cannot collapse or re-tag them.
+  const remainingByMatch = new Map<string, PronunciationEntry[]>();
+  for (const entry of previous) {
+    const bucket = remainingByMatch.get(entry.match) ?? [];
+    bucket.push(entry);
+    remainingByMatch.set(entry.match, bucket);
+  }
   const entries: PronunciationEntry[] = [];
   const errors: string[] = [];
 
@@ -72,7 +79,8 @@ export function parsePronunciationRules(
       errors.push(`Line ${index + 1}: the spoken text is identical to the printed text.`);
       continue;
     }
-    const existing = byMatch.get(match);
+    const bucket = remainingByMatch.get(match);
+    const existing = bucket?.shift();
     entries.push({
       id: existing?.id ?? `rule-${index + 1}-${entries.length + 1}`,
       locale: existing?.locale ?? 'all',

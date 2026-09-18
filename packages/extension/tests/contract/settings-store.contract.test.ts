@@ -21,7 +21,7 @@ import { MockSettingsStore } from '../mocks';
  */
 export function runSettingsStoreContractTests(
   adapterName: string,
-  createAdapter: () => ISettingsStore
+  createAdapter: () => ISettingsStore,
 ) {
   describe(`${adapterName} implements ISettingsStore contract`, () => {
     let adapter: ISettingsStore;
@@ -161,6 +161,35 @@ export function runSettingsStoreContractTests(
         // Callback should have been called (implementation dependent)
         // Note: This behavior depends on the specific adapter implementation
         // Some adapters may call synchronously, others async
+      });
+
+      it('publishes the pronunciation lexicon in subscription payloads (251)', async () => {
+        const callback = jest.fn();
+        adapter.subscribe(callback);
+
+        await adapter.updateSettings({
+          pronunciationLexiconEnabled: true,
+          pronunciationLexicon: [
+            {
+              id: 'rule-1',
+              locale: 'all',
+              match: 'Proso',
+              spoken: 'Prôzo',
+              matchMode: 'word',
+              caseSensitive: false,
+              enabled: true,
+            },
+          ],
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        const payload = callback.mock.calls.at(-1)?.[0] as
+          | { pronunciationLexicon?: unknown[]; pronunciationLexiconEnabled?: boolean }
+          | undefined;
+        // The playback subscriber rebuilds its cached lexicon from this
+        // payload: omitting the fields erased the reader's rules.
+        expect(payload?.pronunciationLexicon).toHaveLength(1);
+        expect(payload?.pronunciationLexiconEnabled).toBe(true);
       });
 
       it('should stop calling callback after unsubscribe', async () => {

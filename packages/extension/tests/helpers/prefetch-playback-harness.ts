@@ -25,6 +25,7 @@ export type PrefetchPlaybackHarness = {
   generateMock: jest.Mock;
   highlightSync: ReturnType<typeof createMockHighlightSync>;
   audioUrlProvider: ReturnType<typeof createMockAudioUrlProvider>;
+  settingsStore: ReturnType<typeof createMockSettingsStore>;
   queue: PlaybackQueue;
   prefetch: PrefetchService;
   service: PlaybackService;
@@ -38,6 +39,7 @@ export function createPrefetchPlaybackHarness(
     maxBufferSize?: number;
     batchIntervalMs?: number;
     settings?: Partial<Settings>;
+    settingsLatencyMs?: number;
   } = {},
 ): PrefetchPlaybackHarness {
   const audioUrlProvider = createMockAudioUrlProvider();
@@ -48,12 +50,16 @@ export function createPrefetchPlaybackHarness(
     batchIntervalMs: options.batchIntervalMs ?? 1,
   });
   const highlightSync = createMockHighlightSync({ validTabIds: [options.tabId ?? 7] });
+  const settingsStore = createMockSettingsStore({
+    initialSettings: options.settings,
+    latencyMs: options.settingsLatencyMs,
+  });
   const service = new PlaybackService({
     audioGenerator,
     audioUrlProvider,
     cacheStore: createMockCacheStore(),
     highlightSync,
-    settingsStore: createMockSettingsStore({ initialSettings: options.settings }),
+    settingsStore,
     prefetch: { service: prefetch, queue },
   });
   prefetch.configure(
@@ -65,6 +71,7 @@ export function createPrefetchPlaybackHarness(
     audioGenerator,
     generateMock: audioGenerator.generateAudio as jest.Mock,
     highlightSync,
+    settingsStore,
     audioUrlProvider,
     queue,
     prefetch,

@@ -41,7 +41,9 @@ export interface SpokenPlan {
 }
 
 // URLs and dotted version numbers are never rewritten.
-const PROTECTED_PATTERN = /https?:\/\/\S+|\b\d+(?:\.\d+){2,}\b/gi;
+// URLs, plus dotted version tokens including an optional identifier prefix
+// (`v1.2.3`, `chrome-1.2.3`): a lexicon rule must never rewrite them.
+const PROTECTED_PATTERN = /https?:\/\/\S+|[A-Za-z]*-?\d+(?:\.\d+){2,}\b|\b\d+(?:\.\d+){2,}\b/gi;
 
 /** Map a playback language tag to a plan locale, or null when unsupported. */
 export function planLocaleFor(language: string | null | undefined): SpokenPlanLocale | null {

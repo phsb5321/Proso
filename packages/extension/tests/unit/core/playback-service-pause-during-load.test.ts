@@ -347,6 +347,56 @@ describe('PlaybackService pause during a paragraph load', () => {
     }
   });
 
+  it('abandons a start whose settings read outlives a stop', async () => {
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settingsLatencyMs: 60,
+    });
+    service.setLanguage('en');
+
+    const starting = service.start(['Proso reads.'], 7, 'https://example.test/article');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.stop();
+    await starting;
+    await new Promise((resolve) => setTimeout(resolve, 90));
+
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('discards a prefetched clip whose spoken text no longer matches the rules', async () => {
+    const rule = (spoken: string) => ({
+      id: 'r1',
+      locale: 'all' as const,
+      match: 'Proso',
+      spoken,
+      matchMode: 'word' as const,
+      caseSensitive: false,
+      enabled: true,
+    });
+    const { generateMock, service, settingsStore } = createPrefetchPlaybackHarness(
+      createInstantAudioGenerator(),
+      {
+        settings: { pronunciationLexiconEnabled: true, pronunciationLexicon: [rule('Prôzo')] },
+      },
+    );
+    service.setLanguage('en');
+
+    await service.start(['Proso reads.', 'Proso again.'], 7, 'https://example.test/article');
+    await waitForIt(() => generateMock.mock.calls.length >= 2);
+    expect((generateMock.mock.calls[1]?.[0] as AudioRequest).text).toContain('Prôzo');
+
+    // The reader edits the rule after the lookahead was buffered.
+    await settingsStore.updateSettings({
+      pronunciationLexicon: [rule('Prôzo novo')],
+    });
+    await service.next();
+
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts.some((text) => text.includes('Prôzo novo'))).toBe(true);
+    expect(texts.filter((text) => text.includes('Prôzo reads'))).toHaveLength(1);
+    await service.stop();
+  });
+
   it('speaks the reader pronunciation rules for every provider', async () => {
     const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
       settings: {

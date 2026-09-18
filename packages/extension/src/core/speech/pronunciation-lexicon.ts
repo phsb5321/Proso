@@ -74,6 +74,9 @@ export function compilePronunciations(
 ): PronunciationEdit[] {
   const candidates = entries
     .filter((entry) => isUsable(entry) && localeMatches(entry, locale))
+    // The compiler enforces its own cap: a caller that bypasses settings
+    // validation still cannot make the plan arbitrarily expensive.
+    .slice(0, PRONUNCIATION_MAX_ENTRIES)
     .map((entry, order) => ({ entry, order }))
     .sort((a, b) => b.entry.match.length - a.entry.match.length || a.order - b.order);
 

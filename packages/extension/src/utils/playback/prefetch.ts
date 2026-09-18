@@ -50,6 +50,11 @@ export interface PrefetchTask {
 export interface PrefetchedAudio {
   /** Paragraph index */
   index: number;
+  /**
+   * The exact spoken text this clip was synthesized from (251): a rule change
+   * must invalidate the buffered clip even when voice and provider are equal.
+   */
+  spokenText?: string;
   /** Audio blob URL for playback */
   audioUrl: string;
   /** Raw audio data for persistent cache storage (T046) */
@@ -112,6 +117,8 @@ export type AudioGenerator = (
   timingBasis?: 'provider' | 'estimated';
   provider?: string;
   voice?: string | null;
+  /** Exact spoken text the clip was synthesized from (251 invalidation). */
+  spokenText?: string;
 } | null>;
 
 /**
@@ -546,6 +553,7 @@ export class PrefetchService {
         prefetchedAt: Date.now(),
         provider: result.provider,
         voice: result.voice,
+        spokenText: result.spokenText,
       };
 
       this.buffer.set(task.index, prefetchedAudio);

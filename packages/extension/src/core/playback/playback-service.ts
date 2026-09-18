@@ -178,8 +178,16 @@ export class PlaybackService {
     this.transitionInFlight = null;
     // Settings may not have published yet in this session; read the lexicon
     // directly so the first paragraph already speaks the reader's entries.
+    // The read is guarded: a Stop (or another start) landing during it bumps
+    // the generation, and this start must then abandon instead of resurrecting
+    // playback after the reader ended the session.
+    const settingsReadGeneration = this.playbackGeneration;
     try {
-      this.applyLexiconSettings(await this.deps.settingsStore.getSettings());
+      const settings = await this.deps.settingsStore.getSettings();
+      if (this.playbackGeneration !== settingsReadGeneration) {
+        return Ok(this.state);
+      }
+      this.applyLexiconSettings(settings);
     } catch {
       // Keep the last known lexicon; playback must not fail on a settings read.
     }
@@ -600,9 +608,7 @@ export class PlaybackService {
   /** Refresh the cached lexicon from settings (safe to call repeatedly). */
   private applyLexiconSettings(settings: Settings): void {
     this.pronunciationLexicon =
-      settings.pronunciationLexiconEnabled === false
-        ? []
-        : (settings.pronunciationLexicon ?? []);
+      settings.pronunciationLexiconEnabled === false ? [] : (settings.pronunciationLexicon ?? []);
   }
 
   /**
@@ -1407,7 +1413,10 @@ export class PlaybackService {
       const prefetched = this.deps.prefetch.service.consume(index);
       if (prefetched) {
         const paramsMatch =
-          prefetched.provider === this.state.provider && prefetched.voice === this.state.voice;
+          prefetched.provider === this.state.provider &&
+          prefetched.voice === this.state.voice &&
+          (prefetched.spokenText === undefined ||
+            prefetched.spokenText === this.buildParagraphPlan(text).spokenText);
         if (paramsMatch) {
           return this.playFromPrefetchBuffer(index, prefetched, generation);
         }
@@ -1711,6 +1720,7 @@ export class PlaybackService {
     timingBasis?: 'provider' | 'estimated';
     provider?: string;
     voice?: string | null;
+    spokenText?: string;
   } | null> {
     // Label the entry (and cache it) under the voice REQUESTED here, not the
     // voice live at completion: a voice change while this lookahead is in
@@ -1779,6 +1789,7 @@ export class PlaybackService {
           : 'estimated',
       provider: requestedProvider,
       voice: requestedVoice,
+      spokenText,
     };
   }
 

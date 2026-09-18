@@ -30,11 +30,9 @@ describe('compilePronunciations', () => {
   });
 
   it('phrase mode matches a literal phrase', () => {
-    const edits = compilePronunciations(
-      'The World Health Organization met.',
-      'en',
-      [entry({ match: 'World Health Organization', spoken: 'WHO', matchMode: 'phrase' })],
-    );
+    const edits = compilePronunciations('The World Health Organization met.', 'en', [
+      entry({ match: 'World Health Organization', spoken: 'WHO', matchMode: 'phrase' }),
+    ]);
     expect(edits).toHaveLength(1);
     expect(edits[0]?.sourceStart).toBe(4);
   });
@@ -55,6 +53,14 @@ describe('compilePronunciations', () => {
     ];
     expect(compilePronunciations('Proso', 'en', entries)).toEqual([]);
     expect(compilePronunciations('Proso', 'pt-BR', entries)).toHaveLength(1);
+  });
+
+  it('enforces the entry cap by itself', () => {
+    const many = Array.from({ length: 205 }, (_, i) =>
+      entry({ id: `e${i}`, match: `term${i}`, spoken: `spoken${i}` }),
+    );
+    const edits = compilePronunciations(many.map((e) => e.match).join(' '), 'en', many);
+    expect(edits).toHaveLength(200);
   });
 });
 
@@ -77,6 +83,13 @@ describe('buildSpokenPlan with a lexicon', () => {
   it('applies to-locale "all" entries even when the language is unknown', () => {
     const plan = buildSpokenPlan('Proso reads.', null, [entry()]);
     expect(plan.spokenText).toBe('Prôzo reads.');
+  });
+
+  it('never rewrites a prefixed dotted version', () => {
+    const plan = buildSpokenPlan('Runs v1.2.3 today.', 'en', [
+      entry({ match: '1.2.3', spoken: 'um dois três', matchMode: 'phrase' }),
+    ]);
+    expect(plan.spokenText).toBe('Runs v1.2.3 today.');
   });
 
   it('leaves text untouched when the lexicon has no matches', () => {

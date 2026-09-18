@@ -56,6 +56,33 @@ describe('parsePronunciationRules', () => {
     expect(errors).toHaveLength(2);
   });
 
+  it('preserves duplicated matches across locales without collapsing them', () => {
+    const { entries } = parsePronunciationRules('OM => Organização', [
+      {
+        id: 'pt',
+        locale: 'pt-BR',
+        match: 'OM',
+        spoken: 'antigo',
+        matchMode: 'word',
+        caseSensitive: false,
+        enabled: true,
+      },
+      {
+        id: 'en',
+        locale: 'en',
+        match: 'OM',
+        spoken: 'old',
+        matchMode: 'word',
+        caseSensitive: false,
+        enabled: false,
+      },
+    ]);
+    // One line -> one entry, and it must keep the FIRST stored duplicate's
+    // metadata; the old map keyed by match alone kept the LAST one instead.
+    expect(entries.map((e) => e.id)).toEqual(['pt']);
+    expect(entries[0]?.locale).toBe('pt-BR');
+  });
+
   it('round-trips through the formatter', () => {
     const { entries } = parsePronunciationRules('Proso => Prôzo');
     expect(formatPronunciationRules(entries)).toBe('Proso => Prôzo');
