@@ -90,6 +90,11 @@ describe('findSpeechDateReplacements', () => {
     expect(spoken('2026-09-29', 'en')).toEqual(['September twenty-ninth, two thousand twenty-six']);
   });
 
+  it('speaks round-decade ordinals without the cardinal y', () => {
+    expect(spoken('2026-09-20', 'en')).toEqual(['September twentieth, two thousand twenty-six']);
+    expect(spoken('2026-09-30', 'en')).toEqual(['September thirtieth, two thousand twenty-six']);
+  });
+
   it('validates ISO dates instead of speaking impossible ones', () => {
     expect(spoken('2023-02-29', 'en')).toEqual([]);
     expect(spoken('2026-02-31', 'en')).toEqual([]);

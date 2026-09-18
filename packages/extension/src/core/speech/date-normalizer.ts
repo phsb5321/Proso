@@ -201,7 +201,8 @@ function ordinalEn(day: number): string {
   if (day < 20) return EN_ORDINAL_ONES[day] ?? `${day}th`;
   const tens = EN_TENS[Math.floor(day / 10)] ?? String(Math.floor(day / 10));
   const ones = day % 10;
-  if (ones === 0) return `${tens}ieth`; // twentieth, thirtieth
+  // twentieth, thirtieth: the cardinal's final y drops before -ieth.
+  if (ones === 0) return `${tens.slice(0, -1)}ieth`;
   return `${tens}-${EN_ORDINAL_ONES[ones]}`; // twenty-first, thirty-ninth
 }
 
@@ -287,13 +288,7 @@ export function findSpeechDateReplacements(
     const month = Number(match[3]);
     const day = Number(match[4]);
     if (!isDateReal(year, month, day)) continue;
-    claimEnDate(
-      month,
-      day,
-      year,
-      match.index + match[1].length,
-      match[0].length - match[1].length,
-    );
+    claimEnDate(month, day, year, match.index + match[1].length, match[0].length - match[1].length);
   }
 
   for (const match of text.matchAll(EN_SLASH_DATE)) {

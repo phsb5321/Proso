@@ -43,11 +43,32 @@ const SPELL_SET = new Set(SPELL_LETTER_BY_LETTER);
 // falsely match `API` inside `caféAPI` or `APIção`.
 const ACRONYM_TOKEN = /[A-Z]{3,}/g;
 
+/** The full code point ending at `index` (surrogate-pair aware). */
+function codePointBefore(text: string, index: number): string {
+  if (index <= 0) return '';
+  const unit = text.charCodeAt(index - 1);
+  if (unit >= 0xdc00 && unit <= 0xdfff && index - 2 >= 0) {
+    const lead = text.charCodeAt(index - 2);
+    if (lead >= 0xd800 && lead <= 0xdbff) return text.slice(index - 2, index);
+  }
+  return text.slice(index - 1, index);
+}
+
+/** The full code point starting at `index` (surrogate-pair aware). */
+function codePointAt(text: string, index: number): string {
+  if (index >= text.length) return '';
+  const unit = text.charCodeAt(index);
+  if (unit >= 0xd800 && unit <= 0xdbff && index + 1 < text.length) {
+    const trail = text.charCodeAt(index + 1);
+    if (trail >= 0xdc00 && trail <= 0xdfff) return text.slice(index, index + 2);
+  }
+  return text.slice(index, index + 1);
+}
+
 function standalone(text: string, start: number, end: number): boolean {
-  const before = start > 0 ? text[start - 1] : '';
-  const after = end < text.length ? text[end] : '';
-  const letterish = (ch: string) => /[\p{L}\p{N}_]/u.test(ch);
-  return !letterish(before) && !letterish(after);
+  // Marks matter too: `cafe\u0301API` must not spell the token.
+  const letterish = (ch: string) => /[\p{L}\p{N}\p{M}_]/u.test(ch);
+  return !letterish(codePointBefore(text, start)) && !letterish(codePointAt(text, end));
 }
 
 export function findSpeechAcronymReplacements(

@@ -56,6 +56,13 @@ describe('findSpeechAcronymReplacements', () => {
     });
   }
 
+  it('refuses tokens beside combining marks and non-BMP letters', () => {
+    expect(spoken('cafe\u0301API')).toEqual([]);
+    expect(spoken('API\u0301acao')).toEqual([]);
+    expect(spoken('\u{10400}API')).toEqual([]);
+    expect(spoken('API\u{10400}')).toEqual([]);
+  });
+
   it('emits ordered non-overlapping ranges for multiple matches', () => {
     const text = 'A API e o PDF';
     const replacements = findSpeechAcronymReplacements(text, 'pt-BR');
