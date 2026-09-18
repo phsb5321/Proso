@@ -347,6 +347,33 @@ describe('PlaybackService pause during a paragraph load', () => {
     }
   });
 
+  it('speaks the reader pronunciation rules for every provider', async () => {
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settings: {
+        pronunciationLexiconEnabled: true,
+        pronunciationLexicon: [
+          {
+            id: 'rule-1',
+            locale: 'all',
+            match: 'Proso',
+            spoken: 'Prôzo',
+            matchMode: 'word',
+            caseSensitive: false,
+            enabled: true,
+          },
+        ],
+      },
+    });
+    service.setLanguage('en');
+
+    await service.start(['Proso reads.'], 7, 'https://example.test/article');
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
+
+    const request = generateMock.mock.calls[0]?.[0] as AudioRequest;
+    expect(request.text).toBe('Prôzo reads.');
+    await service.stop();
+  });
+
   it('prefetches the spoken text and keys the cache by it', async () => {
     // The lookahead path must synthesize the same normalized text the live
     // path sends, and write the durable cache under the same identity —

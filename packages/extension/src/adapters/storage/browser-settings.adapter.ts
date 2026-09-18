@@ -55,12 +55,19 @@ export class BrowserSettingsAdapter implements ISettingsStore {
       cacheEnabled: all.cacheEnabled,
       maxCacheSize: all.maxCacheSize,
       wordSyncEnabled: all.wordSyncEnabled,
+      pronunciationLexiconEnabled: all.pronunciationLexiconEnabled,
+      pronunciationLexicon: all.pronunciationLexicon,
     };
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<void> {
     await this.ensureInitialized();
-    await settingsStore.save(updates);
+    // The port exposes readonly arrays; the persisted schema owns mutable ones.
+    const { pronunciationLexicon, ...rest } = updates;
+    await settingsStore.save({
+      ...rest,
+      ...(pronunciationLexicon ? { pronunciationLexicon: [...pronunciationLexicon] } : {}),
+    });
   }
 
   async getApiKey(provider: ProviderId): Promise<string | null> {

@@ -37,6 +37,7 @@ import {
 } from './playback-state';
 import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
+import type { PronunciationEntry } from '../speech/pronunciation-lexicon';
 import {
   buildSpokenPlan,
   planLocaleFor,
@@ -99,6 +100,8 @@ export class PlaybackService {
   private audioElement: HTMLAudioElement | null = null;
   /** Spoken plan of the chunked paragraph currently draining (slice 245). */
   private chunkPlan: SpokenPlan | null = null;
+  /** Reader-owned pronunciation entries, refreshed from settings (251). */
+  private pronunciationLexicon: readonly PronunciationEntry[] = [];
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
   private playbackGeneration = 0;
@@ -173,6 +176,13 @@ export class PlaybackService {
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // A fresh session never inherits a pending transition from a previous one.
     this.transitionInFlight = null;
+    // Settings may not have published yet in this session; read the lexicon
+    // directly so the first paragraph already speaks the reader's entries.
+    try {
+      this.applyLexiconSettings(await this.deps.settingsStore.getSettings());
+    } catch {
+      // Keep the last known lexicon; playback must not fail on a settings read.
+    }
 
     // A session begins reading in whatever voice state currently holds, so
     // that is the baseline every later settings notification is compared
@@ -584,7 +594,15 @@ export class PlaybackService {
   }
 
   private buildParagraphPlan(text: string): SpokenPlan {
-    return buildSpokenPlan(text, this.spokenPlanLocale());
+    return buildSpokenPlan(text, this.spokenPlanLocale(), this.pronunciationLexicon);
+  }
+
+  /** Refresh the cached lexicon from settings (safe to call repeatedly). */
+  private applyLexiconSettings(settings: Settings): void {
+    this.pronunciationLexicon =
+      settings.pronunciationLexiconEnabled === false
+        ? []
+        : (settings.pronunciationLexicon ?? []);
   }
 
   /**
@@ -614,6 +632,7 @@ export class PlaybackService {
     this.settingsUnsubscribe = this.deps.settingsStore.subscribe((settings: Settings) => {
       const previousVoice = this.lastPublishedVoice;
       this.lastPublishedVoice = settings.voice;
+      this.applyLexiconSettings(settings);
 
       this.state = playbackStateTransitions.updateSettings(this.state, {
         provider: settings.provider,

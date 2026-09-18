@@ -47,6 +47,8 @@ export const defaults: Readonly<Settings> = Object.freeze({
   localHostUrl: null,
   localHostEnabled: false,
   localHostVoice: null,
+  pronunciationLexiconEnabled: true,
+  pronunciationLexicon: [],
 });
 
 /**

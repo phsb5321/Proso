@@ -12,6 +12,12 @@
 
 import { z } from 'zod';
 
+import {
+  PRONUNCIATION_MAX_ENTRIES,
+  PRONUNCIATION_MAX_MATCH_LENGTH,
+  PRONUNCIATION_MAX_SPOKEN_LENGTH,
+} from '../../core/speech/pronunciation-lexicon';
+
 /**
  * Valid mode values for text extraction
  */
@@ -123,6 +129,24 @@ export const settingsSchema = z.object({
   localHostUrl: z.string().url().nullable().default(null),
   localHostEnabled: z.boolean().default(false),
   localHostVoice: z.string().nullable().default(null),
+
+  // User pronunciation lexicon (251): literal match -> spoken entries the
+  // reader owns. Compiled into the spoken plan for every provider.
+  pronunciationLexiconEnabled: z.boolean().default(true),
+  pronunciationLexicon: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        locale: z.enum(['all', 'en', 'pt-BR']).default('all'),
+        match: z.string().min(1).max(PRONUNCIATION_MAX_MATCH_LENGTH),
+        spoken: z.string().min(1).max(PRONUNCIATION_MAX_SPOKEN_LENGTH),
+        matchMode: z.enum(['word', 'phrase']).default('word'),
+        caseSensitive: z.boolean().default(false),
+        enabled: z.boolean().default(true),
+      }),
+    )
+    .max(PRONUNCIATION_MAX_ENTRIES)
+    .default([]),
 });
 
 /**

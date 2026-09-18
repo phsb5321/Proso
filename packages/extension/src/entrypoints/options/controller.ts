@@ -17,6 +17,8 @@ import {
 import { downloadJson } from '../../utils/download/download-json';
 import { validateHostUrl } from '../../utils/first-run';
 import { createLogger } from '../../utils/logging/logger';
+import type { PronunciationEntry } from '../../core/speech/pronunciation-lexicon';
+import { formatPronunciationRules, parsePronunciationRules } from './pronunciation-rules';
 import {
   collectProviderStateFromUI,
   deriveProviderState,
@@ -129,6 +131,9 @@ interface OptionsElements {
 
   // Local synthesis host (PROSO-110)
   localHostEnabled: HTMLInputElement;
+  pronunciationLexiconEnabled: HTMLInputElement;
+  pronunciationLexicon: HTMLTextAreaElement;
+  pronunciationStatus: HTMLElement;
   localHostUrl: HTMLInputElement;
   localHostVoice: HTMLSelectElement;
   localHostTestBtn: HTMLButtonElement;
@@ -233,6 +238,9 @@ function getElements(): OptionsElements {
 
     // Local synthesis host (PROSO-110)
     localHostEnabled: getElement<HTMLInputElement>('localHostEnabled'),
+    pronunciationLexiconEnabled: getElement<HTMLInputElement>('pronunciationLexiconEnabled'),
+    pronunciationLexicon: getElement<HTMLTextAreaElement>('pronunciationLexicon'),
+    pronunciationStatus: getElement<HTMLElement>('pronunciationStatus'),
     localHostUrl: getElement<HTMLInputElement>('localHostUrl'),
     localHostVoice: getElement<HTMLSelectElement>('localHostVoice'),
     localHostTestBtn: getElement<HTMLButtonElement>('testLocalHost'),
@@ -274,6 +282,7 @@ export async function initOptionsPage(): Promise<void> {
   await loadSettings();
   await loadQuickSettings();
   await loadLocalHostSettings();
+  await loadPronunciationSettings();
   await licenseSettings.loadStatus();
   await loadLoggingConfig();
   await loadQueueConfig();
@@ -318,6 +327,28 @@ const PROVIDER_VOICES: Record<string, Array<{ value: string; label: string }>> =
 
 /** Voices last loaded from the host's /v1/capabilities (for the voice pickers). */
 let lastLocalHostVoices: Array<{ value: string; label: string }> | null = null;
+
+/**
+ * Load the pronunciation section state from storage (251).
+ */
+async function loadPronunciationSettings(): Promise<void> {
+  if (!elements) return;
+  try {
+    const result = await browser.storage.local.get([
+      'pronunciationLexiconEnabled',
+      'pronunciationLexicon',
+    ]);
+    elements.pronunciationLexiconEnabled.checked = result.pronunciationLexiconEnabled !== false;
+    const stored = Array.isArray(result.pronunciationLexicon)
+      ? (result.pronunciationLexicon as PronunciationEntry[])
+      : [];
+    elements.pronunciationLexicon.value = formatPronunciationRules(stored);
+    elements.pronunciationStatus.textContent =
+      stored.length === 0 ? '' : `${stored.length} rule${stored.length === 1 ? '' : 's'} saved.`;
+  } catch (error) {
+    log.error('Error loading pronunciation settings', { error });
+  }
+}
 
 /**
  * Load the local-host section state from storage.
@@ -1406,7 +1437,28 @@ async function saveSettings(): Promise<void> {
   if (!elements) return;
 
   try {
+    // Pronunciation rules are edited as lines; invalid lines block only the
+    // lexicon write and are reported inline.
+    const previousStored = await browser.storage.local.get('pronunciationLexicon');
+    const previous = Array.isArray(previousStored.pronunciationLexicon)
+      ? (previousStored.pronunciationLexicon as PronunciationEntry[])
+      : [];
+    const parsed = parsePronunciationRules(elements.pronunciationLexicon.value, previous);
+    elements.pronunciationStatus.textContent =
+      parsed.errors.length > 0
+        ? parsed.errors.join(' ')
+        : parsed.entries.length === 0
+          ? 'No pronunciation rules set.'
+          : `${parsed.entries.length} rule${parsed.entries.length === 1 ? '' : 's'} saved.`;
+    elements.pronunciationStatus.style.color = parsed.errors.length > 0 ? '#ef4444' : '#10b981';
+
     await browser.storage.local.set({
+      ...(parsed.errors.length === 0
+        ? {
+            pronunciationLexicon: parsed.entries,
+            pronunciationLexiconEnabled: elements.pronunciationLexiconEnabled.checked,
+          }
+        : {}),
       elevenlabsApiKey: elements.elevenlabsKey.value.trim(),
       openaiApiKey: elements.openaiKey.value.trim(),
       groqApiKey: elements.groqKey.value.trim(),

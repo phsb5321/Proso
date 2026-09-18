@@ -14,11 +14,14 @@
 
 import type { WordTiming } from '../../ports/audio-generator.port';
 import { tokenizeWords } from '../playback/word-timing-estimator';
+import { findSpeechAcronymReplacements } from './acronym-normalizer';
+import { findSpeechDateReplacements } from './date-normalizer';
+import { compilePronunciations, type PronunciationEntry } from './pronunciation-lexicon';
 import { findSpeechNumberReplacements } from './text-normalizer';
 
 export type SpokenPlanLocale = 'en' | 'pt-BR';
 
-export const SPOKEN_PLAN_REVISION = 'spoken-plan-v1';
+export const SPOKEN_PLAN_REVISION = 'spoken-plan-v2';
 
 export interface SpokenSegment {
   readonly spokenStart: number;
@@ -63,19 +66,47 @@ function identityPlan(sourceText: string, locale: SpokenPlanLocale | null): Spok
  * over the immutable source, with protected spans (URLs, version numbers)
  * excluded from rewriting.
  */
-export function buildSpokenPlan(sourceText: string, locale: SpokenPlanLocale | null): SpokenPlan {
-  if (locale === null) return identityPlan(sourceText, null);
+export function buildSpokenPlan(
+  sourceText: string,
+  locale: SpokenPlanLocale | null,
+  lexicon: readonly PronunciationEntry[] = [],
+): SpokenPlan {
+  const allLocaleEntries = lexicon.filter((entry) => entry.locale === 'all');
+  if (locale === null && allLocaleEntries.length === 0) return identityPlan(sourceText, null);
 
   const protectedRanges: Array<[number, number]> = Array.from(
     sourceText.matchAll(PROTECTED_PATTERN),
   ).map((match) => [match.index, match.index + match[0].length]);
-  const isProtected = (start: number, end: number): boolean =>
-    protectedRanges.some(([s, e]) => start < e && end > s);
+  const claimed: Array<[number, number]> = [];
+  const overlaps = (start: number, end: number): boolean =>
+    protectedRanges.some(([s, e]) => start < e && end > s) ||
+    claimed.some(([s, e]) => start < e && end > s);
 
-  const edits = findSpeechNumberReplacements(sourceText, locale).filter(
-    (edit) => !isProtected(edit.sourceStart, edit.sourceEnd),
-  );
+  type PlanEdit = { sourceStart: number; sourceEnd: number; spokenText: string };
+  const edits: PlanEdit[] = [];
+
+  // Precedence: the reader's own entries first (a user rule is never
+  // overridden by a built-in guess), then dates and acronyms (specific,
+  // high-confidence forms), then the broad number grammar.
+  const accept = (candidates: readonly PlanEdit[]): void => {
+    for (const edit of candidates) {
+      if (overlaps(edit.sourceStart, edit.sourceEnd)) continue;
+      claimed.push([edit.sourceStart, edit.sourceEnd]);
+      edits.push(edit);
+    }
+  };
+
+  if (locale === null) {
+    accept(compilePronunciations(sourceText, 'en', allLocaleEntries));
+  } else {
+    accept(compilePronunciations(sourceText, locale, lexicon));
+    accept(findSpeechDateReplacements(sourceText, locale));
+    accept(findSpeechAcronymReplacements(sourceText, locale));
+    accept(findSpeechNumberReplacements(sourceText, locale));
+  }
+
   if (edits.length === 0) return identityPlan(sourceText, locale);
+  edits.sort((a, b) => a.sourceStart - b.sourceStart);
 
   const segments: SpokenSegment[] = [];
   let cursor = 0;

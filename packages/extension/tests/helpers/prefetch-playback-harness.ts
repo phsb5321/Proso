@@ -9,6 +9,7 @@
  */
 
 import { PlaybackService } from '../../src/core/playback/playback-service';
+import type { Settings } from '../../src/ports/settings-store.port';
 import type { IAudioGenerator } from '../../src/ports/audio-generator.port';
 import { PlaybackQueue } from '../../src/utils/playback/playback-queue';
 import { PrefetchService } from '../../src/utils/playback/prefetch';
@@ -32,7 +33,12 @@ export type PrefetchPlaybackHarness = {
 /** Bind a real lookahead pipeline to `audioGenerator` with fresh mocks. */
 export function createPrefetchPlaybackHarness(
   audioGenerator: IAudioGenerator,
-  options: { tabId?: number; maxBufferSize?: number; batchIntervalMs?: number } = {},
+  options: {
+    tabId?: number;
+    maxBufferSize?: number;
+    batchIntervalMs?: number;
+    settings?: Partial<Settings>;
+  } = {},
 ): PrefetchPlaybackHarness {
   const audioUrlProvider = createMockAudioUrlProvider();
   const queue = new PlaybackQueue();
@@ -47,7 +53,7 @@ export function createPrefetchPlaybackHarness(
     audioUrlProvider,
     cacheStore: createMockCacheStore(),
     highlightSync,
-    settingsStore: createMockSettingsStore(),
+    settingsStore: createMockSettingsStore({ initialSettings: options.settings }),
     prefetch: { service: prefetch, queue },
   });
   prefetch.configure(

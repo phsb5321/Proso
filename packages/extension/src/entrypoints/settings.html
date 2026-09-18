@@ -258,6 +258,42 @@
         </div>
       </section>
 
+      <!-- Pronunciation (251): the reader's own match -> spoken rules -->
+      <section id="pronunciation" class="proso-card proso-accordion" data-section="pronunciation">
+        <button class="proso-accordion__header" aria-expanded="false" aria-controls="pronunciation-content">
+          <h2 class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4z"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+            </svg>
+            Pronunciation
+          </h2>
+          <svg class="proso-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+        </button>
+        <div id="pronunciation-content" class="proso-accordion__content" hidden>
+          <div class="developer-subsection" data-testid="settings-pronunciation-section">
+            <p class="developer-subsection__description">
+              Teach Proso how to say names, acronyms and terms. Works with every voice —
+              managed, your own keys, or a local host.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" for="pronunciationLexiconEnabled">
+                <input type="checkbox" id="pronunciationLexiconEnabled" data-testid="settings-pronunciation-enabled">
+                Apply my pronunciation rules
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="pronunciationLexicon">Rules &mdash; one per line, <code>printed text =&gt; spoken text</code></label>
+              <textarea id="pronunciationLexicon" class="proso-input" rows="5" spellcheck="false" autocomplete="off" data-testid="settings-pronunciation-rules" placeholder="INSS =&gt; I N S S&#10;OMS =&gt; Organização Mundial da Saúde"></textarea>
+              <p class="form-hint">Word rules match whole words (case-insensitive). Leave the box empty to remove every rule.</p>
+              <p class="form-hint" id="pronunciationStatus" role="status" aria-live="polite" data-testid="settings-pronunciation-status"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!--
         Paid account (PROSO-153). The extension has carried complete licence
         plumbing since 064 — config schema, storage read, container wiring,
