@@ -80,16 +80,17 @@
         );
       } else {
         var copied = false;
+        var area = document.createElement('textarea');
         try {
-          var area = document.createElement('textarea');
           area.value = pixCopy;
           document.body.appendChild(area);
           area.select();
           copied = document.execCommand('copy');
-          document.body.removeChild(area);
         } catch (error) {
           void error;
           copied = false;
+        } finally {
+          if (area.parentNode === document.body) document.body.removeChild(area);
         }
         if (!copied) selectValue();
         announce(copied);
