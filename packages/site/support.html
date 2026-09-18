@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Proso</title>
+  <meta name="description" content="Proso is free. If it helps you read more, consider supporting development: PIX (Brazil, no fees), Ko-fi, and GitHub Sponsors.">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Support Proso">
+  <meta property="og:description" content="Proso is free. Support development with PIX, Ko-fi, or GitHub Sponsors.">
+  <meta property="og:image" content="assets/images/og-image.png">
+  <meta property="og:url" content="https://proso.com.br/support.html">
+
+  <link rel="canonical" href="https://proso.com.br/support.html">
+  <link rel="icon" type="image/png" href="assets/images/favicon.png">
+  <link rel="alternate" hreflang="pt-BR" href="https://proso.com.br/apoiar.html">
+
+  <link rel="stylesheet" href="assets/css/style.css">
+  <noscript><style>.site-nav__links{display:flex!important;position:static!important;flex-wrap:wrap;background:none!important;border:none!important}.nav-toggle{display:none!important}</style></noscript>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="site-logo" aria-label="Proso home">Proso</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
+          <span></span><span></span><span></span>
+        </button>
+        <ul class="site-nav__links" id="nav-links" role="list">
+          <li><a href="index.html#features" class="site-nav__link">Features</a></li>
+          <li><a href="pricing.html" class="site-nav__link">Pricing</a></li>
+          <li><a href="support.html" class="site-nav__link" aria-current="page">Support</a></li>
+          <li><a href="privacy.html" class="site-nav__link">Privacy</a></li>
+          <li><a href="apoiar.html" class="site-nav__link">PT</a></li>
+        </ul>
+        <a href="index.html#install-status" class="btn btn--primary btn--sm">Install for Firefox</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="donate-hero">
+      <div class="container">
+        <h1>Proso is free — and stays that way</h1>
+        <p>Support development to keep the reader running, accessible, and ad-free.</p>
+      </div>
+    </section>
+
+    <section class="donate-body">
+      <div class="container">
+        <div class="donate-why">
+          <h2>Where your support goes</h2>
+          <ul role="list">
+            <li>GPU time and local speech-model runs used in quality testing.</li>
+            <li>Firefox Add-ons (AMO) review and publication cycles.</li>
+            <li>Accessibility testing and fixes for screen readers and keyboard navigation.</li>
+            <li>Managed API infrastructure for readers using premium voices.</li>
+          </ul>
+          <p class="text-muted">Support is a donation: it does not buy credits, unlock features, or replace the Paddle subscription — it simply supports the builder.</p>
+        </div>
+
+        <div class="donate-grid" role="list">
+          <div class="donate-card" id="donate-pix" role="listitem" hidden>
+            <h3>PIX <span class="donate-card__tag">Brazil · no fees</span></h3>
+            <img id="donate-pix-qr" class="donate-qr" alt="PIX QR code for donations" hidden>
+            <p id="donate-pix-value" class="donate-key"></p>
+            <p id="donate-pix-name" class="text-muted" hidden></p>
+            <button type="button" id="donate-pix-copy" class="btn btn--primary" data-copy-label="Copy PIX key" data-copied-label="Key copied!">Copy PIX key</button>
+          </div>
+
+          <div class="donate-card" id="donate-pix-pending" role="listitem">
+            <h3>PIX</h3>
+            <p>The PIX key is being configured. Check back soon — Ko-fi and GitHub Sponsors already work.</p>
+          </div>
+
+          <div class="donate-card" id="donate-kofi" role="listitem" hidden>
+            <h3>Ko-fi <span class="donate-card__tag">International</span></h3>
+            <p>A one-time coffee or a monthly support — card or PayPal, no platform fee.</p>
+            <a id="donate-kofi-link" class="btn btn--primary" href="https://ko-fi.com/" rel="noopener">Support on Ko-fi</a>
+          </div>
+
+          <div class="donate-card" id="donate-sponsors" role="listitem" hidden>
+            <h3>GitHub Sponsors</h3>
+            <p>For those who live on GitHub: direct monthly support, 0% platform fee.</p>
+            <a id="donate-sponsors-link" class="btn btn--primary" href="https://github.com/sponsors" rel="noopener">Sponsor on GitHub</a>
+          </div>
+        </div>
+
+        <div class="donate-faq">
+          <h2>Quick questions</h2>
+          <dl>
+            <dt>Donation or subscription?</dt>
+            <dd>Donation. It grants no credits and changes nothing in your plan. The Pro subscription stays on the site.</dd>
+            <dt>Can I support from outside Brazil?</dt>
+            <dd>Yes — use Ko-fi or GitHub Sponsors. PIX works only from Brazilian accounts.</dd>
+            <dt>Do I get an invoice?</dt>
+            <dd>Donations generate no invoice and no commercial consideration. For commercial licensing, contact <a href="mailto:commercial@proso.com.br">commercial@proso.com.br</a>.</dd>
+          </dl>
+        </div>
+
+        <p class="donate-back text-muted">Prefer not to donate right now? No problem — keeping on reading is support enough. 💜</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="index.html#features">Features</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Termos</a>
+        <a href="mailto:commercial@proso.com.br">Commercial Licensing</a>
+      </nav>
+      <div class="footer-info">
+        <p>&copy; 2026 Proso. All rights reserved.</p>
+        <p>Made with care in Recife, Brazil.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js" defer></script>
+  <script src="assets/js/donate-config.js" defer></script>
+  <script src="assets/js/donate.js" defer></script>
+</body>
+</html>

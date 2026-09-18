@@ -1,0 +1,12 @@
+# Funding links for the repository's "Sponsor" button.
+# A single key renders a direct button; multiple keys open a picker modal.
+# Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# Uncomment once the GitHub Sponsors profile is approved and live
+# (the button 404s until then):
+# github: phsb5321
+
+# Uncomment once the Ko-fi page exists:
+# ko_fi: proso
+
+custom: ['https://proso.com.br/apoiar']
