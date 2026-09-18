@@ -326,6 +326,11 @@ export class PlaybackService {
     const generation = ++this.playbackGeneration;
     const activeTabId = this.state.activeTabId;
 
+    // Session boundary (see start()): drop any pending transition slot. The
+    // stale transition's own completion is identity-checked, so it cannot
+    // clobber a slot installed by whatever comes next.
+    this.transitionInFlight = null;
+
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
     this.currentAbortController?.abort();
