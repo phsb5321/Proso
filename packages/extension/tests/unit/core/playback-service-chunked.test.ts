@@ -405,8 +405,11 @@ describe('PlaybackService chunked path', () => {
 
     endedHandler?.(); // chunk 1
     await new Promise((resolve) => setTimeout(resolve, 0));
-    endedHandler?.(); // queue empty -> next()
+    endedHandler?.(); // queue empty; the wait resolves when the drain confirms completion
 
+    for (let i = 0; i < 50 && service.getState().currentParagraphIndex !== 1; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
     expect(service.getState().currentParagraphIndex).toBe(1);
   });
 
@@ -477,5 +480,65 @@ describe('PlaybackService chunked path', () => {
     expect(mockAudioUrlProvider.createUrlCalls.length).toBe(callsBefore);
     expect(service.getState().status).toBe('stopped');
     expect(service.getState().currentParagraphIndex).toBe(0);
+  });
+
+  it('waits for a slow chunk instead of advancing early (no sentence skip)', async () => {
+    // The producer needs longer than the old 500ms grace period for its
+    // second sentence. The paragraph's remaining sentences must still play —
+    // the old timer advanced anyway and dropped them silently.
+    let releaseSecond: (() => void) | undefined;
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    generator.generateAudioChunks = async function* (request) {
+      generator.chunkCalls.push({ request });
+      yield Ok({ audioBlob: new Blob(['chunk-0']), durationMs: 300, wordTimings: null });
+      await secondGate;
+      yield Ok({ audioBlob: new Blob(['chunk-1']), durationMs: 300, wordTimings: null });
+    };
+
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    try {
+      endedHandler?.();
+      // Past the old 500ms grace: still paragraph 0, no advance happened.
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(service.getState().status).toBe('playing');
+      expect(service.getState().currentParagraphIndex).toBe(0);
+
+      // The slow chunk lands: playback must consume it rather than skip it.
+      const urlsBefore = mockAudioUrlProvider.createUrlCalls.length;
+      releaseSecond?.();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(mockAudioUrlProvider.createUrlCalls.length).toBeGreaterThan(urlsBefore);
+      expect(service.getState().currentParagraphIndex).toBe(0);
+    } finally {
+      releaseSecond?.();
+      await service.stop();
+    }
+  });
+
+  it('joins two concurrent next() calls into one advance', async () => {
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await Promise.all([service.next(), service.next()]);
+
+    // Both presses landed as one transition — index 1, never 2.
+    expect(service.getState().currentParagraphIndex).toBe(1);
+    await service.stop();
+  });
+
+  it('does not double-advance when the clip ends as the reader presses Next', async () => {
+    await service.start(testParagraphs, testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    endedHandler?.();
+    void service.next();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(service.getState().currentParagraphIndex).toBe(1);
+    await service.stop();
   });
 });
