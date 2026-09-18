@@ -171,6 +171,9 @@ export class PlaybackService {
     tabId: number,
     pageUrl: string,
   ): Promise<Result<PlaybackState, PlaybackError>> {
+    // A fresh session never inherits a pending transition from a previous one.
+    this.transitionInFlight = null;
+
     // A session begins reading in whatever voice state currently holds, so
     // that is the baseline every later settings notification is compared
     // against. Seeding it here rather than by reading the store at

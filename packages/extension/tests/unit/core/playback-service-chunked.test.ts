@@ -551,6 +551,44 @@ describe('PlaybackService chunked path', () => {
     await service.stop();
   });
 
+  it('does not join a transition from a torn-down session across stop/start', async () => {
+    // Cold navigation: hold the pending Next's clip, tear the session down,
+    // start a fresh session, then press Next again. The new press must not be
+    // deduplicated against the obsolete transition.
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    generator.generateAudioChunks = async function* (request) {
+      generator.chunkCalls.push({ request });
+      if (request.text.includes('Second paragraph')) {
+        await gate;
+      }
+      yield Ok({ audioBlob: new Blob(['clip']), durationMs: 300, wordTimings: null });
+    };
+
+    await service.start(['First paragraph.', 'Second paragraph.'], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const pendingNext = service.next(); // held on the gate
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await service.stop();
+    await service.start(['Fresh one.', 'Fresh two.'], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const advanced = await Promise.race([
+      service.next().then(() => service.getState().currentParagraphIndex),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 3000)),
+    ]);
+    expect(advanced).toBe(1);
+
+    release?.(); // the obsolete transition completes late and must not disturb
+    await pendingNext.catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(service.getState().currentParagraphIndex).toBe(1);
+    await service.stop();
+  });
+
   it('skips a structural-only paragraph mid-transition without deadlocking', async () => {
     // The internal skip must not join the transition that is awaiting it:
     // 'return this.next()' inside the transition body formed a promise cycle
