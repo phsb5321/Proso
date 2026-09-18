@@ -60,7 +60,8 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[INSERT CONTACT METHOD].
+[support@proso.com.br](mailto:support@proso.com.br), with the subject
+“Proso Code of Conduct report”. Reports are handled privately by Pedro H S Balbino.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

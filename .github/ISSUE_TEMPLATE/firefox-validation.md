@@ -8,9 +8,7 @@ assignees: ''
 
 ## Firefox Manual Validation Checklist
 
-> **Full checklist**: See [specs/041-firefox-first-pivot/manual-validation.md](../../specs/041-firefox-first-pivot/manual-validation.md) for comprehensive 80+ item validation.
-> 
-> **Quick checklist**: See [docs/firefox-manual-validation.md](../../docs/firefox-manual-validation.md) for abbreviated testing.
+> See the [Firefox manual validation checklist](https://github.com/phsb5321/Proso/blob/main/docs/firefox-manual-validation.md).
 
 **Firefox Version**: 
 **Proso Version**: 
@@ -19,7 +17,7 @@ assignees: ''
 
 ### Setup
 - [ ] Build extension: `pnpm build:firefox`
-- [ ] Start web-ext: `pnpm validate:firefox`
+- [ ] Start web-ext: `pnpm --filter @proso/extension dev:firefox`
 - [ ] Extension icon appears in toolbar
 - [ ] Extension popup opens
 

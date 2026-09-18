@@ -11,9 +11,9 @@ Brief description of changes.
 
 ## Checklist
 
-- [ ] Tests pass locally (`npm test`)
-- [ ] Linting passes (`npm run lint`)
-- [ ] Quality check passes (`npm run quality`)
+- [ ] Fast checks pass (`make verify`)
+- [ ] Relevant checks from `docs/agent-delivery-harness.md` are recorded below
+- [ ] User-visible changes include the required user-gate evidence
 - [ ] Documentation updated (if needed)
 - [ ] No new console warnings/errors
 
