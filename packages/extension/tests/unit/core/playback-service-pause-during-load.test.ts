@@ -30,7 +30,10 @@ import {
   createMockSettingsStore,
 } from '../../mocks';
 
-import { createPrefetchPlaybackHarness } from '../../helpers/prefetch-playback-harness';
+import {
+  type PrefetchPlaybackHarness,
+  createPrefetchPlaybackHarness,
+} from '../../helpers/prefetch-playback-harness';
 
 /** Poll a condition with a bounded wall-clock budget. */
 async function waitForIt(condition: () => boolean): Promise<void> {
@@ -46,7 +49,10 @@ async function waitForIt(condition: () => boolean): Promise<void> {
 async function stopWhileSettingsReadPending(options: {
   delayMs: number;
   reject: boolean;
-}): Promise<{ generateMock: jest.Mock; service: PlaybackService }> {
+}): Promise<{
+  generateMock: PrefetchPlaybackHarness['generateMock'];
+  service: PlaybackService;
+}> {
   const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
     settingsLatencyMs: options.reject ? undefined : options.delayMs,
   });
