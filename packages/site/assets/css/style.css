@@ -1338,3 +1338,112 @@
     }
   }
 }
+
+/* ---------------------------------------------------------------
+   Donation pages (/apoiar.html, /support.html)
+   --------------------------------------------------------------- */
+
+.donate-hero {
+  padding: 4rem 0 2rem;
+  text-align: center;
+}
+
+.donate-hero h1 {
+  margin-bottom: 0.75rem;
+}
+
+.donate-hero p {
+  color: var(--text-muted, #6b7280);
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.donate-body {
+  padding: 1rem 0 4rem;
+}
+
+.donate-why {
+  max-width: 44rem;
+  margin: 0 auto 2.5rem;
+}
+
+.donate-why ul {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.donate-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  align-items: start;
+  margin-bottom: 3rem;
+}
+
+.donate-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.donate-card[hidden] {
+  display: none;
+}
+
+.donate-card h3 {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.donate-card__tag {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.donate-qr {
+  width: 12rem;
+  height: 12rem;
+  image-rendering: pixelated;
+}
+
+/* The global img rule sets display:block, which outranks [hidden]. */
+.donate-qr[hidden] {
+  display: none;
+}
+
+.donate-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+  word-break: break-all;
+  margin: 0;
+}
+
+.donate-faq {
+  max-width: 44rem;
+  margin: 0 auto 2rem;
+}
+
+.donate-faq dt {
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+.donate-faq dd {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted, #6b7280);
+}
+
+.donate-back {
+  text-align: center;
+}
