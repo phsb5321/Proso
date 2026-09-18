@@ -209,9 +209,8 @@ Proso automatically detects page language using **franc-min**:
 
 Proso is free, ad-free, and stays that way. If it helps you read more, you can support development:
 
-- **PIX (Brazil, no fees):** [proso.com.br/apoiar](https://proso.com.br/apoiar.html)
-- **Ko-fi (international):** [ko-fi.com/proso](https://ko-fi.com/proso)
-- **GitHub Sponsors:** pending approval — the repo's Sponsor button lights up when it goes live
+- **[proso.com.br/apoiar](https://proso.com.br/apoiar.html)** — PIX (Brazil, no fees), with Ko-fi for
+  international supporters and GitHub Sponsors enabled as those profiles go live
 
 [![Support Proso](https://img.shields.io/badge/support-PIX%20%C2%B7%20Ko--fi-06b6d4)](https://proso.com.br/apoiar.html)
 

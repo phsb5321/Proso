@@ -1417,6 +1417,11 @@
   image-rendering: pixelated;
 }
 
+/* The global img rule sets display:block, which outranks [hidden]. */
+.donate-qr[hidden] {
+  display: none;
+}
+
 .donate-key {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.95rem;
