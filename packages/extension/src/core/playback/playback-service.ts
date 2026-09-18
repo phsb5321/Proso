@@ -927,7 +927,9 @@ export class PlaybackService {
       return Err(error);
     }
     const speakableSentences = sourceResult.value.filter(hasSpeakableWords);
-    if (speakableSentences.length === 0) return this.next();
+    // Internal skip: call the unjoined body. Joining here would await the
+    // very transition that is awaiting this call (promise cycle → lock).
+    if (speakableSentences.length === 0) return this.runNext();
     const chunkSources = this.locateChunkSources(synthesisText, speakableSentences);
 
     const request: AudioRequest = {
@@ -1070,11 +1072,16 @@ export class PlaybackService {
       // finding the queue done-and-empty — the normal failure funnel reports
       // it there rather than dying silently.
     } finally {
-      this.chunkQueueDone = true;
-      // Wake a reader that is waiting on this producer: the next chunk may be
-      // queued already, and a done-and-empty queue may advance.
-      if (this.chunkAdvanceWait) {
-        this.continueChunkedOrAdvance();
+      // A superseded producer finishing late must not mark the CURRENT
+      // paragraph done (the flag is per-current-paragraph state) nor wake a
+      // reader waiting on a different paragraph's producer.
+      if (this.chunkGeneration === generation && this.isCurrentGeneration(generation)) {
+        this.chunkQueueDone = true;
+        // Wake a reader that is waiting on this producer: the next chunk may
+        // be queued already, and a done-and-empty queue may advance.
+        if (this.chunkAdvanceWait) {
+          this.continueChunkedOrAdvance();
+        }
       }
     }
   }

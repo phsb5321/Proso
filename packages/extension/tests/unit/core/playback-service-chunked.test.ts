@@ -105,6 +105,12 @@ describe('PlaybackService chunked path', () => {
     });
   }
 
+  /** Fire the clip's ended event and let the microtask queue settle. */
+  async function endClip(): Promise<void> {
+    endedHandler?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   const testParagraphs = [
     'First sentence. Second sentence.',
     'Next paragraph. With two sentences.',
@@ -403,9 +409,8 @@ describe('PlaybackService chunked path', () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    endedHandler?.(); // chunk 1
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    endedHandler?.(); // queue empty; the wait resolves when the drain confirms completion
+    await endClip(); // chunk 1
+    await endClip(); // queue empty; the wait resolves when the drain confirms completion
 
     for (let i = 0; i < 50 && service.getState().currentParagraphIndex !== 1; i++) {
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -534,11 +539,49 @@ describe('PlaybackService chunked path', () => {
     await service.start(testParagraphs, testTabId, testPageUrl);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    await endClip(); // consumes the queued second chunk
+    // The final clip ends: that fires the auto-advance path while the reader
+    // presses Next in the same instant. Without the join both advance and the
+    // paragraph in between is skipped.
     endedHandler?.();
     void service.next();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(service.getState().currentParagraphIndex).toBe(1);
+    await service.stop();
+  });
+
+  it('skips a structural-only paragraph mid-transition without deadlocking', async () => {
+    // The internal skip must not join the transition that is awaiting it:
+    // 'return this.next()' inside the transition body formed a promise cycle
+    // and locked every later navigation.
+    // One chunk per paragraph, so the first clip's end reaches the
+    // auto-advance path directly.
+    generator.generateAudioChunks = async function* (request) {
+      generator.chunkCalls.push({ request });
+      yield Ok({ audioBlob: new Blob(['only']), durationMs: 300, wordTimings: null });
+    };
+    await service.start(
+      ['First words.', '─────.', 'Actual words.'],
+      testTabId,
+      testPageUrl,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    endedHandler?.(); // queue is empty and the drain is done -> auto-advance
+
+    const settled = await Promise.race([
+      (async () => {
+        for (let i = 0; i < 100 && service.getState().currentParagraphIndex !== 2; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        return service.getState().currentParagraphIndex;
+      })(),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 3000)),
+    ]);
+
+    expect(settled).toBe(2);
+    expect(service.getState().status).toBe('playing');
     await service.stop();
   });
 });
