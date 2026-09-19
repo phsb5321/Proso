@@ -43,9 +43,11 @@ export class BrowserSettingsAdapter implements ISettingsStore {
 
   async getSettings(): Promise<Settings> {
     await this.ensureInitialized();
-    const all = settingsStore.getAll();
+    return this.toPortSettings(settingsStore.getAll());
+  }
 
-    // Map to port interface (ISettingsStore.Settings)
+  /** Single mapping used by reads and subscription payloads alike. */
+  private toPortSettings(all: ReturnType<typeof settingsStore.getAll>): Settings {
     return {
       mode: all.mode,
       provider: all.provider,
@@ -55,12 +57,19 @@ export class BrowserSettingsAdapter implements ISettingsStore {
       cacheEnabled: all.cacheEnabled,
       maxCacheSize: all.maxCacheSize,
       wordSyncEnabled: all.wordSyncEnabled,
+      pronunciationLexiconEnabled: all.pronunciationLexiconEnabled,
+      pronunciationLexicon: all.pronunciationLexicon,
     };
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<void> {
     await this.ensureInitialized();
-    await settingsStore.save(updates);
+    // The port exposes readonly arrays; the persisted schema owns mutable ones.
+    const { pronunciationLexicon, ...rest } = updates;
+    await settingsStore.save({
+      ...rest,
+      ...(pronunciationLexicon ? { pronunciationLexicon: [...pronunciationLexicon] } : {}),
+    });
   }
 
   async getApiKey(provider: ProviderId): Promise<string | null> {
@@ -89,17 +98,7 @@ export class BrowserSettingsAdapter implements ISettingsStore {
   subscribe(callback: (settings: Settings) => void): () => void {
     // Wrap the callback to map full Settings to port Settings
     const wrappedCallback = () => {
-      const all = settingsStore.getAll();
-      callback({
-        mode: all.mode,
-        provider: all.provider,
-        voice: all.voice,
-        speed: all.speed,
-        showCostEstimate: all.showCostEstimate,
-        cacheEnabled: all.cacheEnabled,
-        maxCacheSize: all.maxCacheSize,
-        wordSyncEnabled: all.wordSyncEnabled,
-      });
+      callback(this.toPortSettings(settingsStore.getAll()));
     };
 
     return settingsStore.subscribe(wrappedCallback);

@@ -37,6 +37,7 @@ import {
 } from './playback-state';
 import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
+import type { PronunciationEntry } from '../speech/pronunciation-lexicon';
 import {
   buildSpokenPlan,
   planLocaleFor,
@@ -99,6 +100,14 @@ export class PlaybackService {
   private audioElement: HTMLAudioElement | null = null;
   /** Spoken plan of the chunked paragraph currently draining (slice 245). */
   private chunkPlan: SpokenPlan | null = null;
+  /** Reader-owned pronunciation entries, refreshed from settings (251). */
+  private pronunciationLexicon: readonly PronunciationEntry[] = [];
+  /**
+   * Monotonic start ownership (251): assigned synchronously on start() entry
+   * so the LATEST start wins when two overlap, and bumped by stop() so any
+   * pending start's settings read is invalidated (rejection included).
+   */
+  private startAttempt = 0;
   private currentAudioUrl: string | null = null;
   private settingsUnsubscribe: (() => void) | null = null;
   private playbackGeneration = 0;
@@ -173,6 +182,23 @@ export class PlaybackService {
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // A fresh session never inherits a pending transition from a previous one.
     this.transitionInFlight = null;
+    // Settings may not have published yet in this session; read the lexicon
+    // directly so the first paragraph already speaks the reader's entries.
+    // Ownership is claimed synchronously: a Stop (or a newer start) landing
+    // during the read invalidates this attempt on BOTH outcomes, so a stop
+    // cannot be resurrected and the latest start always wins.
+    const attempt = ++this.startAttempt;
+    let settings: Settings | null = null;
+    try {
+      settings = await this.deps.settingsStore.getSettings();
+    } catch {
+      // Keep the last known lexicon; playback must not fail on a settings read.
+      settings = null;
+    }
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
+    }
+    if (settings) this.applyLexiconSettings(settings);
 
     // A session begins reading in whatever voice state currently holds, so
     // that is the baseline every later settings notification is compared
@@ -187,8 +213,16 @@ export class PlaybackService {
 
     // Validate we can start
     if (!playbackStateValidation.canStart(this.state)) {
-      // If already playing, stop first
-      await this.stop();
+      // If already playing, tear the old session down without invalidating
+      // THIS start (performStop does not bump the attempt token).
+      await this.performStop();
+    }
+
+    // Re-check ownership BEFORE any state write, including the empty-content
+    // error: a superseded start must not overwrite a stopped session or a
+    // newer start with an error of its own.
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
     }
 
     // Validate content
@@ -196,6 +230,11 @@ export class PlaybackService {
       const error = playbackError.noContent(this.state.mode);
       await this.setError(error, tabId);
       return Err(error);
+    }
+
+    // Same check again after the awaits above (setError path returns early).
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
     }
 
     // Update state to loading
@@ -323,6 +362,14 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
+    // A reader-observed session end invalidates any start still in flight.
+    // start()'s own session-replacement teardown calls performStop() directly
+    // so it does not invalidate the start that is performing it.
+    this.startAttempt += 1;
+    return this.performStop();
+  }
+
+  private async performStop(): Promise<Result<PlaybackState, PlaybackError>> {
     const generation = ++this.playbackGeneration;
     const activeTabId = this.state.activeTabId;
 
@@ -584,7 +631,13 @@ export class PlaybackService {
   }
 
   private buildParagraphPlan(text: string): SpokenPlan {
-    return buildSpokenPlan(text, this.spokenPlanLocale());
+    return buildSpokenPlan(text, this.spokenPlanLocale(), this.pronunciationLexicon);
+  }
+
+  /** Refresh the cached lexicon from settings (safe to call repeatedly). */
+  private applyLexiconSettings(settings: Settings): void {
+    this.pronunciationLexicon =
+      settings.pronunciationLexiconEnabled === false ? [] : (settings.pronunciationLexicon ?? []);
   }
 
   /**
@@ -614,6 +667,7 @@ export class PlaybackService {
     this.settingsUnsubscribe = this.deps.settingsStore.subscribe((settings: Settings) => {
       const previousVoice = this.lastPublishedVoice;
       this.lastPublishedVoice = settings.voice;
+      this.applyLexiconSettings(settings);
 
       this.state = playbackStateTransitions.updateSettings(this.state, {
         provider: settings.provider,
@@ -1388,7 +1442,10 @@ export class PlaybackService {
       const prefetched = this.deps.prefetch.service.consume(index);
       if (prefetched) {
         const paramsMatch =
-          prefetched.provider === this.state.provider && prefetched.voice === this.state.voice;
+          prefetched.provider === this.state.provider &&
+          prefetched.voice === this.state.voice &&
+          (prefetched.spokenText === undefined ||
+            prefetched.spokenText === this.buildParagraphPlan(text).spokenText);
         if (paramsMatch) {
           return this.playFromPrefetchBuffer(index, prefetched, generation);
         }
@@ -1692,6 +1749,7 @@ export class PlaybackService {
     timingBasis?: 'provider' | 'estimated';
     provider?: string;
     voice?: string | null;
+    spokenText?: string;
   } | null> {
     // Label the entry (and cache it) under the voice REQUESTED here, not the
     // voice live at completion: a voice change while this lookahead is in
@@ -1760,6 +1818,7 @@ export class PlaybackService {
           : 'estimated',
       provider: requestedProvider,
       voice: requestedVoice,
+      spokenText,
     };
   }
 

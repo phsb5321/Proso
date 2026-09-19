@@ -7,6 +7,7 @@
  * @module ports/settings-store
  */
 
+import type { PronunciationEntry } from '../core/speech/pronunciation-lexicon';
 import type { ExtractionMode, ProviderId } from '../core/shared/errors';
 
 /**
@@ -21,6 +22,9 @@ export interface Settings {
   cacheEnabled: boolean;
   maxCacheSize: number;
   wordSyncEnabled: boolean;
+  /** Reader-owned pronunciation entries (251); optional for older fixtures. */
+  pronunciationLexiconEnabled?: boolean;
+  pronunciationLexicon?: readonly PronunciationEntry[];
 }
 
 /**

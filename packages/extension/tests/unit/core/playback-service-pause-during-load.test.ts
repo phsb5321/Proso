@@ -30,13 +30,49 @@ import {
   createMockSettingsStore,
 } from '../../mocks';
 
-import { createPrefetchPlaybackHarness } from '../../helpers/prefetch-playback-harness';
+import {
+  type PrefetchPlaybackHarness,
+  createPrefetchPlaybackHarness,
+} from '../../helpers/prefetch-playback-harness';
 
 /** Poll a condition with a bounded wall-clock budget. */
 async function waitForIt(condition: () => boolean): Promise<void> {
   for (let i = 0; i < 50 && !condition(); i++) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
+}
+
+/**
+ * Start a session whose settings read is still pending and then stop it.
+ * Shared by the two start-ownership regressions (slow read, rejecting read).
+ */
+async function stopWhileSettingsReadPending(options: {
+  delayMs: number;
+  reject: boolean;
+}): Promise<{
+  generateMock: PrefetchPlaybackHarness['generateMock'];
+  service: PlaybackService;
+}> {
+  const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+    settingsLatencyMs: options.reject ? undefined : options.delayMs,
+  });
+  if (options.reject) {
+    (service as unknown as { deps: { settingsStore: { getSettings: () => Promise<unknown> } } }).deps.settingsStore =
+      {
+        getSettings: () =>
+          new Promise((_resolve, reject) => {
+            setTimeout(() => reject(new Error('storage unavailable')), options.delayMs);
+          }),
+      };
+  }
+  service.setLanguage('en');
+
+  const starting = service.start(['Proso reads.'], 7, 'https://example.test/article');
+  await new Promise((resolve) => setTimeout(resolve, Math.max(5, Math.floor(options.delayMs / 4))));
+  await service.stop();
+  await starting;
+  await new Promise((resolve) => setTimeout(resolve, options.delayMs + 40));
+  return { generateMock, service };
 }
 
 /** A generator whose clip is always ready — the fetch window is not the subject here. */
@@ -345,6 +381,143 @@ describe('PlaybackService pause during a paragraph load', () => {
       playSpy.mockRestore();
       prefetch.stop();
     }
+  });
+
+  it('abandons a start whose settings read outlives a stop', async () => {
+    const { generateMock, service } = await stopWhileSettingsReadPending({
+      delayMs: 60,
+      reject: false,
+    });
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('abandons a start whose settings read rejects after a stop', async () => {
+    const { generateMock, service } = await stopWhileSettingsReadPending({
+      delayMs: 40,
+      reject: true,
+    });
+    expect(generateMock).not.toHaveBeenCalled();
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('does not resurrect a session when a stop lands during its teardown', async () => {
+    // start() over a playing session awaits the old session's teardown; an
+    // external stop during that await must win over the suspended start.
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      highlightLatencyMs: 60,
+    });
+    service.setLanguage('en');
+
+    await service.start(['First article.'], 7, 'https://example.test/first');
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
+
+    const restart = service.start(['Second article.'], 7, 'https://example.test/second');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.stop();
+    await restart;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts).not.toContain('Second article.');
+    expect(service.getState().status).toBe('stopped');
+  });
+
+  it('a superseded empty start cannot overwrite stopped state with an error', async () => {
+    const { service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      highlightLatencyMs: 60,
+    });
+    service.setLanguage('en');
+
+    await service.start(['First article.'], 7, 'https://example.test/first');
+    const bogus = service.start([], 7, 'https://example.test/empty');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.stop();
+    const result = await bogus;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(result.ok).toBe(true);
+    expect(service.getState().status).toBe('stopped');
+    expect(service.getState().error).toBeNull();
+  });
+
+  it('lets the latest concurrent start win', async () => {
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settingsLatencyMs: 40,
+    });
+    service.setLanguage('en');
+
+    const first = service.start(['Older article.'], 7, 'https://example.test/older');
+    const second = service.start(['Newer article.'], 7, 'https://example.test/newer');
+    await Promise.all([first, second]);
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
+
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts).not.toContain('Older article.');
+    expect(texts).toContain('Newer article.');
+    expect(service.getState().status).toBe('playing');
+    await service.stop();
+  });
+
+  it('discards a prefetched clip whose spoken text no longer matches the rules', async () => {
+    const rule = (spoken: string) => ({
+      id: 'r1',
+      locale: 'all' as const,
+      match: 'Proso',
+      spoken,
+      matchMode: 'word' as const,
+      caseSensitive: false,
+      enabled: true,
+    });
+    const { generateMock, service, settingsStore } = createPrefetchPlaybackHarness(
+      createInstantAudioGenerator(),
+      {
+        settings: { pronunciationLexiconEnabled: true, pronunciationLexicon: [rule('Prôzo')] },
+      },
+    );
+    service.setLanguage('en');
+
+    await service.start(['Proso reads.', 'Proso again.'], 7, 'https://example.test/article');
+    await waitForIt(() => generateMock.mock.calls.length >= 2);
+    expect((generateMock.mock.calls[1]?.[0] as AudioRequest).text).toContain('Prôzo');
+
+    // The reader edits the rule after the lookahead was buffered.
+    await settingsStore.updateSettings({
+      pronunciationLexicon: [rule('Prôzo novo')],
+    });
+    await service.next();
+
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts.some((text) => text.includes('Prôzo novo'))).toBe(true);
+    expect(texts.filter((text) => text.includes('Prôzo reads'))).toHaveLength(1);
+    await service.stop();
+  });
+
+  it('speaks the reader pronunciation rules for every provider', async () => {
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settings: {
+        pronunciationLexiconEnabled: true,
+        pronunciationLexicon: [
+          {
+            id: 'rule-1',
+            locale: 'all',
+            match: 'Proso',
+            spoken: 'Prôzo',
+            matchMode: 'word',
+            caseSensitive: false,
+            enabled: true,
+          },
+        ],
+      },
+    });
+    service.setLanguage('en');
+
+    await service.start(['Proso reads.'], 7, 'https://example.test/article');
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
+
+    const request = generateMock.mock.calls[0]?.[0] as AudioRequest;
+    expect(request.text).toBe('Prôzo reads.');
+    await service.stop();
   });
 
   it('prefetches the spoken text and keys the cache by it', async () => {

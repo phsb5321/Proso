@@ -9,6 +9,7 @@
  */
 
 import { PlaybackService } from '../../src/core/playback/playback-service';
+import type { Settings } from '../../src/ports/settings-store.port';
 import type { IAudioGenerator } from '../../src/ports/audio-generator.port';
 import { PlaybackQueue } from '../../src/utils/playback/playback-queue';
 import { PrefetchService } from '../../src/utils/playback/prefetch';
@@ -24,6 +25,7 @@ export type PrefetchPlaybackHarness = {
   generateMock: jest.Mock;
   highlightSync: ReturnType<typeof createMockHighlightSync>;
   audioUrlProvider: ReturnType<typeof createMockAudioUrlProvider>;
+  settingsStore: ReturnType<typeof createMockSettingsStore>;
   queue: PlaybackQueue;
   prefetch: PrefetchService;
   service: PlaybackService;
@@ -32,7 +34,14 @@ export type PrefetchPlaybackHarness = {
 /** Bind a real lookahead pipeline to `audioGenerator` with fresh mocks. */
 export function createPrefetchPlaybackHarness(
   audioGenerator: IAudioGenerator,
-  options: { tabId?: number; maxBufferSize?: number; batchIntervalMs?: number } = {},
+  options: {
+    tabId?: number;
+    maxBufferSize?: number;
+    batchIntervalMs?: number;
+    settings?: Partial<Settings>;
+    settingsLatencyMs?: number;
+    highlightLatencyMs?: number;
+  } = {},
 ): PrefetchPlaybackHarness {
   const audioUrlProvider = createMockAudioUrlProvider();
   const queue = new PlaybackQueue();
@@ -41,13 +50,20 @@ export function createPrefetchPlaybackHarness(
     maxConcurrent: 2,
     batchIntervalMs: options.batchIntervalMs ?? 1,
   });
-  const highlightSync = createMockHighlightSync({ validTabIds: [options.tabId ?? 7] });
+  const highlightSync = createMockHighlightSync({
+    validTabIds: [options.tabId ?? 7],
+    latencyMs: options.highlightLatencyMs,
+  });
+  const settingsStore = createMockSettingsStore({
+    initialSettings: options.settings,
+    latencyMs: options.settingsLatencyMs,
+  });
   const service = new PlaybackService({
     audioGenerator,
     audioUrlProvider,
     cacheStore: createMockCacheStore(),
     highlightSync,
-    settingsStore: createMockSettingsStore(),
+    settingsStore,
     prefetch: { service: prefetch, queue },
   });
   prefetch.configure(
@@ -59,6 +75,7 @@ export function createPrefetchPlaybackHarness(
     audioGenerator,
     generateMock: audioGenerator.generateAudio as jest.Mock,
     highlightSync,
+    settingsStore,
     audioUrlProvider,
     queue,
     prefetch,
