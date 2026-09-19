@@ -401,6 +401,28 @@ describe('PlaybackService pause during a paragraph load', () => {
     expect(service.getState().status).toBe('stopped');
   });
 
+  it('does not resurrect a session when a stop lands during its teardown', async () => {
+    // start() over a playing session awaits the old session's teardown; an
+    // external stop during that await must win over the suspended start.
+    const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      highlightLatencyMs: 60,
+    });
+    service.setLanguage('en');
+
+    await service.start(['First article.'], 7, 'https://example.test/first');
+    await waitForIt(() => generateMock.mock.calls.length >= 1);
+
+    const restart = service.start(['Second article.'], 7, 'https://example.test/second');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.stop();
+    await restart;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const texts = generateMock.mock.calls.map((call) => (call[0] as AudioRequest).text);
+    expect(texts).not.toContain('Second article.');
+    expect(service.getState().status).toBe('stopped');
+  });
+
   it('lets the latest concurrent start win', async () => {
     const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
       settingsLatencyMs: 40,

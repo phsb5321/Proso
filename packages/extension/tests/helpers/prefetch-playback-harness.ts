@@ -40,6 +40,7 @@ export function createPrefetchPlaybackHarness(
     batchIntervalMs?: number;
     settings?: Partial<Settings>;
     settingsLatencyMs?: number;
+    highlightLatencyMs?: number;
   } = {},
 ): PrefetchPlaybackHarness {
   const audioUrlProvider = createMockAudioUrlProvider();
@@ -49,7 +50,10 @@ export function createPrefetchPlaybackHarness(
     maxConcurrent: 2,
     batchIntervalMs: options.batchIntervalMs ?? 1,
   });
-  const highlightSync = createMockHighlightSync({ validTabIds: [options.tabId ?? 7] });
+  const highlightSync = createMockHighlightSync({
+    validTabIds: [options.tabId ?? 7],
+    latencyMs: options.highlightLatencyMs,
+  });
   const settingsStore = createMockSettingsStore({
     initialSettings: options.settings,
     latencyMs: options.settingsLatencyMs,

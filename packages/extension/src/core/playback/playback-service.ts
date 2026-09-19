@@ -213,8 +213,9 @@ export class PlaybackService {
 
     // Validate we can start
     if (!playbackStateValidation.canStart(this.state)) {
-      // If already playing, stop first
-      await this.stop();
+      // If already playing, tear the old session down without invalidating
+      // THIS start (performStop does not bump the attempt token).
+      await this.performStop();
     }
 
     // Validate content
@@ -222,6 +223,13 @@ export class PlaybackService {
       const error = playbackError.noContent(this.state.mode);
       await this.setError(error, tabId);
       return Err(error);
+    }
+
+    // Re-check ownership after every await above: an external stop() (or a
+    // newer start) landing during the teardown must win, and a suspended
+    // start must never resurrect a session the reader ended.
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
     }
 
     // Update state to loading
@@ -349,6 +357,14 @@ export class PlaybackService {
    * Stop playback and reset.
    */
   async stop(): Promise<Result<PlaybackState, PlaybackError>> {
+    // A reader-observed session end invalidates any start still in flight.
+    // start()'s own session-replacement teardown calls performStop() directly
+    // so it does not invalidate the start that is performing it.
+    this.startAttempt += 1;
+    return this.performStop();
+  }
+
+  private async performStop(): Promise<Result<PlaybackState, PlaybackError>> {
     const generation = ++this.playbackGeneration;
     const activeTabId = this.state.activeTabId;
 
@@ -356,8 +372,6 @@ export class PlaybackService {
     // stale transition's own completion is identity-checked, so it cannot
     // clobber a slot installed by whatever comes next.
     this.transitionInFlight = null;
-    // Invalidate any start still awaiting its settings read.
-    this.startAttempt += 1;
 
     // Abort whatever the current generation was still fetching (T015) rather
     // than letting it complete and discarding the result.
