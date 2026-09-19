@@ -218,6 +218,13 @@ export class PlaybackService {
       await this.performStop();
     }
 
+    // Re-check ownership BEFORE any state write, including the empty-content
+    // error: a superseded start must not overwrite a stopped session or a
+    // newer start with an error of its own.
+    if (this.startAttempt !== attempt) {
+      return Ok(this.state);
+    }
+
     // Validate content
     if (paragraphs.length === 0) {
       const error = playbackError.noContent(this.state.mode);
@@ -225,9 +232,7 @@ export class PlaybackService {
       return Err(error);
     }
 
-    // Re-check ownership after every await above: an external stop() (or a
-    // newer start) landing during the teardown must win, and a suspended
-    // start must never resurrect a session the reader ended.
+    // Same check again after the awaits above (setError path returns early).
     if (this.startAttempt !== attempt) {
       return Ok(this.state);
     }

@@ -423,6 +423,24 @@ describe('PlaybackService pause during a paragraph load', () => {
     expect(service.getState().status).toBe('stopped');
   });
 
+  it('a superseded empty start cannot overwrite stopped state with an error', async () => {
+    const { service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      highlightLatencyMs: 60,
+    });
+    service.setLanguage('en');
+
+    await service.start(['First article.'], 7, 'https://example.test/first');
+    const bogus = service.start([], 7, 'https://example.test/empty');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.stop();
+    const result = await bogus;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(result.ok).toBe(true);
+    expect(service.getState().status).toBe('stopped');
+    expect(service.getState().error).toBeNull();
+  });
+
   it('lets the latest concurrent start win', async () => {
     const { generateMock, service } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
       settingsLatencyMs: 40,
