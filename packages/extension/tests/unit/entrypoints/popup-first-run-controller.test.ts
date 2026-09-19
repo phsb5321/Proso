@@ -362,6 +362,11 @@ describe('Feature 169 popup first-run controller', () => {
       'none',
     );
     expect((document.getElementById('grant-access-row') as HTMLElement).hidden).toBe(true);
+    const disclosure = document.querySelector(
+      '[data-testid="popup-first-run-data-disclosure"]',
+    )?.textContent;
+    expect(disclosure).toContain('only the text you ask to hear');
+    expect(disclosure).toContain('no usage telemetry');
   });
 
   it('keeps configured readers on the player with onboarding absent from focus order', async () => {

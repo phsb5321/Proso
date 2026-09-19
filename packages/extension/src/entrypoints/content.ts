@@ -44,7 +44,6 @@ import {
 } from '../utils/content/sticky-footer';
 import { createLogger } from '../utils/logging/logger';
 import type { HighlightColor } from '../utils/schemas/highlight.schema';
-import { hashUrlSync, usageTracker } from '../utils/telemetry/usage';
 
 const log = createLogger('content');
 
@@ -527,9 +526,6 @@ export default defineContentScript({
 
       // Setup persistent highlight callbacks (T087-T092)
       setupPersistentHighlightCallbacks(persistentHighlightManager);
-
-      // T017: Initialize telemetry for content script
-      initContentTelemetry();
     } catch (error) {
       log.error('Proso: Failed to initialize modules', { error });
       return;
@@ -551,9 +547,6 @@ export default defineContentScript({
      * Jump to a clicked paragraph (only during active playback)
      */
     function jumpToClickedParagraph(index: number): void {
-      // T017: Track paragraph click
-      trackParagraphClick(index);
-
       // The same handler the play-icon click uses (see paragraph-selector.ts).
       // It covers both cases this function is called for: seek when a run is
       // already going, extract and start from here when one is not. The
@@ -984,72 +977,6 @@ export default defineContentScript({
       } catch (error) {
         log.error('Proso: Failed to load page highlights', { error });
       }
-    }
-
-    // ========================================================================
-    // Telemetry (T017: Content Script Telemetry)
-    // ========================================================================
-
-    /**
-     * Initialize usage tracker for content script context.
-     * Loads config from storage and tracks content.injected event.
-     */
-    async function initContentTelemetry(): Promise<void> {
-      try {
-        // Load telemetry config from storage
-        const stored = await browser.storage.local.get([
-          'telemetryEnabled',
-          'telemetryGatewayUrl',
-          'telemetryGatewayToken',
-        ]);
-
-        // Skip if telemetry is disabled
-        if (stored.telemetryEnabled === false) {
-          return;
-        }
-
-        // Only initialize if gateway is configured
-        const gatewayUrl = stored.telemetryGatewayUrl as string | undefined;
-        const gatewayToken = stored.telemetryGatewayToken as string | undefined;
-
-        if (!gatewayUrl || !gatewayToken) {
-          return;
-        }
-
-        await usageTracker.initialize({
-          gatewayUrl,
-          gatewayToken,
-          entrypoint: 'content',
-          debugMode: false, // Keep content script quiet
-        });
-
-        // Track content script injection with privacy-safe URL hash
-        const urlHash = hashUrlSync(window.location.href);
-
-        usageTracker.track('content.injected', {
-          urlHash,
-        });
-
-        // Track content unload
-        window.addEventListener('beforeunload', () => {
-          usageTracker.track('content.cleanup', { urlHash });
-        });
-      } catch (error) {
-        // Silently fail - telemetry should never break the extension
-        log.debug('[Proso] Telemetry init failed', { error });
-      }
-    }
-
-    /**
-     * Track paragraph click events.
-     * Called when user clicks on a paragraph during playback.
-     */
-    function trackParagraphClick(index: number): void {
-      if (!usageTracker.isEnabled()) return;
-      usageTracker.track('paragraph.clicked', {
-        paragraphIndex: index,
-        urlHash: hashUrlSync(window.location.href),
-      });
     }
 
     // ========================================================================

@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "description": "Proso NestJS backend server \u2014 subscription management, credit-based TTS proxy, provider routing",
-  "license": "AGPL-3.0",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",

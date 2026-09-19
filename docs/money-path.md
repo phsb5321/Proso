@@ -11,7 +11,23 @@ Symbols: ✓ verified, ◐ partially verified, ✗ disproven as a delivery claim
 Every row carries the command or `file:line` that proves it. What is *not*
 proven is listed in its own section rather than left implied.
 
-## Current state — delta of 13/08/2026 (read this first)
+## Distribution delta — 31/08/2026 (read this first)
+
+- `proso.com.br` now serves the corrected site from the private S3/OAC origin
+  through CloudFront. The homepage, privacy/terms, update manifest, signed XPIs,
+  and corresponding source for every distributed version are publicly reachable
+  with correct content types and hashes; the private GitHub Releases install
+  link is gone.
+- Corrected Firefox 1.2.10 is submitted as a Mozilla-hosted listed version under **Proso**
+  with 0 validation errors, complete listing assets/privacy/licence/source, and
+  status **Awaiting Review**. Install controls stay on the honest status callout;
+  its AMO link remains a 404 until Mozilla publishes, so the anonymous public
+  oracle is deliberately red.
+- This distribution work did not enable checkout. The site still ships empty
+  Paddle configuration and cannot take payment, preserving the fail-closed
+  money-path invariant below.
+
+## Current state — delta of 13/08/2026 (historical snapshot)
 
 > **Snapshot boundary.** Everything below this section — from
 > "What a customer experiences today, end to end" to the end of the file — is

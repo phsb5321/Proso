@@ -61,9 +61,11 @@ disagree — RTF met, the 2 s clause met only at sentence length. See
 The daily Firefox profile was not modified. The development browser and its `web-ext` runner were
 left running so Pedro can inspect the installed build.
 
-The built Firefox MV2 manifest requests `storage`, `unlimitedStorage`, `activeTab`, `tabs`,
-`contextMenus`, `scripting`, and `https://logs.proso.com.br/*`. No additional host permission was
-introduced.
+At the measured 30/07 revision, the Firefox MV2 manifest requested `storage`,
+`unlimitedStorage`, `activeTab`, `tabs`, `contextMenus`, `scripting`, and
+`https://logs.proso.com.br/*`. The current public build supersedes that artifact:
+the telemetry host and initializer were removed on 31/08/2026; reader-operated
+synthesis-host access is optional and requested at runtime.
 
 Fresh `web-ext lint` did not reach source analysis because its dependency graph loaded
 `multimatch` against an incompatible `minimatch` default export. The extension build itself passed;

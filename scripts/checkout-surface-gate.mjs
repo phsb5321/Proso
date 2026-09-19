@@ -146,13 +146,19 @@ const PLANTS = {
   },
   'github-install': {
     file: 'index.html',
-    from: '<a href="#install-status" class="btn btn--primary btn--lg">',
-    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary btn--lg">',
-    breaks: 'install controls never link a private GitHub releases page',
+    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
+    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
+    breaks: 'the status callout links only the public Mozilla Add-ons listing',
+  },
+  'amo-status-mismatch': {
+    file: 'index.html',
+    from: '<section id="install-status" data-amo-status="awaiting-review">',
+    to: '<section id="install-status" data-amo-status="published">',
+    breaks: 'the install controls and copy agree with the AMO state marker',
   },
   'stale-jsonld': {
     file: 'index.html',
-    from: '"softwareVersion": "1.2.9",',
+    from: '"softwareVersion": "1.2.11",',
     to: '"softwareVersion": "1.0.0",',
     breaks: 'JSON-LD advertises the extension version in packages/extension/package.json',
   },
@@ -1341,63 +1347,79 @@ check(
   },
 );
 
-check(
-  'install controls name the Firefox signing wait and link nowhere private',
-  async (JSDOM, plant) => {
-    for (const page of [
-      'index.html',
-      'pricing.html',
-      'success.html',
-      'privacy.html',
-      'terms.html',
-    ]) {
-      const source = readSite(page, plant);
-      assert(!/github\.com/i.test(source), `${page} still links github.com`);
-    }
+check('install controls and copy agree with the AMO state', async (JSDOM, plant) => {
+  const listingUrl = 'https://addons.mozilla.org/firefox/addon/proso/';
+  const pages = ['index.html', 'pricing.html', 'success.html', 'privacy.html', 'terms.html'];
+  const indexHtml = readSite('index.html', plant);
+  const indexDocument = new JSDOM(indexHtml).window.document;
+  const status = indexDocument.getElementById('install-status');
+  assert(status, 'the landing page has no install-status section');
+  const amoStatus = status.dataset.amoStatus;
+  assert(
+    amoStatus === 'awaiting-review' || amoStatus === 'published',
+    `unknown AMO status ${JSON.stringify(amoStatus)}`,
+  );
 
-    const indexHtml = readSite('index.html', plant);
-    let extensionPkg;
-    try {
-      extensionPkg = JSON.parse(
-        readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
-      );
-    } catch {
-      throw new Blocked('packages/extension/package.json is missing');
-    }
-    assert(
-      indexHtml.includes(`"softwareVersion": "${extensionPkg.version}"`),
-      `JSON-LD does not advertise the extension's real version ${extensionPkg.version}`,
-    );
-    assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a download it cannot serve');
-
-    const window = await openPage(JSDOM, {
-      html: 'index.html',
-      url: 'https://proso.com.br/',
-      config: undefined,
-      scripts: ['main.js'],
-      plant,
-    });
-    const installs = Array.from(window.document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
+  for (const page of pages) {
+    const source = readSite(page, plant);
+    assert(!/github\.com/i.test(source), `${page} still links github.com`);
+    const document = new JSDOM(source).window.document;
+    const installs = Array.from(document.querySelectorAll('a.btn, a[class*="btn"]')).filter(
       (link) => /install/i.test(link.textContent || ''),
     );
-    assert(installs.length > 0, 'the landing page has no install control to check');
+    const expectedHref =
+      amoStatus === 'published'
+        ? listingUrl
+        : page === 'index.html'
+          ? '#install-status'
+          : 'index.html#install-status';
+    assert(installs.length > 0, `${page} has no install control to check`);
     for (const link of installs) {
       const href = link.getAttribute('href') || '';
       assert(
-        !/^https?:\/\//i.test(href),
-        `an install control still navigates away from the site: "${href}"`,
+        href === expectedHref,
+        `${page} install control targets "${href}", expected "${expectedHref}" for ${amoStatus}`,
       );
     }
+  }
 
-    const status = window.document.getElementById('install-status');
-    assert(status, 'the landing page has no install-status section');
-    const statusText = status.textContent || '';
+  const listingLink = status.querySelector(`a[href="${listingUrl}"]`);
+  assert(listingLink, `the install status does not link ${listingUrl}`);
+  const statusText = status.textContent || '';
+  if (amoStatus === 'awaiting-review') {
     assert(
-      /AMO|Mozilla|signing/i.test(statusText),
-      `the install status does not name the Firefox signing wait: "${statusText.trim()}"`,
+      /Awaiting Review/i.test(statusText) && !/is published/i.test(statusText),
+      `awaiting-review copy is inconsistent: "${statusText.trim()}"`,
     );
-  },
-);
+  } else {
+    assert(
+      /published/i.test(statusText) && !/Awaiting Review/i.test(statusText),
+      `published copy is inconsistent: "${statusText.trim()}"`,
+    );
+  }
+
+  let extensionPkg;
+  try {
+    extensionPkg = JSON.parse(
+      readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
+    );
+  } catch {
+    throw new Blocked('packages/extension/package.json is missing');
+  }
+  assert(
+    indexHtml.includes(`"softwareVersion": "${extensionPkg.version}"`),
+    `JSON-LD does not advertise the extension's real version ${extensionPkg.version}`,
+  );
+  assert(!indexHtml.includes('"downloadUrl"'), 'JSON-LD still offers a direct download');
+
+  await openPage(JSDOM, {
+    html: 'index.html',
+    url: 'https://proso.com.br/',
+    config: undefined,
+    scripts: ['main.js'],
+    plant,
+  });
+});
 
 check('a pending retry delay is clamped to a safe floor and ceiling', async (JSDOM, plant) => {
   const source = readSite(path.join('assets', 'js', 'success.js'), plant);

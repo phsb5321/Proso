@@ -96,6 +96,11 @@
           <p class="proso-popup__first-run-subtitle" id="first-run-subtitle">
             Two free ways to start — no account, no licence key.
           </p>
+          <p class="proso-popup__route-note" data-testid="popup-first-run-data-disclosure">
+            Reading sends only the text you ask to hear to the synthesis destination
+            you choose. Nothing is sent until you start, and the public build sends
+            no usage telemetry.
+          </p>
 
           <div class="proso-popup__route" data-route="local-host">
             <h3 class="proso-popup__route-title">Use a synthesis host you run</h3>
@@ -141,8 +146,8 @@
           <div class="proso-popup__route" data-route="byok">
             <h3 class="proso-popup__route-title">Use your own API key</h3>
             <p class="proso-popup__route-desc">
-              Bring an OpenAI, ElevenLabs, Groq or Cartesia key. Free on every tier —
-              your keys, your usage, your control.
+              Bring an OpenAI, ElevenLabs, Groq or Cartesia key. The text you ask to
+              hear is sent to that provider; your key is never retained by Proso.
             </p>
             <div class="proso-popup__byok-row" id="first-run-byok-row">
               <select id="first-run-byok-provider" class="proso-select" aria-label="API key provider" data-testid="popup-first-run-byok-provider">

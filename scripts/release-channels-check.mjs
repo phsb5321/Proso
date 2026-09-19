@@ -73,10 +73,25 @@ if (listed.manifest.version !== unlisted.manifest.version) {
   );
 }
 
-// AMO requires the data-collection taxonomy on new submissions; without it the
-// listing is refused regardless of update_url.
-if (!listed.settings.data_collection_permissions) {
+// AMO defines collection as any data handled outside the add-on or local
+// browser. Reading necessarily transmits the requested page text, so claiming
+// `none` is false even though telemetry is absent. The listed build must name
+// websiteContent as required. BYOK transmits a provider credential only when
+// selected, so authenticationInfo is optional; telemetry categories stay out.
+const collection = listed.settings.data_collection_permissions;
+if (!collection) {
   failures.push('listed build has no data_collection_permissions — AMO requires it');
+} else {
+  if (JSON.stringify(collection.required) !== JSON.stringify(['websiteContent'])) {
+    failures.push(
+      `listed build declares required data ${JSON.stringify(collection.required)} — expected websiteContent`,
+    );
+  }
+  if (JSON.stringify(collection.optional) !== JSON.stringify(['authenticationInfo'])) {
+    failures.push(
+      `listed build declares optional data ${JSON.stringify(collection.optional)} — expected authenticationInfo only`,
+    );
+  }
 }
 
 if (failures.length > 0) {

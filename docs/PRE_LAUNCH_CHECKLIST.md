@@ -2,8 +2,8 @@
 
 A comprehensive checklist for launching Proso as a commercial browser extension product.
 
-**Last Updated**: 2026-01-05
-**Current License**: GPL-3.0 (in LICENSE file) vs MIT (in package.json) - CONFLICT TO RESOLVE
+**Last Updated**: 2026-08-31
+**Current License**: AGPL-3.0-or-later — root text, package metadata, public terms, and AMO listing agree
 
 ---
 
@@ -30,15 +30,15 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Create Privacy Policy document | **[MUST]** | M | None | [ ] |
-| GDPR compliance sections (EU users) | **[MUST]** | M | Privacy Policy | [ ] |
+| Create Privacy Policy document | **[MUST]** | M | None | [x] |
+| GDPR compliance sections (EU users) | **[MUST]** | M | Privacy Policy | [x] |
 | CCPA/CPRA compliance (California users) | **[MUST]** | M | Privacy Policy | [ ] |
 | Global Privacy Control (GPC) signal support | **[SHOULD]** | S | None | [ ] |
 | "Do Not Sell/Share" link implementation | **[MUST]** | S | Privacy Policy | [ ] |
-| Data retention periods disclosure | **[MUST]** | S | Privacy Policy | [ ] |
-| Third-party data sharing disclosure (TTS APIs) | **[MUST]** | S | Privacy Policy | [ ] |
-| Cookie/storage policy | **[SHOULD]** | S | Privacy Policy | [ ] |
-| Host Privacy Policy on website | **[MUST]** | S | Website, Privacy Policy | [ ] |
+| Data retention periods disclosure | **[MUST]** | S | Privacy Policy | [x] |
+| Third-party data sharing disclosure (TTS APIs) | **[MUST]** | S | Privacy Policy | [x] |
+| Cookie/storage policy | **[SHOULD]** | S | Privacy Policy | [x] |
+| Host Privacy Policy on website | **[MUST]** | S | Website, Privacy Policy | [x] |
 
 **Key Requirements**:
 - [Chrome Extensions Requirements](https://www.privacypolicies.com/blog/chrome-extensions-requirements-privacy-policy-secure-handling/) require a privacy policy if collecting ANY data
@@ -50,22 +50,22 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Create Terms of Service document | **[MUST]** | M | Business entity | [ ] |
-| Acceptable use policy | **[MUST]** | S | ToS | [ ] |
-| Refund/cancellation policy | **[MUST]** | S | ToS, Payment setup | [ ] |
-| Limitation of liability | **[MUST]** | S | ToS | [ ] |
-| Intellectual property terms | **[MUST]** | S | ToS | [ ] |
-| Dispute resolution clause | **[SHOULD]** | S | ToS | [ ] |
-| Age requirements (13+/16+/18+) | **[SHOULD]** | S | ToS | [ ] |
+| Create Terms of Service document | **[MUST]** | M | Business entity | [x] |
+| Acceptable use policy | **[MUST]** | S | ToS | [x] |
+| Refund/cancellation policy | **[MUST]** | S | ToS, Payment setup | [x] |
+| Limitation of liability | **[MUST]** | S | ToS | [x] |
+| Intellectual property terms | **[MUST]** | S | ToS | [x] |
+| Dispute resolution clause | **[SHOULD]** | S | ToS | [x] |
+| Age requirements (13+/16+/18+) | **[SHOULD]** | S | ToS | [x] |
 
 ### License Selection
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| **RESOLVE LICENSE CONFLICT** | **[MUST]** | S | None | [ ] |
-| Choose final license (GPL-3.0 vs MIT vs other) | **[MUST]** | S | Business decision | [ ] |
-| Update package.json license field | **[MUST]** | S | License choice | [ ] |
-| Update LICENSE file if needed | **[MUST]** | S | License choice | [ ] |
+| **RESOLVE LICENSE CONFLICT** | **[MUST]** | S | None | [x] |
+| Choose final license (AGPL-3.0-or-later) | **[MUST]** | S | Business decision | [x] |
+| Update package.json license field | **[MUST]** | S | License choice | [x] |
+| Update LICENSE file if needed | **[MUST]** | S | License choice | [x] |
 | Add license headers to source files | **[NICE]** | M | License choice | [ ] |
 
 **Current Conflict**:
@@ -110,15 +110,17 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
 | Chrome Web Store developer account ($5) | **[MUST]** | S | None | [ ] |
-| Firefox Add-ons developer account (free) | **[MUST]** | S | None | [ ] |
+| Firefox Add-ons developer account (free) | **[MUST]** | S | None | [x] |
 | Manifest V3 compliance (Chrome) | **[MUST]** | - | Already done | [x] |
-| Single-purpose policy compliance | **[MUST]** | S | None | [ ] |
-| Minimum permissions audit | **[MUST]** | M | None | [ ] |
-| Store listing assets (icons, screenshots) | **[MUST]** | M | None | [ ] |
-| Clear extension description | **[MUST]** | S | None | [ ] |
-| Privacy policy URL in developer dashboard | **[MUST]** | S | Privacy Policy | [ ] |
-| Firefox data_collection_permissions manifest | **[MUST]** | S | None | [ ] |
-| Source code submission (Firefox) | **[MUST]** | S | Clean build process | [ ] |
+| Single-purpose policy compliance | **[MUST]** | S | None | [x] |
+| Minimum permissions audit | **[MUST]** | M | None | [x] |
+| Store listing assets (icons, screenshots) | **[MUST]** | M | None | [x] |
+| Clear extension description | **[MUST]** | S | None | [x] |
+| Privacy policy URL in developer dashboard | **[MUST]** | S | Privacy Policy | [x] |
+| Firefox data_collection_permissions manifest | **[MUST]** | S | None | [x] |
+| Source code submission (Firefox) | **[MUST]** | S | Clean build process | [x] |
+
+**Firefox listing state (31/08/2026):** corrected version 1.2.10, product metadata, privacy policy, custom AGPL-3.0-or-later text, icon, four screenshots, reviewer notes, and minimal reproducible corresponding source are submitted with 0 validation errors. The unpublished 1.2.9 draft was disabled after independent review. AMO status is **Awaiting Review**; store approval remains unchecked until the anonymous public oracle passes.
 
 **Chrome Web Store Requirements**:
 - [$5 one-time registration fee](https://www.extensionradar.com/blog/how-to-make-chrome-extension)
@@ -245,7 +247,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Support email setup | **[MUST]** | S | Domain | [ ] |
+| Support email setup | **[MUST]** | S | Domain | [x] |
 | Help desk software selection | **[SHOULD]** | S | None | [ ] |
 | Ticket management system | **[SHOULD]** | M | Help desk | [ ] |
 | Response time SLA definition | **[SHOULD]** | S | None | [ ] |
@@ -303,8 +305,8 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Store listing screenshots (1280x800) | **[MUST]** | M | None | [ ] |
-| Extension icon (128x128 PNG) | **[MUST]** | S | None | [ ] |
+| Store listing screenshots | **[MUST]** | M | None | [x] |
+| Extension icon (128x128 PNG) | **[MUST]** | S | None | [x] |
 | Promotional tile images | **[SHOULD]** | M | None | [ ] |
 | Demo video (60-90 seconds) | **[SHOULD]** | L | None | [ ] |
 | GIF demonstrations | **[NICE]** | M | None | [ ] |
@@ -455,7 +457,7 @@ A comprehensive checklist for launching Proso as a commercial browser extension 
 
 | Item | Priority | Effort | Dependencies | Status |
 |------|----------|--------|--------------|--------|
-| Email support (support@proso.com.br) | **[MUST]** | S | Domain | [ ] |
+| Email support (support@proso.com.br) | **[MUST]** | S | Domain | [x] |
 | Help desk integration | **[SHOULD]** | M | Email | [ ] |
 | Community Discord/forum | **[NICE]** | M | None | [ ] |
 | In-app feedback widget | **[SHOULD]** | M | None | [ ] |

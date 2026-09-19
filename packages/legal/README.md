@@ -41,4 +41,4 @@ Legal pages deploy alongside the marketing site via `.github/workflows/deploy-si
 1. Update the `datetime` attribute on the last-updated `<time>` element
 2. For material changes: update the effective date (30+ days in the future)
 3. Add previous version to the "Previous versions" section
-4. Commit and push to `main` to trigger deploy
+4. Commit through a pull request, then publish with `infra/aws/scripts/deploy-site.sh`

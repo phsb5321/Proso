@@ -391,18 +391,18 @@ services/proso-log-gateway/  # Telemetry ingest gateway
 
 ### 3.1 Extension Runtime Layout (WXT, Firefox **MV2**)
 
-**Bundler / config.** `packages/extension/wxt.config.ts` — WXT with `srcDir: 'src'` and `browser: 'firefox'` (`wxt.config.ts:75`). The `@wxt-dev/unocss` module is enabled (`wxt.config.ts:14-17`, excludes background + content entrypoints). Vite is configured for `es2020`, `esbuild` minify, sourcemaps disabled in production for IP protection, and console-stripping via `esbuild.pure` (NOT `drop`, to avoid AMO `no-unsanitized` warnings) (`wxt.config.ts:109-136`). Build-time telemetry config is injected via `define.__TELEMETRY_GATEWAY_URL__` / `__TELEMETRY_GATEWAY_TOKEN__` (`wxt.config.ts:103-108`).
+**Bundler / config.** `packages/extension/wxt.config.ts` — WXT with `srcDir: 'src'` and `browser: 'firefox'` (`wxt.config.ts:75`). The `@wxt-dev/unocss` module is enabled (`wxt.config.ts:14-17`, excludes background + content entrypoints). Vite is configured for `es2020`, `esbuild` minify, sourcemaps disabled in production for IP protection, and console-stripping via `esbuild.pure` (NOT `drop`, to avoid AMO `no-unsanitized` warnings) (`wxt.config.ts:109-136`). The public build has no telemetry host, gateway constant, credential seam, or tracker initializer; the retained legacy tracker calls are uninitialized no-ops.
 
 **Manifest is MV2, not MV3 — correcting the stale config comment.** The `wxt.config.ts:6-12` header docblock claims *"Chrome MV3-first architecture … Service worker background (MV3)"*, but this is **inaccurate/stale**. The actually-generated manifest is MV2:
 
 - Generated artifact `packages/extension/.output/firefox-mv2/manifest.json` shows `"manifest_version": 2`, `"background": {"scripts": ["background.js"]}` (event page — NOT a `service_worker`), and `"browser_action"` (the MV2 toolbar key, not MV3 `"action"`).
 - Build output dirs are Firefox-only: `.output/firefox-mv2/` and `.output/firefox-mv2-dev/` exist; **no `chrome-mv3` dir is produced**.
-- Gecko settings in `wxt.config.ts:53-67`: `browser_specific_settings.gecko` with addon id `{41eb66cb-b520-4047-9b6c-63fdce6fca11}`, `strict_min_version: '109.0'`, self-hosted `update_url: 'https://proso.com.br/updates.json'`, and the AMO-mandatory `data_collection_permissions` (required `['none']`, optional `['websiteContent','technicalAndInteraction']`).
+- Gecko settings in `wxt.config.ts:53-67`: `browser_specific_settings.gecko` with addon id `{41eb66cb-b520-4047-9b6c-63fdce6fca11}`, `strict_min_version: '109.0'`, self-hosted `update_url: 'https://proso.com.br/updates.json'`, and the AMO data declaration (required `websiteContent` for requested text synthesis; optional `authenticationInfo` only when the reader chooses BYOK).
 - CI hard-asserts MV2: `.github/workflows/ci.yml:79-83` fails the build if `manifest_version != 2`.
 
 The `action`/`default_popup` declared in `wxt.config.ts:45-52` is down-leveled by WXT to `browser_action` for the MV2 target. WXT MV2 build is intentional and gated; the only MV3 surface is dormant Chrome scaffolding (see offscreen below).
 
-**Permissions** (`wxt.config.ts:23-33`): `storage`, `unlimitedStorage` (IndexedDB audio cache 500MB+), `activeTab`, `tabs`, `contextMenus`, `scripting`. `host_permissions`: `https://logs.proso.com.br/*` (telemetry only). CSP for extension pages: `script-src 'self' 'wasm-unsafe-eval'` (the wasm grant is for `franc-min` language detection).
+**Permissions**: `storage`, `unlimitedStorage` (IndexedDB audio cache 500MB+), `activeTab`, `tabs`, `contextMenus`, `scripting`, and `downloads`. The public build has no install-time host permission. A reader-operated synthesis host is requested at runtime for the entered scheme and host; network use remains pinned to the exact entered origin. CSP for extension pages is `script-src 'self' 'wasm-unsafe-eval'` (the wasm grant is for `franc-min` language detection).
 
 **Entrypoints** (`packages/extension/src/entrypoints/`):
 

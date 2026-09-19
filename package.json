@@ -15,6 +15,7 @@
     "quality": "pnpm --filter @proso/extension quality",
     "zip:chrome": "pnpm --filter @proso/extension zip:chrome && ./scripts/stage-extension-release.sh chrome",
     "zip:firefox": "pnpm --filter @proso/extension zip:firefox && ./scripts/stage-extension-release.sh firefox",
+    "zip:firefox-listed": "./scripts/package-amo-listed.sh",
     "knip": "knip",
     "knip:production": "knip --production",
     "knip:fix": "knip --fix --allow-remove-files",
@@ -28,7 +29,7 @@
     "typescript": "^5.9.3"
   },
   "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "pnpm": {
     "onlyBuiltDependencies": [
       "@biomejs/biome",

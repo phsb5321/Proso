@@ -1,6 +1,8 @@
 # Proso Telemetry System
 
-This documentation covers the Proso usage telemetry system, which tracks anonymized usage events to help improve the extension.
+> **Public-build status (31/08/2026): disabled.** The AMO build has no telemetry host permission, gateway configuration, settings toggle, or entrypoint initializer and declares required `websiteContent` plus optional BYOK `authenticationInfo`; neither category is telemetry. The modules below remain as inactive historical/internal tooling; calls into the uninitialized tracker are no-ops.
+
+This documentation covers the retained usage-telemetry implementation.
 
 ## Overview
 
@@ -24,7 +26,7 @@ The telemetry system is designed with privacy as a core principle:
 - **No Personal Data**: We never log names, emails, or account information
 - **URL Hashing**: All URLs are SHA-256 hashed before logging
 - **API Key Redaction**: API keys are automatically removed from all events
-- **User Opt-Out**: Users can disable telemetry in Settings → Developer section
+- **Public build disabled**: no user event is buffered or sent because the tracker is never initialized
 - **Stable IDs Only**: We use randomly-generated install/session IDs, not user identifiers
 
 ## Quick Links
@@ -65,9 +67,9 @@ Telemetry is configured via `browser.storage.local`:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `telemetryEnabled` | boolean | `true` | Master enable switch |
-| `telemetryGatewayUrl` | string | (prod URL) | Gateway endpoint |
-| `telemetryGatewayToken` | string | - | Bearer token for auth |
+| `telemetryEnabled` | boolean | `false` | Retained storage-schema field; the public UI does not expose it |
+| `telemetryGatewayUrl` | string | unset | No public-build gateway is seeded |
+| `telemetryGatewayToken` | string | unset | No public-build credential is seeded |
 
 ### Environment Variables (Gateway)
 

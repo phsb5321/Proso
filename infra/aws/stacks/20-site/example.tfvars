@@ -13,10 +13,10 @@ assume_role_arn = "arn:aws:iam::699475944323:role/proso-deploy"
 
 domain_names = ["proso.com.br"]
 
-# PHASE 1. Leave false until the certificate is ISSUED — CloudFront cannot
-# attach a PENDING_VALIDATION certificate, and the site is verified on its
-# *.cloudfront.net domain before DNS is touched at all.
-attach_custom_domain = false
+# Phase 2 is live: ACM is ISSUED and proso.com.br points at the verified
+# CloudFront distribution. Setting this back to false would detach the custom
+# domain and break TLS for the public site.
+attach_custom_domain = true
 
 # The assembled site tree: `scripts/deploy-site.sh assemble --out <dir>`.
 # Terraform reads updates.json and releases/*.xpi from here so their keys and

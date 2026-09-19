@@ -5,7 +5,7 @@ One `static-site` module in `us-east-1`, applied to **Sandbox-Account
 25/08/2026. Everything of substance is documented in
 [`../../modules/static-site/README.md`](../../modules/static-site/README.md);
 this file is the operating procedure. Current state:
-[`../../docs/20-site-status.md`](../../docs/20-site-status.md).
+[`../../docs/20-site-status.md`](../../docs/20-site-status.md). The custom domain is live; `attach_custom_domain = true` is the steady state.
 
 ## Credentials
 
@@ -81,7 +81,8 @@ D=$(terraform output -raw distribution_domain_name)
 curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/"
 curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/updates.json"
 curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/releases/proso-1.2.1.xpi"
-#   -> 200 application/x-xpinstall, or Firefox will not install it
+curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/releases/proso-1.2.9-sources.zip"
+#   -> XPI: 200 application/x-xpinstall; source: 200 application/zip
 
 # 6. Prove there is no drift. Anything other than 0 here means the config and
 #    the account disagree — see docs/20-site-status.md for the one time that
@@ -89,9 +90,9 @@ curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' "https://$D/releases/p
 terraform plan -detailed-exitcode -var-file=sandbox.tfvars
 ```
 
-## Phase 2 — the custom domain
+## Custom-domain certificate recovery
 
-Only after step 5 is clean. If the current certificate is
+Phase 2 completed on 31/08/2026. Keep `attach_custom_domain = true`. If a future certificate is
 `VALIDATION_TIMED_OUT`, its output cannot be used to revive it: follow
 [`../../docs/20-site-status.md`](../../docs/20-site-status.md), apply only the
 reviewed replacement once Pedro is ready to validate it, then read the new
@@ -106,10 +107,9 @@ outputs.
 4. **Pedro** flips the `proso.com.br` CNAME (`terraform output cutover_cname`).
    That step is deliberately outside this stack.
 
-Note that step 3 will refuse to plan while `updates.json` still advertises
-`update_link` hosts outside `proso.com.br` — as it does today on the `gh-pages`
-branch, where every link points at `phsb5321.github.io`. That is content owned
-by the Proso repo and has to be corrected there first.
+The attach step refuses to plan if `updates.json` advertises update hosts outside
+`proso.com.br`. The `gh-pages` release payload now uses the custom domain; keep
+that invariant when publishing later self-distributed versions.
 
 ## Cost
 

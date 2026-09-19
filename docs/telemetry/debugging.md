@@ -185,7 +185,11 @@ count(count by (sessionId) ({app="proso"} | json))
 {app="proso"} | json | event=~"shipper\\.circuit_.*"
 ```
 
-### Check Gateway Health
+### Retired gateway health (internal history)
+
+The public AMO build no longer requests `logs.proso.com.br`, seeds a gateway,
+or initializes the usage tracker. The commands below apply only to a separately
+configured internal build and are not a public-build troubleshooting path.
 
 1. Query Loki for gateway logs (if logged separately):
    ```logql
@@ -219,16 +223,6 @@ This logs all events to the browser console.
 2. Go to Application → IndexedDB
 3. Find `proso_usage` database
 4. Check `events` object store
-
-### Test Gateway Connection
-
-```bash
-# Test with curl
-curl -X POST http://localhost:3000/ingest \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer dev-token" \
-  -d '{"events":[{"ts":"2024-01-01T00:00:00.000Z","event":"test","eventGroup":"system","level":"info","msg":"test","entrypoint":"background","extVersion":"1.0.0","installId":"550e8400-e29b-41d4-a716-446655440000","sessionId":"550e8400-e29b-41d4-a716-446655440001"}]}'
-```
 
 ## Grafana Dashboards
 

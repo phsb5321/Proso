@@ -1,0 +1,24 @@
+# Tasks — Feature 240
+
+- [x] T001 Capture the before state: AMO dashboard versions/channel/name, anonymous 404/search result, live site install target, update feed, XPI hash, CloudFront origin, and DNS target.
+- [ ] T002 Build unlisted and listed Firefox 1.2.11 artifacts from the isolated worktree; run the release-channel gate and Mozilla validator.
+- [x] T003 Normalize root and package licence metadata to AGPL-3.0-or-later, matching Proso’s existing public terms.
+- [x] T003A Remove remote telemetry from the public build, declare required website-content transmission truthfully, and expose the first-run data disclosure.
+- [ ] T004 Update website canonical URLs and Firefox install/status copy to the stable public AMO product URL; retain truthful fail-closed wording until approval.
+- [x] T005 Add the smallest runnable publication check covering listed-manifest invariants and anonymous AMO done-state.
+- [x] T006 Run `make doctor`, targeted checks, fuzz, release-channel validation, and the loaded-Firefox diagnostic.
+- [x] T007 Submit the initial listed 1.2.9 artifact; independent review rejected its source provenance and authentication disclosure, so it is superseded.
+- [x] T007A Cancel the unpublished 1.2.9 draft and submit corrected 1.2.10. A later gate prompted a planned 1.2.11 replacement, but 1.2.10 was published on 03/09/2026 at 23:30 BRT; it is not an unpublished draft.
+- [ ] T007B Preserve public 1.2.10. Prepare a separate exact-head 1.2.11 update only after the full gate, different-family review and release authorization pass; do not disable 1.2.10 or repeat its submission.
+- [x] T008 Update the AMO product page to Proso with description, categories, website/support, privacy policy, licence, and store screenshots.
+- [x] T009A Reconcile public 1.2.10: anonymous AMO API reports addon 2978221, version 6452761, public file 4996936; verified 15/09/2026. No duplicate submission or acknowledgement is needed.
+- [ ] T009 Resolve every review finding for the pending 1.2.11 candidate without weakening checks; the existing publication oracle must still require that candidate version.
+- [x] T010 Update `gh-pages` update links to `proso.com.br` while preserving every version and hash; verify both XPI bytes.
+- [x] T010A Publish build-tested source closures for every distributed version and remove the dangling 1.2.9 archive.
+- [x] T011 Assemble and deploy the reviewed site to the existing CloudFront origin; verify all pages, update metadata, XPI content types, and no orphaned release files.
+- [x] T012 Replace the timed-out ACM request, create the exact Cloudflare validation record, wait for `ISSUED`, and attach `proso.com.br` to the distribution.
+- [x] T013 Cut over only the `proso.com.br` DNS target and verify the update lifeline; retain the old target for rollback.
+- [ ] T013A Mozilla has published 1.2.10, but the live site still says Awaiting Review (15/09/2026). Owner: Proso. Prepare reviewed install-CTA/status and released-version metadata changes, obtain production-deploy authorization, then verify the anonymous funnel; preserve the unlisted update feed and both XPI hashes.
+- [ ] T014 Commit the exact candidate, run `make verify` and `GENERATOR_FAMILY=openai make gate`, then obtain a different-family exact-head review.
+- [ ] T015 Push through PR, satisfy CI/review, merge eligible repository changes, and record live receipts plus one-line rollback paths.
+- [ ] T016 Run the fleet done-oracle; mark completion only when the public GUID reports a public current version and the live site/install/update probes pass.
