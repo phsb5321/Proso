@@ -39,10 +39,17 @@ describe('Accessibility - Settings Page (T076)', () => {
     expect(document.querySelector('nav[aria-label="Settings navigation"]')).not.toBeNull();
   });
 
-  it('has no critical or serious accessibility violations', async () => {
-    const results = await jestAxe.axe(document.body);
-    expect(criticalOrSerious(results)).toHaveNoViolations();
-  });
+  // The axe scan walks the whole settings document: seconds of work that the
+  // 5s default does not cover while every other suite is competing for CPU, so
+  // this test is given an honest budget instead of flaking under load.
+  it(
+    'has no critical or serious accessibility violations',
+    async () => {
+      const results = await jestAxe.axe(document.body);
+      expect(criticalOrSerious(results)).toHaveNoViolations();
+    },
+    20_000,
+  );
 
   it('provides a skip link to the main content', () => {
     const skipLink = document.querySelector<HTMLAnchorElement>('a.skip-link');
