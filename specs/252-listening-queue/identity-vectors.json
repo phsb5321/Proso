@@ -1,0 +1,146 @@
+[
+  {
+    "name": "repeated",
+    "preimage": [
+      "proso-normalize-v1",
+      [
+        [
+          "paragraph",
+          "Echo",
+          null
+        ],
+        [
+          "paragraph",
+          "Echo",
+          null
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7631222c5b5b22706172616772617068222c224563686f222c6e756c6c5d2c5b22706172616772617068222c224563686f222c6e756c6c5d5d5d",
+    "revision": "r1-24baaa02a1828bbf7814df25e9245625acb812d0816b1f803080296c4a16755d",
+    "blockIds": [
+      "b1-c689bd4c6ee7a4b5cadcec9523b301a39c3d50448f8c403e14329236c74a5d13",
+      "b1-513824051c1c6bd9709aadef620f90980c1c5bc4d8da1d76cc6278a207ab5420"
+    ]
+  },
+  {
+    "name": "inserted",
+    "preimage": [
+      "proso-normalize-v1",
+      [
+        [
+          "heading",
+          "Start",
+          null
+        ],
+        [
+          "paragraph",
+          "Echo",
+          null
+        ],
+        [
+          "paragraph",
+          "Echo",
+          null
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7631222c5b5b2268656164696e67222c225374617274222c6e756c6c5d2c5b22706172616772617068222c224563686f222c6e756c6c5d2c5b22706172616772617068222c224563686f222c6e756c6c5d5d5d",
+    "revision": "r1-ef43a4a42f7b3f4553c8536c3309915e5de6bdf53730bb94465c779d9798c3e4",
+    "blockIds": [
+      "b1-31d694b50f52df054f732b75fcbed6e98a98422c0d9933714bff2328b4f7d5b7",
+      "b1-fa72f7d8973d2a101cb8304f8d629f54bcce36f50033841208ff3b0e7ab86c23",
+      "b1-2bd4404998ce25ad57104288566c300357aa15db8c3fe557936b7774941817ee"
+    ]
+  },
+  {
+    "name": "parent",
+    "preimage": [
+      "proso-normalize-v1",
+      [
+        [
+          "list",
+          "Parent",
+          null
+        ],
+        [
+          "list",
+          "Child",
+          0
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7631222c5b5b226c697374222c22506172656e74222c6e756c6c5d2c5b226c697374222c224368696c64222c305d5d5d",
+    "revision": "r1-e2e318db78bd16b42e3a7073730f352a1731efdf1a587efea99915c99b80611f",
+    "blockIds": [
+      "b1-5987401b94591070a39dd6579efbedb9765d5289339c1433597fba5adde63a29",
+      "b1-c61aa0f6439d82fed62440f031125fb4eb7b0d9371de3de356b5918b9426ff98"
+    ]
+  },
+  {
+    "name": "no-parent",
+    "preimage": [
+      "proso-normalize-v1",
+      [
+        [
+          "list",
+          "Parent",
+          null
+        ],
+        [
+          "list",
+          "Child",
+          null
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7631222c5b5b226c697374222c22506172656e74222c6e756c6c5d2c5b226c697374222c224368696c64222c6e756c6c5d5d5d",
+    "revision": "r1-2ac859b19743075a8554c8697f8923aa3d375d2893d3f6a1935fe1313a647085",
+    "blockIds": [
+      "b1-deee94a8c1ad3d9748483d968c76e08619680d3bd68f746de92dd182b36dd2be",
+      "b1-ccb17fc827a05328cdde99f4d25d5a461441b97e3d0e454aa818572c0773d18c"
+    ]
+  },
+  {
+    "name": "unicode-escaping",
+    "preimage": [
+      "proso-normalize-v1",
+      [
+        [
+          "paragraph",
+          "Café 😀 \"yes\" \\ / \u0001",
+          null
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7631222c5b5b22706172616772617068222c22436166c3a920f09f9880205c227965735c22205c5c202f205c7530303031222c6e756c6c5d5d5d",
+    "revision": "r1-9a8201a3bd55822388ca7029b19405879d4de2e499d53b31d55e51cdec07cad5",
+    "blockIds": [
+      "b1-376a8abd65c8fc3db71e5a8700acf90a24067a91e16ca3bdeaa1d5636753da50"
+    ]
+  },
+  {
+    "name": "normalization-version",
+    "preimage": [
+      "proso-normalize-v2",
+      [
+        [
+          "paragraph",
+          "Echo",
+          null
+        ],
+        [
+          "paragraph",
+          "Echo",
+          null
+        ]
+      ]
+    ],
+    "preimageUtf8Hex": "5b2270726f736f2d6e6f726d616c697a652d7632222c5b5b22706172616772617068222c224563686f222c6e756c6c5d2c5b22706172616772617068222c224563686f222c6e756c6c5d5d5d",
+    "revision": "r1-ce7633f396e8effb4f2816c2e597687ec732fcae59ba2f3271def812fd159d49",
+    "blockIds": [
+      "b1-31710d00e80cd898b5800cfb7366b704eda5dba88017039997e7996ee5e82b20",
+      "b1-0c981b2e3e7b1bfd769ada6eea3fb9eb7375f27f17568493fa514255bd242115"
+    ]
+  }
+]
