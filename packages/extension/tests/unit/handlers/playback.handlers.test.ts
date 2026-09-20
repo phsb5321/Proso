@@ -171,12 +171,13 @@ describe('Playback Handlers', () => {
         'playback.resync',
         'playback.setSpeed',
         'playback.seek',
+        'playback.viewUnloaded',
         'PARAGRAPH_CLICKED',
       ];
       for (const name of expected) {
         expect(names).toContain(name);
       }
-      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(11);
+      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(12);
       expect(names).toContain('PARAGRAPH_CLICKED');
     });
   });

@@ -57,6 +57,7 @@ export class BrowserSettingsAdapter implements ISettingsStore {
       cacheEnabled: all.cacheEnabled,
       maxCacheSize: all.maxCacheSize,
       wordSyncEnabled: all.wordSyncEnabled,
+      stopPlaybackOnTabChange: all.stopPlaybackOnTabChange,
       pronunciationLexiconEnabled: all.pronunciationLexiconEnabled,
       pronunciationLexicon: all.pronunciationLexicon,
     };

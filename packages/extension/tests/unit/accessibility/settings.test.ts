@@ -65,8 +65,8 @@ describe('Accessibility - Settings Page (T076)', () => {
     const hintId = checkbox?.getAttribute('aria-describedby');
 
     expect(checkbox?.type).toBe('checkbox');
-    expect(label?.textContent).toContain('Stop playback when switching tabs');
+    expect(label?.textContent).toContain('Keep listening when I leave this page');
     expect(hintId).toBe('stopPlaybackOnTabChangeHint');
-    expect(document.getElementById(hintId ?? '')?.textContent).toContain('background listening');
+    expect(document.getElementById(hintId ?? '')?.textContent).toContain('browser stays open');
   });
 });

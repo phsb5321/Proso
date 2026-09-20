@@ -8,6 +8,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { applyViewUnloadPolicy } from '../background/view-unload-policy';
 import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { WordTimingBasis } from '../core/playback/word-timing-estimator';
 import type { Result } from '../core/shared/result';
@@ -436,6 +437,34 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
       }
     },
     'Stop playback',
+  );
+
+  /**
+   * A reading view is going away (navigation, reload, tab close).
+   *
+   * The content script no longer decides: with background playback enabled the
+   * session detaches from its view and audio continues; otherwise this is the
+   * stop it always was. Idempotent — repeated unloads are harmless.
+   */
+  registry.register<{ reason?: string; __tabId?: number }, Result<PlaybackOperationResponse, PlaybackHandlerError>>(
+    'playback.viewUnloaded',
+    async (params) => {
+      if (!isPlaybackServiceAvailable()) {
+        return Err({
+          type: 'service_unavailable',
+          message: 'PlaybackService not yet initialized. Use legacy handlers.',
+        });
+      }
+
+      try {
+        await applyViewUnloadPolicy(getPlaybackService(), params?.__tabId);
+        return Ok({ success: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Err({ type: 'operation_failed', message });
+      }
+    },
+    'React to a reading view going away',
   );
 
   /**
