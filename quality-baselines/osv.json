@@ -33,7 +33,7 @@
       "advisory": "GHSA-w5hq-g745-h8pq",
       "severity": "MODERATE",
       "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
+      "reason": "web-ext > sign-addon > request uses require(\"uuid/v4\"), a subpath absent from patched uuid 11.1.1. Retained to avoid breaking signing while request is explicitly outside this cleanup; remove with a compatible upstream-chain migration.",
       "issue": "quality-depth-slice-2"
     },
     {
@@ -46,50 +46,6 @@
       "owner": "proso",
       "reason": "No upstream fix: GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq list last_affected 2.0.2 (no fixed release). Transitive via web-ext > addons-linter (dev tooling). Rebaseline when upstream publishes a fix.",
       "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "ebe20bec2d6a2d0a5b90f7c290a7a674b8939ecbc56a77c0cc531daf730c3fd9",
-      "package": "uuid",
-      "version": "8.3.2",
-      "advisory": "GHSA-w5hq-g745-h8pq",
-      "severity": "MODERATE",
-      "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "fe93e9fd42f2fa21472937397979c7fb5159c99f50437d3d72e12c1d8bc3baf2",
-      "package": "uuid",
-      "version": "10.0.0",
-      "advisory": "GHSA-w5hq-g745-h8pq",
-      "severity": "MODERATE",
-      "owner": "proso",
-      "reason": "Known transitive advisory; remediate by reachability and fixed-version priority.",
-      "issue": "quality-depth-slice-2"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "3d4557023288844f5c266278f1941b740eae68dd71718eb20d18ba9b3b857f9e",
-      "package": "deepmerge-ts",
-      "version": "7.1.5",
-      "advisory": "GHSA-ggr8-5vv4-36mx",
-      "severity": "HIGH",
-      "owner": "proso",
-      "reason": "Build/deploy-time-only chain through prisma > @prisma/config. The patched 8.0.0 is pure ESM while @prisma/config resolves a CommonJS-compatible version below 8; review with the matching exact-path audit allowlist.",
-      "issue": "deterministic-floor-pr183"
-    },
-    {
-      "tool": "osv-scanner",
-      "fingerprint": "e2b7aaa272254c7df88796c9147ff9beda742082e465ae1ca2b8af87b5a675f1",
-      "package": "adm-zip",
-      "version": "0.6.0",
-      "advisory": "GHSA-vwc7-r8mq-g2x9",
-      "severity": "MODERATE",
-      "owner": "proso",
-      "reason": "No upstream fix: GHSA-vwc7-r8mq-g2x9 lists no fixed release. Transitive dev tooling (extraction path used by archive tooling, not runtime server code). Rebaseline when upstream publishes a fix.",
-      "issue": "dependency-remediation-244"
     }
   ]
 }
