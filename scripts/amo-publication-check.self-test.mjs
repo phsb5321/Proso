@@ -1,7 +1,18 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import http from 'node:http';
+
+// The published-version expectation is the extension's OWN version, so the
+// happy-path fixture must track it. Hardcoding it here is exactly how this
+// fixture went stale (1.2.11 while the extension was 1.2.12) and turned the
+// AMO self-test into a red step of `make verify` for everyone.
+const extensionVersion = JSON.parse(
+  readFileSync(new URL('../packages/extension/package.json', import.meta.url), 'utf8'),
+).version;
+// A version guaranteed to be older than the extension's, for the mismatch case.
+const olderVersion = '0.0.1';
 
 const GUID = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
 const baseAddon = {
@@ -9,7 +20,7 @@ const baseAddon = {
   slug: 'proso',
   name: { 'en-US': 'Proso' },
   status: 'public',
-  current_version: { version: '1.2.11', file: { status: 'public' } },
+  current_version: { version: extensionVersion, file: { status: 'public' } },
 };
 
 let response = baseAddon;
@@ -77,8 +88,8 @@ try {
     { ...baseAddon, status: 'unlisted' },
     { ...baseAddon, slug: 'voxpage' },
     { ...baseAddon, name: { 'en-US': 'VoxPage' } },
-    { ...baseAddon, current_version: { version: '1.2.10', file: { status: 'public' } } },
-    { ...baseAddon, current_version: { version: '1.2.11', file: { status: 'awaiting_review' } } },
+    { ...baseAddon, current_version: { version: olderVersion, file: { status: 'public' } } },
+    { ...baseAddon, current_version: { version: extensionVersion, file: { status: 'awaiting_review' } } },
     null,
   ];
 
