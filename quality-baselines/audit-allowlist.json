@@ -12,12 +12,6 @@
       "path": "packages__extension>web-ext>addons-linter>image-size",
       "reason": "Same unreachable dev-only chain as GHSA-w3rx-r6r6-pgpr: image-size via web-ext > addons-linter (extension devDependency). No upstream fix ('Patched versions: <0.0.0'; OSV last_affected 2.0.2). Review when web-ext drops addons-linter, upstream fixes image-size, or web-ext moves to runtime deps.",
       "reviewDate": "2026-10-30"
-    },
-    {
-      "ghsa": "GHSA-ggr8-5vv4-36mx",
-      "path": "packages__server>prisma>@prisma/config>deepmerge-ts",
-      "reason": "Build/deploy-time-only chain: deepmerge-ts is pulled by @prisma/config, the prisma CLI's config loader (used by the predeploy `prisma db push`/migrate path), and is absent from the shipped server runtime artifact. The patched 8.0.0 is pure ESM while @prisma/config is CommonJS and resolves <8, so no compatible bump exists. Review when @prisma/config supports an ESM-compatible deepmerge-ts or ships its own fix.",
-      "reviewDate": "2026-11-17"
     }
   ]
 }
