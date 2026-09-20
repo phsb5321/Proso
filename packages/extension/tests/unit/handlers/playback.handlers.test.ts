@@ -24,6 +24,7 @@ const srcDir = resolve(__dirname, '../../../src');
 
 const mockPlaybackService = {
   getState: jest.fn<() => any>(),
+  getAttentionState: () => ({ activeTabId: 42, documentTitle: 'Original article', visualAttachmentDetached: true, audioLive: true }),
   start: jest.fn<() => Promise<any>>(),
   pause: jest.fn<() => any>(),
   resume: jest.fn<() => Promise<any>>(),
@@ -140,7 +141,7 @@ describe('Playback Handlers', () => {
     mockPlaybackService.getState.mockReturnValue(defaultState());
 
     // Default tab mock
-    mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page' }]);
+    mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page', title: 'Original article' }]);
     mockTabsSendMessage.mockResolvedValue(null);
 
     // Default async method results (Ok)
@@ -192,6 +193,10 @@ describe('Playback Handlers', () => {
   // playback.getState
   // -----------------------------------------------------------------------
   describe('playback.getState', () => {
+    it('returns background-owned orientation even after the view detaches', async () => {
+      const result = unwrapDispatch(await registry.dispatch('playback.getState', undefined));
+      expect(result.value).toMatchObject({ activeTabId: 42, documentTitle: 'Original article', visualAttachmentDetached: true, audioLive: true });
+    });
     it('should return mapped playback state on success', async () => {
       mockPlaybackService.getState.mockReturnValue(
         defaultState({ status: 'playing', currentParagraphIndex: 2, totalParagraphs: 10 }),
@@ -311,11 +316,12 @@ describe('Playback Handlers', () => {
         params.paragraphs,
         99,
         'https://example.com',
+        undefined,
       );
     });
 
     it('should extract text from active tab when no paragraphs provided', async () => {
-      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page' }]);
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page', title: 'Original article' }]);
       mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
         if (msg.action === 'extractText') {
           return { paragraphs: ['Extracted text'] };
@@ -332,6 +338,7 @@ describe('Playback Handlers', () => {
         ['Extracted text'],
         42,
         'https://example.com/page',
+        'Original article',
       );
     });
 
@@ -440,6 +447,7 @@ describe('Playback Handlers', () => {
         ['Selected words'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -484,6 +492,7 @@ describe('Playback Handlers', () => {
         ['First chunk', 'Second chunk'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -505,6 +514,7 @@ describe('Playback Handlers', () => {
         ['just one sentence'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -1161,6 +1171,7 @@ describe('Playback Handlers', () => {
         ['p0', 'p1', 'p2', 'p3', 'p4'],
         42,
         'https://example.com',
+        undefined,
       );
       expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
       expect(mockStorageSet).toHaveBeenCalledWith({

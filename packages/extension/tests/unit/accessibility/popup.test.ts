@@ -61,6 +61,15 @@ describe('Accessibility - Popup (T077)', () => {
     expect(timingBasis?.textContent).toContain('Word highlighting: approximate');
   });
 
+  it('names the background preference and exposes its state and disclosure', () => {
+    const toggle = document.getElementById('background-playback-toggle');
+    expect(toggle?.tagName).toBe('BUTTON');
+    expect(toggle?.getAttribute('aria-label')).toBe('Keep listening when I leave this page');
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle?.getAttribute('aria-describedby')).toBe('background-playback-hint');
+    expect(document.getElementById('background-playback-hint')?.textContent).toContain('Keep the browser open');
+  });
+
   it('does not expose the inactive OCR control in Tools', () => {
     const ocr = document.getElementById('ocr-section') as HTMLElement;
     expect(ocr.hidden).toBe(true);

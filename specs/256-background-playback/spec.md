@@ -82,7 +82,10 @@ state with no audio flowing; a second start silently replacing a live session.
   detached-view error handling, and the popup's cross-tab presentation helper.
 - **REQ-007:** Deferred, explicitly out of this slice: durable resume after
   browser restart (Feature 252 checkpoints), OS media controls / Media Session,
-  toolbar badge, sleep timer, sidebar or PiP player.
+  sleep timer, sidebar or PiP player.
+- **REQ-008:** A quiet global toolbar badge appears only with live audio, clears
+  on pause, waiting, stop or error, and has an accessible action title naming
+  the original document. Added to this slice by the popup-affordances request.
 
 ## Non-goals
 

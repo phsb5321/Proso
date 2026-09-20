@@ -14,6 +14,11 @@
 import 'virtual:uno.css';
 import { browser } from 'wxt/browser';
 import {
+  isBackgroundPlaybackEnabled,
+  readBackgroundPlaybackEnabled,
+  toStoredPreference,
+} from '../../utils/config/background-playback';
+import {
   classifyFailure,
   connectLocalHost,
   hasCustomManagedServer,
@@ -38,6 +43,10 @@ const log = createLogger('popup');
 
 interface PlaybackState {
   status: 'stopped' | 'loading' | 'playing' | 'paused' | 'error';
+  activeTabId?: number | null;
+  documentTitle?: string;
+  visualAttachmentDetached?: boolean;
+  audioLive?: boolean;
   currentParagraph: number;
   totalParagraphs: number;
   progress: number; // 0-100
@@ -51,6 +60,13 @@ interface PlaybackState {
 // ============================================
 
 const elements = {
+  playingDocument: document.getElementById('playing-document') as HTMLParagraphElement,
+  openPlayingTab: document.getElementById('open-playing-tab') as HTMLButtonElement,
+  backgroundToggle: document.getElementById('background-playback-toggle') as HTMLButtonElement,
+  backgroundState: document.getElementById('background-playback-state') as HTMLSpanElement,
+  backgroundFeedback: document.getElementById(
+    'background-playback-feedback',
+  ) as HTMLParagraphElement,
   // Status
   statusDot: document.getElementById('status-dot') as HTMLSpanElement,
   statusText: document.getElementById('status-text') as HTMLSpanElement,
@@ -159,6 +175,11 @@ let currentState: PlaybackState = {
   provider: 'elevenlabs',
   timingBasis: 'none',
 };
+let popupTabId: number | undefined;
+let popupWindowId: number | undefined;
+let returnLookup = 0;
+let returnTabId: number | null | undefined;
+let backgroundEnabled = false;
 let playbackStartPending = false;
 let startRequestInFlight = false;
 let stopRequestedDuringStart = false;
@@ -207,7 +228,7 @@ let queueState: QueueState = {
 /**
  * Update status indicator based on playback state
  */
-function updateStatus(status: PlaybackState['status']): void {
+function updateStatus(status: PlaybackState['status'], label?: string): void {
   elements.statusDot.setAttribute('data-status', status);
 
   const statusLabels: Record<PlaybackState['status'], string> = {
@@ -218,7 +239,8 @@ function updateStatus(status: PlaybackState['status']): void {
     error: 'Error',
   };
 
-  elements.statusText.textContent = statusLabels[status];
+  const text = label ?? statusLabels[status];
+  if (elements.statusText.textContent !== text) elements.statusText.textContent = text;
 }
 
 /**
@@ -301,8 +323,28 @@ async function updateSectionVisibility(): Promise<void> {
  */
 function applyState(state: PlaybackState): void {
   currentState = state;
-  updateStatus(state.status);
+  const live = state.status === 'playing' && state.audioLive === true;
+  const location = state.visualAttachmentDetached
+    ? 'Playing — reading view closed'
+    : state.activeTabId === popupTabId
+      ? 'Playing in this tab'
+      : 'Playing in another tab';
+  updateStatus(
+    state.status === 'playing' && !live ? 'loading' : state.status,
+    live ? location : undefined,
+  );
+  const hasSession = ['playing', 'paused', 'loading'].includes(state.status);
+  elements.panelPlayer.classList.toggle('proso-popup__panel--session', hasSession);
+  elements.playingDocument.hidden = !hasSession;
+  elements.playingDocument.textContent = hasSession
+    ? state.documentTitle || 'Untitled document'
+    : '';
+  void updateReturnControl(state, hasSession);
   updatePlayPauseButton(state.status === 'playing');
+  if (state.status === 'paused') {
+    elements.playPauseBtn.setAttribute('aria-label', 'Resume');
+    elements.playPauseBtn.title = 'Resume';
+  }
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
   updateProgress(state.progress);
   updateTimingBasis(state.timingBasis);
@@ -311,6 +353,55 @@ function applyState(state: PlaybackState): void {
   setPlaybackStartPending(startRequestInFlight || state.status === 'loading');
   if (typeof state.speed === 'number') {
     updateSpeed(state.speed);
+  }
+}
+
+async function updateReturnControl(state: PlaybackState, hasSession: boolean): Promise<void> {
+  const lookup = ++returnLookup;
+  if (returnTabId !== state.activeTabId || !hasSession) elements.openPlayingTab.hidden = true;
+  returnTabId = state.activeTabId;
+  if (!hasSession || state.activeTabId == null) return;
+  try {
+    await browser.tabs.get(state.activeTabId);
+    if (lookup === returnLookup) elements.openPlayingTab.hidden = false;
+  } catch {
+    if (lookup === returnLookup) elements.openPlayingTab.hidden = true;
+  }
+}
+
+async function openPlayingTab(): Promise<void> {
+  const tabId = currentState.activeTabId;
+  if (tabId == null) return;
+  try {
+    const tab = await browser.tabs.update(tabId, { active: true });
+    if (!tab) {
+      elements.openPlayingTab.hidden = true;
+      return;
+    }
+    if (tab.windowId !== popupWindowId)
+      await browser.windows.update(tab.windowId, { focused: true });
+  } catch {
+    elements.openPlayingTab.hidden = true;
+  }
+}
+
+function showBackgroundPreference(enabled: boolean): void {
+  backgroundEnabled = enabled;
+  elements.backgroundToggle.setAttribute('aria-pressed', String(enabled));
+  elements.backgroundState.textContent = enabled ? 'On' : 'Off';
+}
+
+async function toggleBackgroundPreference(): Promise<void> {
+  const enabled = !backgroundEnabled;
+  elements.backgroundToggle.disabled = true;
+  elements.backgroundFeedback.textContent = '';
+  try {
+    await browser.storage.local.set({ stopPlaybackOnTabChange: toStoredPreference(enabled) });
+    showBackgroundPreference(enabled);
+  } catch {
+    elements.backgroundFeedback.textContent = 'Could not save. Try again.';
+  } finally {
+    elements.backgroundToggle.disabled = false;
   }
 }
 
@@ -346,16 +437,18 @@ async function sendMessage<T = unknown>(type: string, data?: Record<string, unkn
 /**
  * Fetch current playback state from background
  */
-async function fetchPlaybackState(): Promise<void> {
+async function fetchPlaybackState(): Promise<boolean> {
   try {
     const state = await sendMessage<PlaybackState>('playback.getState');
-    if (state) {
+    if (state?.status) {
       applyState(state);
+      return true;
     }
   } catch (error) {
     log.error('[Popup] Failed to fetch playback state', { error });
     // Keep default state on error
   }
+  return false;
 }
 
 /**
@@ -405,9 +498,30 @@ function setPlaybackStartPending(pending: boolean): void {
 /** Start one new reading and reconcile from background-owned state. */
 async function startFreshPlayback(): Promise<void> {
   if (playbackStartPending || startRequestInFlight) return;
-
+  // Every fresh-start entry point (including connection repair) shares this guard.
+  // Stop is explicit, so no click silently replaces the current reading.
   startRequestInFlight = true;
   stopRequestedDuringStart = false;
+  setPlaybackStartPending(true);
+  updateStatus('loading');
+  if (!(await fetchPlaybackState())) {
+    startRequestInFlight = false;
+    setPlaybackStartPending(false);
+    elements.statusText.textContent = 'Could not check the current reading. Try again.';
+    return;
+  }
+  if (stopRequestedDuringStart) {
+    startRequestInFlight = false;
+    setPlaybackStartPending(false);
+    return;
+  }
+  if (['playing', 'paused', 'loading'].includes(currentState.status)) {
+    startRequestInFlight = false;
+    setPlaybackStartPending(currentState.status === 'loading');
+    elements.statusText.textContent = 'Stop the current reading before reading this page.';
+    return;
+  }
+
   setPlaybackStartPending(true);
   currentState = { ...currentState, status: 'loading' };
   updateStatus('loading');
@@ -471,14 +585,12 @@ async function handlePlayPause(): Promise<void> {
     if (currentState.status === 'playing') {
       trackClick('playback.pause_clicked');
       await sendMessage('playback.pause');
-      updateStatus('paused');
-      updatePlayPauseButton(false);
+      await fetchPlaybackState();
     } else if (currentState.status === 'paused') {
       // Resume from paused state
       trackClick('playback.play_clicked', { resumed: true });
       await sendMessage('playback.resume');
-      updateStatus('playing');
-      updatePlayPauseButton(true);
+      await fetchPlaybackState();
     } else {
       await startFreshPlaybackSafely();
     }
@@ -1638,6 +1750,12 @@ function setupMessageListener(): void {
  * Set up event listeners
  */
 function setupEventListeners(): void {
+  elements.openPlayingTab.addEventListener('click', () => {
+    void openPlayingTab();
+  });
+  elements.backgroundToggle.addEventListener('click', () => {
+    void toggleBackgroundPreference();
+  });
   // Playback controls
   // PROSO-131: the grant button is the popup-side repair for a missing
   // runtime host grant — permissions.request() must run from this click.
@@ -1910,6 +2028,12 @@ async function init(): Promise<void> {
   // Display version
   await displayVersion();
 
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  popupTabId = tab?.id;
+  popupWindowId = tab?.windowId;
+  showBackgroundPreference(await readBackgroundPlaybackEnabled());
+  elements.backgroundToggle.disabled = false;
+
   // Fetch initial state
   await fetchSettings();
   await fetchPlaybackState();
@@ -1923,6 +2047,13 @@ async function init(): Promise<void> {
   // The webextension test env mocks storage.local but not onChanged — guard.
   browser.storage.onChanged?.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+    if ('stopPlaybackOnTabChange' in changes) {
+      showBackgroundPreference(
+        isBackgroundPlaybackEnabled({
+          stopPlaybackOnTabChange: changes.stopPlaybackOnTabChange.newValue,
+        }),
+      );
+    }
     const routeKeys = [
       'localHostEnabled',
       'localHostUrl',

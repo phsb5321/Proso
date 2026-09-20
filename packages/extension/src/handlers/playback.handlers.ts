@@ -31,7 +31,7 @@ import {
 /**
  * Get the active tab in the current window.
  */
-async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
+async function getActiveTab(): Promise<{ id?: number; url?: string; title?: string } | null> {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
 }
@@ -110,6 +110,10 @@ export interface PlaybackStateResponse {
   currentTime: number;
   totalTime: number;
   timingBasis: WordTimingBasis;
+  activeTabId?: number | null;
+  documentTitle?: string;
+  visualAttachmentDetached?: boolean;
+  audioLive?: boolean;
 }
 
 /**
@@ -240,6 +244,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           currentTime: 0, // Audio timing tracked by audio element in PlaybackService
           totalTime: 0, // Audio timing tracked by audio element in PlaybackService
           timingBasis: service.getTimingBasis?.() ?? 'none',
+          ...service.getAttentionState?.(),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -283,6 +288,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         // Step 1: Get active tab if not provided
         let tabId = parsed.data.tabId;
         let pageUrl = parsed.data.pageUrl;
+        let documentTitle: string | undefined;
 
         if (!tabId || !pageUrl) {
           const tab = await getActiveTab();
@@ -291,6 +297,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           }
           tabId = tab.id;
           pageUrl = tab.url ?? '';
+          documentTitle = tab.title;
         }
 
         // Step 2: Extract paragraphs if not provided.
@@ -362,7 +369,14 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
 
         // Step 4: Start PlaybackService
         service.setLanguage(effectiveLanguage);
-        const result = await service.start(paragraphs, tabId, pageUrl);
+        if (!documentTitle) {
+          try {
+            documentTitle = (await browser.tabs.get(tabId)).title;
+          } catch {
+            /* URL fallback */
+          }
+        }
+        const result = await service.start(paragraphs, tabId, pageUrl, documentTitle);
 
         if (!result.ok) {
           return Ok({ success: false, error: getPlaybackErrorMessage(result.error) });
@@ -813,7 +827,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           });
 
           // Start PlaybackService with extracted paragraphs
-          const startResult = await service.start(paragraphs, tab.id, tab.url ?? '');
+          const startResult = await service.start(paragraphs, tab.id, tab.url ?? '', tab.title);
           if (!startResult.ok) {
             return Ok({
               success: false,

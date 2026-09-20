@@ -24,6 +24,30 @@ import type { FooterState, IHighlightSynchronizer } from '../../ports/highlight-
  * - Footer state updates
  */
 export class HighlightSyncAdapter implements IHighlightSynchronizer {
+  private lastActionTitle = '';
+  private actionUpdate: Promise<void> = Promise.resolve();
+
+  private updateAction(state: FooterState): void {
+    const playing = state.status === 'playing' && state.audioLive === true;
+    const title = playing
+      ? `Proso — Playing: ${state.documentTitle || 'Untitled document'}`
+      : 'Proso';
+    if (title === this.lastActionTitle) return;
+    this.lastActionTitle = title;
+    // Serialize browser writes so a slow playing update cannot outlive Stop.
+    this.actionUpdate = this.actionUpdate
+      .then(async () => {
+        const action = browser.browserAction ?? browser.action;
+        await Promise.all([
+          action.setBadgeText({ text: playing ? '▶' : '' }),
+          action.setTitle({ title }),
+        ]);
+      })
+      .catch(() => {
+        this.lastActionTitle = '';
+      });
+  }
+
   /**
    * Send message to content script.
    * @param tabId - Tab to send message to
@@ -167,6 +191,30 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
     try {
       const timingBasis = (state as FooterState & { readonly timingBasis?: WordTimingBasis })
         .timingBasis;
+      // Broadcast to popup for bidirectional sync (popup may not be open)
+      browser.runtime
+        .sendMessage({
+          type: 'playbackStateUpdate',
+          state: {
+            status: state.status === 'idle' ? 'stopped' : state.status,
+            activeTabId: tabId,
+            documentTitle: state.documentTitle,
+            visualAttachmentDetached: state.visualAttachmentDetached,
+            audioLive: state.audioLive,
+            currentParagraph: state.currentIndex,
+            totalParagraphs: state.totalParagraphs,
+            progress: Math.round(state.progress * 100),
+            speed: state.speed,
+            timingBasis,
+          },
+        })
+        .catch(() => {
+          // Popup not open — ignore
+        });
+
+      this.updateAction(state);
+      if (state.visualAttachmentDetached) return Ok(undefined);
+
       await this.sendToContentScript(tabId, {
         type: 'FOOTER_STATE_UPDATE',
         status: state.status,
@@ -182,23 +230,6 @@ export class HighlightSyncAdapter implements IHighlightSynchronizer {
         speed: state.speed,
         voice: state.voice,
       });
-
-      // Broadcast to popup for bidirectional sync (popup may not be open)
-      browser.runtime
-        .sendMessage({
-          type: 'playbackStateUpdate',
-          state: {
-            status: state.status,
-            currentParagraph: state.currentIndex,
-            totalParagraphs: state.totalParagraphs,
-            progress: Math.round(state.progress * 100),
-            speed: state.speed,
-            timingBasis,
-          },
-        })
-        .catch(() => {
-          // Popup not open — ignore
-        });
 
       return Ok(undefined);
     } catch (error) {

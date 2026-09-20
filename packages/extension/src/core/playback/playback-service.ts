@@ -127,6 +127,8 @@ export class PlaybackService {
    * Visual work is skipped; audio is untouched.
    */
   private visualAttachmentDetached = false;
+  private documentTitle = '';
+  private audioWaiting = false;
 
   // Word-level sync state
   private currentWordTimings: Array<{
@@ -176,6 +178,21 @@ export class PlaybackService {
     return this.state;
   }
 
+  getAttentionState() {
+    return {
+      activeTabId: this.state.activeTabId,
+      documentTitle: this.documentTitle,
+      visualAttachmentDetached: this.visualAttachmentDetached,
+      audioLive:
+        this.state.status === 'playing' &&
+        this.currentAudioUrl !== null &&
+        !!this.audioElement &&
+        !this.audioElement.paused &&
+        !this.audioElement.ended &&
+        !this.audioWaiting,
+    };
+  }
+
   getTimingBasis(): WordTimingBasis {
     return this.currentTimingBasis;
   }
@@ -187,6 +204,7 @@ export class PlaybackService {
     paragraphs: readonly string[],
     tabId: number,
     pageUrl: string,
+    documentTitle = pageUrl,
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // A fresh session never inherits a pending transition from a previous one.
     this.transitionInFlight = null;
@@ -248,6 +266,8 @@ export class PlaybackService {
     // Update state to loading
     const generation = this.beginGeneration();
     this.visualAttachmentDetached = false;
+    this.documentTitle = documentTitle;
+    this.audioWaiting = false;
     this.state = playbackStateTransitions.startLoading(this.state, paragraphs, tabId, pageUrl);
 
     // Show footer and highlight first paragraph
@@ -416,22 +436,18 @@ export class PlaybackService {
     this.deps.prefetch?.queue.stop();
 
     // Clear highlights and hide footer
-    let stoppedStateCanPublish = false;
     if (activeTabId !== null) {
       const clearResult = await this.deps.highlightSync.clearHighlights(activeTabId);
       await this.checkHighlight('clearHighlights', clearResult, false);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
       const hideResult = await this.deps.highlightSync.hideFooter(activeTabId);
       await this.checkHighlight('hideFooter', hideResult, false);
-      stoppedStateCanPublish = isOk(hideResult);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     }
 
     this.state = playbackStateTransitions.stop(this.state);
-    // The footer itself is gone, but updateFooterState also broadcasts the
-    // authoritative stopped state to an open popup. Skip a vanished tab so a
-    // tab-not-found result cannot recursively call stop().
-    if (stoppedStateCanPublish) await this.updateFooterState();
+    // Global state must clear even when the owning tab no longer exists.
+    await this.updateFooterState(false);
 
     return Ok(this.state);
   }
@@ -793,6 +809,7 @@ export class PlaybackService {
   detachVisualAttachment(): void {
     if (this.visualAttachmentDetached) return;
     this.visualAttachmentDetached = true;
+    void this.updateFooterState();
     console.info('[PlaybackService] Visual attachment detached; audio continues');
   }
 
@@ -1939,6 +1956,14 @@ export class PlaybackService {
   private setupAudioEventListeners(): void {
     if (!this.audioElement) return;
 
+    for (const event of ['playing', 'pause', 'ended', 'waiting']) {
+      this.audioElement.addEventListener(event, () => {
+        if (event === 'waiting') this.audioWaiting = true;
+        if (event === 'playing') this.audioWaiting = false;
+        void this.updateFooterState(false);
+      });
+    }
+
     this.audioElement.addEventListener('timeupdate', () => {
       if (this.audioElement && this.audioElement.duration) {
         // PROSO-110: chunked playback reports paragraph progress; the total
@@ -2084,7 +2109,7 @@ export class PlaybackService {
   /**
    * Update footer state in content script.
    */
-  private async updateFooterState(): Promise<void> {
+  private async updateFooterState(allowStop = true): Promise<void> {
     if (this.state.activeTabId === null) return;
 
     // `state.progress` is the fraction of the CURRENT paragraph, but every
@@ -2104,6 +2129,7 @@ export class PlaybackService {
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
     const footerState: FooterState & { readonly timingBasis: WordTimingBasis } = {
+      ...this.getAttentionState(),
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,
@@ -2119,7 +2145,7 @@ export class PlaybackService {
       this.state.activeTabId,
       footerState,
     );
-    await this.checkHighlight('updateFooterState', result);
+    await this.checkHighlight('updateFooterState', result, allowStop);
   }
 }
 

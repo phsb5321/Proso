@@ -13,7 +13,7 @@
  * @module tests/unit/core/playback-service-detached-view
  */
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import { PlaybackService } from '../../../src/core/playback/playback-service';
 import { createPrefetchPlaybackHarness } from '../../helpers/prefetch-playback-harness';
@@ -47,6 +47,44 @@ describe('PlaybackService with a vanished view', () => {
 
     expect(service.isVisuallyDetached()).toBe(true);
     expect(service.getState().status).not.toBe('stopped');
+  });
+
+  it('publishes the original title and live audio through detach, pause, resume and stop', async () => {
+    const audio = new Audio();
+    const audioConstructor = jest.spyOn(globalThis, 'Audio').mockImplementation(() => audio);
+    const { service, highlightSync } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settings: { stopPlaybackOnTabChange: false },
+    });
+    try {
+      service.setLanguage('en');
+      await service.start(['First sentence.'], 7, 'https://example.test/a', 'Original article');
+      expect(service.getAttentionState()).toMatchObject({ documentTitle: 'Original article', audioLive: true });
+      service.detachVisualAttachment();
+      expect(highlightSync.updateFooterStateCalls.at(-1)?.state).toMatchObject({ visualAttachmentDetached: true, audioLive: true });
+      audio.dispatchEvent(new Event('waiting'));
+      expect(service.getAttentionState().audioLive).toBe(false);
+      audio.dispatchEvent(new Event('playing'));
+      expect(service.getAttentionState().audioLive).toBe(true);
+      await service.pause();
+      expect(service.getAttentionState().audioLive).toBe(false);
+      await service.resume();
+      expect(service.getAttentionState().audioLive).toBe(true);
+      await service.stop();
+      expect(highlightSync.updateFooterStateCalls.at(-1)?.state).toMatchObject({ status: 'stopped', audioLive: false, documentTitle: 'Original article' });
+    } finally {
+      await service.stop();
+      audioConstructor.mockRestore();
+    }
+  });
+
+  it('publishes stopped even when clearing and hiding the source view fail', async () => {
+    const { service, highlightSync } = createPrefetchPlaybackHarness(createInstantAudioGenerator(), {
+      settings: { stopPlaybackOnTabChange: false },
+    });
+    service.setLanguage('en');
+    await service.start(['First sentence.'], 999, 'https://example.test/a');
+    await service.stop();
+    expect(highlightSync.updateFooterStateCalls.at(-1)?.state).toMatchObject({ status: 'stopped', audioLive: false });
   });
 
   it('clears the detached state when a new document starts', async () => {
