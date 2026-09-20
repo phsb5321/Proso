@@ -60,13 +60,21 @@ benefit here. This also avoids a circular revision/parent-ID hash dependency.
 
 [identity-vectors.json](identity-vectors.json) is normative test data: each
 record contains normalized `preimage`, exact `preimageUtf8Hex`, expected
-`revision`, and ordered `blockIds`. The file's pretty-printing is immaterial;
-the serialized `preimage` value alone is hashed. Cases cover repeated identical
+`revision`, and ordered `blockIds`. A record may also carry an informational
+`name`; the contract suite compares the enumerated keys only and ignores
+additional informational keys, so a strict key-set comparison must not fail on
+them. The file's pretty-printing is immaterial; the serialized `preimage` value
+alone is hashed. Cases cover repeated identical
 blocks, an insertion, a parent relation, quotes/control characters, NFC/non-BMP
 text, and a normalization-version change. The contract suite must compare
 literal expected hashes, not regenerate its expected values from production
 code. Metadata mutations must reuse the repeated-block vector unchanged;
 changing the same child's parent from 0 to null must change its revision.
+
+Provenance: the expected values were produced by a standalone generator written
+against this document, then independently recomputed with Node's
+`JSON.stringify`/UTF-8/SHA-256 before merge. Neither path is production code, so
+a defect would have to occur identically in two independent implementations.
 
 ## Checkpoint positions and audio hints
 
