@@ -34,6 +34,7 @@ import {
   type PrefetchPlaybackHarness,
   createPrefetchPlaybackHarness,
 } from '../../helpers/prefetch-playback-harness';
+import { createInstantAudioGenerator } from '../../helpers/instant-audio-generator';
 
 /** Poll a condition with a bounded wall-clock budget. */
 async function waitForIt(condition: () => boolean): Promise<void> {
@@ -75,23 +76,6 @@ async function stopWhileSettingsReadPending(options: {
   return { generateMock, service };
 }
 
-/** A generator whose clip is always ready — the fetch window is not the subject here. */
-function createInstantAudioGenerator(): IAudioGenerator {
-  return {
-    providerId: 'elevenlabs',
-    supportsWordTiming: false,
-    supportedLanguages: [],
-    generateAudio: jest.fn(async () =>
-      Ok({
-        audioBlob: new Blob(['audio'], { type: 'audio/mpeg' }),
-        durationMs: 1_000,
-        wordTimings: null,
-      }),
-    ),
-    getVoices: jest.fn(async () => Ok([])),
-    validateCredentials: jest.fn(async () => true),
-  };
-}
 
 describe('PlaybackService pause during a paragraph load', () => {
   it('holds the pause and does not start the clip that was still loading', async () => {

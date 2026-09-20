@@ -9,22 +9,26 @@
 
 import { browser } from 'wxt/browser';
 import { HIGHLIGHT_EXPORT_FILENAME } from '../../core/highlight/highlight-export';
+import type { PronunciationEntry } from '../../core/speech/pronunciation-lexicon';
 import {
   type QueueSettings,
   queueDefaults,
   defaults as settingsDefaults,
 } from '../../utils/config';
+import {
+  isBackgroundPlaybackEnabled,
+  toStoredPreference,
+} from '../../utils/config/background-playback';
 import { downloadJson } from '../../utils/download/download-json';
 import { validateHostUrl } from '../../utils/first-run';
 import { createLogger } from '../../utils/logging/logger';
-import type { PronunciationEntry } from '../../core/speech/pronunciation-lexicon';
-import { formatPronunciationRules, parsePronunciationRules } from './pronunciation-rules';
 import {
   collectProviderStateFromUI,
   deriveProviderState,
   syncProviderUI,
 } from '../../utils/options/provider-state';
 import { confirmDialog } from '../../utils/ui/confirm-dialog';
+import { formatPronunciationRules, parsePronunciationRules } from './pronunciation-rules';
 
 // UI defaults (inline since they're simple)
 const uiDefaults = {
@@ -826,7 +830,9 @@ function setupStorageChangeListener(): void {
     }
 
     if (changes.stopPlaybackOnTabChange !== undefined) {
-      elements.stopPlaybackOnTabChange.checked = changes.stopPlaybackOnTabChange.newValue !== false;
+      elements.stopPlaybackOnTabChange.checked = isBackgroundPlaybackEnabled({
+        stopPlaybackOnTabChange: changes.stopPlaybackOnTabChange.newValue,
+      });
     }
 
     // T073: Cost estimate toggle sync (028-smart-audio-cache)
@@ -1035,9 +1041,11 @@ async function loadSettings(): Promise<void> {
         ? (result.autoScroll as boolean)
         : uiDefaults.autoScroll;
 
-    elements.stopPlaybackOnTabChange.checked =
-      (result.stopPlaybackOnTabChange as boolean | undefined) ??
-      settingsDefaults.stopPlaybackOnTabChange;
+    elements.stopPlaybackOnTabChange.checked = isBackgroundPlaybackEnabled({
+      stopPlaybackOnTabChange:
+        (result.stopPlaybackOnTabChange as boolean | undefined) ??
+        settingsDefaults.stopPlaybackOnTabChange,
+    });
 
     // Cost estimate toggle (028-smart-audio-cache T073)
     const showCostEstimateEl = document.getElementById(
@@ -1139,8 +1147,8 @@ function setupAppearanceToggles(): void {
     if (!elements) return;
 
     const enabled = elements.stopPlaybackOnTabChange.checked;
-    await browser.storage.local.set({ stopPlaybackOnTabChange: enabled });
-    toast.success(enabled ? 'Tab switching stops playback' : 'Background playback enabled');
+    await browser.storage.local.set({ stopPlaybackOnTabChange: toStoredPreference(enabled) });
+    toast.success(enabled ? 'Background playback enabled' : 'Leaving a page will end playback');
   });
 
   // T073: Cost estimate toggle (028-smart-audio-cache)
@@ -1456,7 +1464,7 @@ async function saveSettings(): Promise<void> {
       speed: Number.parseFloat(elements.quickSpeed.value),
       highlightEnabled: elements.highlightEnabled.checked,
       autoScroll: elements.autoScroll.checked,
-      stopPlaybackOnTabChange: elements.stopPlaybackOnTabChange.checked,
+      stopPlaybackOnTabChange: toStoredPreference(elements.stopPlaybackOnTabChange.checked),
     });
 
     // T018: Track settings saved event

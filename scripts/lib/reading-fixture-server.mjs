@@ -232,7 +232,7 @@ function problem(res, status, code, detail) {
  * `localHostVoices` lets plant suites prove the real-host gate against a host
  * whose catalog differs from the Orange Pi fixture, including an empty catalog.
  *
- * @param {{licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number, localHostFailFirstVoice?: string, listInNav?: boolean}} options
+ * @param {{audio?: Buffer, audioContentType?: string, licenseMode?: string, localHostVoices?: Array<object>, localHostDelayMs?: number, localHostFailFirstVoice?: string, listInNav?: boolean}} options
  * @returns {Promise<{origin: string, requests: Array<object>, close: () => Promise<void>}>}
  */
 export async function startFixtureServer(options = {}) {
@@ -242,7 +242,7 @@ export async function startFixtureServer(options = {}) {
   const licenseRequests = [];
   /** Every call to the authenticated subscription route, with its header. */
   const subscriptionRequests = [];
-  const audio = audioFixture();
+  const audio = options.audio ?? audioFixture();
 
   /**
    * How the licence surface behaves. `sold` is the product's intended
@@ -301,7 +301,7 @@ export async function startFixtureServer(options = {}) {
         requests.push({ at: Date.now(), body, licenseKey: req.headers['x-license-key'] ?? null });
         res.writeHead(200, {
           ...corsHeaders,
-          'Content-Type': 'audio/mpeg',
+          'Content-Type': options.audioContentType ?? 'audio/mpeg',
           'Content-Length': String(audio.length),
           'X-Cache-Hit': 'false',
           'X-Credits-Used': '1',
