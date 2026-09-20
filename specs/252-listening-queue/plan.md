@@ -49,6 +49,25 @@ procedure in a separate authorized change. This drafting task changes neither
 the constitution nor any live permission. An optional bridge would need its
 own privacy/credential decision as well; it is not a workaround for this block.
 
+## Binding annexes and review response
+
+The implementation follows [document-identity.md](document-identity.md),
+[queue-envelope.md](queue-envelope.md) and
+[acceptance-and-privacy.md](acceptance-and-privacy.md), all normative v1.
+[review-response.md](review-response.md) records all 32 supplied findings.
+Keep the four public contracts verbatim; envelope fields never leak into them.
+The revised persistence choice is a single IndexedDB transaction, replacing
+this draft's earlier browser.storage.local snapshot proposal. Credentials remain
+in extension-local storage and audio in the existing cache.
+
+The gate threshold is **before enabling live source traffic**. Until a ratified
+amendment or reviewed exception lands, production composition hard-disables all
+real-adapter entry points, credential probes and retries. A user-toggle alone
+cannot enable them. Offline contracts, migration/store logic, UI previews,
+playback seams and gated real-adapter code tested against isolated synthetic
+fixtures may land before that decision; real credential import and transmission
+may not. Record the governance commit before removing this gate (T003).
+
 ## Delivery plan
 
 ### 1. Contracts and source adapter
@@ -86,37 +105,45 @@ Use no cookies and no publisher/subresource fetches. Verify header isolation
 with a second fixture origin. NoOp returns not-configured; InMemory simulates
 list/get/set-read and injects repeatable faults without networking.
 
-Normalize detached, sanitized HTML using the existing extraction capabilities.
-Audit short paragraphs, headings, nested lists, entities, repeated blocks,
-tables, and truncation. Do not label dropped text “full” or reuse the existing
-minimum-length validation as proof of complete source coverage. Revision
-hashing covers ordered source blocks and normalization version; `fetchedAt`
-and remote read status cannot invalidate an otherwise unchanged checkpoint.
+Normalize with Proso source-text allowlist v1 over the data-only parse5 7.3.0
+AST; promote that existing lockfile dependency to direct runtime use in a future
+implementation commit. Reuse existing pure extraction helpers where compatible;
+DOM-based extraction is not the sanitization boundary. The privacy annex names
+all allowed elements, dropped attributes and coverage effects; no network or
+executable DOM is allowed during parse/render. Test short text, nested lists,
+entities, repeated blocks and unsupported/truncated structures.
+
+Implement the exact ordered JSON/UTF-8 revision and revision-plus-ordinal block
+hashes in document-identity v1. Parent ordinals avoid circular hashing. Consume
+identity-vectors.json as literal expected values and test metadata-only stability,
+Unicode offset repair and expansion-version changes. IDs are stable only within
+a revision; inserting a block requires the existing visible restart flow.
 
 ### 2. Durable queue and settings
 
-Add `ports/listening-queue-store.port.ts`, a `browser.storage.local` adapter,
-and an InMemory adapter. Use a dedicated versioned `listeningQueue:v1` snapshot
-key with one background writer: validated whole-snapshot replacement keeps
-checkpoint, completion evidence, and acknowledgement intent together. Queue
-core transitions are immutable; adapter exceptions become typed Result errors.
-Serialize mutations and reject obsolete session/generation updates. Publish
-“saved” only after the storage operation succeeds. Interrupted writes must
-restore a valid previous or new snapshot, never a torn completion record.
+Add `ports/listening-queue-store.port.ts`, an IndexedDB adapter using the
+existing Dexie dependency where appropriate, and an InMemory test adapter.
+Implement queue-envelope v1: one transaction owns queue settings, order,
+checkpoint/audio binding, heard evidence, completion and acknowledgement state.
+Await transaction completion and verify strict durable behavior on supported
+Firefox before publishing “saved”, continuing or sending. Reject stale sequence,
+session, generation and connection epochs within the transaction. A persistence
+failure pauses and cannot silently fall back to volatile storage.
 
-Initial bounds: 100 entries, 1 MiB normalized text per document, and 5 MiB queue
-snapshot; validate encoded byte size before writing and handle browser quota
-errors. Evict only explicitly cleared or settled completed records, never an
-active checkpoint or pending acknowledgement. If space is still insufficient,
-stop import and show an actionable error. Credentials/preferences use separate
-extension-local keys; audio remains in the existing cache.
+Follow the annex's 100-entry, 1 MiB/item text, 5 MiB envelope, 10 MiB migration
+working set and 256 MiB audio limits. Handle quota before publishing new state.
+Credentials stay outside the envelope; write immutable cached audio before its
+binding, and treat missing bytes as an invalid hint. Text/audio expiry is 7 days,
+checked before access and within 60 s while running, or on startup when closed.
+No physical disk-erasure claim is made while Firefox cannot execute.
 
-Missing storage initializes disabled/empty defaults. Future or corrupt versions
-are preserved and reported, not overwritten as an empty queue. Migrations must
-be idempotent and retain the previous snapshot until successful. Leave existing
-`queue:*` storage and message shapes intact; no migration invents revisions from
-legacy paragraph indices. New queue settings are optional in old Settings
-fixtures and validated/defaulted at the storage boundary.
+Implement v1 initialization, consecutive transactional schema upgrades, one
+previous-version backup, validation, fault rollback and idempotent replay exactly
+as the annex specifies. Future/corrupt versions block read-write use and retain
+bytes for upgrade or explicit clear; no automatic downgrade. Keep `queue:*`
+legacy data/messages untouched, with separate UI sections and no conversion of
+paragraph progress. Queue settings live in the transactional envelope, with
+validated defaults; any old general-settings fixtures remain compatible.
 
 ### 3. Playback and checkpoint integration
 
@@ -124,9 +151,11 @@ Add a document-start path sharing PlaybackService internals with existing
 `start`; retain old callers. Map the immutable ordered blocks to playback
 segments and retain `(blockId, source range)` alongside transient paragraph
 indices. Use an identity derived from source tuple and document revision for
-queue cache namespacing; never place a credential in it. Preserve the existing
-cache key shape and page-reading keys. Audio identity must additionally reject
-incompatible voice/provider/spoken text and chunk plans before resume.
+queue cache namespacing; never place a credential in it. Reuse the existing
+cache port and preserve page keys. Canonical queue synthesis units and keys are
+independent of prefetch budgets and local playback slices; coalesce in-flight
+requests. Bind audio-byte digest, decoded duration, source range and spoken-plan
+key to the checkpoint transaction; discard any incompatible hint before resume.
 
 Publish position, successful played ranges, terminal success, and errors to
 the queue independently of `activeTabId`. Build source timing even with no tab,
@@ -150,13 +179,23 @@ Do not briefly play block zero while seeking to the checkpoint. A stale audio
 hint restarts the containing segment; changed document revision requires the
 visible restart flow specified in spec.md.
 
-Reuse `PrefetchService.configure`, `generatePrefetchAudio`, `isParagraphCached`,
-and the durable cache. Chunked synthesis currently bypasses paragraph caching
-and primes `nextText` in its adapter; preserve that distinction and apply the
-same speculative budget to chunk lookahead. If the adapter cannot respect zero
-budget, add an optional capability/options field with legacy defaults and a
-contract test; do not silently ignore the setting. There is no new cross-item
-prefetch scheduler in this slice.
+Enforce at most 5 s rendered audio between awaited commits and at most 10 s per
+recovery segment. Slice longer decoded artifacts locally, preserving cached bytes
+and the producer manifest; do not resynthesize due to the bound or budget. Pause
+at cadence boundaries while commits are pending. Test 15 s media replay at
+0.5×/1×/2× and distinguish the missing/changed-artifact recovery exception.
+Disable silence skipping in queue sessions. Spoken-plan mismatch rebuilds mapping
+and invalidates affected heard evidence/unsent intent, not just audio timings.
+
+Reuse `PrefetchService.configure`, `generatePrefetchAudio`, `isParagraphCached`
+and the cache. Existing chunk paths that bypass caching must gain canonical-unit
+cache reuse for queue sessions. Apply the single global speculative budget to
+paragraph and chunk lookahead, including old/new continuous-play overlap. Exact
+expanded UTF-16 length is reserved before dispatch; release on playback handoff
+or settled discard. Budget fluctuations defer whole units instead of splitting
+text again. Add an optional adapter capability with legacy defaults only when
+necessary to enforce zero budget; prove it in a contract test. There is no
+library-wide speculative scheduler or cumulative session cost cap.
 
 ### 4. Completion and acknowledgement recovery
 
@@ -174,15 +213,17 @@ completion refers to the pinned snapshot, not a guarantee that an external edit
 cannot race the final request. Do not claim transactional exactly-once delivery
 across the browser and Miniflux.
 
-Transport retries are at-least-once with an idempotent effect. Try at most three
-times per recovery pass, with per-attempt 15-second deadlines and persisted
-backoff (1 second, then 2 seconds; respect bounded Retry-After, deferring longer
-delays). Auth/not-found/invalid-response failures require an explicit retry or
-reconnection. Do not poll indefinitely. A lost success response leaves a
-durable intent; replay repeats only set-read. Disabling mark-read or disconnecting
-cancels unsent work; already transmitted writes cannot be undone by cancellation.
-Continuous playback advances once after local commit, independently of remote
-acknowledgement latency. Failed playback pauses; explicit Skip never completes.
+Transport retries follow queue-envelope v1: at most three total attempts per
+persisted retry cycle across restarts, a 15 s validation/delivery deadline per
+attempt, 1 s/2 s waits increased by valid Retry-After up to 60 s. Longer waits
+enter held with a not-before time; auth/permission/not-found/invalid-response/
+changed-content faults require visible recovery. Persist attempt consumption
+before sending; recovery never resets count. Exhausted means no more automatic
+traffic until **Retry mark-read** explicitly creates a new cycle. Expired intents
+require new listening; a lost response repeats only the exact idempotent set-read.
+Disabling/removal/clear/disconnect cancels unsent work and cannot undo transmitted
+writes. Continuous advance consumes completionId exactly once after local commit,
+independently of acknowledgement latency, restoring paused after a crash.
 
 ### 5. Public controls and privacy
 
@@ -190,25 +231,33 @@ Extend existing popup/options surfaces with a distinct Miniflux queue section.
 Use additive, sender-validated background messages; page/content senders cannot
 read credentials, create completion evidence, or invoke raw acknowledgement.
 Connect/Refresh, Play/Resume, Pause, Stop, Skip, Retry, Remove, Move up/down, and
-settings must have accessible names and observable states. Reuse existing theme
-and settings patterns. Disconnect and clear-data behavior follow spec.md.
+settings must satisfy the per-control keyboard/role/name/focus/live-region/
+contrast/state assertions in acceptance-and-privacy v1. Use its consolidated
+error taxonomy and numeric deadlines. Reuse themes; add catalogued English/pt-BR
+strings with placeholder parity. Implement the exact Disconnect/clear/Remove
+matrix using restartable tombstones and queue-audio ownership; keep the token
+only for Clear local queue. No remote telemetry; local diagnostics are redacted
+and limited to 1 MiB/24 hours. Announce deletion only after cleanup completes.
 
 Vault import uses an explicit extension credential field, masked after saving;
 no host shell integration is assumed. Operational setup must use Pedro's
 existing rbw/bw-keyring flow before requesting a missing secret. Tests use
 synthetic tokens only. This draft neither reads nor stores a real token.
 
-No server bridge is required. If later proposed, bind every connection to the
-authenticated user on the server, enforce ownership before resolving secrets
-or scheduling jobs, isolate caches/retries per user, and test cross-user denial.
-Reject arbitrary proxy URLs/SSRF and never accept a client-asserted user ID.
-That work is a separate deployment/privacy scope, not a dependency of this MVP.
+REQ-013 is a client boundary: validate source tuple/connection epoch for every
+operation and message sender, reject page/content-script credential or raw-ack
+requests, and send no source operations through the Proso server. The optional
+bridge is separately scoped as SERVER-252-001 with authenticated ownership,
+cross-user denial and SSRF tests in its own future spec. It is not a dependency
+or an unchecked server deliverable of Feature 252.
 
 ## Verification and delivery boundary
 
 Follow [tasks.md](tasks.md) in dependency order. Use existing Jest unit,
 contract, and integration projects, Zod, and fast-check; no new test framework
-or runtime dependency is planned. Keep deterministic tests offline and leave
+is planned. The parse5 direct-runtime promotion is the one dependency-scope
+change required by the no-network parsing contract; no manifest changes occur
+in this documentation revision. Keep deterministic tests offline and leave
 `make verify` prerequisites and semantics unchanged. Browser/soak evidence
 belongs in the explicit user gate, not a new network dependency of verify.
 
@@ -220,9 +269,13 @@ or public controls block acceptance. Internal-dispatch smoke is diagnostic only.
 Use the current authorized different-family review lane; stale lower-tier
 reviewer examples in older delivery docs do not override model-routing policy.
 
-For this documentation-only draft, `make help` was inspected and `make doctor`
-failed with `Prisma client is missing; run make bootstrap`. Bootstrap/builds
-would write outside the allowed spec directory, so they were not run. No full
-`make verify`, runtime tests, browser acceptance, or adversarial gate is claimed.
-The implementation tasks remain unchecked. Suggested draft commit:
-`docs: draft Feature 252 listening queue`.
+For this documentation-only revision, validate the four contracts byte-for-byte
+against the starting commit, recompute all six golden vectors with an independent
+JSON/UTF-8/SHA-256 path, check every relative annex link and finding/requirement
+mapping, and run `git diff --check`. Keep all edits inside this spec directory.
+The previous draft recorded `make doctor` failing on missing generated Prisma;
+that is historical evidence, not a result of this revision. Do not bootstrap,
+build or run gates that write outside the user's allowed directory. No runtime,
+Firefox, full verify or fresh different-family PASS is claimed. Future tasks
+remain unchecked. Commit convention: `docs: resolve Feature 252 spec review`;
+no attribution and no push in this task.

@@ -1,6 +1,7 @@
 # Feature 252 — Listening queue
 
-**Status:** Draft; implementation and acceptance evidence are outstanding.
+**Status:** Revised draft addressing the independent BLOCK review; implementation,
+acceptance evidence and a new different-family verdict are outstanding.
 **Scope:** Miniflux documents played by the Firefox extension without opening
 article tabs or the Miniflux web UI. Firefox must remain running; a standalone
 player that works with Firefox closed is outside this feature.
@@ -31,6 +32,12 @@ Block{id,kind,originalText,sourceAnchor?,parentId?}
 Checkpoint{documentRevision,blockId,sourceOffset,audioOffsetMs}
 ```
 
+Normative annexes (all version 1): [document identity](document-identity.md),
+[queue envelope](queue-envelope.md), and [acceptance/privacy](acceptance-and-privacy.md).
+They specify the exact encoding, transaction and acceptance rules without adding
+fields to these four contracts. [Review dispositions](review-response.md) map
+every finding to its resolution.
+
 Semantics and boundary validation:
 
 - `SourceRef.provider` is `miniflux` for this adapter. Identity is the tuple
@@ -42,9 +49,13 @@ Semantics and boundary validation:
   are null. `blocks` is an ordered immutable sequence. `fetchedAt` is a Unix
   epoch timestamp in milliseconds. `revision` is a deterministic digest of
   normalized source content, structure, and normalization version, excluding
-  fetch time, read status, voice, and spoken-plan revision.
+  title, author, language, fetch time, read status, voice, and spoken-plan revision.
+  Metadata-only differences do not change revision. The exact ordered preimage,
+  encoding and golden vectors are defined in document-identity v1.
 - `Block.id` is unique and stable for a given document revision, including
-  repeated identical text. `kind` initially covers paragraph, heading, and list;
+  repeated identical text; derive it from the revision and zero-based ordinal
+  exactly as document-identity v1 specifies. Stability across revisions is not
+  promised. `kind` initially covers paragraph, heading, and list;
   unsupported structures receive an explicit coverage limitation. `originalText`
   is sanitized, decoded source text before speech expansions. Optional anchors
   are inert source references; optional parents must resolve without cycles.
@@ -58,11 +69,14 @@ Semantics and boundary validation:
   pair. Position identity is revision plus source offset within the named
   block, never paragraph index or spoken-text offset. `audioOffsetMs` is a
   nonnegative position within the current audio segment, usable only with the
-  matching audio identity recorded in the queue envelope.
+  matching audio identity recorded in the queue envelope in the same transaction.
+  Discard hints on mismatch; document-identity v1 defines end-of-block, malformed
+  offset repair and expansion-version mismatch recovery.
 
 Queue ordering, status, playback generation, heard ranges, audio identity,
 completion evidence, and acknowledgement retry metadata live in a separate
-versioned queue envelope. They do not change these four contracts.
+versioned queue envelope governed by [queue-envelope.md](queue-envelope.md), v1.
+They do not change these four contracts.
 
 ## Product outcomes
 
@@ -91,15 +105,20 @@ Queue membership, order, normalized document snapshot, settings, checkpoint,
 heard ranges, and pending acknowledgements survive background/browser restart.
 Startup restores a paused, visibly resumable session; it never starts audio
 without a new Play/Resume action. Matching revisions resume conservatively from
-the last committed source position. At most five seconds of normal playback
-may be replayed due to checkpoint cadence, plus the current segment when exact
-timing is unavailable. No unheard content may be skipped to improve that bound.
+the last committed source position. For an unchanged revision/plan with compatible cached audio, replay is at most
+**5 s + one bounded segment**, with segment duration at most 10 s: **15 s of
+audio time**. Writes are awaited at each 5 s audio-time boundary. Missing or
+changed audio/plan and repaired progress use the explicitly labelled conservative
+source recovery in queue-envelope v1; the 15 s bound does not cover those cases.
+No unheard content may be skipped to improve that bound.
 
 If refreshed content has a different revision, keep the old snapshot/checkpoint
 and show “Content changed — restart this item.” Restart adopts the new snapshot
 at its beginning and clears old completion eligibility. Never apply the old
-numeric offset to changed content. Voice, lexicon, or chunk-size changes retain
-the source position but invalidate incompatible audio-offset hints.
+numeric offset to changed content. Voice or spoken-plan changes retain the
+source position conservatively but invalidate incompatible audio-offset hints.
+Changed expansion/lexicon plans also invalidate affected heard evidence under
+document-identity v1. Prefetch budgets cannot change canonical synthesis units.
 
 **Falsifier:** restart loses committed progress, silently maps to changed text,
 autoplays, or treats persisted `playing`/100% progress as completion.
@@ -117,12 +136,15 @@ crash do not certify unheard ranges. Seeking backwards and replaying is allowed;
 seeking forwards leaves a gap that must later be heard. Approximate word timing
 alone is not completion evidence.
 
-Persist completed revision and acknowledgement intent atomically before sending
-any mark-read request. A durable intent may be retried after restart; a crash
+Persist the completed revision, final checkpoint, audio binding, heard evidence
+and acknowledgement intent in **one IndexedDB transaction** before sending
+any mark-read request; its completion is the sole durable commit boundary. A durable intent may be retried after restart; a crash
 without that intent must never create one. Retrying after a lost response sets
 the same entry to read again, without toggling, duplicate queue advancement, or
 replaying synthesis. Visible states distinguish “Listened”, “Mark-read pending”,
-“Marked read”, and “Mark-read failed”.
+“Marked read”, and “Mark-read failed”. The envelope fixes three attempts per
+retry cycle across restarts, exhausted/held states and an explicit **Retry
+mark-read** control. Set-read is an idempotent status re-assertion, never a toggle.
 
 **Falsifier:** a failed or incomplete item is marked read; an arbitrary progress
 message creates completion; a retry affects another connection/item; or a
@@ -135,16 +157,20 @@ crash window loses a committed acknowledgement intent.
 | Queue ordering | Oldest published first | Oldest/newest published first or manual order; deterministic source-identity tie-break; refresh never interrupts the current item |
 | Continuous playback | Off | When enabled, natural local completion starts the next eligible item once; a playback failure pauses for Retry or Skip |
 | Mark read on completion | Off | Opt-in creates acknowledgement intent only for eligible future completions; enabling is not retroactive; disabling cancels unsent intents |
-| Prefetch budget | 10,000 characters | Integer 0–50,000 UTF-16 units of speculative spoken text outstanding; 0 disables speculative synthesis |
+| Prefetch budget | 10,000 UTF-16 units | Integer 0–50,000 UTF-16 units of expanded speculative spoken text outstanding globally; 0 disables speculative synthesis |
 
 Prefetch applies only within the current explicitly started document. Continuous
 play authorizes starting subsequent queued documents; it does not authorize
-eager synthesis of the entire unread library. Reserve budget before a request,
-include buffered and in-flight text, and release it on consumption or discard.
-A chunk/block larger than the remaining budget waits for foreground demand.
-Cache hits cause no synthesis charge. Pause/Stop/settings changes cancel or
-invalidate speculative work; lowering a budget starts no new work until within
-the limit. An already accepted remote request cannot be promised refundable.
+eager synthesis of the unread library. The budget is global across connections
+and old/new item overlap. Count in-flight and buffered expanded spoken text,
+excluding markup. True-up expansion length before dispatch; release at handoff
+to playback or discard, retaining cancelled in-flight reservations until settled.
+Canonical synthesis units and cache keys are independent of fluctuating budgets;
+whole units wait for admission or foreground demand. Cache hits do not synthesize
+again. Pause/Stop/settings changes cancel or invalidate speculative work, and
+lowering the budget admits nothing until retained reservations fit. An accepted
+remote request cannot be promised refundable. This limits outstanding work,
+not cumulative session synthesis or cost; queue-envelope v1 fixes the rules.
 
 Skip moves to another item without marking the skipped item completed/read.
 Manual ordering affects pending items; refresh appends new entries in manual
@@ -174,49 +200,74 @@ credit-period rules remain intact (INV-004), client-only playback is unmetered
 (INV-005), and valid cache reuse does not charge again (INV-006).
 
 Tokens are excluded from document snapshots, source refs, general settings
-exports, content-script messages, errors, logs, and receipts. Untrusted HTML
-cannot execute scripts or fetch images/trackers. Disconnect cancels source
-requests, removes the local token and unsent acknowledgements, and provides a
-clear-local-queue action. Revoking an already transmitted request is not promised.
+exports, content-script messages, errors, logs, and receipts. Reject all redirects
+before forwarding credentials; article bodies come only from the configured
+instance, never publisher URLs. Proso source-text allowlist v1 over parse5 7.3.0
+permits no network or executable DOM during parse/render. The privacy annex
+specifies the exact mark-read payload, deletion matrix and retention limits.
+Disconnect deletes the token and all connection queue data/audio/unsent intents;
+Clear local queue deletes that data but keeps the token. Text/audio expire after
+7 days, with deletion within 60 s while running or on next startup; no physical
+erasure while Firefox is closed is promised. There is no remote telemetry;
+local redacted diagnostics and English/pt-BR strings follow the annex. Revoking
+an already transmitted request is not promised.
 
 **Falsifier:** silent transmission to an undeclared host, active feed HTML,
 secret disclosure, indefinite loading, or failed persistence reported as saved.
 
 ## Requirements
 
-- **REQ-001:** Add `IReadingSource` with list/get/acknowledge operations,
-  Miniflux HTTP and InMemory/NoOp adapters, typed `Result` errors, and a common
-  contract suite for every adapter. Disabled NoOp performs no network activity
-  and reports not-configured, never fabricated remote success.
-- **REQ-002:** Authenticate with a vault-sourced token, scoped to the configured
-  HTTPS connection and runtime host permission; no OAuth or automatic bridge.
-- **REQ-003:** Validate external data and normalize it to the exact contracts
-  above with reproducible revisions, block identities, and honest coverage.
-- **REQ-004:** Add a persistent listening queue store behind a port with an
-  InMemory fallback, schema versioning, atomic completion/intent writes, bounded
-  retention, and fail-closed corruption/quota handling.
-- **REQ-005:** Feed normalized blocks through `PlaybackService`, its existing
-  prefetch service and audio cache. Add tab-independent progress/completion
-  observation while preserving existing page callers and highlighting.
-- **REQ-006:** Save revision/source-offset checkpoints during playback, at least
-  every five seconds and on pause, stop, item transition, and natural completion;
-  restore safely without relying on shutdown/unload events.
-- **REQ-007:** Derive completion only from actual successful playback coverage;
-  bind events to the active source, revision, session, and generation.
-- **REQ-008:** Deliver persisted acknowledgement intents with idempotent remote
-  set-read semantics and bounded retries. No intent means no acknowledgement.
-- **REQ-009:** Persist and validate all four settings above, including their
-  interaction with pending work, restart, and current-item ownership.
-- **REQ-010:** Expose accessible list, Play/Resume, Pause, Stop, Skip, Reorder,
-  Retry, Remove, connection, and settings controls with visible state changes.
-- **REQ-011:** Show the data-flow/privacy note and actual destinations; isolate
-  source credentials from TTS credentials and all page contexts.
-- **REQ-012:** Preserve legacy URL-queue data/messages and existing verification
-  commands. New deterministic tests need no live Miniflux, vault, or provider.
-- **REQ-013:** A future server bridge is optional and separately scoped. Every
-  connection and list/get/acknowledge operation must bind to the authenticated
-  user; a client-supplied connection ID or URL is never authorization. Enforce
-  ownership on credentials, caches, jobs, and retries; no shared global token.
+Each requirement owns the concern identified in the acceptance annex. Shared
+invariants are defined once there or in the linked identity/envelope annex.
+
+- **REQ-001:** Own the list/get/acknowledge port and list/get transport:
+  `IReadingSource`, Miniflux HTTP,
+  InMemory/NoOp adapters, typed Result errors and a shared contract suite.
+  NoOp reports not-configured with zero network; wire limits/errors follow the
+  consolidated taxonomy. Acknowledgement semantics belong to REQ-008.
+- **REQ-002:** Own vault-token credentials, runtime host permission and exact
+  configured HTTPS destination confinement, including rejection of all redirects.
+- **REQ-003:** Own boundary validation, parse5/allowlist normalization, exact
+  revision/block derivation and honest coverage under document-identity v1.
+- **REQ-004:** Own the versioned queue store, migration/downgrade and capacity.
+  Checkpoint, audio binding, heard evidence, completion and intent/retry metadata
+  share **one IndexedDB transaction**, whose completion is awaited; there is no
+  separate checkpoint store. Implement queue-envelope v1 and test-only InMemory
+  semantics; quota/corruption cannot turn into a volatile successful save.
+- **REQ-005:** Own tab-independent reuse of PlaybackService, its cache and audio
+  pipeline, preserving page callers/highlighting and stable queue cache units.
+- **REQ-006:** Own source-position recovery and audio-hint validation. Commit
+  checkpoints **in the REQ-004 transaction** at ≤5 s of rendered audio time and
+  before transitions, awaiting durability before further playback. Segments are
+  ≤10 s; apply the replay bound and exceptions in queue-envelope v1, without
+  shutdown-event dependence or stale spoken-plan/audio-offset reuse.
+- **REQ-007:** Own local completion eligibility: actual heard ranges, full
+  coverage and successful producer/segment termination, with source/revision/
+  plan/session/generation binding. A progress value never proves completion.
+- **REQ-008:** Own creation and delivery of durable acknowledgement intents,
+  exact one-item idempotent set-read, three-attempt cycles, restart recovery,
+  exhausted/held states and manual Retry mark-read under queue-envelope v1.
+- **REQ-009:** Own the four persisted settings, ordering/once-only continuation
+  and global prefetch admission/overlap/expansion accounting. Use queue-envelope
+  v1; budget changes cannot reshape cache units or imply a cumulative cost cap.
+- **REQ-010:** Own accessible public controls and truthful error/state feedback.
+  Meet every role/name/keyboard/focus/live-region/contrast criterion and control
+  transition in acceptance-and-privacy v1, including manual acknowledgement retry.
+- **REQ-011:** Own destination disclosure, clear/Disconnect and retention,
+  no-telemetry/local diagnostics, and catalogued English/pt-BR strings as specified
+  by the privacy annex; credential transport/security belongs to REQ-002.
+- **REQ-012:** Own legacy URL-queue coexistence with **no migration**, separate
+  user-visible sections, independent progress and saved owner handoff. Preserve
+  data/messages/verification commands; deterministic tests use synthetic services.
+- **REQ-013:** Own testable client isolation: bind every list/get/ack to a locally
+  configured source tuple and connection epoch; reject substitutions and
+  untrusted page/content senders; never expose credentials or raw acknowledgement
+  authority. Send no reading-source traffic through a Proso server bridge.
+
+**Separately scoped SERVER-252-001:** Any future source bridge must implement
+server-authenticated ownership of connections, secrets, caches, jobs and retries,
+plus cross-user/SSRF denial tests in its own feature. A client connection ID is
+not server authorization. No bridge implementation is required by this feature.
 
 ## Non-goals
 
@@ -231,20 +282,26 @@ secret disclosure, indefinite loading, or failed persistence reported as saved.
 
 1. A loaded Firefox extension imports two synthetic unread items and plays them
    through public controls with no article/Miniflux tabs or content scripts.
-2. Unit, adapter-contract, and integration traces prove REQ-001–009 and REQ-012,
-   including duplicate IDs across connections, changed revisions, seek gaps,
-   failed synthesis, truncated chunk streams, and every acknowledgement crash
-   window (before commit, before send, response lost, after remote success).
+2. **AC-2 — requirement coverage:** Every REQ-001–013 maps to and passes its
+   named check in [acceptance-and-privacy.md](acceptance-and-privacy.md), using
+   unit, adapter-contract, integration and public UI traces. Include duplicate
+   IDs across connections, golden vectors, migration/downgrade, seek gaps,
+   truncated streams, privacy/accessibility and all acknowledgement crash windows.
+   SERVER-252-001 alone is explicitly de-scoped.
 3. The public actor changes every setting, uses keyboard playback/reordering,
    closes/reopens the popup, restarts Firefox, resumes, and observes honest
    completion/acknowledgement/privacy states. Both themes remain readable.
 4. Sanitized fixture records prove allowed destinations, zero source-token
    leakage to TTS, no acknowledgement on failure, bounded prefetch/retries, and
    cache accounting invariants. No production credentials or credits are used.
-5. A seeded state campaign and bounded restart/soak retain a replay command and
-   the first anomaly. Missing prerequisites or any failed falsifier is BLOCKED
+5. Seed 252001 with 2,000 model traces of at most 100 commands, plus a
+   30-minute soak/20 restart cycles, retains a replay command and first anomaly.
+   Missing prerequisites or any failed falsifier is BLOCKED
    or FAIL, never skipped-green. Feature 095's single-receipt requirements apply.
 6. Implementation passes unchanged `make verify`, the applicable public user
    gate, and the required different-family review. The constitution issue in
-   [plan.md](plan.md) is resolved before enabling the new data flow. This draft
-   itself is not evidence that any of these acceptance criteria have passed.
+   [plan.md](plan.md) is resolved **before enabling live source traffic**, as
+   defined in the acceptance annex: production real-adapter paths, including
+   probes/retries, remain hard-disabled until the governance decision lands.
+   Offline scaffolding, UI previews and isolated synthetic-fixture implementation
+   may precede it. This draft is not evidence that any acceptance check passed.

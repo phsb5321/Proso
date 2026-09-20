@@ -19,7 +19,9 @@ future work.
 - [ ] T003 — Resolve the constitution's reading-source destination allowance
   through its governance process in a separately authorized change. Check:
   reviewed exception or ratified amendment with rationale/impact/version and
-  propagation; live connection enablement remains blocked until then.
+  propagation, recorded governing commit; production real-adapter paths/probes/
+  retries stay hard-disabled until then. Offline scaffolding and isolated
+  synthetic-fixture builds may precede it under acceptance-and-privacy v1.
 
 ## Source contracts and normalization
 
@@ -55,8 +57,9 @@ future work.
   `src/ports/listening-queue-store.port.ts` with an InMemory adapter. Check:
   `tests/unit/core/listening-queue/` proves source-tuple identity, deterministic
   ordering, manual refresh append, and single current owner (REQ-004, REQ-009).
-- [ ] T011 — Implement versioned `browser.storage.local` queue persistence and
-  serialized writes. Check: common
+- [ ] T011 — Implement the single IndexedDB transactional queue store and
+  serialized writes defined in queue-envelope v1; use Dexie where appropriate.
+  Check: common
   `tests/contract/listening-queue-store.contract.test.ts` runs against persistent
   and InMemory adapters; completion plus intent is atomic, stale writes rejected,
   restart round-trips snapshots, corrupt/future versions preserved, and quota
@@ -93,16 +96,22 @@ future work.
   restart recovery. Check: `tests/integration/listening-queue-resume.test.ts`
   uses a fake clock/recreated coordinator for five-second persistence, pause,
   stop, changed revision, changed voice/lexicon/chunks, missing timing/cache,
-  and no block-zero audio before the recovered segment (REQ-004, REQ-006).
+  and no block-zero audio before the recovered segment; assert awaited 5 s
+  audio-time commits, ≤10 s segments, ≤15 s compatible replay, 0.5×/2× rates
+  and stalled-write pause (REQ-004, REQ-006).
 - [ ] T019 — Bind queue cache identity to source/revision while reusing existing
   cache methods and preserving page keys. Check: integration fixture proves
   repeat/restart cache hits avoid synthesis, changed content/voice misses,
-  connections do not collide, and no token is part of a cache key (REQ-005, INV-006).
+  connections do not collide, and no token is part of a cache key; budget
+  oscillation never reshapes canonical units, including chunked adapters
+  (REQ-005, INV-006).
 - [ ] T020 — Enforce prefetch budget on paragraph and chunk lookahead using the
   existing pipeline. Check: fake-clock unit/contract tests assert 0 disables
   speculation, reservations never exceed budget, cache hits do not synthesize,
-  lowering budget/pause/Stop invalidates work, and future items are not prefetched
-  (REQ-005, REQ-009).
+  lowering budget/pause/Stop invalidates work, old/new item overlap shares a
+  global reservation, expanded text is trued up, handoff releases consumption,
+  cancelled in-flight work retains reservation until settled, and future items
+  are not prefetched (REQ-009).
 
 ## Completion and acknowledgement
 
@@ -168,15 +177,72 @@ future work.
   and `docs: ...`; no attribution trailers. This draft does not authorize a
   bridge deployment, credential retrieval, or changes outside its directory.
 
+## Review-driven annex and migration work
+
+- [x] T032-DOC — Specify exact digest/ID preimages, six golden vectors, Unicode
+  positions, audio bindings and spoken-plan compatibility in document-identity
+  v1; keep the four public contracts unchanged. Check: literal vectors recompute
+  and metadata exclusions and revision-local ID stability are explicit.
+- [x] T033-DOC — Specify queue-envelope v1 and single-store commit boundary,
+  heard/session/generation invariants, 5 s cadence/10 s segments, ack lifecycle,
+  global reservations and migration/downgrade semantics. Check: C/H/P findings
+  each have a normative rule and a future implementation check.
+- [x] T034-DOC — Add acceptance/privacy v1 and review-response mapping. Check:
+  every REQ-001–013 and all 32 review finding IDs have a disposition; no server
+  work is silently mandatory; threshold and physical-retention caveat are explicit.
+- [ ] T032 — Implement identity annex/golden-vector adapter contract checks.
+  Check: exact UTF-8 bytes and literal digests match in every adapter; repeats,
+  parent changes, insertions, metadata mutations, surrogate repair, oversized
+  offsets and expansion/lexicon/version mismatches behave as specified (REQ-003,
+  REQ-006). Depends on T004/T006 and T032-DOC.
+- [ ] T033 — Implement the complete envelope schema and atomic evidence/hint
+  writes with transaction fault injection. Check: each interrupted put/commit
+  restores whole old/new state, mismatched audio never seeks, stale session/
+  generation is rejected, manifest/range limits fail closed, and cadence blocks
+  playback until durable completion (REQ-004, REQ-006, REQ-007). Requires T010/T011.
+- [ ] T034 — Add migration input/output fixtures, pure N→N+1 transform harness,
+  versionchange rollback and startup validation/downgrade tests. No fictional
+  legacy-v0 migration: start v1 empty. Check: interrupted upgrade, double run,
+  future minReaderVersion, backup expiry, quota and explicit purge preserve or
+  delete exactly the permitted data; URL queue remains separate (REQ-004, REQ-012).
+- [ ] T035 — Implement persisted acknowledgement retry cycles/manual resend
+  and global prefetch overlap properties. Check: restarting exhausted/sending
+  never resets 3 attempts, Retry-After obeys limits, manual resend never plays
+  audio, expansion true-up and 0→50000→0 budgets reuse canonical cached units,
+  delayed cancelled A reservations constrain B (REQ-008, REQ-009).
+- [ ] T036 — Implement the named parse5 allowlist, redirect/header confinement,
+  exact mark-read body and purge/expiry protocol. Check: hostile HTML emits no
+  requests; cross/same-origin 3xx never forwards token; disconnect/clear/remove
+  delete the matrix across a crash, including backups/audio; expiry runs before
+  access, with the documented suspended-browser limitation (REQ-002, REQ-003,
+  REQ-011). Manifest/dependency edits belong to future implementation only.
+- [ ] T037 — Implement per-control accessibility, consolidated error messages,
+  local diagnostics and English/pt-BR catalog. Check: named public journey
+  asserts all roles/names/states, keyboard/focus and live announcements, both
+  themes/200% zoom/contrast, every error recovery, locale placeholder parity,
+  diagnostics limits and no remote telemetry (REQ-010, REQ-011).
+- [ ] T038 — Implement client source/epoch/sender isolation and all acceptance
+  mappings. Check: `client-connection-binding` rejects substituted tuples and
+  page-origin raw ack/credential requests; zero Proso source-bridge traffic;
+  every named REQ-001–013 check is present. SERVER-252-001 is tracked only as a
+  separate future spec (REQ-013).
+
 ## Dependencies and current handoff
 
-T004–009 establish the source boundary; T010–014 establish persistence/settings;
-T015–020 establish playback evidence; T021–023 require both persistence and
-playback evidence. T024–027 assemble those seams; T028–031 prove them. T003 is
-required before enabling real source traffic, while synthetic implementation
-checks can proceed independently. REQ-013 is a conditional bridge constraint,
-not an untracked mandatory server implementation task.
+T004–009/T032 establish source identity; T010–014/T033/T034 establish durable
+persistence; T015–020 establish playback evidence. T021–023/T035 depend on both.
+T036 establishes sanitization/retention before real-adapter assembly. T024–027/
+T037/T038 assemble public/client boundaries. T028–031 run all named acceptance
+checks, seed 252001 with 2,000 traces × 100 commands maximum and a 30-minute /
+20-restart soak. Annex implementation tasks are required, not optional follow-up.
 
-Only T001 and T002 are complete in this drafting session. `make doctor` reports
-the missing generated Prisma client; full verify and runtime gates are unrun.
-The next implementation step is T004, with T003 tracked as an enablement gate.
+T003 gates **live source traffic** only; production must hard-disable that path
+until the recorded governance decision lands. Synthetic implementation can
+proceed independently. REQ-013 is mandatory client validation; SERVER-252-001 is
+explicitly outside this feature, with no implied server implementation task.
+
+Only T001/T002 and T032-DOC/T033-DOC/T034-DOC document work is complete. The prior
+draft's missing-Prisma doctor result is historical; runtime gates and a fresh
+different-family verdict remain outstanding. The revision's document-only
+validation is recorded in review-response.md. The next implementation work is
+T004 with T032; no code, dependency or constitution change is authorized here.
