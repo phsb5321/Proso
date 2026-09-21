@@ -140,8 +140,11 @@ const PLANTS = {
   },
   'credit-volume': {
     file: 'pricing.html',
-    from: '500,000 managed characters per month',
-    to: '300,000 managed characters per month',
+    // The page counts credits, not characters (the weighted-credit rewrite:
+    // OpenAI 1 credit per character, ElevenLabs 3, Groq 0.5), so the plant
+    // flips the Pro allowance to a value the shared table does not contain.
+    from: '500,000 managed credits per month',
+    to: '300,000 managed credits per month',
     breaks: 'the priced credit volume matches the shared TIER_CREDITS table',
   },
   'github-install': {
