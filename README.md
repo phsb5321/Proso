@@ -7,7 +7,8 @@
 [![Install for Firefox](https://img.shields.io/badge/Install-Firefox-orange)](https://addons.mozilla.org/en-US/firefox/addon/proso/)
 
 [Website](https://proso.com.br/) · [Plans and pricing](https://proso.com.br/pricing.html) ·
-[Get help](SUPPORT.md) · [Support development](#support-the-project) · [License status](#license)
+[First listen](#your-first-listen) · [Get help](SUPPORT.md) ·
+[Support development](#support-the-project) · [License status](#license)
 
 Proso reads articles, full pages, or selected text. The extension is free to install.
 To generate audio, configure your own provider API key (BYOK), a synthesis host you
@@ -20,6 +21,9 @@ Published Firefox builds are available on Mozilla Add-ons. Development status fo
 Editorial art is generated through the fleet's ChatGPT lane and shipped with the prompt
 that made it — see [visual assets](docs/visual-assets.md). Brand marks are separate and
 deterministic ([brand vector system](specs/161-brand-vector-system/)).
+
+Reading a local PDF instead? See [Lectrice](https://github.com/phsb5321/Tauri-PDF-Reader).
+Explore related desktop tools at [Yolo Labz](https://github.com/yolo-labz).
 
 ## Features
 
@@ -42,6 +46,21 @@ deterministic ([brand vector system](specs/161-brand-vector-system/)).
 3. Open Proso settings and configure your audio source before starting playback.
 
 Firefox 109 or later is required. See Mozilla Add-ons for the current published version.
+
+### Your first listen
+
+1. Finish [audio setup](#setup) before pressing play. For BYOK, select the provider
+   that issued your key; a free installation does not include provider usage.
+2. Open a normal web article with selectable text. Firefox internal pages such as
+   `about:addons` are not a reading surface for the extension.
+3. Select a short passage, right-click, and choose **Read with Proso**. Start with
+   a short selection before trying a full article.
+4. Use the on-page playback controls to pause or stop. Text highlighting lets you
+   follow the passage while listening.
+
+No audio? Check the selected provider, its key or plan, and the synthesis host's
+availability. There is no silent fallback to a browser voice. See
+[Get help](SUPPORT.md); never attach your API key or private page contents.
 
 ### Load a development build
 
@@ -78,7 +97,9 @@ Proso routes synthesis through its server and currently supports these providers
 
 ### Basic Usage
 
-1. Navigate to any webpage
+After completing [audio setup](#setup):
+
+1. Navigate to a web page with readable text
 2. Click the Proso icon in your toolbar
 3. Select your preferred voice and reading mode
 4. Click the play button
@@ -100,7 +121,8 @@ Proso routes synthesis through its server and currently supports these providers
 
 ### Context Menu
 
-Right-click any selected text and choose "Read with Proso" to read it aloud instantly.
+On a supported web page, right-click selected text and choose **Read with Proso**.
+Playback requires the audio setup above; synthesis may take time.
 
 ## Voice Options
 
@@ -203,7 +225,7 @@ Proso/
 
 Proso automatically detects page language using **franc-min**:
 - Supports 82 languages
-- ~100% accuracy on typical web content
+- Uses page metadata and text heuristics; detection can be wrong on short or mixed-language text
 - ISO 639-1 language codes (en, es, fr, de, etc.)
 - Fallback to English if detection fails
 
