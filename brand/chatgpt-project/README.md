@@ -33,7 +33,15 @@ the guard doing its job) and a hunt for `/g/` anchors that never existed.
    instructions editor lives inside that panel.
 4. Inside the project, the composer is the ordinary one, so the lane's own primitives
    work unchanged: `attach_reference` per file, then `send_and_anchor`. The first
-   message created the thread at `/g/g-p-…-proso/c/<uuid>`.
+   message created the thread at `/g/g-p-…-proso/c/<uuid>`. Note its identity, because
+   it matters when picking fields: the composer is `#prompt-textarea` with
+   `aria-label="New chat in Proso"`, so anything selecting "a textarea or contenteditable"
+   without excluding it will type the brief into the chat instead of the settings panel.
+5. **Dismiss any open modal first.** The new-project modal
+   (`#modal-new-project-enhanced`) stays mounted and its overlay *intercepts pointer
+   events* — a click on the settings field then fails with "subtree intercepts pointer
+   events", which reads like a layout bug but is leftover state. Press Escape before
+   opening Project settings.
 
 `vendors/chatgpt/project.py` in `web-automation` automates steps 1–4 (instructions from a
 file, attachments, first prompt).
