@@ -45,6 +45,22 @@ sidecar. `--out` is not configurable on purpose: art belongs in the art director
 provenance gate can see it. The lane only exists on hosts that have the fleet shims; the
 script says so and exits `3` rather than pretending.
 
+## The Projects route (measured 21/09/2026)
+
+A ChatGPT **Project** holds the brand context once, so every later thread starts from it
+instead of from a re-explained brief. The Proso project is set up, and `brand/chatgpt-project/`
+in this repository holds its brief and attachments — project URL, the measured UI path
+(steps that guessing gets wrong), and the tool that automates it are documented there.
+
+Two things we learned by doing it, worth keeping:
+
+- The attachments matter more than the prompt. The board came back using the *exact* hexes
+  from the palette card and the mark's real proportions, because the real PNGs were in the
+  thread — prose about a mark does not survive contact with the model.
+- Generation inside a project works (the older note that a project "silently produced
+  nothing" was about a mis-clicked sidebar entry, not about projects). The lane's refusal
+  guard still applies, and firing the same prompt into a fresh chat is still the fallback.
+
 ## The method (do not improvise around it)
 
 1. **Anchor once, then edit.** Generate one approved direction, then make every later asset

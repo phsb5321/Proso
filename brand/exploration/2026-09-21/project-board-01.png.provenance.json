@@ -1,0 +1,16 @@
+{
+  "id": "project-board-01",
+  "kind": "brand-kit-board",
+  "tool": "ChatGPT Projects \u2014 Proso project, fleet identity openai-platform (browser-patchright)",
+  "prompt": "3x3 brand-kit board request, sent with the seven brand assets attached (see brand/chatgpt-project/)",
+  "reference": "brand/chatgpt-project/{mark,lockup,palette-card,icon-band-sheet}",
+  "generated_at": "2026-09-21T16:40:00.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 1245044,
+  "sha256": "4fea0cb446d361f83411ef2d6486d519477581bdb3c769ee1207e91547585ec8",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000004b54820ebd76bd4cf4abe858&ts=497224&p=fs&cid=1&sig=f81ef2"
+}
