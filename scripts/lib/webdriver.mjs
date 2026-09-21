@@ -54,11 +54,12 @@ export class Driver {
     return this.processLogs.join('');
   }
 
-  async #call(method, path, body) {
+  async #call(method, path, body, signal) {
     const response = await fetch(`${this.base}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
     });
     const text = await response.text();
     let payload;
@@ -102,11 +103,17 @@ export class Driver {
 
   async quit() {
     try {
-      await this.#call('DELETE', `/session/${this.sessionId}`);
+      await this.#call(
+        'DELETE',
+        `/session/${this.sessionId}`,
+        undefined,
+        AbortSignal.timeout(5000),
+      );
     } catch {
       // A dead session is already the desired end state.
+    } finally {
+      this.proc?.kill('SIGTERM');
     }
-    this.proc?.kill('SIGTERM');
   }
 }
 

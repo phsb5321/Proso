@@ -62,8 +62,7 @@ still separate from the internal-dispatch Firefox diagnostic. The older
 `hover-affordance-gate.mjs` assumes fresh profiles mark on load; its future
 public journey must start reading successfully before asserting ambient hover.
 This change is local only: no push, PR, merge, or deployment requested.
-||||||| parent of be55b5b (fix(audio): confine synthesis and bound chunk admission)
-
+||||||| parent of df8b9ad (fix(test): harden background playback journey oracles)
 ## Update — 21/09/2026: synthesis confinement and admission (257b)
 
 P1.3 confines local-host text POSTs and both Proso API fetch boundaries with
@@ -123,6 +122,33 @@ logs and receipts use `/tmp/proso-257b-smoke-replay-{1,2}*`. The browser build w
 made from this working diff on parent `7e13b13`, before the local commit. Full
 Feature 095 public acceptance remains unverified.
 
+||||||| original
+
+## Update — 21/09/2026: background diagnostic oracles (Feature 257)
+
+`make background-playback-journey` now rebuilds clean product inputs at HEAD,
+records the built commit/output hashes and separate harness hashes, and observes
+source visibility changes across the quiet 90-second interval. Navigation and
+reload verify URL, document time origin and visibility. Every leave starts with
+advancing native audio; a stop requires the same observable audio to pause and
+release its source promptly, with no natural completion or active-source error.
+Firefox can cancel a queued `pause` event when `src` is cleared, so a native
+`emptied` event with paused audio and an empty source is also valid stop evidence.
+
+The 35-second fixture measures a natural clip end, a new source playing, and
+ordered paragraph highlighting within the hidden window. Aggregate audio
+progress still has to cover the quiet interval. Teardown closes the browser and
+fixture before writing logs; session DELETE is bounded to five seconds.
+
+Evidence plants, syntax/Biome checks and `make fuzz` passed. The first retained
+run caught a new observer cross-compartment error, since fixed. The next run
+caught a mid-second-clip pause while another Firefox diagnostic was running and
+a restart that incorrectly expected Play on a paused session; the latter is
+fixed by public Stop plus observed source release before an independent phase.
+A serial replay is pending. These are diagnostic results, not Feature 095
+acceptance: `make user-gate` failed waiting for its smoke synthesis request, and
+`GENERATOR_FAMILY=openai make gate` stopped at missing generated Prisma types.
+Product source is unchanged. See [Feature 257](../specs/257-journey-hardening/spec.md).
 ## Update — 15/09/2026: catalog lifetime regression
 
 The footer no longer keeps its first nonempty voice catalog for its entire
