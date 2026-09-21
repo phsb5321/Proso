@@ -23,7 +23,7 @@ that made it — see [visual assets](docs/visual-assets.md). Brand marks are sep
 deterministic ([brand vector system](specs/161-brand-vector-system/)).
 
 Reading a local PDF instead? See [Lectrice](https://github.com/phsb5321/Tauri-PDF-Reader).
-Find both projects and related desktop tools at [Yolo Labz](https://github.com/yolo-labz).
+Explore related desktop tools at [Yolo Labz](https://github.com/yolo-labz).
 
 ## Features
 
