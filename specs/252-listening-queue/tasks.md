@@ -32,7 +32,7 @@ future work.
   `packages/shared/src/`, with named exports. Check: focused schema tests accept
   valid nullable metadata and reject invalid offsets, duplicate block IDs,
   dangling/cyclic parents, and malformed source identities (REQ-003, REQ-006).
-- [ ] T005 — Add `src/ports/reading-source.port.ts`, typed Result errors,
+- [x] T005 — Add `src/ports/reading-source.port.ts`, typed Result errors,
   InMemory and disabled NoOp adapters. Check: a common
   `tests/contract/reading-source.contract.test.ts` runs against both; repeated
   set-read is idempotent and NoOp never reports a remote acknowledgement

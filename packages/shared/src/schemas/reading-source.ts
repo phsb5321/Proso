@@ -18,8 +18,12 @@ export const SourceRefSchema = z
       .string()
       .url()
       .refine((value) => {
-        const url = new URL(value);
-        return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+        try {
+          const url = new URL(value);
+          return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+        } catch {
+          return false;
+        }
       }),
   })
   .strict()
