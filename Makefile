@@ -61,6 +61,10 @@ smoke-reading: browser-linkage ## Drive the built extension in a real Firefox an
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/smoke-reading.mjs
 
+.PHONY: background-playback-journey
+background-playback-journey: ## Rebuild HEAD and measure hidden, navigated and reloaded Firefox playback.
+	@node scripts/background-playback-journey.mjs
+
 public-actor-gate: browser-linkage ## Drive the built extension through public controls only (no internal dispatch).
 	$(PNPM) --filter @proso/extension build:firefox
 	@node scripts/public-actor-gate.mjs
