@@ -23,6 +23,7 @@
  * Usage: node scripts/release-channels-check.mjs
  * Assumes both builds exist (see `make release-channels`).
  */
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -70,6 +71,17 @@ if (listed.settings.id !== unlisted.settings.id) {
 if (listed.manifest.version !== unlisted.manifest.version) {
   failures.push(
     `version differs between channels: ${unlisted.manifest.version} vs ${listed.manifest.version}`,
+  );
+}
+// Both channels agreeing is not enough: they agreed on 1.2.12 while
+// package.json said 1.2.13, because the version was copied into wxt.config.ts
+// by hand. The manifest must carry the version being released.
+const packageVersion = JSON.parse(
+  readFileSync(new URL('../packages/extension/package.json', import.meta.url), 'utf8'),
+).version;
+if (listed.manifest.version !== packageVersion) {
+  failures.push(
+    `built manifest is v${listed.manifest.version} but packages/extension/package.json is v${packageVersion}`,
   );
 }
 
