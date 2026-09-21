@@ -21,6 +21,16 @@
               "strict_min_version": "109.0"
             }
           }
+        },
+        {
+          "version": "1.2.12",
+          "update_link": "https://proso.com.br/releases/proso-1.2.12.xpi",
+          "update_hash": "sha256:5d0dd2c37174a359581e641b519c06aaa773cedd61c9259840b1c558f4c9e3c2",
+          "browser_specific_settings": {
+            "gecko": {
+              "strict_min_version": "109.0"
+            }
+          }
         }
       ]
     }
