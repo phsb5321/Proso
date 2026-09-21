@@ -1,0 +1,14 @@
+{
+  "id": "mark-anchor",
+  "kind": "anchor-render",
+  "tool": "rsvg-convert -w 1024 + magick -alpha remove (source: brand/svg/proso-mark-wave-dark.svg, the current shipped mark)",
+  "prompt": "Derived, not generated: rsvg-convert -w 1024 brand/svg/proso-mark-wave-dark.svg -o raw.png && magick raw.png -background '#010616' -alpha remove -alpha off mark-anchor.png",
+  "reference": "brand/svg/proso-mark-wave-dark.svg",
+  "generated_at": "2026-09-21T15:52:00.000Z",
+  "format": "png",
+  "width": 1024,
+  "height": 1024,
+  "bytes": 25223,
+  "sha256": "ac4df12dcc36649ff69936a3f0565ae5f87174acdcab55c207fb6e8bb208bbfd",
+  "source_url": null
+}
