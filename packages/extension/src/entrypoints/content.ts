@@ -1654,10 +1654,11 @@ export default defineContentScript({
         speechSynthesis.cancel();
       }
 
-      // Send stop message to background (triggers blob URL cleanup)
+      // Report that this view is going away. The background decides whether
+      // that ends the session or merely detaches it (background playback).
       browser.runtime
         .sendMessage({
-          type: 'playback.stop',
+          type: 'playback.viewUnloaded',
           reason: reason,
         })
         .catch(() => {

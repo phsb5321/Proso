@@ -16,6 +16,7 @@ import type { IAudioUrlProvider } from '../../ports/audio-url.port';
 import type { CacheEntry, CacheKey, ICacheStore } from '../../ports/cache-store.port';
 import type { FooterState, IHighlightSynchronizer } from '../../ports/highlight-sync.port';
 import type { ISettingsStore, Settings } from '../../ports/settings-store.port';
+import { isBackgroundPlaybackEnabled } from '../../utils/config/background-playback';
 import type { PlaybackQueue } from '../../utils/playback/playback-queue';
 import type { PrefetchService, PrefetchedAudio } from '../../utils/playback/prefetch';
 import { splitSentences } from '../audio/sentence-chunker';
@@ -29,6 +30,14 @@ import type {
 import { playbackError } from '../shared/errors';
 import type { Result } from '../shared/result';
 import { Err, Ok, isErr, isOk } from '../shared/result';
+import type { PronunciationEntry } from '../speech/pronunciation-lexicon';
+import {
+  type SpokenPlan,
+  type SpokenPlanLocale,
+  buildSpokenPlan,
+  planLocaleFor,
+  projectCharTimings,
+} from '../speech/spoken-plan';
 import {
   type PlaybackState,
   initialPlaybackState,
@@ -37,14 +46,6 @@ import {
 } from './playback-state';
 import type { WordTimingBasis } from './word-timing-estimator';
 import { estimateWordTimings, hasSpeakableWords } from './word-timing-estimator';
-import type { PronunciationEntry } from '../speech/pronunciation-lexicon';
-import {
-  buildSpokenPlan,
-  planLocaleFor,
-  projectCharTimings,
-  type SpokenPlan,
-  type SpokenPlanLocale,
-} from '../speech/spoken-plan';
 
 /**
  * "The settings store has not told us a voice yet." Distinct from `null`,
@@ -119,6 +120,13 @@ export class PlaybackService {
 
   // Detected page language (set externally via setLanguage)
   private detectedLanguage: string | null = null;
+
+  /**
+   * Set when the view that started this session stopped existing (navigation,
+   * reload, tab close) while background playback keeps the audio alive.
+   * Visual work is skipped; audio is untouched.
+   */
+  private visualAttachmentDetached = false;
 
   // Word-level sync state
   private currentWordTimings: Array<{
@@ -239,6 +247,7 @@ export class PlaybackService {
 
     // Update state to loading
     const generation = this.beginGeneration();
+    this.visualAttachmentDetached = false;
     this.state = playbackStateTransitions.startLoading(this.state, paragraphs, tabId, pageUrl);
 
     // Show footer and highlight first paragraph
@@ -774,6 +783,26 @@ export class PlaybackService {
    * session. `allowStop=false` is used by `stop()` itself so cleanup calls
    * on an already-gone tab cannot recurse back into `stop()`.
    */
+  /**
+   * The view that owns this session is gone but the audio session continues.
+   *
+   * This only records the fact and stops visual work: it never touches audio,
+   * which is owned by the background pipeline and is what the reader asked to
+   * keep hearing. Cleared by the next start().
+   */
+  detachVisualAttachment(): void {
+    if (this.visualAttachmentDetached) return;
+    this.visualAttachmentDetached = true;
+    console.info('[PlaybackService] Visual attachment detached; audio continues');
+  }
+
+  /**
+   * Whether the owning view is gone while playback continues.
+   */
+  isVisuallyDetached(): boolean {
+    return this.visualAttachmentDetached;
+  }
+
   private async checkHighlight(
     context: string,
     result: Result<void, HighlightError>,
@@ -786,7 +815,37 @@ export class PlaybackService {
     const tabIsGone =
       result.error.type === 'tab_not_found' || result.error.type === 'content_script_not_loaded';
     if (tabIsGone && allowStop) {
+      // A vanished view is not a playback failure. If the reader asked to keep
+      // listening, or the session already detached, a missing highlight target
+      // must never end the audio.
+      if (this.visualAttachmentDetached) return;
+      if (await this.isBackgroundPlaybackEnabled()) {
+        this.detachVisualAttachment();
+        return;
+      }
       await this.stop();
+    }
+  }
+
+  /**
+   * Read the reader's choice straight from extension storage.
+   *
+   * The settings port's `Settings` subtype does not carry this preference, so
+   * asking it would silently answer "no" and stop playback the reader asked to
+   * keep. Both this and the view-unload policy use the same reader.
+   */
+  /**
+   * Read the reader's choice through the settings port.
+   *
+   * Fails closed to the shipped default, so a settings read that throws can
+   * never silently keep audio alive after the view is gone.
+   */
+  private async isBackgroundPlaybackEnabled(): Promise<boolean> {
+    try {
+      const settings = await this.deps.settingsStore.getSettings();
+      return isBackgroundPlaybackEnabled(settings);
+    } catch {
+      return false; // the shipped default: leaving the page ends playback
     }
   }
 

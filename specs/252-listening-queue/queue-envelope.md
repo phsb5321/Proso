@@ -170,7 +170,14 @@ that beside the setting. Cache hits cost no new synthesis reservation/charge.
 ## Schema migration, downgrade and capacity
 
 Database name is `proso-listening-queue`; initial schema/envelope version is 1.
-No pre-v1 listening envelope is shipped by this draft. Missing database creates
+No pre-v1 listening envelope is shipped by this draft.
+
+This annex itself evolves additively within v1: new optional fields and new enum
+members may be added without a version bump, because an older reader ignores
+them under the version check above. Any change to an existing field's semantics,
+to a required invariant, or to the transaction boundary is breaking: it takes a
+new annex version and the same migration, downgrade and fixture rules as the
+store it governs. Missing database creates
 empty disabled defaults. Legacy `queue:*` is a separate feature, never a v0
 source for conversion. Newer versions must ship pure consecutive N→N+1
 transforms, schemas, fixture input/output pairs and failure/restart tests.

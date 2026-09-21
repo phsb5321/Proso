@@ -22,6 +22,12 @@ export interface Settings {
   cacheEnabled: boolean;
   maxCacheSize: number;
   wordSyncEnabled: boolean;
+  /**
+   * Legacy key for the positive "keep listening when I leave this page" choice:
+   * true (default) ends playback when the view goes away. See
+   * `utils/config/background-playback` for the polarity adapter.
+   */
+  stopPlaybackOnTabChange?: boolean;
   /** Reader-owned pronunciation entries (251); optional for older fixtures. */
   pronunciationLexiconEnabled?: boolean;
   pronunciationLexicon?: readonly PronunciationEntry[];
