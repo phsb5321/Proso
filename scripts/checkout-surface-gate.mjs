@@ -73,6 +73,22 @@ const plantClientToken = `test_${'0'.repeat(23)}`;
 const plantPriceId = (index) =>
   `pri_${'plant'.repeat(2).slice(0, 5)}${String(index).padStart(4, '0')}`;
 
+// The stale-jsonld plant must match the shipped index.html, which advertises
+// the extension's own version. Pinning the version here is how the plant went
+// stale (it still named 1.2.11 after 1.2.13 shipped), so derive it from
+// packages/extension/package.json the same way the softwareVersion assertion
+// does. A missing file reads as null and the plant then fail-closes as
+// "no longer matches" — never a silent pass.
+const extensionVersion = (() => {
+  try {
+    return JSON.parse(
+      readFileSync(path.join(repoRoot, 'packages', 'extension', 'package.json'), 'utf8'),
+    ).version;
+  } catch {
+    return null;
+  }
+})();
+
 /** Source rewrites that each break exactly one shipped behaviour. */
 const PLANTS = {
   'always-enabled': {
@@ -161,7 +177,7 @@ const PLANTS = {
   },
   'stale-jsonld': {
     file: 'index.html',
-    from: '"softwareVersion": "1.2.11",',
+    from: `"softwareVersion": "${extensionVersion}",`,
     to: '"softwareVersion": "1.0.0",',
     breaks: 'JSON-LD advertises the extension version in packages/extension/package.json',
   },
