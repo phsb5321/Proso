@@ -1,0 +1,14 @@
+{
+  "listening-hero": {
+    "kind": "hero",
+    "prompt": "A wide cinematic editorial illustration for a text-to-speech reading tool, flat geometric vector style, backdrop solid navy #010616, ink lines #F8F8F9, one accent colour electric green #21F299 used sparingly. Composition: on the left, a tall column of abstract horizontal text lines suggesting a web page; the lines progressively break apart and curve into concentric sound ripples travelling to the right, resolving into a single calm green waveform. Generous negative space, strict grid, thick confident strokes, high contrast, no gradients as a crutch. Wide banner crop, roughly 5:2 aspect ratio.",
+    "bans": "no letters, no words, no pseudo-text, no logos, no speech bubbles, no glowing blue orbs, no humanoid heads with circuits, no photorealistic people, no stock-photo look",
+    "notes": "First direction for the family; every later asset edits this anchor."
+  },
+  "release-card": {
+    "kind": "social",
+    "prompt": "A square social card illustration, flat geometric vector style, backdrop solid navy #010616, ink #F8F8F9, single electric green #21F299 accent. Composition: an abstract Firefox-like rounded arch shape on the left, and on the right a rising sequence of three horizontal sound bars whose heights step upward, connected by a thin green baseline that lifts off the page like a measured line of text being spoken. Strict grid, generous margins, thick even strokes, strong silhouettes that survive being scaled down to a feed thumbnail. Square 1:1 aspect ratio.",
+    "bans": "no letters, no words, no pseudo-text, no logos, no speech bubbles, no glowing orbs, no realistic hands, no photorealistic people, no stock-photo look",
+    "notes": "For release announcements where the caption carries the version number, so the image must stay wordless."
+  }
+}

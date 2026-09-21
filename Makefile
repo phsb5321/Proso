@@ -232,7 +232,7 @@ server-status-popover-gate: ## Prove the settings server-status popover stays vi
 server-status-popover-plants: ## Prove every server-status-popover-gate assertion catches a planted break.
 	@node scripts/server-status-popover-plants.mjs
 
-verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets icons preflight-test amo-publication-self-test ## Fast delivery floor.
+verify: doctor format-check lint typecheck smoke-reader smoke-server-boot security brand-assets art-provenance icons preflight-test amo-publication-self-test ## Fast delivery floor.
 
 release-channels: ## Build both Firefox channels (unlisted + listed) and prove they differ only by update_url.
 	$(PNPM) --filter @proso/extension build:firefox
@@ -260,6 +260,12 @@ brand-assets: ## Brand segments, SVG masters, proofs, icon topology, and site id
 
 brand-site-plants: ## Prove the site identity gate fails closed: planting the retired favicon/og-image turns it red by name.
 	@node scripts/brand-site-plants.mjs
+
+art-provenance: ## Editorial art must record the prompt that made it (bytes, tool, identity, sha256).
+	@node scripts/visuals/verify-art-provenance.mjs
+
+art-provenance-plants: ## Prove the art-provenance gate fails closed: untraceable or tampered art turns it red by name.
+	@node scripts/visuals/verify-art-provenance.self-test.mjs
 
 icons: ## Icon PNGs must be regenerable from their band SVGs (anti-rot gate).
 	$(PNPM) --filter @proso/extension icons:check
