@@ -1,0 +1,15 @@
+{
+  "id": "mark-evolve-loud",
+  "kind": "mark-exploration",
+  "tool": "gpt-image — ChatGPT web UI, fleet identity openai-platform",
+  "identity": "openai-platform",
+  "prompt": "Redesign this app mark to be louder and more distinctive while keeping its meaning (text becoming voice). Palette #F8F8F9, #21F299, backdrop #010616. Idea: the bubble is one bold rounded shape with a single deep notch cut from its right edge, and the waveform rises out of that notch as three to four bars of stepped height with the tallest in the middle, giving the mark a strong diagonal rhythm. Flat vector, thick even strokes, high contrast, unmistakable at thumbnail size.\n\nReject and redo rather than include: no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform.",
+  "reference": "/home/notroot/Documents/Code/personal/proso/brand/exploration/2026-09-21/mark-anchor.png",
+  "generated_at": "2026-09-21T15:55:31.571Z",
+  "format": "png",
+  "width": 1586,
+  "height": 992,
+  "bytes": 856330,
+  "sha256": "d451920f6c2973792c56f7e3b7c97bdc88349f94d93f591c9bb80e4cac1ef8eb",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000056c4820eab432e13ebeff402&ts=497223&p=fs&cid=1&sig=cb044c"
+}

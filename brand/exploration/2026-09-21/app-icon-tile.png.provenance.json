@@ -1,0 +1,15 @@
+{
+  "id": "app-icon-tile",
+  "kind": "app-icon-exploration",
+  "tool": "gpt-image — ChatGPT web UI, fleet identity openai-platform",
+  "identity": "openai-platform",
+  "prompt": "Design a browser-extension app icon on a rounded-square navy #010616 tile: a white #F8F8F9 speech bubble containing two green #21F299 text lines, with a green waveform on its right, sized so the composition sits inside the tile with comfortable margin and reads instantly at 32 pixels. Flat vector, no gradients, no shadows, no border stroke on the tile, generous padding.\n\nReject and redo rather than include: no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform.",
+  "reference": "/home/notroot/Documents/Code/personal/proso/brand/exploration/2026-09-21/mark-anchor.png",
+  "generated_at": "2026-09-21T15:56:28.569Z",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 918734,
+  "sha256": "24ffef997da70d41e5874a80767971c728617153cf0494158573b25b44ef3635",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000cb74820e9b9fc6090f8eb74d&ts=497223&p=fs&cid=1&sig=270e42"
+}

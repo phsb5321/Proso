@@ -1,0 +1,15 @@
+{
+  "id": "mark-evolve-unified",
+  "kind": "mark-exploration",
+  "tool": "gpt-image — ChatGPT web UI, fleet identity openai-platform",
+  "identity": "openai-platform",
+  "prompt": "Redesign this app mark: same idea (a speech bubble holding two text lines, a sound waveform on its right) but as ONE unified silhouette instead of two separate objects. Let the bubble's tail grow out of the waveform's baseline so the two halves are one continuous shape. Palette exactly: bubble outline #F8F8F9, text lines and waveform #21F299, backdrop #010616. Flat vector, even stroke weight, geometric, no gradients. Must stay legible at 16 pixels: fewer, larger features; no detail thinner than the stroke.\n\nReject and redo rather than include: no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform.",
+  "reference": "/home/notroot/Documents/Code/personal/proso/brand/exploration/2026-09-21/mark-anchor.png",
+  "generated_at": "2026-09-21T15:53:50.767Z",
+  "format": "png",
+  "width": 1586,
+  "height": 992,
+  "bytes": 583210,
+  "sha256": "835f76451c0e93014618b813c968cccb3528364a8e652f6217894fcb11967911",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000009bf8820e8c98dba944945a8f&ts=497223&p=fs&cid=1&sig=533841"
+}

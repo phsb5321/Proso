@@ -1,0 +1,15 @@
+{
+  "id": "mark-evolve-16px",
+  "kind": "mark-exploration",
+  "tool": "gpt-image — ChatGPT web UI, fleet identity openai-platform",
+  "identity": "openai-platform",
+  "prompt": "Redesign this app mark to survive 16 pixels. Same subject (speech bubble with text lines turning into a sound waveform) and same palette (#F8F8F9 bubble outline, #21F299 lines and waveform, #010616 backdrop), but rebuild the geometry around a chunky near-square silhouette: a bubble with a short thick tail, at most two thick text lines, and a waveform of three thick bars that reads as a single shape. Generous internal negative space, stroke weight about one eighth of the mark width. Flat, geometric, no gradients, no fine detail.\n\nReject and redo rather than include: no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform.",
+  "reference": "/home/notroot/Documents/Code/personal/proso/brand/exploration/2026-09-21/mark-anchor.png",
+  "generated_at": "2026-09-21T15:54:47.334Z",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 976134,
+  "sha256": "41286874fc86eb811d5b0d7b63e9166ac1e0b0b5c4956f840a3e0363069909c3",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000009b60820e82cfd7930625cda2&ts=497223&p=fs&cid=1&sig=d209e6"
+}
