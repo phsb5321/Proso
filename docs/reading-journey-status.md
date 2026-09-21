@@ -145,8 +145,33 @@ run caught a new observer cross-compartment error, since fixed. The next run
 caught a mid-second-clip pause while another Firefox diagnostic was running and
 a restart that incorrectly expected Play on a paused session; the latter is
 fixed by public Stop plus observed source release before an independent phase.
-A serial replay is pending. These are diagnostic results, not Feature 095
-acceptance: `make user-gate` failed waiting for its smoke synthesis request, and
+A serial replay proved the hidden continuation and all disabled phases, but
+caught the reset actor's wrong name (`Stop` instead of `Stop playback`). The
+actor now waits for the actual visible accessible name.
+
+The final serial run **PASSed all 21 checks**, enabled and disabled, on clean
+built commit `df8b9ad0cddc30a1a9d6044135c368ce20fbecbc`. The enabled hidden
+window lasted 90.002 seconds, crossed two paragraph boundaries and accumulated
+89.209 seconds of media progress. Both navigate/reload continuation and all
+three prompt-stop controls passed. Receipt:
+`.artifacts/background-playback-257-final/receipt.json`; replay:
+`FC_SEED=20260920 BACKGROUND_ARTIFACT_DIR=.artifacts/background-playback-257-recheck make background-playback-journey`.
+The receipt's script SHA-256 is
+`c9ef8fbc85d495512ed115dcf985acb92562133b7f14f3d96bb79dd2406433c3`.
+First-occurrence evidence remains in the `background-playback-257-first`,
+`background-playback-257-replay` and `background-playback-257-serial` artifact
+directories. The concurrent-test pause did not recur in either serial hidden
+run; its cause is not established.
+
+Final process logs also retain unclassified browser anomalies: 459 enabled/33
+disabled opaque `uncaught exception: Object { message }` lines, 10/6
+`ExtensionParent` errors with null `currentWindowContext.documentPrincipal`,
+and one null `PrivateBrowsingUtils` docShell error per shutdown. Nimbus/search
+icon network errors also occur. The 21 policy assertions pass; no error-free
+browser-session claim is made, and these causes remain unresolved. See the
+`enabled-process.log` and `disabled-process.log` beside the final receipt.
+
+These are diagnostic results, not Feature 095 acceptance: `make user-gate` failed waiting for its smoke synthesis request, and
 `GENERATOR_FAMILY=openai make gate` stopped at missing generated Prisma types.
 Product source is unchanged. See [Feature 257](../specs/257-journey-hardening/spec.md).
 ## Update — 15/09/2026: catalog lifetime regression
