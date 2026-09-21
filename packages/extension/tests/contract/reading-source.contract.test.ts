@@ -4,7 +4,9 @@ import {
   InMemoryReadingSourceAdapter,
   NoOpReadingSourceAdapter,
 } from '../../src/adapters/reading-source';
+import { MinifluxReadingSourceAdapter } from '../../src/adapters/reading-source/miniflux.adapter';
 import type { IReadingSource } from '../../src/ports/reading-source.port';
+import { installSourceCrypto, sourceEntry, sourceResponse } from '../helpers/reading-source-http';
 
 const document: ReadableDocument = {
   source: {
@@ -107,4 +109,23 @@ describe('offline acknowledgement contract', () => {
     });
     expect((await adapter.list()).ok).toBe(true);
   });
+});
+
+installSourceCrypto();
+readingSourceContract('Miniflux HTTP', () => {
+  const result = MinifluxReadingSourceAdapter.create(
+    { connectionId: 'fixture', baseUrl: 'https://miniflux.test/prefix', token: 'synthetic-token' },
+    {
+      now: () => 0,
+      fetch: async (input) => {
+        const url = String(input);
+        if (url.includes('/entries?'))
+          return sourceResponse({ total: 1, entries: [sourceEntry()] });
+        if (url.endsWith('/entries/999')) return sourceResponse({}, 404);
+        return sourceResponse(sourceEntry());
+      },
+    },
+  );
+  if (!result.ok) throw new Error('Invalid fixture connection');
+  return result.value;
 });

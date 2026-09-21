@@ -12,6 +12,7 @@ import type {
 export class InMemoryReadingSourceAdapter implements IReadingSource {
   private readonly read = new Set<string>();
   private readonly cursors = new Map<string, readonly ReadableDocument[]>();
+  private sequence = 0;
   private fault: ReadingSourceError | undefined;
   constructor(
     private readonly connectionId: string,
@@ -38,6 +39,8 @@ export class InMemoryReadingSourceAdapter implements IReadingSource {
         ? this.documents.filter((doc) => !this.read.has(sourceIdentity(doc.source)))
         : this.cursors.get(query.cursor);
     if (!remaining) return Err({ type: 'SOURCE_BINDING' });
+    if (query.cursor === undefined) this.cursors.clear();
+    else this.cursors.delete(query.cursor);
     if (
       remaining.some(
         (doc) =>
@@ -53,7 +56,7 @@ export class InMemoryReadingSourceAdapter implements IReadingSource {
     // At most two pages per refresh, regardless of fixture size.
     const cursor =
       query.cursor === undefined && unique.length > 50
-        ? `${this.connectionId}:${this.cursors.size}`
+        ? `${this.connectionId}:${++this.sequence}`
         : undefined;
     if (cursor) this.cursors.set(cursor, unique.slice(50, 100));
     return Ok({ items, ...(cursor ? { cursor } : {}) });

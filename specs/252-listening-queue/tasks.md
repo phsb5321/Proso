@@ -1,11 +1,9 @@
 # Tasks — Feature 252
 
-This is an ordered implementation backlog, not a record of implemented code.
+This is an ordered implementation backlog; checked tasks have the receipts below.
 Each task includes a falsifiable check. Paths under `src/` and `tests/` below
 refer to `packages/extension/` unless a package is named. Keep each production
-change and its focused test in the same conventional commit. The current
-drafting task writes only this directory; all implementation paths below are
-future work.
+change and its focused test in the same conventional commit. The first implementation slice is limited to T004–T008; later tasks remain open.
 
 ## Product contract
 
@@ -45,7 +43,7 @@ future work.
   Check: unchanged bodies with different fetch time/read state retain revision;
   changed text/order changes it; spoken expansion, emoji, and lexicon changes
   never turn source positions into paragraph/spoken offsets (REQ-003, REQ-006).
-- [ ] T008 — Implement Miniflux list/get using injected fetch and synthetic HTTP
+- [x] T008 — Implement Miniflux list/get using injected fetch and synthetic HTTP
   responses, including pagination/de-duplication and normalization. Check:
   register the HTTP adapter in T005's shared contract suite; validate safe IDs,
   path-prefix URLs, size bounds, abort/timeout, 401/403, 404, 429, malformed JSON,
@@ -239,19 +237,19 @@ T037/T038 assemble public/client boundaries. T028–031 run all named acceptance
 checks, seed 252001 with 2,000 traces × 100 commands maximum and a 30-minute /
 20-restart soak. Annex implementation tasks are required, not optional follow-up.
 
-T003 gates **live source traffic** only; production must hard-disable that path
-until the recorded governance decision lands. The v2.2.0 amendment is drafted,
-not ratified; T003 remains open. Synthetic implementation can
-proceed independently. REQ-013 is mandatory client validation; SERVER-252-001 is
-explicitly outside this feature, with no implied server implementation task.
+T003 is satisfied: the constitution v2.2.0 amendment was ratified and merged
+in PR #255 (`3718437`). T004–T008 implement the first offline source slice.
+No real adapter is connected to production composition. T009 and every later
+implementation task remain open, including the broader T032/T036 checks;
+this slice's golden-vector and sanitizer tests do not complete those tasks.
+REQ-013's message/epoch isolation remains future work; SERVER-252-001 is outside
+this feature with no implied server implementation task.
 
-Only T001/T002 and T032-DOC/T033-DOC/T034-DOC document work is complete. The prior
-draft's missing-Prisma doctor result is historical; runtime gates and a fresh
-different-family verdict remain outstanding. The revision's document-only
-validation is recorded in review-response.md. The next implementation work is
-T004 with T032; no code, dependency or constitution change is authorized here.
+The first-slice receipt below supersedes prior draft-only scope/status notes.
+The draft's missing-Prisma result is historical; no full delivery, public-browser,
+fuzz/soak or different-family review receipt is claimed by this slice.
 
-### Amendment draft verification — 20/09/2026
+### Historical amendment draft verification — 20/09/2026
 
 The separately authorized branch `254-constitution-reading-source` updates only
 the constitution and this feature's plan/tasks. PR #92 (`93a2e7e`) is the
@@ -271,3 +269,65 @@ passed. Full verification, runtime
 privacy/consent/completion checks, public-browser/fuzz gates and an independent
 different-family verdict are not established by this draft. T003 stays open
 pending Pedro H S Balbino's explicit ratification and the landed governing commit.
+
+### First implementation slice receipt — 21/09/2026
+
+Authorized scope: T004–T008 in `proso-252-impl`, branch
+`252-listening-queue-impl`; local conventional commits only, no push.
+
+- T003: constitution v2.2.0 ratified, PR #255, governing merge `3718437`.
+- T004: four unchanged readonly contracts, strict boundary schemas, nullable
+  metadata, source identity validation, ordered/acyclic parents and contextual
+  UTF-16 checkpoint validation. Focused schema suite: 9 tests.
+- T005: typed Result source port; InMemory list/get/idempotent set-read and
+  repeatable faults; NoOp returns NOT_CONFIGURED without networking. The shared
+  contract suite also registers HTTP list/get after T008: 9 tests total.
+- T006: pure mapper over existing ExtractedContent/Paragraph output; data-only
+  parse5 7.3.0 allowlist boundary (promoted to a direct runtime dependency).
+  Coverage records omissions/unsupported structures; limits fail without
+  truncation. Normalizer suite: 9 tests, including hostile HTML with no fetch/DOM.
+- T007: exact ordered JSON/UTF-8/SHA-256 revision and ordinal block preimages,
+  all six literal golden vectors, metadata stability, source-only conservative
+  recovery, emoji boundary repair and spoken-plan/lexicon keys. Identity and
+  position suite: 11 tests. Recovery returns evidence invalidation instructions;
+  it does not write a checkpoint/envelope or authorize an audio hint.
+- T008: injected fetch/clock Miniflux list/get, prefixed HTTPS endpoint confinement,
+  safe IDs, one-use connection-bound pagination (50 × 2), de-duplication,
+  response-byte limits, cancellation, 15 s deadline, redacted HTTP errors and
+  normalization. Synthetic HTTP suite: 35 tests; no live service or credentials.
+  HTTP acknowledge returns NOT_CONFIGURED and performs no request until T009.
+
+Final required verification (all exit 0):
+
+```text
+repo: pnpm --filter @proso/extension lint
+Checked 214 files in 289ms. No fixes applied.
+Found 68 warnings.
+
+packages/extension: pnpm exec tsc --noEmit
+(no diagnostics)
+
+packages/extension: NODE_OPTIONS=--experimental-vm-modules npx jest --selectProjects unit --selectProjects contract
+Test Suites: 1 skipped, 169 passed, 169 of 170 total
+Tests:       1 skipped, 3380 passed, 3381 total
+Snapshots:   0 total
+Time:        21.446 s
+Ran all test suites in 2 projects.
+
+repo: node scripts/quality/check-active-docs.mjs
+Active-document policy: 9 owned documents, no expired reviews or broken links.
+```
+
+The skipped OffscreenAudioAdapter suite/test predates this slice; no tests were
+skipped or weakened here. The 68 lint warnings are on existing code; a separate
+Biome check of all 21 changed/new code/test files passes without diagnostics.
+`git diff --check` passes. During development a test's Node environment pragma
+conflicted with the repository's DOM setup, and a Jest cleanup callback returned
+Jest instead of void; both were corrected before the final runs.
+
+Deliberately absent: T009 HTTP set-read, queue/envelope stores, credential or
+permission storage, composition, playback/cache wiring, public UI/messages,
+persisted audio bindings/heard evidence, retries, retention and migration. No
+full-feature completion, live traffic, fuzz/soak, loaded-extension acceptance,
+full make gate or independent-family verdict is claimed. T032/T036 retain their
+broader adapter/evidence/privacy obligations for subsequent slices.
