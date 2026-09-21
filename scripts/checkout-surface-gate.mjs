@@ -152,8 +152,8 @@ const PLANTS = {
   },
   'amo-status-mismatch': {
     file: 'index.html',
-    from: '<section id="install-status" data-amo-status="awaiting-review">',
-    to: '<section id="install-status" data-amo-status="published">',
+    from: '<section id="install-status" data-amo-status="published">',
+    to: '<section id="install-status" data-amo-status="awaiting-review">',
     breaks: 'the install controls and copy agree with the AMO state marker',
   },
   'stale-jsonld': {
