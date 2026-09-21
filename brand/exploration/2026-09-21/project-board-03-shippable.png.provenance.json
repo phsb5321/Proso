@@ -1,0 +1,15 @@
+{
+  "id": "project-board-03-shippable",
+  "kind": "brand-kit-board",
+  "tool": "ChatGPT Projects (board 02, fleet identity openai-platform) + deterministic composite: rsvg-convert proso-lockup-dark.svg + ImageMagick with the vendored Outfit font",
+  "prompt": "Composite of project-board-02-wordless.png: the real vector lockup centred in the reserved panel, plus two approved lines taken verbatim from README.md. No model-drawn letterform or invented copy survives in this artifact.",
+  "reference": "brand/exploration/2026-09-21/project-board-02-wordless.png",
+  "generated_at": "2026-09-21T17:38:00.000Z",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 1093037,
+  "sha256": "3460c439dd12b9f28be55f714dcc61990f905c559ae9ab70cdb6c41570b661ef",
+  "source_url": null,
+  "note": "Shippable variant. Every letterform is Outfit or the real vector lockup; the only words are two approved README lines. Composite command is in git history of this commit."
+}
