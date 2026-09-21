@@ -37,7 +37,7 @@ future work.
   `tests/contract/reading-source.contract.test.ts` runs against both; repeated
   set-read is idempotent and NoOp never reports a remote acknowledgement
   (REQ-001, REQ-008).
-- [ ] T006 — Add a pure document normalizer around existing extraction output.
+- [x] T006 — Add a pure document normalizer around existing extraction output.
   Check: `tests/unit/core/reading-source/` covers short text, nested lists,
   headings, entities, repeated blocks, unsupported structures, empty content,
   and partial coverage without publisher fetches (REQ-003).
