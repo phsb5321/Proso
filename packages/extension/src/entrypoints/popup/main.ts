@@ -31,6 +31,7 @@ import {
   hostPermissionPatternForOrigin,
   requestHostPermissionForOrigin,
 } from '../../utils/permissions/match-pattern';
+import { holdProgressWithinItem } from '../../utils/popup/progress-hold';
 import { usageTracker } from '../../utils/telemetry/usage/tracker';
 import { showPlaybackStartFailure } from './playback-failure';
 import { bindPopupTabs } from './popup-tabs';
@@ -346,7 +347,14 @@ function applyState(state: PlaybackState): void {
     elements.playPauseBtn.title = 'Resume';
   }
   updateParagraphInfo(state.currentParagraph, state.totalParagraphs);
-  updateProgress(state.progress);
+  // Pause re-reads the background state, whose `progress` is the fraction of the
+  // CURRENT paragraph, while the footer broadcast carries document progress.
+  // Feeding both into the bar made it jump backwards (25% -> 0%) on every pause
+  // and nothing repaired it. Within one paragraph the reading position only
+  // moves forward; a seek backwards arrives as a different paragraph index and
+  // is left alone.
+  const sameParagraph = state.currentParagraph === currentState.currentParagraph;
+  updateProgress(holdProgressWithinItem(currentState.progress, state.progress, sameParagraph));
   updateTimingBasis(state.timingBasis);
   // Broadcasts can describe the superseded session while this popup's start
   // request is unresolved. Only the owning promise may release that latch.

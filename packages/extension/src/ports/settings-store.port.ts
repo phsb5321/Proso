@@ -7,8 +7,8 @@
  * @module ports/settings-store
  */
 
-import type { PronunciationEntry } from '../core/speech/pronunciation-lexicon';
 import type { ExtractionMode, ProviderId } from '../core/shared/errors';
+import type { PronunciationEntry } from '../core/speech/pronunciation-lexicon';
 
 /**
  * Application settings (matches existing config schema).

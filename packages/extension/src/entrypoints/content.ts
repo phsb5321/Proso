@@ -1689,14 +1689,21 @@ export default defineContentScript({
 
       // Report that this view is going away. The background decides whether
       // that ends the session or merely detaches it (background playback).
-      browser.runtime
-        .sendMessage({
-          type: 'playback.viewUnloaded',
-          reason: reason,
-        })
-        .catch(() => {
-          // Ignore errors during unload - background may not be available
-        });
+      //
+      // `beforeunload` is deliberately excluded: it fires when a navigation is
+      // *requested*, and a cancelled navigation would leave the still-visible
+      // document detached with its footer hidden. `pagehide` is the confirmed
+      // signal.
+      if (reason !== 'beforeunload') {
+        browser.runtime
+          .sendMessage({
+            type: 'playback.viewUnloaded',
+            reason: reason,
+          })
+          .catch(() => {
+            // Ignore errors during unload - background may not be available
+          });
+      }
 
       // T023: Reset paragraph selector state
       if (paragraphSelector) {
@@ -1756,7 +1763,17 @@ export default defineContentScript({
      * Implements FR-005: Resync within 500ms when tab becomes visible
      */
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
+      if (document.hidden) {
+        // Progress visuals are pointless while nothing can be seen, and the
+        // background should not keep sending them into a hidden document.
+        browser.runtime
+          .sendMessage({ type: 'playback.viewVisibility', visible: false })
+          .catch(() => {
+            // Background may not be ready - normal during teardown.
+          });
+        return;
+      }
+      {
         const resyncStart = performance.now();
         browser.runtime
           .sendMessage({

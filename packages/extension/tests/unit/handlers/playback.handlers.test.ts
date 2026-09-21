@@ -35,6 +35,10 @@ const mockPlaybackService = {
   setSpeed: jest.fn<() => any>(),
   seek: jest.fn<() => Promise<any>>(),
   resyncPosition: jest.fn<() => boolean>(),
+  // View lifecycle seams added with the session-identity work.
+  setVisualsVisible: jest.fn<() => void>(),
+  reattachVisualAttachment: jest.fn<() => boolean>(() => true),
+  ownsDocumentIdentity: jest.fn<(documentId: string | null) => boolean>(() => true),
   // PROSO-147: the real service has had this since the language feature and
   // nothing ever called it, so `detectedLanguage` stayed null for every audio
   // request. A mock that omits it is how the dead wiring stayed invisible —
@@ -179,12 +183,13 @@ describe('Playback Handlers', () => {
         'playback.setSpeed',
         'playback.seek',
         'playback.viewUnloaded',
+        'playback.viewVisibility',
         'PARAGRAPH_CLICKED',
       ];
       for (const name of expected) {
         expect(names).toContain(name);
       }
-      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(12);
+      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(13);
       expect(names).toContain('PARAGRAPH_CLICKED');
     });
   });
@@ -1154,6 +1159,22 @@ describe('Playback Handlers', () => {
       mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com' }]);
       mockParagraphExtraction(paragraphs);
     }
+
+    it.each([
+      { owner: false, seeks: false, why: 'a page that does not own the live session' },
+      { owner: true, seeks: true, why: 'the page that owns the live session' },
+    ])('click ownership: $why', async ({ owner, seeks }) => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'playing' }));
+      mockPlaybackService.ownsDocumentIdentity.mockReturnValueOnce(owner);
+
+      await clickParagraph(3);
+
+      if (seeks) {
+        expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
+      } else {
+        expect(mockPlaybackService.seekToParagraph).not.toHaveBeenCalled();
+      }
+    });
 
     it('should start playback and seek to clicked paragraph when idle', async () => {
       prepareIdleParagraphs(['p0', 'p1', 'p2', 'p3', 'p4']);

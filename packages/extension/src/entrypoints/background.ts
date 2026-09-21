@@ -285,6 +285,9 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener(async (message, sender) => {
     // T007: Extract sender tab ID for per-tab state (Contract 7)
     const senderTabId = sender.tab?.id;
+    // A tab id cannot tell successive documents apart; the document id can, and
+    // it is what lets a late message from a replaced document be ignored.
+    const senderDocumentId = (sender as { documentId?: string }).documentId;
 
     // Handle messages with 'type' field (from popup)
     if (message && typeof message === 'object' && 'type' in message) {
@@ -301,8 +304,11 @@ export default defineBackground(() => {
 
       log.debug('[Background] Received message', { type });
 
-      // T007: Inject sender tab ID into dispatch data
-      const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
+      // T007: Inject sender tab ID into dispatch data. The document id rides
+      // with it so a replaced document's late message can be ignored.
+      const enrichedData = senderTabId
+        ? { ...data, __tabId: senderTabId, __documentId: senderDocumentId }
+        : { ...data, __documentId: senderDocumentId };
 
       return dispatchMessage(type, enrichedData).then((result) => {
         if (result === null) {
@@ -329,7 +335,9 @@ export default defineBackground(() => {
       log.debug('[Background] Received legacy action', { action });
 
       // T007: Inject sender tab ID into dispatch data
-      const enrichedData = senderTabId ? { ...data, __tabId: senderTabId } : data;
+      const enrichedData = senderTabId
+        ? { ...data, __tabId: senderTabId, __documentId: senderDocumentId }
+        : { ...data, __documentId: senderDocumentId };
 
       // T068: Bridge legacy action names to canonical dot-notation handler
       // names. The map lives in src/handlers/legacy-bridge.ts so a test can
