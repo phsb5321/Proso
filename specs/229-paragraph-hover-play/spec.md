@@ -84,3 +84,29 @@ reading, or a paused session seeks but the reader cannot resume.
   cache).
 - Resuming a paused session on paragraph click (seek keeps the session paused;
   resume stays a footer control).
+
+## Amendment — 21/09/2026: prior origin engagement
+
+Pedro reported a teal hover band over a YouTube watch-page title (screenshot)
+although the reader had never been invoked there: “if we did not call the
+extension, the hover thing should not appear”. Text volume alone cannot
+distinguish an article from a text-rich app page.
+
+This amendment narrows FR-1/FR-2 and the ambient parts of US1/US2: a first visit
+to any origin has no ambient marking or hover paint, even on text-rich pages.
+Only a successful reading-session start engages that exact HTTP(S) origin.
+Background playback records origins locally in `hoverPlayOrigins`, deduplicated
+and most-recent-first, capped at 50; page paths, queries and text are not stored.
+Failed starts do not engage an origin. Storage failures must not fail playback.
+
+Content reads engagement at startup and listens for local storage changes.
+Engagement during the current session schedules marking of the existing article
+cache without changing active playback indexes. Idle and routed-content passes,
+and click-time ambient extraction, remain gated. Evicted origins lose their
+markers. Already engaged sites retain paragraph-click playback and the existing
+prose-volume gate; explicit popup selection remains available on first visits.
+Missing/malformed storage and absent/opaque origins fail closed.
+
+Regression checks cover first-visit idle/mutation/click behavior, a live engagement
+update with the footer visible, late initial reads, storage failures, exact-origin
+matching, successful/failed starts through both handlers, and the 50-origin cap.

@@ -46,6 +46,25 @@ Object.defineProperty(window, 'requestIdleCallback', {
   writable: true,
 });
 
+const storageGetMock = browser.storage.local.get as unknown as jest.Mock<
+  (key: unknown) => Promise<Record<string, unknown>>
+>;
+type StorageListener = (
+  changes: Record<string, { newValue?: unknown }>,
+  area: string,
+) => void;
+const storageListenerMock = browser.storage.onChanged.addListener as unknown as jest.Mock<
+  (listener: StorageListener) => void
+>;
+const documentListeners = jest.spyOn(document, 'addEventListener');
+
+function changeOrigins(value: unknown, area = 'local'): void {
+  const listeners = storageListenerMock.mock.calls;
+  const listener = listeners[listeners.length - 1]?.[0];
+  if (!listener) throw new Error('storage listener was not registered');
+  listener({ hoverPlayOrigins: { newValue: value } }, area);
+}
+
 const sendMessageMock = browser.runtime.sendMessage as unknown as {
   mockClear: () => void;
   mockResolvedValue: (value: unknown) => void;
@@ -110,11 +129,18 @@ function paragraphClickMessages(): unknown[][] {
 
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
+    for (const [type, listener, options] of documentListeners.mock.calls) {
+      document.removeEventListener(type, listener, options);
+    }
+    documentListeners.mockClear();
+    storageListenerMock.mockClear();
+    storageGetMock.mockReset();
+    storageGetMock.mockResolvedValue({ hoverPlayOrigins: [window.location.origin] });
     for (const observer of observers) observer.disconnect();
     observers.clear();
     jest.clearAllTimers();
     // main() is idempotence-guarded per page; reset the guard so each test
-    // drives a fresh main() (duplicate page listeners behave identically).
+    // drives a fresh main(); document listeners were detached above.
     const proso = (window as { Proso?: { _contentInitialized?: boolean } }).Proso;
     if (proso) proso._contentInitialized = undefined;
     setExtractedParagraphs([]);
@@ -129,8 +155,91 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     articleDom();
   });
 
-  it('marks extracted paragraphs at idle and starts playback on paragraph click', () => {
+  it('leaves a first-visit text-rich page unmarked at idle', async () => {
+    storageGetMock.mockResolvedValue({});
     (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+  });
+
+  it('does not mark or start playback on unengaged prose clicks or mutations', async () => {
+    storageGetMock.mockResolvedValue({ hoverPlayOrigins: ['https://unrelated.example'] });
+    startContentWithMessageListener();
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    document.querySelector('article')?.insertAdjacentHTML('beforeend', `<h1>${LOREM}</h1>`);
+    await Promise.resolve();
+    jest.advanceTimersByTime(3000);
+    document.getElementById('p2')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+    expect(getExtractedParagraphs()).toHaveLength(0);
+    expect(paragraphClickMessages()).toHaveLength(0);
+  });
+
+  it('marks the current article when reading engages its origin, even with the footer visible', async () => {
+    storageGetMock.mockResolvedValue({});
+    const listener = startContentWithMessageListener();
+    await Promise.resolve();
+    await listener({ action: 'extractText', mode: 'article' });
+    await listener({ action: 'FOOTER_SHOW' });
+    const paragraphs = [...getExtractedParagraphs()];
+    try {
+      changeOrigins([window.location.origin], 'sync');
+      jest.advanceTimersByTime(1300);
+      expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+      changeOrigins([window.location.origin]);
+      jest.advanceTimersByTime(1300);
+      expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(3);
+      expect(getExtractedParagraphs()).toEqual(paragraphs);
+      changeOrigins(undefined);
+      expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+    } finally {
+      await listener({ action: 'FOOTER_HIDE' });
+    }
+  });
+
+  it('keeps a newer engagement event when the initial storage read resolves late', async () => {
+    let resolveStorage: (value: Record<string, unknown>) => void = () => {};
+    storageGetMock.mockReturnValue(new Promise((resolve) => { resolveStorage = resolve; }));
+    startContentWithMessageListener();
+    changeOrigins([window.location.origin]);
+    resolveStorage({});
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(3);
+  });
+
+  it('rechecks engagement before a queued idle pass can mark', async () => {
+    startContentWithMessageListener();
+    await Promise.resolve();
+    changeOrigins([]);
+    jest.advanceTimersByTime(1300);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+  });
+
+  it('marks newly routed prose on an engaged origin', async () => {
+    startContentWithMessageListener();
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    document.querySelector('article')?.insertAdjacentHTML('beforeend', `<p id="routed">Routed paragraph. ${LOREM}</p>`);
+    await Promise.resolve();
+    jest.advanceTimersByTime(3000);
+    expect(document.getElementById('routed')?.classList.contains('proso-hoverable')).toBe(true);
+  });
+
+  it('fails closed when origin storage cannot be read', async () => {
+    storageGetMock.mockRejectedValue(new Error('storage unavailable'));
+    startContentWithMessageListener();
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+  });
+
+  it('marks extracted paragraphs at idle and starts playback on paragraph click', async () => {
+    (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
     jest.advanceTimersByTime(1300);
 
     for (const id of ['p1', 'p2', 'p3']) {
@@ -147,6 +256,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
 
   it('enables popup selection mode after ambient cache warming', async () => {
     const listener = startContentWithMessageListener();
+    await Promise.resolve();
     jest.advanceTimersByTime(1300);
     const paragraph = document.getElementById('p1') as Element;
     expect(paragraph.classList.contains('proso-hoverable')).toBe(true);
@@ -160,7 +270,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(paragraph.classList.contains('proso-selectable')).toBe(true);
   });
 
-  it('schedules ambient extraction through requestIdleCallback when available', () => {
+  it('schedules ambient extraction through requestIdleCallback when available', async () => {
     const requestIdleCallback = jest.fn(
       (callback: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void) => {
         callback({ didTimeout: false, timeRemaining: () => 50 });
@@ -175,6 +285,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
 
     (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
 
     expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 3000 });
     expect(getLastExtractionMode()).toBe('article');
@@ -184,6 +295,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
   it('keeps one paragraph ordering from pre-idle extraction through playback', async () => {
     const originalTexts = articleParagraphTexts();
     const listener = startContentWithMessageListener();
+    await Promise.resolve();
     setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
 
     const initialResponse = await listener({ action: 'getParagraphs' });
@@ -212,6 +324,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
   it('does not serve a selection cache as an article cache', async () => {
     const originalTexts = articleParagraphTexts();
     const listener = startContentWithMessageListener();
+    await Promise.resolve();
     setExtractedParagraphs([document.getElementById('p2') as Element], 'selection');
 
     const response = await listener({
@@ -231,8 +344,9 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
       'selection cache',
       () => setExtractedParagraphs([document.getElementById('p3') as Element], 'selection'),
     ],
-  ])('refreshes %s before mapping a real paragraph click', (_name, seedCache) => {
+  ])('refreshes %s before mapping a real paragraph click', async (_name, seedCache) => {
     (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
     sendMessageMock.mockClear();
     seedCache();
 
@@ -246,8 +360,9 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(getLastExtractionMode()).toBe('article');
   });
 
-  it('keeps link clicks native and ignores them as paragraph clicks', () => {
+  it('keeps link clicks native and ignores them as paragraph clicks', async () => {
     (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
     jest.advanceTimersByTime(1300);
     sendMessageMock.mockClear();
 
@@ -257,8 +372,9 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(sendMessageMock.mock.calls).toHaveLength(0);
   });
 
-  it('ignores the terminating click of a drag text-selection', () => {
+  it('ignores the terminating click of a drag text-selection', async () => {
     (content as { main?: (ctx?: unknown) => void }).main?.();
+    await Promise.resolve();
     jest.advanceTimersByTime(1300);
     sendMessageMock.mockClear();
 
@@ -276,6 +392,7 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
       return idleCallbacks.length;
     };
     const listener = startContentWithMessageListener();
+    await Promise.resolve();
     idleCallbacks.shift()?.();
     const originalParagraphs = [...getExtractedParagraphs()];
     document

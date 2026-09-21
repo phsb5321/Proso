@@ -13,6 +13,10 @@ import { getPlaybackService, isPlaybackServiceAvailable } from '../composition';
 import type { WordTimingBasis } from '../core/playback/word-timing-estimator';
 import type { Result } from '../core/shared/result';
 import { Err, Ok } from '../core/shared/result';
+import {
+  HOVER_PLAY_ORIGINS_KEY,
+  recordEngagedOrigin,
+} from '../utils/content/hover-affordance-policy';
 import { tabLanguageStates } from './language.handlers';
 import type { HandlerRegistry } from './registry';
 import {
@@ -30,6 +34,20 @@ import {
 async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
+}
+
+/** Best effort: remembering an origin must never turn successful playback into an error. */
+async function rememberReadingOrigin(pageUrl: string): Promise<void> {
+  try {
+    const origin = new URL(pageUrl).origin;
+    if (recordEngagedOrigin([], origin).length === 0) return;
+    const stored = await browser.storage.local.get(HOVER_PLAY_ORIGINS_KEY);
+    await browser.storage.local.set({
+      [HOVER_PLAY_ORIGINS_KEY]: recordEngagedOrigin(stored[HOVER_PLAY_ORIGINS_KEY], origin),
+    });
+  } catch (error) {
+    console.warn('[PlaybackHandlers] Could not remember hover-play origin:', error);
+  }
 }
 
 /**
@@ -350,6 +368,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           return Ok({ success: false, error: getPlaybackErrorMessage(result.error) });
         }
 
+        await rememberReadingOrigin(pageUrl);
         return Ok({ success: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -446,7 +465,10 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
    * session detaches from its view and audio continues; otherwise this is the
    * stop it always was. Idempotent — repeated unloads are harmless.
    */
-  registry.register<{ reason?: string; __tabId?: number }, Result<PlaybackOperationResponse, PlaybackHandlerError>>(
+  registry.register<
+    { reason?: string; __tabId?: number },
+    Result<PlaybackOperationResponse, PlaybackHandlerError>
+  >(
     'playback.viewUnloaded',
     async (params) => {
       if (!isPlaybackServiceAvailable()) {
@@ -799,6 +821,8 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
               error: getPlaybackErrorMessage(startResult.error),
             });
           }
+
+          await rememberReadingOrigin(tab.url ?? '');
 
           // If clicking paragraph 0, we're already there from start()
           if (paragraphIndex === 0) {

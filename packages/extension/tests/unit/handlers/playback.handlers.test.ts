@@ -52,8 +52,12 @@ jest.unstable_mockModule(resolve(srcDir, 'composition'), () => ({
 const mockTabsQuery = jest.fn<(queryInfo: any) => Promise<any[]>>();
 const mockTabsSendMessage = jest.fn<(tabId: number, message: any) => Promise<any>>();
 
+const mockStorageGet = jest.fn<() => Promise<Record<string, unknown>>>();
+const mockStorageSet = jest.fn<(value: Record<string, unknown>) => Promise<void>>();
+
 jest.unstable_mockModule('wxt/browser', () => ({
   browser: {
+    storage: { local: { get: mockStorageGet, set: mockStorageSet } },
     tabs: {
       query: mockTabsQuery,
       sendMessage: mockTabsSendMessage,
@@ -127,6 +131,8 @@ describe('Playback Handlers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStorageGet.mockResolvedValue({ hoverPlayOrigins: ['https://older.example'] });
+    mockStorageSet.mockResolvedValue(undefined);
 
     // Defaults: service available, standard state
     mockIsPlaybackServiceAvailable.mockReturnValue(true);
@@ -263,6 +269,32 @@ describe('Playback Handlers', () => {
   // playback.start
   // -----------------------------------------------------------------------
   describe('playback.start', () => {
+    it('records only the page origin after successful playback', async () => {
+      const result = unwrapDispatch(await registry.dispatch('playback.start', {
+        paragraphs: ['Some text'], tabId: 1, pageUrl: 'https://example.com/watch?v=private',
+      }));
+      expect(result.value.success).toBe(true);
+      expect(mockStorageSet).toHaveBeenCalledWith({
+        hoverPlayOrigins: ['https://example.com', 'https://older.example'],
+      });
+      expect(mockStorageSet.mock.invocationCallOrder[0]).toBeGreaterThan(
+        mockPlaybackService.start.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('does not record an origin when playback fails', async () => {
+      await observePlaybackStartFailure({ type: 'playback_failed', reason: 'No audio' });
+      expect(mockStorageSet).not.toHaveBeenCalled();
+    });
+
+    it('keeps successful playback successful when engagement storage fails', async () => {
+      mockStorageSet.mockRejectedValue(new Error('quota exceeded'));
+      const result = unwrapDispatch(await registry.dispatch('playback.start', {
+        paragraphs: ['Some text'], tabId: 1, pageUrl: 'https://example.com/page',
+      }));
+      expect(result.value.success).toBe(true);
+    });
+
     it('should start playback with provided paragraphs and tabId', async () => {
       const params = {
         paragraphs: ['Hello world', 'Second paragraph'],
@@ -1131,6 +1163,18 @@ describe('Playback Handlers', () => {
         'https://example.com',
       );
       expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
+      expect(mockStorageSet).toHaveBeenCalledWith({
+        hoverPlayOrigins: ['https://example.com', 'https://older.example'],
+      });
+    });
+
+    it('does not engage the origin when paragraph-start playback fails', async () => {
+      prepareIdleParagraphs(['p0', 'p1']);
+      mockPlaybackService.start.mockResolvedValue({
+        ok: false, error: { type: 'playback_failed', reason: 'No audio' },
+      });
+      expect((await clickParagraph(0)).value.success).toBe(false);
+      expect(mockStorageSet).not.toHaveBeenCalled();
     });
 
     it('should start playback at paragraph 0 without seeking', async () => {
