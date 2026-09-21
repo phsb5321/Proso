@@ -27,8 +27,10 @@ pnpm --filter @proso/extension zip:firefox-listed
 The listed package is written to:
 
 ```text
-packages/extension/.output-listed/prosoextension-1.2.11-firefox.zip
+packages/extension/.output-listed/prosoextension-<version>-firefox.zip
 ```
+
+`<version>` is the `version` field of `packages/extension/package.json`.
 
 The source uses WXT 0.20.13, Vite 6.4.3, and esbuild minification. It uses no
 obfuscator and emits no production source maps. No credential or environment
