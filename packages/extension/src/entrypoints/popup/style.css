@@ -1313,11 +1313,30 @@ body {
   color: var(--color-success, #22c55e);
 }
 
-.proso-popup__panel--firstrun .proso-popup__status,
-.proso-popup__panel--firstrun .proso-popup__timing-note,
-.proso-popup__panel--firstrun .proso-popup__progress,
-.proso-popup__panel--firstrun .proso-popup__controls,
-.proso-popup__panel--firstrun .proso-popup__speed,
-.proso-popup__panel--firstrun .proso-popup__cost {
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__status,
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__timing-note,
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__progress,
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__controls,
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__speed,
+.proso-popup__panel--firstrun:not(.proso-popup__panel--session) .proso-popup__cost {
   display: none;
+}
+
+.proso-popup__attention {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+.proso-popup__attention .proso-button {
+  white-space: normal;
+  height: auto;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+#background-playback-toggle[aria-pressed="true"] {
+  background: var(--popup-surface-raised);
+  border-color: var(--popup-action);
 }

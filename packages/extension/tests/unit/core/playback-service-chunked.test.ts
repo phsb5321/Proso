@@ -118,7 +118,8 @@ describe('PlaybackService chunked path', () => {
   const testTabId = 123;
   const testPageUrl = 'https://example.com/article';
 
-  afterEach(() => {
+  afterEach(async () => {
+    await service.stop();
     jest.restoreAllMocks();
   });
 
@@ -152,6 +153,50 @@ describe('PlaybackService chunked path', () => {
       highlightSync: mockHighlightSync,
       settingsStore: mockSettingsStore,
     });
+  });
+
+  it('bounds admission to two queued chunks and resumes without skipping sentences', async () => {
+    generator = new ChunkedMockGenerator([
+      'One sentence.', 'Two sentences.', 'Three sentences.',
+      'Four sentences.', 'Five sentences.', 'Six sentences.',
+    ]);
+    service.setAudioGenerator(generator);
+    await service.start([generator.sentences.join(' ')], testTabId, testPageUrl);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    const queue = () => (service as unknown as { chunkQueue: unknown[] }).chunkQueue;
+    expect(queue()).toHaveLength(2);
+    expect(generator.requests).toHaveLength(3);
+
+    await service.pause();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(generator.requests).toHaveLength(3);
+    await service.resume();
+    for (let index = 1; index < generator.sentences.length; index++) {
+      await endClip();
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(queue().length).toBeLessThanOrEqual(2);
+    }
+    expect(generator.requests.map((request) => request.text)).toEqual(generator.sentences);
+    expect(mockAudioUrlProvider.createUrlCalls).toHaveLength(6);
+  });
+
+  it('pause during a pending chunk prevents the next synthesis dispatch', async () => {
+    let release = () => {};
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    let dispatches = 0;
+    generator.generateAudioChunks = async function* () {
+      for (let index = 0; index < 6; index++) {
+        dispatches++;
+        if (index === 1) await pending;
+        yield Ok({ audioBlob: new Blob(['chunk']), durationMs: 1000, wordTimings: null });
+      }
+    };
+    await service.start(['One. Two. Three. Four. Five. Six.'], testTabId, testPageUrl);
+    await service.pause();
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(dispatches).toBe(2);
+    expect(service.getState().status).toBe('paused');
   });
 
   it('silences the old voice and ignores its ended event while the replacement loads', async () => {

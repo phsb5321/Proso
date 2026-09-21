@@ -35,3 +35,23 @@ already honors the same preference and is unchanged.
   be updated deliberately rather than deleted.
 - **Navigation while unified-pipeline state is mid-chunk** must not leave a
   dangling audio element or a doubled session; the handler is idempotent.
+
+## Popup attention slice (256b)
+
+Publish source tab, original document title, detached state and audio liveness
+through both `playback.getState` and the existing popup broadcast. Capture the
+title at start so navigation cannot replace it. Broadcast and update the action
+before attempting content delivery; a dead view must not suppress global state.
+Keep the core browser-free: the messaging adapter owns badge/title writes.
+
+The popup uses its own active tab to label here/elsewhere, prioritizes detached
+state, checks source-tab existence and focuses the source window on return.
+Fresh-start paths recheck the background and require explicit Stop for an
+existing session, including Stop during the check. Resume reads authoritative
+state rather than manufacturing Playing. The preference uses the existing
+polarity helper and storage key, with a native button and `aria-pressed`.
+
+Validation: popup interaction, adapter publication and service lifecycle tests;
+full extension unit/contract projects, lint and TypeScript; existing Firefox
+public-control regression updated for the explicit Resume name. T008 remains
+separate: these checks do not prove background event-page lifetime.

@@ -9,7 +9,7 @@
  * action here is a click on a control a person can see:
  *
  *   Unified Extensions button -> Proso browser action -> popup "Play"
- *   -> page-visible reading state -> popup "Pause" -> popup "Play"
+ *   -> page-visible reading state -> popup "Pause" -> popup "Resume"
  *
  * and every control is located by its public accessible name, not by an
  * internal id or a test hook.
@@ -69,6 +69,7 @@ const ADDON_UUID = '8b3f6f5a-2e1c-4a77-9f0d-4c2ab5d61b90';
 const NAME = {
   play: 'Play',
   pause: 'Pause',
+  resume: 'Resume',
   previous: 'Previous paragraph',
 };
 
@@ -312,8 +313,8 @@ async function main() {
     record('reading held its position while paused', pausedAt.slice(0, 60));
 
     if (PLANT !== 'resume') {
-      await clickByName(driver, NAME.play);
-      record('actor pressed the popup control', NAME.play);
+      await clickByName(driver, NAME.resume);
+      record('actor pressed the popup control', NAME.resume);
     }
     const resumed = await waitFor(
       'the reading position to advance after resume',

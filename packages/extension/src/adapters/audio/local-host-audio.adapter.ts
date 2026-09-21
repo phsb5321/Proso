@@ -206,8 +206,8 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
   private capabilities: ApplianceCapabilities | null = null;
   /**
    * The next paragraph's first sentence, started early (PROSO-209). Holds its
-   * own controller because the caller aborts the current paragraph's signal at
-   * exactly the moment this audio is needed.
+   * own controller for replacement, linked to the originating session signal.
+   * Completed audio may be reused; pending work must not outlive cancellation.
    */
   private primed: {
     readonly key: string;
@@ -244,17 +244,15 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
    * Sentence-granular chunked synthesis (spec 100 FR-7/FR-11).
    *
    * Splits the paragraph at sentence boundaries, synthesizes sentence 0 and
-   * yields it as soon as it is ready (~1-2s warm), then keeps exactly one
-   * synthesis in flight plus at most one prefetched ahead of the consumer.
-   * At the measured RTF 0.2 the producer runs ~5x ahead of the consumer, so
-   * playback does not starve at any article length.
+   * yields it as soon as it is ready (~1-2s warm). Each subsequent pull admits
+   * one request; the consumer owns pause and bounded buffering.
    *
    * A paragraph that is a single sentence yields one chunk — the whole
    * paragraph — which is also the honest upper bound on first audio.
    *
-   * The pipeline spans paragraphs (PROSO-209): on the last sentence the
-   * prefetch slot is free, so it is spent on `options.nextText`'s first
-   * sentence, and the next run adopts that work instead of re-issuing it.
+   * The pipeline spans paragraphs (PROSO-209): the pull after the last
+   * sentence primes `options.nextText`'s first sentence, and the next run
+   * adopts completed work instead of re-issuing it.
    * Without this the reader heard a full synthesis round trip (~3s measured)
    * of silence at every paragraph boundary, because each run started cold.
    */
@@ -273,27 +271,20 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
       hasSpeakableWords(normalizeLocalHostSynthesisText(sentence)),
     );
     if (sentences.length === 0) return;
-    // At most one in flight + one prefetch: hold the prefetched promise and
-    // synthesize the next only after the held one is yielded.
-    let inFlight: Promise<Result<AudioResponse, AudioError>> | null = null;
-
-    const synthesizeNext = (sentence: string): Promise<Result<AudioResponse, AudioError>> =>
-      this.synthesize({ ...request, text: sentence }, signal);
-
-    inFlight = this.adoptPrimed(request, sentences[0]!) ?? synthesizeNext(sentences[0]!);
-    for (let i = 1; i <= sentences.length; i += 1) {
-      let nextPrefetch: Promise<Result<AudioResponse, AudioError>> | null = null;
-      if (i < sentences.length) {
-        nextPrefetch = synthesizeNext(sentences[i]!);
-      } else {
-        // Last sentence: the prefetch slot is idle, so it primes the next
-        // paragraph instead of nothing. Still at most two in flight.
-        this.prime(request, options?.nextText ?? null);
-      }
-      yield (await inFlight)!;
-      inFlight = nextPrefetch;
+    // Pull-driven: each next() admits one sentence. Playback owns the bounded
+    // lookahead; eager work here would bypass its pause and capacity checks.
+    for (const [index, sentence] of sentences.entries()) {
       if (signal?.aborted) return;
+      const result = await (index === 0
+        ? (this.adoptPrimed(request, sentence) ??
+          this.synthesize({ ...request, text: sentence }, signal))
+        : this.synthesize({ ...request, text: sentence }, signal));
+      yield result;
+      if (!result.ok) return;
     }
+    // Reaching here requires another admitted pull after the last sentence.
+    // That leaves time to prime while its buffered audio is still playing.
+    this.prime(request, options?.nextText ?? null, signal);
   }
 
   /**
@@ -315,10 +306,10 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
   }
 
   /** Start the next paragraph's first sentence, replacing any stale prime. */
-  private prime(request: AudioRequest, nextText: string | null): void {
+  private prime(request: AudioRequest, nextText: string | null, signal?: AbortSignal): void {
     this.primed?.controller.abort();
     this.primed = null;
-    if (!nextText) return;
+    if (!nextText || signal?.aborted) return;
 
     const split = splitSentences(nextText);
     if (!split.ok) return;
@@ -328,9 +319,16 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
     if (!sentence) return;
 
     const controller = new AbortController();
+    const abort = () => {
+      controller.abort();
+      if (this.primed?.controller === controller) this.primed = null;
+    };
+    signal?.addEventListener('abort', abort, { once: true });
     this.primed = {
       key: primedKey(request, sentence),
-      promise: this.synthesize({ ...request, text: sentence }, controller.signal),
+      promise: this.synthesize({ ...request, text: sentence }, controller.signal).finally(() => {
+        signal?.removeEventListener('abort', abort);
+      }),
       controller,
     };
   }
@@ -436,6 +434,8 @@ export class LocalHostAudioAdapter implements IAudioGenerator {
       `${this.baseUrl}/v1/tts`,
       {
         method: 'POST',
+        redirect: 'error',
+        credentials: 'omit',
         headers: {
           'content-type': 'application/json',
           accept: 'audio/wav',

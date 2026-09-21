@@ -135,6 +135,7 @@ function makeRig(options: RigOptions = {}): PopupRig {
       case 'playback.getState':
         return {
           status: options.initialPlaybackStatus ?? 'stopped',
+          audioLive: options.initialPlaybackStatus === 'playing',
           currentParagraph: 0,
           totalParagraphs: 0,
           progress: 0,
@@ -490,17 +491,17 @@ describe('Feature 169 popup first-run controller', () => {
     expect(countMessages(rig, 'playback.start')).toBe(1);
   });
 
-  it('starts a fresh reading after setup even when popup state was playing', async () => {
+  it('requires Stop before setup can replace an existing reading', async () => {
     const rig = await mountPopup({
       stored: { serverUrl: DEFAULT_SERVER_URL },
       initialPlaybackStatus: 'playing',
     });
 
     await connectHost();
-    await waitFor(() => countMessages(rig, 'playback.start') === 1);
+    await waitFor(() => document.getElementById('status-text')?.textContent?.includes('Stop the current reading') === true);
 
     expect(countMessages(rig, 'playback.pause')).toBe(0);
-    expect(countMessages(rig, 'playback.start')).toBe(1);
+    expect(countMessages(rig, 'playback.start')).toBe(0);
   });
 
   it('a host activation failure stays visible and does not start playback', async () => {

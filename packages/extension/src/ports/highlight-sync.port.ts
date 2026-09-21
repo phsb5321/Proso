@@ -20,6 +20,10 @@ export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'stoppe
  */
 export interface FooterState {
   readonly status: PlaybackStatus;
+  /** Global orientation survives a missing reading view. */
+  readonly audioLive?: boolean;
+  readonly documentTitle?: string;
+  readonly visualAttachmentDetached?: boolean;
   readonly currentIndex: number;
   readonly totalParagraphs: number;
   /**

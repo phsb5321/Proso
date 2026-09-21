@@ -251,11 +251,24 @@ export class FallbackAudioAdapter implements IAudioGenerator {
     }
 
     this.lastReason = null;
-    yield first.value;
-    // Keep draining the SAME iterator; a mid-paragraph failure surfaces as an
-    // error chunk and the consumer shows it (never a silent stall, FR-4).
-    for await (const chunk of iterator) {
-      yield chunk;
+    try {
+      yield first.value;
+      // Revalidate before next(): pulling the primary dispatches synthesis.
+      // Revocation mid-stream must never resend the paragraph to the secondary.
+      while (!signal?.aborted) {
+        const gate = await this.gate();
+        if (signal?.aborted) return;
+        if (!gate.ok) {
+          this.lastReason = gate.reason ?? 'local route not permitted';
+          yield Err(audioError.providerError(LOCAL_GATE_ERROR_CODE, this.lastReason));
+          return;
+        }
+        const next = await iterator.next();
+        if (next.done) return;
+        yield next.value;
+      }
+    } finally {
+      await iterator.return();
     }
   }
 

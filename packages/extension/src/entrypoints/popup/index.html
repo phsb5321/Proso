@@ -184,6 +184,16 @@
             ></p>
           </div>
         </section>
+        <div class="proso-popup__attention">
+          <p id="playing-document" hidden></p>
+          <button type="button" id="open-playing-tab" class="proso-button proso-button--ghost" hidden>Open the source tab</button>
+          <button type="button" id="background-playback-toggle" class="proso-button proso-button--ghost"
+            aria-label="Keep listening when I leave this page" aria-pressed="false" aria-describedby="background-playback-hint" disabled>
+            Keep listening when I leave this page: <span id="background-playback-state">Off</span>
+          </button>
+          <p id="background-playback-hint" class="proso-popup__route-note">Keep the browser open. Text continues to be sent to your synthesis destination and may use credits. Document titles appear in the toolbar.</p>
+          <p id="background-playback-feedback" role="status"></p>
+        </div>
         <!-- Status Section -->
         <section class="proso-popup__status" aria-live="polite" data-testid="popup-status-section">
           <div class="proso-popup__status-indicator" id="status-indicator" data-testid="popup-status-indicator">

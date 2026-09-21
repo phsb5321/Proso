@@ -24,6 +24,7 @@ const srcDir = resolve(__dirname, '../../../src');
 
 const mockPlaybackService = {
   getState: jest.fn<() => any>(),
+  getAttentionState: () => ({ activeTabId: 42, documentTitle: 'Original article', visualAttachmentDetached: true, audioLive: true }),
   start: jest.fn<() => Promise<any>>(),
   pause: jest.fn<() => any>(),
   resume: jest.fn<() => Promise<any>>(),
@@ -34,6 +35,10 @@ const mockPlaybackService = {
   setSpeed: jest.fn<() => any>(),
   seek: jest.fn<() => Promise<any>>(),
   resyncPosition: jest.fn<() => boolean>(),
+  // View lifecycle seams added with the session-identity work.
+  setVisualsVisible: jest.fn<() => void>(),
+  reattachVisualAttachment: jest.fn<() => boolean>(() => true),
+  ownsDocumentIdentity: jest.fn<(documentId: string | null) => boolean>(() => true),
   // PROSO-147: the real service has had this since the language feature and
   // nothing ever called it, so `detectedLanguage` stayed null for every audio
   // request. A mock that omits it is how the dead wiring stayed invisible —
@@ -140,7 +145,7 @@ describe('Playback Handlers', () => {
     mockPlaybackService.getState.mockReturnValue(defaultState());
 
     // Default tab mock
-    mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page' }]);
+    mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page', title: 'Original article' }]);
     mockTabsSendMessage.mockResolvedValue(null);
 
     // Default async method results (Ok)
@@ -178,12 +183,13 @@ describe('Playback Handlers', () => {
         'playback.setSpeed',
         'playback.seek',
         'playback.viewUnloaded',
+        'playback.viewVisibility',
         'PARAGRAPH_CLICKED',
       ];
       for (const name of expected) {
         expect(names).toContain(name);
       }
-      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(12);
+      expect(names.filter((n: string) => n.startsWith('playback.'))).toHaveLength(13);
       expect(names).toContain('PARAGRAPH_CLICKED');
     });
   });
@@ -192,6 +198,10 @@ describe('Playback Handlers', () => {
   // playback.getState
   // -----------------------------------------------------------------------
   describe('playback.getState', () => {
+    it('returns background-owned orientation even after the view detaches', async () => {
+      const result = unwrapDispatch(await registry.dispatch('playback.getState', undefined));
+      expect(result.value).toMatchObject({ activeTabId: 42, documentTitle: 'Original article', visualAttachmentDetached: true, audioLive: true });
+    });
     it('should return mapped playback state on success', async () => {
       mockPlaybackService.getState.mockReturnValue(
         defaultState({ status: 'playing', currentParagraphIndex: 2, totalParagraphs: 10 }),
@@ -311,11 +321,12 @@ describe('Playback Handlers', () => {
         params.paragraphs,
         99,
         'https://example.com',
+        undefined,
       );
     });
 
     it('should extract text from active tab when no paragraphs provided', async () => {
-      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page' }]);
+      mockTabsQuery.mockResolvedValue([{ id: 42, url: 'https://example.com/page', title: 'Original article' }]);
       mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
         if (msg.action === 'extractText') {
           return { paragraphs: ['Extracted text'] };
@@ -332,6 +343,7 @@ describe('Playback Handlers', () => {
         ['Extracted text'],
         42,
         'https://example.com/page',
+        'Original article',
       );
     });
 
@@ -440,6 +452,7 @@ describe('Playback Handlers', () => {
         ['Selected words'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -484,6 +497,7 @@ describe('Playback Handlers', () => {
         ['First chunk', 'Second chunk'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -505,6 +519,7 @@ describe('Playback Handlers', () => {
         ['just one sentence'],
         42,
         'https://example.com',
+        undefined,
       );
     });
 
@@ -1145,6 +1160,22 @@ describe('Playback Handlers', () => {
       mockParagraphExtraction(paragraphs);
     }
 
+    it.each([
+      { owner: false, seeks: false, why: 'a page that does not own the live session' },
+      { owner: true, seeks: true, why: 'the page that owns the live session' },
+    ])('click ownership: $why', async ({ owner, seeks }) => {
+      mockPlaybackService.getState.mockReturnValue(defaultState({ status: 'playing' }));
+      mockPlaybackService.ownsDocumentIdentity.mockReturnValueOnce(owner);
+
+      await clickParagraph(3);
+
+      if (seeks) {
+        expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
+      } else {
+        expect(mockPlaybackService.seekToParagraph).not.toHaveBeenCalled();
+      }
+    });
+
     it('should start playback and seek to clicked paragraph when idle', async () => {
       prepareIdleParagraphs(['p0', 'p1', 'p2', 'p3', 'p4']);
 
@@ -1161,6 +1192,7 @@ describe('Playback Handlers', () => {
         ['p0', 'p1', 'p2', 'p3', 'p4'],
         42,
         'https://example.com',
+        undefined,
       );
       expect(mockPlaybackService.seekToParagraph).toHaveBeenCalledWith(3);
       expect(mockStorageSet).toHaveBeenCalledWith({

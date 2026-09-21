@@ -128,6 +128,20 @@ export class PlaybackService {
    */
   private visualAttachmentDetached = false;
 
+  /**
+   * The tab AND document that own this session.
+   *
+   * A tab id alone cannot distinguish successive documents: after a navigation
+   * the same tab hosts a different content script, and a late message from the
+   * old one must never move, stop or detach the new session.
+   */
+  private attachment: { readonly tabId: number; readonly documentId: string | null } | null = null;
+
+  /** Set false while the owning view reports itself hidden. */
+  private visualsVisible = true;
+  private documentTitle = '';
+  private audioWaiting = false;
+
   // Word-level sync state
   private currentWordTimings: Array<{
     word: string;
@@ -176,6 +190,21 @@ export class PlaybackService {
     return this.state;
   }
 
+  getAttentionState() {
+    return {
+      activeTabId: this.state.activeTabId,
+      documentTitle: this.documentTitle,
+      visualAttachmentDetached: this.visualAttachmentDetached,
+      audioLive:
+        this.state.status === 'playing' &&
+        this.currentAudioUrl !== null &&
+        !!this.audioElement &&
+        !this.audioElement.paused &&
+        !this.audioElement.ended &&
+        !this.audioWaiting,
+    };
+  }
+
   getTimingBasis(): WordTimingBasis {
     return this.currentTimingBasis;
   }
@@ -187,6 +216,8 @@ export class PlaybackService {
     paragraphs: readonly string[],
     tabId: number,
     pageUrl: string,
+    documentTitle = pageUrl,
+    documentId: string | null = null,
   ): Promise<Result<PlaybackState, PlaybackError>> {
     // A fresh session never inherits a pending transition from a previous one.
     this.transitionInFlight = null;
@@ -248,6 +279,10 @@ export class PlaybackService {
     // Update state to loading
     const generation = this.beginGeneration();
     this.visualAttachmentDetached = false;
+    this.visualsVisible = true;
+    this.attachment = { tabId, documentId };
+    this.documentTitle = documentTitle;
+    this.audioWaiting = false;
     this.state = playbackStateTransitions.startLoading(this.state, paragraphs, tabId, pageUrl);
 
     // Show footer and highlight first paragraph
@@ -380,7 +415,6 @@ export class PlaybackService {
 
   private async performStop(): Promise<Result<PlaybackState, PlaybackError>> {
     const generation = ++this.playbackGeneration;
-    const activeTabId = this.state.activeTabId;
 
     // Session boundary (see start()): drop any pending transition slot. The
     // stale transition's own completion is identity-checked, so it cannot
@@ -416,22 +450,19 @@ export class PlaybackService {
     this.deps.prefetch?.queue.stop();
 
     // Clear highlights and hide footer
-    let stoppedStateCanPublish = false;
-    if (activeTabId !== null) {
-      const clearResult = await this.deps.highlightSync.clearHighlights(activeTabId);
+    const cleanupTab = this.ownerTab();
+    if (cleanupTab !== null) {
+      const clearResult = await this.deps.highlightSync.clearHighlights(cleanupTab);
       await this.checkHighlight('clearHighlights', clearResult, false);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
-      const hideResult = await this.deps.highlightSync.hideFooter(activeTabId);
+      const hideResult = await this.deps.highlightSync.hideFooter(cleanupTab);
       await this.checkHighlight('hideFooter', hideResult, false);
-      stoppedStateCanPublish = isOk(hideResult);
       if (!this.isCurrentGeneration(generation)) return Ok(this.state);
     }
 
     this.state = playbackStateTransitions.stop(this.state);
-    // The footer itself is gone, but updateFooterState also broadcasts the
-    // authoritative stopped state to an open popup. Skip a vanished tab so a
-    // tab-not-found result cannot recursively call stop().
-    if (stoppedStateCanPublish) await this.updateFooterState();
+    // Global state must clear even when the owning tab no longer exists.
+    await this.updateFooterState(false);
 
     return Ok(this.state);
   }
@@ -760,8 +791,14 @@ export class PlaybackService {
     if (!this.isCurrentGeneration(expectedGeneration)) return;
     this.state = playbackStateTransitions.setError(this.state, error);
 
-    const tabId = tabIdOverride ?? this.state.activeTabId;
-    if (tabId !== null && tabId !== undefined) {
+    const errorTabCandidate = tabIdOverride ?? this.state.activeTabId;
+    const tabId =
+      errorTabCandidate !== undefined &&
+      errorTabCandidate !== null &&
+      (this.attachment === null || this.attachment.tabId === errorTabCandidate)
+        ? errorTabCandidate
+        : null;
+    if (tabId !== null) {
       const clearResult = await this.deps.highlightSync.clearHighlights(tabId);
       await this.checkHighlight('clearHighlights after error', clearResult, false);
       if (!this.isCurrentGeneration(expectedGeneration)) return;
@@ -790,10 +827,128 @@ export class PlaybackService {
    * which is owned by the background pipeline and is what the reader asked to
    * keep hearing. Cleared by the next start().
    */
-  detachVisualAttachment(): void {
+  detachVisualAttachment(documentId?: string | null): void {
+    if (documentId !== undefined && !this.ownsDocument(documentId)) return;
     if (this.visualAttachmentDetached) return;
     this.visualAttachmentDetached = true;
+    void this.updateFooterState();
     console.info('[PlaybackService] Visual attachment detached; audio continues');
+  }
+
+  /** The tab and document that own the current session, or null. */
+  getSessionOwner(): { tabId: number; documentId: string | null } | null {
+    return this.attachment;
+  }
+
+  /**
+   * Record whether the owning view is visible.
+   *
+   * Visual messages stop while it is hidden: nothing can be seen, and a hidden
+   * document is exactly where a stale delivery would be least noticed.
+   */
+  setVisualsVisible(visible: boolean, documentId?: string | null): void {
+    if (documentId !== undefined && !this.ownsDocument(documentId)) return;
+    this.visualsVisible = visible;
+  }
+
+  /**
+   * Whether the supplied document identity still owns this session.
+   *
+   * A page that does not own the session must not be able to seek it, and a
+   * document id is the only identity that distinguishes pages sharing a tab.
+   * An unknown id (older content script) is treated as owning, since guessing
+   * "not mine" would break reading for every client that cannot report one.
+   */
+  ownsDocumentIdentity(documentId: string | null): boolean {
+    return this.ownsDocument(documentId);
+  }
+
+  /**
+   * Re-attach a view that reported it is alive again (a restored bfcache page,
+   * or the same document coming back into sight).
+   *
+   * Identity-checked like every other view-facing action; clears the detached
+   * flag so progress visuals resume and the reader sees the session again.
+   */
+  reattachVisualAttachment(documentId?: string | null): boolean {
+    if (documentId !== undefined && !this.ownsDocument(documentId)) return false;
+    if (this.attachment === null) return false;
+    this.visualAttachmentDetached = false;
+    this.visualsVisible = true;
+    void this.updateFooterState(false);
+    return true;
+  }
+
+  /**
+   * Whether the supplied document identity still owns this session.
+   */
+  private ownsDocument(documentId: string | null): boolean {
+    if (this.attachment === null) return false;
+    if (this.attachment.documentId === null || documentId === null) return true;
+    return this.attachment.documentId === documentId;
+  }
+
+  /**
+   * The tab to send *progress* visuals to, or null when none may be sent.
+   *
+   * Guards, in order: a session exists, the tab is still the document that
+   * started it, the view has not detached, and the view is visible. Popup and
+   * badge state are published separately and are unaffected.
+   */
+  private visualsTarget(): number | null {
+    const tabId = this.state.activeTabId;
+    if (tabId === null || !this.isTabOwningSession(tabId)) return null;
+    if (this.visualAttachmentDetached || !this.visualsVisible) return null;
+    return tabId;
+  }
+
+  /**
+   * The tab to send *cleanup* visuals to (clear highlights, hide footer), or
+   * null. Cleanup is allowed while detached or hidden — the view may still be
+   * the one that owns this session — but never into a replaced document.
+   */
+  private ownerTab(): number | null {
+    const tabId = this.state.activeTabId;
+    if (tabId === null || !this.isTabOwningSession(tabId)) return null;
+    return tabId;
+  }
+
+  /**
+   * The tab to publish *attention state* to, or null.
+   *
+   * Attention state (status, progress, audioLive, detachment) must reach the
+   * popup/badge and the owning tab even after the reading view detached — that
+   * is how a reader learns the session is still alive — and it must go out when
+   * a session ends without a live view. It is still scoped to the owning tab and
+   * to a visible view, so a hidden or unrelated tab receives nothing.
+   */
+  private attentionTab(): number | null {
+    if (!this.visualsVisible) return null;
+    const attached = this.attachment?.tabId ?? null;
+    if (attached === null) return null;
+    const active = this.state.activeTabId;
+    // A stopped session has no active tab; the owning tab still carries the
+    // footer that has to say so.
+    if (active === null) return attached;
+    return active === attached ? active : null;
+  }
+
+  private isTabOwningSession(tabId: number): boolean {
+    if (this.attachment === null) return false;
+    return this.attachment.tabId === tabId;
+  }
+
+  /**
+   * Stop a session whose view has already detached.
+   *
+   * Used when the reader turns the "keep listening" preference back off: from
+   * that moment leaving the page ends playback, and a session that is already
+   * detached would otherwise keep playing while the popup says otherwise.
+   */
+  async stopDetachedSession(): Promise<boolean> {
+    if (!this.visualAttachmentDetached) return false;
+    await this.stop();
+    return true;
   }
 
   /**
@@ -1147,9 +1302,19 @@ export class PlaybackService {
     sources: ReadonlyArray<{ text: string; charOffset: number }>,
   ): Promise<void> {
     let sourceIndex = 0;
+    const signal = this.currentAbortController?.signal;
+    // Two queued sentences bound memory and synthesis ahead of the reader.
+    // Wait before pulling (never discard sentences on pause or a full queue).
+    const canContinue = () => this.isCurrentGeneration(generation) && !signal?.aborted;
     try {
-      for await (const chunk of iterator) {
-        if (!this.isCurrentGeneration(generation)) return;
+      while (canContinue()) {
+        while (canContinue() && (this.state.status === 'paused' || this.chunkQueue.length >= 2)) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 25));
+        }
+        if (!canContinue()) return;
+        const next = await iterator.next();
+        if (next.done || !canContinue()) return;
+        const chunk = next.value;
         const source = sources[sourceIndex++];
         if (!source) {
           this.chunkQueue.push({
@@ -1193,6 +1358,7 @@ export class PlaybackService {
       // finding the queue done-and-empty — the normal failure funnel reports
       // it there rather than dying silently.
     } finally {
+      await iterator.return();
       // A superseded producer finishing late must not mark the CURRENT
       // paragraph done (the flag is per-current-paragraph state) nor wake a
       // reader waiting on a different paragraph's producer.
@@ -1279,7 +1445,7 @@ export class PlaybackService {
       chunk.wordTimings,
       this.chunkBaseMs,
     );
-    if (this.state.activeTabId !== null) {
+    if (this.visualsTarget() !== null) {
       const continued = await this.buildAndSetWordTimeline(
         this.state.currentParagraphIndex,
         chunk.sourceText,
@@ -1440,10 +1606,11 @@ export class PlaybackService {
     this.currentWordTimings = wordTimings;
     this.currentWordIndex = -1;
 
-    if (wordTimings.length === 0 || this.state.activeTabId === null) return true;
+    const timelineTarget = this.visualsTarget();
+    if (wordTimings.length === 0 || timelineTarget === null) return true;
 
     const timelineResult = await this.deps.highlightSync.setWordTimeline(
-      this.state.activeTabId,
+      timelineTarget,
       index,
       wordTimings,
     );
@@ -1623,10 +1790,11 @@ export class PlaybackService {
     }
 
     // Update highlights
-    if (this.state.activeTabId !== null) {
+    const highlightTab = this.visualsTarget();
+    if (highlightTab !== null) {
       const paragraphText = this.state.paragraphs[index] ?? '';
       const highlightResult = await this.deps.highlightSync.highlightParagraph(
-        this.state.activeTabId,
+        highlightTab,
         index,
         true,
         paragraphText,
@@ -1914,7 +2082,8 @@ export class PlaybackService {
    */
   private emitAudioPosition(): boolean {
     if (!this.audioElement?.duration) return false;
-    if (this.state.activeTabId === null) return false;
+    const positionTab = this.visualsTarget();
+    if (positionTab === null) return false;
 
     // PROSO-110: with a chunk queue active, element time is chunk-local;
     // paragraph time is chunkBaseMs + element time.
@@ -1924,7 +2093,7 @@ export class PlaybackService {
       : this.audioElement.currentTime * 1000;
 
     this.deps.highlightSync.sendAudioPosition(
-      this.state.activeTabId,
+      positionTab,
       positionMs,
       !this.audioElement.paused,
       this.state.speed,
@@ -1938,6 +2107,28 @@ export class PlaybackService {
    */
   private setupAudioEventListeners(): void {
     if (!this.audioElement) return;
+
+    for (const event of ['playing', 'pause', 'ended', 'waiting']) {
+      this.audioElement.addEventListener(event, () => {
+        if (event === 'waiting') this.audioWaiting = true;
+        if (event === 'playing') {
+          this.audioWaiting = false;
+          // A native resume (media key, OS transport, output change) is a
+          // resume: without this the popup kept offering Pause for audio that
+          // was already playing again.
+          if (this.state.status === 'paused') {
+            this.state = playbackStateTransitions.resume(this.state);
+          }
+        }
+        if (event === 'pause' && this.state.status === 'playing') {
+          // The browser paused us rather than the service pausing itself, so
+          // nothing else would publish it: without this the popup announced
+          // "playing" for audio that had stopped.
+          this.state = playbackStateTransitions.pause(this.state);
+        }
+        void this.updateFooterState(false);
+      });
+    }
 
     this.audioElement.addEventListener('timeupdate', () => {
       if (this.audioElement && this.audioElement.duration) {
@@ -2084,8 +2275,9 @@ export class PlaybackService {
   /**
    * Update footer state in content script.
    */
-  private async updateFooterState(): Promise<void> {
-    if (this.state.activeTabId === null) return;
+  private async updateFooterState(allowStop = true): Promise<void> {
+    const footerTab = this.attentionTab();
+    if (footerTab === null) return;
 
     // `state.progress` is the fraction of the CURRENT paragraph, but every
     // footer readout describes the whole article: the bar sits between an
@@ -2104,6 +2296,7 @@ export class PlaybackService {
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
     const footerState: FooterState & { readonly timingBasis: WordTimingBasis } = {
+      ...this.getAttentionState(),
       status: this.state.status,
       currentIndex: this.state.currentParagraphIndex,
       totalParagraphs: this.state.totalParagraphs,
@@ -2115,11 +2308,8 @@ export class PlaybackService {
       timingBasis: this.currentTimingBasis,
     };
 
-    const result = await this.deps.highlightSync.updateFooterState(
-      this.state.activeTabId,
-      footerState,
-    );
-    await this.checkHighlight('updateFooterState', result);
+    const result = await this.deps.highlightSync.updateFooterState(footerTab, footerState);
+    await this.checkHighlight('updateFooterState', result, allowStop);
   }
 }
 

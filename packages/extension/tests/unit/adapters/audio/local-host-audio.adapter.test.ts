@@ -809,11 +809,49 @@ describe('LocalHostAudioAdapter', () => {
     });
   });
 
+  it('does not dispatch another sentence until the consumer pulls', async () => {
+    const host = makeDeferredHost();
+    const iterator = host.adapter().generateAudioChunks({ ...request, text: 'One. Two. Three.' });
+    const first = iterator.next();
+    await host.waitForRequest('One.');
+    expect(host.inputs()).toEqual(['One.']);
+    host.release('One.');
+    await first;
+    await tick();
+    expect(host.inputs()).toEqual(['One.']);
+    await iterator.return();
+  });
+
+  it('session cancellation aborts a pending prime and prevents stale adoption', async () => {
+    const host = makeDeferredHost();
+    const adapter = host.adapter();
+    const controller = new AbortController();
+    const iterator = adapter.generateAudioChunks(
+      { ...request, text: 'One.' }, controller.signal, { nextText: 'Next.' },
+    );
+    const first = iterator.next();
+    await host.waitForRequest('One.');
+    host.release('One.');
+    await first;
+    await iterator.next();
+    await host.waitForRequest('Next.');
+    controller.abort();
+    await tick();
+    expect(host.pendingInputs()).toEqual([]);
+    expect(host.abortedInputs()).toEqual(['Next.']);
+    const next = adapter.generateAudioChunks({ ...request, text: 'Next.' });
+    const pending = next.next();
+    await host.waitForRequest('Next.', 2);
+    host.releaseAll();
+    expect((await pending).value?.ok).toBe(true);
+    await next.return();
+  });
+
   describe('cross-paragraph priming (PROSO-209)', () => {
     const PARAGRAPH_A = 'A one. A two.';
     const PARAGRAPH_B = 'B one. B two.';
 
-    it('starts the next paragraph before it yields the current one’s last chunk', async () => {
+    it('primes the next paragraph only on the pull after the last chunk', async () => {
       const host = makeDeferredHost();
       const adapter = host.adapter();
       const iterator = adapter.generateAudioChunks({ ...request, text: PARAGRAPH_A }, undefined, {
@@ -825,17 +863,15 @@ describe('LocalHostAudioAdapter', () => {
       host.release('A one.');
       expect((await firstChunk).done).toBe(false);
 
-      // Asking for the last chunk is what frees the prefetch slot, so the next
-      // paragraph's first sentence must already be at the host before that
-      // chunk comes back — not after playback has drained.
       const lastChunk = iterator.next();
-      await host.waitForRequest('B one.');
-      expect(host.pendingInputs()).toContain('B one.');
-
+      await host.waitForRequest('A two.');
+      expect(host.inputs()).not.toContain('B one.');
       host.release('A two.');
-      host.release('B one.');
       expect((await lastChunk).done).toBe(false);
       expect((await iterator.next()).done).toBe(true);
+      await host.waitForRequest('B one.');
+      expect(host.pendingInputs()).toContain('B one.');
+      host.release('B one.');
     });
 
     /**
@@ -862,10 +898,10 @@ describe('LocalHostAudioAdapter', () => {
 
       const last = iterator.next();
       await host.waitForRequest('A two.');
-      await host.waitForRequest('B one.');
       host.release('A two.');
       expect((await last).done).toBe(false);
       expect((await iterator.next()).done).toBe(true);
+      await host.waitForRequest('B one.');
 
       return { host, adapter };
     };
@@ -891,7 +927,7 @@ describe('LocalHostAudioAdapter', () => {
     });
 
     it('never exceeds two synthesis requests in flight across a boundary', async () => {
-      // Real latency, so overlap actually happens and the peak is meaningful.
+      // Real latency exposes any dispatch beyond the admitted pull.
       const host = makeDeferredHost({ latencyMs: 20 });
       const adapter = host.adapter();
       const paragraphs = ['A one. A two. A three.', 'B one. B two.', 'C one.'];
@@ -904,7 +940,8 @@ describe('LocalHostAudioAdapter', () => {
         );
       }
 
-      expect(host.maxInFlight).toBe(APPLIANCE_MAX_IN_FLIGHT);
+      expect(host.maxInFlight).toBeGreaterThan(0);
+      expect(host.maxInFlight).toBeLessThanOrEqual(APPLIANCE_MAX_IN_FLIGHT);
       expect(host.maxInFlight).toBeLessThanOrEqual(CAPABILITIES.limits.queueCapacity);
     });
 

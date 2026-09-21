@@ -31,7 +31,7 @@ import {
 /**
  * Get the active tab in the current window.
  */
-async function getActiveTab(): Promise<{ id?: number; url?: string } | null> {
+async function getActiveTab(): Promise<{ id?: number; url?: string; title?: string } | null> {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   return tabs[0] || null;
 }
@@ -110,6 +110,10 @@ export interface PlaybackStateResponse {
   currentTime: number;
   totalTime: number;
   timingBasis: WordTimingBasis;
+  activeTabId?: number | null;
+  documentTitle?: string;
+  visualAttachmentDetached?: boolean;
+  audioLive?: boolean;
 }
 
 /**
@@ -181,6 +185,24 @@ function serviceUnavailable(): PlaybackHandlerError {
 }
 
 /**
+ * Run a view-lifecycle handler against the playback service.
+ *
+ * Both lifecycle messages need the same guard and the same error mapping; one
+ * implementation keeps them out of the repeated registration body.
+ */
+async function withPlaybackService<T>(
+  run: (service: ReturnType<typeof getPlaybackService>) => T | Promise<T>,
+): Promise<Result<T, PlaybackHandlerError>> {
+  if (!isPlaybackServiceAvailable()) return Err(serviceUnavailable());
+  try {
+    return Ok(await run(getPlaybackService()));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return Err({ type: 'operation_failed', message });
+  }
+}
+
+/**
  * Answer to a tab asking where the audio is.
  *
  * `resynced` is false, not an error, when there was nothing to send: another
@@ -240,6 +262,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           currentTime: 0, // Audio timing tracked by audio element in PlaybackService
           totalTime: 0, // Audio timing tracked by audio element in PlaybackService
           timingBasis: service.getTimingBasis?.() ?? 'none',
+          ...service.getAttentionState?.(),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -283,6 +306,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         // Step 1: Get active tab if not provided
         let tabId = parsed.data.tabId;
         let pageUrl = parsed.data.pageUrl;
+        let documentTitle: string | undefined;
 
         if (!tabId || !pageUrl) {
           const tab = await getActiveTab();
@@ -291,6 +315,7 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           }
           tabId = tab.id;
           pageUrl = tab.url ?? '';
+          documentTitle = tab.title;
         }
 
         // Step 2: Extract paragraphs if not provided.
@@ -362,7 +387,18 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
 
         // Step 4: Start PlaybackService
         service.setLanguage(effectiveLanguage);
-        const result = await service.start(paragraphs, tabId, pageUrl);
+        if (!documentTitle) {
+          try {
+            documentTitle = (await browser.tabs.get(tabId)).title;
+          } catch {
+            /* URL fallback */
+          }
+        }
+        const startingDocumentId = (params as { __documentId?: string } | undefined)?.__documentId;
+        const result =
+          startingDocumentId === undefined
+            ? await service.start(paragraphs, tabId, pageUrl, documentTitle)
+            : await service.start(paragraphs, tabId, pageUrl, documentTitle, startingDocumentId);
 
         if (!result.ok) {
           return Ok({ success: false, error: getPlaybackErrorMessage(result.error) });
@@ -466,27 +502,39 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
    * stop it always was. Idempotent — repeated unloads are harmless.
    */
   registry.register<
-    { reason?: string; __tabId?: number },
+    { reason?: string; __tabId?: number; __documentId?: string },
     Result<PlaybackOperationResponse, PlaybackHandlerError>
   >(
     'playback.viewUnloaded',
-    async (params) => {
-      if (!isPlaybackServiceAvailable()) {
-        return Err({
-          type: 'service_unavailable',
-          message: 'PlaybackService not yet initialized. Use legacy handlers.',
+    async (params) =>
+      withPlaybackService(async (service) => {
+        await applyViewUnloadPolicy(service, {
+          tabId: params?.__tabId,
+          documentId: params?.__documentId ?? null,
         });
-      }
-
-      try {
-        await applyViewUnloadPolicy(getPlaybackService(), params?.__tabId);
-        return Ok({ success: true });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return Err({ type: 'operation_failed', message });
-      }
-    },
+        return { success: true };
+      }),
     'React to a reading view going away',
+  );
+
+  /**
+   * The owning view reports whether it is visible.
+   *
+   * A hidden view receives no progress visuals: nothing can be seen, and a
+   * hidden document is the last place a stale delivery would be noticed. The
+   * visible transition arrives as `playback.resync`, which re-attaches.
+   */
+  registry.register<
+    { visible?: boolean; __tabId?: number; __documentId?: string },
+    Result<PlaybackOperationResponse, PlaybackHandlerError>
+  >(
+    'playback.viewVisibility',
+    async (params) =>
+      withPlaybackService((service) => {
+        service.setVisualsVisible(params?.visible !== false, params?.__documentId ?? null);
+        return { success: true };
+      }),
+    'Record view visibility for visual delivery',
   );
 
   /**
@@ -611,12 +659,17 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
       try {
         const service = getPlaybackService();
         const askingTabId = parsed.data.__tabId;
+        const askingDocumentId =
+          (params as { __documentId?: string } | undefined)?.__documentId ?? null;
         const activeTabId = service.getState().activeTabId;
 
         if (askingTabId !== undefined && askingTabId !== activeTabId) {
           return Ok({ success: true, resynced: false });
         }
 
+        // A visible view gets its visuals back, and a document that still owns
+        // the session may re-attach after a restore or a detach.
+        service.reattachVisualAttachment(askingDocumentId);
         return Ok({ success: true, resynced: service.resyncPosition() });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -743,6 +796,21 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
         const service = getPlaybackService();
         const currentState = service.getState();
 
+        // Clicking paragraph 3 on page B must not move paragraph 3 of page A.
+        const senderDocumentId =
+          (params as { __documentId?: string } | undefined)?.__documentId ?? null;
+        const sessionIsLive =
+          currentState.status === 'playing' ||
+          currentState.status === 'loading' ||
+          currentState.status === 'paused';
+        if (sessionIsLive && !service.ownsDocumentIdentity(senderDocumentId)) {
+          return Ok({
+            success: false,
+            playbackStarted: false,
+            error: 'Another page owns this reading session',
+          });
+        }
+
         // If not currently playing, start fresh playback first
         if (currentState.status === 'idle' || currentState.status === 'stopped') {
           // Get active tab for text extraction
@@ -813,7 +881,11 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           });
 
           // Start PlaybackService with extracted paragraphs
-          const startResult = await service.start(paragraphs, tab.id, tab.url ?? '');
+          const clickedDocumentId = (params as { __documentId?: string } | undefined)?.__documentId;
+          const startResult =
+            clickedDocumentId === undefined
+              ? await service.start(paragraphs, tab.id, tab.url ?? '', tab.title)
+              : await service.start(paragraphs, tab.id, tab.url ?? '', tab.title, clickedDocumentId);
           if (!startResult.ok) {
             return Ok({
               success: false,

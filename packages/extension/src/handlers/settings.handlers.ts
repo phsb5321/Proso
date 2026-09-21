@@ -366,6 +366,8 @@ async function handleTestApiKey(
     });
     const response = await fetch(endpoint.url, {
       method: endpoint.method,
+      redirect: 'error',
+      credentials: 'omit',
       headers: endpoint.headers(trimmedKey),
       body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
     });

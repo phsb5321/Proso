@@ -33,6 +33,66 @@ still separate from the internal-dispatch Firefox diagnostic. The older
 `hover-affordance-gate.mjs` assumes fresh profiles mark on load; its future
 public journey must start reading successfully before asserting ambient hover.
 This change is local only: no push, PR, merge, or deployment requested.
+||||||| parent of be55b5b (fix(audio): confine synthesis and bound chunk admission)
+
+## Update — 21/09/2026: synthesis confinement and admission (257b)
+
+P1.3 confines local-host text POSTs and both Proso API fetch boundaries with
+`redirect: 'error'` and `credentials: 'omit'`. `ServerTtsAudioAdapter` delegates
+transport to `ProsoApiAdapter`; its source therefore needs no change. Native
+Fetch tests inject only the HTTP transport and record every request destination:
+307/308 redirects to another host and another port return typed network errors,
+with zero requests to the redirected destination. Unprotected control requests
+prove the same transport observes a forwarded POST body. Server retries may
+repeat a request to the original configured origin; none follow a redirect.
+
+The extension fetch sweep also confines the generic Proso JSON API (license,
+checkout and BYOK test payloads), direct settings API-key validation, remote
+logging and usage telemetry. Cookie authentication is not used by these paths.
+The remaining fetches are exempt from this content-body policy: local-host
+health/capabilities, options health/capabilities, first-run capabilities and its
+popup forwarding closure are bodyless probes; both export handlers retrieve
+already-generated audio URLs with bodyless GETs. No additional text-bearing
+fetch boundary was found in `packages/extension/src`.
+
+P1.4 makes the local iterator pull-driven and rechecks the fallback gate before
+each subsequent pull, including the pull that primes the next paragraph.
+Revocation reports a typed gate error without sending the paragraph to the
+secondary. `PlaybackService` changes are confined to `drainChunkQueue`: it waits
+before pulling while paused or while two sentences are queued, checks the
+captured cancellation signal and generation, and closes the iterator on exit.
+The 25 ms admission wait preserves sentences for resume; an already admitted
+request may settle, but the queue never exceeds two. The next-paragraph prime
+has an abort controller linked to the originating playback signal; cancellation
+clears pending primed work and completion removes the listener. Because playback
+cancels its signal at paragraph transitions too, an unfinished prime is cancelled
+there; completed audio can still be adopted without another request.
+
+Validation on this local, unpushed slice:
+
+- `pnpm --filter @proso/extension lint`: exit 0, 200 files, 68 warnings.
+- `npx tsc --noEmit` in `packages/extension`: exit 0, no diagnostics.
+- `NODE_OPTIONS=--experimental-vm-modules npx jest --selectProjects unit
+  --selectProjects contract --maxWorkers=1`: exit 0; 162 suites and 3,259 tests
+  passed, one suite/test skipped; 307.893 seconds. One worker uses the single
+  CPU reported by `nproc` in this environment.
+- `make fuzz`: exit 0; eight extension and three server property tests,
+  `FC_SEED=20260730 FC_NUM_RUNS=100`. Replay with those variables and `make fuzz`.
+- `make user-gate`: exit 2 after the built Firefox diagnostic failed with
+  “Pausing cleared the reading position instead of holding it.” The first
+  diagnostic replay passed; the second failed with “Reading kept moving while
+  paused: Sentence timing starts with these spoken -> undefined.” All three
+  receipts remain retained. This fixture uses the server/paragraph route, not
+  the local chunked route. No claim is made
+  that the original anomaly is fixed or that public acceptance passed.
+- `GENERATOR_FAMILY=openai make gate`: exit 2 at `make doctor` because generated
+  Prisma client files are missing; no cross-family review ran.
+
+Raw output is retained under `/tmp/proso-257b-{lint,types-final,jest,fuzz,user-gate,gate}.log`.
+The first browser failure is `/tmp/proso-257b-smoke-first-receipt.json`; replay
+logs and receipts use `/tmp/proso-257b-smoke-replay-{1,2}*`. The browser build was
+made from this working diff on parent `7e13b13`, before the local commit. Full
+Feature 095 public acceptance remains unverified.
 
 ## Update — 15/09/2026: catalog lifetime regression
 

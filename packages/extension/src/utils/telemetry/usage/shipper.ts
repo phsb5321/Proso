@@ -201,6 +201,8 @@ export class UsageShipper {
 
     const response = await fetch(this.config.gatewayUrl, {
       method: 'POST',
+      redirect: 'error',
+      credentials: 'omit',
       headers,
       body: requestBody,
     });

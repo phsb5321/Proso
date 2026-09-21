@@ -242,8 +242,48 @@ export async function initHexagonalArchitecture(): Promise<HandlerRegistry> {
     browser.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes.stopPlaybackOnTabChange) {
         stopPlaybackOnTabChange = changes.stopPlaybackOnTabChange.newValue !== false;
+        // Turning the preference back to "leaving ends playback" must revoke a
+        // session that is already detached, or audio keeps playing while the
+        // popup reports the opposite.
+        if (stopPlaybackOnTabChange) {
+          void container.services.playback.stopDetachedSession().catch((error: unknown) => {
+            log.warn('[Hexagonal] Failed to stop a detached session after a preference change', {
+              error,
+            });
+          });
+        }
       }
     });
+
+    // Focus moving to another window must obey the same preference: with
+    // "leaving ends playback" set, listening stops when the reader leaves the
+    // browser window, exactly as it does when they leave the tab. Switching
+    // windows does not fire `tabs.onActivated`, so without this the audio kept
+    // playing while the reader was demonstrably elsewhere.
+    const windowsApi = browser.windows;
+    if (windowsApi?.onFocusChanged) {
+      windowsApi.onFocusChanged.addListener((windowId) => {
+        if (windowId === windowsApi.WINDOW_ID_NONE) return;
+        void browser.tabs
+          .query({ active: true, windowId })
+          .then(([tab]) => {
+            if (!tab?.id) return;
+            setActiveTabId(tab.id);
+            return stopPlaybackForTabChange(
+              container.services.playback,
+              tab.id,
+              stopPlaybackOnTabChange,
+            );
+          })
+          .catch((error: unknown) => {
+            log.warn('[Hexagonal] Failed to apply the tab policy on window focus', { error });
+          });
+      });
+    } else {
+      // A host without the windows API keeps the tab-activation policy only;
+      // saying so beats silently promising window coverage.
+      log.debug('[Hexagonal] windows API unavailable: window focus will not end playback');
+    }
 
     // Track the active tab for footer handlers and optionally end a reading
     // session that belongs to the page the reader just left.
