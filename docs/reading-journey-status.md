@@ -1,5 +1,34 @@
 # Reading journey status
 
+## Update — 21/09/2026: 1.2.13 submitted, self-distributed channel closed
+
+**1.2.13 is submitted to AMO** (version id 6502140, `unreviewed`, 0 validation
+errors, corresponding source and reviewer notes attached). It carries the
+background-playback review fixes that were **live for 1.2.12 users**: session
+identity for visual deliveries, stale-unload protection, ownership-gated
+paragraph clicks, synthesis redirect confinement and bounded chunk admission.
+Release mechanics also gained one source of truth — `wxt.config.ts` had a
+hand-copied version, so the first 1.2.13 build emitted a 1.2.12 manifest and the
+channel gate could not see it (it only compared the two channels to each other);
+the manifest now reads `packages/extension/package.json` and the gate fails on
+disagreement.
+
+**The self-distributed channel is live and closed, not left behind.**
+`https://proso.com.br/updates.json` advertises 1.1.3 → 1.2.1 → **1.2.12**, and
+`releases/proso-1.2.12.xpi` answers 200 as `application/x-xpinstall` with bytes
+hashing to the advertised sha256 (`5d0dd2c3…`); gh-pages carries the same feed
+and XPI (commit `75d3960`). Two facts worth recording:
+
+1. AMO refused a fresh *unlisted* sign (`Version 1.2.12 already exists`), so the
+   feed carries the **AMO-signed listed** build. That makes this release the
+   migration to the listed channel: installed copies update through AMO by id
+   from here on, which is why later versions need no feed entry.
+2. Applying the plan's own precondition exposed a latent bug — both older links
+   pointed at `phsb5321.github.io`, the pre-migration host, so self-hosted
+   installs had **no working update path at all**. Both are now rewritten onto
+   `proso.com.br` with hashes re-verified against the published files.
+
+
 ## Update — 21/09/2026: hover affordance requires prior origin engagement
 
 Pedro's YouTube watch-title screenshot exposed ambient paint on a site where
