@@ -1,6 +1,6 @@
 {
   "name": "@proso/extension",
-  "version": "1.2.12",
+  "version": "1.2.13",
   "private": true,
   "type": "module",
   "description": "Proso Firefox Extension - Text-to-Speech for any webpage",
@@ -86,6 +86,12 @@
     "web-ext": "^7.11.0",
     "wxt": "^0.20.13"
   },
-  "keywords": ["firefox", "extension", "tts", "text-to-speech", "accessibility"],
+  "keywords": [
+    "firefox",
+    "extension",
+    "tts",
+    "text-to-speech",
+    "accessibility"
+  ],
   "license": "AGPL-3.0-or-later"
 }

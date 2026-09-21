@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'wxt';
+
+/** The published version, read from the package the build belongs to. */
+const extensionPackageVersion = (
+  JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+).version;
 
 /**
  * Proso - Text-to-Speech Extension for Web Pages
@@ -35,7 +41,10 @@ export default defineConfig({
   manifest: (env) => ({
     name: 'Proso',
     description: 'Text-to-speech for web pages with word-level highlighting',
-    version: '1.2.12',
+    // One source of truth: a hand-copied version here silently shipped a
+    // build whose manifest disagreed with package.json (caught releasing
+    // 1.2.13, where the zip still said 1.2.12).
+    version: extensionPackageVersion,
     permissions: [
       'storage',
       'unlimitedStorage', // 028-smart-audio-cache: IndexedDB audio cache (500MB+)
