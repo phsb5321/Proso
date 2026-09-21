@@ -16,23 +16,19 @@ future work.
 - [x] T002 — Draft the four verbatim contracts, product outcomes, requirements,
   privacy note, and falsifiers. Check: spec.md covers REQ-001–013; the plan records
   the source-destination governance block and optional bridge boundary.
-- [ ] T003 — Resolve the constitution's reading-source destination allowance
+- [x] T003 — Resolve the constitution's reading-source destination allowance
   through its governance process in a separately authorized change. Check:
   reviewed exception or ratified amendment with rationale/impact/version and
   propagation, recorded governing commit; production real-adapter paths/probes/
   retries stay hard-disabled until then. Offline scaffolding and isolated
   synthetic-fixture builds may precede it under acceptance-and-privacy v1.
-  **Status — draft available, ratification pending:** branch
-  `254-constitution-reading-source` supplies the [v2.2.0 amendment and SYNC
-  IMPACT REPORT](../../.specify/memory/constitution.md#i-privacy-first).
-  Maintainer Pedro H S Balbino must explicitly ratify it and that decision must
-  land. Record the ratification evidence and landed governing commit here
-  before removing the hard disable; a draft commit is not that evidence.
-  No ratification evidence or landed governing commit is recorded yet.
+  **Receipt:** constitution amendment v2.2.0 ratified and merged in PR #255,
+  governing merge `3718437`. The governance gate is satisfied; runtime consent,
+  credentials, composition and delivery gates remain separate obligations.
 
 ## Source contracts and normalization
 
-- [ ] T004 — Add the four readonly domain types and boundary schemas to
+- [x] T004 — Add the four readonly domain types and boundary schemas to
   `packages/shared/src/`, with named exports. Check: focused schema tests accept
   valid nullable metadata and reject invalid offsets, duplicate block IDs,
   dangling/cyclic parents, and malformed source identities (REQ-003, REQ-006).
