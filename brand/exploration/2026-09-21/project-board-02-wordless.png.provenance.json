@@ -1,0 +1,16 @@
+{
+  "id": "project-board-02-wordless",
+  "kind": "brand-kit-board",
+  "tool": "ChatGPT Projects \u2014 Proso project, fleet identity openai-platform",
+  "prompt": "Same 3x3 brand-kit board as before, but completely wordless: no captions, no panel numbers, no taglines, no letterforms of any kind, not even the word proso. Express each panel purely through composition: (1) the mark large and centred as the cover, (2) construction geometry around the mark, (3) the mark inside a browser toolbar frame, (4) a purely typographic panel left EMPTY of type \u2014 a clean navy field reserved for copy we will set ourselves, (5) three colour swatches only, (6) an empty type specimen box, (7) the app-icon ladder from large to 16 px, (8) the waveform panel, (9) the tiled mark pattern. Flat geometric vector, ink #F8F8F9, accent #21F299, navy #010616. Panel 4 and 6 must contain no marks or letters at all.",
+  "reference": "brand/chatgpt-project/* (attached in this thread)",
+  "generated_at": "2026-09-21T17:20:00.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 1111205,
+  "sha256": "93f1fe5b26b76dd8e3aa621dcfb26a1431eb83e2d84e3c631ef0bbce9b1c5a5e",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000082ac820ea53948175b6ecc0d&ts=497225&p=fs&cid=1&sig=7acc71",
+  "note": "Wordless by request so the real lockup and approved copy can be composited deterministically."
+}
