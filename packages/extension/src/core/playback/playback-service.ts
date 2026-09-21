@@ -1302,9 +1302,19 @@ export class PlaybackService {
     sources: ReadonlyArray<{ text: string; charOffset: number }>,
   ): Promise<void> {
     let sourceIndex = 0;
+    const signal = this.currentAbortController?.signal;
+    // Two queued sentences bound memory and synthesis ahead of the reader.
+    // Wait before pulling (never discard sentences on pause or a full queue).
+    const canContinue = () => this.isCurrentGeneration(generation) && !signal?.aborted;
     try {
-      for await (const chunk of iterator) {
-        if (!this.isCurrentGeneration(generation)) return;
+      while (canContinue()) {
+        while (canContinue() && (this.state.status === 'paused' || this.chunkQueue.length >= 2)) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 25));
+        }
+        if (!canContinue()) return;
+        const next = await iterator.next();
+        if (next.done || !canContinue()) return;
+        const chunk = next.value;
         const source = sources[sourceIndex++];
         if (!source) {
           this.chunkQueue.push({
@@ -1348,6 +1358,7 @@ export class PlaybackService {
       // finding the queue done-and-empty — the normal failure funnel reports
       // it there rather than dying silently.
     } finally {
+      await iterator.return();
       // A superseded producer finishing late must not mark the CURRENT
       // paragraph done (the flag is per-current-paragraph state) nor wake a
       // reader waiting on a different paragraph's producer.

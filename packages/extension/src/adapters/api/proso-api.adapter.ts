@@ -196,6 +196,8 @@ export class ProsoApiAdapter implements IApiClient {
 
       const init: RequestInit = {
         method,
+        redirect: 'error',
+        credentials: 'omit',
         headers,
         signal: controller.signal,
       };
@@ -276,6 +278,8 @@ export class ProsoApiAdapter implements IApiClient {
 
       const response = await fetch(url, {
         method: 'POST',
+        redirect: 'error',
+        credentials: 'omit',
         headers,
         body: JSON.stringify(body),
         signal: fetchSignal,

@@ -13,7 +13,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { FallbackAudioAdapter } from '../../../../src/adapters/audio/fallback-audio.adapter';
 import { createMockAudioGenerator } from '../../../mocks';
 import { audioError } from '../../../../src/core/shared/errors';
-import { isErr, isOk } from '../../../../src/core/shared/result';
+import { Ok, isErr, isOk } from '../../../../src/core/shared/result';
 import type { AudioError } from '../../../../src/core/shared/errors';
 import type { AudioRequest } from '../../../../src/ports/audio-generator.port';
 
@@ -53,6 +53,40 @@ function makeAdapter(
 }
 
 describe('FallbackAudioAdapter', () => {
+  it.each([false, true])('rechecks the gate between chunks (failClosed=%s)', async (failClosedOnGate) => {
+    let enabled = true;
+    let dispatches = 0;
+    let closed = false;
+    const secondary = createMockAudioGenerator();
+    const adapter = new FallbackAudioAdapter({
+      primary: {
+        ...chunkedPrimary([]),
+        async *generateAudioChunks() {
+          try {
+            for (let index = 0; index < 6; index++) {
+              dispatches++;
+              yield Ok({ audioBlob: new Blob(['chunk']), durationMs: 1000, wordTimings: null });
+            }
+          } finally { closed = true; }
+        },
+      },
+      secondary,
+      gate: async () => ({ ok: enabled, reason: 'Synthesis disabled' }),
+      failClosedOnGate,
+    });
+    const iterator = adapter.generateAudioChunks(request);
+    expect((await iterator.next()).value?.ok).toBe(true);
+    enabled = false;
+    expect((await iterator.next()).value).toEqual({
+      ok: false,
+      error: audioError.providerError('local_host_gate', 'Synthesis disabled'),
+    });
+    expect((await iterator.next()).done).toBe(true);
+    expect(dispatches).toBe(1);
+    expect(closed).toBe(true);
+    expect(secondary.generateAudioCalls).toHaveLength(0);
+  });
+
   it('serves from the primary when the gate passes', async () => {
     const { adapter, primary, secondary } = makeAdapter();
     const result = await adapter.generateAudio(request);

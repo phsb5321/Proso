@@ -241,6 +241,8 @@ class RemoteLogger {
       // Send to Loki
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
+        redirect: 'error',
+        credentials: 'omit',
         headers,
         body: JSON.stringify(payload),
       });
