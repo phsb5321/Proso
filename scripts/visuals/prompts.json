@@ -10,5 +10,29 @@
     "prompt": "A square social card illustration, flat geometric vector style, backdrop solid navy #010616, ink #F8F8F9, single electric green #21F299 accent. Composition: an abstract Firefox-like rounded arch shape on the left, and on the right a rising sequence of three horizontal sound bars whose heights step upward, connected by a thin green baseline that lifts off the page like a measured line of text being spoken. Strict grid, generous margins, thick even strokes, strong silhouettes that survive being scaled down to a feed thumbnail. Square 1:1 aspect ratio.",
     "bans": "no letters, no words, no pseudo-text, no logos, no speech bubbles, no glowing orbs, no realistic hands, no photorealistic people, no stock-photo look",
     "notes": "For release announcements where the caption carries the version number, so the image must stay wordless."
+  },
+  "mark-evolve-unified": {
+    "kind": "mark-exploration",
+    "prompt": "Redesign this app mark: same idea (a speech bubble holding two text lines, a sound waveform on its right) but as ONE unified silhouette instead of two separate objects. Let the bubble's tail grow out of the waveform's baseline so the two halves are one continuous shape. Palette exactly: bubble outline #F8F8F9, text lines and waveform #21F299, backdrop #010616. Flat vector, even stroke weight, geometric, no gradients. Must stay legible at 16 pixels: fewer, larger features; no detail thinner than the stroke.",
+    "bans": "no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform",
+    "notes": "Direction A \u2014 unify the two elements into one silhouette."
+  },
+  "mark-evolve-16px": {
+    "kind": "mark-exploration",
+    "prompt": "Redesign this app mark to survive 16 pixels. Same subject (speech bubble with text lines turning into a sound waveform) and same palette (#F8F8F9 bubble outline, #21F299 lines and waveform, #010616 backdrop), but rebuild the geometry around a chunky near-square silhouette: a bubble with a short thick tail, at most two thick text lines, and a waveform of three thick bars that reads as a single shape. Generous internal negative space, stroke weight about one eighth of the mark width. Flat, geometric, no gradients, no fine detail.",
+    "bans": "no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform",
+    "notes": "Direction B \u2014 small-size-first geometry."
+  },
+  "mark-evolve-loud": {
+    "kind": "mark-exploration",
+    "prompt": "Redesign this app mark to be louder and more distinctive while keeping its meaning (text becoming voice). Palette #F8F8F9, #21F299, backdrop #010616. Idea: the bubble is one bold rounded shape with a single deep notch cut from its right edge, and the waveform rises out of that notch as three to four bars of stepped height with the tallest in the middle, giving the mark a strong diagonal rhythm. Flat vector, thick even strokes, high contrast, unmistakable at thumbnail size.",
+    "bans": "no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform",
+    "notes": "Direction C \u2014 louder silhouette, more distinctive at thumbnail size."
+  },
+  "app-icon-tile": {
+    "kind": "app-icon-exploration",
+    "prompt": "Design a browser-extension app icon on a rounded-square navy #010616 tile: a white #F8F8F9 speech bubble containing two green #21F299 text lines, with a green waveform on its right, sized so the composition sits inside the tile with comfortable margin and reads instantly at 32 pixels. Flat vector, no gradients, no shadows, no border stroke on the tile, generous padding.",
+    "bans": "no letters, no words, no pseudo-text, no gradients, no photorealism, no glowing orbs, no outline-and-drop-shadow logo cliches, no third element beyond the bubble and the waveform",
+    "notes": "The surface where the mark is seen smallest and most often."
   }
 }

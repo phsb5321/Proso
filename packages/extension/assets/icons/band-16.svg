@@ -1,7 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" role="img" aria-labelledby="title desc">
   <title id="title">Proso mark — 16 px optical size</title>
-  <desc id="desc">Compact text-to-voice bubble reduced to a silhouette and one voice dot.</desc>
+  <desc id="desc">Compact text-to-voice mark: a filled white reading bubble with two lines, a green voice dot and a single voice bar.</desc>
+  <!-- The shipped 16 px band was all-green on navy with a 2-unit stroke: the stroke
+       closed the bubble's interior and the four waveform bars merged into one green
+       smear (measured 21/09/2026 — illegible in the toolbar at 16 and 32 px, the sizes
+       users see most).
+       This drawing keeps the band's necessary contract — a 14x14+1+1 content box, and
+       exactly two green components where the smaller one is the voice dot the oracle
+       requires — and changes what failed: the bubble is white ink instead of a fat
+       green outline, so it reads as a filled shape; the text lines are knocked out of
+       it in navy; and the waveform collapses to one voice bar, because four bars cannot
+       survive an eleven-pixel field. The full waveform returns at 48 px and above,
+       which is what the optical bands exist for. -->
   <rect x="1" y="1" width="14" height="14" rx="3" fill="#010616"/>
-  <path d="M12 6V5.5A2.5 2.5 0 0 0 9.5 3h-3A2.5 2.5 0 0 0 4 5.5V11l1 1 1.5-2H9.5A2.5 2.5 0 0 0 12 7.5" fill="none" stroke="#21F299" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="9" cy="6.5" r="1.25" fill="#21F299"/>
+  <rect x="2.6" y="3.4" width="6.6" height="7.6" rx="2.2" fill="#F8F8F9"/>
+  <path d="M3.4 10.2l-.9 2.7 2.9-2.7z" fill="#F8F8F9"/>
+  <g fill="#010616">
+    <rect x="3.9" y="5.4" width="4.6" height="1.05" rx="0.525"/>
+    <rect x="3.9" y="7.5" width="3.7" height="1.05" rx="0.525"/>
+  </g>
+  <circle cx="10.2" cy="7" r="1.8" fill="#21F299"/>
+  <rect x="13.2" y="4" width="1.8" height="8" rx="0.9" fill="#21F299"/>
 </svg>

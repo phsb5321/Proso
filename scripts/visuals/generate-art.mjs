@@ -29,11 +29,20 @@ function laneAvailable() {
 function parseArgs(argv) {
   const [id, ...rest] = argv;
   let ref = null;
+  let outDir = ART_DIR;
   let identity = process.env.PROSO_ART_IDENTITY ?? 'chatgpt-c';
   for (let i = 0; i < rest.length; i += 1) {
     if (rest[i] === '--ref') {
       ref = rest[i + 1] ?? null;
       if (!ref) fail('--ref needs an image path');
+      i += 1;
+    } else if (rest[i] === '--out-dir') {
+      const value = rest[i + 1] ?? null;
+      if (!value) fail('--out-dir needs a path');
+      outDir = resolve(ROOT, value);
+      // Inside the repo only: an artifact this lane makes must live somewhere the
+      // provenance gate can see, and somewhere a reviewer can find.
+      if (!outDir.startsWith(`${ROOT}/`)) fail('--out-dir must be inside the repository');
       i += 1;
     } else if (rest[i] === '--identity') {
       identity = rest[i + 1] ?? null;
@@ -43,11 +52,11 @@ function parseArgs(argv) {
       fail(`unknown argument: ${rest[i]}`);
     }
   }
-  return { id, ref, identity };
+  return { id, ref, outDir, identity };
 }
 
 function main() {
-  const { id, ref, identity } = parseArgs(process.argv.slice(2));
+  const { id, ref, outDir, identity } = parseArgs(process.argv.slice(2));
   if (!id) fail('usage: generate-art.mjs <prompt-id> [--ref <image>]');
 
   const pack = JSON.parse(readFileSync(PROMPTS, 'utf8'));
@@ -66,8 +75,8 @@ function main() {
     );
   }
 
-  mkdirSync(ART_DIR, { recursive: true });
-  const args = [prompt, '--out', ART_DIR, '--json', '--identity', identity];
+  mkdirSync(outDir, { recursive: true });
+  const args = [prompt, '--out', outDir, '--json', '--identity', identity];
   if (ref) args.push('--ref', resolve(ROOT, ref));
 
   const run = spawnSync(LANE_TOOL, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
@@ -99,11 +108,11 @@ function main() {
     process.exit(run.status === 0 ? 1 : run.status);
   }
 
-  const produced = resolve(ART_DIR, result.path);
+  const produced = resolve(outDir, result.path);
   if (!existsSync(produced)) fail(`the lane reported ${produced} but it is not there`);
 
   const extent = (result.format ?? 'png').toLowerCase();
-  const target = resolve(ART_DIR, `${id}.${extent}`);
+  const target = resolve(outDir, `${id}.${extent}`);
   if (target !== produced) {
     if (existsSync(target)) unlinkSync(target);
     renameSync(produced, target);

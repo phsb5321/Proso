@@ -12,7 +12,21 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const DEFAULT_DIR = resolve(ROOT, 'packages/site/assets/images/art');
+const ART_DIR = resolve(ROOT, 'packages/site/assets/images/art');
+const EXPLORATION_DIR = resolve(ROOT, 'brand/exploration');
+
+/** Shipped art and every dated exploration folder: a direction we rejected is
+ * still a decision, and it has to name the prompt that produced it. */
+function defaultDirs() {
+  const dirs = [ART_DIR];
+  if (existsSync(EXPLORATION_DIR)) {
+    for (const entry of readdirSync(EXPLORATION_DIR).sort()) {
+      const dir = resolve(EXPLORATION_DIR, entry);
+      if (statSync(dir).isDirectory()) dirs.push(dir);
+    }
+  }
+  return dirs;
+}
 const IMAGE_EXTENTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
 const REQUIRED_FIELDS = ['id', 'kind', 'tool', 'prompt', 'generated_at', 'sha256'];
 
@@ -76,13 +90,19 @@ export function verifyDir(dir, label = dir) {
 
 function main() {
   const dirFlag = process.argv.indexOf('--dir');
-  const dir = dirFlag === -1 ? DEFAULT_DIR : resolve(process.argv[dirFlag + 1] ?? '.');
-  const report = verifyDir(dir, dir);
+  const dirs =
+    dirFlag === -1 ? defaultDirs() : [resolve(process.argv[dirFlag + 1] ?? '.')];
 
-  console.log(`${report.note}`);
-  if (report.problems.length > 0) {
-    for (const problem of report.problems) console.error(`  FAIL ${problem}`);
-    console.error(`art provenance FAIL: ${report.problems.length} problem(s)`);
+  const problems = [];
+  for (const dir of dirs) {
+    const report = verifyDir(dir, dir);
+    if (report.note) console.log(`  ${report.note}`);
+    problems.push(...report.problems);
+  }
+
+  if (problems.length > 0) {
+    for (const problem of problems) console.error(`  FAIL ${problem}`);
+    console.error(`art provenance FAIL: ${problems.length} problem(s)`);
     process.exit(1);
   }
   console.log('art provenance PASS — every image traces to its prompt');
