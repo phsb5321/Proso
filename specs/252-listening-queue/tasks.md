@@ -22,6 +22,13 @@ future work.
   propagation, recorded governing commit; production real-adapter paths/probes/
   retries stay hard-disabled until then. Offline scaffolding and isolated
   synthetic-fixture builds may precede it under acceptance-and-privacy v1.
+  **Status — draft available, ratification pending:** branch
+  `254-constitution-reading-source` supplies the [v2.2.0 amendment and SYNC
+  IMPACT REPORT](../../.specify/memory/constitution.md#i-privacy-first).
+  Maintainer Pedro H S Balbino must explicitly ratify it and that decision must
+  land. Record the ratification evidence and landed governing commit here
+  before removing the hard disable; a draft commit is not that evidence.
+  No ratification evidence or landed governing commit is recorded yet.
 
 ## Source contracts and normalization
 
@@ -237,7 +244,8 @@ checks, seed 252001 with 2,000 traces × 100 commands maximum and a 30-minute /
 20-restart soak. Annex implementation tasks are required, not optional follow-up.
 
 T003 gates **live source traffic** only; production must hard-disable that path
-until the recorded governance decision lands. Synthetic implementation can
+until the recorded governance decision lands. The v2.2.0 amendment is drafted,
+not ratified; T003 remains open. Synthetic implementation can
 proceed independently. REQ-013 is mandatory client validation; SERVER-252-001 is
 explicitly outside this feature, with no implied server implementation task.
 
@@ -246,3 +254,24 @@ draft's missing-Prisma doctor result is historical; runtime gates and a fresh
 different-family verdict remain outstanding. The revision's document-only
 validation is recorded in review-response.md. The next implementation work is
 T004 with T032; no code, dependency or constitution change is authorized here.
+
+### Amendment draft verification — 20/09/2026
+
+The separately authorized branch `254-constitution-reading-source` updates only
+the constitution and this feature's plan/tasks. PR #92 (`93a2e7e`) is the
+standalone destination-amendment precedent; it required no separate governance
+spec directory. Existing impact reports are retained and templates need no
+destination-list propagation. This note supersedes the earlier scope statement
+only for that constitution draft; no implementation or ratification is claimed.
+
+`make help` passed. `make verify` exited 2 at `doctor`: "Prisma client is
+missing; run make bootstrap". Bootstrapping would generate files outside this
+documentation-only scope and was not performed. `make docs` passed (nine owned
+documents; no expired reviews or broken links); its active-document registry
+does not establish amendment correctness. Plain file checks passed for the
+three-file scope, retained impact reports, unchanged Security/Governance rules,
+draft version/T003 consistency and relative plan/task links. `git diff --check`
+passed. Full verification, runtime
+privacy/consent/completion checks, public-browser/fuzz gates and an independent
+different-family verdict are not established by this draft. T003 stays open
+pending Pedro H S Balbino's explicit ratification and the landed governing commit.

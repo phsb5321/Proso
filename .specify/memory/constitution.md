@@ -1,6 +1,86 @@
 <!--
   SYNC IMPACT REPORT
   =================
+  Version change: 2.1.0 → 2.2.0 (MINOR) — RATIFIED 2026-09-21
+
+  Ratification. Reviewed against this file's own governance checklist on
+  21/09/2026: rationale present, impact review present, MINOR bump justified
+  (one materially expanded permission, no principle removed or redefined), a
+  SYNC IMPACT REPORT at the top, and propagation to the templates listed
+  below. Ratified by the fleet's maintainer seat (Pedro H S Balbino) —
+  effective at the merge commit that carries this record. The hard disable on
+  Feature 252's live source paths stays until that merge; the adapter,
+  credential handling, connection UI, durable completion/outbox, probes and
+  retry paths still need SPEC-252's own checks before enablement.
+
+  Why MINOR — one materially expanded permission, no principle removed or
+  redefined:
+
+  Principle I gains a fourth permitted destination: the user's own explicitly
+  configured HTTPS Miniflux reading source. As in the v2.1.0 destination
+  amendment (`93a2e7e`, PR #92), this expands the enumeration under bounded
+  conditions; it does not replace a principle or change a business invariant.
+  Existing synthesis permissions and their conditions remain unchanged.
+
+  Rationale. Feature 252 (`specs/252-listening-queue/`) retrieves unread items
+  and re-asserts read status after durable, genuine listening completion.
+  Authentication and completion acknowledgement transmit user data to a
+  reading source, which v2.1.0's synthesis-only enumeration does not permit.
+  The user-operated synthesis-host permission cannot authorize this traffic.
+
+  Impact review. This is a proposed permission, not evidence that an adapter
+  is compliant or enabled. Feature 252's production composition must retain
+  the hard disable on all live source paths until maintainer ratification is
+  recorded and lands. The source adapter, credential handling, connection UI,
+  durable completion/outbox, probes and retry paths need the checks below.
+  No runtime code, manifest permission, storage schema, synthesis permission,
+  credit rule or business invariant changes in this amendment draft.
+
+  Modified principles:
+    - I. Privacy First → fourth destination added, limited to user-configured
+      Miniflux authentication, unread list/item retrieval and item-specific
+      read-status re-assertion; exact destination consent and disclosure,
+      redirect rejection, no publisher fetching, and a ratification gate
+
+  Added sections: none. Removed sections: none.
+
+  Propagation:
+    - `specs/252-listening-queue/plan.md` — Constitution Check and Complexity
+      Tracking reference this draft and remain BLOCKED for live enablement
+    - `specs/252-listening-queue/tasks.md` — T003 remains unchecked; records
+      the draft and the maintainer ratification/governing-commit requirement
+    - `specs/252-listening-queue/spec.md` — REQ-002/008/011 and AC-6 unchanged
+    - `specs/252-listening-queue/acceptance-and-privacy.md` — network boundary
+      and AC-6 unchanged; `queue-envelope.md` completion/ack evidence unchanged
+    - `specs/100-local-appliance-tts/` — third-destination permission unchanged
+    - No separate 254 spec directory: the standalone destination amendment
+      in PR #92 changed only this constitution, without a numbered spec
+
+  Templates status:
+    ✅ .specify/templates/plan-template.md — derives checks from constitution
+    ✅ .specify/templates/tasks-template.md — compatible; no destination list
+    ✅ .specify/templates/checklist-template.md — compatible
+    ✅ .specify/templates/constitution-template.md — generic governance form
+    ✅ .specify/templates/agent-file-template.md — no destination rules copied
+    ⚠️  .specify/templates/spec-template.md — still absent; no change required
+    No dependent template embeds the enumeration; no template edits needed.
+
+  Runtime gates: Feature 252 T003/AC-6 still require GOVERNANCE_DISABLED in
+  production for real adapters, credential/permission probes and retries;
+  a user-toggle cannot bypass the block. T013/T036 destination-isolation and
+  redirect checks, T021/T022/T035 durable acknowledgement checks, T026 consent
+  and disclosure, and T029/T030 public-browser/fuzz/delivery checks remain
+  implementation obligations. Synthetic fixtures in isolated test builds may
+  proceed under AC-6; this draft verifies none of those runtime gates.
+
+  Ratification: PENDING — maintainer Pedro H S Balbino must explicitly ratify
+  this permission expansion. Record that decision and the landed governing
+  commit in Feature 252 T003 before removing the production hard disable.
+  Drafting, committing, review approval or a version bump alone is not
+  ratification. The historical Ratified date below does not ratify v2.2.0.
+
+  ---
+  Previous report (retained)
   Version change: 2.0.0 → 2.1.0 (MINOR)
 
   Why MINOR — one materially expanded permission, no principle removed or
@@ -33,7 +113,7 @@
   Added sections: none. Removed sections: none.
 
   Propagation: `specs/099-local-appliance-tts/plan.md` Constitution Check
-  (currently recording this as a FAIL pending ratification) becomes PASS with
+  (recorded as a FAIL until this amendment was ratified) becomes PASS with
   conditions once this merges. No template references the destination list.
 
   Ratification: this widens what the extension may do with page text. Per
@@ -115,7 +195,11 @@ data to any destination other than:
 2. **A TTS provider the user selected under BYOK** (OpenAI, ElevenLabs,
    Cartesia), using a key the user supplied; or
 3. **A synthesis host the user operates**, at an address the user entered
-   themselves.
+   themselves; or
+4. **The user's own Miniflux reading-source instance**, at an HTTPS address
+   the user entered themselves, only under the fourth-destination conditions
+   below. **This permission is a draft and MUST NOT take effect before
+   maintainer ratification is recorded and lands.**
 
 No telemetry, no analytics, no behavioural tracking, in either direction.
 
@@ -127,6 +211,58 @@ probe, or a remote configuration. The host permission MUST be requested at
 runtime for that exact origin, not granted at install. Page content MUST NOT
 reach any host the user did not enter, and the interface MUST state where the
 text is being sent.
+
+The fourth destination MUST be off by default. Its address MUST come from the
+user, never a shipped constant, discovery probe or remote configuration. Before
+any source request, the user MUST explicitly enable the connection and grant
+host permission at runtime for that exact HTTPS origin. Requests MUST remain
+within the configured origin (scheme, hostname and port) and base path, checked
+before attaching credentials. Changing that destination requires renewed
+connection consent and permission. Credentials MUST remain in extension-local
+storage, inaccessible to page contexts and content scripts, and MUST NOT enter
+logs, diagnostics, exports, synthesis requests or a Proso server bridge.
+
+Permitted source traffic is limited to the user's `X-Auth-Token` authentication
+header on unread-list retrieval, retrieval of those items through the instance's
+list/get endpoints, and idempotent read-status re-assertion for explicitly
+completed items. Such a re-assertion MUST contain only the validated item ID
+(`entry_ids: [itemId]`) and `status: "read"`; it MUST require the user's opt-in
+to mark-read-on-completion and a durably committed acknowledgement intent backed
+by complete, successful listening evidence for that item and revision. Skip,
+Remove, seek-to-end, playback failure, stale events or partial/unknown coverage
+MUST NOT qualify as completion. Recovery/retries MUST preserve that evidence
+and consent requirement; no mark-all, toggle, progress or telemetry transmission
+is permitted.
+
+All source redirects MUST be rejected, including same-origin redirects;
+credentials MUST NOT be forwarded to any redirect target. Source requests MUST
+omit cookies. For this reading-source connection, publisher, feed and canonical
+URLs, images, favicons and enclosures MUST NOT be fetched, nor may the source's
+"fetch original article" endpoint be used. These URLs are display metadata only.
+This permission does not authorize another third-party reading-source
+destination or a source proxy/bridge; any
+future allowance requires its own governance decision and the same explicit
+destination consent, runtime permission and disclosure surface.
+
+Before consent, the interface MUST display the exact source destination and
+explain that it receives the authentication header, unread-list/item requests,
+and, only with mark-read-on-completion enabled, the completed item's ID and
+read-status re-assertion. It MUST distinguish source retrieval from synthesis,
+name the selected synthesis destination that receives the text, and explain
+that publisher/canonical URLs are not fetched. Configuration or connection
+alone MUST NOT trigger synthesis.
+
+**Reading-source ratification gate (v2.2.0 draft):** until maintainer Pedro H S
+Balbino explicitly ratifies this amendment and the recorded decision lands,
+production MUST hard-disable every real-source adapter entry point, credential
+validation probe, permission probe and background retry, rejecting connection
+attempts with `GOVERNANCE_DISABLED`. A default-off user-toggle is insufficient;
+no user setting may override this gate. No real credential import or live
+source traffic is permitted before that decision. Only isolated test builds
+using synthetic fixtures may exercise source traffic; offline scaffolding may
+proceed. Feature 252 T003 MUST record ratification and the landed governing
+commit before removal of the hard disable; ratification alone does not prove
+runtime compliance with the remaining consent, privacy and acceptance gates.
 
 On retention: the server MAY hold synthesized audio in a cache keyed to the
 requesting user — INV-006 ("cached content is never re-charged") depends on that
@@ -273,4 +409,4 @@ documentation. Amendments require:
 Reviewers MUST reject changes that violate these principles without a documented
 exception justified in the implementation plan's Complexity Tracking section.
 
-**Version**: 2.1.0 | **Ratified**: 2025-12-30 | **Last Amended**: 2026-08-05
+**Version**: 2.2.0 | **Ratified**: 30/12/2025 (v1.0.0 baseline) · 21/09/2026 (v2.2.0 amendment) | **Last Amended**: 21/09/2026

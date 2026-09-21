@@ -31,7 +31,7 @@ not a claim about deployed behavior.
 
 | Principle | Draft assessment |
 |---|---|
-| I — Privacy First | **BLOCKED for live enablement:** v2.1.0 enumerates synthesis destinations only. Miniflux authentication and read-status transmission introduce a source destination; the local-synthesis permission does not cover it. A documented exception or ratified amendment is required. |
+| I — Privacy First | **BLOCKED for live enablement:** the [v2.2.0 draft amendment](../../.specify/memory/constitution.md#i-privacy-first) adds a bounded Miniflux reading-source destination to v2.1.0's synthesis-only enumeration. It is not ratified. Maintainer Pedro H S Balbino must explicitly ratify it and the decision must land; T003 must record the decision and governing commit before production real adapters, probes or retries can be enabled. |
 | II — Security by Default | Design conforms with HTTPS, exact configured destination checks, local extension credential storage, inert HTML, no token logging, and unchanged transactional TTS accounting. Verification remains outstanding. |
 | III — User Experience | Public keyboard controls, truthful privacy/coverage/progress, bounded recovery, and both themes are acceptance requirements. |
 | IV — Modular Architecture | New source/store ports, real and fallback adapters, pure queue transitions, Result errors, composition-only construction. Existing DOM coupling in playback is a compatibility seam, not a precedent for new framework imports. |
@@ -41,13 +41,16 @@ not a claim about deployed behavior.
 ### Complexity Tracking
 
 The source destination needs an explicit governance decision; this plan does
-not grant itself an exception. Proposed narrow allowance: user-entered HTTPS
-reading source, off by default, runtime permission, token sent only to that
-source, list/get and item-specific completion acknowledgement only, no telemetry.
-Follow the constitution's rationale, impact report, version bump, and propagation
-procedure in a separate authorized change. This drafting task changes neither
-the constitution nor any live permission. An optional bridge would need its
-own privacy/credential decision as well; it is not a workaround for this block.
+not grant itself an exception. Branch `254-constitution-reading-source` drafts
+the [v2.2.0 amendment](../../.specify/memory/constitution.md#i-privacy-first),
+with rationale, impact report, MINOR version bump and propagation review. It
+permits only user-configured HTTPS Miniflux list/get and item-specific read-status
+re-assertion with local credentials, runtime consent, disclosure and durable
+completion evidence; redirects and publisher/canonical fetching are forbidden.
+The amendment is **pending maintainer ratification**, not a live permission.
+Pedro H S Balbino must ratify it and that decision must land; T003 must record
+the decision and governing commit. An optional bridge still needs its own
+privacy/credential decision and cannot bypass this block.
 
 ## Binding annexes and review response
 
@@ -61,9 +64,10 @@ this draft's earlier browser.storage.local snapshot proposal. Credentials remain
 in extension-local storage and audio in the existing cache.
 
 The gate threshold is **before enabling live source traffic**. Until a ratified
-amendment or reviewed exception lands, production composition hard-disables all
-real-adapter entry points, credential probes and retries. A user-toggle alone
-cannot enable them. Offline contracts, migration/store logic, UI previews,
+amendment or reviewed exception lands (the v2.2.0 draft is neither), production
+composition hard-disables all real-adapter entry points, credential probes and
+retries. A user-toggle alone cannot enable them. Offline contracts,
+migration/store logic, UI previews,
 playback seams and gated real-adapter code tested against isolated synthetic
 fixtures may land before that decision; real credential import and transmission
 may not. Record the governance commit before removing this gate (T003).
