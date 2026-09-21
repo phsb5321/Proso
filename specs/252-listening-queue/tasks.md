@@ -41,7 +41,7 @@ future work.
   Check: `tests/unit/core/reading-source/` covers short text, nested lists,
   headings, entities, repeated blocks, unsupported structures, empty content,
   and partial coverage without publisher fetches (REQ-003).
-- [ ] T007 — Add deterministic document revisions and source-position mapping.
+- [x] T007 — Add deterministic document revisions and source-position mapping.
   Check: unchanged bodies with different fetch time/read state retain revision;
   changed text/order changes it; spoken expansion, emoji, and lexicon changes
   never turn source positions into paragraph/spoken offsets (REQ-003, REQ-006).
