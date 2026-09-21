@@ -24,6 +24,10 @@ import { isExtensionPage } from '../utils/content/extension-page';
 import * as extractor from '../utils/content/extractor';
 import { HighlightManager, type WordTiming } from '../utils/content/highlight';
 import {
+  HOVER_PLAY_ORIGINS_KEY,
+  shouldOfferHoverAffordance,
+} from '../utils/content/hover-affordance-policy';
+import {
   HOVERABLE_CLASS,
   hasUnmarkedProse,
   isAmbientExtractionCandidate,
@@ -564,13 +568,15 @@ export default defineContentScript({
     }
 
     /**
-     * Ambient hover-play (Feature 229): extract once at idle so paragraph
-     * clicks can start playback without any popup interaction, then mark the
-     * paragraphs with the paint-only hover affordance.
+     * Ambient hover-play (Feature 229): only offer ambient paragraph playback
+     * on origins where a reading session has succeeded before.
      */
+    let engagedOrigins: unknown = [];
+    const canOfferHover = () =>
+      shouldOfferHoverAffordance({ origin: window.location.origin, engagedOrigins });
+
     function runAmbientHoverPlayExtraction({ reExtract = false } = {}): void {
-      // Playback can start after scheduling but before the idle callback runs.
-      if (stickyFooter?.isFooterVisible()) return;
+      if (!canOfferHover()) return;
       try {
         if (
           !reExtract &&
@@ -580,6 +586,9 @@ export default defineContentScript({
           markHoverAffordance(extractor.getExtractedParagraphs());
           return;
         }
+        // Marking the existing article is safe during playback; re-extraction
+        // would change its paragraph indexes. Recheck at idle execution time.
+        if (stickyFooter?.isFooterVisible()) return;
         if (!isAmbientExtractionCandidate(document)) {
           log.debug('Proso: Skipping ambient hover-play extraction (page not text-rich)');
           return;
@@ -626,7 +635,7 @@ export default defineContentScript({
       const readingInProgress = () => stickyFooter?.isFooterVisible() === true;
 
       const observer = new MutationObserver((records) => {
-        if (passPending || readingInProgress()) return;
+        if (!canOfferHover() || passPending || readingInProgress()) return;
         if (!hasUnmarkedProse(records)) return;
 
         passPending = true;
@@ -646,8 +655,31 @@ export default defineContentScript({
     }
 
     function setupAmbientHoverPlay(): void {
-      // FR-1: defer off the critical path; never block or break the page.
-      scheduleHoverPlayPass();
+      function updateOrigins(value: unknown): void {
+        engagedOrigins = value;
+        if (canOfferHover()) {
+          scheduleHoverPlayPass();
+        } else {
+          for (const element of document.querySelectorAll(`.${HOVERABLE_CLASS}`)) {
+            element.classList.remove(HOVERABLE_CLASS);
+          }
+        }
+      }
+
+      // Subscribe before loading so a successful start cannot be missed or
+      // overwritten by a stale initial storage read.
+      let originsChanged = false;
+      browser.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== 'local' || !changes[HOVER_PLAY_ORIGINS_KEY]) return;
+        originsChanged = true;
+        updateOrigins(changes[HOVER_PLAY_ORIGINS_KEY].newValue);
+      });
+      browser.storage.local
+        .get(HOVER_PLAY_ORIGINS_KEY)
+        .then((stored) => {
+          if (!originsChanged) updateOrigins(stored[HOVER_PLAY_ORIGINS_KEY]);
+        })
+        .catch((error) => log.warn('Proso: Could not load hover-play origins', { error }));
       watchRoutedContent();
     }
 
@@ -700,6 +732,7 @@ export default defineContentScript({
         // A selection read shares the extractor module but not article indexes.
         // Refresh before mapping a hover click so index N still means article N.
         if (
+          canOfferHover() &&
           extractor.getLastExtractionMode() !== 'article' &&
           isAmbientExtractionCandidate(document)
         ) {

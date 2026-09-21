@@ -1,5 +1,39 @@
 # Reading journey status
 
+## Update — 21/09/2026: hover affordance requires prior origin engagement
+
+Pedro's YouTube watch-title screenshot exposed ambient paint on a site where
+reading had never started. Feature 229 now gates idle, routed-content and
+click-time marking on a locally stored, bounded list of successfully read
+origins. Both playback-start paths record engagement only after success;
+content observes storage changes, including engagement during active reading,
+without replacing active article indexes. See the
+[Feature 229 amendment](../specs/229-paragraph-hover-play/spec.md#amendment--21092026-prior-origin-engagement).
+
+The first-visit regression failed before the fix (3 marked paragraphs instead
+of 0). Extension lint exits 0 with 68 warnings; `tsc --noEmit` exits 0. Unit and
+contract projects pass 160 suites / 3,252 tests, with one skipped suite/test
+(`--maxWorkers="$(nproc)"`, exit 0, 121.49 seconds). The final content suite
+passes all 17 tests, including queued-revocation/routed-content checks. Seeded fuzz
+passes with `FC_SEED=20260730 FC_NUM_RUNS=100` (`make fuzz` to replay).
+Logs are `/tmp/proso-hover-{red,lint,tsc,unit-contract-cpu,content-final,user-gate}.log`.
+
+The Firefox build succeeds. `make user-gate` initially failed in its diagnostic
+with “Pausing cleared the reading position instead of holding it”; two direct
+`node scripts/smoke-reading.mjs` replays passed. The original and both replay
+receipts are retained under `/tmp/proso-hover-smoke-*-receipt.json`. This is an
+intermittent diagnostic anomaly, not evidence that public hover acceptance
+passed. A subsequent full Jest run also hit the existing popup axe test's
+5-second timeout; its log is retained as `/tmp/proso-hover-unit-contract-final.log`.
+The CPU-capped final run above passes without changing that test or its timeout.
+
+Full delivery remains blocked at `make doctor` by the missing generated Prisma
+client; no cross-family review was reached. Feature 095 public acceptance is
+still separate from the internal-dispatch Firefox diagnostic. The older
+`hover-affordance-gate.mjs` assumes fresh profiles mark on load; its future
+public journey must start reading successfully before asserting ambient hover.
+This change is local only: no push, PR, merge, or deployment requested.
+
 ## Update — 15/09/2026: catalog lifetime regression
 
 The footer no longer keeps its first nonempty voice catalog for its entire
