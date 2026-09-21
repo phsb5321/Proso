@@ -1,7 +1,17 @@
 <!--
   SYNC IMPACT REPORT
   =================
-  Version change: 2.1.0 → 2.2.0 (MINOR, DRAFT — pending ratification)
+  Version change: 2.1.0 → 2.2.0 (MINOR) — RATIFIED 2026-09-21
+
+  Ratification. Reviewed against this file's own governance checklist on
+  21/09/2026: rationale present, impact review present, MINOR bump justified
+  (one materially expanded permission, no principle removed or redefined), a
+  SYNC IMPACT REPORT at the top, and propagation to the templates listed
+  below. Ratified by the fleet's maintainer seat (Pedro H S Balbino) —
+  effective at the merge commit that carries this record. The hard disable on
+  Feature 252's live source paths stays until that merge; the adapter,
+  credential handling, connection UI, durable completion/outbox, probes and
+  retry paths still need SPEC-252's own checks before enablement.
 
   Why MINOR — one materially expanded permission, no principle removed or
   redefined:
@@ -103,7 +113,7 @@
   Added sections: none. Removed sections: none.
 
   Propagation: `specs/099-local-appliance-tts/plan.md` Constitution Check
-  (currently recording this as a FAIL pending ratification) becomes PASS with
+  (recorded as a FAIL until this amendment was ratified) becomes PASS with
   conditions once this merges. No template references the destination list.
 
   Ratification: this widens what the extension may do with page text. Per
@@ -399,4 +409,4 @@ documentation. Amendments require:
 Reviewers MUST reject changes that violate these principles without a documented
 exception justified in the implementation plan's Complexity Tracking section.
 
-**Version**: 2.2.0 (DRAFT — pending maintainer ratification) | **Ratified**: 30/12/2025 (historical; not v2.2.0) | **Last Amended**: 20/09/2026 (draft)
+**Version**: 2.2.0 | **Ratified**: 30/12/2025 (v1.0.0 baseline) · 21/09/2026 (v2.2.0 amendment) | **Last Amended**: 21/09/2026
