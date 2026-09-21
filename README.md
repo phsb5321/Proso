@@ -1,5 +1,7 @@
 # Proso
 
+![Proso — a page's text lines lifting off into a sound wave](packages/site/assets/images/art/listening-hero.png)
+
 **Read web pages aloud in Firefox, with word highlighting and playback controls.**
 
 [![Install for Firefox](https://img.shields.io/badge/Install-Firefox-orange)](https://addons.mozilla.org/en-US/firefox/addon/proso/)
@@ -14,6 +16,10 @@ may apply. There is no built-in browser TTS fallback.
 
 Published Firefox builds are available on Mozilla Add-ons. Development status for
 `main` is tracked separately in the [reading journey status](docs/reading-journey-status.md).
+
+Editorial art is generated through the fleet's ChatGPT lane and shipped with the prompt
+that made it — see [visual assets](docs/visual-assets.md). Brand marks are separate and
+deterministic ([brand vector system](specs/161-brand-vector-system/)).
 
 ## Features
 

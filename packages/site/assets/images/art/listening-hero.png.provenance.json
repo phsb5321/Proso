@@ -1,0 +1,15 @@
+{
+  "id": "listening-hero",
+  "kind": "hero",
+  "tool": "gpt-image — ChatGPT web UI, fleet identity openai-platform",
+  "identity": "openai-platform",
+  "prompt": "A wide cinematic editorial illustration for a text-to-speech reading tool, flat geometric vector style, backdrop solid navy #010616, ink lines #F8F8F9, one accent colour electric green #21F299 used sparingly. Composition: on the left, a tall column of abstract horizontal text lines suggesting a web page; the lines progressively break apart and curve into concentric sound ripples travelling to the right, resolving into a single calm green waveform. Generous negative space, strict grid, thick confident strokes, high contrast, no gradients as a crutch. Wide banner crop, roughly 5:2 aspect ratio.\n\nReject and redo rather than include: no letters, no words, no pseudo-text, no logos, no speech bubbles, no glowing blue orbs, no humanoid heads with circuits, no photorealistic people, no stock-photo look.",
+  "reference": "/home/notroot/Documents/Code/personal/proso-visuals/packages/site/assets/images/og-image.png",
+  "generated_at": "2026-09-21T15:25:37.896Z",
+  "format": "png",
+  "width": 1983,
+  "height": 793,
+  "bytes": 982370,
+  "sha256": "b64d8f241e65d13b1caa85f407a70fad5728b5d5520dce5c283061f2a5625222",
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000008cf8820e871fe1c550f98a44&ts=497223&p=fs&cid=1&sig=f46497"
+}
