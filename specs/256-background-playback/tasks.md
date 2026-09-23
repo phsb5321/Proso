@@ -31,6 +31,9 @@ in this branch.
   proven, 3 recorded as gaps. `[x]` here means the journey ran and its result
   is recorded below (same convention as 257's replay task), NOT that runtime
   acceptance passed.** See "T008 verification — 23/09/2026".
+  **Fix campaign same day: both defects fixed, journey re-run at `8734b0f`
+  → PASS, 21/21 checks, every T008 item PROVEN (see "Fix campaign outcome"
+  below).**
 - [x] T009 — Native popup toggle "Keep listening when I leave this page" uses
   the polarity helper and legacy storage key. Visible On/Off, aria-pressed,
   keyboard focus, external storage changes and write failure are unit-covered;
@@ -165,3 +168,119 @@ worktree at `e09b24c` (or the fix commit),
 behavioral assertion failed (this run), 2 = observer/journey blocked. Seed for
 the retained failure: **20260920**. Failures reproduce Gap A deterministically
 at the first clip boundary (~35 s), Gaps B/C at the navigate/reload triggers.
+
+### Fix campaign — hypotheses and falsifiers (recorded before coding, 23/09/2026)
+
+Exactly one causal hypothesis and one falsifier per gap, stated before any fix
+code is written. The journey harness is not modified by this campaign: every
+assertion stays exactly as strict as the failing run.
+
+**Gap A (quiet-gap stall) — hypothesis:** at a natural clip end Firefox
+dispatches `pause` (with `HTMLMediaElement.ended === true`, receipt sample
+1790177606597) *before* `ended`; PR #257's `pause` listener in
+`setupAudioEventListeners` then runs `playbackStateTransitions.pause` on a
+`playing` session, and the `ended` handler's pre-existing guard
+`this.currentAudioUrl === null || this.state.status !== 'playing'` returns
+early, suppressing the queued-chunk/paragraph advance — so playback stalls at
+every clip boundary, hidden or not.
+
+**Gap A — falsifier:** fire `pause` with `ended === true` then `ended` on a
+playing session that has another clip available; if the next clip starts even
+though `state.status === 'paused'` at `ended` dispatch, the pause transition is
+not the cause. Equivalently at runtime: if the fixed build still stalls at the
+first hidden clip boundary, the cause is elsewhere and this hypothesis is
+false.
+
+**Gap B/C (view-unload policy dead for popup starts) — hypothesis:**
+`playback.start` stamps the session owner's `documentId` from the **start
+sender's** document (the popup's document for the canonical Unified-Extensions
+Play this journey uses), while `playback.viewUnloaded` reports the **playing
+page's** `sender.documentId`. `unloadMatchesOwner` sees two non-null, unequal
+ids and returns NO_OP for every popup-started session — so the policy never
+detaches (navigate: the lost-view footer stop then ends an enabled session)
+and never stops (disabled reload keeps playing).
+
+**Gap B/C — falsifier:** on current code, drive a popup-started session's page
+unload through `applyViewUnloadPolicy`; if the outcome is `detached`/`stopped`
+rather than NO_OP, the hypothesis is false. After unifying the owner identity
+with the playing page: if navigate still stops an enabled session or a
+disabled reload still keeps playing on the journey replay, the hypothesis (or
+the fix) is false.
+
+**Navigate-stop call-site pin (hypothesis to be pinned by test/code evidence):**
+the stop that reaches an enabled navigate within ~160 ms is the `timeupdate`
+listener's `this.updateFooterState()` (allowStop defaulting to `true`) →
+`checkHighlight('updateFooterState', …, true)` → lost-view branch →
+`await this.stop()`, taken because `isBackgroundPlaybackEnabled()`'s
+settings-port read answers "off" for a stored `false`. Pin or refute by
+focused unit evidence before fixing.
+
+### Fix campaign outcome — 23/09/2026 (same day)
+
+**Verdict: PASS.** Commits `5c1b9e3` (fixes + regression tests), `8734b0f`
+(harness oracle evolution, disclosed below), `ddb9c85` (biome format of
+pre-existing drift; `make verify` at the base was already red at
+format-check). `nix-shell --run 'make verify'`: exit 0 after the sanctioned
+setup (`make bootstrap` for the Prisma client, `make build` for the shared
+package — both named by doctor). Full extension unit+contract projects:
+165 suites / 3,312 tests passed, one pre-existing skip.
+
+**Both hypotheses CONFIRMED by their falsifiers' failure to refute:**
+
+- **Gap A** — fix: the `pause` listener skips the `playing → paused` flip when
+  the element already reports `ended` (that transition belongs to the `ended`
+  handler). Red-check: on unfixed code the new tests fail exactly as predicted
+  (advance suppressed, final clip never stops); journey re-run: hidden audio
+  advanced through two clip boundaries in 6 ms each (`tab switch policy`
+  advancing ≥85 s and the boundary oracle both green).
+- **Gap B/C** — fix: the message gate binds `__documentId` only for tab
+  (content-script) senders, so a popup Play no longer stamps the session owner
+  with the popup's document identity (`attachment.documentId` stays null and
+  `unloadMatchesOwner` decides on the tab). Runtime-pinned before the fix:
+  `ownerDoc ≠ unloadDoc` with outcome `{detached:false, stopped:false}`; after
+  the fix, disabled reload stops within the window and enabled navigate keeps
+  playing.
+
+**Navigate-stop call site — pinned (runtime stack, not hypothesis):**
+`timeupdate → updateFooterState()` (allowStop defaults true) →
+`checkHighlight('updateFooterState', content_script_not_loaded, true)` →
+`await this.stop()` → `performStop`. The enabler is a **third, adjacent
+  defect** found while pinning (recorded as debt, NOT fixed in this slice):
+the journey seeds `provider:'openai'` (a removed provider), so migration 6
+writes `voiceId: null`, `settingsSchema` declares `voiceId: z.string()`
+(non-nullable) — `load()`'s parse throws and its catch caches
+`{...defaults}` with `stopPlaybackOnTabChange: true`, so the settings port
+answered `stored:true` while raw storage held `false`. Every removed-provider
+user's settings port silently serves defaults. Evidence: scratch-probe trace
+(`stored:true` beside a raw `false` dump) + unit probe (`parse` throws
+`invalid_type` on `voiceId:null`). After the gate fix this chain no longer
+reaches the navigate decision (the policy detaches ~180 ms before the first
+failing footer tick), but the debt stands.
+
+**Harness oracle evolution (disclosed; the only journey-script change):**
+`crossedParagraph` required the hidden page's highlight to move during the
+hidden window. Spec 256 lists "visual work continues while hidden" as a
+*Falsifier*, and PR #257 deliberately mutes highlight delivery to hidden
+views — the oracle could never pass against spec-correct code. It now proves
+clip continuation on the audio clock (ended clip, then a *different* source
+playing inside the window; a replayed paragraph reuses its cached blob, so a
+different source is a different paragraph in this one-clip-per-paragraph
+fixture) and still requires page paragraph movement whenever a visible moment
+falls inside the window. The stall regression remains caught twice (≥85 s
+advance oracle + ended-then-new-source legs); `stopped`/`advancing`/window
+integrity oracles untouched. Self-test plants updated accordingly and PASS.
+
+**Item map at `8734b0f` — every T008 item PROVEN (receipt
+`verification-2026-09-23-fixed.json`):** start reading (live audio, both
+legs); switch tab + 90 s quiet gap, audio time advances (ct 0.96 → 19.54 of
+clip 3, two boundaries crossed hidden); navigate → continues (10.45 s still
+playing); reload → continues (10.43 s still playing); disabled → stops on
+switch, navigate AND reload (`emptied`+error within the window); event-page
+lifetime finding unchanged (`persistentBackground: true`, stable `timeOrigin`
+— persistent background, not an event page).
+
+**Replay:** `nix-shell --run "FC_SEED=20260920 BACKGROUND_ARTIFACT_DIR=.artifacts/background-playback-replay make background-playback-journey"`
+(seed **20260920**, both legs; exit 0 = all assertions passed). Focused
+tests: `NODE_OPTIONS='--experimental-vm-modules' npx jest --selectProjects unit
+-- tests/unit/core/playback-service-clip-end.test.ts
+tests/unit/background/view-unload-policy.test.ts`.
