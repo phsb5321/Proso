@@ -15,3 +15,16 @@ export {
 } from './source-position';
 export type { SourceRecovery } from './source-position';
 export { sourceIdentity, validateSourceBinding } from './source-binding';
+export {
+  READING_SOURCE_LIVE_TRAFFIC_ENABLED,
+  authorizeSourceRequest,
+  connectionStorageKey,
+  parseConnectionConfig,
+  toPublicSummary,
+  validateStoredCredential,
+} from './connection-credentials';
+export type {
+  ConnectionConfigOrigin,
+  ConnectionPublicSummary,
+  RequestAuthorization,
+} from './connection-credentials';
