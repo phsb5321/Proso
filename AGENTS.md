@@ -234,6 +234,12 @@ Conventions:
   IMPACT REPORT and a semantic version bump; see its own Governance section.
 
 ## Git Workflow
+
+- **Never open a PR by pushing `HEAD:refs/heads/<name>` from the main worktree.**
+  That creates the remote branch but no local one, so the next `git commit` lands on
+  **main** — it happened on 21/09/2026, and the branch had to be rebuilt from the two
+  commits. Create the worktree first (`git worktree add ../<repo>-NNN-slug -b NNN-slug
+  origin/main`), or pin a local branch before pushing (`git branch <name> <sha>`).
 - **Branch naming**: `NNN-feature-name` (e.g., `017-git-workflow-automation`), `hotfix/NNN-desc`, `release/X.Y.Z`
 - **Protected branches**: `main`, `develop` — never push directly
 - **Conventional Commits**: `type(scope): description` — imperative mood, first line ≤72 chars
