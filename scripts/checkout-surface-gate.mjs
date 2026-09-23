@@ -165,8 +165,8 @@ const PLANTS = {
   },
   'github-install': {
     file: 'index.html',
-    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
-    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary">Check the Firefox Add-ons listing</a>',
+    from: '<a href="https://addons.mozilla.org/firefox/addon/proso/" class="btn btn--primary">Add to Firefox</a>',
+    to: '<a href="https://github.com/phsb5321/Proso/releases" class="btn btn--primary">Add to Firefox</a>',
     breaks: 'the status callout links only the public Mozilla Add-ons listing',
   },
   'amo-status-mismatch': {
@@ -274,8 +274,8 @@ const PLANTS = {
   },
   'stale-legal': {
     file: 'packages/legal/terms.html',
-    from: '500,000 characters',
-    to: '300,000 characters',
+    from: '500,000 credits',
+    to: '300,000 credits',
     breaks: 'the authoritative legal terms match the shared tier truth',
   },
   'builtin-voices': {
