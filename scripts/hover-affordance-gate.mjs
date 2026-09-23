@@ -160,6 +160,21 @@ async function main() {
     });
     check('public popup Play engages and decorates the live page', true, `${fixture.requests.length} real fixture synthesis requests`);
     await hoverProof(driver, 'playing-dark');
+    await move(driver, true);
+    const cue = (await driver.execute(snapshot)).cue;
+    if (cue) {
+      await driver.session('POST', '/actions', { actions: [{ type:'pointer', id:'hover', parameters:{pointerType:'mouse'},
+        actions:[{type:'pointerMove',origin:'viewport',x:Math.round(cue.x),y:Math.round(cue.y),duration:100},
+          {type:'pointerDown',button:0},{type:'pointerUp',button:0}] }] });
+      const sought = await waitFor('hover control seeks the chosen paragraph', async () =>
+        (await driver.execute(snapshot)).highlighted?.includes('A reliable reader must also let people pause'),
+      ).catch(() => false);
+      check('the visible hover control seeks the selected paragraph', sought);
+      // Release keyboard focus so the next hover-only measurement starts neutral.
+      await driver.execute('document.activeElement?.blur();');
+    } else {
+      check('the visible hover control seeks the selected paragraph', false, 'no reachable control');
+    }
     await hostTheme(driver, false);
     await hoverProof(driver, 'playing-light');
     await control('Stop playback');

@@ -127,6 +127,16 @@ function paragraphClickMessages(): unknown[][] {
   );
 }
 
+async function hoverSecondParagraph(): Promise<HTMLButtonElement> {
+  startContentWithMessageListener();
+  await Promise.resolve();
+  jest.advanceTimersByTime(1300);
+  document.getElementById('p2')?.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+  const control = document.querySelector<HTMLButtonElement>('.proso-hover-play-icon');
+  expect(control).not.toBeNull();
+  return control!;
+}
+
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
     for (const [type, listener, options] of documentListeners.mock.calls) {
@@ -138,6 +148,8 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     storageGetMock.mockResolvedValue({ hoverPlayOrigins: [window.location.origin] });
     for (const observer of observers) observer.disconnect();
     observers.clear();
+    // The shared control is attached outside body to escape host clipping.
+    document.querySelectorAll('.proso-hover-play-icon').forEach((node) => node.remove());
     jest.clearAllTimers();
     // main() is idempotence-guarded per page; reset the guard so each test
     // drives a fresh main(); document listeners were detached above.
@@ -242,13 +254,8 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
   });
 
   it('offers one play control for an engaged paragraph and removes it on eviction', async () => {
-    startContentWithMessageListener();
-    await Promise.resolve();
-    jest.advanceTimersByTime(1300);
+    const control = await hoverSecondParagraph();
     const paragraph = document.getElementById('p2') as HTMLElement;
-    paragraph.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
-    const control = document.querySelector<HTMLButtonElement>('.proso-hover-play-icon');
-    expect(control).not.toBeNull();
     expect(control?.hidden).toBe(false);
     expect(control?.getAttribute('aria-label')).toBe('Play from paragraph');
     expect(paragraph.contains(control)).toBe(false);
@@ -259,6 +266,25 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     expect(control?.hidden).toBe(true);
     control?.click();
     expect(paragraphClickMessages()).toHaveLength(1);
+  });
+
+  it('keeps the control reachable across its gutter and dismisses it on Escape or scroll', async () => {
+    const control = await hoverSecondParagraph();
+    const paragraph = document.getElementById('p2') as HTMLElement;
+    paragraph.dispatchEvent(new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }));
+    document.body.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    jest.advanceTimersByTime(100);
+    expect(control.hidden).toBe(false);
+    control.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    jest.advanceTimersByTime(200);
+    expect(control.hidden).toBe(false);
+    control.focus();
+    control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(control.hidden).toBe(true);
+    paragraph.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    document.dispatchEvent(new Event('scroll'));
+    expect(control.hidden).toBe(true);
+    expect(paragraph.classList.contains('proso-hover-active')).toBe(false);
   });
 
   it('shows no play control on first-visit hover or a native link', async () => {

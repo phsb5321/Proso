@@ -110,3 +110,21 @@ Missing/malformed storage and absent/opaque origins fail closed.
 Regression checks cover first-visit idle/mutation/click behavior, a live engagement
 update with the footer visible, late initial reads, storage failures, exact-origin
 matching, successful/failed starts through both handlers, and the 50-origin cap.
+
+## Amendment — 23/09/2026: engaged-session visibility
+
+On an engaged origin, hovering a readable paragraph during or after a session
+must expose both a visible band and a reachable play control, including on dark
+pages with clipped containers. First-visit origins remain untouched. Page theme
+and browser theme may differ. Cache completion reconciles engagement regardless
+of whether extraction or the storage event arrived first.
+
+This supersedes the original no-ambient-icon restriction: one document-level
+hover control is permitted, without inserting controls into every paragraph,
+changing paragraph positioning, reflowing text, or changing playback indexes.
+An existing reachable selection control takes precedence. Links, text selections
+and revoked engagement never activate the hover control. Its pointer transition,
+keyboard activation/focus and dismissal must remain usable.
+
+Plan, hypothesis falsifiers, tasks and red/green receipts:
+[visibility regression](visibility-2026-09-23.md).
