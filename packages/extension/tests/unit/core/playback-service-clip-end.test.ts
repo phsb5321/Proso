@@ -13,7 +13,10 @@
 import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { PlaybackService } from '../../../src/core/playback/playback-service';
-import { captureAudioElementListeners, type AudioListenerCapture } from '../../helpers/audio-listener-capture';
+import {
+  captureAudioElementListeners,
+  type AudioListenerCapture,
+} from '../../helpers/audio-listener-capture';
 import {
   type MockAudioUrlProvider,
   type MockCacheStore,

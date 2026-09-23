@@ -885,7 +885,13 @@ export function registerPlaybackHandlers(registry: HandlerRegistry): void {
           const startResult =
             clickedDocumentId === undefined
               ? await service.start(paragraphs, tab.id, tab.url ?? '', tab.title)
-              : await service.start(paragraphs, tab.id, tab.url ?? '', tab.title, clickedDocumentId);
+              : await service.start(
+                  paragraphs,
+                  tab.id,
+                  tab.url ?? '',
+                  tab.title,
+                  clickedDocumentId,
+                );
           if (!startResult.ok) {
             return Ok({
               success: false,
