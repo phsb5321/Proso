@@ -49,10 +49,7 @@ Object.defineProperty(window, 'requestIdleCallback', {
 const storageGetMock = browser.storage.local.get as unknown as jest.Mock<
   (key: unknown) => Promise<Record<string, unknown>>
 >;
-type StorageListener = (
-  changes: Record<string, { newValue?: unknown }>,
-  area: string,
-) => void;
+type StorageListener = (changes: Record<string, { newValue?: unknown }>, area: string) => void;
 const storageListenerMock = browser.storage.onChanged.addListener as unknown as jest.Mock<
   (listener: StorageListener) => void
 >;
@@ -127,6 +124,16 @@ function paragraphClickMessages(): unknown[][] {
   );
 }
 
+async function hoverSecondParagraph(): Promise<HTMLButtonElement> {
+  startContentWithMessageListener();
+  await Promise.resolve();
+  jest.advanceTimersByTime(1300);
+  document.getElementById('p2')?.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+  const control = document.querySelector<HTMLButtonElement>('.proso-hover-play-icon');
+  expect(control).not.toBeNull();
+  return control!;
+}
+
 describe('content main() — ambient hover-play (Feature 229)', () => {
   beforeEach(() => {
     for (const [type, listener, options] of documentListeners.mock.calls) {
@@ -138,6 +145,8 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     storageGetMock.mockResolvedValue({ hoverPlayOrigins: [window.location.origin] });
     for (const observer of observers) observer.disconnect();
     observers.clear();
+    // The shared control is attached outside body to escape host clipping.
+    document.querySelectorAll('.proso-hover-play-icon').forEach((node) => node.remove());
     jest.clearAllTimers();
     // main() is idempotence-guarded per page; reset the guard so each test
     // drives a fresh main(); document listeners were detached above.
@@ -199,9 +208,108 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     }
   });
 
+  it.each(['extractText', 'getParagraphs', 'getArticleText'])(
+    'marks a late article cache from %s after engagement arrived with the footer visible',
+    async (action) => {
+      storageGetMock.mockResolvedValue({});
+      const listener = startContentWithMessageListener();
+      await Promise.resolve();
+      await listener({ action: 'FOOTER_SHOW' });
+      try {
+        changeOrigins([window.location.origin]);
+        jest.advanceTimersByTime(1300);
+        expect(getExtractedParagraphs()).toHaveLength(0);
+        await listener({ action, mode: 'article' });
+        jest.advanceTimersByTime(1300);
+        expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(3);
+        expect(getExtractedParagraphs()).toEqual(
+          ['p1', 'p2', 'p3'].map((id) => document.getElementById(id)),
+        );
+        changeOrigins([]);
+        expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+      } finally {
+        await listener({ action: 'FOOTER_HIDE' });
+      }
+    },
+  );
+
+  it('leaves explicit extraction on an unengaged origin without ambient paint', async () => {
+    storageGetMock.mockResolvedValue({});
+    const listener = startContentWithMessageListener();
+    await Promise.resolve();
+    await listener({ action: 'extractText', mode: 'article' });
+    jest.advanceTimersByTime(1300);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(0);
+  });
+
+  it('keeps ambient marking when playback removes the explicit selection controls', async () => {
+    const listener = startContentWithMessageListener();
+    await Promise.resolve();
+    await listener({ action: 'getParagraphs' });
+    jest.advanceTimersByTime(1300);
+    await listener({ action: 'disableSelectionMode' });
+    expect(document.querySelectorAll('.proso-selectable, .proso-play-icon')).toHaveLength(0);
+    expect(document.querySelectorAll('.proso-hoverable')).toHaveLength(3);
+  });
+
+  it('offers one play control for an engaged paragraph and removes it on eviction', async () => {
+    const control = await hoverSecondParagraph();
+    const paragraph = document.getElementById('p2') as HTMLElement;
+    expect(control?.hidden).toBe(false);
+    expect(control?.getAttribute('aria-label')).toBe('Play from paragraph');
+    expect(paragraph.contains(control)).toBe(false);
+    control?.click();
+    expect(paragraphClickMessages()).toHaveLength(1);
+    expect(paragraphClickMessages()[0][0]).toMatchObject({ paragraphIndex: 1 });
+    changeOrigins([]);
+    expect(control?.hidden).toBe(true);
+    control?.click();
+    expect(paragraphClickMessages()).toHaveLength(1);
+  });
+
+  it('keeps the control reachable across its gutter and dismisses it on Escape or scroll', async () => {
+    const control = await hoverSecondParagraph();
+    const paragraph = document.getElementById('p2') as HTMLElement;
+    paragraph.dispatchEvent(
+      new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }),
+    );
+    document.body.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    jest.advanceTimersByTime(100);
+    expect(control.hidden).toBe(false);
+    control.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    jest.advanceTimersByTime(200);
+    expect(control.hidden).toBe(false);
+    control.focus();
+    control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(control.hidden).toBe(true);
+    paragraph.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    document.dispatchEvent(new Event('scroll'));
+    expect(control.hidden).toBe(true);
+    expect(paragraph.classList.contains('proso-hover-active')).toBe(false);
+  });
+
+  it('shows no play control on first-visit hover or a native link', async () => {
+    storageGetMock.mockResolvedValue({});
+    startContentWithMessageListener();
+    await Promise.resolve();
+    jest.advanceTimersByTime(1300);
+    document.getElementById('p2')?.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    expect(document.querySelector('.proso-hover-play-icon')).toBeNull();
+    changeOrigins([window.location.origin]);
+    jest.advanceTimersByTime(1300);
+    document
+      .getElementById('link')
+      ?.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    expect(document.querySelector('.proso-hover-play-icon')).toBeNull();
+  });
+
   it('keeps a newer engagement event when the initial storage read resolves late', async () => {
     let resolveStorage: (value: Record<string, unknown>) => void = () => {};
-    storageGetMock.mockReturnValue(new Promise((resolve) => { resolveStorage = resolve; }));
+    storageGetMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStorage = resolve;
+      }),
+    );
     startContentWithMessageListener();
     changeOrigins([window.location.origin]);
     resolveStorage({});
@@ -222,7 +330,9 @@ describe('content main() — ambient hover-play (Feature 229)', () => {
     startContentWithMessageListener();
     await Promise.resolve();
     jest.advanceTimersByTime(1300);
-    document.querySelector('article')?.insertAdjacentHTML('beforeend', `<p id="routed">Routed paragraph. ${LOREM}</p>`);
+    document
+      .querySelector('article')
+      ?.insertAdjacentHTML('beforeend', `<p id="routed">Routed paragraph. ${LOREM}</p>`);
     await Promise.resolve();
     jest.advanceTimersByTime(3000);
     expect(document.getElementById('routed')?.classList.contains('proso-hoverable')).toBe(true);

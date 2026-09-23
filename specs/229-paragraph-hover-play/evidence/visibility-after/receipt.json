@@ -1,0 +1,447 @@
+{
+  "checks": [
+    {
+      "label": "first-visit idle and mutation remain unmarked with no hover cue",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "first-visit paragraph click starts no synthesis",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "public popup Play engages and decorates the live page",
+      "ok": true,
+      "detail": "1 real fixture synthesis requests"
+    },
+    {
+      "label": "playing-dark: hover reaches the live paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "playing-dark: visible band and hit-testable play cue despite clipping",
+      "ok": true,
+      "detail": "{\"cue\":{\"label\":\"Play from paragraph\",\"visible\":true,\"x\":680,\"y\":311.66668701171875},\"background\":\"rgba(20, 184, 166, 0.22)\",\"shadow\":\"rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset\"}"
+    },
+    {
+      "label": "playing-dark: no layout or positioning change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "playing-dark: paint and cue are hover-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "the visible hover control seeks the selected paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "playing-light: hover reaches the live paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "playing-light: visible band and hit-testable play cue despite clipping",
+      "ok": true,
+      "detail": "{\"cue\":{\"label\":\"Play from paragraph\",\"visible\":true,\"x\":680,\"y\":311.66668701171875},\"background\":\"rgba(20, 184, 166, 0.21)\",\"shadow\":\"rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset\"}"
+    },
+    {
+      "label": "playing-light: no layout or positioning change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "playing-light: paint and cue are hover-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "stopped-dark: hover reaches the live paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "stopped-dark: visible band and hit-testable play cue despite clipping",
+      "ok": true,
+      "detail": "{\"cue\":{\"label\":\"Play from paragraph\",\"visible\":true,\"x\":680,\"y\":311.66668701171875},\"background\":\"rgba(20, 184, 166, 0.22)\",\"shadow\":\"rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset\"}"
+    },
+    {
+      "label": "stopped-dark: no layout or positioning change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "stopped-dark: paint and cue are hover-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "return-dark: hover reaches the live paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "return-dark: visible band and hit-testable play cue despite clipping",
+      "ok": true,
+      "detail": "{\"cue\":{\"label\":\"Play from paragraph\",\"visible\":true,\"x\":680,\"y\":311.66668701171875},\"background\":\"rgba(20, 184, 166, 0.22)\",\"shadow\":\"rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset\"}"
+    },
+    {
+      "label": "return-dark: no layout or positioning change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "return-dark: paint and cue are hover-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "route swap preserves the document and re-marks live nodes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "routed-dark: hover reaches the live paragraph",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "routed-dark: visible band and hit-testable play cue despite clipping",
+      "ok": true,
+      "detail": "{\"cue\":{\"label\":\"Play from paragraph\",\"visible\":true,\"x\":680,\"y\":229.6000061035156},\"background\":\"rgba(20, 184, 166, 0.22)\",\"shadow\":\"rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset\"}"
+    },
+    {
+      "label": "routed-dark: no layout or positioning change",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "routed-dark: paint and cue are hover-only",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "idle article has no repeated DOM writes",
+      "ok": true,
+      "detail": "0 writes over 3s"
+    },
+    {
+      "label": "page remains responsive with stable routed marker count",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "popup success stores only the page origin, not the extension origin",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "engagement never leaks to a different first-visit origin",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "samples": [
+    {
+      "phase": "playing-dark",
+      "before": {
+        "background": "rgba(0, 0, 0, 0)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": null,
+        "cursor": "pointer",
+        "footer": true,
+        "highlighted": "Sentence timing starts with these spoken words. Boundary alignment now moves into the second sentence ├ without jumping backward └.",
+        "hover": false,
+        "icons": 11,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "none"
+      },
+      "after": {
+        "background": "rgba(20, 184, 166, 0.22)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": {
+          "label": "Play from paragraph",
+          "visible": true,
+          "x": 680,
+          "y": 311.66668701171875
+        },
+        "cursor": "pointer",
+        "footer": true,
+        "highlighted": "Sentence timing starts with these spoken words. Boundary alignment now moves into the second sentence ├ without jumping backward └.",
+        "hover": true,
+        "icons": 11,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset"
+      }
+    },
+    {
+      "phase": "playing-light",
+      "before": {
+        "background": "rgba(0, 0, 0, 0)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 655,
+          "x": 5,
+          "y": 295.66668701171875
+        },
+        "cue": null,
+        "cursor": "pointer",
+        "footer": true,
+        "highlighted": "A reliable reader must also let people pause, resume, change speed, and move between paragraphs without ever losing their place.",
+        "hover": false,
+        "icons": 11,
+        "image": "linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(20, 184, 166, 0.15) 100%)",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "rgba(13, 148, 136, 0.1) 0px 2px 8px 0px"
+      },
+      "after": {
+        "background": "rgba(20, 184, 166, 0.21)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 655,
+          "x": 5,
+          "y": 295.66668701171875
+        },
+        "cue": {
+          "label": "Play from paragraph",
+          "visible": true,
+          "x": 680,
+          "y": 311.66668701171875
+        },
+        "cursor": "pointer",
+        "footer": true,
+        "highlighted": "A reliable reader must also let people pause, resume, change speed, and move between paragraphs without ever losing their place.",
+        "hover": true,
+        "icons": 11,
+        "image": "linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(20, 184, 166, 0.15) 100%)",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset"
+      }
+    },
+    {
+      "phase": "stopped-dark",
+      "before": {
+        "background": "rgba(0, 0, 0, 0)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": null,
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": false,
+        "icons": 11,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "none"
+      },
+      "after": {
+        "background": "rgba(20, 184, 166, 0.22)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": {
+          "label": "Play from paragraph",
+          "visible": true,
+          "x": 680,
+          "y": 311.66668701171875
+        },
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": true,
+        "icons": 11,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 11,
+        "position": "relative",
+        "selectable": 11,
+        "shadow": "rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset"
+      }
+    },
+    {
+      "phase": "return-dark",
+      "before": {
+        "background": "rgba(0, 0, 0, 0)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": null,
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": false,
+        "icons": 0,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 10,
+        "position": "static",
+        "selectable": 0,
+        "shadow": "none"
+      },
+      "after": {
+        "background": "rgba(20, 184, 166, 0.22)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 295.66668701171875
+        },
+        "cue": {
+          "label": "Play from paragraph",
+          "visible": true,
+          "x": 680,
+          "y": 311.66668701171875
+        },
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": true,
+        "icons": 0,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 10,
+        "position": "static",
+        "selectable": 0,
+        "shadow": "rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset"
+      }
+    },
+    {
+      "phase": "routed-dark",
+      "before": {
+        "background": "rgba(0, 0, 0, 0)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 213.6000061035156
+        },
+        "cue": null,
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": false,
+        "icons": 0,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 6,
+        "position": "static",
+        "selectable": 0,
+        "shadow": "none"
+      },
+      "after": {
+        "background": "rgba(20, 184, 166, 0.22)",
+        "box": {
+          "height": 51.19999694824219,
+          "width": 580,
+          "x": 80,
+          "y": 213.6000061035156
+        },
+        "cue": {
+          "label": "Play from paragraph",
+          "visible": true,
+          "x": 680,
+          "y": 229.6000061035156
+        },
+        "cursor": "pointer",
+        "footer": false,
+        "highlighted": null,
+        "hover": true,
+        "icons": 0,
+        "image": "none",
+        "imagePosition": "0% 0%",
+        "imageSize": "auto",
+        "marked": 6,
+        "position": "static",
+        "selectable": 0,
+        "shadow": "rgb(20, 184, 166) 3px 0px 0px 0px inset, rgb(255, 255, 255) 4px 0px 0px 0px inset"
+      }
+    }
+  ],
+  "verdict": "PASS",
+  "limitations": [
+    "Synthetic forum-like fixture, not the authenticated user page or daily profile.",
+    "In-process extension popup is the existing public-control harness relaxation.",
+    "The hover cue oracle accepts either an existing visible selection button or the shared hover control."
+  ],
+  "binary": "/etc/profiles/per-user/notroot/bin/firefox-nightly",
+  "version": "1.2.13",
+  "contentSha256": "3aec4b3fcaf7150131341c525daa3b621ca701e51d99e865d8b86f9f0e2b9fc4",
+  "firstVisit": {
+    "background": "rgba(0, 0, 0, 0)",
+    "box": {
+      "height": 51.19999694824219,
+      "width": 580,
+      "x": 80,
+      "y": 295.66668701171875
+    },
+    "cue": null,
+    "cursor": "auto",
+    "footer": false,
+    "highlighted": null,
+    "hover": true,
+    "icons": 0,
+    "image": "none",
+    "imagePosition": "0% 0%",
+    "imageSize": "auto",
+    "marked": 0,
+    "position": "static",
+    "selectable": 0,
+    "shadow": "none"
+  },
+  "origins": {
+    "hoverPlayOrigins": [
+      "http://127.0.0.1:46631"
+    ]
+  }
+}

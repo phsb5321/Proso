@@ -34,6 +34,7 @@ import {
   markHoverAffordance,
   shouldIgnoreParagraphClick,
 } from '../utils/content/hover-play';
+import { installHoverPlayControl } from '../utils/content/hover-play-control';
 import { ParagraphIndicator, type ParagraphStatus } from '../utils/content/paragraph-indicator';
 import { ParagraphSelector } from '../utils/content/paragraph-selector';
 import {
@@ -324,17 +325,42 @@ function injectContentStyles(): void {
       cursor: pointer;
     }
 
-    .${HOVERABLE_CLASS}:hover {
-      background-color: rgba(13, 148, 136, 0.08) !important;
-      box-shadow: inset 3px 0 0 rgba(13, 148, 136, 0.55) !important;
+    .${HOVERABLE_CLASS}:hover,
+    .${HOVERABLE_CLASS}.proso-hover-active {
+      /* Host theme need not match Firefox's preferred color scheme. */
+      background-color: rgba(20, 184, 166, 0.22) !important;
+      box-shadow: inset 3px 0 0 #14b8a6, inset 4px 0 0 #fff !important;
       border-radius: 4px;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${HOVERABLE_CLASS}:hover {
-        background-color: rgba(20, 184, 166, 0.12) !important;
-        box-shadow: inset 3px 0 0 rgba(20, 184, 166, 0.65) !important;
-      }
+    /* One fixed control outside host clipping/positioning, not one per node. */
+    .proso-hover-play-icon {
+      all: initial !important;
+      position: fixed !important;
+      display: block !important;
+      box-sizing: border-box !important;
+      width: 32px !important;
+      height: 32px !important;
+      border: 2px solid #fff !important;
+      border-radius: 50% !important;
+      background: #0f766e !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+      cursor: pointer !important;
+      z-index: 2147483646 !important;
+    }
+    .proso-hover-play-icon::before {
+      content: '' !important;
+      position: absolute !important;
+      left: 11px !important;
+      top: 8px !important;
+      border-left: 9px solid #fff !important;
+      border-top: 6px solid transparent !important;
+      border-bottom: 6px solid transparent !important;
+    }
+    .proso-hover-play-icon[hidden] { display: none !important; }
+    .proso-hover-play-icon:focus-visible {
+      outline: 3px solid #14b8a6 !important;
+      outline-offset: 2px !important;
     }
   `;
 
@@ -541,6 +567,11 @@ export default defineContentScript({
 
     /** T046: Enable popup paragraph selection after a fresh extraction. */
     function enableParagraphSelectionMode(paragraphs: Element[]): void {
+      // Engagement may have arrived while the footer was visible but the
+      // cache was still empty. Reconcile every extraction completion too.
+      if (canOfferHover() && extractor.getLastExtractionMode() === 'article') {
+        markHoverAffordance(paragraphs);
+      }
       if (!paragraphSelector || paragraphs.length === 0) return;
       paragraphSelector.enableSelectionMode(paragraphs, []).catch((error) => {
         log.warn('Proso: Failed to enable selection mode', { error });
@@ -574,8 +605,14 @@ export default defineContentScript({
     let engagedOrigins: unknown = [];
     const canOfferHover = () =>
       shouldOfferHoverAffordance({ origin: window.location.origin, engagedOrigins });
+    const refreshHoverControl = installHoverPlayControl(
+      document,
+      canOfferHover,
+      playFromExtractedParagraph,
+    );
 
     function runAmbientHoverPlayExtraction({ reExtract = false } = {}): void {
+      refreshHoverControl();
       if (!canOfferHover()) return;
       try {
         if (
@@ -657,6 +694,7 @@ export default defineContentScript({
     function setupAmbientHoverPlay(): void {
       function updateOrigins(value: unknown): void {
         engagedOrigins = value;
+        refreshHoverControl();
         if (canOfferHover()) {
           scheduleHoverPlayPass();
         } else {
@@ -681,6 +719,29 @@ export default defineContentScript({
         })
         .catch((error) => log.warn('Proso: Could not load hover-play origins', { error }));
       watchRoutedContent();
+    }
+
+    /** Shared by a paragraph click and the unclipped hover control. */
+    function playFromExtractedParagraph(target: Element): void {
+      // A selection cache has different indexes. Refresh only on an explicit
+      // user action, never in an ambient pass during active reading.
+      if (
+        canOfferHover() &&
+        extractor.getLastExtractionMode() !== 'article' &&
+        isAmbientExtractionCandidate(document)
+      ) {
+        try {
+          extractor.extractText('article');
+          markHoverAffordance(extractor.getExtractedParagraphs());
+        } catch (error) {
+          log.warn('Proso: Could not refresh article cache for paragraph click', { error });
+          return;
+        }
+      }
+      const index = extractor
+        .getExtractedParagraphs()
+        .findIndex((el) => el.contains(target) || el === target);
+      if (index !== -1) jumpToClickedParagraph(index);
     }
 
     /**
@@ -729,39 +790,7 @@ export default defineContentScript({
           return;
         }
 
-        // A selection read shares the extractor module but not article indexes.
-        // Refresh before mapping a hover click so index N still means article N.
-        if (
-          canOfferHover() &&
-          extractor.getLastExtractionMode() !== 'article' &&
-          isAmbientExtractionCandidate(document)
-        ) {
-          try {
-            extractor.extractText('article');
-            markHoverAffordance(extractor.getExtractedParagraphs());
-          } catch (error) {
-            log.warn('Proso: Could not refresh article cache for paragraph click', { error });
-            return;
-          }
-        }
-
-        // Check if clicking on an extracted paragraph
-        const extractedParagraphs = extractor.getExtractedParagraphs();
-        const _highlightElements = highlightManager.getHighlightElements();
-
-        // T046: Allow clicking paragraphs even before playback starts
-        // If content has been extracted, allow starting playback from clicked paragraph
-        if (extractedParagraphs.length > 0) {
-          const clickedParagraph = extractedParagraphs.findIndex(
-            (el) => el.contains(target) || el === target,
-          );
-
-          if (clickedParagraph !== -1) {
-            // During active playback (highlights exist) OR starting fresh playback
-            jumpToClickedParagraph(clickedParagraph);
-          }
-        }
-        // If no content extracted, clicks are ignored
+        playFromExtractedParagraph(target);
       });
     }
 
