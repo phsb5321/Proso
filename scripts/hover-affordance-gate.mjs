@@ -1,224 +1,215 @@
 /**
- * `make hover-affordance-gate` — does a paragraph stay clickable after the
- * page it lives on changes?
- *
- * Feature 229 marks every extracted paragraph with `.proso-hoverable` exactly
- * once, from a single `requestIdleCallback` at content-script start. A reader
- * on a client-routed documentation site (the report this gate came from was on
- * a Docusaurus docs page) navigates without a document load: the article is
- * replaced, the content script is not restarted, and nothing re-marks. This
- * gate drives a real Firefox with the built extension and measures the
- * affordance before and after such a swap.
- *
- * It asserts the hover contract only — the paint-only class and the cursor a
- * reader sees — not playback. Verdicts are three-valued:
- *   PASS (0)    paragraphs are hoverable on load AND after the article is
- *               replaced in place.
- *   FAIL (1)    the browser ran the journey and the affordance was missing.
- *   BLOCKED (2) build, browser, driver, or fixture missing — never a pass.
- *
- * @module scripts/hover-affordance-gate
+ * Loaded-Firefox acceptance for Feature 229, including its engagement amendment.
+ * First visits are inert. Public popup Play engages the origin; real pointer
+ * hover must reveal paint and a play cue, including on dark/clipped host pages.
+ * Settings setup uses an isolated profile and synthetic local audio only.
+ * PASS=0, observed failure=1, missing prerequisite/runtime failure=2.
  */
-
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import { Blocked, JOURNEY_PREFS, blocked, resolveFirefox } from './lib/firefox-popup.mjs';
+import {
+  Blocked, JOURNEY_PREFS, blocked, chromeEval, clickBrowserAction, clickByName,
+  ensurePopupOpen, openExtensionPage, openExtensionsPanel, readPopup, resolveFirefox,
+} from './lib/firefox-popup.mjs';
 import { startFixtureServer } from './lib/reading-fixture-server.mjs';
 import { launch, sleep, waitFor } from './lib/webdriver.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(here, '..');
-const buildDir = path.join(repoRoot, 'packages/extension/.output/firefox-mv2');
-const artifactDir = path.join(repoRoot, '.artifacts/hover-affordance-gate');
-
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const build = path.join(root, 'packages/extension/.output/firefox-mv2');
+const output = path.resolve(root, process.env.HOVER_ARTIFACT_DIR ?? '.artifacts/hover-affordance-gate');
+const id = '{41eb66cb-b520-4047-9b6c-63fdce6fca11}';
+const uuid = '22900000-0000-4000-8000-000000000023';
 const checks = [];
-let failed = 0;
-
-function record(label, detail = '') {
-  checks.push({ label, detail, ok: true });
-  console.log(`  ok   ${label}${detail ? ` — ${detail}` : ''}`);
+const receipt = { checks, samples: [], verdict: 'BLOCKED', limitations: [
+  'Synthetic forum-like fixture, not the authenticated user page or daily profile.',
+  'In-process extension popup is the existing public-control harness relaxation.',
+  'The hover cue oracle accepts either an existing visible selection button or the shared hover control.',
+] };
+mkdirSync(output, { recursive: true });
+const save = () => writeFileSync(path.join(output, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
+function check(label, ok, detail = '') {
+  checks.push({ label, ok: Boolean(ok), detail });
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${label}${detail ? ` — ${detail}` : ''}`);
+  save();
 }
 
-function fail(label, detail = '') {
-  checks.push({ label, detail, ok: false });
-  failed += 1;
-  console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ''}`);
+// A genuine 30s WAV keeps playback active while hover measurements are taken.
+function audio() {
+  const bytes = 16000 * 2 * 30;
+  const wav = Buffer.alloc(44 + bytes);
+  wav.write('RIFF'); wav.writeUInt32LE(36 + bytes, 4); wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(16000, 24); wav.writeUInt32LE(32000, 28);
+  wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+  wav.write('data', 36); wav.writeUInt32LE(bytes, 40);
+  return wav;
 }
 
-/** Count marked paragraphs that are actually in the live document. */
-const COUNT_HOVERABLE = `
-  const marked = Array.from(document.querySelectorAll('.proso-hoverable'));
-  const attached = marked.filter((el) => document.body.contains(el));
-  return {
-    marked: marked.length,
-    attached: attached.length,
-    cursor: attached.length > 0 ? getComputedStyle(attached[0]).cursor : null,
-    articleParagraphs: document.querySelectorAll('article p').length,
-  };
+const snapshot = `
+  const p = document.querySelector('article p:nth-of-type(2)');
+  const r = p.getBoundingClientRect();
+  const s = getComputedStyle(p);
+  const icons = [...p.querySelectorAll('.proso-play-icon'), ...document.querySelectorAll('.proso-hover-play-icon')];
+  const cue = icons.map(el => {
+    const b = el.getBoundingClientRect(), c = getComputedStyle(el);
+    const x=b.x+b.width/2, y=b.y+b.height/2, hit=document.elementFromPoint(x,y);
+    return { visible: b.width>0 && b.height>0 && c.visibility!=='hidden' && Number(c.opacity)>0.9 &&
+      x>=0 && y>=0 && x<innerWidth && y<innerHeight && (hit===el || el.contains(hit)),
+      label:el.getAttribute('aria-label'), x, y };
+  }).find(c => c.visible) ?? null;
+  return { marked: document.querySelectorAll('.proso-hoverable').length,
+    selectable: document.querySelectorAll('.proso-selectable').length,
+    icons: document.querySelectorAll('.proso-play-icon').length,
+    hover: p.matches(':hover'), cursor: s.cursor, background: s.backgroundColor,
+    image: s.backgroundImage, imageSize: s.backgroundSize, imagePosition: s.backgroundPosition,
+    shadow: s.boxShadow, position: s.position,
+    cue,
+    box: { x:r.x, y:r.y, width:r.width, height:r.height },
+    footer: !!document.querySelector('#proso-sticky-footer'),
+    highlighted: document.querySelector('.proso-highlight')?.textContent ?? null };
 `;
-
-/**
- * Replace the article body the way a client-side router does: same document,
- * new paragraph nodes, no navigation event the content script boots on.
- */
-const SWAP_ARTICLE = `
-  const article = document.querySelector('article');
-  if (!article) return false;
-  article.replaceChildren();
-  for (let i = 0; i < 6; i += 1) {
-    const p = document.createElement('p');
-    p.textContent =
-      'Routed paragraph ' + i + ' arrived without a document load, which is how a ' +
-      'client-side router replaces an article while the content script keeps running.';
-    article.appendChild(p);
+async function move(driver, over) {
+  if (over) {
+    const p = await driver.session('POST', '/element', { using: 'css selector', value: 'article p:nth-of-type(2)' });
+    await driver.session('POST', '/actions', { actions: [{ type: 'pointer', id: 'hover', parameters: { pointerType: 'mouse' },
+      actions: [{ type: 'pointerMove', duration: 100, origin: p, x: 0, y: 0 }] }] });
+  } else {
+    await driver.session('POST', '/actions', { actions: [{ type: 'pointer', id: 'hover', parameters: { pointerType: 'mouse' },
+      actions: [{ type: 'pointerMove', duration: 100, origin: 'viewport', x: 1, y: 1 }] }] });
   }
-  return true;
-`;
+  await sleep(250);
+}
+async function hostTheme(driver, dark) {
+  await driver.execute(`
+    let style = document.getElementById('forum-theme');
+    if (!style) { style=document.createElement('style'); style.id='forum-theme'; document.head.append(style); }
+    style.textContent = 'body { margin:0; background:' + (arguments[0] ? '#17191c;color:#eee' : '#fff;color:#111') +
+      ';font:16px/1.6 sans-serif } article { width:640px;margin:20px;overflow:hidden;position:relative }' +
+      'article p { overflow:hidden; margin:12px 0 12px 60px; min-height:50px }';
+  `, [dark]);
+}
+async function hoverProof(driver, phase) {
+  await move(driver, false);
+  const before = await driver.execute(snapshot);
+  await move(driver, true);
+  const after = await driver.execute(snapshot);
+  receipt.samples.push({ phase, before, after });
+  check(`${phase}: hover reaches the live paragraph`, after.hover && after.marked > 0 && after.cursor === 'pointer');
+  check(`${phase}: visible band and hit-testable play cue despite clipping`,
+    after.cue !== null && after.background !== before.background && after.shadow !== 'none',
+    JSON.stringify({ cue:after.cue, background:after.background, shadow:after.shadow }));
+  check(`${phase}: no layout or positioning change`, JSON.stringify(before.box) === JSON.stringify(after.box) && before.position === after.position);
+  writeFileSync(path.join(output, `${phase}.png`), Buffer.from(await driver.session('GET', '/screenshot'), 'base64'));
+  await move(driver, false);
+  const off = await driver.execute(snapshot);
+  check(`${phase}: paint and cue are hover-only`, off.cue === null && off.background === before.background);
+  save();
+}
 
 async function main() {
-  if (!existsSync(path.join(buildDir, 'manifest.json'))) {
-    blocked(
-      `Missing Firefox build at ${buildDir}. Run: pnpm --filter @proso/extension build:firefox`,
-    );
-  }
-  record('firefox-mv2 build present', buildDir);
-
+  if (!existsSync(path.join(build, 'manifest.json'))) blocked('Missing Firefox build; run make hover-affordance-gate');
   const binary = resolveFirefox();
-  record('firefox resolved', binary);
-
-  const fixture = await startFixtureServer();
-  record('fixture server started', fixture.origin);
-
-  const driver = await launch({
-    binary,
-    headless: process.env.GATE_HEADED !== '1',
-    extraArgs: ['-remote-allow-system-access'],
-    prefs: JOURNEY_PREFS,
-  });
-
+  receipt.binary = binary;
+  receipt.version = JSON.parse(readFileSync(path.join(build, 'manifest.json'))).version;
+  receipt.contentSha256 = createHash('sha256').update(readFileSync(path.join(build, 'content-scripts/content.js'))).digest('hex');
+  const fixture = await startFixtureServer({ audio: audio(), audioContentType: 'audio/wav' });
+  const driver = await launch({ binary, headless: process.env.GATE_HEADED !== '1',
+    extraArgs: ['-remote-allow-system-access'], prefs: { ...JOURNEY_PREFS,
+      'extensions.webextensions.uuids': JSON.stringify({ [id]: uuid }),
+      'ui.systemUsesDarkTheme': 0, // dark site must work even with a LIGHT browser preference
+    } });
   try {
-    await driver.installAddon(buildDir);
-    record('built extension installed in Firefox');
-
+    await driver.installAddon(build);
+    await openExtensionPage(driver, `moz-extension://${uuid}/settings.html`);
+    await driver.executeAsync(`const [serverUrl, done] = arguments;
+      browser.storage.local.set({serverUrl,provider:'openai',licenseKey:null,cacheType:'memory',speed:1}).then(done);`, [fixture.origin]);
+    await driver.execute('browser.runtime.reload(); return true;').catch(() => {});
+    await sleep(2500);
+    const source = (await driver.session('GET', '/window/handles'))[0];
+    await driver.session('POST', '/window', { handle: source });
     await driver.navigate(`${fixture.origin}/article`);
-    await waitFor('content script injection', async () => {
-      const injected = await driver.execute(
-        "return Boolean(document.getElementById('proso-content-styles'));",
-      );
-      return injected === true;
+    await waitFor('content injection', () => driver.execute("return !!document.getElementById('proso-content-styles');"));
+    await hostTheme(driver, true);
+    await sleep(3500);
+    await driver.execute(`document.querySelector('article').insertAdjacentHTML('beforeend', '<p>A newly arrived forum reply must not enable a first-visit origin merely because it is readable text.</p>');`);
+    await sleep(1800);
+    await move(driver, true);
+    const firstVisit = await driver.execute(snapshot);
+    receipt.firstVisit = firstVisit;
+    check('first-visit idle and mutation remain unmarked with no hover cue', firstVisit.marked === 0 && firstVisit.icons === 0 && firstVisit.image === 'none');
+    await driver.session('POST', '/actions', { actions: [{ type:'pointer', id:'hover', parameters:{pointerType:'mouse'},
+      actions:[{type:'pointerDown',button:0},{type:'pointerUp',button:0}] }] });
+    await sleep(400);
+    check('first-visit paragraph click starts no synthesis', fixture.requests.length === 0 && !(await driver.execute(snapshot)).footer);
+
+    const open = async () => { await openExtensionsPanel(driver); await clickBrowserAction(driver, id); };
+    const control = async (name) => {
+      await ensurePopupOpen(driver, open);
+      await waitFor(`popup ${name}`, async () => (await readPopup(driver)).names?.includes(name));
+      await clickByName(driver, name, open);
+    };
+    const dismiss = () => chromeEval(driver, `const w=Services.wm.getMostRecentWindow('navigator:browser');
+      for (const p of w.document.querySelectorAll('panel')) if(p.state==='open') p.hidePopup(); return true;`);
+    await control('Play');
+    await dismiss();
+    await waitFor('successful popup playback and live marking', async () => {
+      const s = await driver.execute(snapshot);
+      return s.footer && s.highlighted && s.marked > 0 && fixture.requests.length > 0;
     });
-    record('content script injected into the fixture article');
+    check('public popup Play engages and decorates the live page', true, `${fixture.requests.length} real fixture synthesis requests`);
+    await hoverProof(driver, 'playing-dark');
+    await hostTheme(driver, false);
+    await hoverProof(driver, 'playing-light');
+    await control('Stop playback');
+    await dismiss();
+    await hostTheme(driver, true);
+    await hoverProof(driver, 'stopped-dark');
 
-    const onLoad = await waitFor(
-      'the idle hover pass to mark the article',
-      async () => {
-        const seen = await driver.execute(`return (() => {${COUNT_HOVERABLE}})();`);
-        return seen.attached > 0 ? seen : null;
-      },
-      { timeoutMs: 15_000 },
-    ).catch(() => driver.execute(`return (() => {${COUNT_HOVERABLE}})();`));
-
-    if (onLoad.attached > 0) {
-      record('paragraphs are hoverable on load', `${onLoad.attached} marked`);
-    } else {
-      fail(
-        'paragraphs are hoverable on load',
-        `0 of ${onLoad.articleParagraphs} article paragraphs marked`,
-      );
-    }
-
-    if (onLoad.cursor === 'pointer') {
-      record('a marked paragraph reads as clickable', `cursor: ${onLoad.cursor}`);
-    } else {
-      fail('a marked paragraph reads as clickable', `cursor: ${onLoad.cursor ?? 'none marked'}`);
-    }
-
-    const swapped = await driver.execute(`return (() => {${SWAP_ARTICLE}})();`);
-    if (swapped !== true) blocked('The fixture article has no <article> element to replace');
-    record('article replaced in place (client-side route change)');
-
-    const afterSwap = await waitFor(
-      'the affordance to reach the routed paragraphs',
-      async () => {
-        const seen = await driver.execute(`return (() => {${COUNT_HOVERABLE}})();`);
-        return seen.attached > 0 ? seen : null;
-      },
-      { timeoutMs: 10_000 },
-    ).catch(() => driver.execute(`return (() => {${COUNT_HOVERABLE}})();`));
-
-    if (afterSwap.attached > 0) {
-      record('paragraphs are hoverable after a route change', `${afterSwap.attached} marked`);
-    } else {
-      fail(
-        'paragraphs are hoverable after a route change',
-        `0 of ${afterSwap.articleParagraphs} routed paragraphs marked`,
-      );
-    }
-
-    // Stable counts alone miss count-neutral churn. Observe actual writes in
-    // this otherwise idle fixture as well as node counts and responsiveness.
-    await driver.execute(`
-      window.hoverIdleMutations = 0;
-      window.hoverIdleObserver = new MutationObserver(records => {
-        window.hoverIdleMutations += records.length;
-      });
-      window.hoverIdleObserver.observe(document.querySelector('article'), {
-        childList: true, subtree: true, attributes: true, attributeFilter: ['class'],
-      });
-    `);
+    await driver.navigate(`${fixture.origin}/article?return=engaged`);
+    await waitFor('engaged origin marks after reload', async () => (await driver.execute(snapshot)).marked > 0);
+    await hostTheme(driver, true);
+    await hoverProof(driver, 'return-dark');
+    const previousDocument = await driver.execute('return performance.timeOrigin;');
+    await driver.execute(`const a = document.querySelector('article'); a.replaceChildren();
+      for (let i=0;i<6;i++) { const p=document.createElement('p'); p.textContent='Routed paragraph '+i+
+      ' arrived without a document load, while the engaged origin keeps the reading affordance visible on new content.'; a.append(p); }`);
+    await waitFor('routed paragraphs marked', async () => (await driver.execute(snapshot)).marked >= 6);
+    check('route swap preserves the document and re-marks live nodes', await driver.execute('return performance.timeOrigin;') === previousDocument);
+    await hoverProof(driver, 'routed-dark');
+    await driver.execute(`window.hoverWrites=0; window.hoverObserver=new MutationObserver(r=>window.hoverWrites+=r.length);
+      window.hoverObserver.observe(document.querySelector('article'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});`);
     await sleep(3000);
-    const idleMutations = await driver.execute(`
-      window.hoverIdleMutations += window.hoverIdleObserver.takeRecords().length;
-      window.hoverIdleObserver.disconnect();
-      return window.hoverIdleMutations;
-    `);
-    if (idleMutations === 0) {
-      record('the idle article has no repeated DOM writes', '0 mutations over 3s');
-    } else {
-      fail('the idle article has no repeated DOM writes', `${idleMutations} mutations over 3s`);
-    }
-    const startedAt = Date.now();
-    const settled = await driver.execute(`return (() => {${COUNT_HOVERABLE}})();`);
-    const responseMs = Date.now() - startedAt;
+    const writes = await driver.execute('window.hoverWrites+=window.hoverObserver.takeRecords().length; window.hoverObserver.disconnect(); return window.hoverWrites;');
+    check('idle article has no repeated DOM writes', writes === 0, `${writes} writes over 3s`);
+    const started = Date.now();
+    const settled = await driver.execute(snapshot);
+    check('page remains responsive with stable routed marker count', Date.now()-started < 2000 && settled.marked >= 6);
 
-    if (settled.attached === afterSwap.attached) {
-      record('the marked paragraph count stays stable while idle', `${settled.attached} marked`);
-    } else {
-      fail(
-        'the marked paragraph count stays stable while idle',
-        `${afterSwap.attached} → ${settled.attached} marked while the page was idle`,
-      );
-    }
-
-    if (responseMs < 2000) {
-      record('the page main thread is still responsive', `${responseMs}ms`);
-    } else {
-      fail('the page main thread is still responsive', `${responseMs}ms to run a trivial script`);
-    }
-
-    mkdirSync(artifactDir, { recursive: true });
-    writeFileSync(
-      path.join(artifactDir, 'receipt.json'),
-      `${JSON.stringify({ checks, onLoad, afterSwap, settled, idleMutations, responseMs }, null, 2)}\n`,
-    );
+    await openExtensionPage(driver, `moz-extension://${uuid}/settings.html`);
+    const origins = await driver.executeAsync('const done=arguments[0]; browser.storage.local.get("hoverPlayOrigins").then(done);');
+    receipt.origins = origins;
+    check('popup success stores only the page origin, not the extension origin', JSON.stringify(origins.hoverPlayOrigins) === JSON.stringify([fixture.origin]));
+    // A different host is a different origin, even with identical readable HTML.
+    await driver.session('POST', '/window', { handle: source });
+    await driver.navigate(`${fixture.origin.replace('127.0.0.1','localhost')}/article`);
+    await waitFor('fresh origin content injection', () => driver.execute("return !!document.getElementById('proso-content-styles');"));
+    await sleep(3500);
+    await move(driver, true);
+    const other = await driver.execute(snapshot);
+    check('engagement never leaks to a different first-visit origin', other.marked === 0 && other.icons === 0 && other.image === 'none');
+    receipt.verdict = checks.every(c=>c.ok) ? 'PASS' : 'FAIL';
   } finally {
-    await driver.quit().catch(() => {});
+    save();
+    await driver.quit().catch(()=>{});
     await fixture.close();
-    await sleep(200);
   }
-
-  const verdict = failed === 0 ? 'PASS' : 'FAIL';
-  console.log(`hover-affordance-gate ${verdict} — ${checks.length} check(s), ${failed} failed`);
-  process.exit(failed === 0 ? 0 : 1);
+  console.log(`hover-affordance-gate ${receipt.verdict} — ${checks.length} check(s), ${checks.filter(c=>!c.ok).length} failed`);
+  process.exitCode = receipt.verdict === 'PASS' ? 0 : 1;
 }
-
-main().catch((error) => {
-  if (error instanceof Blocked) {
-    console.error(`hover-affordance-gate BLOCKED — ${error.message}`);
-    process.exit(2);
-  }
-  console.error(`hover-affordance-gate BLOCKED — ${error?.stack ?? error}`);
-  process.exit(2);
+main().catch(error => {
+  receipt.verdict='BLOCKED'; receipt.error=error.message; save();
+  console.error(`hover-affordance-gate BLOCKED — ${error instanceof Blocked ? error.message : error.stack}`);
+  process.exitCode=2;
 });

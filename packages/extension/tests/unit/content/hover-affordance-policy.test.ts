@@ -19,6 +19,15 @@ describe('shouldOfferHoverAffordance', () => {
     }
   });
 
+  it('does not treat an extension popup as a page origin or transfer engagement to another origin', () => {
+    const engagedOrigins = recordEngagedOrigin([], ORIGIN);
+    expect(shouldOfferHoverAffordance({ origin: ORIGIN, engagedOrigins })).toBe(true);
+    expect(shouldOfferHoverAffordance({ origin: 'https://first-visit.example', engagedOrigins })).toBe(false);
+    const popupOrigin = 'moz-extension://22900000-0000-4000-8000-000000000023';
+    expect(recordEngagedOrigin(engagedOrigins, popupOrigin)).toEqual(engagedOrigins);
+    expect(shouldOfferHoverAffordance({ origin: popupOrigin, engagedOrigins: [popupOrigin] })).toBe(false);
+  });
+
   it.each([undefined, null, '', 'null', 'file://', 'not a url', `${ORIGIN}/page`])(
     'rejects missing or invalid origin %s even if present in storage', (origin) => {
       expect(shouldOfferHoverAffordance({ origin, engagedOrigins: [origin] })).toBe(false);
