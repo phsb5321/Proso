@@ -108,3 +108,21 @@ export {
   LicenseClaimResponseSchema,
   type LicenseClaimResponseParsed,
 } from './schemas/checkout.js';
+
+export type {
+  SourceRef,
+  ReadableDocument,
+  Block,
+  Checkpoint,
+  DocumentCoverage,
+} from './domain/reading-source.js';
+export {
+  SourceRefSchema,
+  ReadableDocumentSchema,
+  BlockSchema,
+  CheckpointSchema,
+  DocumentCoverageSchema,
+  DocumentRevisionSchema,
+  BlockIdSchema,
+  checkpointForDocumentSchema,
+} from './schemas/reading-source.js';
