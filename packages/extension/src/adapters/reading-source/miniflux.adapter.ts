@@ -38,7 +38,7 @@ const pageSchema = z.object({
 });
 type Entry = z.infer<typeof entrySchema>;
 
-/** Unwired transport in T008. Consent/permissions/credentials belong to T013/T024. */
+/** Transport since T008 with T009 set-read; consent/permissions/credentials belong to T013/T024. */
 export class MinifluxReadingSourceAdapter implements IReadingSource {
   private readonly cursors = new Map<
     string,
@@ -175,18 +175,31 @@ export class MinifluxReadingSourceAdapter implements IReadingSource {
     return signal?.aborted ? Err({ type: 'ABORTED' }) : document;
   }
 
-  /** Read-only T008 transport: acknowledgement stays disabled until the T009 slice. */
+  /**
+   * One-item idempotent set-read (REQ-008): an absolute status re-assertion,
+   * never a toggle or mark-all. Repeating a lost-response request sends the
+   * same bytes again, so a duplicate delivery stays benign.
+   */
   async acknowledge(
-    _source: SourceRef,
-    _signal?: AbortSignal,
+    source: SourceRef,
+    signal?: AbortSignal,
   ): Promise<Result<void, ReadingSourceError>> {
-    return Err({ type: 'NOT_CONFIGURED' });
+    if (signal?.aborted) return Err({ type: 'ABORTED' });
+    const binding = validateSourceBinding(source, this.connection.connectionId);
+    if (!binding.ok) return binding;
+    // Annex v1 body: exactly entry_ids + status; the ID is a validated safe integer.
+    const response = await this.request('/v1/entries', 0, signal, {
+      method: 'PUT',
+      body: JSON.stringify({ entry_ids: [binding.value], status: 'read' }),
+    });
+    return response.ok ? Ok(undefined) : response;
   }
 
   private async request(
     path: string,
     limit: number,
     signal?: AbortSignal,
+    write?: { readonly method: 'PUT'; readonly body: string },
   ): Promise<Result<unknown, ReadingSourceError>> {
     if (signal?.aborted) return Err({ type: 'ABORTED' });
     const controller = new AbortController();
@@ -216,10 +229,13 @@ export class MinifluxReadingSourceAdapter implements IReadingSource {
         )
           return Err({ type: 'SOURCE_BINDING' });
         const response = await this.deps.fetch(url, {
-          method: 'GET',
-          headers: { 'X-Auth-Token': this.connection.token, Accept: 'application/json' },
+          method: write?.method ?? 'GET',
+          headers: write
+            ? { 'X-Auth-Token': this.connection.token, 'Content-Type': 'application/json' }
+            : { 'X-Auth-Token': this.connection.token, Accept: 'application/json' },
           credentials: 'omit',
           redirect: 'error',
+          body: write?.body,
           signal: controller.signal,
         });
         if (controller.signal.aborted) {
@@ -247,6 +263,12 @@ export class MinifluxReadingSourceAdapter implements IReadingSource {
           });
         }
         if (response.status >= 500) return Err({ type: 'SOURCE_UNAVAILABLE' });
+        if (write) {
+          // Only a 204 acknowledges (queue-envelope v1 rule 5); a body is neither read nor trusted.
+          void response.body?.cancel().catch(() => {});
+          if (response.status !== 204) return Err({ type: 'INVALID_RESPONSE' });
+          return Ok(undefined);
+        }
         if (response.status !== 200 || !response.body) return Err({ type: 'INVALID_RESPONSE' });
         const length = response.headers.get('Content-Length');
         if (length && Number(length) > limit) return Err({ type: 'LIMIT' });

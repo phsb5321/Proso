@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe('Miniflux list/get synthetic HTTP boundary', () => {
-  it('uses only prefixed instance endpoints, no cookies/redirects/status writes or publisher fetch', async () => {
+  it('uses only prefixed instance endpoints, no cookies/redirects or publisher fetch; list/get make no status write', async () => {
     const fetcher = jest
       .fn<typeof fetch>()
       .mockImplementation(async (url) =>
@@ -50,10 +50,8 @@ describe('Miniflux list/get synthetic HTTP boundary', () => {
     expect(result.value.fetchedAt).toBe(1000);
     expect(result.value.author).toBeNull();
     expect(JSON.stringify(result)).not.toContain(connection.token);
-    expect(await adapter.acknowledge(source)).toEqual({
-      ok: false,
-      error: { type: 'NOT_CONFIGURED' },
-    });
+    // T009: the acknowledge stub is gone; its wire contract now lives in
+    // tests/contract/reading-source.contract.test.ts. list/get still never write status.
     expect(fetcher).toHaveBeenCalledTimes(2);
     for (const [url, init] of fetcher.mock.calls) {
       expect(String(url).startsWith('https://miniflux.test:8443/reader/v1/entries')).toBe(true);
