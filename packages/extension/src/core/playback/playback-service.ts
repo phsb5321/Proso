@@ -2120,10 +2120,16 @@ export class PlaybackService {
             this.state = playbackStateTransitions.resume(this.state);
           }
         }
-        if (event === 'pause' && this.state.status === 'playing') {
+        if (event === 'pause' && this.state.status === 'playing' && !this.audioElement?.ended) {
           // The browser paused us rather than the service pausing itself, so
           // nothing else would publish it: without this the popup announced
           // "playing" for audio that had stopped.
+          //
+          // A natural clip end is excluded: Firefox dispatches `pause` with
+          // `ended === true` *before* `ended`, and flipping to `paused` here
+          // would trip the `ended` handler's playing-status guard and stall
+          // the queue at every clip boundary — the advance (and the final
+          // stop when the document runs out) belongs to that handler.
           this.state = playbackStateTransitions.pause(this.state);
         }
         void this.updateFooterState(false);
