@@ -183,5 +183,7 @@ ready.
 The content blockers are also closed: update links use `proso.com.br`, canonical
 and Open Graph URLs use the custom domain, the workspace `package.json` is not a
 site asset, and minimal build-tested source closures for 1.1.3, 1.2.1, and the corrected 1.2.10 candidate are publicly available.
-The signed self-distributed channel intentionally remains at 1.2.1; the 1.2.10
-binary is the separate Mozilla-hosted listing and is awaiting Mozilla review.
+The signed self-distributed channel is closed at 1.2.12 — its final feed entry
+on `https://proso.com.br/updates.json`, with `releases/proso-1.2.12.xpi` still
+served. The Mozilla-hosted listing carries 1.2.10, 1.2.12 and 1.2.13, all
+reviewed and public; 1.2.13 is the current release.

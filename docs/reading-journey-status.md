@@ -1,5 +1,13 @@
 # Reading journey status
 
+## Update — 23/09/2026: 1.2.13 approved and current on AMO
+
+The anonymous AMO API now reports the add-on `public` with `current_version`
+1.2.13 (`reviewed` 2026-09-21T13:06:09Z, file `proso-1.2.13.xpi`, public),
+superseding the `unreviewed` snapshot below. The self-distributed channel stays
+closed at 1.2.12 — `updates.json` and `releases/proso-1.2.12.xpi` are unchanged
+and still served.
+
 ## Update — 21/09/2026: 1.2.13 submitted, self-distributed channel closed
 
 **1.2.13 is submitted to AMO** (version id 6502140, `unreviewed`, 0 validation
