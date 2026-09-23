@@ -54,10 +54,14 @@ change and its focused test in the same conventional commit. The first implement
 
 ## Persistence and credentials
 
-- [ ] T010 — Define the immutable queue envelope, defaults, transitions, and
+- [x] T010 — Define the immutable queue envelope, defaults, transitions, and
   `src/ports/listening-queue-store.port.ts` with an InMemory adapter. Check:
   `tests/unit/core/listening-queue/` proves source-tuple identity, deterministic
   ordering, manual refresh append, and single current owner (REQ-004, REQ-009).
+  **Receipt — 23/09/2026:** [T010 implementation and executable checks](t010-receipt.md):
+  26 queue tests, 99 focused tests total; four negative plants caught;
+  unchanged `nix-shell --run 'make verify'` exit 0. Test-only adapter, no production
+  wiring. T011 and the full T033 evidence/schema work remain open.
 - [ ] T011 — Implement the single IndexedDB transactional queue store and
   serialized writes defined in queue-envelope v1; use Dexie where appropriate.
   Check: common
