@@ -305,10 +305,15 @@ export default defineBackground(() => {
       log.debug('[Background] Received message', { type });
 
       // T007: Inject sender tab ID into dispatch data. The document id rides
-      // with it so a replaced document's late message can be ignored.
+      // with it so a replaced document's late message can be ignored — but
+      // only for a sender that IS a tab document. A sender without a tab is
+      // an extension page (popup, options): stamping its document id into a
+      // session would give the view-unload policy an owner identity no page
+      // unload can ever match, silently no-oping every popup-started
+      // session's stop/detach decision.
       const enrichedData = senderTabId
         ? { ...data, __tabId: senderTabId, __documentId: senderDocumentId }
-        : { ...data, __documentId: senderDocumentId };
+        : { ...data };
 
       return dispatchMessage(type, enrichedData).then((result) => {
         if (result === null) {
@@ -334,10 +339,11 @@ export default defineBackground(() => {
 
       log.debug('[Background] Received legacy action', { action });
 
-      // T007: Inject sender tab ID into dispatch data
+      // T007: Inject sender tab ID into dispatch data. Same identity rule as
+      // the type branch above: no tab, no document id.
       const enrichedData = senderTabId
         ? { ...data, __tabId: senderTabId, __documentId: senderDocumentId }
-        : { ...data, __documentId: senderDocumentId };
+        : { ...data };
 
       // T068: Bridge legacy action names to canonical dot-notation handler
       // names. The map lives in src/handlers/legacy-bridge.ts so a test can
