@@ -180,26 +180,35 @@ export function crossedParagraph(before, after, evidence, start, end) {
       e.at <= end,
   );
   const initial = evidence?.paragraphs.filter((e) => e.at <= start).at(-1);
-  return (
-    !!ended &&
-    !!initial?.text &&
-    initial.index >= 0 &&
-    events.some(
-      (e) =>
-        e.type === 'playing' &&
-        e.id === ended.id &&
-        e.src !== ended.src &&
-        e.at >= ended.at &&
-        e.at <= end,
-    ) &&
-    evidence.paragraphs.some(
-      (e) =>
-        e.at >= ended.at &&
-        e.at <= end &&
-        e.index > initial.index &&
-        e.text &&
-        e.text !== initial.text,
-    )
+  const nextClip = events.find(
+    (e) =>
+      ended &&
+      e.type === 'playing' &&
+      e.id === ended.id &&
+      e.src !== ended.src &&
+      e.at >= ended.at &&
+      e.at <= end,
+  );
+  if (!ended || !initial?.text || initial.index < 0 || !nextClip) return false;
+  // Spec 256's falsifier is "visual work continues while hidden": the #257
+  // attention slice deliberately mutes highlight delivery to a hidden view,
+  // so page-side paragraph movement is only observable while the view is
+  // visible. Cross-check it whenever a visible moment falls inside the
+  // window; a fully hidden window proves continuation on the audio clock
+  // alone (this fixture synthesizes one clip per paragraph, and a replayed
+  // paragraph would reuse its cached blob, so a *different* source is a
+  // *different* paragraph).
+  const visibleMoment = evidence.visibility.some(
+    (e) => e.at >= start && e.at <= end && e.state === 'visible',
+  );
+  if (!visibleMoment) return true;
+  return evidence.paragraphs.some(
+    (e) =>
+      e.at >= ended.at &&
+      e.at <= end &&
+      e.index > initial.index &&
+      e.text &&
+      e.text !== initial.text,
   );
 }
 

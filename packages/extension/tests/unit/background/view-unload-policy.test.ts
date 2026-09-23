@@ -50,6 +50,8 @@ interface Case {
   readonly expected: { detached: boolean; stopped: boolean };
   readonly detachCalls: number;
   readonly stopCalls: number;
+  /** Detach argument to assert; defaults to the owner's document id. */
+  readonly detachArg?: string | null;
 }
 
 const CASES: readonly Case[] = [
@@ -108,6 +110,31 @@ const CASES: readonly Case[] = [
     stopCalls: 0,
   },
   {
+    // 256 T008 Gap B/C: a session started from the popup carries no document
+    // id, so the playing page's unload must still decide — detaching when the
+    // reader keeps listening, stopping when they do not. Stamping the popup
+    // sender's document id instead made every popup-started session's unload
+    // a no-op (navigate stopped enabled sessions; disabled reloads never
+    // stopped).
+    name: 'acts on the playing page unload when the session has no document id (popup start), enabled',
+    owner: { tabId: 7, documentId: null },
+    unload: { tabId: 7, documentId: 'doc-page' },
+    enabled: true,
+    expected: { detached: true, stopped: false },
+    detachCalls: 1,
+    stopCalls: 0,
+    detachArg: null,
+  },
+  {
+    name: 'acts on the playing page unload when the session has no document id (popup start), disabled',
+    owner: { tabId: 7, documentId: null },
+    unload: { tabId: 7, documentId: 'doc-page' },
+    enabled: false,
+    expected: { detached: false, stopped: true },
+    detachCalls: 0,
+    stopCalls: 1,
+  },
+  {
     name: 'acts on nothing when a newer session replaced the one it was decided for',
     owner: SESSION,
     unload: { tabId: 7, documentId: 'doc-a' },
@@ -139,8 +166,10 @@ describe('applyViewUnloadPolicy', () => {
     expect(service.detachVisualAttachment).toHaveBeenCalledTimes(testCase.detachCalls);
     expect(service.stop).toHaveBeenCalledTimes(testCase.stopCalls);
     if (testCase.detachCalls > 0) {
-      // Detaching is scoped to the document that actually unloaded.
-      expect(service.detachVisualAttachment).toHaveBeenCalledWith(SESSION.documentId);
+      // Detaching is scoped to the document that actually owns the session.
+      expect(service.detachVisualAttachment).toHaveBeenCalledWith(
+        testCase.detachArg !== undefined ? testCase.detachArg : SESSION.documentId,
+      );
     }
   });
 });

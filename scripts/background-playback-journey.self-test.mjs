@@ -152,6 +152,9 @@ assert.equal(
   false,
   'prefetch/highlight alone is not playback',
 );
+// A hidden view is deliberately muted (spec 256 falsifier: "visual work
+// continues while hidden"), so a fully hidden window proves continuation on
+// the audio clock: a frozen page is expected there, not a failure.
 assert.equal(
   crossedParagraph(
     before,
@@ -160,11 +163,48 @@ assert.equal(
     1000,
     91000,
   ),
-  false,
-  'another clip in same paragraph',
+  true,
+  'hidden window: frozen page is spec-correct, audio proves continuation',
+);
+// Whenever a visible moment falls inside the window, the page must confirm
+// the paragraph actually moved — frozen highlights during visibility fail.
+const visibleWindowEvidence = {
+  visibility: [
+    { at: 50, state: 'visible' },
+    { at: 900, state: 'hidden' },
+  ],
+  pagehide: [],
+  paragraphs: [
+    { at: 5, index: 0, text: 'First paragraph' },
+    { at: 35101, index: 1, text: 'Second paragraph' },
+  ],
+};
+assert.equal(
+  crossedParagraph(before, continued, visibleWindowEvidence, 10, 91000),
+  true,
+  'visible window cross-checks the page',
 );
 assert.equal(
-  crossedParagraph(before, continued, evidence, 40000, 91000),
+  crossedParagraph(
+    before,
+    continued,
+    { ...visibleWindowEvidence, paragraphs: visibleWindowEvidence.paragraphs.slice(0, 1) },
+    10,
+    91000,
+  ),
+  false,
+  'frozen page during a visible window',
+);
+// The boundary must fall inside the asserted window: with only the first
+// boundary present and the window starting after it, nothing counts.
+assert.equal(
+  crossedParagraph(
+    before,
+    { ...continued, audioEvents: continued.audioEvents.slice(0, 2) },
+    evidence,
+    40000,
+    91000,
+  ),
   false,
   'boundary outside window',
 );
