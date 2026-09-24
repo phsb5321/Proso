@@ -1,0 +1,19 @@
+{
+  "id": "sheet-icon-concepts-2026",
+  "kind": "concept-exploration-sheet",
+  "tool": "ChatGPT web UI image generator — fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Brand concept exploration sheet, ONE image, 3:2 landscape, premium identity-deck finish on a flat navy #010616 canvas. EIGHT genuinely NEW app-icon concepts for Proso \\u2014 a Firefox extension that reads web pages aloud (the promise: any page becomes listening). Do NOT reuse the familiar speech-bubble-beside-waveform layout; invent fresh bold geometric concepts in the spirit of 2026 mark trends. Arrange 4x2 with strong gutters, each concept inside a rounded-square icon tile: 1 SIGNAL RINGS \\u2014 three concentric arcs radiating outward from two short ink text lines, like sound expanding \\u00b7 2 PAGE-TO-WAVE \\u2014 one continuous stroke: two ink text rules bend downward and become a stepped green waveform \\u00b7 3 MOTION FRAMES \\u2014 three frozen phases of one bar growing taller and greener, like frames of speaking \\u00b7 4 THE GAP \\u2014 a green arc and an ink arc almost touching, tension held in the near-connection \\u00b7 5 MODULAR BLOCKS \\u2014 circle, bars and a rounded square assembled into one bold glyph \\u00b7 6 ANGLED BARS \\u2014 three tilted bars stacked with momentum, the middle one green \\u00b7 7 APERTURE \\u2014 a ring built from stepped bars like a listening dial \\u00b7 8 MINIMAL PULSE \\u2014 a single ink text rule that turns into one green pulse spike. Below the grid: a horizontal size strip rendering concepts 2 and 7 at 16, 32 and 64 pixels. Flat geometric vector only: even stroke weight, rounded terminals, strict grid, bold and legible at tiny sizes, exactly three colours \\u2014 ink #F8F8F9, accent #21F299, navy #010616. No gradients, no glows, no 3D, no shadows. Tiny monospace numerals 1-8 may label the cells; no words, no letters.",
+  "reference": "none — deliberate concept exploration beyond the shipped mark grammar (2026 trend signals)",
+  "generated_at": "2026-09-24T19:12:52.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1536,
+  "height": 1024,
+  "bytes": 1243343,
+  "sha256": "7d42df08a0e0a70a638342a6be494d2f2d263c5ef8e79e577c3ca54929585632",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 8,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000e114820b8d11492215de61ed&ts=497299&p=fs&cid=1&sig=c68fa8"
+}
