@@ -14,6 +14,25 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
+## Round 6 — constitutional candidates for direction 4 (18:0x)
+
+Pedro picked **cell 4 (aperture blades)** — then flagged *"errors on the constitution of the
+logo"*. Correct: the raster violates `brand/GEOMETRY.md` (colour blending vs the one flat green;
+non-stadium, drifting blade geometry; no 320-unit construction grid; detail crammed at 16px
+against the optical-size law). The candidates below are hand-drawn SVG **under the
+constitution**: 320-unit grid, exact stadium terminals, bar width 26 (the waveform token), flat
+token colours only, 22-unit voice dot, true 16px proofs.
+
+| File | Construction |
+|---|---|
+| `candidates/dial-a-strict.svg` | 12 identical stadiums, 30° pitch, 32° spiral tilt, diagonal colour split |
+| `candidates/dial-b-rhythm.svg` | blade lengths graded by the authored 8:16:25:13 waveform rhythm token |
+| `candidates/dial-c-compact.svg` | 8 thicker blades + larger voice dot — built for the 16px optical band |
+| `candidates/contact-sheet.png` | the three at full size + their true 16px renders (8× magnified) |
+
+Open constitutional question for Pedro: if the dial becomes THE mark, `GEOMETRY.md` needs a
+versioned art-direction amendment (new topology + a square 320 viewBox token).
+
 ## Round 5 — dial innovations (17:2x)
 
 Pedro picked the DNA: aperture cell 6 (capsule-ring dial + green centre dot + green/ink split)

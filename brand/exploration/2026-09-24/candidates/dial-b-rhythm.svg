@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+<rect width="320" height="320" fill="#010616"/>
+<rect x="149.50" y="51.00" width="21.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(32.00 160.00 64.00)"/>
+<rect x="186.50" y="63.86" width="43.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(62.00 208.00 76.86)"/>
+<rect x="209.14" y="99.00" width="68.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(92.00 243.14 112.00)"/>
+<rect x="238.50" y="147.00" width="35.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(122.00 256.00 160.00)"/>
+<rect x="209.14" y="195.00" width="68.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(152.00 243.14 208.00)"/>
+<rect x="186.50" y="230.14" width="43.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(182.00 208.00 243.14)"/>
+<rect x="149.50" y="243.00" width="21.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(212.00 160.00 256.00)"/>
+<rect x="90.50" y="230.14" width="43.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(242.00 112.00 243.14)"/>
+<rect x="42.86" y="195.00" width="68.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(272.00 76.86 208.00)"/>
+<rect x="46.50" y="147.00" width="35.00" height="26.00" rx="13.00" fill="#F8F8F9" transform="rotate(302.00 64.00 160.00)"/>
+<rect x="42.86" y="99.00" width="68.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(332.00 76.86 112.00)"/>
+<rect x="90.50" y="63.86" width="43.00" height="26.00" rx="13.00" fill="#21F299" transform="rotate(362.00 112.00 76.86)"/>
+<circle cx="160" cy="160" r="22" fill="#21F299"/>
+</svg>
