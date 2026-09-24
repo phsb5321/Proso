@@ -1,0 +1,19 @@
+{
+  "id": "example-app-icon-direction",
+  "kind": "app-icon-direction",
+  "tool": "ChatGPT web UI image generator \u2014 fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the anchor: flat geometric vector, even stroke weight, rounded terminals, exactly three colours (ink #F8F8F9, accent #21F299, navy #010616), the open speech bubble with tail at lower left holding two green text lines and the stepped green waveform bars. Change: a single app-icon direction \u2014 one navy rounded-square tile at large scale containing only the bubble-plus-waveform mark, thickened strokes and reduced detail so the mark stays legible when rendered at 16 pixels; show the icon large in the centre of a plain navy field. WORDLESS: no letters, numbers, wordmarks, captions or watermarks.",
+  "reference": "thread-01 anchor context (the seven brand assets attached 21/09, see brand/chatgpt-project/); no --ref passed this round",
+  "generated_at": "2026-09-24T16:50:15.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 889505,
+  "sha256": "03837faf941ebd0a723ff6c202fe78d91a5443bf2d08e3f7f4e84ba15ad47369",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 6,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000fe10820bbf1d34fe3b1adc27&ts=497296&p=fs&cid=1&sig=57aa87"
+}
