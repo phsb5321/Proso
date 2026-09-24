@@ -1,0 +1,20 @@
+{
+  "id": "sheet-dial-innovations",
+  "kind": "innovation-sheet",
+  "tool": "ChatGPT web UI image generator — fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Scene: flat navy #010616 canvas, 3:2 landscape presentation board, 4x2 grid of rounded-square icon tiles with strong gutters, plus one horizontal size strip row below the grid.\nSubject: eight INNOVATIVE evolutions of the attached icon concept \\u2014 a listening dial: a ring of rounded capsule bars (green arc above, ink arc below) around a solid green centre dot. Preserve exactly that DNA in every cell: the capsule-bar ring, the green-and-ink duality, the centre dot, flat geometric vector, even stroke weight, rounded terminals, bold at 16 pixels. Change one idea per cell: 1 SPLIT-VOICE \\u2014 the left half of the ring is straight ink text rules, the right half is green sound capsules, page becomes voice inside the circle \\u00b7 2 ECHO TRAIL \\u2014 the ring drawn as three offset rotations of itself fading behind, like motion echo, dot fixed \\u00b7 3 NEGATIVE TAIL \\u2014 the lower ink capsules arrange so the empty gap between them reads as a small speech-bubble tail \\u00b7 4 APERTURE BLADES \\u2014 the capsules tilt and spiral like camera-aperture blades closing toward the dot \\u00b7 5 DOUBLE RIPPLE \\u2014 two concentric capsule rings, inner green outer ink, dot at centre \\u00b7 6 PLAYHEAD \\u2014 the ring has a gap at twelve o'clock and one green capsule becomes an indicator marker on the ring \\u00b7 7 PAGE FOLD \\u2014 the lower ink capsules cluster like a folded page corner that curves upward and becomes the green listening arc \\u00b7 8 ONE-BAR MORPH \\u2014 a single ink text rule enters the ring at nine o'clock and exits at three o'clock as ascending green capsules.\nUse case: bold brand concept sheet; the size strip below renders variants 1 and 5 at 16, 32 and 64 pixels.\nConstraints: exactly three colours \\u2014 ink #F8F8F9, accent #21F299, navy #010616 \\u2014 no other colours; no gradients, no glow, no 3D, no shadows; no letters, no words, no watermark; tiny monospace numerals 1-8 may label the cells; each cell must remain a single compact glyph, not a scene.",
+  "reference": "/tmp/ref-liked-dial-06.png — crop of refine-07-aperture.png cell 6 (Pedro: liked somewhat), role: preserve the capsule-ring + centre-dot + green/ink DNA",
+  "generated_at": "2026-09-24T20:30:00.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1536,
+  "height": 1024,
+  "bytes": 1340066,
+  "sha256": "8307e14b2d6a2079ab3724bc6a267288216dafc8022321743ef037a91aeaa4c0",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 10,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000a8a8820e8104383546943152&ts=497300&p=fs&cid=1&sig=67d3f9",
+  "prompting_method": "five-slot spine + change/preserve split with per-cell preserved-DNA list (GPT image prompting playbook)"
+}

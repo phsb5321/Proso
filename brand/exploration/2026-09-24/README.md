@@ -14,6 +14,18 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
+## Round 5 — dial innovations (17:2x)
+
+Pedro picked the DNA: aperture cell 6 (capsule-ring dial + green centre dot + green/ink split)
+— *"i liked this one some what… i need something more interesting and innovative"*. Eight
+inventive evolutions preserving exactly that DNA (pixel-cropped cell as role-assigned `--ref`),
+one new idea per cell: split-voice · echo trail · negative tail · aperture blades · double
+ripple · playhead · page fold · one-bar morph. Size strip on 1 and 5.
+
+| File | Contents |
+|---|---|
+| `sheet-dial-innovations.png` (1536×1024) | 4×2 innovation grid + 16/32/64 px size strip |
+
 ## Round 4 — refinement with the prompting playbook (16:3x)
 
 Pedro: *"go for it"* on the refine plan. Both refinements generated with the **five-slot spine +
