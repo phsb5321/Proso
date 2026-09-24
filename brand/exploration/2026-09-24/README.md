@@ -14,6 +14,17 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
+## Round 4 — refinement with the prompting playbook (16:3x)
+
+Pedro: *"go for it"* on the refine plan. Both refinements generated with the **five-slot spine +
+change/preserve split** from `3. Resources/🎨 GPT image prompting playbook`, anchored on
+**pixel crops** of the chosen concept cells (references beat prose), one property varied per cell.
+
+| File | Contents |
+|---|---|
+| `refine-02-page-to-wave.png` (1536×1024) | 6 refinements of concept 2 (rules→wave, one continuous stroke): stroke weight ×2 · bar gaps · bend radius · rising wave · mirrored wave + size strip (variant 3 at 16/32/64 px) |
+| `refine-07-aperture.png` (1536×1024) | 6 refinements of concept 7 (listening dial): more bars · fewer thicker · top gap · right gap · two-size steps · centre dot + size strip (variant 2 at 16/32/64 px) |
+
 ## Round 3 — 2026 concept research (16:1x)
 
 Pedro: the icons were "really bad" — go research what is cool and bring new ideas. Research

@@ -1,0 +1,20 @@
+{
+  "id": "refine-02-page-to-wave",
+  "kind": "refinement-sheet",
+  "tool": "ChatGPT web UI image generator — fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Scene: flat navy #010616 canvas, 3:2 landscape presentation board, 3x2 grid of rounded-square icon tiles with strong gutters, plus one horizontal size strip row below the grid.\nSubject: six refinements of ONE icon concept \\u2014 the attached crop: two ink text rules that bend downward and become one green stepped waveform (text becomes voice). Refine this exact concept only; do not invent new concepts.\nDetails: flat geometric vector, even stroke weight, rounded terminals, bold silhouette legible at 16 pixels, one hero form per tile, generous negative space. The six cells vary exactly one property each: 1 lighter stroke weight \\u00b7 2 heavier stroke weight \\u00b7 3 wider gaps between wave bars \\u00b7 4 tighter bend radius where the rules turn into the wave \\u00b7 5 the wave rises gently left-to-right \\u00b7 6 the wave descends right-to-left. Everything else is identical across cells.\nUse case: brand identity refinement sheet; the size strip below renders variant 3 at 16, 32 and 64 pixels side by side.\nConstraints: exactly three colours \\u2014 ink #F8F8F9, accent #21F299, navy #010616 \\u2014 no other colours; no gradients, no glow, no 3D, no shadows; no letters, no words, no watermark; tiny monospace numerals 1-6 may label the cells and 16/32/64 the strip.",
+  "reference": "/tmp/ref-concept-02-page-to-wave.png (cropped from sheet-icon-concepts-2026.png cell 2)",
+  "generated_at": "2026-09-24T19:34:52.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1536,
+  "height": 1024,
+  "bytes": 1218475,
+  "sha256": "957f7819453e9582ca62ed479f6da84460e6dea2d5247b24ff169d2aa1fc82ae",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 9,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000e99c82309cb3b9920e2aeeba&ts=497299&p=fs&cid=1&sig=e1010b",
+  "prompting_method": "five-slot spine + change/preserve split (GPT image prompting playbook, 24/09)"
+}
