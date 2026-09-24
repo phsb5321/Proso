@@ -1,0 +1,19 @@
+{
+  "id": "example-social-card",
+  "kind": "social-card-example",
+  "tool": "ChatGPT web UI image generator \u2014 fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the anchor: flat geometric vector illustration, even stroke weight, rounded terminals, strict grid, generous negative space, high contrast, exactly three colours (ink #F8F8F9, accent #21F299, navy #010616), the open speech bubble with tail at lower left holding two green text lines, and the stepped green waveform bars to its right. Change: a square marketing social card where an abstract page of plain ink-coloured rounded text rules curves and funnels down into the speech bubble, and the waveform rises out of it \u2014 the metaphor is text becomes voice. Editorial, restrained, premium identity-deck finish. WORDLESS: absolutely no letters, numbers, wordmarks, taglines, captions or watermarks anywhere.",
+  "reference": "thread-01 anchor context (the seven brand assets attached 21/09, see brand/chatgpt-project/); no --ref passed this round",
+  "generated_at": "2026-09-24T16:49:04.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1254,
+  "height": 1254,
+  "bytes": 986512,
+  "sha256": "4384f2846128944be1bc0707f065f149cf903bd005eacef139447d5c49a0ae61",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 5,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000c5a0820cbd8d813684141c5c&ts=497296&p=fs&cid=1&sig=bbb70e"
+}

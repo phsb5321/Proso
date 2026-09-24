@@ -1,0 +1,19 @@
+{
+  "id": "example-site-illustration",
+  "kind": "site-illustration",
+  "tool": "ChatGPT web UI image generator \u2014 fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the anchor: flat geometric vector, even stroke weight, rounded terminals, strict grid, generous negative space, exactly three colours (ink #F8F8F9, accent #21F299, navy #010616), the open speech bubble and stepped green waveform. Change: a wide editorial site illustration on the metaphor 'any page becomes listening': the left side is an abstract web page (a simple window outline holding columns of plain ink rounded text rules), the middle shows those rules flowing into the speech bubble, the right shows the waveform stepping upward into two or three concentric listening arcs. Calm, premium, restrained identity-deck finish. WORDLESS: no letters, numbers, wordmarks, taglines, captions or watermarks.",
+  "reference": "thread-01 anchor context (the seven brand assets attached 21/09, see brand/chatgpt-project/); no --ref passed this round",
+  "generated_at": "2026-09-24T16:51:12.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1983,
+  "height": 793,
+  "bytes": 976517,
+  "sha256": "6a480d7af4c481fdcfa281653fe98ca0fc4b06b0ddab46a59edce4887d2d9d82",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 7,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000ab84820e995d5ee4be32cde5&ts=497296&p=fs&cid=1&sig=43d4c5"
+}
