@@ -1,0 +1,19 @@
+{
+  "id": "sheet-icon-directions-8",
+  "kind": "icon-directions-sheet",
+  "tool": "ChatGPT web UI image generator — fleet identity openai-platform (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Brand identity presentation sheet, ONE image, 3:2 landscape, premium identity-deck finish. EIGHT app-icon directions for Proso (a Firefox extension that reads web pages aloud \\u2014 the metaphor is text becomes voice) arranged in a clean 4x2 grid with strong gutters on a flat navy #010616 canvas. Each cell contains one navy rounded-square icon tile with a different geometric treatment of the SAME mark grammar you already know from the attached reference: the open speech bubble (white #F8F8F9 outline, tail at lower left, two green #21F299 text lines inside) and the stepped green waveform beside it. Directions: 1 baseline ink-on-navy \\u00b7 2 speaking (waveform enlarged and radiating) \\u00b7 3 inverted tile (ink tile, navy mark, green lines) \\u00b7 4 flat tile with NO glow \\u00b7 5 squircle tile \\u00b7 6 reading tile (mark plus one thin progress line) \\u00b7 7 tiny-tuned: heavier strokes, fewer bars, deliberately optimised for 16 pixel legibility \\u00b7 8 negative-space tile (mark cut out of a solid ink tile). Below the grid: a horizontal size strip showing direction 7 rendered at 16, 24, 32, 48, 64 and 128 pixels side by side. Flat geometric vector only: even stroke weight, rounded terminals, exactly three colours and no others \\u2014 ink #F8F8F9, accent #21F299, navy #010616. Absolutely no gradients, no glows, no second navy tone, no shadows, no 3D, no texture. Tiny monospace NUMERALS 1-8 may label the cells and the size strip; no wordmark, no taglines, no letters anywhere.",
+  "reference": "brand/chatgpt-project/mark-on-navy-1024.png (the shipped mark, attached as --ref)",
+  "generated_at": "2026-09-24T18:12:36.000Z",
+  "conversation": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c-proso/c/6ab15c3d-d62c-83e9-8bbd-c225beab1127",
+  "project": "https://chatgpt.com/g/g-p-6ab15a2574f881918c1c7bef42c7d89c/project",
+  "format": "png",
+  "width": 1536,
+  "height": 1024,
+  "bytes": 1282340,
+  "sha256": "821cd78ab54c93d5cb56bd73422db91ef86dc8e47b1bcd5245d03c6038b09892",
+  "candidates": 3,
+  "send_confirmed": true,
+  "anchor_turn": 8,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000e91081f88850a5f32f916aa8&ts=497298&p=fs&cid=1&sig=dcd79f"
+}

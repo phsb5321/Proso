@@ -14,7 +14,26 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
-## The three directions
+## Round 2 — options sheets + anchor ref (15:1x, same day)
+
+Pedro's verdict on round 1: *"the quality of the logos seems to be a skill issue on ur part"* —
+and the SOTA pipeline doc agrees: one-shot text→image prompts make the model invent geometry.
+The Lectrice round-2 method (see `3. Resources/🎨 Brand art generation — GPT pipeline (SOTA 2026-09)`
+and Lectrice's `logo-tries-2026-09-19/README.md`) is: **options SHEETS** (many directions in one
+image), a **size strip proving 16→128 px**, and the **real mark as `--ref`**, iterated in-thread.
+
+| File | Contents |
+|---|---|
+| `sheet-icon-directions-8.png` (1536×1024) | 4×2 grid of eight icon directions (baseline · speaking · inverted tile · flat-no-glow · squircle · reading tile · tiny-tuned 16 px · negative-space) + size strip at 16/24/32/48/64/128 px |
+| `sheet-logo-directions-6.png` (1536×1024) | 3×2 grid of six mark directions (baseline · radiating · page-lines-into-bubble · one-continuous-line · negative-space tile · stacked) + size strips for directions 1 and 4 |
+
+Both generated with `--ref brand/chatgpt-project/mark-on-navy-1024.png` (the shipped mark — the
+anchor embodies the intended grammar), structured brandkit briefs, strict three-colour clause,
+numerals-only labels. Structure verified by fingerprint (grids + size strips present); the pane's
+attachment rendering was unreliable this session, so eyeball quality judgement is Pedro's — that
+part is deliberately not claimed here.
+
+## The three directions (round 1, 13:4x–14:0x)
 
 | File | Direction | Verdict |
 |---|---|---|
