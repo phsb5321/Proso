@@ -14,6 +14,21 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
+## Round 3 — 2026 concept research (16:1x)
+
+Pedro: the icons were "really bad" — go research what is cool and bring new ideas. Research
+sources: LogoLounge 2026 trend report (Bill Gardner, 30k+ marks) + 2026 systems write-ups
+(digest in the vault: `3. Resources/🎨 Icon & logo research 2026.md`). The trend that matters
+for us: the familiar bubble-beside-bars layout is visual noise in 2026 — the cool signals are
+**radiating line systems (sound/signals)**, **stepped parallel lines** reborn as rhythm,
+**frame-by-frame motion**, **the near-gap**, **modular assembly**, and **adaptive marks** with a
+purpose-built 16 px state. Trends are signals, not instructions: gradients/3D/glow trend too but
+clash with the flat three-colour law — the FORMS are what we steal.
+
+| File | Contents |
+|---|---|
+| `sheet-icon-concepts-2026.png` (1536×1024) | 8 fresh concepts, deliberately outside the shipped mark grammar: 1 signal rings · 2 page-to-wave (one continuous stroke) · 3 motion frames · 4 the gap · 5 modular blocks · 6 angled bars · 7 aperture (stepped-bar listening dial) · 8 minimal pulse + size strip (2 and 7 at 16/32/64 px) |
+
 ## Round 2 — options sheets + anchor ref (15:1x, same day)
 
 Pedro's verdict on round 1: *"the quality of the logos seems to be a skill issue on ur part"* —
