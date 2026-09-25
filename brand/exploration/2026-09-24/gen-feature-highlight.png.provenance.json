@@ -1,0 +1,19 @@
+{
+  "id": "gen-feature-highlight",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: one paragraph of ink text rules where a single line is underscored by a green rounded bar continuing into a tiny waveform \\u2014 the spoken sentence being highlighted as it is read.\nDetails: wide 16:9 composition, centered subject, generous negative space, no UI chrome.\nUse case: website feature illustration (words highlighted as they are spoken).\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, logos, watermark.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e5be-f22c-83e9-9118-175e2245f440",
+  "format": "png",
+  "width": 1672,
+  "height": 941,
+  "bytes": 888022,
+  "sha256": "04292a439a8c4e76e214ff12bb3bf6722e79d1cb7008c274000d15eddad4556d",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000000a24820e8337a0ec653375b1&ts=497307&p=fs&cid=1&sig=224971",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}

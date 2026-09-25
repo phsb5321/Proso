@@ -1,0 +1,19 @@
+{
+  "id": "gen-feature-voices",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: three small pill-shaped voice swatches in a row (two ink, one green) hovering above a gentle waveform ribbon \\u2014 voice choice as calm geometry.\nDetails: wide 16:9 composition, centered subject, generous negative space, no UI chrome.\nUse case: website feature illustration (choose the voice).\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, logos, watermark.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e5e8-439c-83e9-947b-93382084046b",
+  "format": "png",
+  "width": 1672,
+  "height": 941,
+  "bytes": 964133,
+  "sha256": "d7d6ef56bb8be8ac4fe3852d9a19880d1a8df858fd6f277f8f349e3babbcdd53",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_000000000bf4820e9b6bd9a40d0aceb7&ts=497307&p=fs&cid=1&sig=ac4a06",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}

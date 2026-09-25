@@ -14,6 +14,29 @@ shape language, stroke weight, negative space) and a **change** column, and an e
 WORDLESS clause (the board-01 lesson: the model paints letterforms and invents
 taglines unless banned).
 
+## Batch 1 — manifest generation run (23:2x–00:0x)
+
+Eight GPT-lane drafts from `docs/visuals-manifest.md` waves 2–4, generated on the **`chatgpt-c`**
+automation identity (openai-platform stopped serving its composer at ~23:30 — triaged per the
+cookbook: unit healthy, both thread and project URLs fail "no composer"; likely a usage/UI state
+on Pedro's personal lane, flagged for his look). Method: hero generated first as the **anchor**,
+then seven `--ref` edits with the preserve/change split — the anchor-once-then-edit rule.
+
+| File | Manifest item | Notes |
+|---|---|---|
+| `gen-site-hero.png` | 3.1 hero | the anchor: text rules → waveform → listening arcs |
+| `gen-feature-highlight.png` | 3.1 feature | spoken sentence highlighted |
+| `gen-feature-voices.png` | 3.1 feature | voice choice geometry |
+| `gen-feature-privacy.png` | 3.1 feature | local processing, nothing leaves the box |
+| `gen-og-image.png` | 2.6 | left third reserved for composited headline |
+| `gen-cws-tile-large.png` | 2.3 | lower two-thirds reserved for composited promo copy |
+| `gen-pricing-credits.png` | 3.2 | volume of reading turning into listening |
+| `gen-success-welcome.png` | 3.4 | first sound of a page coming alive |
+
+All wordless (type gets composited from `brand/svg/` per the brand law), three-colour locked,
+spine prompts + provenance sidecars. **Drafts pending Pedro's eye before any ships to
+`packages/site/assets/images/art/`.**
+
 ## Round 6 — constitutional candidates for direction 4 (18:0x)
 
 Pedro picked **cell 4 (aperture blades)** — then flagged *"errors on the constitution of the

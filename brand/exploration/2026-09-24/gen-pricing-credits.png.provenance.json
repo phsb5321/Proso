@@ -1,0 +1,19 @@
+{
+  "id": "gen-pricing-credits",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: a tall column of stacked ink text rules like a measured volume, its base flowing out to the right as a green waveform with small tick marks \\u2014 a volume of reading turning into listening.\nDetails: wide 16:9 composition, centered subject, generous negative space, no UI chrome.\nUse case: pricing page illustration (500,000 credits of reading).\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, numbers, logos, watermark.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e7d4-fecc-83e9-ae88-da84ab553cb5",
+  "format": "png",
+  "width": 1672,
+  "height": 941,
+  "bytes": 862600,
+  "sha256": "762da5dad5c7febe0d57f2d42f7cd28b9b791890032024dc19aee32310298d2c",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000071bc820ea4520d1d61080b62&ts=497307&p=fs&cid=1&sig=150255",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}

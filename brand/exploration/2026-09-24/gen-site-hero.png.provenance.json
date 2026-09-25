@@ -1,0 +1,19 @@
+{
+  "id": "gen-site-hero",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Scene: a wide editorial hero on a flat navy #010616 field, generous negative space, calm premium composition.\nSubject: the product metaphor told once, clearly: an abstract web page made of plain ink #F8F8F9 rounded text rules on the left; those rules bend and flow rightward into a green #21F299 stepped waveform; the wave softens into three concentric listening arcs on the far right.\nDetails: flat geometric vector illustration, even stroke weight, rounded terminals, strict horizontal rhythm, one hero composition (not a grid), balanced asymmetric layout, large quiet areas top and bottom, editorial identity-deck restraint.\nUse case: website hero illustration for a Firefox extension that reads web pages aloud; 16:9.\nConstraints: exactly three colours (ink #F8F8F9, accent #21F299, navy #010616), no other colours; no gradients, no glow, no 3D, no shadows, no texture; no letters, no words, no logos, no watermark, no UI chrome; the composition must remain meaningful with zero text.",
+  "reference": "none (anchor run)",
+  "generated_at": "2026-09-24T23:55:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e4f6-04b0-83e9-af04-38c4699b4903",
+  "format": "png",
+  "width": 1672,
+  "height": 940,
+  "bytes": 906401,
+  "sha256": "4531dc332d10fccd0fc4a9e3993400aeca479fc98be27177b8a1bddc8c4edd8b",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000089a4820e9d397c36fee83d49&ts=497307&p=fs&cid=1&sig=8f6e4a",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}
