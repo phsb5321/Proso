@@ -3,8 +3,8 @@
  *
  * Talks to a reader-operated synthesis host — a machine on the reader's own
  * network that publishes `GET /v1/capabilities` and `POST /v1/tts` and
- * answers with raw WAV (the capability, of which the Orange Pi appliance is
- * the first instance). Named for the capability, not the device.
+ * answers with raw WAV (the capability, of which the desktop's local TTS
+ * bridge is the first instance). Named for the capability, not the device.
  *
  * The base URL is injected (constitution: the address comes from the user,
  * never from a shipped constant or a discovery probe). The host publishes
