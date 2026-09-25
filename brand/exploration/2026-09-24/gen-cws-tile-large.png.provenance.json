@@ -1,0 +1,19 @@
+{
+  "id": "gen-cws-tile-large",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: a compact promotional tile: the text-rule-to-wave motif across the top third, the bottom two-thirds left as quiet navy for promotional copy to be composited later.\nDetails: 4:3-ish promotional composition, bold simple shapes, strong at small thumbnail sizes.\nUse case: Chrome Web Store large promotional tile (920x680); type composited separately.\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, logos, watermark; keep the lower area clear.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e7ab-1684-83e9-aec3-4589886b5a4b",
+  "format": "png",
+  "width": 1457,
+  "height": 1080,
+  "bytes": 896488,
+  "sha256": "9ea885498eeabe8b377887b954bfff5b0941d076f49ff354fdb11797678ae220",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000a37c820ea8a5f9f09b34d032&ts=497307&p=fs&cid=1&sig=603866",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}

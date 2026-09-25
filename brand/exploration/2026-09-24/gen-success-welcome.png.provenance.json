@@ -1,0 +1,19 @@
+{
+  "id": "gen-success-welcome",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: a quiet minimal scene of first sound: one short ink text rule at the bottom emitting a small green waveform that rises into three expanding arcs \\u2014 a page coming alive.\nDetails: wide 16:9 composition, centered subject, generous negative space, celebratory but restrained.\nUse case: post-install success page illustration.\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, logos, watermark.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e7ff-e6a4-83e9-a548-37a2e1a40c9b",
+  "format": "png",
+  "width": 1672,
+  "height": 941,
+  "bytes": 898116,
+  "sha256": "b94091fd7d7658f2cb8194fa16888fa502e62622424fbe4d8e74f2c13f5e295f",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_00000000c44c820e83fee13aae861b63&ts=497307&p=fs&cid=1&sig=0bf014",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}

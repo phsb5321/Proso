@@ -1,0 +1,19 @@
+{
+  "id": "gen-og-image",
+  "kind": "site-art-draft",
+  "tool": "ChatGPT web UI image generator — fleet identity chatgpt-c (vendors/chatgpt/generate.py via the server browser fleet on Nix.Server VM 105)",
+  "prompt": "Preserve from the attached anchor exactly: flat geometric vector language, even stroke weight, rounded terminals, the three-colour palette (ink #F8F8F9, accent #21F299, navy #010616), the flat navy field, calm editorial rhythm, and the flowing text-rule-to-waveform language. Change ONLY the following.\nSubject: the text-rule-to-wave motif compressed into the right two-thirds of the frame, large quiet navy space on the left third reserved for a headline to be composited later.\nDetails: wide 16:9 key visual, asymmetric, extremely calm.\nUse case: social/OG key visual for the site (type will be composited separately).\nConstraints: exactly three colours; no gradients, glow, 3D, shadows, texture; no letters, words, logos, watermark; leave the left third almost empty.",
+  "reference": "anchor: gen-site-hero.png crop-of-full (role: style + language anchor; preserve/change split per the prompting playbook)",
+  "generated_at": "2026-09-25T00:05:00.000Z",
+  "conversation": "https://chatgpt.com/c/6ab5e676-9e54-83e9-9d11-ff7537e01c3f",
+  "format": "png",
+  "width": 1672,
+  "height": 941,
+  "bytes": 826921,
+  "sha256": "da3d78f62f0c9b571fbf815113e72137780c26684fb785f2e4a62a92bf4cc03d",
+  "candidates": 3,
+  "send_confirmed": true,
+  "source_url": "https://chatgpt.com/backend-api/estuary/content?id=file_0000000023a8820ebdd747cb31ed9f49&ts=497307&p=fs&cid=1&sig=4fe274",
+  "prompting_method": "five-slot spine + anchor-once-then-edit (GPT image prompting playbook)",
+  "manifest_item": "docs/visuals-manifest.md batch 1"
+}
